@@ -97,7 +97,7 @@ export default function Accounts() {
     try {
       if (!bulkText.trim()) return showToast('warning', 'Atenção', 'Cole pelo menos uma conta.');
       setImporting(true);
-      const res = await api.post('/accounts/import-bulk', { accountsText: bulkText, connectApi: false });
+      const res = await api.post('/accounts/import-bulk', { accountsText: bulkText, connectApi: true });
       setBulkText('');
       await loadAccounts();
       setImportResults(res.data);  // show per-account results
@@ -609,7 +609,7 @@ export default function Accounts() {
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => { setBulkImportOpen(false); setImportResults(null); }}>Cancelar</button>
                   <button className="btn btn-primary" onClick={importBulkAccounts} disabled={importing}>
-                    {importing ? 'Importando...' : 'Importar contas'}
+                    {importing ? 'Importando e conectando...' : 'Importar e conectar'}
                   </button>
                 </div>
               </>
@@ -621,22 +621,36 @@ export default function Accounts() {
                   {importResults.errors?.length > 0 && <span style={{ color: '#f87171', marginLeft: 8 }}>{importResults.errors.length} linha(s) inválida(s)</span>}
                 </div>
                 <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {(importResults.imported || []).map(username => (
-                    <div key={username} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: 'var(--card2)', borderRadius: 6, padding: '8px 12px',
-                      border: '1px solid rgba(16,185,129,.25)',
-                    }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>@{username}</span>
-                      <span style={{ fontSize: 12, color: '#34d399' }}>✅ Salva</span>
-                    </div>
-                  ))}
+                  {(importResults.imported || []).map(username => {
+                    const apiInfo = (importResults.apiResults || []).find(r => r.username === username);
+                    const statusMap = {
+                      conectada:              { color: '#34d399', label: '✅ Conectada' },
+                      convertida_para_creator:{ color: '#a78bfa', label: '⭐ Convertida para Creator' },
+                      erro:                   { color: '#f87171', label: '⚠️ Erro no login' },
+                    };
+                    const s = statusMap[apiInfo?.apiStatus] || { color: '#94a3b8', label: '💾 Salva' };
+                    return (
+                      <div key={username} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: 'var(--card2)', borderRadius: 6, padding: '8px 12px',
+                        border: `1px solid ${s.color}44`,
+                      }}>
+                        <div>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>@{username}</span>
+                          {apiInfo?.error && <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{apiInfo.error.slice(0, 80)}</div>}
+                          {apiInfo?.conversionWarning && <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 2 }}>{apiInfo.conversionWarning.slice(0, 80)}</div>}
+                        </div>
+                        <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap', marginLeft: 8 }}>{s.label}</span>
+                      </div>
+                    );
+                  })}
                   {importResults.errors?.map((e, i) => (
                     <div key={i} style={{ fontSize: 12, color: '#f87171', padding: '4px 8px' }}>⛔ {e}</div>
                   ))}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 10 }}>
-                  As contas foram salvas. Use o botão <strong>🔗 API</strong> em cada conta para conectar via API ou <strong>🔑 Login</strong> para fazer login manual.
+                  Contas com status <strong style={{ color: '#34d399' }}>Conectada</strong> ou <strong style={{ color: '#a78bfa' }}>Convertida</strong> já estão prontas para publicar Reels.
+                  Contas com erro de login precisam de verificação manual (challenge/2FA).
                 </div>
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => { setImportResults(null); }}>Importar mais</button>
