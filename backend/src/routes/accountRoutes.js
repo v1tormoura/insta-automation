@@ -451,6 +451,26 @@ router.post('/:id/resolve-challenge', async (req, res) => {
 });
 
 /**
+ * POST /accounts/:id/resolve-totp
+ * Finaliza login com código de 6 dígitos do autenticador (Google Authenticator / Authy).
+ */
+router.post('/:id/resolve-totp', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    const { code } = req.body;
+    if (!code?.trim()) return res.status(400).json({ error: 'Código não informado.' });
+
+    const { resolveTotpLogin } = require('../services/instagramPrivateService');
+    await resolveTotpLogin(account, code.trim());
+    res.json({ success: true, message: 'Login 2FA concluído! Conta pronta para publicar.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /accounts/:id/challenge-sms
  * Solicita reenvio do código de verificação via SMS/telefone
  * (alternativa quando o e-mail não chega).

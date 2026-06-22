@@ -47,6 +47,9 @@ export default function Accounts() {
   const [oauthResult, setOauthResult]     = useState(null);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting]         = useState(false);
+  const [totpModal, setTotpModal]         = useState(null);  // { _id, username }
+  const [totpCode, setTotpCode]           = useState('');
+  const [totpLoading, setTotpLoading]     = useState(false);
   // Rename modal
   const [renameModal, setRenameModal]     = useState(null);   // account object
   const [renameValue, setRenameValue]     = useState('');
@@ -304,6 +307,22 @@ export default function Accounts() {
     } catch (err) {
       setMobileStep('needsCode');
       showToast('error', 'Código inválido', err.response?.data?.error || 'Verifique o código e tente novamente.');
+    }
+  }
+
+  async function resolveTotp() {
+    if (!totpCode.trim()) return showToast('warning', 'Atenção', 'Digite o código de 6 dígitos do autenticador.');
+    setTotpLoading(true);
+    try {
+      await api.post(`/accounts/${totpModal._id}/resolve-totp`, { code: totpCode.trim() });
+      setTotpModal(null);
+      setTotpCode('');
+      await loadAccounts();
+      showToast('success', '✅ Login 2FA concluído', 'Conta pronta para publicar Reels.');
+    } catch (err) {
+      showToast('error', 'Código inválido', err.response?.data?.error || 'Verifique o código e tente novamente.');
+    } finally {
+      setTotpLoading(false);
     }
   }
 
@@ -626,11 +645,13 @@ export default function Accounts() {
                     const statusMap = {
                       conectada:              { color: '#34d399', label: '✅ Conectada' },
                       convertida_para_creator:{ color: '#a78bfa', label: '⭐ Convertida para Creator' },
-                      challenge_required:     { color: '#fbbf24', label: '🔐 Verificação necessária' },
+                      challenge_required:     { color: '#fbbf24', label: '📧 Verificar email/SMS' },
+                      totp_required:          { color: '#60a5fa', label: '🔐 Código autenticador' },
                       erro:                   { color: '#f87171', label: '⚠️ Erro no login' },
                     };
                     const s = statusMap[apiInfo?.apiStatus] || { color: '#94a3b8', label: '💾 Salva' };
                     const isChallenge = apiInfo?.apiStatus === 'challenge_required';
+                    const isTotp      = apiInfo?.apiStatus === 'totp_required';
                     return (
                       <div key={username} style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -647,6 +668,12 @@ export default function Accounts() {
                             <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#fbbf2422', color: '#fbbf24', border: '1px solid #fbbf2444' }}
                               onClick={() => { setBulkImportOpen(false); setImportResults(null); openMobileModal({ _id: apiInfo.accountId, username }); }}>
                               Verificar
+                            </button>
+                          )}
+                          {isTotp && apiInfo?.accountId && (
+                            <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#60a5fa22', color: '#60a5fa', border: '1px solid #60a5fa44' }}
+                              onClick={() => { setBulkImportOpen(false); setImportResults(null); setTotpModal({ _id: apiInfo.accountId, username }); setTotpCode(''); }}>
+                              Inserir código
                             </button>
                           )}
                           <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.label}</span>
@@ -668,6 +695,37 @@ export default function Accounts() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TOTP Modal — código do Google Authenticator / Authy */}
+      {totpModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(400px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>🔐 Autenticador 2FA</h3>
+              <button onClick={() => { setTotpModal(null); setTotpCode(''); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 12px' }}>
+              A conta <strong>@{totpModal.username}</strong> tem autenticador ativado.<br/>
+              Abra o <strong>Google Authenticator</strong> ou <strong>Authy</strong> e digite o código de 6 dígitos:
+            </p>
+            <input
+              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
+              style={{ width: '100%', textAlign: 'center', fontSize: 28, letterSpacing: 8, padding: '10px 0', background: 'var(--card2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text1)' }}
+              onKeyDown={e => e.key === 'Enter' && resolveTotp()}
+            />
+            <p style={{ fontSize: 11, color: 'var(--text2)', margin: '8px 0 0' }}>
+              ⚠️ O código muda a cada 30 segundos. Insira assim que aparecer.
+            </p>
+            <div className="modal-actions" style={{ marginTop: 16 }}>
+              <button className="btn btn-ghost" onClick={() => { setTotpModal(null); setTotpCode(''); }}>Cancelar</button>
+              <button className="btn btn-primary" onClick={resolveTotp} disabled={totpLoading || totpCode.length < 6}>
+                {totpLoading ? 'Verificando...' : 'Confirmar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

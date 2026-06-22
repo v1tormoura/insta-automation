@@ -13,6 +13,9 @@ const { execSync }         = require('child_process');
 const Account              = require('../models/Account');
 const { convertToReelFormat } = require('./videoProcessor');
 
+// Mapa de 2FA TOTP pendentes: accountId → { ig, twoFactorIdentifier, seed, username }
+const _pendingTotp = new Map();
+
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
 function getIgApiClient() {
@@ -226,6 +229,18 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     try {
       user = await ig.account.login(loginId, account.password);
     } catch (loginErr) {
+      // 2FA com autenticador (TOTP) — precisa do código do Google Authenticator/Authy
+      const { IgLoginTwoFactorRequiredError } = require('instagram-private-api');
+      if (loginErr instanceof IgLoginTwoFactorRequiredError) {
+        const twoFactorInfo       = loginErr.response?.body?.two_factor_info;
+        const twoFactorIdentifier = twoFactorInfo?.two_factor_identifier;
+        console.log(`[PrivateAPI] @${account.username} -- 2FA TOTP necessário`);
+        _pendingTotp.set(String(account._id), { ig, twoFactorIdentifier, seed: newSeed, username: account.username });
+        const err = new Error('TOTP_REQUIRED');
+        err.code  = 'TOTP_REQUIRED';
+        throw err;
+      }
+
       const msg    = (loginErr?.message || '').toLowerCase();
       const status = loginErr?.response?.statusCode;
 
@@ -423,7 +438,45 @@ async function resendChallengeSms(account) {
   }
 }
 
+/**
+ * Finaliza login 2FA com código TOTP do autenticador (Google Authenticator / Authy).
+ * Deve ser chamado após createClient lançar erro com code === 'TOTP_REQUIRED'.
+ */
+async function resolveTotpLogin(account, totpCode) {
+  const pending = _pendingTotp.get(String(account._id));
+  if (!pending) {
+    throw new Error('Nenhum login TOTP pendente. Tente importar a conta novamente.');
+  }
+  const { ig, twoFactorIdentifier, seed } = pending;
+
+  try {
+    const user = await ig.account.twoFactorLogin({
+      username:           account.username,
+      verificationCode:   totpCode.replace(/\s/g, ''),
+      twoFactorIdentifier,
+      verificationMethod: '3', // 3 = TOTP app
+      trustThisDevice:    '1',
+    });
+
+    // Salva sessão
+    const state = await ig.state.serialize();
+    delete state.constants;
+    state._deviceSeed = seed;
+    const sessionStr  = JSON.stringify(state);
+    await Account.findByIdAndUpdate(account._id, {
+      igSession: sessionStr, healthStatus: 'ativa', lastError: '',
+    });
+
+    _pendingTotp.delete(String(account._id));
+    console.log(`[PrivateAPI] @${user.username} -- 2FA TOTP resolvido, sessao salva`);
+    return { success: true };
+  } catch (err) {
+    throw new Error(`Código TOTP inválido ou expirado: ${err.message}`);
+  }
+}
+
 module.exports = {
   postReel, createClient, initMobileSession, resolveChallenge,
   resendChallengeSms, convertToProfessional, getAccountType, clearSession,
+  resolveTotpLogin,
 };
