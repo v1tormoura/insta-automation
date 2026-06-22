@@ -1,16 +1,43 @@
-# React + Vite
+﻿# Insta Automation — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Dashboard web para gerenciamento de automacao de contas no Instagram.
 
-Currently, two official plugins are available:
+## Tecnologias
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 + Vite
+- React Router DOM
+- Server-Sent Events (SSE) para atualizacoes em tempo real
 
-## React Compiler
+## Pre-requisitos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- Backend rodando em `http://localhost:3000` (veja `../backend/`)
 
-## Expanding the ESLint configuration
+## Como rodar
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+O app abre em `http://localhost:5173`.
+
+## Scripts disponiveis
+
+| Comando | Descricao |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento com HMR |
+| `npm run build` | Build de producao em `dist/` |
+| `npm run preview` | Pre-visualizacao do build |
+| `npm run lint` | Verificacao de codigo com ESLint |
+
+## Estrutura
+
+```
+src/
+├── components/   # Componentes reutilizaveis (Header, Sidebar, Cards)
+├── layouts/      # MainLayout com navegacao
+├── pages/        # Uma pagina por rota (Dashboard, Accounts, Posts...)
+└── services/     # Cliente HTTP (api.js) e hook SSE (useServerEvents.js)
+```
