@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build output
+frontend/dist/
+frontend/dist-ssr/
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Browser session data
+backend/sessions/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Uploads
+uploads/

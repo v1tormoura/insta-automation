@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InstaFlow — Protótipo</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #070c1a;
+  --sidebar-bg: #0b1120;
+  --card: #0f1729;
+  --card2: #131e33;
+  --border: rgba(148,163,184,0.08);
+  --border2: rgba(148,163,184,0.14);
+  --indigo: #6366f1;
+  --indigo-dim: rgba(99,102,241,0.15);
+  --cyan: #06b6d4;
+  --cyan-dim: rgba(6,182,212,0.12);
+  --green: #10b981;
+  --green-dim: rgba(16,185,129,0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.12);
+  --purple: #8b5cf6;
+  --purple-dim: rgba(139,92,246,0.12);
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --text3: #475569;
+  --radius: 14px;
+  --sidebar-w: 240px;
+  --topbar-h: 0px;
+}
+:root.light {
+  --bg: #f1f5f9;
+  --sidebar-bg: #ffffff;
+  --card: #ffffff;
+  --card2: #f8fafc;
+  --border: rgba(15,23,42,0.07);
+  --border2: rgba(15,23,42,0.12);
+  --text: #0f172a;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --indigo-dim: rgba(99,102,241,0.10);
+  --cyan-dim: rgba(6,182,212,0.09);
+  --green-dim: rgba(16,185,129,0.09);
+  --amber-dim: rgba(245,158,11,0.09);
+  --red-dim: rgba(239,68,68,0.09);
+  --purple-dim: rgba(139,92,246,0.09);
+}
+:root.light .stat-card{box-shadow:0 1px 3px rgba(15,23,42,.06)}
+:root.light .card{box-shadow:0 1px 3px rgba(15,23,42,.06)}
+:root.light .sidebar{box-shadow:2px 0 16px rgba(15,23,42,.06)}
+:root.light .log-line{background:#f8fafc}
+:root.light .activity-icon,.light .queue-icon{filter:brightness(1.1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'SF Pro Display','Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;font-size:14px;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-weight:400;letter-spacing:-.01em}
+a{text-decoration:none;color:inherit}
+button{cursor:pointer;font-family:inherit;border:none;outline:none}
+input,textarea,select{font-family:inherit;outline:none}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;left:0;top:0;z-index:100;transition:.3s}
+.sb-brand{padding:24px 20px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.sb-logo{width:36px;height:36px;background:linear-gradient(135deg,var(--indigo),var(--cyan));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.sb-brand-text strong{display:block;font-size:15px;font-weight:700;letter-spacing:-.3px}
+.sb-brand-text span{font-size:11px;color:var(--text2)}
+.sb-nav{flex:1;padding:12px 10px;overflow-y:auto}
+.sb-group{margin-bottom:20px}
+.sb-group-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 10px;margin-bottom:6px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;margin-bottom:2px}
+.sb-item:hover{background:rgba(148,163,184,0.06);color:var(--text)}
+.sb-item.active{background:var(--indigo-dim);color:#a5b4fc}
+.sb-item svg{width:16px;height:16px;flex-shrink:0}
+.sb-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px}
+.sb-footer{padding:12px 10px;border-top:1px solid var(--border)}
+.sb-user{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:var(--card)}
+.sb-avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.sb-user-info strong{display:block;font-size:12px;font-weight:600}
+.sb-user-info span{font-size:11px;color:var(--green)}
+
+/* ─── MAIN ─── */
+.main{margin-left:var(--sidebar-w);flex:1;padding:28px 32px;min-height:100vh}
+.screen{display:none}
+.screen.active{display:block}
+
+/* ─── PAGE HEADER ─── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap}
+.page-header-left .eyebrow{font-size:11px;font-weight:600;color:var(--indigo);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.page-header-left h1{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.page-header-left p{font-size:13px;color:var(--text2)}
+.page-header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* ─── BUTTONS ─── */
+.btn{padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+.btn-primary{background:var(--indigo);color:#fff}
+.btn-primary:hover{background:#5558e8}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{background:var(--card2);color:var(--text)}
+.btn-danger{background:var(--red-dim);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-green{background:var(--green-dim);color:#34d399;border:1px solid rgba(16,185,129,.2)}
+
+/* ─── STAT CARDS ─── */
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.blue::before{background:linear-gradient(90deg,var(--indigo),var(--cyan))}
+.stat-card.green::before{background:var(--green)}
+.stat-card.amber::before{background:var(--amber)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.purple::before{background:var(--purple)}
+.stat-card .label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:8px}
+.stat-card .value{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1}
+.stat-card .sub{font-size:11px;color:var(--text3);margin-top:6px}
+.stat-card .icon{position:absolute;right:16px;top:16px;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.stat-card.blue .icon{background:var(--indigo-dim)}
+.stat-card.green .icon{background:var(--green-dim)}
+.stat-card.amber .icon{background:var(--amber-dim)}
+.stat-card.red .icon{background:var(--red-dim)}
+.stat-card.purple .icon{background:var(--purple-dim)}
+
+/* ─── CARDS ─── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-header h3{font-size:14px;font-weight:700}
+.card-header span{font-size:11px;color:var(--text2)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* ─── CHARTS ─── */
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut-legend{display:flex;flex-direction:column;gap:8px;flex:1}
+.donut-legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.donut-legend-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.donut-legend-item .lname{color:var(--text2);flex:1}
+.donut-legend-item .lval{font-weight:600}
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:10px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bar-col .bar{width:100%;border-radius:6px 6px 0 0;background:var(--indigo);min-height:4px;transition:.3s}
+.bar-col .bar-label{font-size:10px;color:var(--text2)}
+.bar-col .bar-val{font-size:11px;font-weight:700;color:var(--text)}
+
+/* ─── ACTIVITY ─── */
+.activity-list{display:flex;flex-direction:column;gap:0}
+.activity-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.activity-item:last-child{border-bottom:none}
+.activity-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.activity-item .ai-text{flex:1}
+.activity-item .ai-text strong{display:block;font-size:13px;font-weight:500}
+.activity-item .ai-text span{font-size:11px;color:var(--text2)}
+.activity-item .ai-time{font-size:11px;color:var(--text3)}
+
+/* ─── TABLE ─── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:0 12px 10px}
+tbody tr{border-top:1px solid var(--border);transition:.15s}
+tbody tr:hover{background:rgba(148,163,184,0.03)}
+tbody td{padding:12px}
+.avatar-cell{display:flex;align-items:center;gap:10px}
+.acc-avatar{width:34px;height:34px;border-radius:9px;object-fit:cover;background:var(--indigo-dim);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#a5b4fc;flex-shrink:0}
+.acc-avatar img{width:100%;height:100%;border-radius:9px;object-fit:cover}
+.acc-name strong{display:block;font-size:13px;font-weight:600}
+.acc-name span{font-size:11px;color:var(--text2)}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600}
+.badge-green{background:var(--green-dim);color:#34d399}
+.badge-red{background:var(--red-dim);color:#f87171}
+.badge-amber{background:var(--amber-dim);color:#fbbf24}
+.badge-purple{background:var(--purple-dim);color:#a78bfa}
+.badge-cyan{background:var(--cyan-dim);color:#22d3ee}
+.badge-gray{background:rgba(148,163,184,0.1);color:var(--text2)}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ─── SCORE BAR ─── */
+.score-bar-wrap{display:flex;align-items:center;gap:8px}
+.score-bar{flex:1;height:6px;background:var(--card2);border-radius:999px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:999px}
+.score-num{font-size:12px;font-weight:700;width:32px;text-align:right}
+
+/* ─── FORM ─── */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.input{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:9px;padding:10px 13px;color:var(--text);font-size:13px;transition:.15s}
+.input:focus{border-color:var(--indigo);background:#0f1729}
+.textarea{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:9px;padding:10px 13px;color:var(--text);font-size:13px;resize:vertical;min-height:90px}
+.select{width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:9px;padding:10px 13px;color:var(--text);font-size:13px}
+
+/* ─── UPLOAD ZONE ─── */
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:.2s}
+.upload-zone:hover{border-color:var(--indigo);background:var(--indigo-dim)}
+.upload-zone .uz-icon{font-size:32px;margin-bottom:8px}
+.upload-zone strong{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
+.upload-zone span{font-size:12px;color:var(--text2)}
+
+/* ─── TOGGLE ─── */
+.toggle{width:40px;height:22px;background:var(--card2);border-radius:999px;position:relative;cursor:pointer;transition:.2s;border:1px solid var(--border2)}
+.toggle.on{background:var(--indigo)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s}
+.toggle.on::after{left:20px}
+
+/* ─── MEDIA GRID ─── */
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.media-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:.2s;position:relative}
+.media-item:hover{border-color:var(--indigo);transform:translateY(-3px);box-shadow:0 12px 32px rgba(99,102,241,.18)}
+.media-item:hover .media-overlay{opacity:1}
+.media-thumb{height:110px;position:relative;overflow:hidden}
+.media-thumb-inner{width:100%;height:100%;object-fit:cover;display:block}
+/* video thumbnail */
+.media-thumb.video .media-thumb-inner{background:var(--bg)}
+.media-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.media-play-btn{width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);border:2px solid rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;transition:.2s}
+.media-item:hover .media-play-btn{background:var(--indigo);border-color:var(--indigo);transform:scale(1.1)}
+.media-play-btn svg{width:13px;height:13px;fill:#fff;margin-left:2px}
+.media-duration{position:absolute;bottom:6px;right:7px;background:rgba(0,0,0,.72);color:#fff;font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;backdrop-filter:blur(4px)}
+.media-type-badge{position:absolute;top:6px;left:7px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:5px;text-transform:uppercase;letter-spacing:.5px}
+.media-type-badge.vid{background:rgba(99,102,241,.85);color:#fff}
+.media-type-badge.img{background:rgba(16,185,129,.85);color:#fff}
+.media-overlay{position:absolute;inset:0;background:rgba(99,102,241,.12);opacity:0;transition:.2s}
+.media-info{padding:9px 11px}
+.media-info strong{display:block;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.media-info span{font-size:10px;color:var(--text2)}
+/* fake video frames using CSS gradients */
+.vthumb-1{background:linear-gradient(135deg,#1a1040 0%,#3b1f6b 40%,#6366f1 70%,#a78bfa 100%)}
+.vthumb-2{background:linear-gradient(160deg,#0f2027 0%,#203a43 50%,#2c5364 100%)}
+.vthumb-3{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
+.vthumb-4{background:linear-gradient(135deg,#0d1117 0%,#1c2333 50%,#2d4a6e 100%)}
+/* fake image thumbs */
+.ithumb-1{background:linear-gradient(135deg,#f093fb 0%,#f5576c 50%,#fd746c 100%)}
+.ithumb-2{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)}
+.ithumb-3{background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%)}
+/* noise overlay for realism */
+.media-thumb::after{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none}
+
+/* ─── QUEUE ROWS ─── */
+.queue-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.queue-row:last-child{border-bottom:none}
+.queue-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.queue-row .qr-info{flex:1}
+.queue-row .qr-info strong{display:block;font-size:13px;font-weight:600}
+.queue-row .qr-info span{font-size:11px;color:var(--text2)}
+.queue-row em{font-size:11px;color:var(--text3);font-style:normal}
+
+/* ─── RING ─── */
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px 0}
+.ring-num{font-size:32px;font-weight:800;letter-spacing:-1px}
+.ring-label{font-size:12px;color:var(--text2)}
+.ring-stats{display:flex;gap:24px;width:100%;justify-content:center}
+.ring-stat{text-align:center}
+.ring-stat strong{display:block;font-size:18px;font-weight:700}
+.ring-stat span{font-size:11px;color:var(--text2)}
+
+/* ─── LOG LINES ─── */
+.log-line{font-size:12px;padding:7px 12px;border-radius:6px;margin-bottom:4px;font-family:'Courier New',monospace;background:rgba(15,23,42,.8);border-left:3px solid var(--border2)}
+.log-line.ok{border-left-color:var(--green)}
+.log-line.err{border-left-color:var(--red);color:#f87171}
+.log-line.warn{border-left-color:var(--amber);color:#fbbf24}
+.log-line .log-time{color:var(--text3);margin-right:8px}
+
+/* ─── ACCOUNT CARD (grid view) ─── */
+.accounts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.account-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:.15s}
+.account-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.account-card-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.account-card-avatar{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--purple));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
+.account-card-top .info strong{display:block;font-size:14px;font-weight:700}
+.account-card-top .info span{font-size:11px;color:var(--text2)}
+.account-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.account-stat{text-align:center;background:var(--card2);border-radius:8px;padding:8px 4px}
+.account-stat strong{display:block;font-size:15px;font-weight:700}
+.account-stat span{font-size:10px;color:var(--text2)}
+.account-card-actions{display:flex;gap:6px}
+
+/* ─── SEARCH BAR ─── */
+.search-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.search-input-wrap{position:relative;flex:1;min-width:200px}
+.search-input-wrap input{width:100%;background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:9px 13px 9px 36px;color:var(--text);font-size:13px}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:15px}
+.filter-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.filter-tab{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--border);color:var(--text2);background:transparent;cursor:pointer;transition:.15s}
+.filter-tab:hover,.filter-tab.active{background:var(--indigo-dim);color:#a5b4fc;border-color:rgba(99,102,241,.3)}
+
+/* ─── PROXY ROWS ─── */
+.proxy-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card2);border-radius:10px;margin-bottom:8px;border:1px solid var(--border)}
+.proxy-row .pr-name{flex:1;font-size:13px;font-family:'Courier New',monospace}
+.proxy-row .pr-meta{font-size:11px;color:var(--text2)}
+
+/* ─── LEGEND CARDS ─── */
+.legends-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.legend-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:.15s}
+.legend-card:hover{border-color:var(--border2)}
+.legend-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.legend-card-top strong{font-size:14px;font-weight:700}
+.legend-cat{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--indigo-dim);color:#a5b4fc}
+.legend-text{font-size:12px;color:var(--text2);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.legend-footer{display:flex;justify-content:flex-end;gap:6px;margin-top:12px}
+
+/* ─── SCHEDULER ─── */
+.schedule-row{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--card2);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);border-left:3px solid var(--indigo)}
+.schedule-time{text-align:center;flex-shrink:0;width:56px}
+.schedule-time strong{display:block;font-size:18px;font-weight:700}
+.schedule-time span{font-size:10px;color:var(--text2)}
+.schedule-divider{width:1px;height:36px;background:var(--border2)}
+.schedule-info{flex:1}
+.schedule-info strong{display:block;font-size:13px;font-weight:600}
+.schedule-info span{font-size:11px;color:var(--text2)}
+
+/* ─── SYSTEM STATUS ─── */
+.sys-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border)}
+.sys-row:last-child{border-bottom:none}
+.sys-row .sys-name{font-size:13px;display:flex;align-items:center;gap:8px}
+.sys-dot{width:8px;height:8px;border-radius:50%}
+.sys-dot.green{background:var(--green);box-shadow:0 0 8px var(--green)}
+.sys-dot.red{background:var(--red);box-shadow:0 0 8px var(--red)}
+.sys-dot.amber{background:var(--amber)}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;min-width:280px;box-shadow:0 20px 60px rgba(0,0,0,.5);z-index:999;transform:translateY(100px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast strong{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
+.toast span{font-size:12px;color:var(--text2)}
+.toast.t-success{border-left:3px solid var(--green)}
+.toast.t-error{border-left:3px solid var(--red)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr 1fr}}
+/* ─── MOBILE TOPBAR ─── */
+.topbar{display:none;position:fixed;top:0;left:0;right:0;height:58px;background:var(--sidebar-bg);border-bottom:1px solid var(--border);z-index:200;padding:0 16px;align-items:center;justify-content:space-between}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-logo{width:32px;height:32px;background:linear-gradient(135deg,var(--indigo),var(--cyan));border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,.35)}
+.topbar-logo svg{width:18px;height:18px}
+.topbar-brand-text strong{display:block;font-size:15px;font-weight:700;letter-spacing:-.3px}
+.topbar-brand-text span{font-size:10px;color:var(--text2)}
+.topbar-right{display:flex;align-items:center;gap:6px}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border2);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);transition:.15s}
+.icon-btn:hover{background:var(--card2);color:var(--text)}
+.icon-btn svg{width:17px;height:17px}
+/* theme toggle button (desktop too) */
+.theme-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--border2);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);transition:.15s;flex-shrink:0}
+.theme-btn:hover{background:var(--card2);color:var(--text)}
+.theme-btn svg{width:16px;height:16px}
+/* sidebar theme row */
+.sb-theme-row{display:flex;align-items:center;justify-content:space-between;padding:10px 10px 0}
+.sb-theme-label{font-size:12px;color:var(--text2);font-weight:500}
+
+@media(max-width:768px){
+  :root{--topbar-h:58px}
+  .topbar{display:flex}
+  .sidebar{transform:translateX(-100%);top:var(--topbar-h)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:20px 16px;padding-top:calc(var(--topbar-h) + 20px)}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .accounts-grid{grid-template-columns:1fr}
+  .page-header{flex-direction:column}
+  .overlay{display:block}
+}
+/* overlay for mobile sidebar */
+.overlay{display:none;position:fixed;inset:0;top:var(--topbar-h);background:rgba(0,0,0,.5);z-index:99;backdrop-filter:blur(2px)}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr}}
+
+/* ─── SETTINGS ─── */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-info strong{font-size:13px;font-weight:600;display:block;margin-bottom:2px}
+.setting-info span{font-size:12px;color:var(--text2)}
+
+/* ─── POST LIST ─── */
+.post-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
+.post-row:last-child{border-bottom:none}
+.post-thumb{width:44px;height:44px;border-radius:9px;background:var(--indigo-dim);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.post-info{flex:1}
+.post-info strong{display:block;font-size:13px;font-weight:600}
+.post-info span{font-size:11px;color:var(--text2);margin-top:1px;display:block}
+.post-info em{font-size:10px;color:#f87171;font-style:normal;margin-top:2px;display:block}
+.post-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.post-meta small{font-size:10px;color:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- MOBILE TOPBAR -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <button class="icon-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="topbar-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    </div>
+    <div class="topbar-brand-text">
+      <strong>InstaFlow</strong>
+      <span>Automação Instagram</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="icon-btn theme-btn" onclick="toggleTheme()" id="theme-btn-mobile" aria-label="Tema">
+      <svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" width="20" height="20"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    </div>
+    <div class="sb-brand-text">
+      <strong>InstaFlow</strong>
+      <span>Automação Instagram</span>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()" id="theme-btn-desktop" style="margin-left:auto" aria-label="Tema">
+      <svg id="theme-icon-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+
+  <div class="sb-nav">
+    <div class="sb-group">
+      <div class="sb-group-label">Visão geral</div>
+      <div class="sb-item active" onclick="nav('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Painel
+      </div>
+      <div class="sb-item" onclick="nav('posts',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Postagens
+        <span class="badge">3</span>
+      </div>
+      <div class="sb-item" onclick="nav('accounts',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Contas
+      </div>
+      <div class="sb-item" onclick="nav('media',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Biblioteca
+      </div>
+      <div class="sb-item" onclick="nav('scheduler',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Agendador
+      </div>
+    </div>
+    <div class="sb-group">
+      <div class="sb-group-label">Operação</div>
+      <div class="sb-item" onclick="nav('sessions',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Sessões
+      </div>
+      <div class="sb-item" onclick="nav('health',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Saúde
+      </div>
+      <div class="sb-item" onclick="nav('proxies',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Proxies
+      </div>
+      <div class="sb-item" onclick="nav('legends',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Legendas
+      </div>
+    </div>
+    <div class="sb-group">
+      <div class="sb-group-label">Sistema</div>
+      <div class="sb-item" onclick="nav('logs',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        Registros
+      </div>
+      <div class="sb-item" onclick="nav('settings',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configurações
+      </div>
+    </div>
+  </div>
+
+  <div class="sb-footer">
+    <div class="sb-user">
+      <div class="sb-avatar">A</div>
+      <div class="sb-user-info">
+        <strong>Administrador</strong>
+        <span>● Sistema online</span>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ════════════════ DASHBOARD ════════════════ -->
+<div class="screen active" id="screen-dashboard">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Painel operacional</div>
+      <h1>Visão Geral</h1>
+      <p>Acompanhe contas, fila e publicações em tempo real</p>
+    </div>
+    <div class="page-header-right">
+      <span class="badge badge-green"><span class="dot"></span> Sistema online</span>
+      <span class="badge badge-cyan"><span class="dot"></span> Worker ativo</span>
+      <button class="btn btn-primary btn-sm" onclick="toast('Atualizando...','Dados sincronizados.','t-success')">↻ Atualizar</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card blue">
+      <div class="icon">👥</div>
+      <div class="label">Contas Ativas</div>
+      <div class="value">24</div>
+      <div class="sub">de 28 conectadas</div>
+    </div>
+    <div class="stat-card green">
+      <div class="icon">📤</div>
+      <div class="label">Posts Hoje</div>
+      <div class="value">147</div>
+      <div class="sub">142 concluídos · 5 erros</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="icon">⏳</div>
+      <div class="label">Na Fila</div>
+      <div class="value">83</div>
+      <div class="sub">12 processando · 71 agendados</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="icon">🔒</div>
+      <div class="label">Em Uso Agora</div>
+      <div class="value">6</div>
+      <div class="sub">Publicando ou sincronizando</div>
+    </div>
+    <div class="stat-card red">
+      <div class="icon">⚠️</div>
+      <div class="label">Erros</div>
+      <div class="value">5</div>
+      <div class="sub">Taxa de erro: 3.4%</div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><h3>Volume de Postagens</h3><span>Hoje · 7d · 30d</span></div>
+      <div class="bar-chart">
+        <div class="bar-col"><div class="bar-val">147</div><div class="bar" style="height:100%;background:linear-gradient(180deg,var(--indigo),var(--cyan))"></div><div class="bar-label">Hoje</div></div>
+        <div class="bar-col"><div class="bar-val">892</div><div class="bar" style="height:78%;background:var(--indigo)"></div><div class="bar-label">7 dias</div></div>
+        <div class="bar-col"><div class="bar-val">3.4k</div><div class="bar" style="height:58%;background:rgba(99,102,241,.5)"></div><div class="bar-label">30 dias</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>Status dos Posts</h3><span>Operação geral</span></div>
+      <div class="donut-wrap">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="36" fill="none" stroke="var(--card2)" stroke-width="12"/>
+          <circle cx="45" cy="45" r="36" fill="none" stroke="#10b981" stroke-width="12" stroke-dasharray="169 57" stroke-linecap="round" transform="rotate(-90 45 45)"/>
+          <circle cx="45" cy="45" r="36" fill="none" stroke="#8b5cf6" stroke-width="12" stroke-dasharray="57 169" stroke-dashoffset="-169" stroke-linecap="round" transform="rotate(-90 45 45)"/>
+        </svg>
+        <div class="donut-legend">
+          <div class="donut-legend-item"><div class="dot" style="background:#10b981"></div><span class="lname">Concluídos</span><span class="lval">3.1k</span></div>
+          <div class="donut-legend-item"><div class="dot" style="background:#8b5cf6"></div><span class="lname">Agendados</span><span class="lval">83</span></div>
+          <div class="donut-legend-item"><div class="dot" style="background:#f59e0b"></div><span class="lname">Pendentes</span><span class="lval">24</span></div>
+          <div class="donut-legend-item"><div class="dot" style="background:#ef4444"></div><span class="lname">Erros</span><span class="lval">5</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>Saúde das Contas</h3><span>Status dos perfis</span></div>
+      <div class="donut-wrap">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="36" fill="none" stroke="var(--card2)" stroke-width="12"/>
+          <circle cx="45" cy="45" r="36" fill="none" stroke="#10b981" stroke-width="12" stroke-dasharray="193 33" stroke-linecap="round" transform="rotate(-90 45 45)"/>
+          <circle cx="45" cy="45" r="36" fill="none" stroke="#f59e0b" stroke-width="12" stroke-dasharray="26 200" stroke-dashoffset="-193" transform="rotate(-90 45 45)"/>
+        </svg>
+        <div class="donut-legend">
+          <div class="donut-legend-item"><div class="dot" style="background:#10b981"></div><span class="lname">Ativas</span><span class="lval">24</span></div>
+          <div class="donut-legend-item"><div class="dot" style="background:#f59e0b"></div><span class="lname">Restritas</span><span class="lval">2</span></div>
+          <div class="donut-legend-item"><div class="dot" style="background:#ef4444"></div><span class="lname">Erro login</span><span class="lval">1</span></div>
+          <div class="donut-legend-item"><div class="dot" style="background:#475569"></div><span class="lname">Banidas</span><span class="lval">1</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><h3>Score Operacional</h3><span>Saúde geral</span></div>
+      <div class="ring-wrap">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="55" cy="55" r="44" fill="none" stroke="var(--card2)" stroke-width="10"/>
+          <circle cx="55" cy="55" r="44" fill="none" stroke="url(#grad1)" stroke-width="10" stroke-dasharray="234 42" stroke-linecap="round" transform="rotate(-90 55 55)"/>
+          <defs><linearGradient id="grad1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient></defs>
+          <text x="55" y="51" text-anchor="middle" fill="#f1f5f9" font-size="20" font-weight="800" font-family="Inter">86%</text>
+          <text x="55" y="66" text-anchor="middle" fill="#64748b" font-size="9" font-family="Inter">operação</text>
+        </svg>
+      </div>
+      <div class="ring-stats">
+        <div class="ring-stat"><strong style="color:var(--green)">18</strong><span>Saudáveis</span></div>
+        <div class="ring-stat"><strong style="color:var(--amber)">6</strong><span>Atenção</span></div>
+        <div class="ring-stat"><strong style="color:var(--red)">4</strong><span>Risco</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>Sessões</h3><span>Cookies salvos</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <span style="font-size:13px">✅ Sessões OK</span><strong>21</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <span style="font-size:13px">⚠️ Sem sessão</span><strong style="color:var(--amber)">4</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <span style="font-size:13px">🔴 Expiradas</span><strong style="color:var(--red)">3</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>Proxies</h3><span>Status por conta</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <span style="font-size:13px">🌐 Configurados</span><strong>22</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <span style="font-size:13px">🟢 Online</span><strong style="color:var(--green)">18</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <span style="font-size:13px">🔴 Offline</span><strong style="color:var(--red)">4</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-header"><h3>Próximos na Fila</h3><span>Agendados</span></div>
+      <div class="queue-row"><div class="queue-icon" style="background:var(--purple-dim)">🎬</div><div class="qr-info"><strong>Reel</strong><span>@maria_santos, @joao_silva</span></div><em>14:30 hoje</em></div>
+      <div class="queue-row"><div class="queue-icon" style="background:var(--indigo-dim)">📸</div><div class="qr-info"><strong>Post</strong><span>@official_brand</span></div><em>15:00 hoje</em></div>
+      <div class="queue-row"><div class="queue-icon" style="background:var(--purple-dim)">🎬</div><div class="qr-info"><strong>Reel</strong><span>@fitness_world, @gym_life</span></div><em>16:45 hoje</em></div>
+      <div class="queue-row"><div class="queue-icon" style="background:var(--indigo-dim)">📸</div><div class="qr-info"><strong>Post</strong><span>@beauty_tips</span></div><em>18:00 hoje</em></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>Atividade Recente</h3><span>Atualiza a cada 5s</span></div>
+      <div class="activity-list">
+        <div class="activity-item"><div class="activity-icon" style="background:var(--green-dim)">✅</div><div class="ai-text"><strong>Reel publicado</strong><span>@maria_santos · 2 min atrás</span></div><span class="ai-time">14:12</span></div>
+        <div class="activity-item"><div class="activity-icon" style="background:var(--red-dim)">❌</div><div class="ai-text"><strong>Erro ao publicar</strong><span>@old_account01 · 5 min atrás</span></div><span class="ai-time">14:09</span></div>
+        <div class="activity-item"><div class="activity-icon" style="background:var(--cyan-dim)">🔄</div><div class="ai-text"><strong>Sincronização concluída</strong><span>@fitness_world · 8 min atrás</span></div><span class="ai-time">14:06</span></div>
+        <div class="activity-item"><div class="activity-icon" style="background:var(--green-dim)">✅</div><div class="ai-text"><strong>Post publicado</strong><span>@beauty_tips · 12 min atrás</span></div><span class="ai-time">14:02</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ POSTS ════════════════ -->
+<div class="screen" id="screen-posts">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Publicação</div>
+      <h1>Painel de Automação</h1>
+      <p>Crie e gerencie publicações em lote</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-ghost btn-sm" onclick="toast('Reprocessando...','3 posts com erro adicionados à fila.','t-success')">⚡ Reprocessar erros</button>
+      <button class="btn btn-primary btn-sm">+ Nova postagem</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;margin-bottom:24px">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-header"><h3>📁 Mídia</h3><span>0 arquivos</span></div>
+        <div class="upload-zone">
+          <div class="uz-icon">⬆️</div>
+          <strong>Arraste ou clique para selecionar</strong>
+          <span>MP4, MOV, JPG, PNG · múltiplos arquivos</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>✏️ Legenda</h3><span>0 / 2200</span></div>
+        <div class="form-group" style="margin-bottom:10px">
+          <select class="select"><option>Selecionar legenda salva...</option><option>🏋️ Fitness motivacional</option><option>💄 Beleza e cuidados</option></select>
+        </div>
+        <textarea class="textarea" placeholder="Digite a legenda da publicação..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-ghost btn-sm" onclick="toast('Legenda aplicada!','Legenda aleatória selecionada.','t-success')">🎲 Aleatória</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="card-header"><h3>👥 Contas</h3><span>2 selecionadas</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:var(--indigo-dim);border:1px solid rgba(99,102,241,.3);cursor:pointer">
+            <div style="width:28px;height:28px;border-radius:7px;background:var(--indigo);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">M</div>
+            <div style="flex:1"><strong style="font-size:12px">@maria_santos</strong></div>
+            <span style="color:#a5b4fc;font-size:14px">✓</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:var(--card2);cursor:pointer">
+            <div style="width:28px;height:28px;border-radius:7px;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">J</div>
+            <div style="flex:1"><strong style="font-size:12px">@joao_silva</strong></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:var(--indigo-dim);border:1px solid rgba(99,102,241,.3);cursor:pointer">
+            <div style="width:28px;height:28px;border-radius:7px;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">F</div>
+            <div style="flex:1"><strong style="font-size:12px">@fitness_world</strong></div>
+            <span style="color:#a5b4fc;font-size:14px">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>⚙️ Configurações</h3></div>
+        <div class="form-group">
+          <label>Tipo de post</label>
+          <select class="select"><option>🔄 Automático</option><option>📸 Post</option><option>🎬 Reel</option></select>
+        </div>
+        <div class="form-group">
+          <label>Agendamento</label>
+          <input type="datetime-local" class="input">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Intervalo entre posts</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <input class="input" type="number" placeholder="0h" min="0">
+            <input class="input" type="number" placeholder="0m" min="0">
+            <input class="input" type="number" placeholder="0s" min="0">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="toast('Posts enviados!','2 publicações adicionadas à fila.','t-success')">
+        🚀 Publicar agora
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Publicações Recentes</h3><span>Página 1 de 5 · 87 posts</span></div>
+    <div class="post-row">
+      <div class="post-thumb">🎬</div>
+      <div class="post-info"><strong>Reel</strong><span>@maria_santos, @fitness_world</span></div>
+      <div class="post-meta"><span class="badge badge-green">concluído</span><small>Hoje 13:45</small></div>
+    </div>
+    <div class="post-row">
+      <div class="post-thumb">📸</div>
+      <div class="post-info"><strong>Post</strong><span>@beauty_tips</span></div>
+      <div class="post-meta"><span class="badge badge-green">concluído</span><small>Hoje 13:20</small></div>
+    </div>
+    <div class="post-row">
+      <div class="post-thumb">🎬</div>
+      <div class="post-info"><strong>Reel</strong><span>@old_account01</span><em>Erro: sessão expirada</em></div>
+      <div class="post-meta"><span class="badge badge-red">erro</span><small>Hoje 12:58</small><button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="toast('Reprocessando...','Post adicionado à fila.','t-success')">↺ Retry</button></div>
+    </div>
+    <div class="post-row">
+      <div class="post-thumb">📸</div>
+      <div class="post-info"><strong>Post</strong><span>@joao_silva</span></div>
+      <div class="post-meta"><span class="badge badge-purple">agendado</span><small>Hoje 15:00</small></div>
+    </div>
+    <div class="post-row">
+      <div class="post-thumb">🎬</div>
+      <div class="post-info"><strong>Reel</strong><span>@maria_santos, @joao_silva, @fitness_world</span></div>
+      <div class="post-meta"><span class="badge badge-amber">parcial</span><small>Ontem 22:10</small><button class="btn btn-ghost btn-sm" style="margin-top:4px" onclick="toast('Reprocessando...','Post adicionado à fila.','t-success')">↺ Retry</button></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost btn-sm">← Anterior</button>
+      <span style="font-size:12px;color:var(--text2)">Página 1 de 5</span>
+      <button class="btn btn-ghost btn-sm">Próxima →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ ACCOUNTS ════════════════ -->
+<div class="screen" id="screen-accounts">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Gerenciamento</div>
+      <h1>Contas</h1>
+      <p>28 contas conectadas</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-ghost btn-sm" onclick="toast('Sincronizando...','Sync geral iniciado em background.','t-success')">🔄 Sync todas</button>
+      <button class="btn btn-ghost btn-sm" onclick="toast('Importando...','Modo de importação em lote aberto.','t-success')">📥 Importar lote</button>
+      <button class="btn btn-primary btn-sm" onclick="toast('Conectando...','Navegador aberto para nova conta.','t-success')">+ Conectar conta</button>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card blue"><div class="label">Total</div><div class="value">28</div><div class="sub">Cadastradas</div></div>
+    <div class="stat-card green"><div class="label">Ativas</div><div class="value">24</div><div class="sub">Saudáveis</div></div>
+    <div class="stat-card amber"><div class="label">Restritas</div><div class="value">2</div><div class="sub">Atenção</div></div>
+    <div class="stat-card red"><div class="label">Problema</div><div class="value">2</div><div class="sub">Erro login · banida</div></div>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Buscar por usuário...">
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active">Todas</button>
+      <button class="filter-tab">Ativas</button>
+      <button class="filter-tab">Restritas</button>
+      <button class="filter-tab">Erro</button>
+      <button class="filter-tab">Sem sessão</button>
+    </div>
+  </div>
+
+  <div class="accounts-grid">
+    <div class="account-card">
+      <div class="account-card-top">
+        <div class="account-card-avatar">M</div>
+        <div class="info"><strong>@maria_santos</strong><span>Maria Santos</span></div>
+        <span class="badge badge-green" style="margin-left:auto">ativa</span>
+      </div>
+      <div class="account-stats">
+        <div class="account-stat"><strong>42.3k</strong><span>Seguidores</span></div>
+        <div class="account-stat"><strong>18</strong><span>Posts hoje</span></div>
+        <div class="account-stat"><strong>96%</strong><span>Score</span></div>
+      </div>
+      <div class="account-card-actions">
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="toast('Abrindo conta...','Navegador aberto em @maria_santos.','t-success')">🌐 Abrir</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="toast('Sincronizando...','Sync de @maria_santos iniciado.','t-success')">🔄 Sync</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+
+    <div class="account-card">
+      <div class="account-card-top">
+        <div class="account-card-avatar" style="background:linear-gradient(135deg,#0891b2,#06b6d4)">J</div>
+        <div class="info"><strong>@joao_silva</strong><span>João Silva</span></div>
+        <span class="badge badge-green" style="margin-left:auto">ativa</span>
+      </div>
+      <div class="account-stats">
+        <div class="account-stat"><strong>8.7k</strong><span>Seguidores</span></div>
+        <div class="account-stat"><strong>12</strong><span>Posts hoje</span></div>
+        <div class="account-stat"><strong>88%</strong><span>Score</span></div>
+      </div>
+      <div class="account-card-actions">
+        <button class="btn btn-ghost btn-sm" style="flex:1">🌐 Abrir</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1">🔄 Sync</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+
+    <div class="account-card" style="border-color:rgba(245,158,11,.25)">
+      <div class="account-card-top">
+        <div class="account-card-avatar" style="background:linear-gradient(135deg,#d97706,#f59e0b)">F</div>
+        <div class="info"><strong>@fitness_world</strong><span>Fitness World</span></div>
+        <span class="badge badge-amber" style="margin-left:auto">restrita</span>
+      </div>
+      <div class="account-stats">
+        <div class="account-stat"><strong>124k</strong><span>Seguidores</span></div>
+        <div class="account-stat"><strong>0</strong><span>Posts hoje</span></div>
+        <div class="account-stat"><strong>55%</strong><span>Score</span></div>
+      </div>
+      <div class="account-card-actions">
+        <button class="btn btn-ghost btn-sm" style="flex:1">🌐 Abrir</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1">🔄 Sync</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+
+    <div class="account-card" style="border-color:rgba(239,68,68,.25)">
+      <div class="account-card-top">
+        <div class="account-card-avatar" style="background:linear-gradient(135deg,#dc2626,#ef4444)">O</div>
+        <div class="info"><strong>@old_account01</strong><span>Old Account</span></div>
+        <span class="badge badge-red" style="margin-left:auto">erro login</span>
+      </div>
+      <div class="account-stats">
+        <div class="account-stat"><strong>3.2k</strong><span>Seguidores</span></div>
+        <div class="account-stat"><strong>0</strong><span>Posts hoje</span></div>
+        <div class="account-stat"><strong>25%</strong><span>Score</span></div>
+      </div>
+      <div class="account-card-actions">
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="toast('Abrindo...','Relogar manualmente para corrigir.','t-success')">🔑 Relogar</button>
+        <button class="btn btn-danger btn-sm" style="flex:1">🗑 Excluir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ MEDIA ════════════════ -->
+<div class="screen" id="screen-media">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Biblioteca</div>
+      <h1>Mídia</h1>
+      <p>47 arquivos salvos · 2.3 GB usados</p>
+    </div>
+    <div class="page-header-right">
+      <div class="filter-tabs">
+        <button class="filter-tab active">Todos</button>
+        <button class="filter-tab">🎬 Vídeos</button>
+        <button class="filter-tab">🖼️ Imagens</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('file-input').click()">⬆ Upload</button>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" multiple accept="video/*,image/*" style="display:none" onchange="handleFiles(this.files)">
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="upload-zone" id="upload-zone" style="padding:24px" onclick="document.getElementById('file-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--indigo)';this.style.background='var(--indigo-dim)'"
+      ondragleave="this.style.borderColor='';this.style.background=''"
+      ondrop="event.preventDefault();this.style.borderColor='';this.style.background='';handleFiles(event.dataTransfer.files)">
+      <div class="uz-icon">⬆️</div>
+      <strong>Arraste arquivos aqui para fazer upload</strong>
+      <span>MP4, MOV, JPG, PNG · até 500MB por arquivo</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Arquivos</h3><span>47 itens</span></div>
+    <div class="media-grid">
+
+      <!-- VIDEO 1 -->
+      <div class="media-item">
+        <div class="media-thumb video">
+          <div class="media-thumb-inner vthumb-1"></div>
+          <div class="media-play"><div class="media-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+          <span class="media-type-badge vid">Reel</span>
+          <span class="media-duration">0:32</span>
+        </div>
+        <div class="media-info"><strong>reel_001.mp4</strong><span>24.3 MB · MP4</span></div>
+      </div>
+
+      <!-- VIDEO 2 -->
+      <div class="media-item">
+        <div class="media-thumb video">
+          <div class="media-thumb-inner vthumb-2"></div>
+          <div class="media-play"><div class="media-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+          <span class="media-type-badge vid">Vídeo</span>
+          <span class="media-duration">1:14</span>
+        </div>
+        <div class="media-info"><strong>video_promo.mp4</strong><span>48.1 MB · MP4</span></div>
+      </div>
+
+      <!-- IMAGE 1 -->
+      <div class="media-item">
+        <div class="media-thumb">
+          <div class="media-thumb-inner ithumb-1" style="height:100%;width:100%;display:flex;align-items:center;justify-content:center">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <span class="media-type-badge img">JPG</span>
+        </div>
+        <div class="media-info"><strong>post_jan.jpg</strong><span>2.4 MB · JPG</span></div>
+      </div>
+
+      <!-- VIDEO 3 -->
+      <div class="media-item">
+        <div class="media-thumb video">
+          <div class="media-thumb-inner vthumb-3"></div>
+          <div class="media-play"><div class="media-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+          <span class="media-type-badge vid">Reel</span>
+          <span class="media-duration">0:47</span>
+        </div>
+        <div class="media-info"><strong>trend_clip.mp4</strong><span>31.7 MB · MP4</span></div>
+      </div>
+
+      <!-- IMAGE 2 -->
+      <div class="media-item">
+        <div class="media-thumb">
+          <div class="media-thumb-inner ithumb-2" style="height:100%;width:100%;display:flex;align-items:center;justify-content:center">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <span class="media-type-badge img">PNG</span>
+        </div>
+        <div class="media-info"><strong>cover_reel.png</strong><span>1.1 MB · PNG</span></div>
+      </div>
+
+      <!-- VIDEO 4 -->
+      <div class="media-item">
+        <div class="media-thumb video">
+          <div class="media-thumb-inner vthumb-4"></div>
+          <div class="media-play"><div class="media-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+          <span class="media-type-badge vid">Reel</span>
+          <span class="media-duration">1:02</span>
+        </div>
+        <div class="media-info"><strong>fitness_01.mp4</strong><span>67.2 MB · MP4</span></div>
+      </div>
+
+      <!-- IMAGE 3 -->
+      <div class="media-item">
+        <div class="media-thumb">
+          <div class="media-thumb-inner ithumb-3" style="height:100%;width:100%;display:flex;align-items:center;justify-content:center">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <span class="media-type-badge img">JPG</span>
+        </div>
+        <div class="media-info"><strong>banner.jpg</strong><span>3.8 MB · JPG</span></div>
+      </div>
+
+      <!-- VIDEO 5 -->
+      <div class="media-item">
+        <div class="media-thumb video">
+          <div class="media-thumb-inner vthumb-1" style="filter:hue-rotate(40deg)"></div>
+          <div class="media-play"><div class="media-play-btn"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+          <span class="media-type-badge vid">Story</span>
+          <span class="media-duration">0:18</span>
+        </div>
+        <div class="media-info"><strong>story_03.mp4</strong><span>18.5 MB · MP4</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ SCHEDULER ════════════════ -->
+<div class="screen" id="screen-scheduler">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Automação</div>
+      <h1>Agendador</h1>
+      <p>83 posts na fila · próximo em 18 min</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-primary btn-sm">+ Agendar post</button>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><h3>Hoje — 13 Jun 2025</h3><span>12 posts restantes</span></div>
+      <div class="schedule-row" style="border-left-color:var(--cyan)"><div class="schedule-time"><strong>14:30</strong><span>hoje</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>🎬 Reel</strong><span>@maria_santos · @joao_silva</span></div><span class="badge badge-purple">agendado</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>15:00</strong><span>hoje</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>📸 Post</strong><span>@official_brand</span></div><span class="badge badge-purple">agendado</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>16:45</strong><span>hoje</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>🎬 Reel</strong><span>@fitness_world · @gym_life</span></div><span class="badge badge-purple">agendado</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>18:00</strong><span>hoje</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>📸 Post</strong><span>@beauty_tips</span></div><span class="badge badge-purple">agendado</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>20:30</strong><span>hoje</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>🎬 Reel</strong><span>@maria_santos</span></div><span class="badge badge-purple">agendado</span></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>Amanhã — 14 Jun</h3><span>8 posts</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>09:00</strong><span>amanhã</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>📸 Post</strong><span>@official_brand · @beauty_tips</span></div><span class="badge badge-gray">pendente</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>11:30</strong><span>amanhã</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>🎬 Reel</strong><span>@joao_silva</span></div><span class="badge badge-gray">pendente</span></div>
+      <div class="schedule-row"><div class="schedule-time"><strong>14:00</strong><span>amanhã</span></div><div class="schedule-divider"></div><div class="schedule-info"><strong>📸 Post</strong><span>@fitness_world</span></div><span class="badge badge-gray">pendente</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ SESSIONS ════════════════ -->
+<div class="screen" id="screen-sessions">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Central</div>
+      <h1>Sessões</h1>
+      <p>Monitore cookies e logins de todas as contas</p>
+    </div>
+    <div class="page-header-right">
+      <span class="badge badge-cyan">● Monitoramento ativo</span>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card green"><div class="label">Sessões OK</div><div class="value">21</div><div class="sub">Cookies válidos</div></div>
+    <div class="stat-card amber"><div class="label">Sem sessão</div><div class="value">4</div><div class="sub">Nunca logadas</div></div>
+    <div class="stat-card red"><div class="label">Expiradas</div><div class="value">3</div><div class="sub">Precisam relogar</div></div>
+    <div class="stat-card blue"><div class="label">Em uso</div><div class="value">2</div><div class="sub">Publicando agora</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Todas as Sessões</h3><span>28 contas</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Conta</th><th>Status</th><th>Última atividade</th><th>Ações</th></tr></thead>
+        <tbody>
+          <tr><td><div class="avatar-cell"><div class="acc-avatar">M</div><div class="acc-name"><strong>@maria_santos</strong><span>Sessão ativa</span></div></div></td><td><span class="badge badge-green"><span class="dot"></span> OK</span></td><td style="font-size:12px;color:var(--text2)">Há 2 min</td><td><button class="btn btn-ghost btn-sm" onclick="toast('Testando...','Sync iniciado para @maria_santos.','t-success')">Testar</button></td></tr>
+          <tr><td><div class="avatar-cell"><div class="acc-avatar" style="background:var(--cyan-dim);color:var(--cyan)">J</div><div class="acc-name"><strong>@joao_silva</strong><span>Sessão ativa</span></div></div></td><td><span class="badge badge-green"><span class="dot"></span> OK</span></td><td style="font-size:12px;color:var(--text2)">Há 8 min</td><td><button class="btn btn-ghost btn-sm">Testar</button></td></tr>
+          <tr><td><div class="avatar-cell"><div class="acc-avatar" style="background:var(--amber-dim);color:var(--amber)">F</div><div class="acc-name"><strong>@fitness_world</strong><span>Sessão expirada</span></div></div></td><td><span class="badge badge-red"><span class="dot"></span> Expirada</span></td><td style="font-size:12px;color:var(--text2)">Há 3 dias</td><td><button class="btn btn-primary btn-sm" onclick="toast('Abrindo...','Navegador aberto para relogar.','t-success')">Relogar</button></td></tr>
+          <tr><td><div class="avatar-cell"><div class="acc-avatar" style="background:var(--red-dim);color:var(--red)">O</div><div class="acc-name"><strong>@old_account01</strong><span>Sem sessão</span></div></div></td><td><span class="badge badge-amber"><span class="dot"></span> Sem sessão</span></td><td style="font-size:12px;color:var(--text2)">Nunca</td><td><button class="btn btn-primary btn-sm">Conectar</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ HEALTH ════════════════ -->
+<div class="screen" id="screen-health">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Diagnóstico</div>
+      <h1>Saúde das Contas</h1>
+      <p>Score calculado em tempo real com base em sessão, proxy e status</p>
+    </div>
+    <div class="page-header-right">
+      <div class="filter-tabs">
+        <button class="filter-tab active">Todas</button>
+        <button class="filter-tab">Saudáveis</button>
+        <button class="filter-tab">Atenção</button>
+        <button class="filter-tab">Risco</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card green"><div class="label">Saudáveis</div><div class="value">18</div><div class="sub">Score ≥ 80</div></div>
+    <div class="stat-card amber"><div class="label">Atenção</div><div class="value">6</div><div class="sub">Score 50–79</div></div>
+    <div class="stat-card red"><div class="label">Risco</div><div class="value">3</div><div class="sub">Score &lt; 50</div></div>
+    <div class="stat-card blue"><div class="label">Score Médio</div><div class="value">76%</div><div class="sub">Operação geral</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Score por Conta</h3></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Conta</th><th>Score</th><th>Sessão</th><th>Proxy</th><th>Status</th><th>Posts hoje</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="avatar-cell"><div class="acc-avatar">M</div><div class="acc-name"><strong>@maria_santos</strong></div></div></td>
+            <td><div class="score-bar-wrap"><div class="score-bar"><div class="score-bar-fill" style="width:96%;background:var(--green)"></div></div><span class="score-num" style="color:var(--green)">96</span></div></td>
+            <td><span class="badge badge-green">OK</span></td>
+            <td><span class="badge badge-green">Online</span></td>
+            <td><span class="badge badge-green">ativa</span></td>
+            <td style="font-size:13px;font-weight:600">18</td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="acc-avatar" style="background:var(--cyan-dim);color:var(--cyan)">J</div><div class="acc-name"><strong>@joao_silva</strong></div></div></td>
+            <td><div class="score-bar-wrap"><div class="score-bar"><div class="score-bar-fill" style="width:88%;background:var(--green)"></div></div><span class="score-num" style="color:var(--green)">88</span></div></td>
+            <td><span class="badge badge-green">OK</span></td>
+            <td><span class="badge badge-green">Online</span></td>
+            <td><span class="badge badge-green">ativa</span></td>
+            <td>12</td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="acc-avatar" style="background:var(--amber-dim);color:var(--amber)">F</div><div class="acc-name"><strong>@fitness_world</strong></div></div></td>
+            <td><div class="score-bar-wrap"><div class="score-bar"><div class="score-bar-fill" style="width:55%;background:var(--amber)"></div></div><span class="score-num" style="color:var(--amber)">55</span></div></td>
+            <td><span class="badge badge-red">Expirada</span></td>
+            <td><span class="badge badge-amber">N/T</span></td>
+            <td><span class="badge badge-amber">restrita</span></td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td><div class="avatar-cell"><div class="acc-avatar" style="background:var(--red-dim);color:var(--red)">O</div><div class="acc-name"><strong>@old_account01</strong></div></div></td>
+            <td><div class="score-bar-wrap"><div class="score-bar"><div class="score-bar-fill" style="width:25%;background:var(--red)"></div></div><span class="score-num" style="color:var(--red)">25</span></div></td>
+            <td><span class="badge badge-amber">Sem sessão</span></td>
+            <td><span class="badge badge-gray">Sem proxy</span></td>
+            <td><span class="badge badge-red">erro_login</span></td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ PROXIES ════════════════ -->
+<div class="screen" id="screen-proxies">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Rede</div>
+      <h1>Proxies</h1>
+      <p>Gerencie e teste os proxies de cada conta</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-ghost btn-sm" onclick="toast('Testando...','Teste de todos os proxies iniciado.','t-success')">🌐 Testar todos</button>
+      <button class="btn btn-primary btn-sm">Aplicar proxies em lote</button>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat-card blue"><div class="label">Configurados</div><div class="value">22</div></div>
+    <div class="stat-card green"><div class="label">Online</div><div class="value">18</div></div>
+    <div class="stat-card red"><div class="label">Offline</div><div class="value">4</div></div>
+    <div class="stat-card amber"><div class="label">Não testados</div><div class="value">6</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>Proxies por Conta</h3></div>
+    <div class="proxy-row">
+      <div class="acc-avatar">M</div>
+      <div style="flex:1"><div class="pr-name">@maria_santos</div><div class="pr-meta">45.89.112.34:8080 · HTTP</div></div>
+      <span class="badge badge-green">Online · 42ms</span>
+      <button class="btn btn-ghost btn-sm" onclick="toast('Testando...','Proxy de @maria_santos testado.','t-success')">Testar</button>
+    </div>
+    <div class="proxy-row">
+      <div class="acc-avatar" style="background:var(--cyan-dim);color:var(--cyan)">J</div>
+      <div style="flex:1"><div class="pr-name">@joao_silva</div><div class="pr-meta">167.71.88.221:3128 · SOCKS5</div></div>
+      <span class="badge badge-green">Online · 78ms</span>
+      <button class="btn btn-ghost btn-sm">Testar</button>
+    </div>
+    <div class="proxy-row">
+      <div class="acc-avatar" style="background:var(--amber-dim);color:var(--amber)">F</div>
+      <div style="flex:1"><div class="pr-name">@fitness_world</div><div class="pr-meta">89.45.22.11:8888 · HTTP</div></div>
+      <span class="badge badge-red">Offline</span>
+      <button class="btn btn-ghost btn-sm">Testar</button>
+    </div>
+    <div class="proxy-row">
+      <div class="acc-avatar" style="background:var(--red-dim);color:var(--red)">O</div>
+      <div style="flex:1"><div class="pr-name">@old_account01</div><div class="pr-meta">Sem proxy configurado</div></div>
+      <span class="badge badge-gray">Sem proxy</span>
+      <button class="btn btn-primary btn-sm">Configurar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ LEGENDS ════════════════ -->
+<div class="screen" id="screen-legends">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Conteúdo</div>
+      <h1>Legendas</h1>
+      <p>34 legendas cadastradas · 8 categorias</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-primary btn-sm" onclick="toast('Nova legenda!','Formulário de criação aberto.','t-success')">+ Nova legenda</button>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Buscar legendas...">
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active">Todas</button>
+      <button class="filter-tab">Fitness</button>
+      <button class="filter-tab">Beleza</button>
+      <button class="filter-tab">Motivacional</button>
+      <button class="filter-tab">Geral</button>
+    </div>
+  </div>
+
+  <div class="legends-grid">
+    <div class="legend-card">
+      <div class="legend-card-top"><strong>Motivacional Manhã</strong><span class="legend-cat">Motivacional</span></div>
+      <div class="legend-text">Cada dia é uma nova oportunidade de ser melhor que ontem! 💪 Acorde com energia, foque nos seus objetivos e dê o seu melhor. O sucesso é construído dia a dia...</div>
+      <div class="legend-footer">
+        <button class="btn btn-ghost btn-sm">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+    <div class="legend-card">
+      <div class="legend-card-top"><strong>Treino do Dia</strong><span class="legend-cat">Fitness</span></div>
+      <div class="legend-text">🏋️ Sem desculpas, só resultados! Hoje foi mais um treino incrível. Lembre-se: consistência é a chave para transformação. Comente abaixo seu treino de hoje! 💯</div>
+      <div class="legend-footer">
+        <button class="btn btn-ghost btn-sm">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+    <div class="legend-card">
+      <div class="legend-card-top"><strong>Dica de Beleza</strong><span class="legend-cat">Beleza</span></div>
+      <div class="legend-text">✨ Cuidar da pele é um ato de amor próprio! Hidratação, protetor solar e uma boa rotina de skincare fazem toda a diferença. Qual é sua dica favorita de beleza?</div>
+      <div class="legend-footer">
+        <button class="btn btn-ghost btn-sm">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+    <div class="legend-card">
+      <div class="legend-card-top"><strong>Promo Genérica</strong><span class="legend-cat">Geral</span></div>
+      <div class="legend-text">🔥 Oferta imperdível! Aproveite agora mesmo e não deixe passar essa oportunidade única. Link na bio para saber mais. Marque um amigo que precisa ver isso! 👇</div>
+      <div class="legend-footer">
+        <button class="btn btn-ghost btn-sm">✏️ Editar</button>
+        <button class="btn btn-danger btn-sm">🗑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ LOGS ════════════════ -->
+<div class="screen" id="screen-logs">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Sistema</div>
+      <h1>Registros</h1>
+      <p>Logs de atividade por conta</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-ghost btn-sm">🗑 Limpar logs</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="form-group" style="margin-bottom:0">
+      <label>Selecionar conta</label>
+      <select class="select">
+        <option>@maria_santos</option>
+        <option>@joao_silva</option>
+        <option>@fitness_world</option>
+        <option>@old_account01</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3>@maria_santos</h3><span>Últimas 50 entradas</span></div>
+    <div style="font-family:'Courier New',monospace">
+      <div class="log-line ok"><span class="log-time">[13/06 14:12:08]</span>✅ Reel publicado com sucesso</div>
+      <div class="log-line ok"><span class="log-time">[13/06 14:11:47]</span>📌 Tentativa 1/3 - publicando post 684a...</div>
+      <div class="log-line ok"><span class="log-time">[13/06 14:11:20]</span>🚀 Iniciando publicação</div>
+      <div class="log-line ok"><span class="log-time">[13/06 13:45:11]</span>✅ Reel publicado com sucesso</div>
+      <div class="log-line warn"><span class="log-time">[13/06 13:44:58]</span>⚠️ Elemento não encontrado, tentando novamente...</div>
+      <div class="log-line ok"><span class="log-time">[13/06 13:44:30]</span>🚀 Iniciando publicação</div>
+      <div class="log-line ok"><span class="log-time">[13/06 12:30:04]</span>🔄 Sincronização concluída — 42.312 seguidores</div>
+      <div class="log-line err"><span class="log-time">[13/06 11:18:22]</span>❌ Falha tentativa 3/3: timeout ao carregar feed</div>
+      <div class="log-line ok"><span class="log-time">[13/06 09:00:01]</span>🔄 AutoSync iniciado</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ SETTINGS ════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="eyebrow">Sistema</div>
+      <h1>Configurações</h1>
+      <p>Ajuste o comportamento da automação</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-primary btn-sm" onclick="toast('Salvo!','Configurações atualizadas com sucesso.','t-success')">💾 Salvar</button>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><h3>🤖 Automação</h3></div>
+      <div class="setting-row">
+        <div class="setting-info"><strong>Modo Headless</strong><span>Roda o navegador sem janela visível (produção)</span></div>
+        <div class="toggle" id="tog-headless" onclick="toggleSwitch('tog-headless')"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info"><strong>Sync automático</strong><span>Sincroniza contas automaticamente a cada 6h</span></div>
+        <div class="toggle on" id="tog-sync" onclick="toggleSwitch('tog-sync')"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info"><strong>Reset diário às 00:00</strong><span>Zera o contador de posts diários à meia-noite</span></div>
+        <div class="toggle on" id="tog-reset" onclick="toggleSwitch('tog-reset')"></div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info"><strong>Destravar contas travadas</strong><span>Libera locks após 10 min sem atividade</span></div>
+        <div class="toggle on" id="tog-unlock" onclick="toggleSwitch('tog-unlock')"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>⚙️ Limites</h3></div>
+      <div class="form-group"><label>Limite diário padrão de posts por conta</label><input class="input" type="number" value="999999" min="1"></div>
+      <div class="form-group"><label>Delay mínimo entre posts (segundos)</label><input class="input" type="number" value="30" min="0"></div>
+      <div class="form-group"><label>Tentativas máximas de retry</label><input class="input" type="number" value="3" min="1" max="10"></div>
+      <div class="form-group" style="margin-bottom:0"><label>Timeout do navegador (segundos)</label><input class="input" type="number" value="60" min="10"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>🔧 Status do Sistema</h3></div>
+      <div class="sys-row"><span class="sys-name"><span class="sys-dot green"></span> Backend</span><span class="badge badge-green">Online</span></div>
+      <div class="sys-row"><span class="sys-name"><span class="sys-dot green"></span> Worker</span><span class="badge badge-green">Rodando</span></div>
+      <div class="sys-row"><span class="sys-name"><span class="sys-dot green"></span> MongoDB</span><span class="badge badge-green">Conectado</span></div>
+      <div class="sys-row"><span class="sys-name"><span class="sys-dot green"></span> Redis</span><span class="badge badge-green">Online</span></div>
+      <div class="sys-row"><span class="sys-name"><span class="sys-dot red"></span> Headless</span><span class="badge badge-red">Desligado</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>🌐 Conexão</h3></div>
+      <div class="form-group"><label>URL do Backend</label><input class="input" value="http://localhost:3000"></div>
+      <div class="form-group"><label>Host Redis</label><input class="input" value="127.0.0.1"></div>
+      <div class="form-group" style="margin-bottom:0"><label>Porta Redis</label><input class="input" value="6379"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <strong id="toast-title"></strong>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+function nav(screen, el) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  el.classList.add('active');
+  // close sidebar on mobile after nav
+  if(window.innerWidth <= 768) closeSidebar();
+}
+
+function toast(title, msg, type) {
+  const t = document.getElementById('toast');
+  t.className = 'toast ' + (type || '');
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function toggleSwitch(id) {
+  document.getElementById(id).classList.toggle('on');
+}
+
+// Sidebar mobile
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('overlay');
+  sb.classList.toggle('open');
+  ov.style.display = sb.classList.contains('open') ? 'block' : 'none';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
+}
+
+// Theme toggle
+let isDark = true;
+const SUN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const MOON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+function toggleTheme() {
+  isDark = !isDark;
+  document.documentElement.classList.toggle('light', !isDark);
+  const icon = isDark ? MOON : SUN;
+  document.getElementById('theme-icon-desktop').outerHTML = isDark
+    ? `<svg id="theme-icon-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+    : `<svg id="theme-icon-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+  document.getElementById('theme-icon-mobile').outerHTML = isDark
+    ? `<svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+    : `<svg id="theme-icon-mobile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+}
+
+// Media upload handler
+function handleFiles(files) {
+  if (!files || !files.length) return;
+  const grid = document.querySelector('#screen-media .media-grid');
+
+  Array.from(files).forEach(file => {
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isVideo && !isImage) return;
+
+    const url = URL.createObjectURL(file);
+    const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+    const ext = file.name.split('.').pop().toUpperCase();
+
+    const item = document.createElement('div');
+    item.className = 'media-item';
+
+    if (isVideo) {
+      item.innerHTML = `
+        <div class="media-thumb video" style="position:relative;overflow:hidden">
+          <video src="${url}" style="width:100%;height:110px;object-fit:cover;display:block" muted playsinline preload="metadata"></video>
+          <div class="media-play"><div class="media-play-btn"><svg viewBox="0 0 24 24" fill="#fff" width="13" height="13"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>
+          <span class="media-type-badge vid">${ext === 'MP4' || ext === 'MOV' ? 'Reel' : ext}</span>
+        </div>
+        <div class="media-info"><strong>${file.name}</strong><span>${sizeMB} MB · ${ext}</span></div>`;
+      // play on hover
+      const vid = item.querySelector('video');
+      item.addEventListener('mouseenter', () => vid.play());
+      item.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0; });
+    } else {
+      item.innerHTML = `
+        <div class="media-thumb" style="position:relative">
+          <img src="${url}" style="width:100%;height:110px;object-fit:cover;display:block">
+          <span class="media-type-badge img">${ext}</span>
+        </div>
+        <div class="media-info"><strong>${file.name}</strong><span>${sizeMB} MB · ${ext}</span></div>`;
+    }
+
+    grid.prepend(item);
+  });
+
+  // update counter
+  const total = grid.querySelectorAll('.media-item').length;
+  document.querySelector('#screen-media .page-header-left p').textContent = `${total} arquivos salvos`;
+  toast('Upload concluído!', `${files.length} arquivo(s) adicionado(s).`, 't-success');
+}
+
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    this.closest('.filter-tabs').querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
