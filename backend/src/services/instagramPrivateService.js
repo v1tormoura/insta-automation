@@ -232,9 +232,11 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const needsChallenge =
         loginErr?.name === 'IgCheckpointError' ||
         msg.includes('checkpoint') || msg.includes('challenge') ||
+        msg.includes('email to help') || msg.includes('get back into your account') ||
+        msg.includes('we can send you') || msg.includes('verify your account') ||
         (status === 400 && ig.state.checkpoint);
 
-      if (needsChallenge || (ig.state.checkpoint && (msg.includes('email') || msg.includes('send you')))) {
+      if (needsChallenge || ig.state.checkpoint) {
         console.log('[PrivateAPI] Challenge -- solicitando codigo...');
         try {
           await ig.challenge.auto(true);

@@ -243,8 +243,14 @@ exports.importBulkAccounts = async (req, res) => {
           }
         } catch (apiErr) {
           const msg = apiErr.message || String(apiErr);
-          apiResults.push({ username, apiStatus: 'erro', error: msg });
-          console.warn(`⚠️ [Import] @${username} falhou: ${msg}`);
+          const isChallenge = apiErr.code === 'CHALLENGE_REQUIRED' || /challenge_required/i.test(msg);
+          apiResults.push({
+            username,
+            accountId: String(account._id),
+            apiStatus: isChallenge ? 'challenge_required' : 'erro',
+            error: isChallenge ? 'Instagram pediu verificação por email/SMS. Clique em "Verificar" para enviar o código.' : msg,
+          });
+          console.warn(`⚠️ [Import] @${username} ${isChallenge ? 'challenge' : 'falhou'}: ${msg}`);
         }
       }
     }

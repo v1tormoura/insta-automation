@@ -626,21 +626,31 @@ export default function Accounts() {
                     const statusMap = {
                       conectada:              { color: '#34d399', label: '✅ Conectada' },
                       convertida_para_creator:{ color: '#a78bfa', label: '⭐ Convertida para Creator' },
+                      challenge_required:     { color: '#fbbf24', label: '🔐 Verificação necessária' },
                       erro:                   { color: '#f87171', label: '⚠️ Erro no login' },
                     };
                     const s = statusMap[apiInfo?.apiStatus] || { color: '#94a3b8', label: '💾 Salva' };
+                    const isChallenge = apiInfo?.apiStatus === 'challenge_required';
                     return (
                       <div key={username} style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         background: 'var(--card2)', borderRadius: 6, padding: '8px 12px',
                         border: `1px solid ${s.color}44`,
                       }}>
-                        <div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 13, fontWeight: 600 }}>@{username}</span>
-                          {apiInfo?.error && <div style={{ fontSize: 11, color: '#f87171', marginTop: 2 }}>{apiInfo.error.slice(0, 80)}</div>}
+                          {apiInfo?.error && <div style={{ fontSize: 11, color: isChallenge ? '#fbbf24' : '#f87171', marginTop: 2 }}>{apiInfo.error}</div>}
                           {apiInfo?.conversionWarning && <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 2 }}>{apiInfo.conversionWarning.slice(0, 80)}</div>}
                         </div>
-                        <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap', marginLeft: 8 }}>{s.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+                          {isChallenge && apiInfo?.accountId && (
+                            <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#fbbf2422', color: '#fbbf24', border: '1px solid #fbbf2444' }}
+                              onClick={() => { setBulkImportOpen(false); setImportResults(null); openMobileModal({ _id: apiInfo.accountId, username }); }}>
+                              Verificar
+                            </button>
+                          )}
+                          <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.label}</span>
+                        </div>
                       </div>
                     );
                   })}
