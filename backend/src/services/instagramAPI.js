@@ -75,15 +75,28 @@ async function exchangeToken(shortToken) {
 
   if (!appId || !appSecret) throw new Error('META_APP_ID e META_APP_SECRET não definidos no .env');
 
-  const url = new URL(`${GRAPH}/oauth/access_token`);
-  url.searchParams.set('grant_type',       'fb_exchange_token');
-  url.searchParams.set('client_id',        appId);
-  url.searchParams.set('client_secret',    appSecret);
-  url.searchParams.set('fb_exchange_token', shortToken);
+  const isIgToken = shortToken?.match(/^(IGAAL|IGQ|IG)/i);
+
+  let url;
+  if (isIgToken) {
+    // Instagram Business Login → graph.instagram.com/access_token com ig_exchange_token
+    url = new URL('https://graph.instagram.com/access_token');
+    url.searchParams.set('grant_type',    'ig_exchange_token');
+    url.searchParams.set('client_id',     appId);
+    url.searchParams.set('client_secret', appSecret);
+    url.searchParams.set('access_token',  shortToken);
+  } else {
+    // Facebook Login → graph.facebook.com com fb_exchange_token
+    url = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
+    url.searchParams.set('grant_type',        'fb_exchange_token');
+    url.searchParams.set('client_id',         appId);
+    url.searchParams.set('client_secret',     appSecret);
+    url.searchParams.set('fb_exchange_token', shortToken);
+  }
 
   const r = await fetch(url.toString());
   const d = await r.json();
-  if (d.error) throw new Error(`Troca de token falhou: ${d.error.message}`);
+  if (d.error) throw new Error(`Troca de token falhou: ${d.error.message} (code ${d.error.code})`);
 
   return { accessToken: d.access_token, expiresIn: d.expires_in ?? 5184000 };
 }
@@ -114,7 +127,25 @@ async function refreshToken(currentToken) {
  * Returns { igUserId, pageName }.
  */
 async function getIgUserId(token) {
-  // Try via Facebook Pages (Business accounts)
+  const isIgToken = token?.match(/^(IGAAL|IGQ|IG)/i);
+
+  if (isIgToken) {
+    // Instagram Business Login — o /me no graph.instagram.com retorna o usuário IG diretamente.
+    // O "id" retornado já é o igUserId numérico.
+    const me = await gGet('/me', { fields: 'id,name,username,account_type' }, token);
+    if (!me.id) throw new Error('Não foi possível obter o ID da conta Instagram. Verifique se o token é válido.');
+
+    if (me.account_type === 'PERSONAL') {
+      throw new Error(
+        `A conta @${me.username} é pessoal (PERSONAL). ` +
+        'Converta para Criador de Conteúdo ou Comercial no app do Instagram ' +
+        '(Configurações → Conta → Mudar para conta profissional) e tente novamente.'
+      );
+    }
+    return { igUserId: me.id, pageName: me.name || me.username };
+  }
+
+  // Facebook Login tokens — busca via Páginas do Facebook
   const pages = await gGet('/me/accounts', { fields: 'id,name,instagram_business_account' }, token);
   for (const page of (pages.data || [])) {
     if (page.instagram_business_account?.id) {
@@ -122,13 +153,16 @@ async function getIgUserId(token) {
     }
   }
 
-  // Try as Creator account (may have direct IG link)
+  // Creator conectado direto (sem Página)
   const me = await gGet('/me', { fields: 'id,name,instagram_pro_account' }, token);
   if (me.instagram_pro_account?.id) {
     return { igUserId: me.instagram_pro_account.id, pageName: me.name };
   }
 
-  throw new Error('Nenhuma conta Instagram Profissional encontrada vinculada a este token. Certifique-se de que a conta é Business ou Creator e está vinculada a uma Página do Facebook.');
+  throw new Error(
+    'Nenhuma conta Instagram Profissional encontrada. ' +
+    'Certifique-se de que a conta é Business ou Creator e está vinculada a uma Página do Facebook.'
+  );
 }
 
 // ─── Location ────────────────────────────────────────────────────────────────
@@ -185,6 +219,7 @@ async function createVideoUrlContainer(igUserId, token, videoUrl, { caption, loc
   url.searchParams.set('caption',       caption || '');
   url.searchParams.set('share_to_feed', 'true');
   if (locationId) url.searchParams.set('location_id', locationId);
+  if (coverUrl)   url.searchParams.set('cover_url',   coverUrl);
 
   console.log(`📡 Media API POST ${endpoint}`);
   console.log(`   video_url: ${videoUrl}`);
@@ -269,9 +304,10 @@ async function postReel(account, post) {
   const videoUrl = `${publicUrl}/uploads/processed/${processedFilename}`;
   console.log('🔗 Video URL:', videoUrl);
 
-  // 4. Location (opcional)
-  const locationQuery = post.location || 'Brasil';
-  const locationId    = await searchLocationId(accessToken, locationQuery);
+  // 4. Location (opcional — só busca se informado explicitamente)
+  const locationId = post.location
+    ? await searchLocationId(accessToken, post.location)
+    : null;
 
   // 5. Cover URL (opcional)
   let coverUrl = null;

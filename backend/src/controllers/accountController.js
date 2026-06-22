@@ -166,9 +166,9 @@ exports.importBulkAccounts = async (req, res) => {
     const apiResults = [];
 
     // Lazy-load private API service to avoid crash if package not installed
-    let postReelPrivate, createClient;
+    let createClient, convertToProfessional, getAccountType;
     try {
-      ({ createClient } = require('../services/instagramPrivateService'));
+      ({ createClient, convertToProfessional, getAccountType } = require('../services/instagramPrivateService'));
     } catch (_) {
       createClient = null;
     }
@@ -213,17 +213,38 @@ exports.importBulkAccounts = async (req, res) => {
 
       imported.push(account.username);
 
-      // 2. Tentar login via Private API (sessão isolada por conta)
+      // 2. Login via Private API + auto-conversão para conta profissional
       if (connectApi && createClient) {
         try {
-          console.log(`🔐 [API Login] Tentando @${username}...`);
+          console.log(`🔐 [Import] Login @${username}...`);
           await createClient(account);
-          apiResults.push({ username, apiStatus: 'conectada' });
-          console.log(`✅ [API Login] @${username} conectada`);
+          console.log(`✅ [Import] @${username} autenticada`);
+
+          // Verifica tipo de conta e converte se for pessoal
+          if (getAccountType) {
+            try {
+              const typeInfo = await getAccountType(account);
+              if (!typeInfo.isProfessional) {
+                console.log(`🔄 [Import] @${username} é pessoal — convertendo para Creator...`);
+                await convertToProfessional(account);
+                await Account.findByIdAndUpdate(account._id, { accountType: 'creator' });
+                apiResults.push({ username, apiStatus: 'convertida_para_creator' });
+                console.log(`✅ [Import] @${username} convertida para Creator`);
+              } else {
+                apiResults.push({ username, apiStatus: 'conectada', accountType: typeInfo.typeName });
+              }
+            } catch (typeErr) {
+              // Falha na verificação/conversão não impede o import
+              apiResults.push({ username, apiStatus: 'conectada', conversionWarning: typeErr.message });
+              console.warn(`⚠️ [Import] @${username} verificação de tipo falhou: ${typeErr.message}`);
+            }
+          } else {
+            apiResults.push({ username, apiStatus: 'conectada' });
+          }
         } catch (apiErr) {
           const msg = apiErr.message || String(apiErr);
           apiResults.push({ username, apiStatus: 'erro', error: msg });
-          console.warn(`⚠️ [API Login] @${username} falhou: ${msg}`);
+          console.warn(`⚠️ [Import] @${username} falhou: ${msg}`);
         }
       }
     }
