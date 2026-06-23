@@ -580,17 +580,14 @@ router.patch('/:id/totp-secret', async (req, res) => {
     if (!secret) return res.status(400).json({ error: 'Segredo TOTP não informado' });
 
     // Valida o segredo gerando um código de teste
-    const { totp } = require('otplib');
-    let testCode;
-    try {
-      testCode = totp.generate(secret);
-    } catch {
-      return res.status(400).json({ error: 'Segredo TOTP inválido. Copie a chave base32 do Google Authenticator.' });
+    // Valida que a chave tem apenas caracteres base32 válidos (A-Z, 2-7)
+    if (!/^[A-Z2-7]+=*$/i.test(secret)) {
+      return res.status(400).json({ error: 'Segredo TOTP inválido. Use apenas letras A-Z e números 2-7.' });
     }
 
     await Account.findByIdAndUpdate(req.params.id, { totpSecret: secret });
-    console.log(`[TOTP] @${req.params.id} -- segredo salvo, código atual: ${testCode}`);
-    res.json({ success: true, message: 'Segredo TOTP salvo! Login automático ativado.', testCode });
+    console.log(`[TOTP] @${req.params.id} -- segredo salvo (${secret.length} chars)`);
+    res.json({ success: true, message: 'Segredo TOTP salvo! Login automático ativado.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

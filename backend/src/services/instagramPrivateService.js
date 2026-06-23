@@ -360,7 +360,10 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         if (freshAccount?.totpSecret) {
           try {
             const { totp } = require('otplib');
-            const autoCode = totp.generate(freshAccount.totpSecret.replace(/\s/g, '').toUpperCase());
+            // Normaliza: remove espaços, uppercase, adiciona padding se necessário
+            let secret = freshAccount.totpSecret.replace(/\s/g, '').toUpperCase();
+            while (secret.length % 8 !== 0) secret += '=';
+            const autoCode = totp.generate(secret);
             console.log(`[PrivateAPI] @${account.username} -- TOTP auto-gerado (segredo salvo)`);
             const user = await ig.account.twoFactorLogin({
               username:            account.username,
