@@ -426,14 +426,18 @@ router.post('/:id/login-private', async (req, res) => {
 
     const { createClient, convertToProfessional, getAccountType } = require('../services/instagramPrivateService');
 
+    // Limpa challengeState antes de fazer novo login para garantir que createClient não retorne early
+    await Account.findByIdAndUpdate(account._id, { challengeState: '' });
+    const freshAccount = await Account.findById(account._id);
+
     try {
-      await createClient(account);
+      await createClient(freshAccount, { forcePasswordLogin: true });
 
       // Verifica e converte conta pessoal para Creator
       try {
-        const typeInfo = await getAccountType(account);
+        const typeInfo = await getAccountType(freshAccount);
         if (!typeInfo.isProfessional) {
-          await convertToProfessional(account);
+          await convertToProfessional(freshAccount);
           await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '' });
           return res.json({ status: 'connected', converted: true, message: 'Conta conectada e convertida para Creator!' });
         }
