@@ -488,8 +488,9 @@ router.post('/:id/resolve-challenge', async (req, res) => {
     const { code } = req.body;
     if (!code?.trim()) return res.status(400).json({ error: 'Código não informado.' });
 
+    const codeType = req.body.codeType || 'email'; // 'email' | 'totp'
     const { resolveChallenge } = require('../services/instagramPrivateService');
-    await resolveChallenge(account, code.trim());
+    await resolveChallenge(account, code.trim(), codeType);
     res.json({ success: true, message: 'Conta conectada com sucesso!' });
   } catch (err) {
     // Checkpoint resolvido mas agora precisa de TOTP

@@ -29,7 +29,7 @@ function getIgApiClient() {
 
 const _pendingChallenges = new Map();
 
-async function resolveChallenge(account, code) {
+async function resolveChallenge(account, code, codeType = 'email') {
   const IgApiClient = getIgApiClient();
 
   // Tenta usar o cliente em memória (mesmo processo)
@@ -51,6 +51,16 @@ async function resolveChallenge(account, code) {
     ig.state.generateDevice(seed);
     await ig.state.deserialize(saved);
     console.log(`[PrivateAPI] @${account.username} -- challenge state restaurado do banco`);
+  }
+
+  if (codeType === 'totp') {
+    // TOTP dentro de checkpoint: seleciona método autenticador (0) antes de enviar o código
+    try {
+      await ig.challenge.selectVerifyMethod('0');
+      console.log(`[PrivateAPI] @${account.username} -- método autenticador selecionado`);
+    } catch (selErr) {
+      console.log(`[PrivateAPI] @${account.username} -- selectVerifyMethod('0') falhou: ${selErr.message} — tentando diretamente`);
+    }
   }
 
   await ig.challenge.sendSecurityCode(code);

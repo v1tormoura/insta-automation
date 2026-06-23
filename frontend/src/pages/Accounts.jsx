@@ -304,14 +304,20 @@ export default function Accounts() {
     }
   }
 
-  // Quando o usuário indica que o código é do Google Authenticator mas chegou pelo modal de challenge
+  // Código do Google Authenticator dentro do fluxo de checkpoint
+  // Usa /resolve-challenge com codeType='totp' (ig.challenge.selectVerifyMethod('0') + sendSecurityCode)
   async function submitChallengeAsTotp() {
     if (!mobileCode.trim()) return showToast('warning', 'Atenção', 'Digite o código do Google Authenticator.');
     setMobileStep('loading');
     try {
-      await api.post(`/accounts/${mobileModal._id}/resolve-totp`, { code: mobileCode.trim() });
+      const res = await api.post(`/accounts/${mobileModal._id}/resolve-challenge`, { code: mobileCode.trim(), codeType: 'totp' });
+      if (res.data.totpRequired) {
+        setMobileCode(''); setMobileCodeType('totp'); setMobileStep('needsCode');
+        setMobileMsg(res.data.message);
+        return;
+      }
       setMobileStep('done');
-      setMobileMsg('✅ Autenticação 2FA concluída! Conta conectada.');
+      setMobileMsg('✅ Conta conectada!');
       await loadAccounts();
     } catch (err) {
       setMobileStep('needsCode');
