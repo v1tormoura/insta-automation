@@ -491,8 +491,10 @@ router.post('/:id/import-session', async (req, res) => {
     const account = await Account.findById(req.params.id);
     if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-    const sessionid = (req.body.sessionid || '').trim();
+    let sessionid = (req.body.sessionid || '').trim();
     if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
+    // Decodifica URL encoding (%3A → :) caso o usuário copie o valor bruto do DevTools
+    try { sessionid = decodeURIComponent(sessionid); } catch { /* já está decodificado */ }
 
     const { IgApiClient } = require('instagram-private-api');
     const ig = new IgApiClient();
