@@ -276,7 +276,13 @@ export default function Accounts() {
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Falha ao iniciar login.'); }
   }
 
-  function openMobileModal(account) { setMobileModal(account); setMobileCode(''); setMobileStep('idle'); setMobileMsg(''); }
+  function openMobileModal(account, skipToCode = false) {
+    setMobileModal(account);
+    setMobileCode('');
+    setMobileMsg('');
+    // skipToCode=true: challenge já foi iniciado no import, vai direto para digitar o código
+    setMobileStep(skipToCode ? 'needsCode' : 'idle');
+  }
 
   async function initMobileSession() {
     setMobileStep('loading');
@@ -675,7 +681,7 @@ export default function Accounts() {
                                 </a>
                               )}
                               <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#34d39922', color: '#34d399', border: '1px solid #34d39944' }}
-                                onClick={() => { setBulkImportOpen(false); setImportResults(null); openMobileModal({ _id: apiInfo.accountId, username }); }}>
+                                onClick={() => { setBulkImportOpen(false); setImportResults(null); openMobileModal({ _id: apiInfo.accountId, username }, true); }}>
                                 Inserir código
                               </button>
                             </div>
@@ -810,7 +816,69 @@ export default function Accounts() {
         </div>
       )}
 
-      {/* Mobile Session Modal */}
+      {/* Mobile Session Modal — challenge / verificação de identidade */}
+      {mobileModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(420px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>Verificação de identidade</h3>
+              <button onClick={() => { setMobileModal(null); setMobileCode(''); setMobileStep('idle'); }}
+                style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 14px' }}>
+              Conta: <strong>@{mobileModal.username}</strong>
+            </p>
+
+            {mobileStep === 'idle' && (
+              <>
+                <p style={{ fontSize: 13, color: 'var(--text2)' }}>
+                  O Instagram vai enviar um código para o email ou telefone da conta para verificar sua identidade.
+                </p>
+                <div className="modal-actions">
+                  <button className="btn btn-ghost" onClick={() => setMobileModal(null)}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={initMobileSession}>Enviar código</button>
+                </div>
+              </>
+            )}
+
+            {mobileStep === 'loading' && (
+              <p style={{ textAlign: 'center', color: 'var(--text2)', padding: '16px 0' }}>Aguardando...</p>
+            )}
+
+            {mobileStep === 'needsCode' && (
+              <>
+                <p style={{ fontSize: 13, color: '#fbbf24', marginBottom: 12 }}>
+                  {mobileMsg || 'Verifique seu email ou SMS e digite o código de 6 dígitos abaixo:'}
+                </p>
+                <input
+                  className="inp" type="text" inputMode="numeric" maxLength={6}
+                  placeholder="000000" value={mobileCode}
+                  onChange={e => setMobileCode(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={e => e.key === 'Enter' && mobileCode.length >= 4 && resolveChallenge()}
+                  style={{ textAlign: 'center', fontSize: 24, letterSpacing: 6 }}
+                  autoFocus
+                />
+                <div className="modal-actions" style={{ marginTop: 12 }}>
+                  <button className="btn btn-ghost" onClick={() => setMobileModal(null)}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={resolveChallenge} disabled={mobileCode.length < 4}>
+                    Confirmar código
+                  </button>
+                </div>
+              </>
+            )}
+
+            {mobileStep === 'done' && (
+              <>
+                <p style={{ fontSize: 13, color: '#34d399' }}>{mobileMsg || '✅ Verificação concluída! Conta conectada.'}</p>
+                <div className="modal-actions">
+                  <button className="btn btn-primary" onClick={() => { setMobileModal(null); setMobileStep('idle'); }}>Fechar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Proxy Modal */}
       {proxyModalOpen && (
         <div className="modal-overlay">
