@@ -252,25 +252,32 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         (status === 400 && ig.state.checkpoint);
 
       if (needsChallenge || ig.state.checkpoint) {
-        console.log('[PrivateAPI] Challenge -- solicitando codigo...');
+        // Extrai a URL do challenge para o usuário completar no navegador
+        const checkpointUrl = ig.state.checkpoint?.challenge?.url
+          || (ig.state.checkpoint ? `https://www.instagram.com${ig.state.checkpoint}` : null)
+          || 'https://www.instagram.com/challenge/';
+
+        console.log(`[PrivateAPI] @${account.username} -- Challenge URL: ${checkpointUrl}`);
+
+        // Tenta enviar código por email automaticamente (pode falhar em IPs novos)
+        let autoSent = false;
         try {
+          await ig.challenge.reset();
           await ig.challenge.auto(true);
-          _pendingChallenges.set(String(account._id), { ig, seed: newSeed, username: account.username });
-          const err = new Error('CHALLENGE_REQUIRED');
-          err.code  = 'CHALLENGE_REQUIRED';
-          throw err;
-        } catch (ce) {
-          if (ce.code === 'CHALLENGE_REQUIRED') throw ce;
-          try {
-            await ig.challenge.selectVerifyMethod('1');
-            _pendingChallenges.set(String(account._id), { ig, seed: newSeed, username: account.username });
-            const smsErr = new Error('CHALLENGE_REQUIRED');
-            smsErr.code  = 'CHALLENGE_REQUIRED';
-            throw smsErr;
-          } catch (smsE) {
-            if (smsE.code === 'CHALLENGE_REQUIRED') throw smsE;
-          }
+          autoSent = true;
+          console.log(`[PrivateAPI] @${account.username} -- código enviado por email`);
+        } catch {
+          // auto() falhou (IP bloqueado) — usuário vai completar pelo link
+          console.log(`[PrivateAPI] @${account.username} -- auto() falhou, usando link manual`);
         }
+
+        _pendingChallenges.set(String(account._id), { ig, seed: newSeed, username: account.username });
+
+        const err = new Error('CHALLENGE_REQUIRED');
+        err.code         = 'CHALLENGE_REQUIRED';
+        err.challengeUrl = checkpointUrl;
+        err.autoSent     = autoSent;
+        throw err;
       }
 
       await Account.findByIdAndUpdate(account._id, { healthStatus: 'sessao_expirada', lastError: loginErr.message });

@@ -660,15 +660,25 @@ export default function Accounts() {
                       }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 13, fontWeight: 600 }}>@{username}</span>
-                          {apiInfo?.error && <div style={{ fontSize: 11, color: isChallenge ? '#fbbf24' : '#f87171', marginTop: 2 }}>{apiInfo.error}</div>}
+                          {apiInfo?.error && <div style={{ fontSize: 11, color: isChallenge ? '#fbbf24' : isTotp ? '#60a5fa' : '#f87171', marginTop: 2 }}>
+                            {isChallenge && apiInfo.autoSent ? '📧 Código enviado para o email da conta.' : apiInfo.error}
+                          </div>}
                           {apiInfo?.conversionWarning && <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 2 }}>{apiInfo.conversionWarning.slice(0, 80)}</div>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
                           {isChallenge && apiInfo?.accountId && (
-                            <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#fbbf2422', color: '#fbbf24', border: '1px solid #fbbf2444' }}
-                              onClick={() => { setBulkImportOpen(false); setImportResults(null); openMobileModal({ _id: apiInfo.accountId, username }); }}>
-                              Verificar
-                            </button>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {apiInfo.challengeUrl && (
+                                <a href={apiInfo.challengeUrl} target="_blank" rel="noreferrer"
+                                  className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#fbbf2422', color: '#fbbf24', border: '1px solid #fbbf2444', textDecoration: 'none' }}>
+                                  Abrir link
+                                </a>
+                              )}
+                              <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#34d39922', color: '#34d399', border: '1px solid #34d39944' }}
+                                onClick={() => { setBulkImportOpen(false); setImportResults(null); openMobileModal({ _id: apiInfo.accountId, username }); }}>
+                                Inserir código
+                              </button>
+                            </div>
                           )}
                           {isTotp && apiInfo?.accountId && (
                             <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#60a5fa22', color: '#60a5fa', border: '1px solid #60a5fa44' }}

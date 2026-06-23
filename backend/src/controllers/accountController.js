@@ -247,12 +247,14 @@ exports.importBulkAccounts = async (req, res) => {
           const isTotp      = apiErr.code === 'TOTP_REQUIRED';
           apiResults.push({
             username,
-            accountId: String(account._id),
-            apiStatus: isTotp ? 'totp_required' : isChallenge ? 'challenge_required' : 'erro',
+            accountId:    String(account._id),
+            apiStatus:    isTotp ? 'totp_required' : isChallenge ? 'challenge_required' : 'erro',
+            challengeUrl: apiErr.challengeUrl || null,
+            autoSent:     apiErr.autoSent     || false,
             error: isTotp
-              ? 'Conta com autenticador 2FA ativo. Abra o Google Authenticator / Authy e clique em "Inserir código".'
+              ? 'Conta com autenticador 2FA. Abra o Google Authenticator / Authy e clique em "Inserir código".'
               : isChallenge
-                ? 'Instagram pediu verificação por email/SMS. Clique em "Verificar" para enviar o código.'
+                ? 'Instagram pediu verificação. Abra o link abaixo, complete a verificação e clique em "Já verifiquei".'
                 : msg,
           });
           console.warn(`⚠️ [Import] @${username} ${isChallenge ? 'challenge' : 'falhou'}: ${msg}`);
