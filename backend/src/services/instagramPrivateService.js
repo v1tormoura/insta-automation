@@ -337,14 +337,29 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const msg    = (loginErr?.message || '').toLowerCase();
       const status = loginErr?.response?.statusCode;
 
+      const isEmailChallenge =
+        msg.includes('email to help') || msg.includes('get back into your account') || msg.includes('we can send you');
+
       const needsChallenge =
         loginErr?.name === 'IgCheckpointError' ||
         msg.includes('checkpoint') || msg.includes('challenge') ||
-        msg.includes('email to help') || msg.includes('get back into your account') ||
-        msg.includes('we can send you') || msg.includes('verify your account') ||
+        isEmailChallenge || msg.includes('verify your account') ||
         (status === 400 && ig.state.checkpoint);
 
       if (needsChallenge || ig.state.checkpoint) {
+        // Quando Instagram retorna IgLoginBadPasswordError com mensagem de email,
+        // ig.state.checkpoint fica null. Segunda tentativa de login geralmente retorna
+        // IgCheckpointError com checkpoint URL correto.
+        if (isEmailChallenge && !ig.state.checkpoint) {
+          console.log(`[PrivateAPI] @${account.username} -- sem checkpoint, tentando 2ª vez para obter checkpoint URL...`);
+          try {
+            await ig.account.login(loginId, account.password);
+          } catch (loginErr2) {
+            // Ignora — só queremos que ig.state.checkpoint seja preenchido
+            console.log(`[PrivateAPI] @${account.username} -- 2ª tentativa: ${loginErr2?.name} checkpoint=${ig.state.checkpoint ? 'ok' : 'null'}`);
+          }
+        }
+
         // Detecta se o checkpoint está pedindo o código do autenticador (TOTP)
         const checkpointStepData = ig.state.checkpoint?.step_data;
         const contactPoint = checkpointStepData?.contact_point || '';
@@ -354,7 +369,6 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
           loginErr?.response?.body?.two_factor_info?.totp_two_factor_on;
 
         if (isTotpChallenge) {
-          // Checkpoint pedindo TOTP — trata igual ao IgLoginTwoFactorRequiredError
           const twoFactorInfo = loginErr?.response?.body?.two_factor_info || {};
           _pendingTotp.set(String(account._id), {
             ig, twoFactorIdentifier: twoFactorInfo.two_factor_identifier || '',
@@ -363,11 +377,9 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
           const err = new Error('TOTP_REQUIRED'); err.code = 'TOTP_REQUIRED'; throw err;
         }
 
-        // Extrai challenge URL diretamente do erro (ig.state.checkpoint pode ser null)
-        const errBody = loginErr?.response?.body || {};
-        const challengeApiPath = errBody.challenge?.api_path
-          || errBody.checkpoint_url
-          || ig.state.checkpoint?.challenge?.api_path
+        // Extrai challenge api_path do checkpoint (agora deve estar preenchido após 2ª tentativa)
+        const challengeApiPath = ig.state.checkpoint?.challenge?.api_path
+          || parsedBody.challenge?.api_path
           || null;
         console.log(`[PrivateAPI] @${account.username} -- challenge api_path: ${challengeApiPath}`);
 
