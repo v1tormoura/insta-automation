@@ -238,33 +238,27 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
 
   // 1. Sessao do banco
   if (account.igSession && !_skipToFile) {
+    let dbSaved = null;
     try {
-      const saved = typeof account.igSession === 'string'
+      dbSaved = typeof account.igSession === 'string'
         ? JSON.parse(account.igSession) : account.igSession;
-      ig.state.generateDevice(saved._deviceSeed || account.username);
-      await ig.state.deserialize(saved);
+      const dbSeed = dbSaved._deviceSeed || account.username;
+      ig.state.generateDevice(dbSeed);
+      await ig.state.deserialize(dbSaved);
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do banco OK`);
       return ig;
     } catch (sessErr) {
       const sessMsg = (sessErr?.message || '').toLowerCase();
-      // checkpoint_required = sessão válida mas IP precisa de verificação
-      // NÃO descarta a sessão — preserva o ig client e lança CHALLENGE_REQUIRED
       if (sessMsg.includes('checkpoint_required') || sessMsg.includes('checkpoint')) {
+        const dbSeed = dbSaved?._deviceSeed || account.username;
         console.log(`[PrivateAPI] @${account.username} -- sessão válida mas IP requer checkpoint`);
-        // Tenta extrair checkpoint URL do estado ou do erro
-        const checkpointUrl = ig.state.checkpoint?.challenge?.api_path
-          || sessErr?.response?.body?.checkpoint_url
-          || null;
-        if (checkpointUrl) ig.state.checkpoint = { challenge: { api_path: checkpointUrl } };
-        // Tenta auto() para enviar email de verificação
         let autoSent = false;
         try { await ig.challenge.reset(); await ig.challenge.auto(true); autoSent = true; } catch {}
-        // Salva estado para resolução posterior
-        const snap = await ig.state.serialize(); delete snap.constants; snap._deviceSeed = saved._deviceSeed || account.username;
+        const snap = await ig.state.serialize(); delete snap.constants; snap._deviceSeed = dbSeed;
         snap._checkpointRaw = ig.state.checkpoint ? JSON.parse(JSON.stringify(ig.state.checkpoint)) : null;
         await Account.findByIdAndUpdate(account._id, { challengeState: JSON.stringify(snap), healthStatus: 'sessao_expirada' });
-        _pendingChallenges.set(String(account._id), { ig, seed: saved._deviceSeed || account.username, username: account.username });
+        _pendingChallenges.set(String(account._id), { ig, seed: dbSeed, username: account.username });
         const err = new Error('CHALLENGE_REQUIRED'); err.code = 'CHALLENGE_REQUIRED'; err.autoSent = autoSent; throw err;
       }
       console.log(`[PrivateAPI] @${account.username} -- sessao do banco expirada: ${sessErr?.message?.slice(0,60)}`);
