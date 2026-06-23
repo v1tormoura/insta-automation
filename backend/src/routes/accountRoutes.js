@@ -411,14 +411,14 @@ router.post('/:id/quick-check', async (req, res) => {
 });
 
 /**
- * POST /accounts/:id/connect-api
- * Conecta a conta via Private API em background.
+ * POST /accounts/:id/login-private
+ * Conecta a conta via Private API (login com senha) em background.
  * - Faz login com a senha salva
  * - Envia código por email automaticamente se houver challenge
  * - Converte para Creator se conta for pessoal
  * Retorna: { status: 'connected' | 'challenge_required' | 'totp_required', autoSent }
  */
-router.post('/:id/connect-api', async (req, res) => {
+router.post('/:id/login-private', async (req, res) => {
   try {
     const account = await Account.findById(req.params.id);
     if (!account) return res.status(404).json({ error: 'Conta não encontrada' });

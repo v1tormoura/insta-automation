@@ -325,7 +325,7 @@ export default function Accounts() {
     }
     setConnectingApi(p => ({ ...p, [account._id]: true }));
     try {
-      const res = await api.post(`/accounts/${account._id}/connect-api`);
+      const res = await api.post(`/accounts/${account._id}/login-private`);
       const { status, autoSent, converted, message } = res.data;
 
       if (status === 'connected') {
