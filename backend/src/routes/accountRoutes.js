@@ -501,26 +501,30 @@ router.post('/:id/import-session', async (req, res) => {
     const seed = account.username;
     ig.state.generateDevice(seed);
 
-    // Injeta sessionid como cookie
-    await ig.state.deserializeCookieJar(JSON.stringify({
-      version: 'tough-cookie@4.1.2',
-      storeType: 'MemoryCookieStore',
-      rejectPublicSuffixes: true,
-      enableLooseMode: false,
-      allowSpecialUseDomain: true,
-      cookies: [
-        { key: 'sessionid', value: sessionid, domain: '.instagram.com', path: '/', secure: true, httpOnly: true, hostOnly: false },
-        { key: 'ig_did',    value: ig.state.deviceId, domain: '.instagram.com', path: '/', secure: true, httpOnly: false, hostOnly: false },
-        { key: 'ig_nrcb',  value: '1',               domain: '.instagram.com', path: '/', secure: true, httpOnly: false, hostOnly: false },
-      ],
-    }));
+    // Injeta cookies no RequestJar usando a API async (setCookie sem Sync)
+    const jar = ig.state.cookieJar;
+    const base = 'https://www.instagram.com';
+    await new Promise((resolve, reject) => {
+      jar.setCookie(`sessionid=${sessionid}; Domain=.instagram.com; Path=/; Secure; HttpOnly`, base,
+        err => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      jar.setCookie(`ig_did=${ig.state.deviceId}; Domain=.instagram.com; Path=/; Secure`, base,
+        err => err ? reject(err) : resolve());
+    });
+    await new Promise((resolve, reject) => {
+      jar.setCookie(`ig_nrcb=1; Domain=.instagram.com; Path=/; Secure`, base,
+        err => err ? reject(err) : resolve());
+    });
 
-    // Verifica se a sessão é válida
+    // Verifica se a sessão é válida chamando a API privada
     let me;
     try {
       me = await ig.account.currentUser();
+      console.log(`[SessionImport] @${me.username} -- sessão válida`);
     } catch (e) {
-      return res.status(400).json({ error: 'sessionid inválido ou expirado. Copie novamente do browser.' });
+      console.log(`[SessionImport] erro: ${e.message}`);
+      return res.status(400).json({ error: `sessionid inválido ou expirado: ${e.message}` });
     }
 
     // Salva sessão no banco
