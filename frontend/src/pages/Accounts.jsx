@@ -701,8 +701,9 @@ export default function Accounts() {
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }}
-                            title="Configurar 2FA automático — salva o segredo TOTP para login automático"
-                          >🔑 2FA</button>
+                            title={account.hasTotpSecret ? '2FA automático configurado ✅ — clique para alterar' : 'Configurar 2FA automático'}
+                            style={account.hasTotpSecret ? { borderColor: '#34d399', color: '#34d399' } : {}}
+                          >🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                           <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
                         </>

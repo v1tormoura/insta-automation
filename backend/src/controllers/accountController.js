@@ -49,10 +49,18 @@ exports.getAccounts = async (req, res) => {
     const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
     const skip = (page - 1) * limit;
 
-    const [accounts, total] = await Promise.all([
+    const [rawAccounts, total] = await Promise.all([
       Account.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
       Account.countDocuments(),
     ]);
+
+    // Converte totpSecret em flag booleano (não expõe o segredo para o frontend)
+    const accounts = rawAccounts.map(a => {
+      const obj = a.toObject();
+      obj.hasTotpSecret = !!obj.totpSecret;
+      delete obj.totpSecret;
+      return obj;
+    });
 
     res.json({
       accounts,
