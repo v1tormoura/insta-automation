@@ -480,6 +480,67 @@ router.post('/:id/init-mobile-session', async (req, res) => {
   }
 });
 
+/**
+ * POST /accounts/:id/import-session
+ * Importa sessão diretamente pelo sessionid do cookie do Instagram.
+ * O usuário copia o valor do cookie "sessionid" do browser e cola aqui.
+ * Constrói uma sessão válida sem precisar de login/challenge.
+ */
+router.post('/:id/import-session', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    const sessionid = (req.body.sessionid || '').trim();
+    if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
+
+    const { IgApiClient } = require('instagram-private-api');
+    const ig = new IgApiClient();
+    const seed = account.username;
+    ig.state.generateDevice(seed);
+
+    // Injeta sessionid como cookie
+    await ig.state.deserializeCookieJar(JSON.stringify({
+      version: 'tough-cookie@4.1.2',
+      storeType: 'MemoryCookieStore',
+      rejectPublicSuffixes: true,
+      enableLooseMode: false,
+      allowSpecialUseDomain: true,
+      cookies: [
+        { key: 'sessionid', value: sessionid, domain: '.instagram.com', path: '/', secure: true, httpOnly: true, hostOnly: false },
+        { key: 'ig_did',    value: ig.state.deviceId, domain: '.instagram.com', path: '/', secure: true, httpOnly: false, hostOnly: false },
+        { key: 'ig_nrcb',  value: '1',               domain: '.instagram.com', path: '/', secure: true, httpOnly: false, hostOnly: false },
+      ],
+    }));
+
+    // Verifica se a sessão é válida
+    let me;
+    try {
+      me = await ig.account.currentUser();
+    } catch (e) {
+      return res.status(400).json({ error: 'sessionid inválido ou expirado. Copie novamente do browser.' });
+    }
+
+    // Salva sessão no banco
+    const state = await ig.state.serialize();
+    delete state.constants;
+    state._deviceSeed = seed;
+    await Account.findByIdAndUpdate(account._id, {
+      igSession:      JSON.stringify(state),
+      challengeState: '',
+      healthStatus:   'ativa',
+      lastError:      '',
+      username:       me.username,
+      name:           me.full_name || me.username,
+    });
+
+    console.log(`[PrivateAPI] @${me.username} -- sessão importada via sessionid`);
+    res.json({ success: true, message: `Conta @${me.username} conectada via sessionid!`, username: me.username });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /** POST /accounts/:id/clear-challenge — limpa challenge pendente para forçar novo login */
 router.post('/:id/clear-challenge', async (req, res) => {
   try {

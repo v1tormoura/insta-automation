@@ -52,6 +52,9 @@ export default function Accounts() {
   const [totpLoading, setTotpLoading]     = useState(false);
   const [connectingApi, setConnectingApi] = useState({});   // { [accountId]: true }
   const [mobileCodeType, setMobileCodeType] = useState('email'); // 'email' | 'totp'
+  const [sessionModal, setSessionModal]   = useState(null);  // account object
+  const [sessionId, setSessionId]         = useState('');
+  const [sessionLoading, setSessionLoading] = useState(false);
   // Rename modal
   const [renameModal, setRenameModal]     = useState(null);   // account object
   const [renameValue, setRenameValue]     = useState('');
@@ -347,6 +350,21 @@ export default function Accounts() {
     } catch (err) {
       setMobileStep('needsCode');
       showToast('error', 'Código inválido', err.response?.data?.error || 'Verifique o código e tente novamente.');
+    }
+  }
+
+  async function importSession() {
+    if (!sessionId.trim()) return showToast('warning', 'Atenção', 'Cole o sessionid antes de confirmar.');
+    setSessionLoading(true);
+    try {
+      const res = await api.post(`/accounts/${sessionModal._id}/import-session`, { sessionid: sessionId.trim() });
+      showToast('success', '✅ Conectada!', res.data.message);
+      setSessionModal(null); setSessionId('');
+      await loadAccounts();
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || 'sessionid inválido.');
+    } finally {
+      setSessionLoading(false);
     }
   }
 
@@ -659,10 +677,9 @@ export default function Accounts() {
                         <>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => connectApi(account)}
-                            disabled={connectingApi[account._id]}
-                            title="Conectar via API privada (login em background)"
-                          >{connectingApi[account._id] ? '⏳' : '🔗 API'}</button>
+                            onClick={() => { setSessionModal(account); setSessionId(''); }}
+                            title="Conectar via sessionid do cookie — cola o cookie sessionid do browser"
+                          >🔗 API</button>
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => openCookieModal(account)}
@@ -990,6 +1007,44 @@ export default function Accounts() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Session ID Modal */}
+      {sessionModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(480px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>🔗 Conectar via Session Cookie</h3>
+              <button onClick={() => setSessionModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 6px' }}>
+              Conta: <strong>@{sessionModal.username}</strong>
+            </p>
+            <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
+              <strong style={{ color: 'var(--text1)' }}>Como obter o sessionid:</strong><br/>
+              1. Abra <strong>instagram.com</strong> no Chrome e faça login normalmente<br/>
+              2. Pressione <strong>F12</strong> → aba <strong>Application</strong> → <strong>Cookies</strong> → <strong>instagram.com</strong><br/>
+              3. Encontre o cookie <strong>sessionid</strong> e copie o valor<br/>
+              4. Cole abaixo e clique em Conectar
+            </div>
+            <input
+              className="inp"
+              type="text"
+              placeholder="Cole aqui o valor do cookie sessionid..."
+              value={sessionId}
+              onChange={e => setSessionId(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && importSession()}
+              autoFocus
+              style={{ fontFamily: 'monospace', fontSize: 12 }}
+            />
+            <div className="modal-actions" style={{ marginTop: 12 }}>
+              <button className="btn btn-ghost" onClick={() => setSessionModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={importSession} disabled={sessionLoading || !sessionId.trim()}>
+                {sessionLoading ? 'Conectando...' : 'Conectar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
