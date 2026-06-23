@@ -55,6 +55,11 @@ export default function Accounts() {
   const [sessionModal, setSessionModal]   = useState(null);  // account object
   const [sessionId, setSessionId]         = useState('');
   const [sessionLoading, setSessionLoading] = useState(false);
+  // TOTP Secret modal — salva segredo base32 para geração automática de 2FA
+  const [totpSecretModal, setTotpSecretModal] = useState(null);  // account object
+  const [totpSecretValue, setTotpSecretValue] = useState('');
+  const [totpSecretLoading, setTotpSecretLoading] = useState(false);
+
   // Rename modal
   const [renameModal, setRenameModal]     = useState(null);   // account object
   const [renameValue, setRenameValue]     = useState('');
@@ -418,6 +423,25 @@ export default function Accounts() {
     }
   }
 
+  async function saveTotpSecret() {
+    const secret = totpSecretValue.trim().replace(/\s/g, '').toUpperCase();
+    if (!secret) return showToast('warning', 'Atenção', 'Cole o segredo TOTP (chave base32).');
+    setTotpSecretLoading(true);
+    try {
+      const res = await api.patch(`/accounts/${totpSecretModal._id}/totp-secret`, { totpSecret: secret });
+      showToast('success', '🔑 Segredo salvo!', res.data.message || 'Login automático 2FA ativado.');
+      setTotpSecretModal(null);
+      setTotpSecretValue('');
+      // Tenta login automático agora
+      const account = accounts.find(a => String(a._id) === String(totpSecretModal._id));
+      if (account) setTimeout(() => connectApi(account), 500);
+    } catch (err) {
+      showToast('error', 'Segredo inválido', err.response?.data?.error || 'Verifique o segredo e tente novamente.');
+    } finally {
+      setTotpSecretLoading(false);
+    }
+  }
+
   async function resolveTotp() {
     if (!totpCode.trim()) return showToast('warning', 'Atenção', 'Digite o código de 6 dígitos do autenticador.');
     setTotpLoading(true);
@@ -680,6 +704,11 @@ export default function Accounts() {
                             onClick={() => { setSessionModal(account); setSessionId(''); }}
                             title="Conectar via sessionid do cookie — cola o cookie sessionid do browser"
                           >🔗 API</button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }}
+                            title="Configurar 2FA automático — salva o segredo TOTP para login automático"
+                          >🔑 2FA</button>
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => openCookieModal(account)}
@@ -1007,6 +1036,53 @@ export default function Accounts() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TOTP Secret Modal — configura 2FA automático */}
+      {totpSecretModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(500px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>🔑 Configurar 2FA Automático</h3>
+              <button onClick={() => setTotpSecretModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 8px' }}>
+              Conta: <strong>@{totpSecretModal.username}</strong>
+            </p>
+            <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+              <strong style={{ color: 'var(--text1)' }}>Como obter o segredo TOTP:</strong><br/>
+              <strong>Opção 1 — Google Authenticator:</strong><br/>
+              1. Abra o Google Authenticator → pressione e segure a conta Instagram<br/>
+              2. Toque em "Transferir contas" → "Exportar contas"<br/>
+              3. Use um app como <strong>Authenticator Pro</strong> ou <strong>Aegis</strong> para exportar o segredo<br/>
+              <br/>
+              <strong>Opção 2 — Reconfigurar 2FA (mais fácil):</strong><br/>
+              1. No Instagram → Configurações → Central de contas → Senha e segurança → Autenticação de dois fatores<br/>
+              2. Desative e reative o "Aplicativo de autenticação"<br/>
+              3. Na tela de QR code, clique em "Não consigo escanear" → copie a <strong>chave de 16/32 caracteres</strong><br/>
+              4. Cole abaixo
+            </div>
+            <input
+              className="inp"
+              type="text"
+              placeholder="Ex: JBSWY3DPEHPK3PXP (chave base32)"
+              value={totpSecretValue}
+              onChange={e => setTotpSecretValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveTotpSecret()}
+              autoFocus
+              style={{ fontFamily: 'monospace', fontSize: 13, letterSpacing: 2 }}
+            />
+            <p style={{ fontSize: 11, color: 'var(--text2)', margin: '6px 0 0' }}>
+              Após salvar, o sistema gera os códigos automaticamente — sem precisar abrir o celular.
+            </p>
+            <div className="modal-actions" style={{ marginTop: 12 }}>
+              <button className="btn btn-ghost" onClick={() => setTotpSecretModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveTotpSecret} disabled={totpSecretLoading || !totpSecretValue.trim()}>
+                {totpSecretLoading ? 'Salvando...' : '✅ Salvar e Conectar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

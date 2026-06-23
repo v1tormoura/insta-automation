@@ -349,12 +349,39 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const parsedBody = rawBody ? (typeof rawBody === 'string' ? (() => { try { return JSON.parse(rawBody); } catch { return {}; } })() : rawBody) : {};
       console.log(`[PrivateAPI:DBG] @${account.username} -- errName=${loginErr?.name} status=${loginErr?.response?.statusCode} msg=${parsedBody.message} checkpoint_state=${JSON.stringify(ig.state.checkpoint)?.slice(0,100)} errBodyChallenge=${JSON.stringify(parsedBody.challenge)?.slice(0,100)}`);
 
-      // 2FA com autenticador (TOTP) — precisa do código do Google Authenticator/Authy
+      // 2FA com autenticador (TOTP)
       const { IgLoginTwoFactorRequiredError } = require('instagram-private-api');
       if (loginErr instanceof IgLoginTwoFactorRequiredError) {
         const twoFactorInfo       = loginErr.response?.body?.two_factor_info;
         const twoFactorIdentifier = twoFactorInfo?.two_factor_identifier;
-        console.log(`[PrivateAPI] @${account.username} -- 2FA TOTP necessário`);
+
+        // Se a conta tem segredo TOTP salvo, gera o código automaticamente
+        const freshAccount = await Account.findById(account._id);
+        if (freshAccount?.totpSecret) {
+          try {
+            const { authenticator } = require('otplib');
+            authenticator.options = { window: 1 }; // aceita código ±30s
+            const autoCode = authenticator.generate(freshAccount.totpSecret.replace(/\s/g, '').toUpperCase());
+            console.log(`[PrivateAPI] @${account.username} -- TOTP auto-gerado (segredo salvo)`);
+            const user = await ig.account.twoFactorLogin({
+              username:            account.username,
+              verificationCode:    autoCode,
+              twoFactorIdentifier: twoFactorIdentifier || '',
+              verificationMethod:  '3',
+              trustThisDevice:     '1',
+            });
+            const snap = await ig.state.serialize(); delete snap.constants; snap._deviceSeed = newSeed;
+            await Account.findByIdAndUpdate(account._id, {
+              igSession: JSON.stringify(snap), challengeState: '', healthStatus: 'ativa', lastError: '',
+            });
+            console.log(`[PrivateAPI] @${user.username} -- login com TOTP automático OK`);
+            return ig;
+          } catch (totpErr) {
+            console.log(`[PrivateAPI] @${account.username} -- TOTP auto falhou: ${totpErr.message}`);
+          }
+        }
+
+        console.log(`[PrivateAPI] @${account.username} -- 2FA TOTP necessário (sem segredo salvo)`);
         _pendingTotp.set(String(account._id), { ig, twoFactorIdentifier, seed: newSeed, username: account.username });
         const err = new Error('TOTP_REQUIRED');
         err.code  = 'TOTP_REQUIRED';

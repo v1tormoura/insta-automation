@@ -169,6 +169,19 @@ const accountSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+
+    // Segredo TOTP do Google Authenticator (gerado no setup do 2FA)
+    // Formato: base32 string, ex: "JBSWY3DPEHPK3PXP"
+    // Usado para gerar códigos 2FA automaticamente sem interação manual
+    totpSecret: {
+      type: String,
+      default: '',
+    },
+
+    accountType: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

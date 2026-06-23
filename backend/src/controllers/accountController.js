@@ -177,18 +177,21 @@ exports.importBulkAccounts = async (req, res) => {
       // Formatos aceitos:
       //   usuario:senha
       //   usuario:senha:email@exemplo.com
-      //   usuario:senha:+5511999990000
+      //   usuario:senha:TOTP_SECRET_BASE32   (ex: JBSWY3DPEHPK3PXP)
       const parts = line.split(':');
       if (parts.length < 2) { errors.push(`Linha inválida (sem ':'): ${line}`); continue; }
 
       const usernameRaw  = parts[0];
       const passwordRaw  = parts[1];
-      // email pode conter ':' (ex: nada normal, mas por segurança juntamos o resto)
-      const loginEmailRaw = parts.slice(2).join(':').trim();
+      const thirdField   = parts.slice(2).join(':').trim();
 
-      const username   = String(usernameRaw || '').trim().replace(/^@+/, '');
-      const password   = String(passwordRaw || '').trim();
-      const loginEmail = loginEmailRaw || '';
+      const username = String(usernameRaw || '').trim().replace(/^@+/, '');
+      const password = String(passwordRaw || '').trim();
+
+      // Detecta se o terceiro campo é um segredo TOTP base32 (só letras maiúsculas/números, 16-32 chars)
+      const isTotpSecret = thirdField && /^[A-Z2-7]{16,64}$/i.test(thirdField.replace(/\s/g,''));
+      const totpSecret   = isTotpSecret ? thirdField.replace(/\s/g,'').toUpperCase() : '';
+      const loginEmail   = !isTotpSecret ? thirdField : '';
 
       if (!username || !password) {
         errors.push(`Linha inválida (usuário ou senha vazios): ${line}`);
@@ -203,7 +206,8 @@ exports.importBulkAccounts = async (req, res) => {
         status: 'ativa',
         healthStatus: 'ativa',
       };
-      if (loginEmail) updateFields.loginEmail = loginEmail;
+      if (loginEmail)  updateFields.loginEmail  = loginEmail;
+      if (totpSecret)  updateFields.totpSecret   = totpSecret;
 
       const account = await Account.findOneAndUpdate(
         { username },

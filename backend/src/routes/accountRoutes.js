@@ -571,6 +571,31 @@ router.post('/:id/clear-challenge', async (req, res) => {
 });
 
 /**
+ * PATCH /accounts/:id/totp-secret
+ * Salva o segredo TOTP da conta para geração automática de códigos 2FA.
+ */
+router.patch('/:id/totp-secret', async (req, res) => {
+  try {
+    const secret = (req.body.totpSecret || '').trim().replace(/\s/g, '').toUpperCase();
+    if (!secret) return res.status(400).json({ error: 'Segredo TOTP não informado' });
+
+    // Valida o segredo gerando um código de teste
+    const { authenticator } = require('otplib');
+    authenticator.options = { window: 1 };
+    let testCode;
+    try {
+      testCode = authenticator.generate(secret);
+    } catch {
+      return res.status(400).json({ error: 'Segredo TOTP inválido. Copie a chave base32 do Google Authenticator.' });
+    }
+
+    await Account.findByIdAndUpdate(req.params.id, { totpSecret: secret });
+    console.log(`[TOTP] @${req.params.id} -- segredo salvo, código atual: ${testCode}`);
+    res.json({ success: true, message: 'Segredo TOTP salvo! Login automático ativado.', testCode });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/**
  * POST /accounts/:id/resolve-challenge
  * Envia o código de verificação para completar o challenge da sessão mobile.
  */
