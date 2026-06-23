@@ -163,6 +163,12 @@ const accountSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Estado serializado do ig client durante challenge pendente (persiste reinicializações)
+    challengeState: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

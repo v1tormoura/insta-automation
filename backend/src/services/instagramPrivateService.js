@@ -30,17 +30,42 @@ function getIgApiClient() {
 const _pendingChallenges = new Map();
 
 async function resolveChallenge(account, code) {
-  const state = _pendingChallenges.get(String(account._id));
-  if (!state) throw new Error('Nenhum challenge pendente. Reinicie a sessao mobile.');
-  const { ig, seed, username } = state;
+  const IgApiClient = getIgApiClient();
+
+  // Tenta usar o cliente em memória (mesmo processo)
+  let ig   = _pendingChallenges.get(String(account._id))?.ig;
+  let seed = _pendingChallenges.get(String(account._id))?.seed;
+
+  // Processo reiniciou — reconstrói o cliente a partir do estado salvo no banco
+  if (!ig) {
+    const fresh = await Account.findById(account._id);
+    if (!fresh?.challengeState) {
+      throw new Error(
+        'Sessão de challenge expirou (servidor foi reiniciado). ' +
+        'Reimporte a conta para receber um novo código.'
+      );
+    }
+    const saved = JSON.parse(fresh.challengeState);
+    seed = saved._deviceSeed || fresh.username;
+    ig = new IgApiClient();
+    ig.state.generateDevice(seed);
+    await ig.state.deserialize(saved);
+    console.log(`[PrivateAPI] @${account.username} -- challenge state restaurado do banco`);
+  }
+
   await ig.challenge.sendSecurityCode(code);
   const me = await ig.account.currentUser();
   const serialized = await ig.state.serialize();
   delete serialized.constants;
   serialized._deviceSeed = seed;
-  await Account.findByIdAndUpdate(account._id, { igSession: JSON.stringify(serialized) });
+  await Account.findByIdAndUpdate(account._id, {
+    igSession:      JSON.stringify(serialized),
+    challengeState: '',
+    healthStatus:   'ativa',
+    lastError:      '',
+  });
   _pendingChallenges.delete(String(account._id));
-  console.log(`[PrivateAPI] @${me.username} -- sessao ativa apos challenge`);
+  console.log(`[PrivateAPI] @${me.username} -- sessão ativa após challenge`);
 }
 
 async function initMobileSession(account) {
@@ -252,14 +277,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         (status === 400 && ig.state.checkpoint);
 
       if (needsChallenge || ig.state.checkpoint) {
-        // Extrai a URL do challenge para o usuário completar no navegador
-        const checkpointUrl = ig.state.checkpoint?.challenge?.url
-          || (ig.state.checkpoint ? `https://www.instagram.com${ig.state.checkpoint}` : null)
-          || 'https://www.instagram.com/challenge/';
-
-        console.log(`[PrivateAPI] @${account.username} -- Challenge URL: ${checkpointUrl}`);
-
-        // Tenta enviar código por email automaticamente (pode falhar em IPs novos)
+        // Tenta enviar o código por email automaticamente
         let autoSent = false;
         try {
           await ig.challenge.reset();
@@ -267,16 +285,24 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
           autoSent = true;
           console.log(`[PrivateAPI] @${account.username} -- código enviado por email`);
         } catch {
-          // auto() falhou (IP bloqueado) — usuário vai completar pelo link
-          console.log(`[PrivateAPI] @${account.username} -- auto() falhou, usando link manual`);
+          console.log(`[PrivateAPI] @${account.username} -- auto() falhou, usuário insere código manual`);
         }
 
+        // Persiste estado do ig no banco para sobreviver a reinicializações
+        const stateSnap = await ig.state.serialize();
+        delete stateSnap.constants;
+        stateSnap._deviceSeed = newSeed;
+        await Account.findByIdAndUpdate(account._id, {
+          challengeState: JSON.stringify(stateSnap),
+          healthStatus: 'sessao_expirada',
+        });
+
+        // Mantém em memória também (se o processo não reiniciar)
         _pendingChallenges.set(String(account._id), { ig, seed: newSeed, username: account.username });
 
         const err = new Error('CHALLENGE_REQUIRED');
-        err.code         = 'CHALLENGE_REQUIRED';
-        err.challengeUrl = checkpointUrl;
-        err.autoSent     = autoSent;
+        err.code     = 'CHALLENGE_REQUIRED';
+        err.autoSent = autoSent;
         throw err;
       }
 

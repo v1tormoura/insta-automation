@@ -50,6 +50,7 @@ export default function Accounts() {
   const [totpModal, setTotpModal]         = useState(null);  // { _id, username }
   const [totpCode, setTotpCode]           = useState('');
   const [totpLoading, setTotpLoading]     = useState(false);
+  const [connectingApi, setConnectingApi] = useState({});   // { [accountId]: true }
   // Rename modal
   const [renameModal, setRenameModal]     = useState(null);   // account object
   const [renameValue, setRenameValue]     = useState('');
@@ -316,6 +317,36 @@ export default function Accounts() {
     }
   }
 
+  async function connectApi(account) {
+    if (!account.password) {
+      // Sem senha → abre modal de senha primeiro
+      openPasswordModal(account);
+      return;
+    }
+    setConnectingApi(p => ({ ...p, [account._id]: true }));
+    try {
+      const res = await api.post(`/accounts/${account._id}/connect-api`);
+      const { status, autoSent, converted, message } = res.data;
+
+      if (status === 'connected') {
+        showToast('success', converted ? '⭐ Convertida para Creator' : '✅ Conta conectada', message);
+        await loadAccounts();
+      } else if (status === 'challenge_required') {
+        showToast('info', '📧 Código enviado',
+          autoSent ? 'Verifique o email da conta e insira o código.' : 'O Instagram pediu verificação. Insira o código recebido.');
+        openMobileModal(account, true);
+      } else if (status === 'totp_required') {
+        showToast('info', '🔐 Autenticador', 'Abra o Google Authenticator e insira o código.');
+        setTotpModal({ _id: account._id, username: account.username });
+        setTotpCode('');
+      }
+    } catch (err) {
+      showToast('error', 'Erro ao conectar', err.response?.data?.error || 'Verifique a senha da conta.');
+    } finally {
+      setConnectingApi(p => ({ ...p, [account._id]: false }));
+    }
+  }
+
   async function resolveTotp() {
     if (!totpCode.trim()) return showToast('warning', 'Atenção', 'Digite o código de 6 dígitos do autenticador.');
     setTotpLoading(true);
@@ -575,9 +606,10 @@ export default function Accounts() {
                         <>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => openOauthModal(account)}
-                            title="Conectar via Instagram OAuth"
-                          >🔗 API</button>
+                            onClick={() => connectApi(account)}
+                            disabled={connectingApi[account._id]}
+                            title="Conectar via API privada (login em background)"
+                          >{connectingApi[account._id] ? '⏳' : '🔗 API'}</button>
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => openCookieModal(account)}

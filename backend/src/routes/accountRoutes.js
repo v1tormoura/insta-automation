@@ -411,6 +411,52 @@ router.post('/:id/quick-check', async (req, res) => {
 });
 
 /**
+ * POST /accounts/:id/connect-api
+ * Conecta a conta via Private API em background.
+ * - Faz login com a senha salva
+ * - Envia código por email automaticamente se houver challenge
+ * - Converte para Creator se conta for pessoal
+ * Retorna: { status: 'connected' | 'challenge_required' | 'totp_required', autoSent }
+ */
+router.post('/:id/connect-api', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+    if (!account.password) return res.status(400).json({ error: 'Senha não configurada. Clique em 🔑 Senha primeiro.' });
+
+    const { createClient, convertToProfessional, getAccountType } = require('../services/instagramPrivateService');
+
+    try {
+      await createClient(account);
+
+      // Verifica e converte conta pessoal para Creator
+      try {
+        const typeInfo = await getAccountType(account);
+        if (!typeInfo.isProfessional) {
+          await convertToProfessional(account);
+          await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '' });
+          return res.json({ status: 'connected', converted: true, message: 'Conta conectada e convertida para Creator!' });
+        }
+      } catch {}
+
+      await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '' });
+      return res.json({ status: 'connected', message: 'Conta conectada com sucesso!' });
+
+    } catch (apiErr) {
+      if (apiErr.code === 'CHALLENGE_REQUIRED') {
+        return res.json({ status: 'challenge_required', autoSent: apiErr.autoSent });
+      }
+      if (apiErr.code === 'TOTP_REQUIRED') {
+        return res.json({ status: 'totp_required' });
+      }
+      return res.status(400).json({ error: apiErr.message });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * POST /accounts/:id/init-mobile-session
  * Inicia sessão mobile via instagram-private-api.
  * Se Instagram pedir verificação, salva o challenge na memória e retorna needsCode: true.
