@@ -50,12 +50,25 @@ async function resolveChallenge(account, code, codeType = 'email') {
     ig = new IgApiClient();
     ig.state.generateDevice(seed);
     await ig.state.deserialize(saved);
-    // Restaura checkpoint explicitamente caso não tenha sobrevivido à serialização
+
+    // Restaura checkpoint — tenta 3 fontes
     if (!ig.state.checkpoint && saved._checkpointRaw) {
       ig.state.checkpoint = saved._checkpointRaw;
-      console.log(`[PrivateAPI] @${account.username} -- checkpoint restaurado manualmente`);
+      console.log(`[PrivateAPI] @${account.username} -- checkpoint restaurado de _checkpointRaw`);
     }
-    console.log(`[PrivateAPI] @${account.username} -- challenge state restaurado do banco (checkpoint: ${ig.state.checkpoint ? 'ok' : 'NULO'})`);
+    // Se ainda null, reconstrói a partir do api_path salvo
+    if (!ig.state.checkpoint && saved._challengeApiPath) {
+      ig.state.checkpoint = {
+        challenge: { api_path: saved._challengeApiPath, url: `https://i.instagram.com${saved._challengeApiPath}` },
+        lock: false, logout: false,
+      };
+      console.log(`[PrivateAPI] @${account.username} -- checkpoint reconstruído de _challengeApiPath: ${saved._challengeApiPath}`);
+    }
+    console.log(`[PrivateAPI] @${account.username} -- checkpoint: ${ig.state.checkpoint ? JSON.stringify(ig.state.checkpoint).slice(0, 120) : 'NULO'}`);
+  }
+
+  if (!ig.state.checkpoint) {
+    throw new Error('Sessão de challenge inválida. Clique em "Novo código" para gerar uma nova sessão.');
   }
 
   if (codeType === 'totp') {
@@ -64,7 +77,7 @@ async function resolveChallenge(account, code, codeType = 'email') {
       await ig.challenge.selectVerifyMethod('0');
       console.log(`[PrivateAPI] @${account.username} -- método autenticador selecionado`);
     } catch (selErr) {
-      console.log(`[PrivateAPI] @${account.username} -- selectVerifyMethod('0') falhou: ${selErr.message} — tentando diretamente`);
+      console.log(`[PrivateAPI] @${account.username} -- selectVerifyMethod('0') falhou: ${selErr.message} — enviando código diretamente`);
     }
   }
 
@@ -345,11 +358,20 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
           const err = new Error('TOTP_REQUIRED'); err.code = 'TOTP_REQUIRED'; throw err;
         }
 
-        // Salva estado ANTES de reset/auto para preservar ig.state.checkpoint
+        // Extrai challenge URL diretamente do erro (ig.state.checkpoint pode ser null)
+        const errBody = loginErr?.response?.body || {};
+        const challengeApiPath = errBody.challenge?.api_path
+          || errBody.checkpoint_url
+          || ig.state.checkpoint?.challenge?.api_path
+          || null;
+        console.log(`[PrivateAPI] @${account.username} -- challenge api_path: ${challengeApiPath}`);
+
+        // Salva estado ANTES de reset/auto
         const stateSnap = await ig.state.serialize();
         delete stateSnap.constants;
-        stateSnap._deviceSeed   = newSeed;
-        // Salva checkpoint explicitamente (pode não sobreviver à serialização padrão)
+        stateSnap._deviceSeed     = newSeed;
+        stateSnap._challengeApiPath = challengeApiPath; // URL direta para POST do código
+        // Tenta salvar checkpoint completo também
         stateSnap._checkpointRaw = ig.state.checkpoint
           ? JSON.parse(JSON.stringify(ig.state.checkpoint))
           : null;
