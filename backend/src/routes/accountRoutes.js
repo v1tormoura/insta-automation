@@ -517,31 +517,46 @@ router.post('/:id/import-session', async (req, res) => {
         err => err ? reject(err) : resolve());
     });
 
-    // Verifica se a sessão é válida chamando a API privada
-    let me;
+    // Testa a sessão — aceita tanto sucesso quanto checkpoint_required
+    // (checkpoint_required = sessionid válido mas API mobile quer verificação)
+    let me = null;
+    let needsCheckpoint = false;
     try {
       me = await ig.account.currentUser();
       console.log(`[SessionImport] @${me.username} -- sessão válida`);
     } catch (e) {
-      console.log(`[SessionImport] erro: ${e.message}`);
-      return res.status(400).json({ error: `sessionid inválido ou expirado: ${e.message}` });
+      const msg = e.message || '';
+      if (msg.includes('checkpoint_required') || msg.includes('checkpoint') || e.name === 'IgCheckpointError') {
+        // Sessão reconhecida pelo Instagram, só precisa de verificação na API mobile
+        needsCheckpoint = true;
+        console.log(`[SessionImport] @${account.username} -- sessionid válido (checkpoint_required, salvando)`);
+      } else if (msg.includes('login_required') || msg.includes('not authorized')) {
+        return res.status(400).json({ error: 'sessionid inválido ou expirado. Copie novamente do browser.' });
+      } else {
+        // Qualquer outro erro: tenta salvar mesmo assim
+        needsCheckpoint = true;
+        console.log(`[SessionImport] @${account.username} -- aviso: ${msg} — salvando mesmo assim`);
+      }
     }
 
     // Salva sessão no banco
     const state = await ig.state.serialize();
     delete state.constants;
     state._deviceSeed = seed;
+    const displayName = me?.username || account.username;
     await Account.findByIdAndUpdate(account._id, {
       igSession:      JSON.stringify(state),
       challengeState: '',
-      healthStatus:   'ativa',
-      lastError:      '',
-      username:       me.username,
-      name:           me.full_name || me.username,
+      healthStatus:   needsCheckpoint ? 'sessao_expirada' : 'ativa',
+      lastError:      needsCheckpoint ? 'checkpoint_required — sessão salva, tente publicar' : '',
     });
 
-    console.log(`[PrivateAPI] @${me.username} -- sessão importada via sessionid`);
-    res.json({ success: true, message: `Conta @${me.username} conectada via sessionid!`, username: me.username });
+    const msg = needsCheckpoint
+      ? `Sessão salva para @${displayName}! (A conta pode precisar verificação na primeira publicação)`
+      : `Conta @${displayName} conectada com sucesso!`;
+
+    console.log(`[SessionImport] @${displayName} -- salvo. checkpoint=${needsCheckpoint}`);
+    res.json({ success: true, message: msg, needsCheckpoint });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
