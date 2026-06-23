@@ -324,8 +324,19 @@ export default function Accounts() {
     setMobileStep('loading');
     try {
       const res = await api.post(`/accounts/${mobileModal._id}/resolve-challenge`, { code: mobileCode.trim() });
+
+      // Checkpoint OK mas agora precisa do Google Authenticator
+      if (res.data.totpRequired) {
+        setMobileCode('');
+        setMobileCodeType('totp');
+        setMobileStep('needsCode');
+        setMobileMsg(res.data.message);
+        showToast('info', '🔐 Autenticador necessário', 'Checkpoint verificado! Agora insira o código do Google Authenticator.');
+        return;
+      }
+
       setMobileStep('done');
-      setMobileMsg(res.data.message);
+      setMobileMsg(res.data.message || 'Conta conectada!');
       await loadAccounts();
     } catch (err) {
       setMobileStep('needsCode');

@@ -490,8 +490,12 @@ router.post('/:id/resolve-challenge', async (req, res) => {
 
     const { resolveChallenge } = require('../services/instagramPrivateService');
     await resolveChallenge(account, code.trim());
-    res.json({ success: true, message: 'Sessão mobile ativa! Próximos stories terão link sticker.' });
+    res.json({ success: true, message: 'Conta conectada com sucesso!' });
   } catch (err) {
+    // Checkpoint resolvido mas agora precisa de TOTP
+    if (err.code === 'TOTP_REQUIRED_AFTER_CHALLENGE') {
+      return res.json({ success: false, totpRequired: true, message: 'Checkpoint OK! Agora insira o código do Google Authenticator.' });
+    }
     res.status(500).json({ error: err.message });
   }
 });

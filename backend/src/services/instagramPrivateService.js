@@ -54,7 +54,29 @@ async function resolveChallenge(account, code) {
   }
 
   await ig.challenge.sendSecurityCode(code);
-  const me = await ig.account.currentUser();
+
+  // Após o checkpoint, o Instagram pode ainda exigir TOTP (2FA)
+  let me;
+  try {
+    me = await ig.account.currentUser();
+  } catch (postErr) {
+    const { IgLoginTwoFactorRequiredError } = require('instagram-private-api');
+    if (postErr instanceof IgLoginTwoFactorRequiredError) {
+      const twoFactorInfo       = postErr.response?.body?.two_factor_info;
+      const twoFactorIdentifier = twoFactorInfo?.two_factor_identifier;
+      console.log(`[PrivateAPI] @${account.username} -- checkpoint OK, agora precisa de TOTP`);
+      _pendingTotp.set(String(account._id), { ig, twoFactorIdentifier, seed, username: account.username });
+      // Salva challengeState para caso de reinício do servidor
+      const snap = await ig.state.serialize();
+      delete snap.constants; snap._deviceSeed = seed;
+      await Account.findByIdAndUpdate(account._id, { challengeState: JSON.stringify(snap) });
+      const err = new Error('TOTP_REQUIRED_AFTER_CHALLENGE');
+      err.code = 'TOTP_REQUIRED_AFTER_CHALLENGE';
+      throw err;
+    }
+    throw postErr;
+  }
+
   const serialized = await ig.state.serialize();
   delete serialized.constants;
   serialized._deviceSeed = seed;
