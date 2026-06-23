@@ -50,7 +50,12 @@ async function resolveChallenge(account, code, codeType = 'email') {
     ig = new IgApiClient();
     ig.state.generateDevice(seed);
     await ig.state.deserialize(saved);
-    console.log(`[PrivateAPI] @${account.username} -- challenge state restaurado do banco`);
+    // Restaura checkpoint explicitamente caso não tenha sobrevivido à serialização
+    if (!ig.state.checkpoint && saved._checkpointRaw) {
+      ig.state.checkpoint = saved._checkpointRaw;
+      console.log(`[PrivateAPI] @${account.username} -- checkpoint restaurado manualmente`);
+    }
+    console.log(`[PrivateAPI] @${account.username} -- challenge state restaurado do banco (checkpoint: ${ig.state.checkpoint ? 'ok' : 'NULO'})`);
   }
 
   if (codeType === 'totp') {
@@ -343,7 +348,11 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         // Salva estado ANTES de reset/auto para preservar ig.state.checkpoint
         const stateSnap = await ig.state.serialize();
         delete stateSnap.constants;
-        stateSnap._deviceSeed = newSeed;
+        stateSnap._deviceSeed   = newSeed;
+        // Salva checkpoint explicitamente (pode não sobreviver à serialização padrão)
+        stateSnap._checkpointRaw = ig.state.checkpoint
+          ? JSON.parse(JSON.stringify(ig.state.checkpoint))
+          : null;
         await Account.findByIdAndUpdate(account._id, {
           challengeState: JSON.stringify(stateSnap),
           healthStatus: 'sessao_expirada',
@@ -552,6 +561,7 @@ async function resolveTotpLogin(account, totpCode) {
       const ig = new IgApiClient();
       ig.state.generateDevice(seed);
       await ig.state.deserialize(saved);
+      if (!ig.state.checkpoint && saved._checkpointRaw) ig.state.checkpoint = saved._checkpointRaw;
       pending = { ig, twoFactorIdentifier: '', seed, fromChallenge: true };
     } else {
       throw new Error('Sessão TOTP expirou. Clique em API novamente para receber novo código.');

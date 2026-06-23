@@ -476,6 +476,14 @@ router.post('/:id/init-mobile-session', async (req, res) => {
   }
 });
 
+/** POST /accounts/:id/clear-challenge — limpa challenge pendente para forçar novo login */
+router.post('/:id/clear-challenge', async (req, res) => {
+  try {
+    await Account.findByIdAndUpdate(req.params.id, { challengeState: '', healthStatus: 'sessao_expirada' });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 /**
  * POST /accounts/:id/resolve-challenge
  * Envia o código de verificação para completar o challenge da sessão mobile.

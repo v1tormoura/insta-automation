@@ -350,6 +350,26 @@ export default function Accounts() {
     }
   }
 
+  async function retryApiLogin() {
+    // Limpa challenge state e faz novo login para gerar novo checkpoint
+    try {
+      await api.post(`/accounts/${mobileModal._id}/clear-challenge`);
+      setMobileStep('loading');
+      const res = await api.post(`/accounts/${mobileModal._id}/login-private`);
+      const { status, autoSent } = res.data;
+      if (status === 'challenge_required') {
+        setMobileCode('');
+        setMobileStep('needsCode');
+        showToast('info', autoSent ? '📧 Novo código enviado' : '⚠️ Auto-envio falhou', autoSent ? 'Verifique o email da conta.' : 'Selecione o tipo de código e tente.');
+      } else if (status === 'connected') {
+        setMobileStep('done'); setMobileMsg('Conta conectada!'); await loadAccounts();
+      }
+    } catch (err) {
+      setMobileStep('needsCode');
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
+    }
+  }
+
   async function connectApi(account) {
     if (!account.password) {
       // Sem senha → abre modal de senha primeiro
@@ -950,6 +970,9 @@ export default function Accounts() {
                 />
                 <div className="modal-actions" style={{ marginTop: 12 }}>
                   <button className="btn btn-ghost" onClick={() => setMobileModal(null)}>Cancelar</button>
+                  <button className="btn btn-ghost" onClick={retryApiLogin} title="Limpa estado e faz novo login para gerar novo código">
+                    🔄 Novo código
+                  </button>
                   <button className="btn btn-primary"
                     onClick={() => mobileCodeType === 'totp' ? submitChallengeAsTotp() : resolveChallenge()}
                     disabled={mobileCode.length < 4}>
