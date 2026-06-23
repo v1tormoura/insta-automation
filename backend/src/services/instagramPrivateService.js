@@ -359,9 +359,8 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         const freshAccount = await Account.findById(account._id);
         if (freshAccount?.totpSecret) {
           try {
-            const { authenticator } = require('otplib');
-            authenticator.options = { window: 1 }; // aceita código ±30s
-            const autoCode = authenticator.generate(freshAccount.totpSecret.replace(/\s/g, '').toUpperCase());
+            const { totp } = require('otplib');
+            const autoCode = totp.generate(freshAccount.totpSecret.replace(/\s/g, '').toUpperCase());
             console.log(`[PrivateAPI] @${account.username} -- TOTP auto-gerado (segredo salvo)`);
             const user = await ig.account.twoFactorLogin({
               username:            account.username,

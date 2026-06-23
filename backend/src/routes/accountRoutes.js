@@ -580,11 +580,10 @@ router.patch('/:id/totp-secret', async (req, res) => {
     if (!secret) return res.status(400).json({ error: 'Segredo TOTP não informado' });
 
     // Valida o segredo gerando um código de teste
-    const { authenticator } = require('otplib');
-    authenticator.options = { window: 1 };
+    const { totp } = require('otplib');
     let testCode;
     try {
-      testCode = authenticator.generate(secret);
+      testCode = totp.generate(secret);
     } catch {
       return res.status(400).json({ error: 'Segredo TOTP inválido. Copie a chave base32 do Google Authenticator.' });
     }
