@@ -51,6 +51,7 @@ export default function Accounts() {
   const [totpCode, setTotpCode]           = useState('');
   const [totpLoading, setTotpLoading]     = useState(false);
   const [connectingApi, setConnectingApi] = useState({});   // { [accountId]: true }
+  const [mobileCodeType, setMobileCodeType] = useState('email'); // 'email' | 'totp'
   // Rename modal
   const [renameModal, setRenameModal]     = useState(null);   // account object
   const [renameValue, setRenameValue]     = useState('');
@@ -300,6 +301,21 @@ export default function Accounts() {
     } catch (err) {
       setMobileStep('idle');
       showToast('error', 'Erro', err.response?.data?.error || 'Erro ao iniciar sessão mobile.');
+    }
+  }
+
+  // Quando o usuário indica que o código é do Google Authenticator mas chegou pelo modal de challenge
+  async function submitChallengeAsTotp() {
+    if (!mobileCode.trim()) return showToast('warning', 'Atenção', 'Digite o código do Google Authenticator.');
+    setMobileStep('loading');
+    try {
+      await api.post(`/accounts/${mobileModal._id}/resolve-totp`, { code: mobileCode.trim() });
+      setMobileStep('done');
+      setMobileMsg('✅ Autenticação 2FA concluída! Conta conectada.');
+      await loadAccounts();
+    } catch (err) {
+      setMobileStep('needsCode');
+      showToast('error', 'Código inválido', err.response?.data?.error || 'Verifique o Google Authenticator e tente novamente.');
     }
   }
 
@@ -879,20 +895,47 @@ export default function Accounts() {
 
             {mobileStep === 'needsCode' && (
               <>
-                <p style={{ fontSize: 13, color: '#fbbf24', marginBottom: 12 }}>
-                  {mobileMsg || 'Verifique seu email ou SMS e digite o código de 6 dígitos abaixo:'}
+                {/* Seleção do tipo de código */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <button
+                    onClick={() => setMobileCodeType('email')}
+                    style={{ flex: 1, padding: '8px 6px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                      background: mobileCodeType === 'email' ? '#6366f133' : 'var(--card2)',
+                      border: mobileCodeType === 'email' ? '1px solid #6366f1' : '1px solid var(--border)',
+                      color: mobileCodeType === 'email' ? '#a5b4fc' : 'var(--text2)' }}>
+                    📧 Email / SMS
+                  </button>
+                  <button
+                    onClick={() => setMobileCodeType('totp')}
+                    style={{ flex: 1, padding: '8px 6px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                      background: mobileCodeType === 'totp' ? '#8b5cf633' : 'var(--card2)',
+                      border: mobileCodeType === 'totp' ? '1px solid #8b5cf6' : '1px solid var(--border)',
+                      color: mobileCodeType === 'totp' ? '#c4b5fd' : 'var(--text2)' }}>
+                    🔐 Google Authenticator
+                  </button>
+                </div>
+                <p style={{ fontSize: 12, color: '#fbbf24', marginBottom: 10 }}>
+                  {mobileCodeType === 'totp'
+                    ? 'Abra o Google Authenticator ou Authy e insira o código de 6 dígitos:'
+                    : (mobileMsg || 'Verifique seu email ou SMS e insira o código de 6 dígitos:')}
                 </p>
                 <input
                   className="inp" type="text" inputMode="numeric" maxLength={6}
                   placeholder="000000" value={mobileCode}
                   onChange={e => setMobileCode(e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={e => e.key === 'Enter' && mobileCode.length >= 4 && resolveChallenge()}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && mobileCode.length >= 4) {
+                      mobileCodeType === 'totp' ? submitChallengeAsTotp() : resolveChallenge();
+                    }
+                  }}
                   style={{ textAlign: 'center', fontSize: 24, letterSpacing: 6 }}
                   autoFocus
                 />
                 <div className="modal-actions" style={{ marginTop: 12 }}>
                   <button className="btn btn-ghost" onClick={() => setMobileModal(null)}>Cancelar</button>
-                  <button className="btn btn-primary" onClick={resolveChallenge} disabled={mobileCode.length < 4}>
+                  <button className="btn btn-primary"
+                    onClick={() => mobileCodeType === 'totp' ? submitChallengeAsTotp() : resolveChallenge()}
+                    disabled={mobileCode.length < 4}>
                     Confirmar código
                   </button>
                 </div>

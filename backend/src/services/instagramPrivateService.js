@@ -277,7 +277,25 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         (status === 400 && ig.state.checkpoint);
 
       if (needsChallenge || ig.state.checkpoint) {
-        // Tenta enviar o código por email automaticamente
+        // Detecta se o checkpoint está pedindo o código do autenticador (TOTP)
+        const checkpointStepData = ig.state.checkpoint?.step_data;
+        const contactPoint = checkpointStepData?.contact_point || '';
+        const isTotpChallenge =
+          contactPoint.includes('authenticator') ||
+          msg.includes('authenticator') ||
+          loginErr?.response?.body?.two_factor_info?.totp_two_factor_on;
+
+        if (isTotpChallenge) {
+          // Checkpoint pedindo TOTP — trata igual ao IgLoginTwoFactorRequiredError
+          const twoFactorInfo = loginErr?.response?.body?.two_factor_info || {};
+          _pendingTotp.set(String(account._id), {
+            ig, twoFactorIdentifier: twoFactorInfo.two_factor_identifier || '',
+            seed: newSeed, username: account.username, fromChallenge: true,
+          });
+          const err = new Error('TOTP_REQUIRED'); err.code = 'TOTP_REQUIRED'; throw err;
+        }
+
+        // Tenta enviar o código por email/SMS automaticamente
         let autoSent = false;
         try {
           await ig.challenge.reset();
@@ -476,20 +494,53 @@ async function resendChallengeSms(account) {
  * Deve ser chamado após createClient lançar erro com code === 'TOTP_REQUIRED'.
  */
 async function resolveTotpLogin(account, totpCode) {
-  const pending = _pendingTotp.get(String(account._id));
+  let pending = _pendingTotp.get(String(account._id));
+
+  // Se não há estado em memória, reconstrói do banco (servidor reiniciou)
   if (!pending) {
-    throw new Error('Nenhum login TOTP pendente. Tente importar a conta novamente.');
+    const IgApiClient = getIgApiClient();
+    const fresh = await Account.findById(account._id);
+    if (fresh?.challengeState) {
+      // Veio de um checkpoint que é TOTP na verdade — usa o challengeState
+      const saved = JSON.parse(fresh.challengeState);
+      const seed = saved._deviceSeed || fresh.username;
+      const ig = new IgApiClient();
+      ig.state.generateDevice(seed);
+      await ig.state.deserialize(saved);
+      pending = { ig, twoFactorIdentifier: '', seed, fromChallenge: true };
+    } else {
+      throw new Error('Sessão TOTP expirou. Clique em API novamente para receber novo código.');
+    }
   }
-  const { ig, twoFactorIdentifier, seed } = pending;
+
+  const { ig, twoFactorIdentifier, seed, fromChallenge } = pending;
 
   try {
-    const user = await ig.account.twoFactorLogin({
-      username:           account.username,
-      verificationCode:   totpCode.replace(/\s/g, ''),
-      twoFactorIdentifier,
-      verificationMethod: '3', // 3 = TOTP app
-      trustThisDevice:    '1',
-    });
+    let user;
+    if (fromChallenge && !twoFactorIdentifier) {
+      // Veio de checkpoint — tenta via challenge.sendSecurityCode (alguns casos)
+      try {
+        await ig.challenge.sendSecurityCode(totpCode.replace(/\s/g, ''));
+        user = await ig.account.currentUser();
+      } catch {
+        // Fallback: tenta twoFactorLogin sem identifier (Instagram às vezes aceita)
+        user = await ig.account.twoFactorLogin({
+          username:           account.username,
+          verificationCode:   totpCode.replace(/\s/g, ''),
+          twoFactorIdentifier: twoFactorIdentifier || '',
+          verificationMethod: '3',
+          trustThisDevice:    '1',
+        });
+      }
+    } else {
+      user = await ig.account.twoFactorLogin({
+        username:           account.username,
+        verificationCode:   totpCode.replace(/\s/g, ''),
+        twoFactorIdentifier,
+        verificationMethod: '3', // 3 = TOTP app
+        trustThisDevice:    '1',
+      });
+    }
 
     // Salva sessão
     const state = await ig.state.serialize();
