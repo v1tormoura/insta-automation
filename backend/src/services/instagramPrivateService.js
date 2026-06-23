@@ -317,6 +317,11 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     try {
       user = await ig.account.login(loginId, account.password);
     } catch (loginErr) {
+      // Diagnóstico: mostra estrutura do erro para identificar tipo correto
+      const rawBody = loginErr?.response?.body;
+      const parsedBody = rawBody ? (typeof rawBody === 'string' ? (() => { try { return JSON.parse(rawBody); } catch { return {}; } })() : rawBody) : {};
+      console.log(`[PrivateAPI:DBG] @${account.username} -- errName=${loginErr?.name} status=${loginErr?.response?.statusCode} msg=${parsedBody.message} checkpoint_state=${JSON.stringify(ig.state.checkpoint)?.slice(0,100)} errBodyChallenge=${JSON.stringify(parsedBody.challenge)?.slice(0,100)}`);
+
       // 2FA com autenticador (TOTP) — precisa do código do Google Authenticator/Authy
       const { IgLoginTwoFactorRequiredError } = require('instagram-private-api');
       if (loginErr instanceof IgLoginTwoFactorRequiredError) {
