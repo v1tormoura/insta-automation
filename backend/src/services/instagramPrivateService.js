@@ -196,6 +196,19 @@ async function _tryAuthWithCookies(ig, account) {
 //   4. Multilogin (se MULTILOGIN_MODE definido e ML6 rodando)
 //   5. Login com senha (se password configurado)
 async function createClient(account, { forcePasswordLogin = false } = {}) {
+  // Se há um challenge pendente aguardando código do usuário, não tenta novo login
+  // (o KeepAlive chamaria createClient e sobrescreveria o challengeState válido)
+  if (!forcePasswordLogin && account.challengeState) {
+    const freshAcc = await Account.findById(account._id);
+    if (freshAcc?.challengeState) {
+      console.log(`[PrivateAPI] @${account.username} -- challenge pendente, aguardando código do usuário`);
+      const err = new Error('CHALLENGE_REQUIRED');
+      err.code = 'CHALLENGE_REQUIRED';
+      err.autoSent = false;
+      throw err;
+    }
+  }
+
   const IgApiClient = getIgApiClient();
   const ig = new IgApiClient();
 
@@ -327,7 +340,16 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
           const err = new Error('TOTP_REQUIRED'); err.code = 'TOTP_REQUIRED'; throw err;
         }
 
-        // Tenta enviar o código por email/SMS automaticamente
+        // Salva estado ANTES de reset/auto para preservar ig.state.checkpoint
+        const stateSnap = await ig.state.serialize();
+        delete stateSnap.constants;
+        stateSnap._deviceSeed = newSeed;
+        await Account.findByIdAndUpdate(account._id, {
+          challengeState: JSON.stringify(stateSnap),
+          healthStatus: 'sessao_expirada',
+        });
+
+        // Tenta enviar o código por email/SMS automaticamente (após salvar estado)
         let autoSent = false;
         try {
           await ig.challenge.reset();
@@ -337,15 +359,6 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         } catch {
           console.log(`[PrivateAPI] @${account.username} -- auto() falhou, usuário insere código manual`);
         }
-
-        // Persiste estado do ig no banco para sobreviver a reinicializações
-        const stateSnap = await ig.state.serialize();
-        delete stateSnap.constants;
-        stateSnap._deviceSeed = newSeed;
-        await Account.findByIdAndUpdate(account._id, {
-          challengeState: JSON.stringify(stateSnap),
-          healthStatus: 'sessao_expirada',
-        });
 
         // Mantém em memória também (se o processo não reiniciar)
         _pendingChallenges.set(String(account._id), { ig, seed: newSeed, username: account.username });
