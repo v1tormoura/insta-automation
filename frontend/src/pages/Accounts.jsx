@@ -680,12 +680,6 @@ export default function Accounts() {
                             style={{ background: 'rgba(16,185,129,.15)', color: '#34d399', border: '1px solid rgba(16,185,129,.3)', cursor: 'default' }}
                             title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}
                           >✅ API</span>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => openCookieModal(account)}
-                            title="Importar cookies do Multilogin (fallback para quando o token expirar)"
-                            style={{ fontSize: 12 }}
-                          >🍪 Cookies</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                           <button
                             className="btn btn-sm"
@@ -709,12 +703,6 @@ export default function Accounts() {
                             onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }}
                             title="Configurar 2FA automático — salva o segredo TOTP para login automático"
                           >🔑 2FA</button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => openCookieModal(account)}
-                            title="Importar cookies do Multilogin para usar API privada sem senha"
-                            style={{ fontSize: 12 }}
-                          >🍪 Cookies</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                           <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
                         </>
