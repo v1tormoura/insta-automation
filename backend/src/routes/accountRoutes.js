@@ -453,6 +453,9 @@ router.post('/:id/login-private', async (req, res) => {
       if (apiErr.code === 'TOTP_REQUIRED') {
         return res.json({ status: 'totp_required' });
       }
+      if (apiErr.code === 'LOGIN_EMAIL_REQUIRED') {
+        return res.json({ status: 'email_required' });
+      }
       return res.status(400).json({ error: apiErr.message });
     }
   } catch (err) {

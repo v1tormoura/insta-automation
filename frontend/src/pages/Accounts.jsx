@@ -411,6 +411,14 @@ export default function Accounts() {
         showToast('info', '📧 Código enviado',
           autoSent ? 'Verifique o email da conta e insira o código.' : 'O Instagram pediu verificação. Insira o código recebido.');
         openMobileModal(account, true);
+      } else if (status === 'email_required') {
+        // Instagram não reconhece o username — pede email/telefone
+        const email = window.prompt(`Instagram não reconhece o username "@${account.username}".\n\nDigite o EMAIL ou TELEFONE cadastrado na conta:`);
+        if (email?.trim()) {
+          await api.patch(`/accounts/${account._id}/credentials`, { loginEmail: email.trim() });
+          showToast('info', '📧 Email salvo', 'Tentando login novamente...');
+          setTimeout(() => connectApi(account), 500);
+        }
       } else if (status === 'totp_required') {
         if (account.hasTotpSecret) {
           // Tem segredo salvo mas o auto-login falhou — avisa sem abrir modal

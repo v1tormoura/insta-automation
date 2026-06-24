@@ -363,8 +363,16 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const parsedBody = rawBody ? (typeof rawBody === 'string' ? (() => { try { return JSON.parse(rawBody); } catch { return {}; } })() : rawBody) : {};
       console.log(`[PrivateAPI:DBG] @${account.username} -- errName=${loginErr?.name} status=${loginErr?.response?.statusCode} msg=${parsedBody.message} checkpoint_state=${JSON.stringify(ig.state.checkpoint)?.slice(0,100)} errBodyChallenge=${JSON.stringify(parsedBody.challenge)?.slice(0,100)}`);
 
+      // Usuário não encontrado pelo username — precisa de email/telefone
+      const { IgLoginInvalidUserError, IgLoginTwoFactorRequiredError } = require('instagram-private-api');
+      if (loginErr instanceof IgLoginInvalidUserError || (loginErr?.name === 'IgLoginInvalidUserError')) {
+        console.log(`[PrivateAPI] @${account.username} -- username não reconhecido, precisa de email/telefone`);
+        const err = new Error('LOGIN_EMAIL_REQUIRED');
+        err.code = 'LOGIN_EMAIL_REQUIRED';
+        throw err;
+      }
+
       // 2FA com autenticador (TOTP)
-      const { IgLoginTwoFactorRequiredError } = require('instagram-private-api');
       if (loginErr instanceof IgLoginTwoFactorRequiredError) {
         const twoFactorInfo       = loginErr.response?.body?.two_factor_info;
         const twoFactorIdentifier = twoFactorInfo?.two_factor_identifier;
