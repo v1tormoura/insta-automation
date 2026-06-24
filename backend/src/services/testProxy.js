@@ -1,54 +1,23 @@
-const puppeteer = require('puppeteer-extra');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 async function testProxy(proxy) {
-  if (!proxy) {
-    return {
-      ok: false,
-      ip: '',
-      error: 'Proxy vazio',
-    };
-  }
-
-  let browser;
+  if (!proxy) return { ok: false, ip: '', error: 'Proxy vazio' };
 
   try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      defaultViewport: {
-        width: 1200,
-        height: 800,
-      },
-      args: ['--no-sandbox', '--disable-setuid-sandbox', `--proxy-server=${proxy}`],
+    const agent = new HttpsProxyAgent(proxy);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const res = await fetch('https://api.ipify.org?format=json', {
+      agent,
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
-    const page = await browser.newPage();
-
-    await page.goto('https://api.ipify.org?format=json', {
-      waitUntil: 'networkidle2',
-      timeout: 60000,
-    });
-
-    const body = await page.evaluate(() => document.body.innerText);
-
-    await browser.close();
-
-    const data = JSON.parse(body);
-
-    return {
-      ok: true,
-      ip: data.ip || '',
-      error: '',
-    };
+    const data = await res.json();
+    return { ok: true, ip: data.ip || '', error: '' };
   } catch (err) {
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
-
-    return {
-      ok: false,
-      ip: '',
-      error: err.message,
-    };
+    return { ok: false, ip: '', error: err.message };
   }
 }
 
