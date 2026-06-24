@@ -57,6 +57,11 @@ async function syncOneAccountFast(account) {
 
   let igReady = false;
 
+  // Aplica proxy se configurado
+  if (account.proxy?.trim()) {
+    try { ig.state.proxyUrl = account.proxy.trim(); } catch {}
+  }
+
   // 1. Tenta igSession salvo
   if (account.igSession) {
     try {
@@ -65,6 +70,7 @@ async function syncOneAccountFast(account) {
         : account.igSession;
       ig.state.generateDevice(saved._deviceSeed || seed);
       await ig.state.deserialize(saved);
+      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
       igReady = true;
     } catch {
       ig.state.generateDevice(seed);
@@ -118,12 +124,15 @@ async function syncOneAccountFast(account) {
   const localAvatar = cdnUrl ? await downloadAvatar(cdnUrl, account.username) : '';
 
   const updates = {
-    lastSync:  new Date(),
-    name:      me.full_name       || '',
-    bio:       me.biography       || '',
-    followers: me.follower_count  || 0,
-    following: me.following_count || 0,
-    avatar:    localAvatar        || account.avatar || '',
+    lastSync:    new Date(),
+    name:        me.full_name        || '',
+    bio:         me.biography        || '',
+    followers:   me.follower_count   || 0,
+    following:   me.following_count  || 0,
+    postsCount:  me.media_count      || 0,
+    avatar:      localAvatar         || account.avatar || '',
+    healthStatus: 'ativa',
+    lastError:   '',
   };
 
   await Account.findByIdAndUpdate(account._id, updates);
@@ -140,7 +149,7 @@ async function runFastSync() {
     const accounts = await Account.find({
       status:  { $ne: 'banida' },
       isBusy:  { $ne: true },
-    }).select('username _id igSession avatar name bio followers following');
+    }).select('username _id igSession avatar name bio followers following postsCount proxy');
 
     for (const acc of accounts) {
       // Pula contas sem nenhuma sessão disponível
