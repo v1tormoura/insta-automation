@@ -230,6 +230,12 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
   const IgApiClient = getIgApiClient();
   const ig = new IgApiClient();
 
+  // Força versão recente do Instagram para evitar bloqueio por versão antiga
+  try {
+    ig.state.constants.APP_VERSION      = '361.0.0.39.109';
+    ig.state.constants.APP_VERSION_CODE = '574767436';
+  } catch {}
+
   if (account.proxy?.trim()) {
     try {
       ig.state.proxyUrl = account.proxy.trim();
