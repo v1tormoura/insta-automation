@@ -12,6 +12,12 @@ const os         = require('os');
 const { execSync }         = require('child_process');
 const Account              = require('../models/Account');
 const { convertToReelFormat } = require('./videoProcessor');
+const speakeasy = require('speakeasy');
+
+function generateTotpCode(rawSecret) {
+  const secret = rawSecret.replace(/\s/g, '').toUpperCase();
+  return speakeasy.totp({ secret, encoding: 'base32' });
+}
 
 // Mapa de 2FA TOTP pendentes: accountId → { ig, twoFactorIdentifier, seed, username }
 const _pendingTotp = new Map();
@@ -375,11 +381,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         const freshAccount = await Account.findById(account._id);
         if (freshAccount?.totpSecret) {
           try {
-            const { totp } = require('otplib');
-            // Normaliza: remove espaços, uppercase, adiciona padding se necessário
-            let secret = freshAccount.totpSecret.replace(/\s/g, '').toUpperCase();
-            while (secret.length % 8 !== 0) secret += '=';
-            const autoCode = totp.generate(secret);
+            const autoCode = generateTotpCode(freshAccount.totpSecret);
             console.log(`[PrivateAPI] @${account.username} -- TOTP auto-gerado (segredo salvo)`);
             const user = await ig.account.twoFactorLogin({
               username:            account.username,
@@ -475,10 +477,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         const freshForChallenge = await Account.findById(account._id);
         if (freshForChallenge?.totpSecret) {
           try {
-            const { totp } = require('otplib');
-            let secret = freshForChallenge.totpSecret.replace(/\s/g, '').toUpperCase();
-            while (secret.length % 8 !== 0) secret += '=';
-            const autoCode = totp.generate(secret);
+            const autoCode = generateTotpCode(freshForChallenge.totpSecret);
             // Tenta resolver challenge com código TOTP (método 0 = TOTP, método 1 = email)
             await ig.challenge.reset();
             await ig.challenge.selectVerifyMethod('0'); // 0 = authenticator app
