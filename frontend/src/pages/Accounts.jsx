@@ -412,13 +412,8 @@ export default function Accounts() {
           autoSent ? 'Verifique o email da conta e insira o código.' : 'O Instagram pediu verificação. Insira o código recebido.');
         openMobileModal(account, true);
       } else if (status === 'email_required') {
-        // Instagram não reconhece o username — pede email/telefone
-        const email = window.prompt(`Instagram não reconhece o username "@${account.username}".\n\nDigite o EMAIL ou TELEFONE cadastrado na conta:`);
-        if (email?.trim()) {
-          await api.patch(`/accounts/${account._id}/credentials`, { loginEmail: email.trim() });
-          showToast('info', '📧 Email salvo', 'Tentando login novamente...');
-          setTimeout(() => connectApi(account), 500);
-        }
+        showToast('info', '📧 Email necessário', 'Instagram não reconhece o username. Informe o email/telefone da conta.');
+        openPasswordModal(account);
       } else if (status === 'totp_required') {
         if (account.hasTotpSecret) {
           // Tem segredo salvo mas o auto-login falhou — avisa sem abrir modal
@@ -488,16 +483,24 @@ export default function Accounts() {
     }
   }
 
-  function openPasswordModal(account) { setPasswordModal(account); setPasswordValue(''); }
+  const [loginEmailValue, setLoginEmailValue] = useState('');
+
+  function openPasswordModal(account) { setPasswordModal(account); setPasswordValue(''); setLoginEmailValue(account.loginEmail || ''); }
 
   async function savePassword() {
     if (!passwordValue.trim()) return showToast('warning', 'Atenção', 'Digite a senha.');
     setPasswordLoading(true);
     try {
-      await api.patch(`/accounts/${passwordModal._id}/credentials`, { password: passwordValue.trim() });
+      await api.patch(`/accounts/${passwordModal._id}/credentials`, {
+        password: passwordValue.trim(),
+        loginEmail: loginEmailValue.trim(),
+      });
       setPasswordModal(null);
-      showToast('success', 'Senha salva', 'Próximo story usará a private API com link sticker.');
-    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao salvar senha.'); }
+      showToast('success', '✅ Credenciais salvas', 'Clique em 🔗 API para conectar.');
+      // Tenta conectar automaticamente se tiver senha
+      const acc = accounts.find(a => String(a._id) === String(passwordModal._id));
+      if (acc) setTimeout(() => connectApi({ ...acc, password: passwordValue.trim(), loginEmail: loginEmailValue.trim() }), 300);
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao salvar.'); }
     finally { setPasswordLoading(false); }
   }
 
@@ -1333,6 +1336,38 @@ export default function Accounts() {
                 disabled={cookieLoading || !cookieText.trim()}
               >
                 {cookieLoading ? 'Importando...' : '🍪 Importar cookies'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Credenciais (senha + email/telefone) */}
+      {passwordModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(420px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>🔑 Credenciais da conta</h3>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>@{passwordModal.username}</span>
+              </div>
+              <button onClick={() => setPasswordModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 13, color: 'var(--text2)' }}>
+              ⚠️ Instagram não reconhece o username para login — informe o <strong>email ou telefone</strong> cadastrado na conta. Feito isso, não precisará repetir.
+            </div>
+            <div className="form-group">
+              <label>Senha da conta</label>
+              <input className="inp" type="password" value={passwordValue} onChange={e => setPasswordValue(e.target.value)} placeholder="••••••••" autoFocus />
+            </div>
+            <div className="form-group">
+              <label>Email ou Telefone <span style={{ color: 'var(--text3)', fontWeight: 400 }}>(uma vez só)</span></label>
+              <input className="inp" type="text" value={loginEmailValue} onChange={e => setLoginEmailValue(e.target.value)} placeholder="exemplo@gmail.com ou +5511999999999" onKeyDown={e => e.key === 'Enter' && savePassword()} />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setPasswordModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={savePassword} disabled={passwordLoading || !passwordValue.trim()}>
+                {passwordLoading ? 'Conectando...' : '🔗 Salvar e Conectar'}
               </button>
             </div>
           </div>
