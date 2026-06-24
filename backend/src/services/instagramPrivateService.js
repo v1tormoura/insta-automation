@@ -259,10 +259,12 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
 
         // Reconstrói ig.state.checkpoint a partir da URL no body
         const cpUrl = errBody.checkpoint_url || errBody.challenge?.api_path || null;
-        if (cpUrl) {
-          const apiPath = cpUrl.startsWith('/challenge') ? cpUrl : `/challenge${cpUrl}`;
-          ig.state.checkpoint = { challenge: { api_path: apiPath }, lock: false, logout: false };
-          console.log(`[PrivateAPI] @${account.username} -- checkpoint URL: ${apiPath}`);
+        const isUsableCheckpoint = cpUrl && cpUrl.startsWith('/') && !cpUrl.includes('unsupported_version');
+        if (isUsableCheckpoint) {
+          ig.state.checkpoint = { challenge: { api_path: cpUrl }, lock: false, logout: false };
+          console.log(`[PrivateAPI] @${account.username} -- checkpoint URL: ${cpUrl}`);
+        } else if (cpUrl?.includes('unsupported_version')) {
+          console.log(`[PrivateAPI] @${account.username} -- IP bloqueado (unsupported_version) — necessário proxy residencial`);
         }
 
         console.log(`[PrivateAPI] @${account.username} -- sessão válida mas IP requer checkpoint`);
