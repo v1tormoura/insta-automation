@@ -412,9 +412,14 @@ export default function Accounts() {
           autoSent ? 'Verifique o email da conta e insira o código.' : 'O Instagram pediu verificação. Insira o código recebido.');
         openMobileModal(account, true);
       } else if (status === 'totp_required') {
-        showToast('info', '🔐 Autenticador', 'Abra o Google Authenticator e insira o código.');
-        setTotpModal({ _id: account._id, username: account.username });
-        setTotpCode('');
+        if (account.hasTotpSecret) {
+          // Tem segredo salvo mas o auto-login falhou — avisa sem abrir modal
+          showToast('error', '❌ TOTP automático falhou', 'Verifique se o segredo 2FA está correto. Clique em 🔑 2FA para reconfigurar.');
+        } else {
+          showToast('info', '🔐 Autenticador', 'Configure o 2FA automático clicando em 🔑 2FA e cole o segredo.');
+          setTotpSecretModal({ _id: account._id, username: account.username });
+          setTotpSecretValue('');
+        }
       }
     } catch (err) {
       showToast('error', 'Erro ao conectar', err.response?.data?.error || 'Verifique a senha da conta.');
@@ -695,9 +700,10 @@ export default function Accounts() {
                         <>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => { setSessionModal(account); setSessionId(''); }}
-                            title="Conectar via sessionid do cookie — cola o cookie sessionid do browser"
-                          >🔗 API</button>
+                            onClick={() => connectApi(account)}
+                            disabled={connectingApi[account._id]}
+                            title="Login automático via API (senha + 2FA automático)"
+                          >{connectingApi[account._id] ? '⏳...' : '🔗 API'}</button>
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }}
