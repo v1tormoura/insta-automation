@@ -721,6 +721,7 @@ export default function Accounts() {
                             title={account.hasTotpSecret ? '2FA automático configurado ✅ — clique para alterar' : 'Configurar 2FA automático'}
                             style={account.hasTotpSecret ? { borderColor: '#34d399', color: '#34d399' } : {}}
                           >🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => openPasswordModal(account)} title="Atualizar senha da conta">🔒 Senha</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                           <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
                         </>
