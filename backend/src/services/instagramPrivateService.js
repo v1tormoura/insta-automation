@@ -471,6 +471,29 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
 
         // Tenta enviar o código por email/SMS automaticamente (após salvar estado)
         let autoSent = false;
+        // Tenta resolver challenge com TOTP automaticamente se tiver segredo salvo
+        const freshForChallenge = await Account.findById(account._id);
+        if (freshForChallenge?.totpSecret) {
+          try {
+            const { totp } = require('otplib');
+            let secret = freshForChallenge.totpSecret.replace(/\s/g, '').toUpperCase();
+            while (secret.length % 8 !== 0) secret += '=';
+            const autoCode = totp.generate(secret);
+            // Tenta resolver challenge com código TOTP (método 0 = TOTP, método 1 = email)
+            await ig.challenge.reset();
+            await ig.challenge.selectVerifyMethod('0'); // 0 = authenticator app
+            await ig.challenge.sendSecurityCode(autoCode);
+            const snap2 = await ig.state.serialize(); delete snap2.constants; snap2._deviceSeed = newSeed;
+            await Account.findByIdAndUpdate(account._id, {
+              igSession: JSON.stringify(snap2), challengeState: '', healthStatus: 'ativa', lastError: '',
+            });
+            console.log(`[PrivateAPI] @${account.username} -- challenge resolvido com TOTP automático!`);
+            return ig;
+          } catch (chalTotpErr) {
+            console.log(`[PrivateAPI] @${account.username} -- TOTP no challenge falhou: ${chalTotpErr.message}`);
+          }
+        }
+
         try {
           await ig.challenge.reset();
           await ig.challenge.auto(true);
