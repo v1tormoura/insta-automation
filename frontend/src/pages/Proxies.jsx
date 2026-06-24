@@ -15,7 +15,7 @@ export default function Proxies() {
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
 
   async function loadAccounts() {
-    try { const res = await api.get('/accounts'); setAccounts(Array.isArray(res.data) ? res.data : []); }
+    try { const res = await api.get('/accounts?limit=200'); setAccounts(Array.isArray(res.data.accounts) ? res.data.accounts : Array.isArray(res.data) ? res.data : []); }
     catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao carregar contas.'); }
   }
 
