@@ -2,9 +2,6 @@ const Account = require('../models/Account');
 const testProxy = require('../services/testProxy');
 const { broadcast } = require('../events/broadcaster');
 
-// Lazy-load para evitar carregar Puppeteer no startup (causa crash no Windows)
-const getSyncAccountInfo    = () => require('../services/syncAccountInfo');
-const getOpenAccountBrowser = () => require('../services/openAccountBrowser');
 const getBulkConnectAccounts = () => require('../services/bulkConnectAccounts');
 const getBulkEditProfiles   = () => require('../services/bulkEditProfiles');
 
@@ -103,38 +100,31 @@ exports.syncAllAccounts = async (req, res) => {
     res.json({ success: true, message: 'Sincronização geral iniciada.' });
 
     const accounts = await Account.find({ isBusy: { $ne: true } }).sort({ lastSync: 1 });
+    const syncViaAPI = require('../services/syncAccountAPI');
+    const { syncOneAccountFast } = require('../jobs/accountFastSync');
 
-    const syncViaAPI     = require('../services/syncAccountAPI');
-    const syncInfoExists = require('fs').existsSync;
-    const path           = require('path');
-    const SESSIONS_ROOT  = path.resolve(__dirname, '../../sessions');
-
-    let apiCount = 0, browserCount = 0, skipCount = 0;
+    let apiCount = 0, privateCount = 0, skipCount = 0;
 
     for (const account of accounts) {
-      const hasApiToken  = !!(account.accessToken && account.igUserId);
-      const cookiesPath  = path.join(SESSIONS_ROOT, account.username, 'cookies.json');
-      const hasCookies   = syncInfoExists(cookiesPath);
+      const hasApiToken = !!(account.accessToken && account.igUserId);
+      const hasSession  = !!(account.igSession);
 
       try {
         if (hasApiToken) {
-          // Contas com token OAuth → sync rápido via API (sem Puppeteer)
-          console.log(`🔄 [SyncAll] API @${account.username}`);
+          console.log(`🔄 [SyncAll] Graph API @${account.username}`);
           await syncViaAPI(account);
           apiCount++;
-          await new Promise(r => setTimeout(r, 1000)); // delay mínimo entre chamadas de API
-        } else if (hasCookies) {
-          // Contas com sessão browser → sync via Puppeteer
-          console.log(`🔄 [SyncAll] Browser @${account.username}`);
-          await getSyncAccountInfo()(account._id);
-          browserCount++;
-          await new Promise(r => setTimeout(r, 12000)); // Puppeteer precisa de mais tempo
+          await new Promise(r => setTimeout(r, 1000));
+        } else if (hasSession) {
+          console.log(`🔄 [SyncAll] Private API @${account.username}`);
+          await syncOneAccountFast(account._id);
+          privateCount++;
+          await new Promise(r => setTimeout(r, 2000));
         } else {
-          // Sem sessão → apenas marca como sem sessão
-          console.log(`⏭️  [SyncAll] Sem sessão @${account.username} — pulando`);
+          console.log(`⏭️  [SyncAll] Sem sessão @${account.username}`);
           await Account.findByIdAndUpdate(account._id, {
             healthStatus: 'sessao_expirada',
-            lastError: 'Sem sessão — clique em "Entrar" para reconectar',
+            lastError: 'Sem sessão — clique em API para conectar',
             lastSync: new Date(),
           });
           skipCount++;
@@ -144,7 +134,6 @@ exports.syncAllAccounts = async (req, res) => {
       }
     }
 
-    // Quick-check HTTP para detectar bans em contas que não passaram pelo Puppeteer
     try {
       const { quickCheckAll } = require('../services/quickCheckAccount');
       await quickCheckAll();
