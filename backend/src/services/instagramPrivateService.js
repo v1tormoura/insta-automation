@@ -236,12 +236,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     ig.state.constants.APP_VERSION_CODE = '574767436';
   } catch {}
 
-  if (account.proxy?.trim()) {
-    try {
-      ig.state.proxyUrl = account.proxy.trim();
-      console.log(`[PrivateAPI] @${account.username} -- proxy configurado: ${account.proxy.trim()}`);
-    } catch (pe) { console.log(`[PrivateAPI] proxy config erro: ${pe.message}`); }
-  }
+  // Proxy só é aplicado no login com senha (mais abaixo), não no carregamento de sessão
 
   const _skipToFile = (account.igSession === 'use_cookies');
 
@@ -254,8 +249,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const dbSeed = dbSaved._deviceSeed || account.username;
       ig.state.generateDevice(dbSeed);
       await ig.state.deserialize(dbSaved);
-      // Reaplica proxy após deserialize (deserialize pode sobrescrever proxyUrl)
-      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+      // NÃO aplica proxy ao carregar sessão existente — proxy invalida sessão criada sem ele
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do banco OK`);
       return ig;

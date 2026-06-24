@@ -57,12 +57,7 @@ async function syncOneAccountFast(account) {
 
   let igReady = false;
 
-  // Aplica proxy se configurado
-  if (account.proxy?.trim()) {
-    try { ig.state.proxyUrl = account.proxy.trim(); } catch {}
-  }
-
-  // 1. Tenta igSession salvo
+  // 1. Tenta igSession salvo (sem proxy — proxy invalida sessão existente)
   if (account.igSession) {
     try {
       const saved = typeof account.igSession === 'string'
@@ -70,7 +65,6 @@ async function syncOneAccountFast(account) {
         : account.igSession;
       ig.state.generateDevice(saved._deviceSeed || seed);
       await ig.state.deserialize(saved);
-      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
       igReady = true;
     } catch {
       ig.state.generateDevice(seed);
