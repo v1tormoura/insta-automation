@@ -248,6 +248,8 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const dbSeed = dbSaved._deviceSeed || account.username;
       ig.state.generateDevice(dbSeed);
       await ig.state.deserialize(dbSaved);
+      // Reaplica proxy após deserialize (deserialize pode sobrescrever proxyUrl)
+      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do banco OK`);
       return ig;
@@ -340,6 +342,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
   if (account.password) {
     const newSeed = `${account.username}_${String(account._id)}`;
     ig.state.generateDevice(newSeed);
+    if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
     const loginId = account.loginEmail?.trim() || account.username;
     console.log(`[PrivateAPI] @${account.username} -- tentando login com senha...`);
 
