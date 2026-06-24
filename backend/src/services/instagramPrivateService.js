@@ -231,7 +231,13 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
   const ig = new IgApiClient();
 
   if (account.proxy?.trim()) {
-    try { process.env.HTTPS_PROXY = account.proxy.trim(); } catch {}
+    try {
+      const { HttpsProxyAgent } = require('https-proxy-agent');
+      const agent = new HttpsProxyAgent(account.proxy.trim());
+      // instagram-private-api usa got internamente — injeta o agente via state
+      ig.request.defaults.options = ig.request.defaults.options || {};
+      ig.request.defaults.options.agent = { https: agent, http: agent };
+    } catch (pe) { console.log(`[PrivateAPI] proxy config erro: ${pe.message}`); }
   }
 
   const _skipToFile = (account.igSession === 'use_cookies');
@@ -311,7 +317,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const { syncCookiesFromMultilogin } = require('./multiloginService');
       await syncCookiesFromMultilogin(freshAcc);
       const ig2 = new IgApiClient();
-      if (account.proxy?.trim()) { try { process.env.HTTPS_PROXY = account.proxy.trim(); } catch {} }
+      if (account.proxy?.trim()) { try { const { HttpsProxyAgent } = require('https-proxy-agent'); const _a = new HttpsProxyAgent(account.proxy.trim()); ig2.request.defaults.options = ig2.request.defaults.options || {}; ig2.request.defaults.options.agent = { https: _a, http: _a }; } catch {} }
       const freshAcc2 = await Account.findById(account._id);
       if (await _tryAuthWithCookies(ig2, freshAcc2)) {
         console.log(`[PrivateAPI] @${account.username} -- recuperado via Multilogin`);
