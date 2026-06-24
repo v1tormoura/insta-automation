@@ -342,7 +342,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
   if (account.password) {
     const newSeed = `${account.username}_${String(account._id)}`;
     ig.state.generateDevice(newSeed);
-    if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+    // Proxy NÃO aplicado no login — IPs de datacenter fazem Instagram rejeitar username
     const loginId = account.loginEmail?.trim() || account.username;
     console.log(`[PrivateAPI] @${account.username} -- tentando login com senha...`);
 
