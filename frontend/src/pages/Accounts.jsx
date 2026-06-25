@@ -710,11 +710,17 @@ export default function Accounts() {
                         /* Conta sem API */
                         <>
                           <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => openOauthModal(account)}
+                            title="Autorizar via Meta OAuth — uma vez só, depois fica salvo"
+                          >🔗 Conectar</button>
+                          <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => connectApi(account)}
                             disabled={connectingApi[account._id]}
-                            title="Login automático via API (senha + 2FA automático)"
-                          >{connectingApi[account._id] ? '⏳...' : '🔗 API'}</button>
+                            title="Login via Private API (senha + 2FA)"
+                            style={{ fontSize: 10 }}
+                          >{connectingApi[account._id] ? '⏳' : 'API'}</button>
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }}
