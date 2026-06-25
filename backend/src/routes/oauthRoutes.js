@@ -60,13 +60,22 @@ async function exchangeCodeForToken(code) {
   if (userIdMatch) {
     userIdStr = userIdMatch[1];
   } else {
-    // Facebook token — busca ID via graph.instagram.com/me
+    // Instagram Business Login (IGAA token) — usa endpoint sem versão
     try {
-      const meRes  = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${shortToken}`);
+      const meRes  = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${shortToken}`);
       const meData = await meRes.json();
       console.log('📦 [OAuth] /me response:', JSON.stringify(meData).slice(0, 200));
       if (meData.id) userIdStr = String(meData.id);
     } catch {}
+
+    // Fallback v21
+    if (!userIdStr) {
+      try {
+        const meRes2  = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${shortToken}`);
+        const meData2 = await meRes2.json();
+        if (meData2.id) userIdStr = String(meData2.id);
+      } catch {}
+    }
 
     // Fallback: Facebook /me
     if (!userIdStr) {
