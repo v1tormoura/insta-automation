@@ -121,8 +121,8 @@ export default function Dashboard() {
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
-          <div className="eyebrow">Painel operacional</div>
-          <h1>Visão geral</h1>
+          <div className="eyebrow">DASHBOARD</div>
+          <h1 style={{ background: 'linear-gradient(135deg, #f1f5f9 0%, #00d4ff 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Visão Geral</h1>
           <p>Acompanhe contas, fila, publicações e estabilidade em tempo real.</p>
         </div>
         <div className="page-header-right">
@@ -133,35 +133,64 @@ export default function Dashboard() {
 
       {/* Stat cards */}
       <div className="stats-grid">
-        <div className="stat-card blue">
-          <div className="s-icon">👥</div>
-          <div className="s-label">Contas Ativas</div>
-          <div className="s-value">{fmt(data.activeAccounts)}</div>
-          <div className="s-sub">{fmt(data.totalAccounts)} conectadas</div>
+        {/* Contas Ativas — cyan */}
+        <div className="stat-card-neo" style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d1c35 100%)', border: '1px solid rgba(0,200,255,0.1)', borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.4), 0 0 1px rgba(0,200,255,0.1)' }}>
+          <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #00d4ff 0%, #0066cc 50%, #001a44 100%)', boxShadow: '0 0 30px rgba(0,212,255,0.4), inset 0 2px 4px rgba(255,255,255,0.2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
+            {fmt(data.activeAccounts)}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#00d4ff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Contas Ativas</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{fmt(data.activeAccounts)}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{fmt(data.totalAccounts)} conectadas</div>
+          </div>
         </div>
-        <div className="stat-card purple">
-          <div className="s-icon">🔄</div>
-          <div className="s-label">Contas em Uso</div>
-          <div className="s-value">{fmt(data.busyAccounts)}</div>
-          <div className="s-sub">Publicando agora</div>
+
+        {/* Contas em Uso — purple */}
+        <div className="stat-card-neo" style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d1c35 100%)', border: '1px solid rgba(168,85,247,0.12)', borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+          <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #a855f7 0%, #6d28d9 50%, #1a0044 100%)', boxShadow: '0 0 30px rgba(168,85,247,0.4), inset 0 2px 4px rgba(255,255,255,0.2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
+            {fmt(data.busyAccounts)}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#a855f7', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Contas em Uso</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{fmt(data.busyAccounts)}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Publicando agora</div>
+          </div>
         </div>
-        <div className="stat-card green">
-          <div className="s-icon">📤</div>
-          <div className="s-label">Posts Hoje</div>
-          <div className="s-value">{fmt(data.postsToday)}</div>
-          <div className="s-sub">{fmt(data.completedToday)} ok · {fmt(data.errorsToday)} erros</div>
+
+        {/* Posts Hoje — orange */}
+        <div className="stat-card-neo" style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d1c35 100%)', border: '1px solid rgba(249,115,22,0.12)', borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+          <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #f97316 0%, #c2410c 50%, #441a00 100%)', boxShadow: '0 0 30px rgba(249,115,22,0.4), inset 0 2px 4px rgba(255,255,255,0.2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
+            {fmt(data.postsToday)}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#f97316', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Posts Hoje</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{fmt(data.postsToday)}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{fmt(data.completedToday)} ok · {fmt(data.errorsToday)} erros</div>
+          </div>
         </div>
-        <div className="stat-card amber">
-          <div className="s-icon">⏳</div>
-          <div className="s-label">Agendados</div>
-          <div className="s-value">{fmt(data.scheduledPosts)}</div>
-          <div className="s-sub">{fmt(data.pendingPosts)} pend. · {fmt(data.processingPosts)} proc.</div>
+
+        {/* Agendados — green */}
+        <div className="stat-card-neo" style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d1c35 100%)', border: '1px solid rgba(16,185,129,0.12)', borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+          <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #10b981 0%, #065f46 50%, #001a10 100%)', boxShadow: '0 0 30px rgba(16,185,129,0.4), inset 0 2px 4px rgba(255,255,255,0.2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
+            {fmt(data.scheduledPosts)}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#10b981', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Agendados</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{fmt(data.scheduledPosts)}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{fmt(data.pendingPosts)} pend. · {fmt(data.processingPosts)} proc.</div>
+          </div>
         </div>
-        <div className="stat-card red">
-          <div className="s-icon">⚡</div>
-          <div className="s-label">Falhas</div>
-          <div className="s-value">{fmt(data.errorPosts)}</div>
-          <div className="s-sub">Taxa: {fmt(data.errorRate)}%</div>
+
+        {/* Falhas — red */}
+        <div className="stat-card-neo" style={{ background: 'linear-gradient(135deg, #0a1628 0%, #0d1c35 100%)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: 16, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+          <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #ef4444 0%, #991b1b 50%, #440000 100%)', boxShadow: '0 0 30px rgba(239,68,68,0.4), inset 0 2px 4px rgba(255,255,255,0.2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
+            {fmt(data.errorPosts)}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#ef4444', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Falhas</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>{fmt(data.errorPosts)}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Taxa: {fmt(data.errorRate)}%</div>
+          </div>
         </div>
       </div>
 
