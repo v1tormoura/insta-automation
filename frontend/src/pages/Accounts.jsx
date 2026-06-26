@@ -182,11 +182,21 @@ export default function Accounts() {
     setOauthLoading(true);
     try {
       const accountId = oauthModal._id || 'new';
+      const trimmed = raw.trim();
+
+      // Detecta se é um token direto (IGAA... ou EAA...) — salva sem precisar de OAuth
+      if (/^(IGAA|IGQV|EAA|EAAA)[A-Za-z0-9_-]{20,}/.test(trimmed)) {
+        await api.patch(`/accounts/${accountId}/credentials`, { accessToken: trimmed });
+        setOauthResult({ success: true, message: 'Token salvo! Conta conectada via token direto.' });
+        await loadAccounts();
+        return;
+      }
+
       // Aceita: URL completa, "code=ABC", "?code=ABC", ou só o valor do código
-      let pastedUrl = raw;
-      if (!raw.startsWith('http')) {
-        const codeMatch = raw.match(/(?:^|[?&])code=([^&\s]+)/i);
-        const code = codeMatch ? codeMatch[1] : raw.replace(/\s/g, '');
+      let pastedUrl = trimmed;
+      if (!trimmed.startsWith('http')) {
+        const codeMatch = trimmed.match(/(?:^|[?&])code=([^&\s]+)/i);
+        const code = codeMatch ? codeMatch[1] : trimmed.replace(/\s/g, '');
         pastedUrl = `https://localhost:3000/api/oauth/callback?code=${encodeURIComponent(code)}&state=${accountId}`;
       }
       const res = await api.post(`/oauth/connect/${accountId}`, { pastedUrl });

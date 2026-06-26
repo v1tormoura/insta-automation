@@ -142,7 +142,7 @@ router.patch('/:id/credentials', async (req, res) => {
     const account = await Account.findById(req.params.id);
     if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-    const { password, loginEmail } = req.body;
+    const { password, loginEmail, accessToken } = req.body;
 
     if (password !== undefined && password.trim()) {
       account.password = password.trim();
@@ -150,10 +150,15 @@ router.patch('/:id/credentials', async (req, res) => {
     if (loginEmail !== undefined) {
       account.loginEmail = loginEmail.trim();
     }
+    if (accessToken !== undefined && accessToken.trim()) {
+      account.accessToken = accessToken.trim();
+      account.healthStatus = 'ativa';
+      account.lastError = '';
+      await account.save();
+      return res.json({ success: true, message: 'Token salvo com sucesso' });
+    }
 
-    // Clear session so next post forces fresh login with new credentials
     account.igSession = '';
-
     await account.save();
     res.json({ success: true, message: 'Credenciais atualizadas e sessão limpa' });
   } catch (err) {
