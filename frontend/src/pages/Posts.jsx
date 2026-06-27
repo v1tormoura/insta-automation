@@ -5,27 +5,27 @@ import Toast from '../components/Toast';
 
 export default function Posts() {
   const [posts, setPosts] = useState([]);
-  const [postType, setPostType] = useState('auto');
+  const [postType, setPostType] = useState('reel');
   const [accounts, setAccounts] = useState([]);
   const [caption, setCaption] = useState('');
   const [media, setMedia] = useState([]);
   const [cover, setCover] = useState(null);
   const [selectedAccounts, setSelectedAccounts] = useState({});
   const [scheduledAt, setScheduledAt] = useState('');
-  const [intervalHours, setIntervalHours] = useState(0);
-  const [intervalMinutes, setIntervalMinutes] = useState(0);
-  const [intervalSeconds, setIntervalSeconds] = useState(0);
+  const [intervalMins, setIntervalMins] = useState(0);
+  const [simultaneousLimit, setSimultaneousLimit] = useState(1);
+  const [processMode, setProcessMode] = useState('limpeza_leve');
   const [toast, setToast] = useState(null);
   const [legends, setLegends] = useState([]);
   const [selectedLegend, setSelectedLegend] = useState('');
-  const [location, setLocation] = useState('Brasil');
+  const [location, setLocation] = useState('');
   const [retryingId, setRetryingId] = useState(null);
   const [retryingAll, setRetryingAll] = useState(false);
   const [postPage, setPostPage] = useState(1);
   const [postPagination, setPostPagination] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const selectedCount = Object.values(selectedAccounts).filter(Boolean).length;
-  const selectedAccountsData = useMemo(() => accounts.filter(acc => selectedAccounts[String(acc._id)]), [accounts, selectedAccounts]);
   const totalEstimated = media.length * selectedCount;
 
   function showToast(type, title, message) {
@@ -51,7 +51,7 @@ export default function Posts() {
 
   async function retryPost(id) {
     try { setRetryingId(id); await api.post(`/posts/${id}/retry`); showToast('success', 'Reprocessando', 'Post adicionado à fila novamente.'); load(); }
-    catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao reprocessar post.'); }
+    catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao reprocessar.'); }
     finally { setRetryingId(null); }
   }
 
@@ -60,9 +60,9 @@ export default function Posts() {
       setRetryingAll(true);
       const res = await api.post('/posts/retry-errors');
       const total = res.data.total || 0;
-      showToast('success', 'Reprocessando', total > 0 ? `${total} posts adicionados à fila.` : 'Nenhum post com erro encontrado.');
+      showToast('success', 'Reprocessando', total > 0 ? `${total} posts adicionados à fila.` : 'Nenhum post com erro.');
       load();
-    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao reprocessar posts.'); }
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao reprocessar.'); }
     finally { setRetryingAll(false); }
   }
 
@@ -72,8 +72,16 @@ export default function Posts() {
   }
 
   function toggleAccount(id) {
-    const accountId = String(id);
-    setSelectedAccounts(prev => ({ ...prev, [accountId]: !prev[accountId] }));
+    setSelectedAccounts(prev => ({ ...prev, [String(id)]: !prev[String(id)] }));
+  }
+  function toggleAllAccounts() {
+    if (selectedCount === accounts.length) {
+      setSelectedAccounts({});
+    } else {
+      const all = {};
+      accounts.forEach(a => { all[String(a._id)] = true; });
+      setSelectedAccounts(all);
+    }
   }
 
   function selectedAccountsList() { return Object.keys(selectedAccounts).filter(id => selectedAccounts[id]); }
@@ -81,7 +89,13 @@ export default function Posts() {
 
   function avatarSrc(acc) {
     if (acc.avatar?.startsWith('/uploads')) return `http://localhost:3000${acc.avatar}`;
-    return acc.avatar || 'https://i.pravatar.cc/100';
+    return acc.avatar || null;
+  }
+
+  function handleDrop(e) {
+    e.preventDefault(); setDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'));
+    if (files.length) setMedia(prev => [...prev, ...files]);
   }
 
   async function createPost(e) {
@@ -95,16 +109,20 @@ export default function Posts() {
     if (location) form.append('location', location);
     form.append('postType', postType);
     form.append('accounts', JSON.stringify(selectedAccountsList()));
-    form.append('intervalHours', intervalHours);
-    form.append('intervalMinutes', intervalMinutes);
-    form.append('intervalSeconds', intervalSeconds);
+    form.append('intervalMinutes', intervalMins);
+    form.append('simultaneousLimit', simultaneousLimit);
+    form.append('processMode', processMode);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
-    await api.post('/posts', form);
-    setCaption(''); setPostType('auto'); setMedia([]); setCover(null);
-    setLocation(''); setSelectedAccounts({}); setScheduledAt('');
-    setIntervalHours(0); setIntervalMinutes(0); setIntervalSeconds(0); setSelectedLegend('');
-    showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', scheduledAt ? 'Publicações adicionadas ao agendamento.' : 'Publicações enviadas para a fila.');
-    load();
+    try {
+      await api.post('/posts', form);
+      setCaption(''); setMedia([]); setCover(null);
+      setLocation(''); setSelectedAccounts({}); setScheduledAt('');
+      setIntervalMins(0); setSelectedLegend('');
+      showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
+      load();
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || 'Erro ao criar posts.');
+    }
   }
 
   function statusBadgeClass(status) {
@@ -115,6 +133,12 @@ export default function Posts() {
     if (status === 'parcial') return 'badge-amber';
     return 'badge-gray';
   }
+
+  const processModes = [
+    { id: 'sem_limpeza', label: 'Sem Limpeza', tag: 'SAFE', desc: 'Posta o vídeo original, sem alterar nada', color: '#10b981' },
+    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'RECOM', desc: 'Remove metadados e gera hash diferente', color: '#3b82f6' },
+    { id: 'ultra_clean', label: 'Ultra Clean', tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo', color: '#8b5cf6' },
+  ];
 
   return (
     <div>
@@ -127,34 +151,65 @@ export default function Posts() {
         </div>
         <div className="page-header-right">
           <button className="btn btn-ghost btn-sm" type="button" onClick={retryAllErrors} disabled={retryingAll}>
-            ⚡ {retryingAll ? 'Reprocessando...' : 'Reprocessar com erro'}
+            ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
+          </button>
+          <button className="btn btn-primary btn-sm" type="button" onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
+            🚀 Agendar nova postagem
           </button>
         </div>
       </div>
 
       {/* Form grid */}
-      <form onSubmit={createPost} style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, marginBottom: 20 }}>
-        {/* Left */}
+      <form id="postform" onSubmit={createPost} style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 14, marginBottom: 20, alignItems: 'start' }}>
+
+        {/* ── LEFT COLUMN ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
           {/* Upload */}
           <div className="card">
             <div className="card-header">
-              <h3>Upload de Mídia</h3>
-              <span>{media.length} arquivo(s)</span>
+              <h3>Upload de vídeos</h3>
+              <span className="badge badge-cyan">{media.length} vídeos</span>
             </div>
-            <label className="upload-zone" style={{ cursor: 'pointer' }}>
+            {/* Type tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              {['reel', 'post', 'story'].map(t => (
+                <button key={t} type="button"
+                  onClick={() => setPostType(t)}
+                  style={{
+                    padding: '7px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid',
+                    background: postType === t ? 'rgba(37,99,235,0.18)' : 'transparent',
+                    borderColor: postType === t ? 'rgba(37,99,235,0.5)' : 'var(--border)',
+                    color: postType === t ? '#60a5fa' : 'var(--text2)',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                  {t === 'reel' ? '🎬' : t === 'post' ? '📸' : '📖'} {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+            {/* Drop zone */}
+            <label
+              className={`upload-zone${dragOver ? ' drag-over' : ''}`}
+              style={{ cursor: 'pointer' }}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
               <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
                 onChange={e => setMedia(Array.from(e.target.files || []))} />
-              <div className="uz-icon">⬆️</div>
-              <strong>Arraste ou selecione seus vídeos</strong>
-              <span>MP4, MOV, imagens ou múltiplos arquivos</span>
+              <div style={{ fontSize: 28, marginBottom: 6 }}>⬆️</div>
+              <strong>Arraste ou envie seus vídeos</strong>
+              <span>MP4, MOV — sem limite de quantidade</span>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
             </label>
             {media.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8, marginTop: 12 }}>
                 {media.map((file, i) => (
-                  <div key={i} style={{ background: 'var(--card2)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid var(--border)' }}>
+                  <div key={i} style={{ background: 'var(--card2)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid var(--border)', position: 'relative' }}>
+                    <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
+                      style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                     <div style={{ fontSize: 22, marginBottom: 4 }}>{file.type?.includes('video') ? '🎬' : '🖼️'}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
                   </div>
                 ))}
               </div>
@@ -163,16 +218,15 @@ export default function Posts() {
 
           {/* Cover */}
           <div className="card">
-            <div className="card-header">
-              <h3>Capa do Reel</h3>
-              <span>Opcional</span>
-            </div>
-            <label className="upload-zone" style={{ padding: '16px', cursor: 'pointer' }}>
+            <div className="card-header"><h3>Capa do Reel</h3><span>Opcional — aplica a todos os vídeos da fila</span></div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px', background: 'var(--card2)', borderRadius: 10, border: '1px dashed var(--border)', cursor: 'pointer' }}>
               <input type="file" accept="image/*" style={{ display: 'none' }}
                 onChange={e => setCover(e.target.files?.[0] || null)} />
-              <div style={{ fontSize: 20 }}>🖼️</div>
-              <strong style={{ fontSize: 13 }}>{cover ? cover.name : 'Selecionar capa opcional'}</strong>
-              <span>A capa será usada somente em Reels</span>
+              <div style={{ fontSize: 24 }}>🖼️</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: cover ? '#60a5fa' : 'var(--text2)' }}>{cover ? cover.name : 'Nenhuma capa salva. Faça upload de uma imagem 1080×1920.'}</div>
+                {cover && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Clique para trocar</div>}
+              </div>
             </label>
           </div>
 
@@ -180,129 +234,155 @@ export default function Posts() {
           <div className="card">
             <div className="card-header">
               <h3>Legenda</h3>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span>{caption.length}/2200</span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>🎲 Aleatória</button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => {}}>Gerenciar →</button>
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>{caption.length}/2200</span>
               </div>
             </div>
-            <div className="form-group">
-              <select className="sel" value={selectedLegend} onChange={e => {
+            {legends.length > 0 && (
+              <select className="sel" style={{ marginBottom: 10 }} value={selectedLegend} onChange={e => {
                 setSelectedLegend(e.target.value);
                 const l = legends.find(l => l._id === e.target.value);
                 if (l) setCaption(l.text);
               }}>
-                <option value="">Selecione uma legenda...</option>
+                <option value="">Selecione uma legenda salva...</option>
                 {legends.map(l => <option key={l._id} value={l._id}>{l.title}</option>)}
               </select>
+            )}
+            <textarea className="txta"
+              placeholder="Escreva a legenda do seu post. Use #hashtags e {variáveis}."
+              value={caption} maxLength={2200} onChange={e => setCaption(e.target.value)} rows={4} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>🎲 Aleatória</button>
             </div>
-            <textarea className="txta" placeholder="Digite a legenda da publicação..."
-              value={caption} maxLength={2200} onChange={e => setCaption(e.target.value)} rows={5} />
-          </div>
-
-          {/* Location */}
-          <div className="card">
-            <div className="card-header">
-              <h3>📍 Localização</h3>
-              <span>Opcional</span>
-            </div>
-            <div className="form-group">
-              <input
-                className="inp"
-                type="text"
-                placeholder="Ex: São Paulo, Brasil"
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                list="brazil-cities"
-              />
+            {/* Location */}
+            <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span>📍</span> Localização (opcional)
+              </div>
+              <input className="inp" type="text" placeholder="Belo Horizonte, Brasil" value={location} onChange={e => setLocation(e.target.value)} list="brazil-cities" />
               <datalist id="brazil-cities">
-                <option value="São Paulo, Brasil" />
-                <option value="Rio de Janeiro, Brasil" />
-                <option value="Belo Horizonte, Brasil" />
-                <option value="Brasília, Brasil" />
-                <option value="Salvador, Brasil" />
-                <option value="Fortaleza, Brasil" />
-                <option value="Curitiba, Brasil" />
-                <option value="Manaus, Brasil" />
-                <option value="Recife, Brasil" />
-                <option value="Porto Alegre, Brasil" />
-                <option value="Goiânia, Brasil" />
-                <option value="Florianópolis, Brasil" />
-                <option value="Campinas, Brasil" />
-                <option value="Natal, Brasil" />
-                <option value="Maceió, Brasil" />
+                {['São Paulo','Rio de Janeiro','Belo Horizonte','Brasília','Salvador','Fortaleza','Curitiba','Manaus','Recife','Porto Alegre'].map(c => (
+                  <option key={c} value={`${c}, Brasil`} />
+                ))}
               </datalist>
-              <span style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, display: 'block' }}>
-                Digite o nome da cidade/local. O bot irá pesquisar e selecionar o primeiro resultado.
-              </span>
             </div>
           </div>
         </div>
 
-        {/* Right sidebar */}
+        {/* ── RIGHT COLUMN ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Accounts */}
+
+          {/* Simultaneous publications */}
           <div className="card">
             <div className="card-header">
-              <h3>Contas ({selectedCount}/{accounts.length})</h3>
+              <h3>Publicações simultâneas</h3>
+              <span className="badge badge-cyan">{simultaneousLimit === accounts.length && accounts.length > 0 ? 'Equilibrado' : `${simultaneousLimit}/${Math.max(accounts.length, 20)}`}</span>
             </div>
-            <div style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {accounts.map(acc => (
-                <button type="button" key={acc._id} onClick={() => toggleAccount(acc._id)}
+            <p style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12 }}>Quantos posts podem ser enviados ao mesmo tempo</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>LIMITE ATUAL</span>
+              <span style={{ fontSize: 22, fontWeight: 900, color: '#60a5fa', letterSpacing: -1 }}>{simultaneousLimit}</span>
+              <span style={{ fontSize: 14, color: 'var(--text3)' }}>/{Math.max(accounts.length, 20)}</span>
+            </div>
+            <input type="range" min="1" max={Math.max(accounts.length, 20)} value={simultaneousLimit}
+              onChange={e => setSimultaneousLimit(Number(e.target.value))}
+              style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 4 }}>
+              <span>1</span><span>{Math.max(accounts.length, 20)}</span>
+            </div>
+            <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.15)', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
+              Bem ritmado, sem estresse — cada conta envia 1 post por vez. Esse limite controla quantas contas diferentes publicam em paralelo.
+            </div>
+          </div>
+
+          {/* Interval */}
+          <div className="card">
+            <div className="card-header">
+              <h3>Intervalo entre posts</h3>
+              <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 700 }}>{intervalMins} min</span>
+            </div>
+            <input type="range" min="0" max="120" step="1" value={intervalMins}
+              onChange={e => setIntervalMins(Number(e.target.value))}
+              style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer', marginBottom: 6 }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)' }}>
+              <span>Sem intervalo</span><span>120 min</span>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 12, color: 'var(--text2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>
+              <input className="inp" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Processing mode */}
+          <div className="card">
+            <div className="card-header"><h3>Modo de processamento</h3><span>Limpeza aplicada</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {processModes.map(m => (
+                <div key={m.id} onClick={() => setProcessMode(m.id)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px',
-                    borderRadius: 9, border: `1px solid ${isAccountSelected(acc._id) ? 'rgba(99,102,241,.4)' : 'var(--border)'}`,
-                    background: isAccountSelected(acc._id) ? 'var(--indigo-dim)' : 'var(--card2)',
-                    cursor: 'pointer', transition: '.15s', textAlign: 'left', color: 'var(--text)',
+                    padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: '1px solid',
+                    background: processMode === m.id ? `rgba(${m.id === 'sem_limpeza' ? '16,185,129' : m.id === 'limpeza_leve' ? '59,130,246' : '139,92,246'},.08)` : 'transparent',
+                    borderColor: processMode === m.id ? `${m.color}44` : 'var(--border)',
+                    transition: 'all .15s',
                   }}>
-                  <img src={avatarSrc(acc)} alt="" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'cover', flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>@{acc.username}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text2)' }}>{acc.healthStatus || 'ativa'}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: processMode === m.id ? m.color : 'var(--text)' }}>{m.label}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color }}>{m.tag}</span>
                   </div>
-                  {isAccountSelected(acc._id) && <span style={{ color: '#a5b4fc', fontSize: 13, fontWeight: 700 }}>✓</span>}
-                </button>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{m.desc}</div>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Type + Schedule */}
+          {/* Accounts */}
           <div className="card">
-            <div className="card-header"><h3>Agendamento</h3></div>
-            <div className="form-group">
-              <label>Tipo de post</label>
-              <select className="sel" value={postType} onChange={e => setPostType(e.target.value)}>
-                <option value="auto">Automático</option>
-                <option value="post">📸 Post</option>
-                <option value="reel">🎬 Reel</option>
-              </select>
+            <div className="card-header">
+              <h3>Contas</h3>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAllAccounts}>
+                {selectedCount === accounts.length && accounts.length > 0 ? 'Desmarcar todas' : 'Selecionar todas'}
+              </button>
             </div>
-            <div className="form-group">
-              <label>Intervalo entre posts</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                <input className="inp" type="number" min="0" value={intervalHours} onChange={e => setIntervalHours(e.target.value)} placeholder="0" />
-                <input className="inp" type="number" min="0" value={intervalMinutes} onChange={e => setIntervalMinutes(e.target.value)} placeholder="0" />
-                <input className="inp" type="number" min="0" value={intervalSeconds} onChange={e => setIntervalSeconds(e.target.value)} placeholder="0" />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 3 }}>
-                <span style={{ fontSize: 10, color: 'var(--text3)', textAlign: 'center' }}>Horas</span>
-                <span style={{ fontSize: 10, color: 'var(--text3)', textAlign: 'center' }}>Min</span>
-                <span style={{ fontSize: 10, color: 'var(--text3)', textAlign: 'center' }}>Seg</span>
-              </div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 10 }}>
+              Selecione onde publicar — cada conta posta 1 vez por mídia
             </div>
-            <div className="form-group">
-              <label>Agendar para</label>
-              <input className="inp" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+            <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {accounts.length === 0 && (
+                <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 12, padding: 20 }}>Nenhuma conta cadastrada</div>
+              )}
+              {accounts.map(acc => (
+                <button type="button" key={acc._id} onClick={() => toggleAccount(acc._id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px',
+                    borderRadius: 9, border: `1px solid ${isAccountSelected(acc._id) ? 'rgba(59,130,246,.4)' : 'var(--border)'}`,
+                    background: isAccountSelected(acc._id) ? 'rgba(59,130,246,.08)' : 'var(--card2)',
+                    cursor: 'pointer', transition: '.15s', textAlign: 'left', color: 'var(--text)', width: '100%',
+                  }}>
+                  {avatarSrc(acc)
+                    ? <img src={avatarSrc(acc)} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--indigo-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0, color: '#a5b4fc' }}>{acc.username?.[0]?.toUpperCase()}</div>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{acc.username}</div>
+                    <div style={{ fontSize: 10, color: acc.healthStatus === 'ativa' ? '#34d399' : 'var(--text3)' }}>{acc.healthStatus || 'ativa'}</div>
+                  </div>
+                  {isAccountSelected(acc._id) && <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>✓</span>}
+                </button>
+              ))}
             </div>
+
             {/* Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 12 }}>
               {[['Mídias', media.length], ['Contas', selectedCount], ['Total', totalEstimated]].map(([l, v]) => (
-                <div key={l} style={{ textAlign: 'center', background: 'var(--card2)', borderRadius: 8, padding: '8px 4px' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>{v}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text2)' }}>{l}</div>
+                <div key={l} style={{ textAlign: 'center', background: 'var(--card2)', borderRadius: 8, padding: '8px 4px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: -1 }}>{v}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2 }}>{l}</div>
                 </div>
               ))}
             </div>
-            <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', padding: '11px' }}>
+
+            <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12, fontSize: 14 }}>
               🚀 {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
             </button>
           </div>
@@ -341,7 +421,6 @@ export default function Posts() {
               </div>
             ))}
           </div>
-
           {postPagination && postPagination.pages > 1 && (
             <div className="pagination">
               <button className="btn btn-ghost btn-sm" disabled={postPage <= 1} onClick={() => goToPostPage(postPage - 1)}>← Anterior</button>

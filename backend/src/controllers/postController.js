@@ -15,10 +15,12 @@ function getMediaType(filename) {
 }
 
 function getIntervalMs(body) {
+  // Suporta novo campo intervalMinutes (slider) ou campos legados
+  const mins = Number(body.intervalMinutes || 0);
+  if (mins > 0) return mins * 60 * 1000;
   const hours = Number(body.intervalHours || 0);
-  const minutes = Number(body.intervalMinutes || 0);
+  const minutes = Number(body.intervalMins || 0);
   const seconds = Number(body.intervalSeconds || 0);
-
   return hours * 60 * 60 * 1000 + minutes * 60 * 1000 + seconds * 1000;
 }
 
@@ -33,7 +35,6 @@ exports.createPost = async (req, res) => {
     }
 
     const accounts = JSON.parse(req.body.accounts || '[]');
-
     if (!accounts.length) {
       return res.status(400).json({ error: 'Nenhuma conta selecionada' });
     }
@@ -42,45 +43,51 @@ exports.createPost = async (req, res) => {
     const location = req.body.location || '';
     const requestedPostType = req.body.postType || 'auto';
     const intervalMs = getIntervalMs(req.body);
+    // simultaneousLimit: quantas contas publicam por lote (padrão = todas de uma vez)
+    const simultaneousLimit = Math.max(1, Number(req.body.simultaneousLimit) || accounts.length);
 
     const baseDate = req.body.scheduledAt ? new Date(req.body.scheduledAt) : new Date();
 
     const createdPosts = [];
+    let batchIndex = 0; // índice global de lote, incrementa a cada grupo de contas
 
-    for (let i = 0; i < mediaFiles.length; i++) {
-      const mediaType = getMediaType(mediaFiles[i].filename);
-
+    for (let mi = 0; mi < mediaFiles.length; mi++) {
+      const mediaType = getMediaType(mediaFiles[mi].filename);
       let finalPostType = requestedPostType;
-
       if (!finalPostType || finalPostType === 'auto') {
         finalPostType = mediaType === 'video' ? 'reel' : 'post';
       }
-
-      if (!['post', 'reel'].includes(finalPostType)) {
+      if (!['post', 'reel', 'story'].includes(finalPostType)) {
         finalPostType = mediaType === 'video' ? 'reel' : 'post';
       }
 
-      const scheduledAt = new Date(baseDate.getTime() + i * intervalMs);
+      // Divide as contas em lotes de simultaneousLimit
+      for (let ai = 0; ai < accounts.length; ai += simultaneousLimit) {
+        const batchAccounts = accounts.slice(ai, ai + simultaneousLimit);
+        const scheduledAt = new Date(baseDate.getTime() + batchIndex * intervalMs);
+        const isFirst = batchIndex === 0 && !req.body.scheduledAt;
 
-      const post = await Post.create({
-        media: mediaFiles[i].filename,
-        cover: coverFile ? coverFile.filename : '',
-        mediaType,
-        postType: finalPostType,
-        caption,
-        location,
-        accounts,
-        scheduledAt,
-        status: i === 0 && !req.body.scheduledAt ? 'pendente' : 'agendado',
-      });
+        const post = await Post.create({
+          media: mediaFiles[mi].filename,
+          cover: coverFile ? coverFile.filename : '',
+          mediaType,
+          postType: finalPostType,
+          caption,
+          location,
+          accounts: batchAccounts,
+          scheduledAt,
+          status: isFirst ? 'pendente' : 'agendado',
+        });
 
-      await postQueue.add(
-        'newPost',
-        { postId: post._id },
-        { delay: Math.max(scheduledAt.getTime() - Date.now(), 0) }
-      );
+        await postQueue.add(
+          'newPost',
+          { postId: post._id },
+          { delay: Math.max(scheduledAt.getTime() - Date.now(), 0) }
+        );
 
-      createdPosts.push(post);
+        createdPosts.push(post);
+        batchIndex++;
+      }
     }
 
     broadcast('posts', { action: 'created' });
