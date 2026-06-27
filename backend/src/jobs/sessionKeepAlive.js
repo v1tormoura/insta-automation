@@ -43,7 +43,15 @@ async function keepAliveAccount(account) {
     }
   }
 
-  // ── 2. Verifica se tem alguma sessão disponível ───────────────────────────
+  // ── 2. Se tem token OAuth válido, não precisa de Private API session ────────
+  if (account.accessToken) {
+    const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;
+    const daysLeft  = expiresAt ? Math.ceil((expiresAt - Date.now()) / 86400000) : null;
+    console.log(`✅ [KeepAlive] ${label} — token IGAA${daysLeft !== null ? ` (expira em ${daysLeft} dias)` : ' (sem data de expiração)'}`);
+    return { status: 'ok' };
+  }
+
+  // ── 3. Verifica se tem alguma sessão disponível ───────────────────────────
   const hasCookies  = fs.existsSync(path.join(SESSIONS_ROOT, account.username, 'cookies.json'));
   const hasSession  = !!account.igSession && account.igSession !== 'use_cookies';
   const hasFile     = fs.existsSync(path.join(SESSIONS_ROOT, account.username, 'ig_session.json'));
