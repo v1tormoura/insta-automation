@@ -61,8 +61,8 @@ function startAutoSync() {
   // Primeira execução: 30s após iniciar
   setTimeout(runAutoSync, 30_000);
 
-  // Depois: a cada 15 minutos
-  setInterval(runAutoSync, 15 * 60 * 1000);
+  // Depois: a cada 5 minutos
+  setInterval(runAutoSync, 5 * 60 * 1000);
 }
 
 module.exports = startAutoSync;

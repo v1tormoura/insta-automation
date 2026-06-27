@@ -581,33 +581,7 @@ export default function Accounts() {
           <p>Monitore perfis, sessões, saúde da conta e automações em tempo real.</p>
         </div>
         <div className="page-header-right">
-          <button onClick={() => setBulkEditOpen(true)} className="btn btn-ghost btn-sm">Editar perfis</button>
           <button onClick={() => setBulkImportOpen(true)} className="btn btn-ghost btn-sm">Importar lote</button>
-          <button onClick={connectBulkAccounts} className="btn btn-ghost btn-sm">Conectar importadas</button>
-          <button
-            onClick={quickCheckAll}
-            className="btn btn-ghost btn-sm"
-            disabled={syncing === 'quickcheck'}
-            title="Verifica rapidamente via HTTP se cada conta está ativa ou banida (sem abrir browser)"
-          >
-            {syncing === 'quickcheck' ? '⏳ Verificando...' : '🩺 Verificar Saúde'}
-          </button>
-          <button
-            onClick={refreshSessions}
-            className="btn btn-ghost btn-sm"
-            disabled={syncing === 'refresh'}
-            title="Renova as sessões de todas as contas logadas para evitar deslogar (roda automaticamente a cada 12h)"
-          >
-            {syncing === 'refresh' ? '⏳ Renovando...' : '♻️ Renovar Sessões'}
-          </button>
-          <button
-            onClick={syncAllAccounts}
-            className="btn btn-ghost btn-sm"
-            disabled={syncing === 'all'}
-            title="Atualizar status, username, foto e saúde de todas as contas"
-          >
-            {syncing === 'all' ? '⏳ Sincronizando...' : '🔄 Sincronizar Tudo'}
-          </button>
           <button onClick={openOauthNew} className="btn btn-primary btn-sm">🔗 Conectar via API</button>
         </div>
       </div>

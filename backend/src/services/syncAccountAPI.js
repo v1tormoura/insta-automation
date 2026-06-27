@@ -55,53 +55,52 @@ async function syncViaAPI(account) {
   // ── 2. Verificação real via API ───────────────────────────────────────────
   const update = { healthStatus: 'ativa', lastError: '', lastSync: now };
 
-  if (!isIgaal) {
-    // Tokens IGQ/EAA — suportam graph.instagram.com/me
-    try {
-      const url = new URL('https://graph.instagram.com/me');
-      url.searchParams.set('fields', 'id,username,name,followers_count,follows_count,media_count');
-      url.searchParams.set('access_token', account.accessToken);
+  // Todos os tipos de token suportam graph.instagram.com/me (sem versão)
+  // IGAAL usa sem versão; IGQ/EAA também funciona sem versão
+  try {
+    const url = new URL('https://graph.instagram.com/me');
+    url.searchParams.set('fields', 'id,username,name,followers_count,follows_count,media_count,profile_picture_url');
+    url.searchParams.set('access_token', account.accessToken);
 
-      const res  = await fetch(url.toString());
-      const data = await res.json();
+    const res  = await fetch(url.toString());
+    const data = await res.json();
 
-      if (data.error) {
-        const code     = data.error.code;
-        const errMsg   = data.error.message || 'Erro API';
-        const isInvalid = code === 190
-          || data.error.type === 'OAuthException'
-          || errMsg.toLowerCase().includes('session has been invalidated')
-          || errMsg.toLowerCase().includes('access token');
+    if (data.error) {
+      const code      = data.error.code;
+      const errMsg    = data.error.message || 'Erro API';
+      const isInvalid = code === 190
+        || data.error.type === 'OAuthException'
+        || /session.*invalid|access token|token.*invalid/i.test(errMsg);
 
-        if (isInvalid) {
-          update.healthStatus = 'sessao_expirada';
-          update.lastError    = `Token inválido (code ${code}): ${errMsg}`;
-        } else {
-          update.healthStatus = 'restrita';
-          update.lastError    = errMsg;
-        }
-        console.log(`⚠️ [API Sync] @${account.username} — erro ${code}: ${errMsg}`);
+      if (isInvalid) {
+        update.healthStatus = 'sessao_expirada';
+        update.lastError    = `Token inválido (code ${code}) — reconecte via 🔗 API`;
       } else {
-        // Atualiza dados do perfil
-        if (data.username) {
-          update.username   = data.username;
-          update.name       = data.name           || account.name;
-          update.followers  = data.followers_count || account.followers  || 0;
-          update.following  = data.follows_count   || account.following  || 0;
-          update.postsCount = data.media_count     || account.postsCount || 0;
-        }
-        console.log(`✅ [API Sync] @${account.username} — token OK (expira em ${daysLeft} dias)`);
+        update.lastError = errMsg;
       }
-    } catch (err) {
-      console.log(`⚠️ [API Sync] @${account.username} — chamada falhou: ${err.message}`);
-      // Falha de rede não deve marcar como expirada — mantém status atual
-      update.healthStatus = account.healthStatus || 'ativa';
+      console.log(`⚠️ [API Sync] @${account.username} — erro ${code}: ${errMsg}`);
+    } else if (data.id) {
+      // Atualiza todos os dados do perfil
+      update.igUserId   = data.id;
+      update.username   = data.username   || account.username;
+      update.name       = data.name       || account.name;
+      update.followers  = data.followers_count ?? account.followers  ?? 0;
+      update.following  = data.follows_count   ?? account.following  ?? 0;
+      update.postsCount = data.media_count     ?? account.postsCount ?? 0;
+
+      // Baixa avatar se disponível
+      if (data.profile_picture_url) {
+        try {
+          const avatarPath = await downloadAvatar(data.profile_picture_url, account.username);
+          if (avatarPath) update.avatar = avatarPath;
+        } catch {}
+      }
+
+      console.log(`✅ [API Sync] @${account.username} — ${data.followers_count} seguidores · ${data.media_count} posts (expira em ${daysLeft} dias)`);
     }
-  } else {
-    // IGAAL (Instagram Business Login) — GET /me não é suportado para este tipo de token.
-    // Apenas verificamos a data de expiração salva no banco.
-    // O worker limpa o token automaticamente se a sessão expirar durante a publicação.
-    console.log(`✅ [API Sync] @${account.username} — token IGAAL (expira em ${daysLeft} dias)`);
+  } catch (err) {
+    console.log(`⚠️ [API Sync] @${account.username} — chamada falhou: ${err.message}`);
+    update.healthStatus = account.healthStatus || 'ativa';
   }
 
   await Account.findByIdAndUpdate(account._id, update);
