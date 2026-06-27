@@ -82,8 +82,10 @@ export default function Accounts() {
   }
 
   function goToPage(p) { setPage(p); loadAccounts(p); }
-  useServerEvents(['accounts'], loadAccounts);
-  useEffect(() => { loadAccounts(); const t = setInterval(loadAccounts, 30000); return () => clearInterval(t); }, []);
+  // Escuta eventos de contas E de posts (status muda quando post termina)
+  useServerEvents(['accounts', 'posts'], loadAccounts);
+  // Polling a cada 5s para manter status "Publicando" / contadores em tempo real
+  useEffect(() => { loadAccounts(); const t = setInterval(loadAccounts, 5000); return () => clearInterval(t); }, []);
 
   // Detect OAuth callback result from URL (?oauth=success&username=XXX or ?oauth=error&msg=XXX)
   useEffect(() => {

@@ -8,6 +8,7 @@ const Account      = require('../models/Account');
 const { postReel: postReelGraph, refreshToken } = require('../services/instagramAPI');
 const { postReel: postReelPrivate }             = require('../services/instagramPrivateService');
 const { writeAccountLog } = require('../utils/accountLogger');
+const { broadcast } = require('../events/broadcaster');
 
 connectDB();
 
@@ -233,6 +234,7 @@ const worker = new Worker(
         account.busySince  = new Date();
         account.busyReason = 'Publicando';
         await account.save();
+        broadcast('accounts', { action: 'busy', accountId: account._id });
 
         writeAccountLog(acc.username, '🚀 Iniciando publicação');
 
@@ -257,6 +259,7 @@ const worker = new Worker(
         account.busySince  = null;
         account.busyReason = '';
         await account.save();
+        broadcast('accounts', { action: 'synced' });
 
         successCount++;
         const wait = randomDelay();
@@ -277,6 +280,7 @@ const worker = new Worker(
           locked.busyReason = '';
           await locked.save();
         }
+        broadcast('accounts', { action: 'synced' });
         await delay(10_000);
       }
     }
