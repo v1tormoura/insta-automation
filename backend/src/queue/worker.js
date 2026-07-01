@@ -50,27 +50,27 @@ function isSameDay(date) {
 
 async function checkDailyLimit(account) {
   if (!isSameDay(account.lastPostDate)) {
-    account.postsToday   = 0;
-    account.lastPostDate = new Date();
-    await account.save();
+    await Account.findByIdAndUpdate(account._id, { postsToday: 0, lastPostDate: new Date() });
+    account.postsToday = 0;
   }
   return account.postsToday < account.dailyPostLimit;
 }
 
 async function registerSuccess(account) {
-  account.postsToday   = (account.postsToday || 0) + 1;
-  account.lastPostDate = new Date();
-  account.lastPostAt   = new Date();
-  account.healthStatus = 'ativa';
-  account.lastError    = '';
-  await account.save();
+  const postsToday = (account.postsToday || 0) + 1;
+  await Account.findByIdAndUpdate(account._id, {
+    postsToday,
+    lastPostDate: new Date(),
+    lastPostAt:   new Date(),
+    healthStatus: 'ativa',
+    lastError:    '',
+  });
 }
 
 async function registerError(account, error) {
-  account.lastError    = error;
-  account.healthStatus = /sessão|session|expired|401/i.test(error)
+  const healthStatus = /sessão|session|expired|401/i.test(error)
     ? 'sessao_expirada' : 'restrita';
-  await account.save();
+  await Account.findByIdAndUpdate(account._id, { lastError: error, healthStatus });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,10 +218,7 @@ const worker = new Worker(
         if (account.isBusy) {
           const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
           if (lockAge > 10 * 60 * 1000) {
-            account.isBusy     = false;
-            account.busySince  = null;
-            account.busyReason = '';
-            await account.save();
+            await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
           } else {
             errors.push(`@${acc.username}: conta em uso`);
             errorCount++;
@@ -230,10 +227,7 @@ const worker = new Worker(
         }
 
         // Adquire lock
-        account.isBusy     = true;
-        account.busySince  = new Date();
-        account.busyReason = 'Publicando';
-        await account.save();
+        await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
         broadcast('accounts', { action: 'busy', accountId: account._id });
 
         writeAccountLog(acc.username, '🚀 Iniciando publicação');
@@ -243,10 +237,7 @@ const worker = new Worker(
           const msg = `Limite diário atingido: ${account.postsToday}/${account.dailyPostLimit}`;
           console.log(`⛔ @${acc.username}: ${msg}`);
           writeAccountLog(acc.username, msg);
-          account.isBusy     = false;
-          account.busySince  = null;
-          account.busyReason = '';
-          await account.save();
+          await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
           errors.push(`@${acc.username}: ${msg}`);
           errorCount++;
           continue;
@@ -255,10 +246,7 @@ const worker = new Worker(
         await publishWithRetry(post, account);
         await registerSuccess(acc);
 
-        account.isBusy     = false;
-        account.busySince  = null;
-        account.busyReason = '';
-        await account.save();
+        await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
         broadcast('accounts', { action: 'synced' });
 
         successCount++;
@@ -272,14 +260,7 @@ const worker = new Worker(
         console.log(`💥 Erro @${acc.username}:`, err.message);
         writeAccountLog(acc.username, `Erro: ${err.message}`);
         await registerError(acc, err.message);
-
-        const locked = await acc.constructor.findById(acc._id);
-        if (locked) {
-          locked.isBusy     = false;
-          locked.busySince  = null;
-          locked.busyReason = '';
-          await locked.save();
-        }
+        await Account.findByIdAndUpdate(acc._id, { isBusy: false, busySince: null, busyReason: '' });
         broadcast('accounts', { action: 'synced' });
         await delay(10_000);
       }

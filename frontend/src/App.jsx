@@ -14,6 +14,7 @@ import Health from './pages/Health';
 import Proxies from './pages/Proxies';
 import MediaLibrary from './pages/MediaLibrary';
 import Stories from './pages/Stories';
+import Warmup from './pages/Warmup';
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/media-library" element={<MediaLibrary />} />
 
         <Route path="/stories" element={<Stories />} />
+        <Route path="/warmup" element={<Warmup />} />
       </Routes>
     </MainLayout>
   );

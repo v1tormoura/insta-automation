@@ -93,42 +93,30 @@ async function exchangeCodeForToken(code) {
 }
 
 async function getLongLivedToken(shortToken) {
+  // Tokens IGAA do Instagram Business Login já são long-lived (60 dias) — não precisam de troca.
+  if (/^IGAA/i.test(shortToken)) {
+    console.log('✅ [OAuth] Token IGAA detectado — já é long-lived (60 dias), sem necessidade de troca.');
+    return { accessToken: shortToken, expiresIn: 60 * 24 * 60 * 60 };
+  }
+
   const secret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
   console.log('🔄 [OAuth] Trocando por long-lived token...');
 
-  // Para Instagram Business Login (IGAA tokens), ig_exchange_token NÃO usa client_id.
-  // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
-  const attempts = [
-    // 1. GET sem client_id (correto para Business Login)
-    async () => {
-      const url = new URL('https://graph.instagram.com/access_token');
-      url.searchParams.set('grant_type',    'ig_exchange_token');
-      url.searchParams.set('client_secret', secret);
-      url.searchParams.set('access_token',  shortToken);
-      return fetch(url.toString());
-    },
-    // 2. GET com versão explícita
-    async () => {
-      const url = new URL('https://graph.instagram.com/v21.0/access_token');
-      url.searchParams.set('grant_type',    'ig_exchange_token');
-      url.searchParams.set('client_secret', secret);
-      url.searchParams.set('access_token',  shortToken);
-      return fetch(url.toString());
-    },
-  ];
+  const url = new URL('https://graph.instagram.com/access_token');
+  url.searchParams.set('grant_type',    'ig_exchange_token');
+  url.searchParams.set('client_secret', secret);
+  url.searchParams.set('access_token',  shortToken);
 
-  for (let i = 0; i < attempts.length; i++) {
-    try {
-      const res  = await attempts[i]();
-      const text = await res.text();
-      console.log(`📦 [OAuth] Long-lived tentativa ${i + 1}:`, text.slice(0, 200));
-      const data = JSON.parse(text);
-      if (!data.error && data.access_token) {
-        console.log(`✅ [OAuth] Long-lived token obtido via método ${i + 1}`);
-        return { accessToken: data.access_token, expiresIn: data.expires_in ?? 5_184_000 };
-      }
-    } catch {}
-  }
+  try {
+    const res  = await fetch(url.toString());
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (!data.error && data.access_token) {
+      console.log('✅ [OAuth] Long-lived token obtido');
+      return { accessToken: data.access_token, expiresIn: data.expires_in ?? 5_184_000 };
+    }
+    console.log('⚠️ [OAuth] Long-lived falhou:', text.slice(0, 200));
+  } catch {}
 
   throw new Error('Nenhum método de troca para long-lived token funcionou');
 }

@@ -21,11 +21,16 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 // ── Graph API ─────────────────────────────────────────────────────────────────
 
 async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
+  const isVideo = /\.(mp4|mov|avi|webm)$/i.test(imageUrl);
   const params = new URLSearchParams({
-    image_url:   imageUrl,
-    media_type:  'STORIES',
+    media_type:   'STORIES',
     access_token: account.accessToken,
   });
+  if (isVideo) {
+    params.set('video_url', imageUrl);
+  } else {
+    params.set('image_url', imageUrl);
+  }
 
   if (linkUrl) {
     params.set('link_sticker', JSON.stringify({
@@ -50,8 +55,19 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
     throw new Error(container.error.message || 'Erro ao criar container de Story');
   }
 
-  // Passo 2: Aguardar processamento e publicar
-  await delay(2500);
+  // Passo 2: Aguardar processamento (vídeo precisa de mais tempo)
+  await delay(isVideo ? 8000 : 2500);
+
+  // Para vídeo: polling de status até ficar pronto
+  if (isVideo) {
+    for (let i = 0; i < 12; i++) {
+      const statusRes = await fetch(`${IG_GRAPH}/${container.id}?fields=status_code&access_token=${account.accessToken}`);
+      const status = await statusRes.json();
+      if (status.status_code === 'FINISHED') break;
+      if (status.status_code === 'ERROR') throw new Error('Erro no processamento do vídeo pelo Instagram');
+      await delay(5000);
+    }
+  }
 
   const publishRes = await fetch(`${IG_GRAPH}/${account.igUserId}/media_publish`, {
     method: 'POST',
@@ -118,12 +134,14 @@ async function postStoryPrivateAPI(account, { imageUrl, imageBuffer, linkUrl }) 
  * @param {string} [options.linkText] - Texto da figurinha (padrão: "Clique Aqui")
  */
 async function postStory(account, options) {
-  // Tokens IGAAL (Business Login curto) não suportam graph.instagram.com — pula direto para private API
-  const isIgaalToken = account.accessToken && account.accessToken.startsWith('IGAAL');
-
-  // 1. Graph API (OAuth) — só para tokens IGQ/EAA (não IGAAL)
-  if (account.accessToken && account.igUserId && !isIgaalToken) {
-    return postStoryGraphAPI(account, options);
+  // 1. Graph API (OAuth) — tenta para qualquer token OAuth (IGQ, EAA, IGAAL)
+  if (account.accessToken && account.igUserId) {
+    try {
+      return await postStoryGraphAPI(account, options);
+    } catch (err) {
+      console.log(`⚠️  [Story] Graph API falhou (${err.message}) — tentando Private API...`);
+      // Cai para private API se graph falhar
+    }
   }
 
   // 2. Sessão API privada salva (capturada após "Entrar" via browser)

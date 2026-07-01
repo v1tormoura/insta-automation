@@ -16,6 +16,7 @@ const NAV_GROUPS = [
   {
     title: 'Operação',
     items: [
+      { to: '/warmup', label: 'Aquecimento', icon: <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd"/></svg> },
       { to: '/sessions', label: 'Sessões', icon: <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a5 5 0 015 5v2h1a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2v-7a2 2 0 012-2h1V6a5 5 0 015-5zm0 2a3 3 0 00-3 3v2h6V6a3 3 0 00-3-3z"/></svg> },
       { to: '/health', label: 'Saúde', icon: <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/></svg> },
       { to: '/proxies', label: 'Proxies', icon: <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 2c.95 0 1.86.2 2.68.55L4.55 12.68A6 6 0 0110 4zm0 12a6 6 0 01-2.68-.55l8.13-8.13A6 6 0 0110 16z"/></svg> },
@@ -164,7 +165,7 @@ export default function MainLayout({ children }) {
           </button>
           <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-.3px' }}>InstaFlow</div>
         </div>
-        {children}
+        {location.pathname === '/' ? children : <div className="padded-page">{children}</div>}
       </main>
     </div>
   );

@@ -98,6 +98,30 @@ exports.getDashboard = async (req, res) => {
 
     const growth30Days = await Growth.find().sort({ createdAt: -1 }).limit(500);
 
+    // Série temporal: posts por dia nos últimos 90 dias (sempre 90 pontos, zeros nos vazios)
+    const ninetyDaysAgo = daysAgo(90);
+    const dailyPostsRaw = await Post.aggregate([
+      { $match: { $or: [{ createdAt: { $gte: ninetyDaysAgo } }, { updatedAt: { $gte: ninetyDaysAgo } }] } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: { $ifNull: ['$createdAt', '$updatedAt'] } } },
+        count: { $sum: 1 },
+      }},
+    ]);
+    const rawMap = {};
+    dailyPostsRaw.forEach(d => { rawMap[d._id] = d.count; });
+    const dailyPosts = [];
+    for (let i = 89; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      dailyPosts.push({
+        date: key,
+        label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+        posts: rawMap[key] || 0,
+      });
+    }
+
     const queueTotal = scheduledPosts + processingPosts + pendingPosts;
 
     const upcomingPosts = await Post.find({
@@ -126,6 +150,7 @@ exports.getDashboard = async (req, res) => {
         username: a.username,
         followers: a.followers || 0,
         healthStatus: a.healthStatus,
+        avatar: a.avatar || '',
       }));
 
     const worstAccounts = [...accounts]
@@ -162,6 +187,8 @@ exports.getDashboard = async (req, res) => {
         status: account.healthStatus || 'ativa',
         text: `Conta @${account.username}`,
         date: account.updatedAt,
+        avatar: account.avatar || '',
+        username: account.username,
       });
     });
 
@@ -253,6 +280,7 @@ exports.getDashboard = async (req, res) => {
       latestPosts,
       accountsInUse,
       activities: activities.slice(0, 20),
+      dailyPosts,
 
       system: {
         backend: true,

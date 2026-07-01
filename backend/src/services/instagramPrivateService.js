@@ -279,6 +279,27 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
         }
 
         console.log(`[PrivateAPI] @${account.username} -- sessão válida mas IP requer checkpoint`);
+
+        // Tenta TOTP automático se a conta tem segredo salvo
+        const freshForChallenge = await Account.findById(account._id);
+        if (freshForChallenge?.totpSecret) {
+          try {
+            console.log(`[PrivateAPI] @${account.username} -- tentando resolver challenge com TOTP automático...`);
+            await ig.challenge.reset();
+            await ig.challenge.selectVerifyMethod('0'); // método autenticador
+            const autoCode = generateTotpCode(freshForChallenge.totpSecret);
+            await ig.challenge.sendSecurityCode(autoCode);
+            const me = await ig.account.currentUser();
+            const snapOk = await ig.state.serialize(); delete snapOk.constants; snapOk._deviceSeed = dbSeed;
+            await Account.findByIdAndUpdate(account._id, { igSession: JSON.stringify(snapOk), challengeState: '', healthStatus: 'ativa', lastError: '' });
+            console.log(`[PrivateAPI] @${account.username} -- challenge resolvido com TOTP automático!`);
+            return ig;
+          } catch (totpChallengeErr) {
+            console.log(`[PrivateAPI] @${account.username} -- TOTP automático no challenge falhou: ${totpChallengeErr.message}`);
+          }
+        }
+
+        // Fallback: envia código por email/SMS e aguarda usuário
         let autoSent = false;
         try { await ig.challenge.reset(); await ig.challenge.auto(true); autoSent = true; console.log(`[PrivateAPI] @${account.username} -- código enviado`); } catch (ae) { console.log(`[PrivateAPI] @${account.username} -- auto() falhou: ${ae.message}`); }
         const snap = await ig.state.serialize(); delete snap.constants; snap._deviceSeed = dbSeed;
@@ -545,31 +566,50 @@ async function postReelViaClips(ig, videoBuffer, videoPath, { caption, coverBuff
 
   console.log(`[Clips] Upload (${Math.round(videoSize / 1024 / 1024)}MB)...`);
 
-  await ig.request.send({
-    url: `https://i.instagram.com/rupload_igvideo/${uploadName}`,
+  // Usa fetch direto para evitar conflito com baseUrl do ig.request
+  const igCookies = ig.state.cookieJar ? await new Promise(resolve => {
+    ig.state.cookieJar.getCookies('https://i.instagram.com', (err, cookies) => {
+      resolve(err ? [] : cookies);
+    });
+  }) : [];
+  const cookieHeader = igCookies.map(c => `${c.key}=${c.value}`).join('; ');
+  const csrfToken = igCookies.find(c => c.key === 'csrftoken')?.value || ig.state.csrftoken || '';
+
+  const uploadRes = await fetch(`https://i.instagram.com/rupload_igvideo/${uploadName}`, {
     method: 'POST',
     headers: {
       'X-Entity-Type': 'video/mp4', 'Offset': '0',
       'X-Entity-Name': uploadName, 'X-Entity-Length': String(videoSize),
       'Content-Type': 'application/octet-stream', 'Content-Length': String(videoSize),
+      'Cookie': cookieHeader,
+      'X-CSRFToken': csrfToken,
+      'X-IG-App-ID': '567067343352427',
+      'User-Agent': ig.state.appUserAgent || 'Instagram 195.0.0.31.123 Android',
     },
-    body: videoBuffer, json: false,
+    body: videoBuffer,
   });
+  if (!uploadRes.ok) {
+    const txt = await uploadRes.text().catch(() => '');
+    throw new Error(`Upload vídeo falhou: ${uploadRes.status} ${txt.slice(0, 100)}`);
+  }
 
   let coverUploadId;
   if (coverBuffer) {
     try {
       const coverId = `${Date.now()}_cover`;
       const coverName = `${coverId}_${Math.floor(Math.random() * 1e10)}`;
-      await ig.request.send({
-        url: `https://i.instagram.com/rupload_igphoto/${coverName}`,
+      await fetch(`https://i.instagram.com/rupload_igphoto/${coverName}`, {
         method: 'POST',
         headers: {
           'X-Entity-Type': 'image/jpeg', 'Offset': '0',
           'X-Entity-Name': coverName, 'X-Entity-Length': String(coverBuffer.length),
           'Content-Type': 'application/octet-stream',
+          'Cookie': cookieHeader,
+          'X-CSRFToken': csrfToken,
+          'X-IG-App-ID': '567067343352427',
+          'User-Agent': ig.state.appUserAgent || 'Instagram 195.0.0.31.123 Android',
         },
-        body: coverBuffer, json: false,
+        body: coverBuffer,
       });
       coverUploadId = coverId;
     } catch {}

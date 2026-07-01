@@ -6,10 +6,11 @@ export default function Stories() {
   const [selected, setSelected] = useState([]);
   const [imageUrl, setImageUrl] = useState('');
   const [linkUrl, setLinkUrl]   = useState('');
-  const [linkText, setLinkText] = useState('Clique Aqui');
+  const [linkText, setLinkText] = useState('');
   const [loading, setLoading]   = useState(false);
   const [results, setResults]   = useState(null);
   const [imgOk, setImgOk]       = useState(false);
+  const [isVideo, setIsVideo]    = useState(false);
   const [uploading, setUploading]   = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
   const linkTextRef                 = useRef(null);
@@ -64,6 +65,7 @@ export default function Stories() {
       form.append('image', file);
       const { data } = await api.post('/api/stories/upload', form);
       setImageUrl(data.url);
+      setIsVideo(data.mimetype?.startsWith('video/') || file.type.startsWith('video/'));
     } catch (err) {
       alert('Erro ao fazer upload: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -99,7 +101,7 @@ export default function Stories() {
 
           {/* Card: Imagem */}
           <div style={CARD}>
-            <div style={LABEL}>Imagem do Story *</div>
+            <div style={LABEL}>Imagem ou Vídeo do Story *</div>
 
             {/* Botao upload */}
             <label style={{
@@ -109,19 +111,21 @@ export default function Stories() {
               background: '#0f172a', color: '#94a3b8', fontSize: 14, fontWeight: 500,
               marginBottom: 10,
             }}>
-              <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
-              {uploading ? 'Enviando...' : 'Clique para escolher imagem do PC'}
+              <input type="file" accept="image/*,video/*" onChange={handleUpload} style={{ display: 'none' }} />
+              {uploading ? 'Enviando...' : 'Clique para escolher imagem ou vídeo'}
             </label>
 
             {/* Preview */}
             {imageUrl.length > 0 && (
-              <img
-                src={imageUrl}
-                alt="preview"
-                onLoad={() => setImgOk(true)}
-                onError={() => setImgOk(false)}
-                style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 8, display: imgOk ? 'block' : 'none', marginBottom: 10 }}
-              />
+              isVideo
+                ? <video src={imageUrl} controls style={{ width: '100%', maxHeight: 220, borderRadius: 8, marginBottom: 10 }} />
+                : <img
+                    src={imageUrl}
+                    alt="preview"
+                    onLoad={() => setImgOk(true)}
+                    onError={() => setImgOk(false)}
+                    style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 8, display: imgOk ? 'block' : 'none', marginBottom: 10 }}
+                  />
             )}
 
             {/* URL manual (opcional) */}
@@ -135,46 +139,6 @@ export default function Stories() {
             />
           </div>
 
-          {/* Card: Link */}
-          <div style={CARD}>
-            <div style={LABEL}>Figurinha de Link</div>
-
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>URL do link</div>
-            <input
-              type="text"
-              placeholder="https://meusite.com.br"
-              value={linkUrl}
-              onChange={e => setLinkUrl(e.target.value)}
-              style={INPUT}
-            />
-
-            <div style={{ fontSize: 12, color: '#64748b', margin: '12px 0 4px' }}>
-              Texto da figurinha
-              <span style={{ marginLeft: 8, color: '#475569' }}>(use Win+. para emojis do teclado)</span>
-            </div>
-            <input
-              ref={linkTextRef}
-              type="text"
-              placeholder="Clique Aqui 🔥😈"
-              value={linkText}
-              onChange={e => setLinkText(e.target.value)}
-              style={INPUT}
-            />
-
-            {linkText.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Preview:</div>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: 20, padding: '5px 14px',
-                  fontSize: 13, fontWeight: 600, color: '#fff',
-                }}>
-                  {linkText}
-                </span>
-              </div>
-            )}
-          </div>
 
           {/* Botao */}
           <button

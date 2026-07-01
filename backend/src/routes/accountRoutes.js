@@ -144,35 +144,28 @@ router.patch('/:id/credentials', async (req, res) => {
 
     const { password, loginEmail, accessToken } = req.body;
 
-    if (password !== undefined && password.trim()) {
-      account.password = password.trim();
-    }
-    if (loginEmail !== undefined) {
-      account.loginEmail = loginEmail.trim();
-    }
     if (accessToken !== undefined && accessToken.trim()) {
-      account.accessToken = accessToken.trim();
-      account.healthStatus = 'ativa';
-      account.lastError = '';
-      await account.save();
-      // Busca igUserId e dados do perfil automaticamente
+      await Account.findByIdAndUpdate(account._id, { accessToken: accessToken.trim(), healthStatus: 'ativa', lastError: '' });
       try {
         const meRes = await fetch(`https://graph.instagram.com/me?fields=id,username,name,followers_count,follows_count,media_count&access_token=${accessToken.trim()}`);
         const me = await meRes.json();
         if (me.id) {
-          account.igUserId    = me.id;
-          account.name        = me.name        || account.name;
-          account.followers   = me.followers_count || 0;
-          account.following   = me.follows_count   || 0;
-          account.postsCount  = me.media_count     || 0;
-          await account.save();
+          await Account.findByIdAndUpdate(account._id, {
+            igUserId:   me.id,
+            name:       me.name           || account.name,
+            followers:  me.followers_count || 0,
+            following:  me.follows_count   || 0,
+            postsCount: me.media_count     || 0,
+          });
         }
       } catch {}
       return res.json({ success: true, message: 'Token salvo e perfil carregado' });
     }
 
-    account.igSession = '';
-    await account.save();
+    const update = { igSession: '' };
+    if (password  !== undefined && password.trim())  update.password   = password.trim();
+    if (loginEmail !== undefined)                    update.loginEmail = loginEmail.trim();
+    await Account.findByIdAndUpdate(account._id, update);
     res.json({ success: true, message: 'Credenciais atualizadas e sessão limpa' });
   } catch (err) {
     res.status(500).json({ error: err.message });

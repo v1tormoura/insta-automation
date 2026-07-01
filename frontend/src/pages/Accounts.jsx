@@ -68,6 +68,108 @@ export default function Accounts() {
   const [cookieText, setCookieText]       = useState('');
   const [cookieLoading, setCookieLoading] = useState(false);
 
+  // Bulk profile edit modal
+  const [bulkProfileEditOpen, setBulkProfileEditOpen] = useState(false);
+  const [bpFullName, setBpFullName]   = useState('');
+  const [bpBio, setBpBio]             = useState('');
+  const [bpGender, setBpGender]       = useState('');
+  const [bpPicUrl, setBpPicUrl]       = useState('');
+  const [bpPicFile, setBpPicFile]     = useState(null);
+  const [bpLoading, setBpLoading]     = useState(false);
+  const [bpJobId, setBpJobId]         = useState(null);
+  const [bpJobStatus, setBpJobStatus] = useState(null);
+
+  async function submitBulkProfileEdit() {
+    const ids = selectedBulkAccountIds();
+    if (!ids.length) { showToast('error', 'Nenhuma conta', 'Selecione pelo menos uma conta.'); return; }
+    const hasText = bpFullName.trim() || bpBio.trim() !== '' || bpGender !== '';
+    if (!hasText && !bpPicFile) { showToast('error', 'Nenhuma alteração', 'Preencha pelo menos um campo ou selecione uma foto.'); return; }
+
+    setBpLoading(true);
+    try {
+      const form = new FormData();
+      const edits = ids.map(id => {
+        const e = { accountId: id };
+        if (bpFullName.trim()) e.fullName = bpFullName.trim();
+        if (bpBio.trim() !== '') e.biography = bpBio.trim();
+        if (bpGender !== '') e.gender = Number(bpGender);
+        return e;
+      });
+      form.append('edits', JSON.stringify(edits));
+      form.append('delayBetween', '4000');
+      if (bpPicFile) form.append('photo', bpPicFile);
+
+      const res = await api.post('/profile-edit/bulk', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setBpJobId(res.data.jobId);
+      setBpJobStatus('running');
+      showToast('success', 'Job iniciado', `Editando ${ids.length} conta(s) em background...`);
+      setBulkProfileEditOpen(false);
+      setSelectedBulkAccounts({});
+      setBpFullName(''); setBpBio(''); setBpGender(''); setBpPicFile(null);
+
+      const poll = setInterval(async () => {
+        try {
+          const s = await api.get(`/profile-edit/job/${res.data.jobId}`);
+          setBpJobStatus(s.data.status);
+          if (s.data.status !== 'running') {
+            clearInterval(poll);
+            const ok = s.data.results?.filter(r => r.status === 'ok').length || 0;
+            const fail = s.data.results?.filter(r => r.status === 'error').length || 0;
+            showToast(fail === 0 ? 'success' : 'error', 'Edição concluída', `${ok} conta(s) editadas, ${fail} falha(s).`);
+          }
+        } catch { clearInterval(poll); }
+      }, 3000);
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
+    } finally {
+      setBpLoading(false);
+    }
+  }
+
+  // Edit Profile modal
+  const [editProfileModal, setEditProfileModal] = useState(null); // account object
+  const [epFullName, setEpFullName]   = useState('');
+  const [epBio, setEpBio]             = useState('');
+  const [epGender, setEpGender]       = useState('');
+  const [epPicFile, setEpPicFile]     = useState(null);
+  const [epLoading, setEpLoading]     = useState(false);
+
+  const [epPassword, setEpPassword] = useState('');
+
+  function openEditProfile(account) {
+    setEditProfileModal(account);
+    setEpFullName(account.fullName || '');
+    setEpBio(account.biography || '');
+    setEpGender(account.gender != null ? String(account.gender) : '');
+    setEpPicFile(null);
+    setEpPassword('');
+  }
+
+  async function submitEditProfile() {
+    if (!editProfileModal) return;
+    const hasText = epFullName.trim() || epBio.trim() !== '' || epGender !== '';
+    if (!hasText && !epPicFile) { showToast('error', 'Nenhuma alteração', 'Preencha pelo menos um campo ou selecione uma foto.'); return; }
+    setEpLoading(true);
+    try {
+      // Salva senha primeiro se foi fornecida
+      if (epPassword.trim()) {
+        await api.patch(`/accounts/${editProfileModal._id}/credentials`, { password: epPassword.trim() });
+      }
+      const form = new FormData();
+      if (epFullName.trim()) form.append('fullName', epFullName.trim());
+      if (epBio.trim() !== '') form.append('biography', epBio.trim());
+      if (epGender !== '') form.append('gender', epGender);
+      if (epPicFile) form.append('photo', epPicFile);
+      await api.post(`/profile-edit/${editProfileModal._id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      showToast('success', 'Perfil atualizado', `@${editProfileModal.username} editado com sucesso.`);
+      setEditProfileModal(null);
+    } catch (err) {
+      showToast('error', 'Erro ao editar', err.response?.data?.error || err.message);
+    } finally {
+      setEpLoading(false);
+    }
+  }
+
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
   function toggleBulkAccount(id) { const aid = String(id); setSelectedBulkAccounts(p => ({ ...p, [aid]: !p[aid] })); }
   function selectedBulkAccountIds() { return Object.keys(selectedBulkAccounts).filter(id => selectedBulkAccounts[id]); }
@@ -406,8 +508,7 @@ export default function Accounts() {
   }
 
   async function connectApi(account) {
-    if (!account.password) {
-      // Sem senha → abre modal de senha primeiro
+    if (!account.hasPassword) {
       openPasswordModal(account);
       return;
     }
@@ -555,6 +656,19 @@ export default function Accounts() {
 
   function fmt(v) { return Number(v || 0).toLocaleString('pt-BR'); }
   function fmtDate(d) { if (!d) return 'Nunca'; return new Date(d).toLocaleString('pt-BR'); }
+
+  function ActionBtn({ children, onClick, danger, disabled, title, style }) {
+    return (
+      <button onClick={onClick} disabled={disabled} title={title} style={{
+        fontSize: 13, width: 30, height: 28, borderRadius: 6, border: `1px solid ${danger ? 'rgba(239,68,68,.3)' : 'rgba(51,65,85,.5)'}`,
+        background: danger ? 'rgba(239,68,68,.08)' : 'rgba(30,41,59,.8)',
+        color: danger ? '#f87171' : '#94a3b8',
+        cursor: disabled ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        opacity: disabled ? .4 : 1, transition: 'all .15s', flexShrink: 0,
+        ...style,
+      }}>{children}</button>
+    );
+  }
   function healthLabel(s) {
     if (s === 'ativa') return 'Saudável';
     if (s === 'restrita') return 'Restrita';
@@ -582,6 +696,7 @@ export default function Accounts() {
         </div>
         <div className="page-header-right">
           <button onClick={() => setBulkImportOpen(true)} className="btn btn-ghost btn-sm">Importar lote</button>
+          <button onClick={() => { setBulkProfileEditOpen(true); }} className="btn btn-ghost btn-sm">👤 Editar Perfil</button>
           <button onClick={openOauthNew} className="btn btn-primary btn-sm">🔗 Conectar via API</button>
         </div>
       </div>
@@ -589,149 +704,205 @@ export default function Accounts() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Conectadas', value: safeAccounts.length, color: '#6366f1' },
-          { label: 'Ativas', value: activeAccounts, color: '#10b981' },
-          { label: 'Em uso', value: busyAccounts, color: '#8b5cf6' },
-          { label: 'Seguidores', value: totalFollowers, color: '#06b6d4' },
-          { label: 'Postagens', value: totalPosts, color: '#f59e0b' },
+          { label: 'Conectadas', value: safeAccounts.length,  color: '#6366f1', icon: '🔗', sub: 'Total de contas' },
+          { label: 'Ativas',     value: activeAccounts,        color: '#10b981', icon: '✅', sub: 'Status saudável' },
+          { label: 'Em uso',     value: busyAccounts,          color: '#8b5cf6', icon: '🔒', sub: 'Processando agora' },
+          { label: 'Seguidores', value: totalFollowers,        color: '#06b6d4', icon: '👥', sub: 'Total acumulado' },
+          { label: 'Postagens',  value: totalPosts,            color: '#f59e0b', icon: '📸', sub: 'Posts realizados' },
         ].map(s => (
-          <div key={s.label} className="card" style={{ textAlign: 'center', padding: '14px 10px' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: s.color, letterSpacing: -1 }}>{fmt(s.value)}</div>
-            <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 3 }}>{s.label}</div>
+          <div key={s.label} style={{
+            background: 'rgba(15,23,42,0.8)',
+            border: `1px solid ${s.color}22`,
+            borderRadius: 14,
+            padding: '16px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            boxShadow: `0 0 0 1px ${s.color}11, 0 4px 24px ${s.color}0d`,
+          }}>
+            <div style={{
+              width: 46, height: 46, borderRadius: 12,
+              background: `radial-gradient(135deg, ${s.color}33 0%, ${s.color}0a 100%)`,
+              border: `1px solid ${s.color}33`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20, flexShrink: 0,
+            }}>{s.icon}</div>
+            <div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#f1f5f9', letterSpacing: -1, lineHeight: 1 }}>{fmt(s.value)}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: s.color, marginTop: 2 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{s.sub}</div>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(51,65,85,.5)', borderRadius: 16, overflow: 'hidden' }}>
+
         {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(51,65,85,.4)', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700 }}>Contas conectadas</h3>
-            <span style={{ fontSize: 12, color: 'var(--text2)' }}>Mostrando {filteredAccounts.length} de {accounts.length} conta(s)</span>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Contas conectadas</div>
+            <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>Mostrando {filteredAccounts.length} de {accounts.length} conta(s)</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div className="search-wrap" style={{ minWidth: 180 }}>
-              <span className="search-icon">🔍</span>
-              <input className="inp" placeholder="Buscar conta..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#475569' }}>🔍</span>
+              <input
+                style={{ background: 'rgba(30,41,59,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '7px 12px 7px 30px', fontSize: 13, color: '#e2e8f0', outline: 'none', width: 200 }}
+                placeholder="Buscar conta..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
             </div>
-            <select className="sel" style={{ width: 'auto' }} value={filter} onChange={e => setFilter(e.target.value)}>
-              <option value="all">Todas</option>
-              <option value="active">Ativas</option>
-              <option value="busy">Em uso</option>
-              <option value="restricted">Restritas</option>
-            </select>
+            {['all','active','busy','restricted'].map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600,
+                background: filter === f ? '#6366f1' : 'rgba(51,65,85,.4)',
+                color: filter === f ? '#fff' : '#94a3b8',
+              }}>{{ all:'Todas', active:'Ativas', busy:'Em uso', restricted:'Restritas' }[f]}</button>
+            ))}
           </div>
         </div>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th></th>
-                <th>Conta</th>
-                <th>Seguidores</th>
-                <th>Seguindo</th>
-                <th>Posts</th>
-                <th>Status</th>
-                <th>Última sync</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAccounts.map(account => (
-                <tr key={account._id}>
-                  <td style={{ width: 32 }}>
-                    <input type="checkbox" checked={!!selectedBulkAccounts[String(account._id)]}
-                      onChange={() => toggleBulkAccount(account._id)}
-                      style={{ accentColor: 'var(--indigo)', cursor: 'pointer' }} />
-                  </td>
-                  <td>
-                    <div className="td-account">
-                      {account.avatar ? (
-                        <img
-                          src={account.avatar.startsWith('http')
-                            ? `http://localhost:3000/image-proxy?url=${encodeURIComponent(account.avatar)}`
-                            : `http://localhost:3000${account.avatar}`}
-                          alt=""
-                          onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                          style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />
-                      ) : null}
-                      <div className="td-avatar" style={{ display: account.avatar ? 'none' : 'flex' }}>
-                        {account.username?.charAt(0)?.toUpperCase() || 'I'}
-                      </div>
-                      <div className="td-name">
-                        <strong>{account.name || account.username}</strong>
-                        <span>@{account.username}</span>
-                        {account.isBusy && <span style={{ fontSize: 10, color: '#a78bfa', display: 'block' }}>🔒 {account.busyReason || 'Em uso'}</span>}
-                      </div>
-                    </div>
-                  </td>
-                  <td>{fmt(account.followers)}</td>
-                  <td>{fmt(account.following)}</td>
-                  <td>{fmt(account.postsCount)}</td>
-                  <td><span className={`badge ${healthBadge(account.healthStatus || 'ativa')}`}>{healthLabel(account.healthStatus || 'ativa')}</span></td>
-                  <td style={{ fontSize: 12, color: 'var(--text2)' }}>{fmtDate(account.lastSync)}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                      {account.igUserId ? (
-                        /* Conta conectada via API */
-                        <>
-                          <span
-                            className="btn btn-sm"
-                            style={{ background: 'rgba(16,185,129,.15)', color: '#34d399', border: '1px solid rgba(16,185,129,.3)', cursor: 'default' }}
-                            title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}
-                          >✅ API</span>
-                          <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
-                          <button
-                            className="btn btn-sm"
-                            style={{ background: 'rgba(239,68,68,.1)', color: '#f87171', border: '1px solid rgba(239,68,68,.2)', fontSize: 11 }}
-                            onClick={() => disconnectOauth(account._id)}
-                            title="Remover token API"
-                          >Desconectar</button>
-                          <button className="btn btn-ghost btn-sm" title="Renomear conta" onClick={() => { setRenameModal(account); setRenameValue(account.username); }}>✏️</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
-                        </>
-                      ) : (
-                        /* Conta sem API */
-                        <>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => openOauthModal(account)}
-                            title="Autorizar via Meta OAuth — uma vez só, depois fica salvo"
-                          >🔗 Conectar</button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => connectApi(account)}
-                            disabled={connectingApi[account._id]}
-                            title="Login via Private API (senha + 2FA)"
-                            style={{ fontSize: 10 }}
-                          >{connectingApi[account._id] ? '⏳' : 'API'}</button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }}
-                            title={account.hasTotpSecret ? '2FA automático configurado ✅ — clique para alterar' : 'Configurar 2FA automático'}
-                            style={account.hasTotpSecret ? { borderColor: '#34d399', color: '#34d399' } : {}}
-                          >🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => openPasswordModal(account)} title="Atualizar senha da conta">🔒 Senha</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!filteredAccounts.length && <div className="empty-state" style={{ marginTop: 12 }}>Nenhuma conta encontrada.</div>}
+        {/* Barra de ações em massa — aparece quando há seleção */}
+        {selectedBulkAccountIds().length > 0 && (
+          <div style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 20px', background:'linear-gradient(90deg,rgba(99,102,241,.12),rgba(139,92,246,.08))', borderBottom:'1px solid rgba(99,102,241,.2)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ width:22, height:22, borderRadius:6, background:'#6366f1', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, color:'#fff', fontWeight:800 }}>
+                {selectedBulkAccountIds().length}
+              </span>
+              <span style={{ fontSize:13, color:'#a5b4fc', fontWeight:600 }}>conta(s) selecionada(s)</span>
+            </div>
+            <div style={{ width:1, height:20, background:'rgba(99,102,241,.3)' }} />
+            <button onClick={() => setBulkProfileEditOpen(true)} style={{ fontSize:12, padding:'6px 14px', borderRadius:8, border:'1px solid rgba(99,102,241,.35)', background:'rgba(99,102,241,.15)', color:'#818cf8', fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+              👤 Editar perfil em massa
+            </button>
+            <button onClick={() => setSelectedBulkAccounts({})} style={{ fontSize:12, padding:'6px 10px', borderRadius:8, border:'1px solid rgba(51,65,85,.4)', background:'transparent', color:'#475569', cursor:'pointer', marginLeft:'auto' }}>
+              Desmarcar tudo
+            </button>
+          </div>
+        )}
+
+        {/* Table header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 1.4fr 2.4fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
+          {['', 'Conta', 'Seguidores', 'Seguindo', 'Posts', 'Status', 'Última sync', 'Ações'].map((h, i) => (
+            <div key={i} style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: .6 }}>{h}</div>
+          ))}
         </div>
+
+        {/* Rows */}
+        {filteredAccounts.map((account, ri) => {
+          const hc = { ativa:'#10b981', restrita:'#f59e0b', erro_login:'#ef4444', sessao_expirada:'#f97316', banida:'#ef4444' }[account.healthStatus] || '#10b981';
+          const hl = healthLabel(account.healthStatus || 'ativa');
+          return (
+            <div key={account._id} style={{
+              display: 'grid',
+              gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 1.4fr 2.4fr',
+              gap: 0,
+              padding: '13px 20px',
+              borderBottom: ri < filteredAccounts.length - 1 ? '1px solid rgba(51,65,85,.25)' : 'none',
+              alignItems: 'center',
+              transition: 'background .15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,.04)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              {/* checkbox */}
+              <div>
+                <input type="checkbox" checked={!!selectedBulkAccounts[String(account._id)]}
+                  onChange={() => toggleBulkAccount(account._id)}
+                  style={{ accentColor: '#6366f1', cursor: 'pointer', width: 14, height: 14 }} />
+              </div>
+
+              {/* conta */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  {account.avatar ? (
+                    <img
+                      src={account.avatar.startsWith('http') ? `http://localhost:3000/image-proxy?url=${encodeURIComponent(account.avatar)}` : `http://localhost:3000${account.avatar}`}
+                      alt=""
+                      onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+                      style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', border: `2px solid ${hc}44` }}
+                    />
+                  ) : null}
+                  <div style={{ width: 38, height: 38, borderRadius: 10, background: `linear-gradient(135deg, #6366f133, #8b5cf633)`, border: `2px solid #6366f133`, display: account.avatar ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#818cf8' }}>
+                    {account.username?.charAt(0)?.toUpperCase() || 'I'}
+                  </div>
+                  {account.isBusy && (
+                    <span style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: '#a855f7', border: '2px solid rgba(15,23,42,.9)' }} title="Em uso" />
+                  )}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name || account.username}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>@{account.username}</div>
+                  {account.isBusy && <div style={{ fontSize: 10, color: '#a78bfa', marginTop: 1 }}>{account.busyReason || 'Em uso'}</div>}
+                </div>
+              </div>
+
+              {/* seguidores */}
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>{fmt(account.followers)}</div>
+
+              {/* seguindo */}
+              <div style={{ fontSize: 13, color: '#64748b' }}>{fmt(account.following)}</div>
+
+              {/* posts */}
+              <div style={{ fontSize: 13, color: '#64748b' }}>{fmt(account.postsCount)}</div>
+
+              {/* status */}
+              <div>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
+                  background: `${hc}18`, color: hc, border: `1px solid ${hc}33`,
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: hc, display: 'inline-block' }} />
+                  {hl}
+                </span>
+              </div>
+
+              {/* última sync */}
+              <div style={{ fontSize: 11, color: '#475569' }}>{fmtDate(account.lastSync)}</div>
+
+              {/* ações */}
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                {account.igUserId ? (
+                  <>
+                    <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
+                      title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => connectApi(account)} disabled={connectingApi[account._id]} title="Login via Private API (necessário para stories)" style={{ fontSize:10 }}>{connectingApi[account._id] ? '⏳' : 'API'}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }} title={account.hasTotpSecret ? '2FA configurado ✅' : 'Configurar 2FA'} style={account.hasTotpSecret ? { borderColor:'#34d399', color:'#34d399' } : {}}>🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
+                    <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }} onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => connectApi(account)} disabled={connectingApi[account._id]} title="Login via Private API" style={{ fontSize:10 }}>{connectingApi[account._id] ? '⏳' : 'API'}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }} title={account.hasTotpSecret ? '2FA automático configurado ✅' : 'Configurar 2FA'} style={account.hasTotpSecret ? { borderColor:'#34d399', color:'#34d399' } : {}}>🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {!filteredAccounts.length && (
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569' }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>👤</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Nenhuma conta encontrada</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Tente ajustar o filtro ou importar novas contas.</div>
+          </div>
+        )}
 
         {pagination && pagination.pages > 1 && (
-          <div className="pagination">
-            <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}>← Anterior</button>
-            <span>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
-            <button className="btn btn-ghost btn-sm" disabled={page >= pagination.pages} onClick={() => goToPage(page + 1)}>Próxima →</button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid rgba(51,65,85,.35)' }}>
+            <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? .4 : 1 }} disabled={page <= 1} onClick={() => goToPage(page - 1)}>← Anterior</button>
+            <span style={{ fontSize: 12, color: '#64748b' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
+            <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page >= pagination.pages ? 'default' : 'pointer', opacity: page >= pagination.pages ? .4 : 1 }} disabled={page >= pagination.pages} onClick={() => goToPage(page + 1)}>Próxima →</button>
           </div>
         )}
       </div>
@@ -752,14 +923,14 @@ export default function Accounts() {
             {!importResults ? (
               <>
                 <p style={{ fontSize: 13, color: 'var(--text2)', margin: '8px 0 4px' }}>
-                  Cole uma conta por linha:
-                  <code style={{ background: 'var(--card2)', padding: '2px 6px', borderRadius: 4, fontSize: 12, marginLeft: 6 }}>usuario:senha:email_ou_telefone</code>
+                  Cole uma conta por linha — formato recomendado:
+                  <code style={{ background: 'var(--card2)', padding: '2px 6px', borderRadius: 4, fontSize: 12, marginLeft: 6 }}>usuario:senha:email:CHAVE_2FA</code>
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
-                  O email/telefone é obrigatório para postar stories via API privada — o Instagram não aceita mais login só pelo username.
+                  A chave 2FA (base32) permite login automático sem digitar código. Email é necessário para stories via API privada.
                 </p>
                 <textarea className="txta" style={{ marginTop: 4 }} rows={8}
-                  placeholder={"usuario1:senha1:email1@gmail.com\nusuario2:senha2:+5511999990000\nusuario3:senha3"}
+                  placeholder={"usuario1:senha1:email1@gmail.com:JBSWY3DPEHPK3PXP\nusuario2:senha2:+5511999990000:CHAVE2FA\nusuario3:senha3:email3@gmail.com"}
                   value={bulkText} onChange={e => setBulkText(e.target.value)} />
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => { setBulkImportOpen(false); setImportResults(null); }}>Cancelar</button>
@@ -1259,7 +1430,254 @@ export default function Accounts() {
         </div>
       )}
 
-      {/* Rename Modal */}
+      {/* Bulk Profile Edit Modal */}
+      {bulkProfileEditOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(6px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ width:'min(520px,100%)', maxHeight:'90vh', display:'flex', flexDirection:'column', background:'linear-gradient(160deg,rgba(15,23,42,.98),rgba(15,23,42,.95))', border:'1px solid rgba(99,102,241,.25)', borderRadius:20, boxShadow:'0 0 0 1px rgba(99,102,241,.1), 0 24px 60px rgba(0,0,0,.6)', overflow:'hidden' }}>
+
+            <div style={{ padding:'20px 24px 18px', background:'linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.08))', borderBottom:'1px solid rgba(99,102,241,.15)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+              <div>
+                <div style={{ fontSize:15, fontWeight:800, color:'#f1f5f9' }}>👥 Editar Perfil em Massa</div>
+                <div style={{ fontSize:12, color:'#6366f1', marginTop:2 }}>{selectedBulkAccountIds().length} conta(s) selecionada(s)</div>
+              </div>
+              <button onClick={() => setBulkProfileEditOpen(false)} style={{ width:32, height:32, borderRadius:8, background:'rgba(51,65,85,.5)', border:'1px solid rgba(51,65,85,.7)', color:'#64748b', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+            </div>
+
+            <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16, overflowY:'auto' }}>
+
+              {/* Seleção de contas */}
+              <div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6 }}>Selecionar contas</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button onClick={() => setSelectedBulkAccounts(Object.fromEntries(accounts.map(a => [String(a._id), true])))}
+                      style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'1px solid rgba(99,102,241,.3)', background:'rgba(99,102,241,.12)', color:'#818cf8', cursor:'pointer' }}>Todas</button>
+                    <button onClick={() => setSelectedBulkAccounts({})}
+                      style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'1px solid rgba(51,65,85,.4)', background:'transparent', color:'#475569', cursor:'pointer' }}>Nenhuma</button>
+                  </div>
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, maxHeight:120, overflowY:'auto', padding:'8px', background:'rgba(15,23,42,.5)', borderRadius:10, border:'1px solid rgba(51,65,85,.4)' }}>
+                  {accounts.map(acc => {
+                    const sel = !!selectedBulkAccounts[String(acc._id)];
+                    return (
+                      <button key={acc._id} onClick={() => toggleBulkAccount(acc._id)} style={{
+                        padding:'4px 10px', borderRadius:999, fontSize:12, fontWeight:600, cursor:'pointer',
+                        border:`1px solid ${sel ? 'rgba(99,102,241,.5)' : 'rgba(51,65,85,.5)'}`,
+                        background: sel ? 'rgba(99,102,241,.2)' : 'rgba(30,41,59,.6)',
+                        color: sel ? '#a5b4fc' : '#64748b',
+                        transition:'all .15s',
+                      }}>@{acc.username}</button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Nome completo</label>
+                  <input value={bpFullName} onChange={e => setBpFullName(e.target.value)} placeholder="Mesmo nome para todas"
+                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box' }}
+                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Gênero</label>
+                  <select value={bpGender} onChange={e => setBpGender(e.target.value)}
+                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color: bpGender ? '#e2e8f0' : '#475569', outline:'none', cursor:'pointer' }}>
+                    <option value="">Não alterar</option>
+                    <option value="1">Masculino</option>
+                    <option value="2">Feminino</option>
+                    <option value="3">Não-binário</option>
+                    <option value="4">Prefiro não dizer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Biografia</label>
+                <textarea value={bpBio} onChange={e => setBpBio(e.target.value)} placeholder="Mesma bio para todas as contas..." rows={3}
+                  style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit' }}
+                  onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                  onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                <div style={{ fontSize:11, color:'#475569', textAlign:'right', marginTop:3 }}>{bpBio.length}/150</div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Foto de perfil</label>
+                <label style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(15,23,42,.6)', border:`1px dashed ${bpPicFile ? 'rgba(99,102,241,.6)' : 'rgba(51,65,85,.6)'}`, borderRadius:10, cursor:'pointer', transition:'all .2s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor='rgba(99,102,241,.5)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = bpPicFile ? 'rgba(99,102,241,.6)' : 'rgba(51,65,85,.6)'}>
+                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={e => setBpPicFile(e.target.files?.[0] || null)} />
+                  {bpPicFile ? (
+                    <>
+                      <img src={URL.createObjectURL(bpPicFile)} alt="" style={{ width:44, height:44, borderRadius:10, objectFit:'cover', border:'2px solid rgba(99,102,241,.4)', flexShrink:0 }} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#a5b4fc', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{bpPicFile.name}</div>
+                        <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>{(bpPicFile.size / 1024).toFixed(0)} KB · Clique para trocar</div>
+                      </div>
+                      <button type="button" onClick={e => { e.preventDefault(); setBpPicFile(null); }} style={{ fontSize:16, color:'#475569', background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:1 }}>×</button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ width:44, height:44, borderRadius:10, background:'rgba(99,102,241,.1)', border:'1px solid rgba(99,102,241,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>📷</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#64748b' }}>Clique para fazer upload</div>
+                        <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>JPG, PNG ou WEBP · máx. 10MB</div>
+                      </div>
+                    </>
+                  )}
+                </label>
+                <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>A mesma foto será aplicada em todas as contas selecionadas.</div>
+              </div>
+
+              {bpJobStatus === 'running' && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:10, background:'rgba(99,102,241,.08)', border:'1px solid rgba(99,102,241,.2)' }}>
+                  <span style={{ fontSize:16 }}>⏳</span>
+                  <span style={{ fontSize:12, color:'#818cf8' }}>Job <strong>{bpJobId}</strong> rodando em background...</span>
+                </div>
+              )}
+
+              <div style={{ display:'flex', gap:10, marginTop:4 }}>
+                <button onClick={() => setBulkProfileEditOpen(false)} style={{ flex:1, padding:'10px', borderRadius:10, border:'1px solid rgba(51,65,85,.5)', background:'transparent', color:'#64748b', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  Cancelar
+                </button>
+                <button onClick={submitBulkProfileEdit} disabled={bpLoading} style={{ flex:2, padding:'10px', borderRadius:10, border:'none', background: bpLoading ? 'rgba(99,102,241,.4)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', fontSize:13, fontWeight:700, cursor: bpLoading ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxShadow: bpLoading ? 'none' : '0 4px 16px rgba(99,102,241,.35)' }}>
+                  {bpLoading ? <><span>⏳</span> Enviando...</> : <><span>🚀</span> Aplicar em {selectedBulkAccountIds().length} conta(s)</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editProfileModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', backdropFilter:'blur(6px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ width:'min(460px,100%)', background:'linear-gradient(160deg,rgba(15,23,42,.98) 0%,rgba(15,23,42,.95) 100%)', border:'1px solid rgba(99,102,241,.25)', borderRadius:20, boxShadow:'0 0 0 1px rgba(99,102,241,.1), 0 24px 60px rgba(0,0,0,.6)', overflow:'hidden' }}>
+
+            {/* Header com gradiente */}
+            <div style={{ padding:'20px 24px 18px', background:'linear-gradient(135deg,rgba(99,102,241,.12) 0%,rgba(139,92,246,.08) 100%)', borderBottom:'1px solid rgba(99,102,241,.15)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                {editProfileModal.avatar ? (
+                  <img src={editProfileModal.avatar.startsWith('http') ? `http://localhost:3000/image-proxy?url=${encodeURIComponent(editProfileModal.avatar)}` : `http://localhost:3000${editProfileModal.avatar}`}
+                    alt="" style={{ width:44, height:44, borderRadius:12, objectFit:'cover', border:'2px solid rgba(99,102,241,.4)' }} />
+                ) : (
+                  <div style={{ width:44, height:44, borderRadius:12, background:'linear-gradient(135deg,#6366f133,#8b5cf633)', border:'2px solid rgba(99,102,241,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:800, color:'#818cf8' }}>
+                    {editProfileModal.username?.[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize:15, fontWeight:800, color:'#f1f5f9' }}>Editar Perfil</div>
+                  <div style={{ fontSize:12, color:'#6366f1', marginTop:1 }}>@{editProfileModal.username}</div>
+                </div>
+              </div>
+              <button onClick={() => setEditProfileModal(null)} style={{ width:32, height:32, borderRadius:8, background:'rgba(51,65,85,.5)', border:'1px solid rgba(51,65,85,.7)', color:'#64748b', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+            </div>
+
+            <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
+
+              {/* Aviso */}
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:10, background:'rgba(99,102,241,.07)', border:'1px solid rgba(99,102,241,.18)' }}>
+                <span style={{ fontSize:16 }}>⚡</span>
+                <span style={{ fontSize:12, color:'#94a3b8' }}>Via <strong style={{ color:'#818cf8' }}>Private API</strong>. Campos vazios não serão alterados.</span>
+              </div>
+
+              {/* Nome + Bio lado a lado no topo */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Nome completo</label>
+                  <input value={epFullName} onChange={e => setEpFullName(e.target.value)} placeholder="Ex: Maria Silva"
+                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box', transition:'border .2s' }}
+                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Gênero</label>
+                  <select value={epGender} onChange={e => setEpGender(e.target.value)}
+                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color: epGender ? '#e2e8f0' : '#475569', outline:'none', cursor:'pointer' }}>
+                    <option value="">Não alterar</option>
+                    <option value="1">Masculino</option>
+                    <option value="2">Feminino</option>
+                    <option value="3">Não-binário</option>
+                    <option value="4">Prefiro não dizer</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Biografia */}
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Biografia</label>
+                <textarea value={epBio} onChange={e => setEpBio(e.target.value)} placeholder="Ex: Criadora de conteúdo 🌸" rows={3}
+                  style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', transition:'border .2s' }}
+                  onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                  onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                <div style={{ fontSize:11, color:'#475569', textAlign:'right', marginTop:3 }}>{epBio.length}/150</div>
+              </div>
+
+              {/* Foto */}
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Nova foto de perfil</label>
+                <label style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(15,23,42,.6)', border:`1px dashed ${epPicFile ? 'rgba(99,102,241,.6)' : 'rgba(51,65,85,.6)'}`, borderRadius:10, cursor:'pointer', transition:'all .2s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor='rgba(99,102,241,.5)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = epPicFile ? 'rgba(99,102,241,.6)' : 'rgba(51,65,85,.6)'}>
+                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={e => setEpPicFile(e.target.files?.[0] || null)} />
+                  {epPicFile ? (
+                    <>
+                      <img src={URL.createObjectURL(epPicFile)} alt="" style={{ width:44, height:44, borderRadius:10, objectFit:'cover', border:'2px solid rgba(99,102,241,.4)', flexShrink:0 }} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#a5b4fc', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{epPicFile.name}</div>
+                        <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>{(epPicFile.size / 1024).toFixed(0)} KB · Clique para trocar</div>
+                      </div>
+                      <button type="button" onClick={e => { e.preventDefault(); setEpPicFile(null); }} style={{ fontSize:16, color:'#475569', background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:1 }}>×</button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ width:44, height:44, borderRadius:10, background:'rgba(99,102,241,.1)', border:'1px solid rgba(99,102,241,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>📷</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#64748b' }}>Clique para fazer upload</div>
+                        <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>JPG, PNG ou WEBP · máx. 10MB</div>
+                      </div>
+                    </>
+                  )}
+                </label>
+              </div>
+
+              {/* Senha — necessária para Private API (só pede uma vez) */}
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>
+                  Senha da conta
+                </label>
+                {editProfileModal?.hasPassword && !epPassword ? (
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
+                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva — não precisa digitar novamente</span>
+                    <button type="button" onClick={() => setEpPassword(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
+                  </div>
+                ) : (
+                  <input type="password" value={epPassword.trim() === '' && editProfileModal?.hasPassword ? '' : epPassword}
+                    onChange={e => setEpPassword(e.target.value)} placeholder="Digite a senha do Instagram"
+                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box', transition:'border .2s' }}
+                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'}
+                    autoFocus={!editProfileModal?.hasPassword} />
+                )}
+                {!editProfileModal?.hasPassword && (
+                  <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Necessária para editar via Private API. Salva automaticamente — só precisa digitar uma vez.</div>
+                )}
+              </div>
+
+              {/* Botões */}
+              <div style={{ display:'flex', gap:10, marginTop:4 }}>
+                <button onClick={() => setEditProfileModal(null)} style={{ flex:1, padding:'10px', borderRadius:10, border:'1px solid rgba(51,65,85,.5)', background:'transparent', color:'#64748b', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                  Cancelar
+                </button>
+                <button onClick={submitEditProfile} disabled={epLoading} style={{ flex:2, padding:'10px', borderRadius:10, border:'none', background: epLoading ? 'rgba(99,102,241,.4)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', fontSize:13, fontWeight:700, cursor: epLoading ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxShadow: epLoading ? 'none' : '0 4px 16px rgba(99,102,241,.35)' }}>
+                  {epLoading ? <><span style={{ fontSize:16 }}>⏳</span> Salvando...</> : <><span style={{ fontSize:15 }}>✨</span> Salvar no Instagram</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {renameModal && (
         <div className="modal-overlay">
           <div className="modal" style={{ width: 'min(380px,100%)' }}>

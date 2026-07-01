@@ -182,6 +182,16 @@ const accountSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+
+    // ─── Aquecimento ──────────────────────────────────────────────────────
+    warmupActive: { type: Boolean, default: false },
+    warmupIntensity: { type: String, default: 'leve' },
+    warmupActions: { type: [String], default: [] },
+    warmupInterval: { type: Number, default: 30 },
+    warmupMaxLikes: { type: Number, default: 6 },
+    warmupMaxComments: { type: Number, default: 2 },
+    warmupMaxFollows: { type: Number, default: 4 },
+    warmupComments: { type: [String], default: [] },
   },
   {
     timestamps: true,

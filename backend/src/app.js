@@ -40,8 +40,12 @@ app.use('/posts', require('./routes/postRoutes'));
 app.use('/legends', require('./routes/legendRoutes'));
 app.use('/media', require('./routes/mediaRoutes'));
 app.use('/api/stories', require('./routes/storyRoutes'));
+app.use('/warmup', require('./routes/warmupRoutes'));
+app.use('/profile-edit', require('./routes/profileEditRoutes'));
 
-app.get('/', (req, res) => { res.send('API rodando'); });
+app.get('/', (req, res) => {
+  res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);
+});
 
 // Diagnostico do Multilogin -- GET /multilogin/status
 app.get('/multilogin/status', async (req, res) => {

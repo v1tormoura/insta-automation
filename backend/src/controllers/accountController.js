@@ -55,7 +55,9 @@ exports.getAccounts = async (req, res) => {
     const accounts = rawAccounts.map(a => {
       const obj = a.toObject();
       obj.hasTotpSecret = !!obj.totpSecret;
+      obj.hasPassword   = !!obj.password;
       delete obj.totpSecret;
+      delete obj.password;
       return obj;
     });
 
@@ -174,21 +176,32 @@ exports.importBulkAccounts = async (req, res) => {
       // Formatos aceitos:
       //   usuario:senha
       //   usuario:senha:email@exemplo.com
-      //   usuario:senha:TOTP_SECRET_BASE32   (ex: JBSWY3DPEHPK3PXP)
+      //   usuario:senha:email@exemplo.com:TOTP_SECRET_BASE32
+      //   usuario:senha:TOTP_SECRET_BASE32   (sem email, legado)
       const parts = line.split(':');
       if (parts.length < 2) { errors.push(`Linha inválida (sem ':'): ${line}`); continue; }
 
-      const usernameRaw  = parts[0];
-      const passwordRaw  = parts[1];
-      const thirdField   = parts.slice(2).join(':').trim();
-
+      const usernameRaw = parts[0];
+      const passwordRaw = parts[1];
       const username = String(usernameRaw || '').trim().replace(/^@+/, '');
       const password = String(passwordRaw || '').trim();
 
-      // Detecta se o terceiro campo é um segredo TOTP base32 (só letras maiúsculas/números, 16-32 chars)
-      const isTotpSecret = thirdField && /^[A-Z2-7]{16,64}$/i.test(thirdField.replace(/\s/g,''));
-      const totpSecret   = isTotpSecret ? thirdField.replace(/\s/g,'').toUpperCase() : '';
-      const loginEmail   = !isTotpSecret ? thirdField : '';
+      // Suporte a 4 colunas: usuario:senha:email:TOTP
+      // Suporte a 3 colunas: usuario:senha:email  OU  usuario:senha:TOTP (detecção automática)
+      let loginEmail = '';
+      let totpSecret = '';
+
+      if (parts.length >= 4) {
+        // 4ª coluna em diante = segredo TOTP
+        loginEmail = parts.slice(2, parts.length - 1).join(':').trim();
+        totpSecret = parts[parts.length - 1].replace(/\s/g, '').toUpperCase();
+      } else if (parts.length === 3) {
+        const thirdField = parts[2].trim();
+        // Se parece com base32 puro (sem @ ou .) é TOTP, senão é email/telefone
+        const isTotpSecret = /^[A-Z2-7]{16,64}$/i.test(thirdField.replace(/\s/g,''));
+        if (isTotpSecret) totpSecret = thirdField.replace(/\s/g,'').toUpperCase();
+        else loginEmail = thirdField;
+      }
 
       if (!username || !password) {
         errors.push(`Linha inválida (usuário ou senha vazios): ${line}`);

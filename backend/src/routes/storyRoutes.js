@@ -22,18 +22,19 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Apenas imagens são permitidas'));
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
+    else cb(new Error('Apenas imagens e vídeos são permitidos'));
   },
 });
 
-// POST /api/stories/upload — salva imagem e retorna URL local
+// POST /api/stories/upload — salva imagem/vídeo e retorna URL pública
 router.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-  const url = `http://localhost:3000/uploads/stories/${req.file.filename}`;
-  res.json({ url, filename: req.file.filename });
+  const base = (process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+  const url = `${base}/uploads/stories/${req.file.filename}`;
+  res.json({ url, filename: req.file.filename, mimetype: req.file.mimetype });
 });
 
 /**
