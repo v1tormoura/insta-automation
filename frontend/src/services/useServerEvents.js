@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const SSE_URL = 'http://localhost:3000/events';
+const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/events`;
 
 /**
  * Escuta eventos SSE do backend e chama `callback` quando o evento ocorre.
