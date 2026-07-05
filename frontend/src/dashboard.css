@@ -126,8 +126,8 @@
 .quick-action { min-height: 72px; padding: 12px 14px; border-radius: 10px; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; }
 .quick-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 50%; color: #51d2ff; background: radial-gradient(circle at 35% 30%, #1c98f7, #052f70 64%, #031a39); border: 1px solid rgba(73,211,255,.52); box-shadow: 0 0 15px rgba(11,166,253,.24); }
 .quick-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.quick-copy strong { font-size: 13px; }
-.quick-copy small { font-size: 10px; color: #9ab7d2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quick-copy strong { font-size: 13px; color: #ffffff; }
+.quick-copy small { font-size: 10px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .quick-chevron { margin-left: auto; color: #a5d9f6; }
 
 /* Panels */
