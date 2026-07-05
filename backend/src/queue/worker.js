@@ -206,16 +206,17 @@ const worker = new Worker(
     let errorCount   = 0;
     const errors     = [];
 
-    for (const acc of post.accounts) {
+    // Publica em uma única conta — retorna true em sucesso, false em erro
+    async function publishOne(acc) {
       try {
-        const account = await acc.constructor.findById(acc._id);
+        const account = await Account.findById(acc._id);
         if (!account) {
           errors.push(`@${acc.username}: conta não encontrada`);
           errorCount++;
-          continue;
+          return;
         }
 
-        // Destrava lock expirado
+        // Destrava lock expirado (>10 min)
         if (account.isBusy) {
           const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
           if (lockAge > 10 * 60 * 1000) {
@@ -223,14 +224,13 @@ const worker = new Worker(
           } else {
             errors.push(`@${acc.username}: conta em uso`);
             errorCount++;
-            continue;
+            return;
           }
         }
 
         // Adquire lock
         await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
         broadcast('accounts', { action: 'busy', accountId: account._id });
-
         writeAccountLog(acc.username, '🚀 Iniciando publicação');
 
         // Verifica limite diário
@@ -241,19 +241,14 @@ const worker = new Worker(
           await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
           errors.push(`@${acc.username}: ${msg}`);
           errorCount++;
-          continue;
+          return;
         }
 
         await publishWithRetry(post, account);
-        await registerSuccess(acc);
-
+        await registerSuccess(account);
         await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
         broadcast('accounts', { action: 'synced' });
-
         successCount++;
-        const wait = randomDelay();
-        console.log(`⏳ Pausa: ${Math.round(wait / 1000)}s`);
-        await delay(wait);
 
       } catch (err) {
         errorCount++;
@@ -262,7 +257,6 @@ const worker = new Worker(
         writeAccountLog(acc.username, `Erro: ${err.message}`);
         await registerError(acc, err.message);
 
-        // Detecta ban/restrição pelo erro de postagem e atualiza saúde em tempo real
         const healthStatus = classifyError(err);
         const healthUpdate = { isBusy: false, busySince: null, busyReason: '', lastError: err.message };
         if (healthStatus) {
@@ -273,17 +267,19 @@ const worker = new Worker(
             console.log(`🚫 @${acc.username} — BANIDA detectada no worker`);
           }
         }
-
         await Account.findByIdAndUpdate(acc._id, healthUpdate);
         broadcast('accounts', {
-          action:      'health_update',
-          accountId:   String(acc._id),
-          username:    acc.username,
+          action:       'health_update',
+          accountId:    String(acc._id),
+          username:     acc.username,
           healthStatus: healthStatus || acc.healthStatus,
         });
-        await delay(10_000);
       }
     }
+
+    // Publica todas as contas do lote em PARALELO (publicações simultâneas)
+    console.log(`🚀 Publicando para ${post.accounts.length} conta(s) simultaneamente...`);
+    await Promise.allSettled(post.accounts.map(acc => publishOne(acc)));
 
     post.status = successCount > 0 && errorCount === 0 ? 'concluido'
                 : successCount > 0                     ? 'parcial'
@@ -295,7 +291,7 @@ const worker = new Worker(
   },
   {
     connection,
-    concurrency:     1,
+    concurrency:     5,   // até 5 lotes simultâneos processando ao mesmo tempo
     lockDuration:    600_000,
     stalledInterval: 60_000,
   }
