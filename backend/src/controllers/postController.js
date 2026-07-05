@@ -49,45 +49,51 @@ exports.createPost = async (req, res) => {
     const baseDate = req.body.scheduledAt ? new Date(req.body.scheduledAt) : new Date();
 
     const createdPosts = [];
-    let batchIndex = 0; // índice global de lote, incrementa a cada grupo de contas
+    let batchIndex = 0; // cada grupo de mídias = 1 lote com intervalo
 
-    for (let mi = 0; mi < mediaFiles.length; mi++) {
-      const mediaType = getMediaType(mediaFiles[mi].filename);
-      let finalPostType = requestedPostType;
-      if (!finalPostType || finalPostType === 'auto') {
-        finalPostType = mediaType === 'video' ? 'reel' : 'post';
-      }
-      if (!['post', 'reel', 'story'].includes(finalPostType)) {
-        finalPostType = mediaType === 'video' ? 'reel' : 'post';
-      }
+    // Divide as MÍDIAS em grupos de simultaneousLimit.
+    // Cada grupo é postado ao mesmo tempo para TODAS as contas.
+    // O intervalo (intervalMs) separa um grupo do próximo.
+    //
+    // Exemplo: 6 mídias, simultaneousLimit=2, intervalo=7min, 20 contas
+    //   Lote 0 (T+0):   mídia 1 e 2 → todas as 20 contas ao mesmo tempo
+    //   Lote 1 (T+7min): mídia 3 e 4 → todas as 20 contas ao mesmo tempo
+    //   Lote 2 (T+14min): mídia 5 e 6 → todas as 20 contas ao mesmo tempo
 
-      // Divide as contas em lotes de simultaneousLimit
-      for (let ai = 0; ai < accounts.length; ai += simultaneousLimit) {
-        const batchAccounts = accounts.slice(ai, ai + simultaneousLimit);
-        const scheduledAt = new Date(baseDate.getTime() + batchIndex * intervalMs);
-        const isFirst = batchIndex === 0 && !req.body.scheduledAt;
+    for (let mi = 0; mi < mediaFiles.length; mi += simultaneousLimit) {
+      const batchMedia = mediaFiles.slice(mi, mi + simultaneousLimit);
+      const scheduledAt = new Date(baseDate.getTime() + batchIndex * intervalMs);
+      const isFirst = batchIndex === 0 && !req.body.scheduledAt;
+      const jobDelay = Math.max(scheduledAt.getTime() - Date.now(), 0);
+
+      // Cria um post por mídia do lote, todos com o mesmo scheduledAt
+      for (const mediaFile of batchMedia) {
+        const mediaType = getMediaType(mediaFile.filename);
+        let finalPostType = requestedPostType;
+        if (!finalPostType || finalPostType === 'auto') {
+          finalPostType = mediaType === 'video' ? 'reel' : 'post';
+        }
+        if (!['post', 'reel', 'story'].includes(finalPostType)) {
+          finalPostType = mediaType === 'video' ? 'reel' : 'post';
+        }
 
         const post = await Post.create({
-          media: mediaFiles[mi].filename,
-          cover: coverFile ? coverFile.filename : '',
+          media:    mediaFile.filename,
+          cover:    coverFile ? coverFile.filename : '',
           mediaType,
           postType: finalPostType,
           caption,
           location,
-          accounts: batchAccounts,
+          accounts, // TODAS as contas recebem cada mídia do lote
           scheduledAt,
           status: isFirst ? 'pendente' : 'agendado',
         });
 
-        await postQueue.add(
-          'newPost',
-          { postId: post._id },
-          { delay: Math.max(scheduledAt.getTime() - Date.now(), 0) }
-        );
-
+        await postQueue.add('newPost', { postId: post._id }, { delay: jobDelay });
         createdPosts.push(post);
-        batchIndex++;
       }
+
+      batchIndex++;
     }
 
     broadcast('posts', { action: 'created' });
