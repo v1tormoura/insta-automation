@@ -8,7 +8,8 @@ const Account      = require('../models/Account');
 const { postReel: postReelGraph, refreshToken } = require('../services/instagramAPI');
 const { postReel: postReelPrivate }             = require('../services/instagramPrivateService');
 const { writeAccountLog } = require('../utils/accountLogger');
-const { broadcast } = require('../events/broadcaster');
+const { broadcast }       = require('../events/broadcaster');
+const { classifyError }   = require('../jobs/healthCheck');
 
 connectDB();
 
@@ -260,8 +261,26 @@ const worker = new Worker(
         console.log(`💥 Erro @${acc.username}:`, err.message);
         writeAccountLog(acc.username, `Erro: ${err.message}`);
         await registerError(acc, err.message);
-        await Account.findByIdAndUpdate(acc._id, { isBusy: false, busySince: null, busyReason: '' });
-        broadcast('accounts', { action: 'synced' });
+
+        // Detecta ban/restrição pelo erro de postagem e atualiza saúde em tempo real
+        const healthStatus = classifyError(err);
+        const healthUpdate = { isBusy: false, busySince: null, busyReason: '', lastError: err.message };
+        if (healthStatus) {
+          healthUpdate.healthStatus = healthStatus;
+          if (healthStatus === 'banida') {
+            healthUpdate.status = 'banida';
+            writeAccountLog(acc.username, '🚫 Conta BANIDA/DESATIVADA detectada ao publicar');
+            console.log(`🚫 @${acc.username} — BANIDA detectada no worker`);
+          }
+        }
+
+        await Account.findByIdAndUpdate(acc._id, healthUpdate);
+        broadcast('accounts', {
+          action:      'health_update',
+          accountId:   String(acc._id),
+          username:    acc.username,
+          healthStatus: healthStatus || acc.healthStatus,
+        });
         await delay(10_000);
       }
     }

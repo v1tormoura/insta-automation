@@ -8,6 +8,7 @@ const startDailyReset = require('./jobs/resetDailyPosts');
 const { startFastSync } = require('./jobs/accountFastSync');
 const { startSessionKeepAlive } = require('./jobs/sessionKeepAlive');
 const { cleanProcessedFiles } = require('./services/videoProcessor');
+const { startHealthCheck } = require('./jobs/healthCheck');
 const app = express();
 
 connectDB();
@@ -110,6 +111,7 @@ startAutoSync();
 startDailyReset();
 startFastSync();
 startSessionKeepAlive();
+startHealthCheck();
 
 // Limpa vídeos processados antigos a cada 6 horas
 setInterval(() => cleanProcessedFiles(24), 6 * 60 * 60 * 1000);

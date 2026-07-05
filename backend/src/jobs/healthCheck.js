@@ -1,0 +1,264 @@
+'use strict';
+
+/**
+ * Health Check — verifica saúde de todas as contas a cada 10 minutos.
+ *
+ * Detecta automaticamente (via API, sem browser):
+ *   - Conta banida / desativada pelo Instagram
+ *   - Conta restrita (ações limitadas)
+ *   - Sessão / token expirado
+ *   - Checkpoint / verificação necessária
+ *   - Conta funcionando normalmente
+ *
+ * Atualiza healthStatus no DB e emite SSE em tempo real para o frontend.
+ */
+
+const Account       = require('../models/Account');
+const { broadcast } = require('../events/broadcaster');
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+let running = false;
+
+// ── Classificação de erros Instagram ─────────────────────────────────────────
+
+/**
+ * Detecta ban/desativação baseado em erro da API.
+ * Códigos documentados e observados em produção.
+ */
+function classifyError(err) {
+  const msg  = String(err?.message || err || '').toLowerCase();
+  const code = err?.code || err?.response?.statusCode || 0;
+
+  // ── BAN / conta desativada ────────────────────────────────────────────────
+  if (
+    /account.*disabled|disabled.*account|has been disabled/i.test(msg) ||
+    /your account has been|permanently disabled/i.test(msg) ||
+    /account.*banned|banned.*account/i.test(msg) ||
+    /violat.*terms|terms.*service/i.test(msg) ||
+    code === 326 ||   // IgLoginBadPasswordError + disabled
+    code === 400 && /disabled/i.test(msg)
+  ) {
+    return 'banida';
+  }
+
+  // ── CHECKPOINT / verificação humana ──────────────────────────────────────
+  if (
+    /checkpoint|challenge.*required|checkpoint_required/i.test(msg) ||
+    /verify.*identity|confirm.*identity/i.test(msg) ||
+    /suspicious.*activity|unusual.*login/i.test(msg) ||
+    code === 403 ||
+    /IgCheckpointError/i.test(msg)
+  ) {
+    return 'restrita';
+  }
+
+  // ── SPAM / ação bloqueada ─────────────────────────────────────────────────
+  if (
+    /feedback_required|action_blocked|spam/i.test(msg) ||
+    /blocked.*action|rate.*limit/i.test(msg) ||
+    /please.*wait|try.*again.*later/i.test(msg) ||
+    /IgActionSpamError/i.test(msg)
+  ) {
+    return 'restrita';
+  }
+
+  // ── SESSÃO / TOKEN expirado ───────────────────────────────────────────────
+  if (
+    /login.*required|session.*invalid|not.*logged/i.test(msg) ||
+    /session.*expired|token.*expired|token.*invalid/i.test(msg) ||
+    /190|OAuthException/i.test(msg) ||
+    code === 190 || code === 401 ||
+    /IgLoginRequiredError|user_has_logged_out/i.test(msg)
+  ) {
+    return 'sessao_expirada';
+  }
+
+  // ── ERRO DE LOGIN ─────────────────────────────────────────────────────────
+  if (
+    /bad.*password|wrong.*password|incorrect.*password/i.test(msg) ||
+    /IgLoginBadPasswordError|IgLoginTwoFactorRequiredError/i.test(msg) ||
+    code === 400 && /password/i.test(msg)
+  ) {
+    return 'erro_login';
+  }
+
+  return null; // erro transitório — não altera status
+}
+
+/**
+ * Verifica saúde de uma conta com token OAuth via Graph API.
+ */
+async function checkViaGraphAPI(account) {
+  try {
+    const url = new URL('https://graph.instagram.com/me');
+    url.searchParams.set('fields', 'id,username');
+    url.searchParams.set('access_token', account.accessToken);
+
+    const res  = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
+    const data = await res.json();
+
+    if (data.error) {
+      const code   = data.error.code;
+      const errMsg = data.error.message || '';
+
+      // Conta banida/desativada
+      if (/disabled|banned|violat/i.test(errMsg) || code === 326) {
+        return { status: 'banida', error: errMsg };
+      }
+      // Token inválido
+      if (code === 190 || data.error.type === 'OAuthException' || /token.*invalid|invalid.*token/i.test(errMsg)) {
+        return { status: 'sessao_expirada', error: `Token inválido (code ${code})` };
+      }
+      // Restrita
+      if (/checkpoint|feedback_required|spam/i.test(errMsg)) {
+        return { status: 'restrita', error: errMsg };
+      }
+
+      return { status: null, error: errMsg }; // erro transitório
+    }
+
+    if (data.id) {
+      return { status: 'ativa', error: '' };
+    }
+
+    return { status: null, error: 'Resposta inesperada' };
+  } catch (err) {
+    if (/timeout|ETIMEDOUT|ECONNREFUSED/i.test(err.message)) {
+      return { status: null, error: 'timeout' }; // rede instável — não altera status
+    }
+    return { status: null, error: err.message };
+  }
+}
+
+/**
+ * Verifica saúde de uma conta via Private API (sem browser).
+ */
+async function checkViaPrivateAPI(account) {
+  try {
+    const { IgApiClient } = require('instagram-private-api');
+    const ig   = new IgApiClient();
+    const seed = `${account.username}_${String(account._id)}`;
+    ig.state.generateDevice(seed);
+
+    const saved = typeof account.igSession === 'string'
+      ? JSON.parse(account.igSession)
+      : account.igSession;
+
+    ig.state.generateDevice(saved._deviceSeed || seed);
+    await ig.state.deserialize(saved);
+
+    // Chamada leve — só busca ID do usuário logado
+    const me = await ig.account.currentUser();
+
+    if (me?.pk) return { status: 'ativa', error: '' };
+    return { status: null, error: 'sem resposta' };
+
+  } catch (err) {
+    const classified = classifyError(err);
+    return { status: classified, error: err.message };
+  }
+}
+
+/**
+ * Roda o health check em uma conta.
+ */
+async function checkOneAccount(account) {
+  let result = { status: null, error: '' };
+
+  // Prioridade: Graph API (token OAuth) → Private API (igSession)
+  if (account.accessToken) {
+    result = await checkViaGraphAPI(account);
+  } else if (account.igSession) {
+    result = await checkViaPrivateAPI(account);
+  } else {
+    return; // sem credenciais — nada a checar
+  }
+
+  // Só atualiza se houve mudança real de status
+  if (!result.status) return; // erro transitório — mantém status atual
+
+  const currentStatus = account.healthStatus || 'ativa';
+  if (result.status === currentStatus && !result.error) return;
+
+  const update = {
+    healthStatus: result.status,
+    lastError:    result.error || '',
+    lastSync:     new Date(),
+  };
+
+  // Se banida, marca status principal também
+  if (result.status === 'banida') {
+    update.status = 'banida';
+    console.log(`🚫 [HealthCheck] @${account.username} — BANIDA/DESATIVADA`);
+  } else if (result.status === 'sessao_expirada') {
+    console.log(`⚠️ [HealthCheck] @${account.username} — sessão expirada`);
+  } else if (result.status === 'restrita') {
+    console.log(`⚠️ [HealthCheck] @${account.username} — restrita/checkpoint`);
+  } else if (result.status === 'ativa' && currentStatus !== 'ativa') {
+    console.log(`✅ [HealthCheck] @${account.username} — recuperada (era ${currentStatus})`);
+  }
+
+  await Account.findByIdAndUpdate(account._id, update);
+
+  // Emite SSE em tempo real para o frontend
+  broadcast('accounts', {
+    action:      'health_update',
+    accountId:   String(account._id),
+    username:    account.username,
+    healthStatus: result.status,
+    error:       result.error || '',
+  });
+}
+
+async function runHealthCheck() {
+  if (running) return;
+  running = true;
+
+  try {
+    const accounts = await Account.find({
+      isBusy: { $ne: true },
+      $or: [
+        { accessToken: { $exists: true, $ne: '' } },
+        { igSession:   { $exists: true, $ne: '' } },
+      ],
+    }).select('username _id accessToken igSession healthStatus status lastError');
+
+    console.log(`🩺 [HealthCheck] Verificando ${accounts.length} conta(s)...`);
+
+    let ok = 0, warn = 0, banned = 0;
+
+    for (const acc of accounts) {
+      try {
+        const before = acc.healthStatus;
+        await checkOneAccount(acc);
+        // Recarrega para ver resultado
+        const after = await Account.findById(acc._id).select('healthStatus');
+        if (after?.healthStatus === 'banida')          banned++;
+        else if (after?.healthStatus !== 'ativa')      warn++;
+        else                                            ok++;
+      } catch {}
+      await delay(800); // pausa gentil entre contas
+    }
+
+    console.log(`✅ [HealthCheck] OK: ${ok}, alertas: ${warn}, banidas: ${banned}`);
+
+    // Broadcast geral para o dashboard atualizar contadores
+    broadcast('accounts', { action: 'health_check_done' });
+
+  } catch (err) {
+    console.log('💥 [HealthCheck] Erro geral:', err.message);
+  } finally {
+    running = false;
+  }
+}
+
+function startHealthCheck() {
+  // Primeira execução: 1 minuto após o servidor subir
+  setTimeout(runHealthCheck, 60_000);
+  // Depois: a cada 10 minutos
+  setInterval(runHealthCheck, 10 * 60 * 1000);
+  console.log('🩺 [HealthCheck] Agendado — primeira em 1min, depois a cada 10min');
+}
+
+module.exports = { startHealthCheck, runHealthCheck, classifyError };

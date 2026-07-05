@@ -10,10 +10,12 @@
  * para esses, verificamos expiração + tentamos endpoint alternativo.
  */
 
-const Account = require('../models/Account');
-const path    = require('path');
-const fs      = require('fs');
-const https   = require('https');
+const Account           = require('../models/Account');
+const { broadcast }     = require('../events/broadcaster');
+const { classifyError } = require('../jobs/healthCheck');
+const path              = require('path');
+const fs                = require('fs');
+const https             = require('https');
 
 const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
@@ -68,13 +70,19 @@ async function syncViaAPI(account) {
     if (data.error) {
       const code      = data.error.code;
       const errMsg    = data.error.message || 'Erro API';
-      const isInvalid = code === 190
-        || data.error.type === 'OAuthException'
-        || /session.*invalid|access token|token.*invalid/i.test(errMsg);
 
-      if (isInvalid) {
+      // Detecta ban/desativação
+      if (/disabled|banned|violat/i.test(errMsg) || code === 326) {
+        update.healthStatus = 'banida';
+        update.status       = 'banida';
+        update.lastError    = errMsg;
+        console.log(`🚫 [API Sync] @${account.username} — BANIDA/DESATIVADA`);
+      } else if (code === 190 || data.error.type === 'OAuthException' || /token.*invalid|invalid.*token/i.test(errMsg)) {
         update.healthStatus = 'sessao_expirada';
         update.lastError    = `Token inválido (code ${code}) — reconecte via 🔗 API`;
+      } else if (/checkpoint|feedback_required|spam/i.test(errMsg)) {
+        update.healthStatus = 'restrita';
+        update.lastError    = errMsg;
       } else {
         update.lastError = errMsg;
       }
@@ -105,6 +113,14 @@ async function syncViaAPI(account) {
 
   await Account.findByIdAndUpdate(account._id, update);
   console.log(`✅ [API Sync] @${account.username} — status: ${update.healthStatus} (expira em ${daysLeft} dias)`);
+
+  // Emite SSE em tempo real para o frontend
+  broadcast('accounts', {
+    action:       'health_update',
+    accountId:    String(account._id),
+    username:     account.username,
+    healthStatus: update.healthStatus,
+  });
 }
 
 module.exports = syncViaAPI;
