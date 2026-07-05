@@ -1,450 +1,589 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import '../dashboard.css';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  Activity, AlertTriangle, Bell, Bot, ChevronDown, ChevronRight,
+  Clock3, FileText, FolderOpen, HeartPulse, Layers3, ListVideo,
+  MoreHorizontal, Pause, Play, Plus, Radar, RefreshCw, Send,
+  Settings, ShieldCheck, Sparkles, UserRound, WandSparkles, X,
+} from 'lucide-react';
+import {
+  Area, AreaChart, Cell, Line, LineChart as RechartLineChart,
+  Pie, PieChart, ResponsiveContainer, Tooltip,
 } from 'recharts';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 
 /* ── helpers ── */
 const fmt  = v => Number(v || 0).toLocaleString('pt-BR');
-const fmtK = v => { const n = Number(v || 0); return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : String(n); };
+const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
-/* ── Custom Tooltip ── */
-function ChartTip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background: '#0d1c35', border: '1px solid rgba(0,180,255,.2)', borderRadius: 9, padding: '8px 14px', boxShadow: '0 8px 32px rgba(0,0,0,.6)' }}>
-      <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>{label}</div>
-      {payload.map(p => (
-        <div key={p.dataKey} style={{ fontSize: 13, fontWeight: 700, color: p.color, display: 'flex', gap: 6 }}>
-          <span style={{ color: 'var(--text2)', fontWeight: 400 }}>{p.name}:</span> {fmt(p.value)}
-        </div>
-      ))}
-    </div>
-  );
-}
+const tooltipStyle = {
+  background: 'rgba(4,18,39,.96)',
+  border: '1px solid rgba(55,190,255,.42)',
+  borderRadius: 10,
+  color: '#d9f4ff',
+  boxShadow: '0 10px 35px rgba(0,0,0,.35)',
+};
 
-/* ── Sparkline mini ── */
-function Spark({ data = [], color = 'var(--cyan)' }) {
-  const max = Math.max(...data, 1);
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 28, marginTop: 8 }}>
-      {data.map((v, i) => (
-        <div key={i} style={{ flex: 1, minHeight: 2, borderRadius: '2px 2px 0 0', background: `linear-gradient(180deg,${color},${color}44)`, height: `${(v/max)*100}%`, opacity: .75, transition: 'opacity .2s' }} />
-      ))}
-    </div>
-  );
-}
+/* ── Quick actions ── */
+const quickActions = [
+  { title: 'POSTAR AGORA',  subtitle: 'Nova publicação manual',           icon: Send },
+  { title: 'LOOP',          subtitle: 'Ciclo contínuo de filas',          icon: RefreshCw },
+  { title: 'STORIES',       subtitle: 'Publicar para todos os stories',   icon: Plus },
+  { title: 'SAÚDE',         subtitle: 'Diagnóstico das contas',           icon: HeartPulse },
+];
 
-/* ── KPI Card ── */
-function KpiCard({ icon, label, value, sub, trend, trendUp, color = 'var(--cyan)', sparkData }) {
+/* ── Components ── */
+
+function MetricCard({ title, value, meta, kind, tone, spark = [] }) {
   return (
-    <div className="stat-card" style={{ '--accent': color, cursor: 'default' }}>
-      <div className="sc-top">
-        <div className="sc-icon" style={{ background: `${color}1a`, border: `1px solid ${color}30` }}>
-          <span style={{ fontSize: 19 }}>{icon}</span>
-        </div>
-        {trend != null && (
-          <span className={`sc-trend ${trendUp ? 'trend-up' : 'trend-dn'}`}>
-            {trendUp ? '↑' : '↓'} {Math.abs(trend)}%
-          </span>
-        )}
+    <article className={`metric-card tone-${tone}`}>
+      <div className="card-grid" aria-hidden="true" />
+      <div className="metric-head">
+        <span>{title}</span>
+        <button aria-label={`Mais opções de ${title}`}><MoreHorizontal size={18} /></button>
       </div>
-      <div className="s-value">{value}</div>
-      <div className="s-label">{label}</div>
-      {sub && <div className="s-sub">{sub}</div>}
-      <Spark data={sparkData || Array.from({length:14},()=>Math.random()*80+20)} color={color} />
-    </div>
-  );
-}
-
-/* ── Live dot ── */
-function LiveBadge() {
-  return (
-    <div className="ph-live">
-      <div className="ph-live-dot" />
-      Ao Vivo
-    </div>
-  );
-}
-
-/* ── Account mini row ── */
-function AccRow({ acc, rank }) {
-  const initials = (acc.username||'U')[0].toUpperCase();
-  const colors = ['#6366f1','#00d4ff','#10b981','#f59e0b','#f43f5e','#8b5cf6'];
-  const color = colors[rank % colors.length];
-  const status = acc.status === 'active' || acc.status === 'ok';
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
-      <div style={{ fontSize:11, color:'var(--text3)', width:16, textAlign:'center', fontWeight:700 }}>{rank+1}</div>
-      <div style={{ width:32, height:32, borderRadius:'50%', background:`linear-gradient(135deg,${color}88,${color})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials}</div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:12, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{acc.username}</div>
-        <div style={{ fontSize:10, color:'var(--text3)' }}>{acc.followers ? fmtK(acc.followers)+' seguidores' : 'Instagram'}</div>
+      <div className="metric-value">{value}</div>
+      <div className={`metric-meta ${tone}`}>{meta}</div>
+      <div className="metric-line">
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartLineChart data={spark.map((y, i) => ({ i, y }))}>
+            <Line type="monotone" dataKey="y" stroke={tone === 'amber' ? '#ffae35' : '#24caff'} strokeWidth={2} dot={false} />
+          </RechartLineChart>
+        </ResponsiveContainer>
       </div>
-      <span className={`badge ${status ? 'badge-green' : 'badge-red'}`} style={{ fontSize:10 }}>
-        {status ? '● Ativo' : '○ Off'}
-      </span>
+      <Visual kind={kind} />
+    </article>
+  );
+}
+
+function WideMetric({ title, value, subtitle, kind, action, chip, tone = 'cyan', spark = [] }) {
+  return (
+    <article className={`wide-metric tone-${tone}`}>
+      <div className="card-grid" aria-hidden="true" />
+      <div className="wide-top">
+        <div>
+          <span className="metric-label">{title}</span>
+          <div className="wide-value">{value}</div>
+          <small>{subtitle}</small>
+        </div>
+        <div className="wide-actions">
+          <button>{action}</button>
+          <button aria-label="Mais opções"><MoreHorizontal size={16} /></button>
+          <span className={`delta-chip ${chip?.startsWith('-') ? 'negative' : ''}`}>{chip}</span>
+        </div>
+      </div>
+      <div className="wide-line">
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartLineChart data={spark.map((y,i) => ({ i, y }))}>
+            <Line type="monotone" dataKey="y" stroke={tone === 'muted' ? '#92b6d9' : '#22c8ff'} strokeWidth={2} dot={false} />
+          </RechartLineChart>
+        </ResponsiveContainer>
+      </div>
+      <Visual kind={kind} compact />
+    </article>
+  );
+}
+
+function Visual({ kind, compact = false }) {
+  return (
+    <div className={`visual visual-${kind} ${compact ? 'compact' : ''}`} aria-hidden="true">
+      {kind === 'orb' && <div className="orb">
+        <span className="orb-core" />
+        <span className="orb-ring ring-one" />
+        <span className="orb-ring ring-two" />
+        <span className="orb-latitude lat-a" />
+        <span className="orb-latitude lat-b" />
+      </div>}
+      {kind === 'crystal' && <div className="crystal">
+        <span className="facet facet-a" />
+        <span className="facet facet-b" />
+        <span className="facet facet-c" />
+        <span className="crystal-core" />
+      </div>}
+      {kind === 'ice' && <div className="ice">
+        <span className="ice-shard shard-a" />
+        <span className="ice-shard shard-b" />
+        <span className="ice-shard shard-c" />
+        <span className="ice-shard shard-d" />
+      </div>}
+      {kind === 'hourglass' && <Hourglass />}
     </div>
   );
 }
 
-/* ── Last updated indicator ── */
-function LastUpdated({ ts }) {
-  const [, setTick] = useState(0);
-  useEffect(() => { const t = setInterval(() => setTick(v=>v+1), 10000); return ()=>clearInterval(t); }, []);
-  if (!ts) return null;
-  const secs = Math.floor((Date.now() - ts) / 1000);
-  const label = secs < 10 ? 'agora' : secs < 60 ? `${secs}s atrás` : `${Math.floor(secs/60)}min atrás`;
-  return <span style={{ fontSize:10, color:'var(--text3)' }}>Atualizado {label}</span>;
+function Hourglass() {
+  return (
+    <div className="hourglass">
+      <span className="hg-top" />
+      <span className="hg-middle" />
+      <span className="hg-bottom" />
+      <span className="hg-sand" />
+    </div>
+  );
 }
 
-/* ═══════════════════════════════════════════════ */
+function PanelHeader({ title, icon: Icon, right }) {
+  return (
+    <div className="panel-header">
+      <div className="panel-title">
+        {Icon && <Icon size={17} />}
+        <h2>{title}</h2>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function SelectLabel({ label }) {
+  return (
+    <button className="select-label">{label}<ChevronDown size={14} /></button>
+  );
+}
+
+function ViewAll({ onClick }) {
+  return <button className="view-all" onClick={onClick}>Ver todos <ChevronRight size={14} /></button>;
+}
+
+function Toggle({ checked, onChange }) {
+  return (
+    <button className={`toggle ${checked ? 'on' : ''}`} onClick={onChange} aria-pressed={checked}>
+      <span />
+    </button>
+  );
+}
+
+/* ── Clock ── */
+function LiveClock() {
+  const [t, setT] = useState(() => new Date().toLocaleTimeString('pt-BR'));
+  useEffect(() => {
+    const id = setInterval(() => setT(new Date().toLocaleTimeString('pt-BR')), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <strong>{t}</strong>;
+}
+
+/* ── Dashboard ── */
 export default function Dashboard() {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [period, setPeriod]   = useState('7D');
-  const [lastTs, setLastTs]   = useState(null);
-  const [pulse, setPulse]     = useState(false);
-  const timerRef = useRef(null);
+  const [data, setData]         = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast]       = useState('');
+  const [automationOn, setAutomationOn] = useState(true);
+  const [period, setPeriod]     = useState(7);
+
+  const loadRef = useRef(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    clearTimeout(window.__ifToast);
+    window.__ifToast = setTimeout(() => setToast(''), 2600);
+  };
 
   const load = useCallback(async () => {
     try {
       const res = await api.get('/dashboard');
       setData(res.data);
-      setLastTs(Date.now());
-      setLoading(false);
-      setPulse(true);
-      setTimeout(() => setPulse(false), 600);
-    } catch { setLoading(false); }
+    } catch {}
   }, []);
 
-  /* auto-refresh every 15s */
+  loadRef.current = load;
+
+  useEffect(() => { load(); }, [load]);
+
+  // Auto-refresh 15s
   useEffect(() => {
-    load();
-    timerRef.current = setInterval(load, 15000);
-    return () => clearInterval(timerRef.current);
-  }, [load]);
+    const id = setInterval(() => loadRef.current?.(), 15_000);
+    return () => clearInterval(id);
+  }, []);
 
-  /* SSE real-time push */
-  useServerEvents(['posts','accounts','sessions','health'], load);
+  // SSE push
+  useServerEvents(['posts', 'accounts', 'sessions', 'health'], () => loadRef.current?.());
 
-  /* ── build chart data ── */
-  const lineData = (() => {
-    const raw = data?.dailyPosts || data?.chartData || [];
-    const days = period==='7D'?7:period==='14D'?14:30;
-    // Usa dados reais do backend quando disponíveis
-    if (raw.length >= days) {
-      return raw.slice(-days).map(d=>({
-        name: d.label || (d.date ? d.date.slice(5) : ''),
-        posts: d.posts||d.count||0,
-        contas: d.accounts||0,
-        erros: d.errors||0
-      }));
-    }
-    // Fallback visual se não tiver dados
-    return Array.from({length: days}, (_,i) => {
-      const d = new Date(); d.setDate(d.getDate() - (days-1) + i);
-      return { name:`${d.getDate()}/${d.getMonth()+1}`, posts: Math.floor(Math.random()*25+3), contas: Math.floor(Math.random()*4+1), erros: Math.floor(Math.random()*3) };
+  const handleRefresh = () => {
+    setRefreshing(true);
+    load().finally(() => {
+      setTimeout(() => setRefreshing(false), 600);
+      showToast('Dados sincronizados com sucesso.');
     });
-  })();
-
-  const barData = Array.from({length:7}, (_,i) => {
-    const d = new Date(); d.setDate(d.getDate()-6+i);
-    return { name: d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.',''), Feed:Math.floor(Math.random()*30+5), Reels:Math.floor(Math.random()*20+2), Stories:Math.floor(Math.random()*15+1) };
-  });
-
-  const pieData = [
-    { name:'Concluídos', value: data?.completedPosts||124, color:'#10b981' },
-    { name:'Pendentes',  value: data?.pendingPosts||38,   color:'#00d4ff' },
-    { name:'Erros',      value: data?.failedPosts||12,    color:'#f43f5e' },
-    { name:'Agendados',  value: data?.scheduledPosts||21, color:'#f59e0b' },
-  ];
-
-  const accounts = data?.topAccounts || data?.accounts || [];
-  const activeAccs = data?.activeAccounts || accounts.filter(a=>a.status==='active'||a.status==='ok').length;
-
-  const fmtRelTime = date => {
-    if (!date) return '';
-    const secs = Math.floor((Date.now() - new Date(date)) / 1000);
-    if (secs < 60)  return `${secs}s`;
-    if (secs < 3600) return `${Math.floor(secs/60)}min`;
-    return `${Math.floor(secs/3600)}h`;
   };
 
-  // Atividades reais do backend ou fallback
-  const rawActivities = data?.activities || [];
-  const ACTIVITY = rawActivities.length > 0
-    ? rawActivities.slice(0,6).map(a => ({
-        icon: a.type === 'post' ? (a.status === 'concluido' ? '✅' : a.status === 'erro' ? '❌' : '⏰') : '👤',
-        msg: a.text || (a.type === 'post' ? `Post ${a.status}` : `Conta @${a.username}`),
-        time: fmtRelTime(a.date),
-        col: a.status === 'concluido' ? 'rgba(16,185,129,.12)' : a.status === 'erro' ? 'rgba(244,63,94,.12)' : 'rgba(245,158,11,.12)',
-      }))
-    : [
-        { icon:'✅', msg:`Post publicado com sucesso`,              time:'2min',  col:'rgba(16,185,129,.12)' },
-        { icon:'⏰', msg:`Agendado para 18:00 — Feed`,              time:'5min',  col:'rgba(245,158,11,.12)' },
-        { icon:'🔄', msg:`Sessão renovada automaticamente`,          time:'11min', col:'rgba(99,102,241,.12)' },
-        { icon:'📸', msg:`Upload de mídia concluído (HQ)`,           time:'18min', col:'rgba(0,212,255,.12)'  },
-        { icon:'⚡', msg:`Aquecimento: 3 contas concluídas`,          time:'24min', col:'rgba(249,115,22,.12)' },
-        { icon:'🔐', msg:`Token OAuth renovado automaticamente`,      time:'31min', col:'rgba(139,92,246,.12)' },
-      ];
+  /* ── derived ── */
+  const d = data || {};
 
-  /* ── loading ── */
-  if (loading) return (
-    <div style={{flex:1,display:'flex',flexDirection:'column'}}>
-      <div className="page-header-bar">
-        <div className="ph-title"><h2>Painel</h2><p>Carregando...</p></div>
-      </div>
-      <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14}}>
-        <div style={{width:40,height:40,border:'3px solid var(--border2)',borderTop:'3px solid var(--cyan)',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
-        <div style={{color:'var(--text3)',fontSize:13}}>Conectando ao backend...</div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  );
+  const sparkDaily = useMemo(() => {
+    const arr = d.dailyPosts || [];
+    return arr.slice(-period).map(x => x.count || 0);
+  }, [d.dailyPosts, period]);
+
+  const forecastData = useMemo(() => {
+    const arr = d.dailyPosts || [];
+    return arr.slice(-8).map(x => ({ day: x.date || '', value: x.count || 0 }));
+  }, [d.dailyPosts]);
+
+  const donutData = useMemo(() => [
+    { name: 'Online',    value: d.activeAccounts  || 0, color: '#15c6ff' },
+    { name: 'Inativas',  value: (d.totalAccounts  || 0) - (d.activeAccounts || 0) - (d.bannedAccounts || 0), color: '#869bb9' },
+    { name: 'Com erro',  value: d.restrictedAccounts || 0, color: '#ff9353' },
+    { name: 'Banidas',   value: d.bannedAccounts   || 0, color: '#e14872' },
+  ], [d]);
+
+  const proxyData = useMemo(() => [
+    { name: 'Funcionando', value: d.proxiesOnline  || 0 },
+    { name: 'Com erro',    value: d.proxiesOffline || 0 },
+  ], [d]);
+
+  const queueItems = [
+    { label: 'Postados hoje',      value: d.postsToday     || 0, color: '#20b7ff' },
+    { label: 'Erros hoje',         value: d.errorsToday    || 0, color: '#ff5f5f' },
+    { label: 'Na fila',            value: d.pendingPosts   || 0, color: '#ffb034' },
+    { label: 'Processando',        value: d.processingPosts|| 0, color: '#43cf76' },
+    { label: 'Agendados',          value: d.scheduledPosts || 0, color: '#a86cff' },
+    { label: 'Taxa de sucesso',    value: `${d.successRate || 0}%`, color: '#22d7ff' },
+  ];
+
+  const logs = useMemo(() => {
+    const acts = d.activities || [];
+    return acts.slice(0, 5).map(a => ({
+      time:   new Date(a.createdAt || Date.now()).toLocaleTimeString('pt-BR'),
+      type:   a.status === 'concluido' ? 'success' : a.status === 'erro' ? 'warning' : 'info',
+      text:   a.action || a.type || 'Atividade',
+      detail: a.account ? `@${a.account}` : '',
+    }));
+  }, [d.activities]);
+
+  const topAccounts = useMemo(() => (d.topAccounts || []).slice(0, 4), [d.topAccounts]);
+
+  const activities = useMemo(() => {
+    const acts = d.activities || [];
+    return acts.slice(0, 5).map(a => ({
+      icon: a.status === 'erro' ? AlertTriangle : a.type === 'story' ? Clock3 : Send,
+      text: a.action || 'Atividade',
+      time: new Date(a.createdAt || Date.now()).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
+      tone: a.status === 'concluido' ? 'cyan' : a.status === 'erro' ? 'danger' : 'amber',
+    }));
+  }, [d.activities]);
+
+  const sysOk = d.system?.backend && d.system?.mongo;
 
   return (
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    <div style={{ display: 'contents' }}>
+      <div className="ambient-glow glow-one" aria-hidden="true" />
+      <div className="ambient-glow glow-two" aria-hidden="true" />
 
-      {/* ── HEADER ── */}
-      <div className="page-header-bar" style={{ transition: 'box-shadow .3s', boxShadow: pulse ? '0 0 30px rgba(0,212,255,.15)' : undefined }}>
-        <div className="ph-title">
-          <h2>Painel</h2>
-          <p>Automação Instagram em tempo real</p>
-        </div>
-        <LastUpdated ts={lastTs} />
-        <LiveBadge />
-        <div style={{display:'flex',gap:2}}>
-          {['7D','14D','30D'].map(p=>(
-            <button key={p} onClick={()=>setPeriod(p)} className={`tab${period===p?' active':''}`} style={{padding:'4px 10px'}}>
-              {p}
+      <main className="dashboard">
+        {/* ── Topbar ── */}
+        <header className="topbar">
+          <div className="header-left">
+            <div>
+              <div className="eyebrow">DASHBOARD</div>
+              <div className="title-line">
+                <h1>Visão geral</h1>
+                <span className="live-status">
+                  <span style={{ background: sysOk ? '#2bdc94' : '#ff5f5f', boxShadow: `0 0 10px ${sysOk ? '#2bdc94' : '#ff5f5f'}` }} />
+                  {sysOk ? 'Todos os sistemas operacionais' : 'Verificar sistemas'}
+                </span>
+              </div>
+              <p>Acompanhe contas, filas e atividade do seu bot em tempo real.</p>
+            </div>
+          </div>
+
+          <div className="toolbar">
+            <div className="clock-chip">
+              <Clock3 size={16} />
+              <LiveClock />
+            </div>
+
+            <button className="toolbar-button" onClick={() => setPeriod(p => p === 7 ? 14 : p === 14 ? 30 : 7)}>
+              <span>Atualizar: {period}d</span>
+              <ChevronDown size={15} />
+            </button>
+
+            <button className="icon-button" onClick={() => showToast('Nenhuma nova notificação.')} aria-label="Notificações">
+              <Bell size={17} />
+              {(d.errorsToday || 0) > 0 && <span className="notification-pip">{d.errorsToday}</span>}
+            </button>
+
+            <button className={`refresh-button ${refreshing ? 'is-refreshing' : ''}`} onClick={handleRefresh}>
+              <RefreshCw size={17} />
+              Atualizar
+            </button>
+          </div>
+        </header>
+
+        {/* ── KPI Cards ── */}
+        <section className="metric-grid" aria-label="Métricas principais">
+          <MetricCard
+            title="CONTAS ATIVAS"
+            value={fmt(d.activeAccounts)}
+            meta={`${d.totalAccounts || 0} total`}
+            kind="orb" tone="cyan"
+            spark={sparkDaily}
+          />
+          <MetricCard
+            title="POSTAGENS HOJE"
+            value={fmt(d.postsToday)}
+            meta={`Meta: ${d.dailyPostLimit || '—'}`}
+            kind="crystal" tone="amber"
+            spark={sparkDaily}
+          />
+          <MetricCard
+            title="ERROS HOJE"
+            value={fmt(d.errorsToday)}
+            meta={d.errorsToday > 0 ? `${d.errorsToday} erro(s)` : 'Nenhum erro'}
+            kind="ice" tone="cyan"
+            spark={sparkDaily}
+          />
+          <MetricCard
+            title="FILA"
+            value={fmt((d.pendingPosts || 0) + (d.processingPosts || 0))}
+            meta={`${d.processingPosts || 0} processando`}
+            kind="hourglass" tone="amber"
+            spark={sparkDaily}
+          />
+        </section>
+
+        {/* ── Wide metrics ── */}
+        <section className="wide-metric-row">
+          <WideMetric
+            title="CONTAS ADICIONADAS"
+            value={fmt(d.totalAccounts)}
+            subtitle="contas conectadas"
+            kind="orb" action="Total"
+            chip={`+${d.totalAccounts || 0}`}
+            spark={sparkDaily}
+          />
+          <WideMetric
+            title="CONTAS COM PROBLEMA"
+            value={fmt((d.bannedAccounts || 0) + (d.expiredSessions || 0))}
+            subtitle="banidas ou sessão expirada"
+            kind="ice" action="Hoje"
+            chip={`-${(d.bannedAccounts || 0) + (d.expiredSessions || 0)}`}
+            tone="muted"
+            spark={sparkDaily}
+          />
+        </section>
+
+        {/* ── Quick actions ── */}
+        <section className="quick-grid" aria-label="Ações rápidas">
+          {quickActions.map(({ title, subtitle, icon: Icon }) => (
+            <button key={title} className="quick-action" onClick={() => showToast(`${title}: painel de ação aberto.`)}>
+              <span className="quick-icon"><Icon size={24} /></span>
+              <span className="quick-copy">
+                <strong>{title}</strong>
+                <small>{subtitle}</small>
+              </span>
+              <ChevronRight className="quick-chevron" size={20} />
             </button>
           ))}
-        </div>
-        <button className="ph-btn" onClick={load} title="Forçar atualização">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation: loading ? 'spin 1s linear infinite' : undefined}}>
-            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-          </svg>
-        </button>
-      </div>
+        </section>
 
-      {/* ── CONTENT ── */}
-      <div style={{flex:1,overflowY:'auto',padding:20,display:'flex',flexDirection:'column',gap:16}}>
-
-        {/* ROW 1 — 4 KPI cards */}
-        <div className="g4">
-          <KpiCard icon="📸" label="Total de Posts"   value={fmt(data?.totalPosts||0)}
-            trend={data?.posts7Days > 0 ? Math.round((data.posts7Days/Math.max(data.totalPosts,1))*100) : undefined}
-            trendUp color="var(--cyan)" sub={`${fmt(data?.postsToday||0)} hoje`}
-            sparkData={[30,45,28,60,55,70,48,80,62,75,90,68,85,95]} />
-          <KpiCard icon="👥" label="Contas Ativas"
-            value={String(data?.activeAccounts||activeAccs||0)}
-            trendUp color="var(--green)"
-            sub={`${fmt(data?.totalAccounts||0)} total · ${fmt(data?.healthyAccounts||0)} saudáveis`}
-            sparkData={[12,14,13,15,16,18,17,19,20,21,22,23,24,24]} />
-          <KpiCard icon="✅" label="Posts Concluídos" value={fmt(data?.completedPosts||0)}
-            trend={data?.successRate} trendUp color="#6366f1"
-            sub={`Taxa sucesso ${data?.successRate||0}%`}
-            sparkData={[20,35,42,38,55,60,48,72,65,80,70,85,78,92]} />
-          <KpiCard icon="⚡" label="Na Fila"
-            value={fmt((data?.pendingPosts||0)+(data?.scheduledPosts||0)+(data?.processingPosts||0))}
-            color="var(--amber)"
-            sub={`${fmt(data?.errorsToday||0)} erros hoje`}
-            sparkData={[5,8,12,6,15,9,18,11,14,7,20,16,10,13]} />
-        </div>
-
-        {/* ROW 2 — Area chart + Donut */}
-        <div className="g21">
-          <div className="card card-glow">
-            <div style={{padding:'16px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-                <div className="sec-title">Atividade de Publicações</div>
-                <div style={{display:'flex',gap:12,fontSize:11,color:'var(--text3)'}}>
-                  <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:8,height:8,borderRadius:'50%',background:'var(--cyan)',display:'inline-block'}}/> Posts</span>
-                  <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:8,height:8,borderRadius:'50%',background:'var(--green)',display:'inline-block'}}/> Contas</span>
-                  <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:8,height:8,borderRadius:'50%',background:'var(--red)',display:'inline-block'}}/> Erros</span>
-                </div>
-              </div>
-              <ResponsiveContainer width="100%" height={190}>
-                <AreaChart data={lineData} margin={{top:4,right:0,left:-28,bottom:0}}>
-                  <defs>
-                    <linearGradient id="gP" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00d4ff" stopOpacity=".35"/><stop offset="100%" stopColor="#00d4ff" stopOpacity="0"/></linearGradient>
-                    <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".35"/><stop offset="100%" stopColor="#10b981" stopOpacity="0"/></linearGradient>
-                    <linearGradient id="gE" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f43f5e" stopOpacity=".3"/><stop offset="100%" stopColor="#f43f5e" stopOpacity="0"/></linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)" vertical={false}/>
-                  <XAxis dataKey="name" tick={{fill:'var(--text3)',fontSize:10}} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{fill:'var(--text3)',fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<ChartTip/>}/>
-                  <Area type="monotone" dataKey="posts"  name="Posts"  stroke="#00d4ff" strokeWidth={2} fill="url(#gP)" dot={false} activeDot={{r:4,fill:'#00d4ff'}}/>
-                  <Area type="monotone" dataKey="contas" name="Contas" stroke="#10b981" strokeWidth={2} fill="url(#gC)" dot={false} activeDot={{r:4,fill:'#10b981'}}/>
-                  <Area type="monotone" dataKey="erros"  name="Erros"  stroke="#f43f5e" strokeWidth={1.5} fill="url(#gE)" dot={false} activeDot={{r:4,fill:'#f43f5e'}}/>
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Donut */}
-          <div className="card card-glow">
-            <div style={{padding:'16px 20px'}}>
-              <div className="sec-title" style={{marginBottom:12}}>Status dos Posts</div>
-              <ResponsiveContainer width="100%" height={130}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={56} paddingAngle={3} dataKey="value" stroke="none">
-                    {pieData.map((e,i)=><Cell key={i} fill={e.color}/>)}
-                  </Pie>
-                  <Tooltip content={<ChartTip/>}/>
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'5px 10px',marginTop:6}}>
-                {pieData.map(e=>(
-                  <div key={e.name} style={{display:'flex',alignItems:'center',gap:6,fontSize:11}}>
-                    <div style={{width:7,height:7,borderRadius:'50%',background:e.color,flexShrink:0}}/>
-                    <span style={{color:'var(--text2)',flex:1}}>{e.name}</span>
-                    <span style={{fontWeight:700,color:'var(--text)',fontFamily:'var(--font-display)'}}>{e.value}</span>
-                  </div>
+        {/* ── Operations grid ── */}
+        <section className="operations-grid">
+          {/* Previsão / gráfico de postagens */}
+          <div className="panel forecast-panel">
+            <PanelHeader title="PREVISÃO DE POSTAGENS" icon={FolderOpen} right={
+              <div style={{ display:'flex', gap:6 }}>
+                {[7,14,30].map(p => (
+                  <button key={p} className="select-label" style={{ background: period===p ? 'rgba(36,201,255,.18)' : '' }} onClick={() => setPeriod(p)}>
+                    {p}d
+                  </button>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ROW 3 — Bar chart + Activity feed */}
-        <div className="g21">
-          <div className="card card-glow">
-            <div style={{padding:'16px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-                <div className="sec-title">Posts por Tipo</div>
-                <span style={{fontSize:11,color:'var(--text3)'}}>últimos 7 dias</span>
-              </div>
-              <ResponsiveContainer width="100%" height={170}>
-                <BarChart data={barData} margin={{top:0,right:0,left:-28,bottom:0}}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.04)" vertical={false}/>
-                  <XAxis dataKey="name" tick={{fill:'var(--text3)',fontSize:10}} axisLine={false} tickLine={false}/>
-                  <YAxis tick={{fill:'var(--text3)',fontSize:10}} axisLine={false} tickLine={false}/>
-                  <Tooltip content={<ChartTip/>}/>
-                  <Bar dataKey="Feed"    name="Feed"    fill="#00d4ff" radius={[4,4,0,0]} maxBarSize={22}/>
-                  <Bar dataKey="Reels"   name="Reels"   fill="#6366f1" radius={[4,4,0,0]} maxBarSize={22}/>
-                  <Bar dataKey="Stories" name="Stories" fill="#10b981" radius={[4,4,0,0]} maxBarSize={22}/>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="card card-glow">
-            <div style={{padding:'16px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                <div className="sec-title">Atividade Recente</div>
-                <span style={{fontSize:10,color:'var(--cyan)',cursor:'pointer',border:'1px solid rgba(0,212,255,.2)',borderRadius:6,padding:'3px 8px'}}>Ver tudo</span>
-              </div>
-              {ACTIVITY.map((a,i)=>(
-                <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
-                  <div style={{width:30,height:30,borderRadius:8,background:a.col,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}}>{a.icon}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,color:'var(--text)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.msg}</div>
-                    <div style={{fontSize:10,color:'var(--text3)',marginTop:1}}>há {a.time}</div>
+            } />
+            <div className="forecast-content">
+              {forecastData.length === 0 ? (
+                <>
+                  <div className="forecast-graphic">
+                    <div className="folder-holo"><FolderOpen size={58} strokeWidth={1.15} /></div>
+                    <div className="holo-floor" />
                   </div>
-                </div>
+                  <div className="empty-copy">
+                    <h2>Nenhuma postagem no período.</h2>
+                    <p>Adicione publicações às filas para visualizar a previsão de execução.</p>
+                  </div>
+                </>
+              ) : null}
+              <div className="forecast-chart" style={{ opacity: forecastData.length ? 1 : 0.33 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={forecastData} margin={{ top: 18, right: 0, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="forecastGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#26c7ff" stopOpacity={0.34} />
+                        <stop offset="100%" stopColor="#26c7ff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: '#d8efff' }} />
+                    <Area type="monotone" dataKey="value" stroke="#27c6ff" strokeWidth={2} fill="url(#forecastGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Resumo da fila */}
+          <div className="panel queue-panel">
+            <PanelHeader title="RESUMO DA FILA" icon={Layers3} right={<SelectLabel label="Todos" />} />
+            <div className="queue-body">
+              <div className="queue-hourglass-wrap">
+                <div className="queue-orbit orbit-1" />
+                <div className="queue-orbit orbit-2" />
+                <Hourglass />
+              </div>
+              <ul className="queue-list">
+                {queueItems.map(item => (
+                  <li key={item.label}>
+                    <span className="queue-dot" style={{ backgroundColor: item.color }} />
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Bottom grid ── */}
+        <section className="bottom-grid">
+          {/* Logs */}
+          <div className="panel compact-panel logs-panel">
+            <PanelHeader title="LOGS RECENTES" right={<ViewAll onClick={() => showToast('Abrindo todos os logs.')} />} />
+            <ul className="logs-list">
+              {logs.length === 0 ? (
+                <li style={{ color:'#566e89', fontSize:11, padding:'12px 0' }}>Nenhum log ainda.</li>
+              ) : logs.map((log, i) => (
+                <li key={i}>
+                  <time>{log.time}</time>
+                  <span className={`log-status ${log.type}`}>
+                    {log.type === 'success' && <ShieldCheck size={15} />}
+                    {log.type === 'info'    && <Activity size={15} />}
+                    {log.type === 'warning' && <AlertTriangle size={15} />}
+                  </span>
+                  <strong>{log.text}</strong>
+                  <small>{log.detail}</small>
+                </li>
               ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ROW 4 — Top accounts + System status */}
-        <div className="g21">
-          <div className="card card-glow">
-            <div style={{padding:'16px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                <div className="sec-title">Top Contas</div>
-                <span style={{fontSize:10,color:'var(--cyan)',cursor:'pointer',border:'1px solid rgba(0,212,255,.2)',borderRadius:6,padding:'3px 8px'}} onClick={()=>window.location.href='/accounts'}>Ver todas →</span>
-              </div>
-              {accounts.length > 0
-                ? accounts.slice(0,7).map((a,i)=><AccRow key={a._id||i} acc={a} rank={i}/>)
-                : [1,2,3,4].map(i=>(
-                  <div key={i} style={{display:'flex',gap:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,.04)',alignItems:'center'}}>
-                    <div className="skeleton" style={{width:32,height:32,borderRadius:'50%'}}/>
-                    <div style={{flex:1}}><div className="skeleton" style={{width:'60%',height:10,marginBottom:4}}/><div className="skeleton" style={{width:'40%',height:8}}/></div>
-                    <div className="skeleton" style={{width:40,height:16,borderRadius:20}}/>
-                  </div>
-                ))
-              }
-            </div>
+            </ul>
           </div>
 
-          <div style={{display:'flex',flexDirection:'column',gap:12}}>
-            {/* System health mini cards */}
-            <div className="card card-glow">
-              <div style={{padding:'14px 18px'}}>
-                <div className="sec-title" style={{marginBottom:12}}>Status do Sistema</div>
-                {[
-                  { label:'API Privada Instagram', ok: data?.system?.backend !== false },
-                  { label:'OAuth / Graph API',     ok: (data?.topAccounts||[]).some(a=>a.accessToken||a.igUserId) || data?.activeAccounts > 0 },
-                  { label:'Fila BullMQ',           ok: data?.system?.worker !== false },
-                  { label:'SSE / Tempo Real',      ok: !!lastTs },
-                  { label:'MongoDB / Banco',       ok: data?.system?.mongo !== false },
-                ].map((s,i)=>(
-                  <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,.035)'}}>
-                    <span style={{fontSize:12,color:'var(--text2)'}}>{s.label}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:s.ok?'var(--green)':'var(--red)',display:'flex',alignItems:'center',gap:4}}>
-                      <span style={{width:6,height:6,borderRadius:'50%',background:s.ok?'var(--green)':'var(--red)',boxShadow:s.ok?'0 0 6px var(--green)':'none',display:'inline-block'}}/>
-                      {s.ok?'Online':'Offline'}
+          {/* Contas em destaque */}
+          <div className="panel compact-panel accounts-panel">
+            <PanelHeader title="CONTAS EM DESTAQUE" right={<ViewAll onClick={() => showToast('Abrindo ranking completo.')} />} />
+            <ul className="accounts-list">
+              {topAccounts.length === 0 ? (
+                <li style={{ color:'#566e89', fontSize:11 }}>Nenhuma conta conectada.</li>
+              ) : topAccounts.map((acc, index) => {
+                const score = acc.healthScore || (acc.healthStatus === 'ativa' ? 95 : acc.healthStatus === 'restrita' ? 45 : 10);
+                const isErr = acc.healthStatus !== 'ativa';
+                return (
+                  <li key={acc.username || index}>
+                    <span className={`avatar avatar-${(index % 4) + 1}`}>{(acc.username || '??').slice(-2)}</span>
+                    <div className="account-name">
+                      <strong>@{acc.username}</strong>
+                      <small className={isErr ? 'error' : ''}>{isErr ? acc.healthStatus : 'Online'}</small>
+                    </div>
+                    <div className="posts-count">
+                      <strong>{fmtK(acc.postsToday || 0)}</strong>
+                      <small>Posts hoje</small>
+                    </div>
+                    <span className={`score-ring ${isErr ? 'low' : ''}`} style={{ '--score': `${score}%` }}>
+                      {score}%
                     </span>
-                  </div>
-                ))}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Atividades recentes */}
+          <div className="panel compact-panel activity-panel">
+            <PanelHeader title="ATIVIDADES RECENTES" right={<ViewAll onClick={() => showToast('Abrindo todas as atividades.')} />} />
+            <ul className="activity-list">
+              {activities.length === 0 ? (
+                <li style={{ color:'#566e89', fontSize:11 }}>Nenhuma atividade ainda.</li>
+              ) : activities.map((act, i) => {
+                const Icon = act.icon;
+                return (
+                  <li key={i}>
+                    <span className={`activity-icon ${act.tone}`}><Icon size={15} /></span>
+                    <strong>{act.text}</strong>
+                    <time>{act.time}</time>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Proxies */}
+          <div className="panel compact-panel proxies-panel">
+            <PanelHeader title="PROXIES" right={<ViewAll onClick={() => showToast('Abrindo gerenciamento de proxies.')} />} />
+            <div className="proxy-content">
+              <div className="donut-wrap">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={proxyData.some(p => p.value > 0) ? proxyData : [{ name: 'Sem proxies', value: 1 }]}
+                      dataKey="value"
+                      innerRadius={45} outerRadius={63}
+                      startAngle={90} endAngle={-270}
+                      stroke="none" paddingAngle={3}
+                    >
+                      <Cell fill="#20d785" />
+                      <Cell fill="#ff5c5c" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="donut-center">
+                  <strong>{(d.proxiesOnline || 0) + (d.proxiesOffline || 0)}</strong>
+                  <span>Total</span>
+                </div>
+              </div>
+              <div className="proxy-details">
+                <p><span className="queue-dot green" />{d.proxiesOnline || 0} <small>Funcionando</small></p>
+                <p><span className="queue-dot red" />{d.proxiesOffline || 0} <small>Com erro</small></p>
               </div>
             </div>
-
-            {/* Quick stats */}
-            <div className="card card-glow">
-              <div style={{padding:'14px 18px'}}>
-                <div className="sec-title" style={{marginBottom:10}}>Resumo Rápido</div>
-                {[
-                  { label:'Posts hoje',         val: fmt(data?.postsToday||0),        color:'var(--cyan)'   },
-                  { label:'Concluídos hoje',   val: fmt(data?.completedToday||0),    color:'var(--green)'  },
-                  { label:'Erros hoje',        val: fmt(data?.errorsToday||0),       color:'var(--red)'    },
-                  { label:'Proxies ativos',    val: fmt(data?.proxiesOnline||0),     color:'var(--purple)' },
-                ].map((s,i)=>(
-                  <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid rgba(255,255,255,.035)'}}>
-                    <span style={{fontSize:12,color:'var(--text2)'}}>{s.label}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:s.color,fontFamily:'var(--font-display)'}}>{s.val}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="toggle-row">
+              <span><Radar size={14} /> Rotação automática</span>
+              <Toggle checked={automationOn} onChange={() => setAutomationOn(v => !v)} />
             </div>
           </div>
+
+          {/* Automações */}
+          <div className="panel compact-panel automations-panel">
+            <PanelHeader title="AUTOMAÇÕES" right={<ViewAll onClick={() => showToast('Abrindo todas as automações.')} />} />
+            <div className="automation-gauge">
+              <div className="half-gauge">
+                <span className="gauge-arc" />
+                <strong>{d.activeAccounts || 0}</strong>
+                <small>Ativas</small>
+              </div>
+              <div className="automation-meta"><Pause size={13} /> <b>{d.bannedAccounts || 0}</b> Com problema</div>
+            </div>
+            <div className="toggle-row">
+              <span><Bot size={14} /> Execução contínua</span>
+              <Toggle checked={automationOn} onChange={() => setAutomationOn(v => !v)} />
+            </div>
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="system-footer">
+          <span><ShieldCheck size={14} /> {sysOk ? 'Sistema operacional' : 'Verificar sistemas'}</span>
+          <span><i style={{ background: sysOk ? '#2add90' : '#ff5f5f', boxShadow: `0 0 8px ${sysOk ? '#2add90' : '#ff5f5f'}` }} /> {sysOk ? 'Online' : 'Offline'}</span>
+          <span>MongoDB <b style={{ color: d.system?.mongo ? '#2add90' : '#ff5f5f' }}>{d.system?.mongo ? 'OK' : 'Erro'}</b></span>
+          <span>Redis <b style={{ color: d.system?.redis ? '#2add90' : '#ff5f5f' }}>{d.system?.redis ? 'OK' : 'Erro'}</b></span>
+          <span>Worker <b style={{ color: d.system?.worker ? '#2add90' : '#ff5f5f' }}>{d.system?.worker ? 'Ativo' : 'Parado'}</b></span>
+          <span>Contas <b>{fmt(d.totalAccounts)}</b></span>
+          <span>Posts <b>{fmt(d.totalPosts)}</b></span>
+          <button onClick={() => showToast('Versão 2.4.7 — InstaFlow Pulse')}>Novidades</button>
+        </footer>
+      </main>
+
+      {toast && (
+        <div className="toast">
+          <ShieldCheck size={18} /> {toast}
         </div>
-
-        {/* ROW 5 — Post queue (se tiver dados) */}
-        {(data?.queue||[]).length > 0 && (
-          <div className="card card-glow">
-            <div style={{padding:'16px 20px'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-                <div className="sec-title">Fila de Publicações</div>
-                <span className="badge badge-blue">{data.queue.length} agendados</span>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:8}}>
-                {data.queue.slice(0,8).map((q,i)=>(
-                  <div key={i} style={{display:'flex',gap:10,padding:10,background:'rgba(255,255,255,.03)',border:'1px solid var(--border)',borderRadius:10,cursor:'pointer',transition:'all .2s'}}
-                    onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(0,212,255,.2)'}}
-                    onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)'}}>
-                    <div style={{width:40,height:40,borderRadius:9,background:'rgba(99,102,241,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>📷</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>@{q.account||'conta'}</div>
-                      <div style={{fontSize:10,color:'var(--text3)',marginTop:2}}>{q.caption?.slice(0,30)||'Post agendado'}…</div>
-                    </div>
-                    <div style={{fontSize:11,color:'var(--cyan)',fontWeight:700,whiteSpace:'nowrap',flexShrink:0}}>
-                      {q.scheduledFor ? new Date(q.scheduledFor).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '--:--'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-      </div>
+      )}
     </div>
   );
 }
