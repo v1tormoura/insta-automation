@@ -15,18 +15,41 @@ const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
 
-/** Baixa avatar CDN → /uploads/avatars/<username>.jpg e retorna o path local */
-async function downloadAvatar(url, username) {
+/** Baixa avatar CDN com retry automático (até 3 tentativas) */
+async function downloadAvatar(url, username, retries = 3) {
   if (!url || !username) return '';
   ensureDir(AVATARS_DIR);
   const dest = path.join(AVATARS_DIR, `${username}.jpg`);
-  return new Promise(resolve => {
-    const file = fs.createWriteStream(dest);
-    https.get(url, res => {
-      res.pipe(file);
-      file.on('finish', () => { file.close(); resolve(`/uploads/avatars/${username}.jpg`); });
-    }).on('error', () => { try { fs.unlinkSync(dest); } catch {} resolve(''); });
-  });
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        const req = https.get(url, res => {
+          if (res.statusCode !== 200) {
+            file.close();
+            try { fs.unlinkSync(dest); } catch {}
+            return reject(new Error(`HTTP ${res.statusCode}`));
+          }
+          res.pipe(file);
+          file.on('finish', () => { file.close(); resolve(); });
+          file.on('error', reject);
+        });
+        req.on('error', reject);
+        req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
+      });
+      return `/uploads/avatars/${username}.jpg`;
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      } else {
+        console.log(`⚠️ [Avatar] @${username}: falha após ${retries} tentativas — ${err.message}`);
+        try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch {}
+        return '';
+      }
+    }
+  }
+  return '';
 }
 
 const SESSIONS_ROOT = path.resolve(__dirname, '../../sessions');
