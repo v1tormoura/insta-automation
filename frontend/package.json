@@ -11,13 +11,18 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
+    "@tanstack/react-table": "^8.21.3",
     "axios": "^1.16.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.42.2",
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-dropzone": "^15.0.0",
     "react-router-dom": "^7.15.1",
     "recharts": "^2.12.7",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
