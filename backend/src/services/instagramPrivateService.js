@@ -583,6 +583,8 @@ async function postReelViaClips(ig, videoBuffer, videoPath, { caption, coverBuff
       'Content-Type': 'application/octet-stream', 'Content-Length': String(videoSize),
       'Cookie': cookieHeader,
       'X-CSRFToken': csrfToken,
+      // Ativa "Carregar com a mais alta qualidade" — equivalente ao toggle nas Mais opções do app
+      'X-Instagram-Rupload-Params': JSON.stringify({ is_hq_upload: 1 }),
       'X-IG-App-ID': '567067343352427',
       'User-Agent': ig.state.appUserAgent || 'Instagram 195.0.0.31.123 Android',
     },
@@ -623,6 +625,8 @@ async function postReelViaClips(ig, videoBuffer, videoPath, { caption, coverBuff
     width: String(width), height: String(height),
     extra: JSON.stringify({ source_width: width, source_height: height }),
     audio_muted: 'false', poster_frame_time_ms: '1000',
+    // "Carregar com a mais alta qualidade" — equivalente ao toggle em Mais opções do app
+    is_hq_upload: '1',
   };
   if (coverUploadId) { params.clips_cover_photo_upload_id = coverUploadId; delete params.poster_frame_time_ms; }
 
@@ -668,7 +672,7 @@ async function postReel(account, post) {
     console.log(`[Clips] falhou: ${clipsErr.message} -- fallback publish.video`);
   }
 
-  const opts = { video: videoBuffer, caption };
+  const opts = { video: videoBuffer, caption, isHighQuality: true };
   if (coverBuffer) opts.coverImage = coverBuffer;
   if (location)   opts.location   = location;
   await ig.publish.video(opts);
