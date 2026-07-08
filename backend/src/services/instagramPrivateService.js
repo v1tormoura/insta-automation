@@ -656,7 +656,7 @@ async function postReel(account, post) {
   const ig = await createClient(account);
 
   const rawPath = path.resolve(__dirname, '../../uploads', post.media);
-  const videoPath = await convertToReelFormat(rawPath);
+  const videoPath = await convertToReelFormat(rawPath, { processMode: post.processMode || 'sem_limpeza' });
   const videoBuffer = fs.readFileSync(videoPath);
 
   let coverBuffer = null;

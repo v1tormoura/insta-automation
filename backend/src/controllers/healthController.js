@@ -87,6 +87,7 @@ exports.getHealth = async (req, res) => {
         username: account.username,
         name: account.name,
         avatar: account.avatar,
+        accountType: account.accountType || account.igAccountType || null,
         healthStatus: account.healthStatus,
         status: account.status,
         score,

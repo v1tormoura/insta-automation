@@ -56,7 +56,7 @@ export default function Scheduler() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 14 }}>
+      <div className="layout-media-lib" style={{ gap: 14 }}>
         {/* Date filter */}
         <div className="card">
           <div className="card-header"><h3>Filtro por data</h3></div>

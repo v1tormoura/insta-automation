@@ -1,4 +1,5 @@
 const Post = require('../models/Post');
+const Media = require('../models/Media');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
 const fs = require('fs');
@@ -30,7 +31,24 @@ exports.createPost = async (req, res) => {
 
     const mediaFiles = allFiles.filter((file) => file.fieldname === 'media');
     const coverFile = allFiles.find((file) => file.fieldname === 'cover') || null;
-    if (!mediaFiles.length) {
+
+    // Suporte a mídias da biblioteca (já salvas no servidor)
+    const mediaIds = JSON.parse(req.body.mediaIds || '[]');
+    let libraryFiles = [];
+    if (mediaIds.length) {
+      const docs = await Media.find({ _id: { $in: mediaIds } });
+      libraryFiles = docs.map(d => ({
+        filename: d.filename,
+        fieldname: 'media',
+        path: d.path,
+        mimetype: d.mimeType,
+        size: d.size,
+        fromLibrary: true,
+      }));
+    }
+
+    const allMedia = [...mediaFiles, ...libraryFiles];
+    if (!allMedia.length) {
       return res.status(400).json({ error: 'Nenhuma mídia enviada' });
     }
 
@@ -41,6 +59,7 @@ exports.createPost = async (req, res) => {
 
     const caption = req.body.caption || '';
     const location = req.body.location || '';
+    const processMode = req.body.processMode || 'limpeza_leve';
     const requestedPostType = req.body.postType || 'auto';
     const intervalMs = getIntervalMs(req.body);
     // simultaneousLimit: quantas contas publicam por lote (padrão = todas de uma vez)
@@ -60,8 +79,8 @@ exports.createPost = async (req, res) => {
     //   Lote 1 (T+7min): mídia 3 e 4 → todas as 20 contas ao mesmo tempo
     //   Lote 2 (T+14min): mídia 5 e 6 → todas as 20 contas ao mesmo tempo
 
-    for (let mi = 0; mi < mediaFiles.length; mi += simultaneousLimit) {
-      const batchMedia = mediaFiles.slice(mi, mi + simultaneousLimit);
+    for (let mi = 0; mi < allMedia.length; mi += simultaneousLimit) {
+      const batchMedia = allMedia.slice(mi, mi + simultaneousLimit);
       const scheduledAt = new Date(baseDate.getTime() + batchIndex * intervalMs);
       const isFirst = batchIndex === 0 && !req.body.scheduledAt;
       const jobDelay = Math.max(scheduledAt.getTime() - Date.now(), 0);
@@ -84,7 +103,8 @@ exports.createPost = async (req, res) => {
           postType: finalPostType,
           caption,
           location,
-          accounts, // TODAS as contas recebem cada mídia do lote
+          processMode,
+          accounts,
           scheduledAt,
           status: isFirst ? 'pendente' : 'agendado',
         });

@@ -61,7 +61,7 @@ export default function Sessions() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="resp-grid-5" style={{ marginBottom: 20 }}>
         {[
           { label: 'Total', value: sessions.length, color: '#6366f1' },
           { label: 'Sessões OK', value: ok, color: '#10b981' },

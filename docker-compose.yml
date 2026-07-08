@@ -1,0 +1,79 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - instaflow
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - instaflow
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/insta-automation
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      HEADLESS: "true"
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - uploads:/app/uploads
+      - sessions:/app/sessions
+      - data:/app/data
+    ports:
+      - "3000:3000"
+    command: node src/app.js
+    networks:
+      - instaflow
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/insta-automation
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      HEADLESS: "true"
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - uploads:/app/uploads
+      - sessions:/app/sessions
+      - data:/app/data
+    command: node src/queue/worker.js
+    networks:
+      - instaflow
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - instaflow
+
+volumes:
+  mongo_data:
+  uploads:
+  sessions:
+  data:
+
+networks:
+  instaflow:
+    driver: bridge

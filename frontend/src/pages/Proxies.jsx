@@ -78,7 +78,7 @@ export default function Proxies() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="resp-grid-5" style={{ marginBottom: 20 }}>
         {[
           { label: 'Contas', value: accounts.length, color: '#6366f1' },
           { label: 'Configurados', value: configured, color: '#06b6d4' },

@@ -5,17 +5,57 @@ const Account = require('../models/Account');
 const os      = require('os');
 const path    = require('path');
 const fs      = require('fs');
+const https   = require('https');
+const { URL } = require('url');
+const { broadcast }       = require('../events/broadcaster');
+const { runHealthCheck }  = require('../jobs/healthCheck');
+
+// Reliable HTTPS POST using core Node.js https module.
+// Avoids undici / native fetch SSL issues on Windows.
+function httpsPostForm(targetUrl, params) {
+  return new Promise((resolve, reject) => {
+    const body = params.toString();
+    const u    = new URL(targetUrl);
+    const req  = https.request({
+      hostname: u.hostname,
+      path:     u.pathname + u.search,
+      method:   'POST',
+      headers:  {
+        'Content-Type':   'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body),
+        'User-Agent':     'Node.js',
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try   { resolve({ ok: res.statusCode < 400, text: data, json: JSON.parse(data) }); }
+        catch { resolve({ ok: false, text: data, json: { error: true, raw: data } }); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(20_000, () => req.destroy(new Error('Token exchange timeout (20s)')));
+    req.write(body);
+    req.end();
+  });
+}
 
 // Instagram Business Login — sub-app 790847580661717
 const IG_AUTH  = 'https://www.instagram.com/oauth/authorize';
-const IG_TOKEN = 'https://api.instagram.com/oauth/access_token';
+// Meta supports the token exchange on all three hosts; try in order until one succeeds.
+// api.instagram.com may fail DNS on some networks/firewalls — graph.instagram.com is the fallback.
+const IG_TOKEN_ENDPOINTS = [
+  'https://api.instagram.com/oauth/access_token',
+  'https://graph.instagram.com/oauth/access_token',
+  'https://graph.facebook.com/v21.0/oauth/access_token',
+];
 const IG_GRAPH = 'https://graph.instagram.com/v21.0';
 
 function getAppId()     { return process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID; }
 function getAppSecret() { return process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET; }
 
-const REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'https://localhost:3000/api/oauth/callback';
-const FRONTEND     = 'http://localhost:5173';
+const REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'http://localhost:5200/oauth-callback';
+const FRONTEND     = process.env.FRONTEND_URL || 'http://localhost:5200';
 
 const SCOPES = [
   'instagram_business_basic',
@@ -38,17 +78,24 @@ async function exchangeCodeForToken(code) {
 
   console.log('📤 [OAuth] Trocando código por token...', { redirect_uri: REDIRECT_URI, appId: getAppId() });
 
-  const res  = await fetch(IG_TOKEN, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    params.toString(),
-  });
-  const text = await res.text();
-  console.log('📦 [OAuth] Resposta token exchange:', text);
+  let text, data, lastErr;
+  for (const endpoint of IG_TOKEN_ENDPOINTS) {
+    try {
+      const result = await httpsPostForm(endpoint, params);
+      text = result.text;
+      data = result.json;
+      console.log(`📦 [OAuth] ${endpoint} →`, text.slice(0, 200));
+      if (!data.error_type && !data.error) break; // success
+      lastErr = data.error_message || data.error?.message || JSON.stringify(data.error);
+      console.warn(`⚠️ [OAuth] ${endpoint} retornou erro: ${lastErr}`);
+    } catch (err) {
+      lastErr = err.message;
+      console.warn(`⚠️ [OAuth] ${endpoint} falhou: ${lastErr}`);
+    }
+  }
 
-  const data = JSON.parse(text);
-  if (data.error_type || data.error) {
-    throw new Error(data.error_message || data.error?.message || JSON.stringify(data.error) || 'Troca de código falhou');
+  if (!data || data.error_type || data.error) {
+    throw new Error(lastErr || 'Troca de código falhou em todos os endpoints');
   }
 
   const shortToken = data.access_token;
@@ -122,8 +169,7 @@ async function getLongLivedToken(shortToken) {
 }
 
 async function getIgProfile(userId, accessToken) {
-  // Business Login só suporta esses campos básicos (follows_count, account_type não são válidos)
-  const IG_FIELDS = 'id,username,name,followers_count,media_count,profile_picture_url';
+  const IG_FIELDS = 'id,username,name,account_type,followers_count,media_count,profile_picture_url';
 
   // Tenta 1: graph.instagram.com/v21.0/me (versão explícita — Business Login)
   try {
@@ -246,21 +292,35 @@ router.post('/connect/:accountId', async (req, res) => {
       console.warn(`⚠️ [OAuth Connect] Long-lived falhou, usando short token (1h): ${llErr.message}`);
     }
 
+    // helpers para disparar sync imediato após connect
+    const _triggerPostConnect = (acc) => {
+      const syncViaAPI          = require('../services/syncAccountAPI');
+      const { syncAccountInsights } = require('../services/insightSyncService');
+      setImmediate(() => syncViaAPI(acc).catch(() => {}));          // baixa avatar + atualiza perfil
+      setImmediate(() => syncAccountInsights(acc).catch(() => {})); // importa insights imediatamente
+    };
+
     // 2. Conta existente — só salva o token, não muda username/perfil
     if (accountId !== 'new') {
       await Account.findByIdAndUpdate(accountId, {
         accessToken, igUserId: userIdStr, tokenExpiresAt, healthStatus: 'ativa',
       });
-      const account = await Account.findById(accountId).lean();
+      let account = await Account.findById(accountId).lean();
       const username = account?.username || userIdStr;
       console.log(`✅ [OAuth Connect] @${username} — token salvo`);
 
-      // Detecta tipo de conta via token IGAAL (sem browser, sem senha)
+      // Busca perfil para salvar avatar imediatamente
       let accountTypeWarning = null;
       try {
         const profile = await getIgProfile(userIdStr, accessToken);
-        const aType = profile.account_type; // "PERSONAL", "BUSINESS", "MEDIA_CREATOR"
+        const aType = profile.account_type;
         console.log(`📊 [OAuth] @${username} — account_type: ${aType}`);
+        // Salva avatar URL e dados básicos imediatamente
+        const avatarUpdate = { name: profile.name || account.name || username };
+        if (profile.profile_picture_url) avatarUpdate.avatar = profile.profile_picture_url;
+        if (profile.followers_count != null) avatarUpdate.followers = profile.followers_count;
+        if (profile.media_count      != null) avatarUpdate.postsCount = profile.media_count;
+        await Account.findByIdAndUpdate(accountId, avatarUpdate);
         if (aType === 'PERSONAL') {
           accountTypeWarning = 'conta_pessoal';
           await Account.findByIdAndUpdate(accountId, {
@@ -269,20 +329,22 @@ router.post('/connect/:accountId', async (req, res) => {
           });
         }
       } catch (e) {
-        // Perfil não disponível via API — tenta conversão via private API mesmo assim
         console.log(`⚠️ [OAuth] Tipo de conta não detectado: ${e.message}`);
       }
 
-      // Tenta converter via private API em background (só funciona se senha estiver correta no banco)
-      setImmediate(() => {
-        autoConvertToProfessional(account).catch(e =>
-          console.log(`⚠️ [AutoConvert] @${username}: ${e.message}`)
-        );
-      });
+      setImmediate(() => autoConvertToProfessional(account).catch(e =>
+        console.log(`⚠️ [AutoConvert] @${username}: ${e.message}`)
+      ));
 
       const msg = accountTypeWarning === 'conta_pessoal'
         ? `@${username} conectada, mas é conta PESSOAL. Vá no Instagram → Configurações → Tipo de conta → Conta profissional → Criador, depois reconecte.`
         : `@${username} conectada via OAuth.`;
+
+      broadcast('accounts', { action: 'oauth_connected', username, accountId });
+      setImmediate(() => runHealthCheck().catch(() => {}));
+      // Sincroniza avatar e insights imediatamente
+      account = await Account.findById(accountId).lean();
+      _triggerPostConnect(account);
 
       return res.json({ success: true, warning: accountTypeWarning, message: msg, username });
     }
@@ -298,10 +360,11 @@ router.post('/connect/:accountId', async (req, res) => {
     if (existing) {
       Object.assign(existing, {
         accessToken, igUserId: userIdStr, tokenExpiresAt,
-        name:       profile.name            || existing.name       || username,
-        followers:  profile.followers_count || existing.followers  || 0,
-        following:  profile.follows_count   || existing.following  || 0,
-        postsCount: profile.media_count     || existing.postsCount || 0,
+        name:        profile.name                || existing.name       || username,
+        followers:   profile.followers_count     || existing.followers  || 0,
+        following:   profile.follows_count       || existing.following  || 0,
+        postsCount:  profile.media_count         || existing.postsCount || 0,
+        avatar:      profile.profile_picture_url || existing.avatar     || '',
         healthStatus: 'ativa',
       });
       await existing.save();
@@ -309,22 +372,25 @@ router.post('/connect/:accountId', async (req, res) => {
       await Account.create({
         username, name: profile.name || username,
         igUserId: userIdStr, accessToken, tokenExpiresAt,
-        followers: profile.followers_count || 0,
-        following: profile.follows_count   || 0,
-        postsCount: profile.media_count    || 0,
+        followers:  profile.followers_count     || 0,
+        following:  profile.follows_count       || 0,
+        postsCount: profile.media_count         || 0,
+        avatar:     profile.profile_picture_url || '',
         healthStatus: 'ativa',
       });
     }
 
     console.log(`✅ [OAuth Connect] @${existing?.username || username} criada/atualizada`);
 
-    // Dispara conversão para conta profissional em background
+    broadcast('accounts', { action: 'oauth_connected', username });
+    setImmediate(() => runHealthCheck().catch(() => {}));
+
     const savedAcc = await Account.findOne({ username }).lean();
-    setImmediate(() => {
-      autoConvertToProfessional(savedAcc).catch(e =>
-        console.log(`⚠️ [AutoConvert] @${username}: ${e.message}`)
-      );
-    });
+    setImmediate(() => autoConvertToProfessional(savedAcc).catch(e =>
+      console.log(`⚠️ [AutoConvert] @${username}: ${e.message}`)
+    ));
+    // Sincroniza avatar local + insights imediatamente
+    if (savedAcc) _triggerPostConnect(savedAcc);
 
     return res.json({ success: true, message: `@${username} conectada via OAuth.`, username });
 
@@ -333,6 +399,7 @@ router.post('/connect/:accountId', async (req, res) => {
     return res.status(400).json({ error: err.message || 'Falha ao trocar código por token.' });
   }
 });
+
 
 // ── GET /oauth/callback ────────────────────────────────────────────────────────
 // Instagram redireciona aqui após o login.

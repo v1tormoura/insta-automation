@@ -12,8 +12,7 @@
 }
 
 .modalCard {
-  width: 420px;
-  max-width: 90%;
+  width: min(420px, calc(100vw - 32px));
 
   background: #081225;
 

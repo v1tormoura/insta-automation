@@ -11,6 +11,8 @@ export default function Sidebar() {
 
       <Link to="/posts">Posts</Link>
 
+      <Link to="/top-posts">Top Posts</Link>
+
       <Link to="/stories">Stories</Link>
 
       <Link to="/scheduler">Agendador</Link>

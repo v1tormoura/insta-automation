@@ -161,7 +161,7 @@ export default function Accounts() {
       if (epGender !== '') form.append('gender', epGender);
       if (epPicFile) form.append('photo', epPicFile);
       await api.post(`/profile-edit/${editProfileModal._id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showToast('success', 'Perfil atualizado', `@${editProfileModal.username} editado com sucesso.`);
+      showToast('success', 'Editando em background', `@${editProfileModal.username} — atualizando perfil via API...`);
       setEditProfileModal(null);
     } catch (err) {
       showToast('error', 'Erro ao editar', err.response?.data?.error || err.message);
@@ -186,8 +186,8 @@ export default function Accounts() {
   function goToPage(p) { setPage(p); loadAccounts(p); }
   // Escuta eventos de contas E de posts (status muda quando post termina)
   useServerEvents(['accounts', 'posts'], loadAccounts);
-  // Polling a cada 5s para manter status "Publicando" / contadores em tempo real
-  useEffect(() => { loadAccounts(); const t = setInterval(loadAccounts, 5000); return () => clearInterval(t); }, []);
+  // Polling a cada 3s para status em tempo real
+  useEffect(() => { loadAccounts(); const t = setInterval(loadAccounts, 3000); return () => clearInterval(t); }, []);
 
   // Detect OAuth callback result from URL (?oauth=success&username=XXX or ?oauth=error&msg=XXX)
   useEffect(() => {
@@ -216,8 +216,15 @@ export default function Accounts() {
       setImporting(true);
       const res = await api.post('/accounts/import-bulk', { accountsText: bulkText, connectApi: true });
       setBulkText('');
+      setBulkImportOpen(false);
       await loadAccounts();
-      setImportResults(res.data);  // show per-account results
+      const { total, errors = [], status } = res.data;
+      const errMsg = errors.length ? ` · ${errors.length} linha(s) inválida(s)` : '';
+      if (status === 'running') {
+        showToast('success', `${total} conta(s) salvas`, `Conectando via API em background...${errMsg}`);
+      } else {
+        showToast('success', `${total} conta(s) importadas`, errMsg || 'Importação concluída.');
+      }
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || 'Erro ao importar contas.');
     } finally {
@@ -784,6 +791,10 @@ export default function Accounts() {
           </div>
         )}
 
+        {/* Scrollable table (header + rows) */}
+        <div className="tbl-scroll-wrap">
+        <div className="tbl-scroll-inner">
+
         {/* Table header */}
         <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 1.4fr 2.4fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
           {['', 'Conta', 'Seguidores', 'Seguindo', 'Posts', 'Status', 'Última sync', 'Ações'].map((h, i) => (
@@ -870,8 +881,6 @@ export default function Accounts() {
                   <>
                     <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
                       title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => connectApi(account)} disabled={connectingApi[account._id]} title="Login via Private API (necessário para stories)" style={{ fontSize:10 }}>{connectingApi[account._id] ? '⏳' : 'API'}</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }} title={account.hasTotpSecret ? '2FA configurado ✅' : 'Configurar 2FA'} style={account.hasTotpSecret ? { borderColor:'#34d399', color:'#34d399' } : {}}>🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                     <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }} onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
                     <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
@@ -879,8 +888,6 @@ export default function Accounts() {
                 ) : (
                   <>
                     <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => connectApi(account)} disabled={connectingApi[account._id]} title="Login via Private API" style={{ fontSize:10 }}>{connectingApi[account._id] ? '⏳' : 'API'}</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => { setTotpSecretModal(account); setTotpSecretValue(''); }} title={account.hasTotpSecret ? '2FA automático configurado ✅' : 'Configurar 2FA'} style={account.hasTotpSecret ? { borderColor:'#34d399', color:'#34d399' } : {}}>🔑 2FA{account.hasTotpSecret ? ' ✅' : ''}</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                     <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
                   </>
@@ -897,6 +904,9 @@ export default function Accounts() {
             <div style={{ fontSize: 12, marginTop: 4 }}>Tente ajustar o filtro ou importar novas contas.</div>
           </div>
         )}
+
+        </div>{/* /tbl-scroll-inner */}
+        </div>{/* /tbl-scroll-wrap */}
 
         {pagination && pagination.pages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid rgba(51,65,85,.35)' }}>

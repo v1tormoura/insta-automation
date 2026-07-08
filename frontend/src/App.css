@@ -28,9 +28,16 @@
 .sel:focus { border-color: var(--border2); }
 
 /* ── CARDS (legacy) ── */
-.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  margin-bottom: 14px;
+}
 .card-header h3 { font-size: 14px; font-weight: 700; }
 .card-header span { font-size: 11px; color: var(--text2); }
+/* Body wrapper inside cards (add padding to content sections) */
+.card-body { padding: 16px 20px; }
 
 /* ── STATS GRID ── */
 .stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 20px; }

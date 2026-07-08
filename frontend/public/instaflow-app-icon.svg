@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="90" y1="80" x2="950" y2="970" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111A33"/>
+      <stop offset="0.55" stop-color="#080D1B"/>
+      <stop offset="1" stop-color="#111127"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="120" y1="120" x2="900" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#21C5FF"/>
+      <stop offset="0.5" stop-color="#386DFF"/>
+      <stop offset="1" stop-color="#B248FF"/>
+    </linearGradient>
+    <linearGradient id="ribbonA" x1="294" y1="180" x2="760" y2="486" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#44E6FF"/>
+      <stop offset="0.5" stop-color="#188CFF"/>
+      <stop offset="1" stop-color="#7551FF"/>
+    </linearGradient>
+    <linearGradient id="ribbonB" x1="220" y1="370" x2="650" y2="750" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2A9DFF"/>
+      <stop offset="0.52" stop-color="#5D55FF"/>
+      <stop offset="1" stop-color="#D750FF"/>
+    </linearGradient>
+    <linearGradient id="speed" x1="140" y1="425" x2="405" y2="535" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#537DFF"/>
+      <stop offset="0.6" stop-color="#1BC5FF"/>
+      <stop offset="1" stop-color="#43E4FF"/>
+    </linearGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="23" result="blur"/>
+      <feFlood flood-color="#266CFF" flood-opacity=".55" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+
+  <rect x="24" y="24" width="976" height="976" rx="238" fill="url(#bg)"/>
+  <rect x="28" y="28" width="968" height="968" rx="234" stroke="url(#rim)" stroke-opacity=".78" stroke-width="8"/>
+  <path d="M127 807C260 899 782 904 901 776" stroke="#4B55A7" stroke-opacity=".12" stroke-width="46" filter="url(#soft)"/>
+
+  <!-- brilho ambiente -->
+  <ellipse cx="505" cy="482" rx="335" ry="280" fill="#286CFF" fill-opacity=".16" filter="url(#soft)"/>
+
+  <g filter="url(#shadow)">
+    <!-- linhas de velocidade -->
+    <path d="M165 415H321" stroke="url(#speed)" stroke-width="42" stroke-linecap="round"/>
+    <path d="M129 492H294" stroke="url(#speed)" stroke-width="42" stroke-linecap="round"/>
+    <path d="M151 569H246" stroke="url(#speed)" stroke-width="42" stroke-linecap="round"/>
+    <circle cx="126" cy="569" r="21" fill="#8260FF"/>
+
+    <!-- fita superior do F -->
+    <path d="M291 248
+             C396 175 545 157 659 201
+             C744 234 796 294 800 366
+             C804 432 762 478 690 502
+             L554 548
+             C606 507 644 465 642 414
+             C639 365 600 329 547 322
+             C489 314 430 340 369 382
+             L300 429
+             C327 373 341 322 291 248Z"
+          fill="url(#ribbonA)"/>
+
+    <!-- haste e fita inferior do F -->
+    <path d="M357 352
+             C438 356 509 387 540 449
+             C575 520 546 594 489 649
+             C433 704 351 744 243 779
+             L163 805
+             C245 748 313 684 347 620
+             C377 562 382 506 338 479
+             C311 462 277 459 238 460
+             L303 414
+             C324 397 341 376 357 352Z"
+          fill="url(#ribbonB)"/>
+
+    <!-- recorte/realce que reforça a leitura do F -->
+    <path d="M363 382
+             C429 337 492 318 552 325
+             C613 333 655 370 657 418
+             C659 442 653 465 640 486
+             C655 423 622 386 571 377
+             C508 365 443 390 371 441
+             L305 488
+             C334 449 355 414 363 382Z"
+          fill="#07101F" fill-opacity=".62"/>
+
+    <path d="M296 255
+             C412 178 556 180 665 216
+             C735 239 779 285 790 336"
+          stroke="#9EF4FF" stroke-opacity=".72" stroke-width="13" stroke-linecap="round"/>
+
+    <path d="M218 769
+             C318 727 388 684 437 633"
+          stroke="#FF9DFF" stroke-opacity=".32" stroke-width="12" stroke-linecap="round"/>
+  </g>
+
+  <rect x="58" y="58" width="908" height="908" rx="207" stroke="white" stroke-opacity=".045" stroke-width="5"/>
+</svg>

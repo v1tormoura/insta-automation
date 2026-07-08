@@ -10,12 +10,13 @@
  * para esses, verificamos expiração + tentamos endpoint alternativo.
  */
 
-const Account           = require('../models/Account');
-const { broadcast }     = require('../events/broadcaster');
-const { classifyError } = require('../jobs/healthCheck');
-const path              = require('path');
-const fs                = require('fs');
-const https             = require('https');
+const Account              = require('../models/Account');
+const { broadcast }        = require('../events/broadcaster');
+const { classifyError }    = require('../jobs/healthCheck');
+const { refreshToken }     = require('./instagramAPI');
+const path                 = require('path');
+const fs                   = require('fs');
+const https                = require('https');
 
 const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
@@ -77,7 +78,29 @@ async function syncViaAPI(account) {
         update.status       = 'banida';
         update.lastError    = errMsg;
         console.log(`🚫 [API Sync] @${account.username} — BANIDA/DESATIVADA`);
-      } else if (code === 190 || data.error.type === 'OAuthException' || /token.*invalid|invalid.*token/i.test(errMsg)) {
+      } else if (code === 190 || data.error.type === 'OAuthException' || /session.*expired|token.*expired|expired.*token/i.test(errMsg)) {
+        // Tenta renovar o token antes de desistir (funciona se o token ainda não venceu no TTL)
+        if (account.accessToken?.match(/^(IGAAL|IGQ|IG)/)) {
+          try {
+            const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);
+            update.accessToken    = newToken;
+            update.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+            update.healthStatus   = 'ativa';
+            update.lastError      = '';
+            console.log(`🔄 [API Sync] @${account.username} — token renovado após erro 190`);
+          } catch (refreshErr) {
+            // Refresh falhou → sessão realmente expirada. Zera tokenExpiresAt para
+            // que o tokenRefreshJob a detecte e tente recuperar no próximo ciclo.
+            update.healthStatus   = 'sessao_expirada';
+            update.tokenExpiresAt = new Date(); // reflete a realidade: expirou agora
+            update.lastError      = `Sessão expirada (${new Date().toLocaleString('pt-BR')}) — reconecte via 🔗 API`;
+            console.log(`⚠️ [API Sync] @${account.username} — refresh falhou: ${refreshErr.message}`);
+          }
+        } else {
+          update.healthStatus = 'sessao_expirada';
+          update.lastError    = `Token inválido (code ${code}) — reconecte via 🔗 API`;
+        }
+      } else if (/token.*invalid|invalid.*token/i.test(errMsg)) {
         update.healthStatus = 'sessao_expirada';
         update.lastError    = `Token inválido (code ${code}) — reconecte via 🔗 API`;
       } else if (/checkpoint|feedback_required|spam/i.test(errMsg)) {
@@ -102,6 +125,21 @@ async function syncViaAPI(account) {
           const avatarPath = await downloadAvatar(data.profile_picture_url, account.username);
           if (avatarPath) update.avatar = avatarPath;
         } catch {}
+      }
+
+      // Renovação proativa: renova se expira em menos de 15 dias (ou se não temos data de expiração)
+      const fifteenDays = 15 * 24 * 60 * 60 * 1000;
+      const needsRefresh = !expiresAt || (expiresAt - now) < fifteenDays;
+      if (needsRefresh && account.accessToken?.match(/^(IGAAL|IGQ|IG)/)) {
+        try {
+          const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);
+          update.accessToken    = newToken;
+          update.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+          const newDays = Math.ceil(expiresIn / 86400);
+          console.log(`🔄 [API Sync] @${account.username} — token renovado proativamente (novo vencimento: ${newDays} dias)`);
+        } catch (refreshErr) {
+          console.log(`⚠️ [API Sync] @${account.username} — refresh proativo falhou: ${refreshErr.message}`);
+        }
       }
 
       console.log(`✅ [API Sync] @${account.username} — ${data.followers_count} seguidores · ${data.media_count} posts (expira em ${daysLeft} dias)`);

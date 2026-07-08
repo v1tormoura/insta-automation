@@ -12,6 +12,7 @@ const {
   syncAllAccounts,
   openAccount,
   importBulkAccounts,
+  getImportJob,
   bulkEditProfiles,
   updateProxy,
   testAccountProxy,
@@ -25,6 +26,7 @@ router.post('/', createAccount);
 router.get('/', getAccounts);
 router.post('/sync-all', syncAllAccounts);
 router.post('/import-bulk', importBulkAccounts);
+router.get('/import-job/:jobId', getImportJob);
 router.post('/bulk-edit-profile', upload.single('photo'), bulkEditProfiles);
 router.patch('/:id/proxy', updateProxy);
 router.patch('/:id/username', async (req, res) => {

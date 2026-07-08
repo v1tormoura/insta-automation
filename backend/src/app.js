@@ -9,17 +9,36 @@ const { startFastSync } = require('./jobs/accountFastSync');
 const { startSessionKeepAlive } = require('./jobs/sessionKeepAlive');
 const { cleanProcessedFiles } = require('./services/videoProcessor');
 const { startHealthCheck } = require('./jobs/healthCheck');
+const { startLoopJob }    = require('./jobs/loopJob');
+const { startInsightAutoSync } = require('./services/insightSyncService');
+const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
 const app = express();
 
 connectDB();
+
+// OAuth callback — redireciona para o frontend preservando code e state
+app.get('/oauth-callback', (req, res) => {
+  const FRONTEND = process.env.FRONTEND_URL || 'http://localhost:5200';
+  const params   = new URLSearchParams(req.query).toString();
+  res.redirect(`${FRONTEND}/oauth-callback?${params}`);
+});
 
 app.get('/image-proxy', async (req, res) => {
   try {
     const imageUrl = req.query.url;
     if (!imageUrl) return res.status(400).send('URL obrigatoria');
-    const response = await fetch(imageUrl);
+    // Handle local /uploads/ paths — serve directly from filesystem
+    if (imageUrl.startsWith('/uploads/')) {
+      const filePath = require('path').resolve(__dirname, '..', imageUrl.slice(1));
+      return res.sendFile(filePath, err => { if (err) res.status(404).send('Arquivo nao encontrado'); });
+    }
+    const response = await fetch(imageUrl, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) return res.status(response.status).send('Imagem nao disponivel');
     res.set('Content-Type', response.headers.get('content-type') || 'image/jpeg');
-    response.body.pipe(res);
+    res.set('Cache-Control', 'public, max-age=3600');
+    // Use arrayBuffer to avoid Web Streams vs Node.js Readable mismatch (Node 18+ native fetch)
+    const buf = await response.arrayBuffer();
+    res.send(Buffer.from(buf));
   } catch (err) {
     res.status(500).send('Erro ao carregar imagem');
   }
@@ -43,7 +62,9 @@ app.use('/legends', require('./routes/legendRoutes'));
 app.use('/media', require('./routes/mediaRoutes'));
 app.use('/api/stories', require('./routes/storyRoutes'));
 app.use('/warmup', require('./routes/warmupRoutes'));
+app.use('/loops',  require('./routes/loopRoutes'));
 app.use('/profile-edit', require('./routes/profileEditRoutes'));
+app.use('/insights', require('./routes/insightRoutes'));
 
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);
@@ -112,6 +133,9 @@ startDailyReset();
 startFastSync();
 startSessionKeepAlive();
 startHealthCheck();
+startLoopJob();
+startInsightAutoSync();
+startTokenRefreshJob();
 
 // Limpa vídeos processados antigos a cada 6 horas
 setInterval(() => cleanProcessedFiles(24), 6 * 60 * 60 * 1000);

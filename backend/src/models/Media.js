@@ -13,10 +13,9 @@ const mediaSchema = new mongoose.Schema(
       enum: ['image', 'video', 'other'],
       default: 'other',
     },
+    folder: { type: String, default: 'default' },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model('Media', mediaSchema);

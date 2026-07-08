@@ -9,7 +9,7 @@ const SSE_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/eve
  * @param {function} callback - chamada quando qualquer evento ocorrer
  * @param {object}   options  - { retryMs: número de ms entre reconexões (padrão 5000) }
  */
-export function useServerEvents(events, callback, { retryMs = 5000 } = {}) {
+export function useServerEvents(events, callback, { retryMs = 2000 } = {}) {
   const cbRef    = useRef(callback);
   const esRef    = useRef(null);
   const retryRef = useRef(null);

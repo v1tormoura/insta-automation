@@ -2,6 +2,10 @@ const Account = require('../models/Account');
 const testProxy = require('../services/testProxy');
 const { broadcast } = require('../events/broadcaster');
 
+// In-memory import job tracker
+const _importJobs = new Map();
+let _importSeq = 1;
+
 const getBulkConnectAccounts = () => require('../services/bulkConnectAccounts');
 const getBulkEditProfiles   = () => require('../services/bulkEditProfiles');
 
@@ -152,142 +156,135 @@ exports.syncAllAccounts = async (req, res) => {
 
 exports.importBulkAccounts = async (req, res) => {
   try {
-    const text = req.body.accountsText || '';
-    const connectApi = req.body.connectApi !== false; // default: true
+    const text       = req.body.accountsText || '';
+    const connectApi = req.body.connectApi !== false;
 
-    const lines = text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-    const imported = [];
-    const errors   = [];
-    const apiResults = [];
+    const imported      = [];
+    const errors        = [];
+    const savedAccounts = [];
 
-    // Lazy-load private API service to avoid crash if package not installed
+    // Lazy-load private API service
     let createClient, convertToProfessional, getAccountType;
     try {
       ({ createClient, convertToProfessional, getAccountType } = require('../services/instagramPrivateService'));
-    } catch (_) {
-      createClient = null;
-    }
+    } catch (_) { createClient = null; }
 
+    // ── Passo 1: salva todas as contas no banco (rápido) ─────────────────────
     for (const line of lines) {
-      // Formatos aceitos:
-      //   usuario:senha
-      //   usuario:senha:email@exemplo.com
-      //   usuario:senha:email@exemplo.com:TOTP_SECRET_BASE32
-      //   usuario:senha:TOTP_SECRET_BASE32   (sem email, legado)
       const parts = line.split(':');
       if (parts.length < 2) { errors.push(`Linha inválida (sem ':'): ${line}`); continue; }
 
-      const usernameRaw = parts[0];
-      const passwordRaw = parts[1];
-      const username = String(usernameRaw || '').trim().replace(/^@+/, '');
-      const password = String(passwordRaw || '').trim();
+      const username = String(parts[0] || '').trim().replace(/^@+/, '');
+      const password = String(parts[1] || '').trim();
 
-      // Suporte a 4 colunas: usuario:senha:email:TOTP
-      // Suporte a 3 colunas: usuario:senha:email  OU  usuario:senha:TOTP (detecção automática)
       let loginEmail = '';
       let totpSecret = '';
 
       if (parts.length >= 4) {
-        // 4ª coluna em diante = segredo TOTP
         loginEmail = parts.slice(2, parts.length - 1).join(':').trim();
         totpSecret = parts[parts.length - 1].replace(/\s/g, '').toUpperCase();
       } else if (parts.length === 3) {
-        const thirdField = parts[2].trim();
-        // Se parece com base32 puro (sem @ ou .) é TOTP, senão é email/telefone
-        const isTotpSecret = /^[A-Z2-7]{16,64}$/i.test(thirdField.replace(/\s/g,''));
-        if (isTotpSecret) totpSecret = thirdField.replace(/\s/g,'').toUpperCase();
-        else loginEmail = thirdField;
+        const third = parts[2].trim();
+        if (/^[A-Z2-7]{16,64}$/i.test(third.replace(/\s/g, '')))
+          totpSecret = third.replace(/\s/g, '').toUpperCase();
+        else
+          loginEmail = third;
       }
 
-      if (!username || !password) {
-        errors.push(`Linha inválida (usuário ou senha vazios): ${line}`);
-        continue;
-      }
+      if (!username || !password) { errors.push(`Linha inválida (usuário ou senha vazios): ${line}`); continue; }
 
-      // 1. Criar/atualizar conta no banco
-      const updateFields = {
-        username,
-        password,
-        name: username,
-        status: 'ativa',
-        healthStatus: 'ativa',
-      };
-      if (loginEmail)  updateFields.loginEmail  = loginEmail;
-      if (totpSecret)  updateFields.totpSecret   = totpSecret;
+      const updateFields = { username, password, name: username, status: 'ativa', healthStatus: 'ativa' };
+      if (loginEmail) updateFields.loginEmail = loginEmail;
+      if (totpSecret) updateFields.totpSecret = totpSecret;
 
-      const account = await Account.findOneAndUpdate(
-        { username },
-        updateFields,
-        { upsert: true, new: true }
-      );
-
+      const account = await Account.findOneAndUpdate({ username }, updateFields, { upsert: true, new: true });
       imported.push(account.username);
-
-      // 2. Login via Private API + auto-conversão para conta profissional
-      if (connectApi && createClient) {
-        try {
-          console.log(`🔐 [Import] Login @${username}...`);
-          await createClient(account);
-          console.log(`✅ [Import] @${username} autenticada`);
-
-          // Verifica tipo de conta e converte se for pessoal
-          if (getAccountType) {
-            try {
-              const typeInfo = await getAccountType(account);
-              if (!typeInfo.isProfessional) {
-                console.log(`🔄 [Import] @${username} é pessoal — convertendo para Creator...`);
-                await convertToProfessional(account);
-                await Account.findByIdAndUpdate(account._id, { accountType: 'creator' });
-                apiResults.push({ username, apiStatus: 'convertida_para_creator' });
-                console.log(`✅ [Import] @${username} convertida para Creator`);
-              } else {
-                apiResults.push({ username, apiStatus: 'conectada', accountType: typeInfo.typeName });
-              }
-            } catch (typeErr) {
-              // Falha na verificação/conversão não impede o import
-              apiResults.push({ username, apiStatus: 'conectada', conversionWarning: typeErr.message });
-              console.warn(`⚠️ [Import] @${username} verificação de tipo falhou: ${typeErr.message}`);
-            }
-          } else {
-            apiResults.push({ username, apiStatus: 'conectada' });
-          }
-        } catch (apiErr) {
-          const msg = apiErr.message || String(apiErr);
-          const isChallenge = apiErr.code === 'CHALLENGE_REQUIRED' || /challenge_required/i.test(msg);
-          const isTotp      = apiErr.code === 'TOTP_REQUIRED';
-          apiResults.push({
-            username,
-            accountId:    String(account._id),
-            apiStatus:    isTotp ? 'totp_required' : isChallenge ? 'challenge_required' : 'erro',
-            challengeUrl: apiErr.challengeUrl || null,
-            autoSent:     apiErr.autoSent     || false,
-            error: isTotp
-              ? 'Conta com autenticador 2FA. Abra o Google Authenticator / Authy e clique em "Inserir código".'
-              : isChallenge
-                ? 'Instagram pediu verificação. Abra o link abaixo, complete a verificação e clique em "Já verifiquei".'
-                : msg,
-          });
-          console.warn(`⚠️ [Import] @${username} ${isChallenge ? 'challenge' : 'falhou'}: ${msg}`);
-        }
-      }
+      savedAccounts.push(account);
     }
 
     broadcast('accounts', { action: 'created' });
 
-    res.json({
-      success: true,
-      imported,
-      errors,
-      total: imported.length,
-      apiResults,
+    // ── Passo 2: responde imediatamente ──────────────────────────────────────
+    const jobId = `import_${_importSeq++}`;
+    _importJobs.set(jobId, {
+      status: connectApi && createClient && savedAccounts.length ? 'running' : 'done',
+      total:  savedAccounts.length,
+      done:   0,
+      apiResults: [],
+      startedAt: new Date(),
     });
+
+    res.json({ success: true, imported, errors, total: imported.length, jobId, status: _importJobs.get(jobId).status });
+
+    // ── Passo 3: conecta em background ───────────────────────────────────────
+    if (connectApi && createClient && savedAccounts.length) {
+      (async () => {
+        for (const account of savedAccounts) {
+          const job = _importJobs.get(jobId);
+          try {
+            console.log(`[Import] Login @${account.username}...`);
+            await createClient(account);
+            console.log(`[Import] @${account.username} autenticada`);
+
+            let apiStatus = 'conectada';
+            if (getAccountType) {
+              try {
+                const typeInfo = await getAccountType(account);
+                if (!typeInfo.isProfessional) {
+                  await convertToProfessional(account);
+                  await Account.findByIdAndUpdate(account._id, { accountType: 'creator' });
+                  apiStatus = 'convertida_para_creator';
+                  console.log(`[Import] @${account.username} convertida para Creator`);
+                } else {
+                  apiStatus = typeInfo.typeName || 'conectada';
+                }
+              } catch (typeErr) {
+                console.warn(`[Import] @${account.username} tipo falhou: ${typeErr.message}`);
+              }
+            }
+
+            job.apiResults.push({ username: account.username, apiStatus });
+          } catch (apiErr) {
+            const msg        = apiErr.message || String(apiErr);
+            const isTotp     = apiErr.code === 'TOTP_REQUIRED';
+            const isChallenge = apiErr.code === 'CHALLENGE_REQUIRED' || /challenge_required/i.test(msg);
+            job.apiResults.push({
+              username:  account.username,
+              accountId: String(account._id),
+              apiStatus: isTotp ? 'totp_required' : isChallenge ? 'challenge_required' : 'erro',
+              error:     msg,
+              autoSent:  apiErr.autoSent || false,
+            });
+            console.warn(`[Import] @${account.username} falhou: ${msg}`);
+          }
+
+          job.done++;
+          broadcast('accounts', { action: 'synced' });
+          broadcast('import_job', { jobId, done: job.done, total: job.total, latest: job.apiResults[job.apiResults.length - 1] });
+        }
+
+        const job = _importJobs.get(jobId);
+        job.status     = 'done';
+        job.finishedAt = new Date();
+        broadcast('import_job', { jobId, status: 'done', apiResults: job.apiResults });
+        broadcast('accounts',   { action: 'synced' });
+      })().catch(err => {
+        const job = _importJobs.get(jobId);
+        if (job) { job.status = 'error'; job.error = err.message; }
+      });
+    }
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
+};
+
+exports.getImportJob = (req, res) => {
+  const job = _importJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job não encontrado' });
+  res.json(job);
 };
 
 exports.openAccount = async (req, res) => {

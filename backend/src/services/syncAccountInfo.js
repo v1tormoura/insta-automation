@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const Account = require('../models/Account');
 const { extractInstagramProfileStats } = require('../utils/instagramProfileStats');
+const traduzirErro = require('../utils/traduzirErro');
 const https = require('https');
 
 puppeteer.use(StealthPlugin());
@@ -449,7 +450,7 @@ async function syncAccountInfo(accountId) {
   } catch (err) {
     account.status = 'erro';
     account.healthStatus = 'restrita';
-    account.lastError = err.message;
+    account.lastError = traduzirErro(err.message);
     account.isBusy = false;
     account.busyReason = '';
     account.busySince = null;

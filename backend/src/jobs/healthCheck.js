@@ -99,23 +99,40 @@ async function checkViaGraphAPI(account) {
     const data = await res.json();
 
     if (data.error) {
-      const code   = data.error.code;
-      const errMsg = data.error.message || '';
+      const code    = data.error.code;
+      const subcode = data.error.error_subcode || 0;
+      const errMsg  = data.error.message || '';
 
       // Conta banida/desativada
-      if (/disabled|banned|violat/i.test(errMsg) || code === 326) {
-        return { status: 'banida', error: errMsg };
+      if (/disabled|banned|violat/i.test(errMsg) || code === 326 || subcode === 458) {
+        return { status: 'banida', error: 'Conta banida ou desativada pelo Instagram' };
       }
-      // Token inválido
-      if (code === 190 || data.error.type === 'OAuthException' || /token.*invalid|invalid.*token/i.test(errMsg)) {
-        return { status: 'sessao_expirada', error: `Token inválido (code ${code})` };
+      // Token inválido / sessão expirada / app precisa de re-login
+      if (
+        code === 190 ||
+        data.error.type === 'OAuthException' ||
+        /token.*invalid|invalid.*token|token.*expired|expired.*token/i.test(errMsg) ||
+        /cannot access.*app|log in to .*instagram|follow the instructions/i.test(errMsg) ||
+        /session.*invalid|session.*expired|user.*logged.*out/i.test(errMsg) ||
+        subcode === 460 || subcode === 463 || subcode === 467
+      ) {
+        const subcodeMsg = subcode === 460 ? 'Senha alterada'
+          : subcode === 463 ? 'Sessão encerrada'
+          : subcode === 467 ? 'Permissão revogada'
+          : 'Sessão expirada';
+        return { status: 'sessao_expirada', error: `${subcodeMsg} — reconecte via 🔗 API` };
       }
-      // Restrita
-      if (/checkpoint|feedback_required|spam/i.test(errMsg)) {
-        return { status: 'restrita', error: errMsg };
+      // Restrita / checkpoint
+      if (/checkpoint|feedback_required|spam|action_blocked/i.test(errMsg)) {
+        return { status: 'restrita', error: 'Conta restrita ou com checkpoint pendente' };
       }
 
-      return { status: null, error: errMsg }; // erro transitório
+      // Qualquer outro erro OAuth → sessão expirada (conservador)
+      if (data.error.type === 'OAuthException' || code === 190) {
+        return { status: 'sessao_expirada', error: `Erro de autenticação (code ${code}) — reconecte via 🔗 API` };
+      }
+
+      return { status: null, error: `Erro da API (code ${code})` }; // erro transitório
     }
 
     if (data.id) {
@@ -164,13 +181,23 @@ async function checkViaPrivateAPI(account) {
  * Roda o health check em uma conta.
  */
 async function checkOneAccount(account) {
+  // Recarrega do DB para usar sempre o token mais recente (evita race com OAuth)
+  const fresh = await Account.findById(account._id)
+    .select('username _id accessToken igSession healthStatus status lastError lastSync');
+  if (!fresh) return;
+
+  // Pula verificação se a conta foi sincronizada nos últimos 2 minutos
+  // (evita sobrescrever um OAuth recém-conectado com resultado de token antigo)
+  const twoMinAgo = Date.now() - 2 * 60 * 1000;
+  if (fresh.lastSync && new Date(fresh.lastSync).getTime() > twoMinAgo) return;
+
   let result = { status: null, error: '' };
 
   // Prioridade: Graph API (token OAuth) → Private API (igSession)
-  if (account.accessToken) {
-    result = await checkViaGraphAPI(account);
-  } else if (account.igSession) {
-    result = await checkViaPrivateAPI(account);
+  if (fresh.accessToken) {
+    result = await checkViaGraphAPI(fresh);
+  } else if (fresh.igSession) {
+    result = await checkViaPrivateAPI(fresh);
   } else {
     return; // sem credenciais — nada a checar
   }
@@ -178,7 +205,7 @@ async function checkOneAccount(account) {
   // Só atualiza se houve mudança real de status
   if (!result.status) return; // erro transitório — mantém status atual
 
-  const currentStatus = account.healthStatus || 'ativa';
+  const currentStatus = fresh.healthStatus || 'ativa';
   if (result.status === currentStatus && !result.error) return;
 
   const update = {
@@ -190,22 +217,22 @@ async function checkOneAccount(account) {
   // Se banida, marca status principal também
   if (result.status === 'banida') {
     update.status = 'banida';
-    console.log(`🚫 [HealthCheck] @${account.username} — BANIDA/DESATIVADA`);
+    console.log(`🚫 [HealthCheck] @${fresh.username} — BANIDA/DESATIVADA`);
   } else if (result.status === 'sessao_expirada') {
-    console.log(`⚠️ [HealthCheck] @${account.username} — sessão expirada`);
+    console.log(`⚠️ [HealthCheck] @${fresh.username} — sessão expirada`);
   } else if (result.status === 'restrita') {
-    console.log(`⚠️ [HealthCheck] @${account.username} — restrita/checkpoint`);
+    console.log(`⚠️ [HealthCheck] @${fresh.username} — restrita/checkpoint`);
   } else if (result.status === 'ativa' && currentStatus !== 'ativa') {
-    console.log(`✅ [HealthCheck] @${account.username} — recuperada (era ${currentStatus})`);
+    console.log(`✅ [HealthCheck] @${fresh.username} — recuperada (era ${currentStatus})`);
   }
 
-  await Account.findByIdAndUpdate(account._id, update);
+  await Account.findByIdAndUpdate(fresh._id, update);
 
   // Emite SSE em tempo real para o frontend
   broadcast('accounts', {
     action:      'health_update',
-    accountId:   String(account._id),
-    username:    account.username,
+    accountId:   String(fresh._id),
+    username:    fresh.username,
     healthStatus: result.status,
     error:       result.error || '',
   });
@@ -254,11 +281,11 @@ async function runHealthCheck() {
 }
 
 function startHealthCheck() {
-  // Primeira execução: 1 minuto após o servidor subir
-  setTimeout(runHealthCheck, 60_000);
-  // Depois: a cada 10 minutos
-  setInterval(runHealthCheck, 10 * 60 * 1000);
-  console.log('🩺 [HealthCheck] Agendado — primeira em 1min, depois a cada 10min');
+  // Primeira execução: 30s após o servidor subir
+  setTimeout(runHealthCheck, 30_000);
+  // Depois: a cada 5 minutos
+  setInterval(runHealthCheck, 5 * 60 * 1000);
+  console.log('🩺 [HealthCheck] Agendado — primeira em 30s, depois a cada 5min');
 }
 
 module.exports = { startHealthCheck, runHealthCheck, classifyError };

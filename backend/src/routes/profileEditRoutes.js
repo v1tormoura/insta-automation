@@ -4,6 +4,7 @@ const router  = require('express').Router();
 const multer  = require('multer');
 const Account = require('../models/Account');
 const { editProfile, bulkEditProfiles } = require('../services/profileEditService');
+const { broadcast } = require('../events/broadcaster');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -35,12 +36,14 @@ router.post('/bulk', upload.single('photo'), async (req, res) => {
   const jobId = newJobId();
   _jobs.set(jobId, { status: 'running', startedAt: new Date(), results: [], total: edits.length });
 
-  bulkEditProfiles(enrichedEdits, { delayBetween })
+  bulkEditProfiles(enrichedEdits, { delayBetween, jobId })
     .then(results => {
       _jobs.set(jobId, { status: 'done', startedAt: _jobs.get(jobId).startedAt, finishedAt: new Date(), results, total: edits.length });
+      broadcast('profile_edit', { jobId, status: 'done', total: edits.length, results });
     })
     .catch(err => {
       _jobs.set(jobId, { ..._jobs.get(jobId), status: 'error', error: err.message });
+      broadcast('profile_edit', { jobId, status: 'error', error: err.message });
     });
 
   res.json({ jobId, status: 'running', total: edits.length, message: 'Job iniciado em background' });
@@ -70,20 +73,29 @@ router.post('/:id', upload.single('photo'), async (req, res) => {
   }
 
   const body = {
-    fullName:        req.body.fullName,
-    biography:       req.body.biography,
-    gender:          req.body.gender !== undefined ? Number(req.body.gender) : undefined,
-    profilePicUrl:   req.body.profilePicUrl,
+    fullName:         req.body.fullName,
+    biography:        req.body.biography,
+    gender:           req.body.gender !== undefined ? Number(req.body.gender) : undefined,
+    profilePicUrl:    req.body.profilePicUrl,
     profilePicBuffer: req.file ? req.file.buffer : undefined,
-    customGender:    req.body.customGender,
+    customGender:     req.body.customGender,
   };
 
-  try {
-    const result = await editProfile(account, body);
-    res.json({ username: account.username, status: 'ok', ...result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const jobId = newJobId();
+  _jobs.set(jobId, { status: 'running', startedAt: new Date(), username: account.username });
+
+  // Responde imediatamente — processamento em background
+  res.json({ jobId, status: 'running', username: account.username });
+
+  editProfile(account, body)
+    .then(result => {
+      _jobs.set(jobId, { status: 'done', startedAt: _jobs.get(jobId).startedAt, finishedAt: new Date(), username: account.username, ...result });
+      broadcast('profile_edit', { jobId, status: 'done', username: account.username, ...result });
+    })
+    .catch(err => {
+      _jobs.set(jobId, { ..._jobs.get(jobId), status: 'error', error: err.message });
+      broadcast('profile_edit', { jobId, status: 'error', username: account.username, error: err.message });
+    });
 });
 
 module.exports = router;

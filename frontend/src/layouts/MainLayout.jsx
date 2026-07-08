@@ -19,6 +19,8 @@ const ICONS = {
   health:    ic(<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>),
   proxies:   ic(<><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></>),
   legends:   ic(<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>),
+  loop:      ic(<><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
+  topposts:  ic(<><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 3z"/></>),
   logs:      ic(<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></>),
   settings:  ic(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>),
   chevron:   ic(<path d="M15 18l-6-6 6-6"/>, 14),
@@ -26,31 +28,41 @@ const ICONS = {
 
 const NAV_GROUPS = [
   {
-    title: 'Visão Geral',
+    title: '',
     items: [
-      { to: '/', label: 'Painel', icon: ICONS.dashboard },
-      { to: '/posts', label: 'Postagens', icon: ICONS.posts },
-      { to: '/accounts', label: 'Contas', icon: ICONS.accounts },
+      { to: '/', label: 'Dashboard', icon: ICONS.dashboard },
+    ],
+  },
+  {
+    title: 'Publicação',
+    items: [
+      { to: '/posts',     label: 'Postar',       icon: ICONS.posts },
+      { to: '/loop',      label: 'Loop',         icon: ICONS.loop },
+      { to: '/stories',   label: 'Stories',      icon: ICONS.stories },
+      { to: '/scheduler', label: 'Agendamentos', icon: ICONS.scheduler },
+    ],
+  },
+  {
+    title: 'Conteúdo',
+    items: [
       { to: '/media-library', label: 'Biblioteca', icon: ICONS.media },
-      { to: '/scheduler', label: 'Agendador', icon: ICONS.scheduler },
-      { to: '/stories', label: 'Stories', icon: ICONS.stories },
+      { to: '/legends',       label: 'Legendas',   icon: ICONS.legends },
+      { to: '/top-posts',     label: 'Top Posts',  icon: ICONS.topposts },
     ],
   },
   {
-    title: 'Operação',
+    title: 'Configuração',
     items: [
-      { to: '/warmup', label: 'Aquecimento', icon: ICONS.warmup },
-      { to: '/sessions', label: 'Sessões', icon: ICONS.sessions },
-      { to: '/health', label: 'Saúde', icon: ICONS.health },
-      { to: '/proxies', label: 'Proxies', icon: ICONS.proxies },
-      { to: '/legends', label: 'Legendas', icon: ICONS.legends },
+      { to: '/accounts', label: 'Contas',         icon: ICONS.accounts },
+      { to: '/health',   label: 'Saúde',          icon: ICONS.health },
+      { to: '/proxies',  label: 'Proxies',        icon: ICONS.proxies },
+      { to: '/settings', label: 'Configurações',  icon: ICONS.settings },
     ],
   },
   {
-    title: 'Sistema',
+    title: 'Admin',
     items: [
-      { to: '/logs', label: 'Registros', icon: ICONS.logs },
-      { to: '/settings', label: 'Configurações', icon: ICONS.settings },
+      { to: '/logs', label: 'Histórico', icon: ICONS.logs },
     ],
   },
 ];
@@ -80,7 +92,9 @@ export default function MainLayout({ children }) {
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' open' : ''}`}>
         {/* Brand */}
         <div className="sb-brand">
-          <div className="sb-logo" style={{ fontSize: 18 }}>⚡</div>
+          <div className="sb-logo" style={{ padding: 0, overflow: 'hidden', background: 'none', border: 'none' }}>
+            <img src="/instaflow-app-icon.svg" alt="logo" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          </div>
           <div className="sb-brand-text">
             <strong>InstaFlow</strong>
             <span>Automação Pro</span>

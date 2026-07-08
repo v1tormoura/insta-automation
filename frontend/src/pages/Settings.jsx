@@ -33,7 +33,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="grid-2">
         {/* Headless toggle */}
         <div className="card">
           <div className="card-header"><h3>Automação</h3></div>

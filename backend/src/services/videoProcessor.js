@@ -54,11 +54,22 @@ function convertToReelFormat(inputPath, options = {}) {
 
     const filename = path.basename(inputPath, path.extname(inputPath));
     const quality = options.quality || 'high'; // 'high' | 'max' | 'fast'
-    const suffix = quality === 'max' ? '-reel-max' : quality === 'fast' ? '-reel-fast' : '-reel-hq';
+    const processMode = options.processMode || 'sem_limpeza'; // 'sem_limpeza' | 'limpeza_leve' | 'ultra_clean'
+
+    // limpeza/ultra geram arquivo único por publicação (sem cache) para garantir hash diferente
+    let suffix;
+    if (processMode === 'limpeza_leve') {
+      suffix = `-reel-clean-${Date.now().toString(36).slice(-5)}`;
+    } else if (processMode === 'ultra_clean') {
+      suffix = `-reel-ultra-${Date.now().toString(36).slice(-5)}`;
+    } else {
+      suffix = quality === 'max' ? '-reel-max' : quality === 'fast' ? '-reel-fast' : '-reel-hq';
+    }
+
     const outputPath = path.join(outputDir, `${filename}${suffix}.mp4`);
 
-    // Se já convertido, reaproveita
-    if (fs.existsSync(outputPath)) {
+    // Cache apenas para sem_limpeza
+    if (processMode === 'sem_limpeza' && fs.existsSync(outputPath)) {
       console.log(`♻️ Reutilizando vídeo já convertido: ${path.basename(outputPath)}`);
       return resolve(outputPath);
     }
@@ -94,9 +105,6 @@ function convertToReelFormat(inputPath, options = {}) {
     };
 
     const cfg = configs[quality] || configs.high;
-    console.log(`🎬 Convertendo vídeo [${cfg.description}]...`);
-    console.log(`   Entrada: ${path.basename(inputPath)} (${w}×${h})`);
-    console.log(`   Saída: ${path.basename(outputPath)}`);
 
     // Filtro de escala: preserva conteúdo original, faz pad se necessário
     // Para vídeos vertical já em 9:16, evita crop agressivo
@@ -108,6 +116,24 @@ function convertToReelFormat(inputPath, options = {}) {
       // Converte para 9:16 com crop centrado (padrão Reels)
       scaleFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
     }
+
+    // Ultra clean: micro-variação de brilho garante hash de pixel único por publicação
+    if (processMode === 'ultra_clean') {
+      const micro = (Math.random() * 0.004 + 0.001).toFixed(5);
+      scaleFilter += `,eq=brightness=${micro}`;
+    }
+
+    const modeLabel = processMode === 'limpeza_leve' ? ' [Limpeza Leve]'
+                    : processMode === 'ultra_clean'  ? ' [Ultra Clean]'
+                    : '';
+    console.log(`🎬 Convertendo vídeo [${cfg.description}]${modeLabel}...`);
+    console.log(`   Entrada: ${path.basename(inputPath)} (${w}×${h})`);
+    console.log(`   Saída: ${path.basename(outputPath)}`);
+
+    // limpeza_leve e ultra_clean removem todos os metadados do container
+    const metadataOpts = (processMode === 'limpeza_leve' || processMode === 'ultra_clean')
+      ? ['-map_metadata', '-1']
+      : [];
 
     ffmpeg(inputPath)
       .outputOptions([
@@ -126,6 +152,7 @@ function convertToReelFormat(inputPath, options = {}) {
         '-metadata:s:v:0', 'rotate=0', // Força orientação correta
         '-avoid_negative_ts', 'make_zero',
         '-max_muxing_queue_size', '9999',
+        ...metadataOpts,
       ])
       .on('start', cmd => console.log(`   FFmpeg: ${cmd.slice(0, 120)}...`))
       .on('progress', p => {

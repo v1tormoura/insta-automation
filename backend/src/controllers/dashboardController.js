@@ -3,6 +3,7 @@ const path = require('path');
 const Growth = require('../models/Growth');
 const Account = require('../models/Account');
 const Post = require('../models/Post');
+const mongoose = require('mongoose');
 
 function startOfDay() {
   const d = new Date();
@@ -124,6 +125,15 @@ exports.getDashboard = async (req, res) => {
 
     const queueTotal = scheduledPosts + processingPosts + pendingPosts;
 
+    const accountsAddedToday = accounts.filter(a => new Date(a.createdAt) >= today).length;
+    const accountsAdded7d    = accounts.filter(a => new Date(a.createdAt) >= sevenDaysAgo).length;
+    const accountsAdded30d   = accounts.filter(a => new Date(a.createdAt) >= thirtyDaysAgo).length;
+
+    const problemStatuses = ['banida', 'sessao_expirada', 'restrita', 'erro_login'];
+    const problemsToday = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= today).length;
+    const problems7d    = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= sevenDaysAgo).length;
+    const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;
+
     const upcomingPosts = await Post.find({
       status: 'agendado',
       scheduledAt: { $gte: new Date() },
@@ -149,8 +159,11 @@ exports.getDashboard = async (req, res) => {
         _id: a._id,
         username: a.username,
         followers: a.followers || 0,
+        following: a.following || 0,
+        postsCount: a.postsCount || 0,
         healthStatus: a.healthStatus,
         avatar: a.avatar || '',
+        healthScore: calcHealthScore(a),
       }));
 
     const worstAccounts = [...accounts]
@@ -173,22 +186,30 @@ exports.getDashboard = async (req, res) => {
     const activities = [];
 
     latestPosts.forEach((post) => {
+      const accountName = post.accounts?.[0]?.username || '';
+      const typeLabel   = post.postType === 'reel' ? 'Reel' : post.postType === 'story' ? 'Story' : 'Post';
+      const statusLabel = { concluido: 'publicado', erro: 'com erro', pendente: 'na fila', processando: 'processando', agendado: 'agendado', parcial: 'parcial' }[post.status] || post.status;
       activities.push({
-        type: 'post',
-        status: post.status,
-        text: `${post.postType === 'reel' ? 'Reel' : 'Post'} ${post.status}`,
-        date: post.updatedAt || post.createdAt,
+        type:     'post',
+        action:   `${typeLabel} ${statusLabel}`,
+        status:   post.status,
+        account:  accountName,
+        postType: post.postType || 'post',
+        caption:  (post.caption || '').slice(0, 50),
+        date:     post.updatedAt || post.createdAt,
       });
     });
 
     accounts.slice(0, 10).forEach((account) => {
+      const statusLabel = { ativa: 'conectada', banida: 'banida', restrita: 'restrita', sessao_expirada: 'sessão expirada', erro_login: 'erro de login' }[account.healthStatus] || account.healthStatus;
       activities.push({
-        type: 'account',
-        status: account.healthStatus || 'ativa',
-        text: `Conta @${account.username}`,
-        date: account.updatedAt,
-        avatar: account.avatar || '',
+        type:     'account',
+        action:   `Conta ${statusLabel}`,
+        status:   account.healthStatus || 'ativa',
+        account:  account.username,
+        avatar:   account.avatar || '',
         username: account.username,
+        date:     account.updatedAt,
       });
     });
 
@@ -282,6 +303,13 @@ exports.getDashboard = async (req, res) => {
       activities: activities.slice(0, 20),
       dailyPosts,
 
+      accountsAddedToday,
+      accountsAdded7d,
+      accountsAdded30d,
+      problemsToday,
+      problems7d,
+      problems30d,
+
       system: {
         backend: true,
         mongo: true,
@@ -294,5 +322,86 @@ exports.getDashboard = async (req, res) => {
     res.status(500).json({
       error: err.message,
     });
+  }
+};
+
+exports.getAccountStats = async (req, res) => {
+  try {
+    const today        = startOfDay();
+    const sevenDaysAgo = daysAgo(7);
+    const thirtyDaysAgo = daysAgo(30);
+
+    const accounts = await Account.find()
+      .select('username avatar followers following postsCount healthStatus accessToken tokenExpiresAt igUserId lastSync lastPostAt updatedAt createdAt')
+      .lean();
+
+    const [successAgg, failureAgg, growthAgg] = await Promise.all([
+      Post.aggregate([
+        { $match: { updatedAt: { $gte: thirtyDaysAgo }, status: { $in: ['concluido', 'parcial'] } } },
+        { $unwind: '$accounts' },
+        { $group: {
+          _id: '$accounts',
+          posts30d:   { $sum: 1 },
+          postsToday: { $sum: { $cond: [{ $gte: ['$updatedAt', today]        }, 1, 0] } },
+          posts7d:    { $sum: { $cond: [{ $gte: ['$updatedAt', sevenDaysAgo] }, 1, 0] } },
+        }},
+      ]),
+      Post.aggregate([
+        { $match: { updatedAt: { $gte: thirtyDaysAgo }, status: 'erro' } },
+        { $unwind: '$accounts' },
+        { $group: {
+          _id: '$accounts',
+          failures30d:   { $sum: 1 },
+          failuresToday: { $sum: { $cond: [{ $gte: ['$updatedAt', today]        }, 1, 0] } },
+          failures7d:    { $sum: { $cond: [{ $gte: ['$updatedAt', sevenDaysAgo] }, 1, 0] } },
+        }},
+      ]),
+      Growth.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $sort: { createdAt: 1 } },
+        { $group: { _id: '$account', first: { $first: '$followers' }, last: { $last: '$followers' } } },
+      ]),
+    ]);
+
+    const successMap = {};  successAgg.forEach(s  => { successMap[String(s._id)]  = s; });
+    const failureMap = {};  failureAgg.forEach(f  => { failureMap[String(f._id)]  = f; });
+    const growthMap  = {};  growthAgg.forEach(g   => { growthMap[String(g._id)]   = (g.last || 0) - (g.first || 0); });
+
+    const now = new Date();
+    const result = accounts.map(acc => {
+      const id = String(acc._id);
+      const s  = successMap[id] || {};
+      const f  = failureMap[id] || {};
+      const postsToday    = s.postsToday    || 0;
+      const posts7d       = s.posts7d       || 0;
+      const posts30d      = s.posts30d      || 0;
+      const failuresToday = f.failuresToday || 0;
+      const failures7d    = f.failures7d    || 0;
+      const failures30d   = f.failures30d   || 0;
+      const successRate   = (posts30d + failures30d) > 0
+        ? Math.round(posts30d / (posts30d + failures30d) * 100) : 0;
+      const growth30d = growthMap[id] || 0;
+
+      let status = 'ativa';
+      if      (acc.healthStatus === 'banida')          status = 'banida';
+      else if (acc.healthStatus === 'sessao_expirada') status = 'token_expired';
+      else if (acc.healthStatus === 'erro_login')      status = 'token_expired';
+      else if (acc.healthStatus === 'restrita')        status = 'restrita';
+      else if (acc.accessToken && acc.tokenExpiresAt && new Date(acc.tokenExpiresAt) < now) status = 'token_expired';
+      else if (acc.accessToken && acc.igUserId)        status = 'connected';
+
+      return {
+        _id: id, username: acc.username, avatar: acc.avatar || '',
+        followers: acc.followers || 0, following: acc.following || 0, postsCount: acc.postsCount || 0,
+        postsToday, posts7d, posts30d, failuresToday, failures7d, failures30d, successRate, growth30d,
+        status, healthStatus: acc.healthStatus,
+        lastSync: acc.lastSync || acc.lastPostAt || null,
+      };
+    });
+
+    result.sort((a, b) => b.posts30d - a.posts30d);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
