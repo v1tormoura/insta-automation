@@ -12,6 +12,7 @@ const { startHealthCheck } = require('./jobs/healthCheck');
 const { startLoopJob }    = require('./jobs/loopJob');
 const { startInsightAutoSync } = require('./services/insightSyncService');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
+const auth = require('./middleware/auth');
 const app = express();
 
 connectDB();
@@ -46,25 +47,29 @@ app.get('/image-proxy', async (req, res) => {
 
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
-app.use('/events', require('./routes/eventsRoutes'));
-app.use('/dashboard', dashboardRoutes);
-app.use('/logs', require('./routes/logRoutes'));
-app.use('/settings', require('./routes/settingsRoutes'));
-app.use('/sessions', require('./routes/sessionRoutes'));
-app.use('/health', require('./routes/healthRoutes'));
 
-app.use('/accounts', require('./routes/accountRoutes'));
+// Rotas públicas — sem autenticação
+app.use('/uploads', express.static('uploads'));
+app.use('/auth', require('./routes/authRoutes'));
 app.use('/api/oauth', require('./routes/oauthRoutes'));
 app.use('/oauth', require('./routes/oauthRoutes'));
-app.use('/posts', require('./routes/postRoutes'));
-app.use('/legends', require('./routes/legendRoutes'));
-app.use('/media', require('./routes/mediaRoutes'));
-app.use('/api/stories', require('./routes/storyRoutes'));
-app.use('/warmup', require('./routes/warmupRoutes'));
-app.use('/loops',  require('./routes/loopRoutes'));
-app.use('/profile-edit', require('./routes/profileEditRoutes'));
-app.use('/insights', require('./routes/insightRoutes'));
+
+// Todas as rotas abaixo exigem JWT
+app.use('/events',       auth, require('./routes/eventsRoutes'));
+app.use('/dashboard',    auth, dashboardRoutes);
+app.use('/logs',         auth, require('./routes/logRoutes'));
+app.use('/settings',     auth, require('./routes/settingsRoutes'));
+app.use('/sessions',     auth, require('./routes/sessionRoutes'));
+app.use('/health',       auth, require('./routes/healthRoutes'));
+app.use('/accounts',     auth, require('./routes/accountRoutes'));
+app.use('/posts',        auth, require('./routes/postRoutes'));
+app.use('/legends',      auth, require('./routes/legendRoutes'));
+app.use('/media',        auth, require('./routes/mediaRoutes'));
+app.use('/api/stories',  auth, require('./routes/storyRoutes'));
+app.use('/warmup',       auth, require('./routes/warmupRoutes'));
+app.use('/loops',        auth, require('./routes/loopRoutes'));
+app.use('/profile-edit', auth, require('./routes/profileEditRoutes'));
+app.use('/insights',     auth, require('./routes/insightRoutes'));
 
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);

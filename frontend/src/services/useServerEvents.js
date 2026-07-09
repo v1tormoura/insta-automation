@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { getToken } from './auth';
 
-const SSE_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/events`;
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /**
  * Escuta eventos SSE do backend com reconexão automática.
@@ -25,7 +26,8 @@ export function useServerEvents(events, callback, { retryMs = 2000 } = {}) {
       if (!aliveRef.current) return;
 
       try {
-        const es = new EventSource(SSE_BASE);
+        const token = getToken();
+        const es = new EventSource(`${API_BASE}/events${token ? `?token=${token}` : ''}`);
         esRef.current = es;
 
         // Registra handlers para cada evento
