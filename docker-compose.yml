@@ -63,6 +63,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+      - "3001:3001"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend
     networks:
