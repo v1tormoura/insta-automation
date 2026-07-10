@@ -138,6 +138,7 @@ export default function Accounts() {
   const [epLoading, setEpLoading]     = useState(false);
 
   const [epPassword, setEpPassword] = useState('');
+  const [epError,    setEpError]    = useState('');
 
   function openEditProfile(account) {
     setEditProfileModal(account);
@@ -146,15 +147,20 @@ export default function Accounts() {
     setEpGender(account.gender != null ? String(account.gender) : '');
     setEpPicFile(null);
     setEpPassword('');
+    setEpError('');
   }
 
   async function submitEditProfile() {
     if (!editProfileModal) return;
+    setEpError('');
     const hasText = epFullName.trim() || epBio.trim() !== '' || epGender !== '';
-    if (!hasText && !epPicFile) { showToast('error', 'Nenhuma alteração', 'Preencha pelo menos um campo ou selecione uma foto.'); return; }
+    if (!hasText && !epPicFile) { setEpError('Preencha pelo menos um campo ou selecione uma foto.'); return; }
+    if (!editProfileModal.hasPassword && !epPassword.trim()) {
+      setEpError('A senha do Instagram é obrigatória para editar o perfil via Private API.');
+      return;
+    }
     setEpLoading(true);
     try {
-      // Salva senha primeiro se foi fornecida
       if (epPassword.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/credentials`, { password: epPassword.trim() });
       }
@@ -164,10 +170,10 @@ export default function Accounts() {
       if (epGender !== '') form.append('gender', epGender);
       if (epPicFile) form.append('photo', epPicFile);
       await api.post(`/profile-edit/${editProfileModal._id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showToast('success', 'Editando em background', `@${editProfileModal.username} — atualizando perfil via API...`);
+      showToast('success', 'Editando em background', `@${editProfileModal.username} — atualizando perfil...`);
       setEditProfileModal(null);
     } catch (err) {
-      showToast('error', 'Erro ao editar', err.response?.data?.error || err.message);
+      setEpError(err.response?.data?.error || err.message || 'Erro desconhecido ao editar perfil.');
     } finally {
       setEpLoading(false);
     }
@@ -1676,6 +1682,13 @@ export default function Accounts() {
                   <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Necessária para editar via Private API. Salva automaticamente — só precisa digitar uma vez.</div>
                 )}
               </div>
+
+              {/* Erro inline */}
+              {epError && (
+                <div style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', borderRadius:8, padding:'10px 14px', color:'#f87171', fontSize:13, lineHeight:1.5 }}>
+                  ⚠️ {epError}
+                </div>
+              )}
 
               {/* Botões */}
               <div style={{ display:'flex', gap:10, marginTop:4 }}>
