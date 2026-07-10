@@ -311,7 +311,7 @@ export default function Accounts() {
       if (!trimmed.startsWith('http')) {
         const codeMatch = trimmed.match(/(?:^|[?&])code=([^&\s]+)/i);
         const code = codeMatch ? codeMatch[1] : trimmed.replace(/\s/g, '');
-        pastedUrl = `https://localhost:3000/api/oauth/callback?code=${encodeURIComponent(code)}&state=${accountId}`;
+        pastedUrl = `${API_BASE}/api/oauth/callback?code=${encodeURIComponent(code)}&state=${accountId}`;
       }
       const res = await api.post(`/oauth/connect/${accountId}`, { pastedUrl });
       setOauthResult({ success: true, message: res.data.message });
@@ -1414,13 +1414,13 @@ export default function Accounts() {
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10, lineHeight: 1.6 }}>
                     Na página de erro, <strong>copie a URL completa</strong> da barra de endereços
-                    (começa com <code style={{ background: 'var(--card2)', padding: '1px 4px', borderRadius: 3 }}>localhost:3000...?code=</code>)
+                    (começa com <code style={{ background: 'var(--card2)', padding: '1px 4px', borderRadius: 3 }}>instaflow.pro:3001...?code=</code>)
                     e cole abaixo. Pode colar também só o valor do <code style={{ background: 'var(--card2)', padding: '1px 4px', borderRadius: 3 }}>code=</code>.
                   </div>
                   <textarea
                     className="txta"
                     rows={3}
-                    placeholder="https://localhost:3000/api/oauth/callback?code=AQC... ou só o código"
+                    placeholder="https://instaflow.pro:3001/api/oauth/callback?code=AQC... ou só o código"
                     value={oauthPasted}
                     onChange={e => setOauthPasted(e.target.value)}
                     style={{ fontSize: 12 }}
