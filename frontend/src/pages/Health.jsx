@@ -92,27 +92,59 @@ function AccountCard({ account }) {
         </div>
       </div>
 
-      {/* ── Token de acesso ── */}
-      <div style={{ padding: '0 18px 12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-          <span style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}>Token de acesso</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: account.tokenDaysLeft !== null ? tokenColor : '#334155' }}>
-            {account.tokenDaysLeft === null ? 'Sem token' :
-             account.tokenDaysLeft <= 0    ? 'Expirado' :
-             `${account.tokenDaysLeft} dias restantes`}
-          </span>
-        </div>
-        <div style={{ height: 3, background: 'rgba(51,65,85,.5)', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%',
-            width: `${tokenPct}%`,
-            borderRadius: 3,
-            background: `linear-gradient(90deg, ${tokenColor}99, ${tokenColor})`,
-            boxShadow: tokenPct > 0 ? `0 0 8px ${tokenColor}66` : 'none',
-            transition: 'width .4s ease',
-          }} />
-        </div>
+      {/* ── Status de conexão API ── */}
+      <div style={{ padding: '0 18px 14px', display: 'flex', gap: 8 }}>
+        {account.hasApiToken ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.25)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', flexShrink: 0, display: 'inline-block' }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>API Conectada</div>
+              <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>
+                {account.healthStatus === 'token_invalido'
+                  ? 'Token expirado — reconecte'
+                  : account.tokenDaysLeft !== null
+                    ? `Token válido · ${account.tokenDaysLeft} dias restantes`
+                    : 'Meta API ativa'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#f87171' }}>API Desconectada</div>
+              <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>Conecte via 🔗 Contas → Conectar via API</div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ── Token de acesso (barra de progresso) ── */}
+      {account.hasApiToken && (
+        <div style={{ padding: '0 18px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}>Validade do token</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: account.healthStatus === 'token_invalido' ? '#ef4444' : tokenColor }}>
+              {account.healthStatus === 'token_invalido' ? 'Expirado / inválido' :
+               account.tokenDaysLeft === null ? 'Sem data' :
+               account.tokenDaysLeft <= 0    ? 'Expirado' :
+               `${account.tokenDaysLeft} dias`}
+            </span>
+          </div>
+          <div style={{ height: 3, background: 'rgba(51,65,85,.5)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: account.healthStatus === 'token_invalido' ? '100%' : `${tokenPct}%`,
+              borderRadius: 3,
+              background: account.healthStatus === 'token_invalido'
+                ? 'linear-gradient(90deg, #ef444499, #ef4444)'
+                : `linear-gradient(90deg, ${tokenColor}99, ${tokenColor})`,
+              boxShadow: tokenPct > 0 ? `0 0 8px ${tokenColor}66` : 'none',
+              transition: 'width .4s ease',
+            }} />
+          </div>
+        </div>
+      )}
 
       {/* ── Separador ── */}
       <div style={{ height: 1, background: 'rgba(51,65,85,.3)', margin: '0 18px' }} />
