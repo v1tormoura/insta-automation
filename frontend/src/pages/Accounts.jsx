@@ -676,11 +676,13 @@ export default function Accounts() {
   function healthLabel(s) {
     if (s === 'restrita') return 'Restrita';
     if (s === 'banida') return 'Banida';
+    if (s === 'token_invalido') return 'Reconectar';
     return 'Saudável';
   }
   function healthBadge(s) {
     if (s === 'restrita') return 'badge-amber';
     if (s === 'banida') return 'badge-red';
+    if (s === 'token_invalido') return 'badge-red';
     return 'badge-green';
   }
 
@@ -796,7 +798,7 @@ export default function Accounts() {
 
         {/* Rows */}
         {filteredAccounts.map((account, ri) => {
-          const hc = { restrita:'#f59e0b', banida:'#ef4444' }[account.healthStatus] || '#10b981';
+          const hc = { restrita:'#f59e0b', banida:'#ef4444', token_invalido:'#ef4444' }[account.healthStatus] || '#10b981';
           const hl = healthLabel(account.healthStatus || 'ativa');
           return (
             <div key={account._id} style={{
@@ -871,9 +873,14 @@ export default function Accounts() {
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                 {account.igUserId ? (
                   <>
-                    <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
-                      title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar perfil do Instagram">✏️ Editar</button>
+                    {account.healthStatus === 'token_invalido' ? (
+                      <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)' }}
+                        onClick={() => openOauthModal(account)} title="Token expirado — clique para reconectar">🔄 Reconectar</button>
+                    ) : (
+                      <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
+                        title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
+                    )}
+                    <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Credenciais da conta">✏️ Editar</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                     <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }} onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
                     <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>

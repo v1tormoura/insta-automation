@@ -147,21 +147,56 @@ async function checkInstagramProfile(username) {
 }
 
 /**
+ * Valida o token OAuth da conta chamando /me na Graph API.
+ * Retorna true se válido, false se expirado/inválido.
+ */
+async function validateOAuthToken(account) {
+  if (!account.accessToken || !account.igUserId) return null; // sem token OAuth
+  try {
+    const res = await fetch(
+      `https://graph.instagram.com/v21.0/me?fields=id&access_token=${account.accessToken}`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    const data = await res.json();
+    if (data.error) {
+      console.log(`🔑 [TokenCheck] @${account.username} — token inválido: ${data.error.message}`);
+      return false;
+    }
+    return true;
+  } catch {
+    return null; // timeout ou erro de rede — não muda o status
+  }
+}
+
+/**
  * Verifica e atualiza o healthStatus de uma conta no banco.
- * Só atualiza se detectar algo definitivo (banida/restrita) ou se estava marcada errada.
- *
- * @param {Object} account - documento Account do Mongoose
- * @returns {Promise<{username, status, changed}>}
  */
 async function quickCheckAndUpdate(account) {
   const username = account.username;
   console.log(`🔍 [QuickCheck] Verificando @${username}...`);
 
-  const status = await checkInstagramProfile(username);
-  console.log(`🔍 [QuickCheck] @${username} → ${status}`);
-
   const now = new Date();
   let changed = false;
+
+  // 1. Valida token OAuth (detecta sessão expirada no Meta)
+  const tokenOk = await validateOAuthToken(account);
+  if (tokenOk === false && account.healthStatus !== 'token_invalido') {
+    await Account.findByIdAndUpdate(account._id, {
+      healthStatus: 'token_invalido',
+      lastError:    'Token OAuth expirado — reconecte a conta via API',
+      lastSync:      now,
+    });
+    console.log(`🔑 [QuickCheck] @${username} — TOKEN INVÁLIDO`);
+    return { username, status: 'token_invalido', changed: true };
+  }
+  if (tokenOk === true && account.healthStatus === 'token_invalido') {
+    await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '', lastSync: now });
+    return { username, status: 'ativa', changed: true };
+  }
+
+  // 2. Verifica ban/restrição via perfil público
+  const status = await checkInstagramProfile(username);
+  console.log(`🔍 [QuickCheck] @${username} → ${status}`);
 
   if (status === 'banida' && account.healthStatus !== 'banida') {
     await Account.findByIdAndUpdate(account._id, {
@@ -182,17 +217,11 @@ async function quickCheckAndUpdate(account) {
     console.log(`⚠️  [QuickCheck] @${username} — RESTRITA`);
 
   } else if (status === 'ativa' && account.healthStatus === 'banida') {
-    // Estava marcada como banida mas agora está ok — corrige
-    await Account.findByIdAndUpdate(account._id, {
-      healthStatus: 'ativa',
-      lastError:    '',
-      lastSync:      now,
-    });
+    await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '', lastSync: now });
     changed = true;
     console.log(`✅ [QuickCheck] @${username} — REATIVADA`);
 
   } else {
-    // Atualiza apenas o lastSync para indicar que foi checada
     await Account.findByIdAndUpdate(account._id, { lastSync: now });
   }
 
