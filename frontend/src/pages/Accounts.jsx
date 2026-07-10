@@ -130,23 +130,14 @@ export default function Accounts() {
   }
 
   // Edit Profile modal
-  const [editProfileModal, setEditProfileModal] = useState(null); // account object
-  const [epFullName, setEpFullName]   = useState('');
-  const [epBio, setEpBio]             = useState('');
-  const [epGender, setEpGender]       = useState('');
-  const [epPicFile, setEpPicFile]     = useState(null);
+  const [editProfileModal, setEditProfileModal] = useState(null);
   const [epLoading, setEpLoading]     = useState(false);
-
   const [epPassword,   setEpPassword]   = useState('');
   const [epTotpSecret, setEpTotpSecret] = useState('');
   const [epError,      setEpError]      = useState('');
 
   function openEditProfile(account) {
     setEditProfileModal(account);
-    setEpFullName(account.fullName || '');
-    setEpBio(account.biography || '');
-    setEpGender(account.gender != null ? String(account.gender) : '');
-    setEpPicFile(null);
     setEpPassword('');
     setEpTotpSecret('');
     setEpError('');
@@ -155,10 +146,8 @@ export default function Accounts() {
   async function submitEditProfile() {
     if (!editProfileModal) return;
     setEpError('');
-    const hasText = epFullName.trim() || epBio.trim() !== '' || epGender !== '';
-    if (!hasText && !epPicFile) { setEpError('Preencha pelo menos um campo ou selecione uma foto.'); return; }
-    if (!editProfileModal.hasPassword && !epPassword.trim()) {
-      setEpError('A senha do Instagram é obrigatória para editar o perfil via Private API.');
+    if (!epPassword.trim() && !epTotpSecret.trim()) {
+      setEpError('Preencha pelo menos a senha ou a chave 2FA.');
       return;
     }
     setEpLoading(true);
@@ -169,16 +158,10 @@ export default function Accounts() {
       if (epTotpSecret.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/totp-secret`, { totpSecret: epTotpSecret.trim() });
       }
-      const form = new FormData();
-      if (epFullName.trim()) form.append('fullName', epFullName.trim());
-      if (epBio.trim() !== '') form.append('biography', epBio.trim());
-      if (epGender !== '') form.append('gender', epGender);
-      if (epPicFile) form.append('photo', epPicFile);
-      await api.post(`/profile-edit/${editProfileModal._id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showToast('success', 'Editando em background', `@${editProfileModal.username} — atualizando perfil...`);
+      showToast('success', 'Credenciais salvas', `@${editProfileModal.username} — senha e 2FA atualizados.`);
       setEditProfileModal(null);
     } catch (err) {
-      setEpError(err.response?.data?.error || err.message || 'Erro desconhecido ao editar perfil.');
+      setEpError(err.response?.data?.error || err.message || 'Erro ao salvar credenciais.');
     } finally {
       setEpLoading(false);
     }
@@ -1587,7 +1570,7 @@ export default function Accounts() {
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize:15, fontWeight:800, color:'#f1f5f9' }}>Editar Perfil</div>
+                  <div style={{ fontSize:15, fontWeight:800, color:'#f1f5f9' }}>Credenciais da conta</div>
                   <div style={{ fontSize:12, color:'#6366f1', marginTop:1 }}>@{editProfileModal.username}</div>
                 </div>
               </div>
@@ -1598,97 +1581,31 @@ export default function Accounts() {
 
               {/* Aviso */}
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:10, background:'rgba(99,102,241,.07)', border:'1px solid rgba(99,102,241,.18)' }}>
-                <span style={{ fontSize:16 }}>⚡</span>
-                <span style={{ fontSize:12, color:'#94a3b8' }}>Via <strong style={{ color:'#818cf8' }}>Private API</strong>. Campos vazios não serão alterados.</span>
+                <span style={{ fontSize:16 }}>🔑</span>
+                <span style={{ fontSize:12, color:'#94a3b8' }}>Salve a senha e a chave 2FA para que o sistema faça login automaticamente quando necessário.</span>
               </div>
 
-              {/* Nome + Bio lado a lado no topo */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Nome completo</label>
-                  <input value={epFullName} onChange={e => setEpFullName(e.target.value)} placeholder="Ex: Maria Silva"
-                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box', transition:'border .2s' }}
-                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
-                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
-                </div>
-                <div>
-                  <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Gênero</label>
-                  <select value={epGender} onChange={e => setEpGender(e.target.value)}
-                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color: epGender ? '#e2e8f0' : '#475569', outline:'none', cursor:'pointer' }}>
-                    <option value="">Não alterar</option>
-                    <option value="1">Masculino</option>
-                    <option value="2">Feminino</option>
-                    <option value="3">Não-binário</option>
-                    <option value="4">Prefiro não dizer</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Biografia */}
+              {/* Senha */}
               <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Biografia</label>
-                <textarea value={epBio} onChange={e => setEpBio(e.target.value)} placeholder="Ex: Criadora de conteúdo 🌸" rows={3}
-                  style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', transition:'border .2s' }}
-                  onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
-                  onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
-                <div style={{ fontSize:11, color:'#475569', textAlign:'right', marginTop:3 }}>{epBio.length}/150</div>
-              </div>
-
-              {/* Foto */}
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Nova foto de perfil</label>
-                <label style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'rgba(15,23,42,.6)', border:`1px dashed ${epPicFile ? 'rgba(99,102,241,.6)' : 'rgba(51,65,85,.6)'}`, borderRadius:10, cursor:'pointer', transition:'all .2s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor='rgba(99,102,241,.5)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = epPicFile ? 'rgba(99,102,241,.6)' : 'rgba(51,65,85,.6)'}>
-                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={e => setEpPicFile(e.target.files?.[0] || null)} />
-                  {epPicFile ? (
-                    <>
-                      <img src={URL.createObjectURL(epPicFile)} alt="" style={{ width:44, height:44, borderRadius:10, objectFit:'cover', border:'2px solid rgba(99,102,241,.4)', flexShrink:0 }} />
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:600, color:'#a5b4fc', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{epPicFile.name}</div>
-                        <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>{(epPicFile.size / 1024).toFixed(0)} KB · Clique para trocar</div>
-                      </div>
-                      <button type="button" onClick={e => { e.preventDefault(); setEpPicFile(null); }} style={{ fontSize:16, color:'#475569', background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:1 }}>×</button>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width:44, height:44, borderRadius:10, background:'rgba(99,102,241,.1)', border:'1px solid rgba(99,102,241,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>📷</div>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600, color:'#64748b' }}>Clique para fazer upload</div>
-                        <div style={{ fontSize:11, color:'#475569', marginTop:2 }}>JPG, PNG ou WEBP · máx. 10MB</div>
-                      </div>
-                    </>
-                  )}
-                </label>
-              </div>
-
-              {/* Senha — necessária para Private API (só pede uma vez) */}
-              <div>
-                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>
-                  Senha da conta
-                </label>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Senha da conta</label>
                 {editProfileModal?.hasPassword && !epPassword ? (
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
-                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva — não precisa digitar novamente</span>
+                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva</span>
                     <button type="button" onClick={() => setEpPassword(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
                   </div>
                 ) : (
-                  <input type="password" value={epPassword.trim() === '' && editProfileModal?.hasPassword ? '' : epPassword}
-                    onChange={e => setEpPassword(e.target.value)} placeholder="Digite a senha do Instagram"
+                  <input type="password" value={epPassword} onChange={e => setEpPassword(e.target.value)}
+                    placeholder="Digite a senha do Instagram" autoFocus
                     style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box', transition:'border .2s' }}
                     onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
-                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'}
-                    autoFocus={!editProfileModal?.hasPassword} />
-                )}
-                {!editProfileModal?.hasPassword && (
-                  <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Necessária para editar via Private API. Salva automaticamente — só precisa digitar uma vez.</div>
+                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
                 )}
               </div>
 
-              {/* Chave 2FA (TOTP) — opcional */}
+              {/* Chave 2FA */}
               <div>
                 <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>
-                  Chave 2FA (Autenticador) <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'#334155' }}>— opcional</span>
+                  Chave 2FA <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'#334155' }}>— opcional</span>
                 </label>
                 {editProfileModal?.hasTotpSecret && !epTotpSecret ? (
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
@@ -1696,19 +1613,13 @@ export default function Accounts() {
                     <button type="button" onClick={() => setEpTotpSecret(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
                   </div>
                 ) : (
-                  <input
-                    type="text"
-                    value={epTotpSecret.trim() === '' && editProfileModal?.hasTotpSecret ? '' : epTotpSecret}
-                    onChange={e => setEpTotpSecret(e.target.value)}
-                    placeholder="JBSWY3DPEHPK3PXP (chave secreta base32)"
+                  <input type="text" value={epTotpSecret} onChange={e => setEpTotpSecret(e.target.value)}
+                    placeholder="JBSWY3DPEHPK3PXP (base32)"
                     style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:12, color:'#e2e8f0', outline:'none', boxSizing:'border-box', fontFamily:'monospace' }}
                     onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
-                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'}
-                  />
+                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
                 )}
-                <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>
-                  Cole a chave secreta do seu app autenticador (Google Authenticator → ⋮ → Exportar → chave base32). O sistema gera o código 2FA automaticamente no login.
-                </div>
+                <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Cole a chave secreta base32 do Google Authenticator. O sistema gera o código 2FA sozinho no login.</div>
               </div>
 
               {/* Erro inline */}
@@ -1724,7 +1635,7 @@ export default function Accounts() {
                   Cancelar
                 </button>
                 <button onClick={submitEditProfile} disabled={epLoading} style={{ flex:2, padding:'10px', borderRadius:10, border:'none', background: epLoading ? 'rgba(99,102,241,.4)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', fontSize:13, fontWeight:700, cursor: epLoading ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxShadow: epLoading ? 'none' : '0 4px 16px rgba(99,102,241,.35)' }}>
-                  {epLoading ? <><span style={{ fontSize:16 }}>⏳</span> Salvando...</> : <><span style={{ fontSize:15 }}>✨</span> Salvar no Instagram</>}
+                  {epLoading ? <><span style={{ fontSize:16 }}>⏳</span> Salvando...</> : <><span style={{ fontSize:14 }}>🔑</span> Salvar credenciais</>}
                 </button>
               </div>
             </div>

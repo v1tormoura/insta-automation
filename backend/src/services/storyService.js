@@ -134,39 +134,33 @@ async function postStoryPrivateAPI(account, { imageUrl, imageBuffer, linkUrl }) 
  * @param {string} [options.linkText] - Texto da figurinha (padrão: "Clique Aqui")
  */
 async function postStory(account, options) {
-  // 1. Graph API (OAuth) — tenta para qualquer token OAuth (IGQ, EAA, IGAAL)
+  // 1. Graph API (OAuth) — conta conectada via Meta API
   if (account.accessToken && account.igUserId) {
-    try {
-      return await postStoryGraphAPI(account, options);
-    } catch (err) {
-      console.log(`⚠️  [Story] Graph API falhou (${err.message}) — tentando Private API...`);
-      // Cai para private API se graph falhar
-    }
+    // Para contas OAuth, Graph API é o método principal — não cai em Private API
+    return await postStoryGraphAPI(account, options);
   }
 
-  // 2. Sessão API privada salva (capturada após "Entrar" via browser)
+  // 2. Sessão API privada salva
   if (account.igSession) {
     return postStoryPrivateAPI(account, options);
   }
 
-  // 3. Private API com senha — cria sessão mobile real, suporta link stickers
+  // 3. Private API com senha
   if (account.password) {
     try {
       return await postStoryPrivateAPI(account, options);
     } catch (err) {
       console.log(`⚠️  [Story] Private API falhou (${err.message}) — tentando sessão web...`);
-      // Cai para sessão web se private API falhar (senha errada, checkpoint, etc.)
     }
   }
 
-  // 4. Sessão web (cookies.json) — HTTP puro, sem browser
-  //    LIMITAÇÃO: link sticker não funciona (www.instagram.com ignora)
+  // 4. Sessão web (cookies.json)
   if (hasPuppeteerSession(account.username)) {
     return await postStoryWebSession(account, options);
   }
 
   throw new Error(
-    `@${account.username}: sem sessão — adicione a senha via 🔑 Senha ou clique em "Entrar" para capturar a sessão`
+    `@${account.username}: conta não conectada via API — clique em "Conectar via API" na página de Contas`
   );
 }
 
