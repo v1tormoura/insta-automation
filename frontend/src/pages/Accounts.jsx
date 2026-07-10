@@ -895,6 +895,7 @@ export default function Accounts() {
                   <>
                     <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
                       title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar perfil do Instagram">✏️ Editar</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                     <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }} onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
                     <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
@@ -902,6 +903,7 @@ export default function Accounts() {
                 ) : (
                   <>
                     <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar perfil do Instagram">✏️ Editar</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                     <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
                   </>
