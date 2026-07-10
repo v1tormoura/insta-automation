@@ -44,11 +44,14 @@ exports.getDashboard = async (req, res) => {
     const accounts = await Account.find().sort({ updatedAt: -1 });
 
     const totalAccounts = accounts.length;
-    const activeAccounts = accounts.filter((a) => a.healthStatus === 'ativa').length;
+    const BAD = ['banida', 'restrita', 'token_invalido'];
+    const activeAccounts = accounts.filter((a) =>
+      a.healthStatus === 'ativa' ||
+      (a.accessToken && a.igUserId && !BAD.includes(a.healthStatus))
+    ).length;
     const restrictedAccounts = accounts.filter((a) => a.healthStatus === 'restrita').length;
-    const expiredSessions = accounts.filter((a) => a.healthStatus === 'sessao_expirada').length;
     const bannedAccounts = accounts.filter((a) => a.healthStatus === 'banida').length;
-    const loginErrorAccounts = accounts.filter((a) => a.healthStatus === 'erro_login').length;
+    const tokenInvalidAccounts = accounts.filter((a) => a.healthStatus === 'token_invalido').length;
     const busyAccounts = accounts.filter((a) => a.isBusy).length;
 
     const sessionsOk = accounts.filter((a) => hasSession(a.username)).length;
@@ -129,7 +132,7 @@ exports.getDashboard = async (req, res) => {
     const accountsAdded7d    = accounts.filter(a => new Date(a.createdAt) >= sevenDaysAgo).length;
     const accountsAdded30d   = accounts.filter(a => new Date(a.createdAt) >= thirtyDaysAgo).length;
 
-    const problemStatuses = ['banida', 'sessao_expirada', 'restrita', 'erro_login'];
+    const problemStatuses = ['banida', 'restrita', 'token_invalido'];
     const problemsToday = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= today).length;
     const problems7d    = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= sevenDaysAgo).length;
     const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;

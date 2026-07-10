@@ -107,7 +107,7 @@ async function checkViaGraphAPI(account) {
       if (/disabled|banned|violat/i.test(errMsg) || code === 326 || subcode === 458) {
         return { status: 'banida', error: 'Conta banida ou desativada pelo Instagram' };
       }
-      // Token inválido / sessão expirada / app precisa de re-login
+      // Token inválido / sessão encerrada — precisa reconectar via OAuth
       if (
         code === 190 ||
         data.error.type === 'OAuthException' ||
@@ -119,17 +119,17 @@ async function checkViaGraphAPI(account) {
         const subcodeMsg = subcode === 460 ? 'Senha alterada'
           : subcode === 463 ? 'Sessão encerrada'
           : subcode === 467 ? 'Permissão revogada'
-          : 'Sessão expirada';
-        return { status: 'sessao_expirada', error: `${subcodeMsg} — reconecte via 🔗 API` };
+          : 'Token expirado';
+        return { status: 'token_invalido', error: `${subcodeMsg} — reconecte via 🔗 API` };
       }
       // Restrita / checkpoint
       if (/checkpoint|feedback_required|spam|action_blocked/i.test(errMsg)) {
         return { status: 'restrita', error: 'Conta restrita ou com checkpoint pendente' };
       }
 
-      // Qualquer outro erro OAuth → sessão expirada (conservador)
-      if (data.error.type === 'OAuthException' || code === 190) {
-        return { status: 'sessao_expirada', error: `Erro de autenticação (code ${code}) — reconecte via 🔗 API` };
+      // Qualquer outro erro OAuth → token inválido (conservador)
+      if (data.error.type === 'OAuthException') {
+        return { status: 'token_invalido', error: `Erro de autenticação (code ${code}) — reconecte via 🔗 API` };
       }
 
       return { status: null, error: `Erro da API (code ${code})` }; // erro transitório
@@ -280,12 +280,51 @@ async function runHealthCheck() {
   }
 }
 
+async function refreshAllTokens() {
+  const accounts = await Account.find({
+    accessToken: { $exists: true, $ne: '' },
+    igUserId:    { $exists: true, $ne: '' },
+  }).lean();
+
+  let renewed = 0;
+  for (const account of accounts) {
+    const daysLeft = account.tokenExpiresAt
+      ? (new Date(account.tokenExpiresAt) - Date.now()) / (1000 * 60 * 60 * 24)
+      : 0;
+    if (daysLeft > 20) continue; // só renova se vence em menos de 20 dias
+
+    try {
+      const url = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${account.accessToken}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      const data = await res.json();
+      if (data.access_token) {
+        const expiresIn = data.expires_in ?? 5_184_000;
+        await Account.findByIdAndUpdate(account._id, {
+          accessToken:    data.access_token,
+          tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+          healthStatus:   'ativa',
+          lastError:      '',
+        });
+        console.log(`🔄 [TokenRefresh] @${account.username} — renovado por ${Math.round(expiresIn / 86400)} dias`);
+        renewed++;
+      }
+    } catch {}
+    await delay(1000);
+  }
+  if (renewed > 0) {
+    broadcast('accounts', { action: 'tokens_refreshed', renewed });
+  }
+}
+
 function startHealthCheck() {
   // Primeira execução: 30s após o servidor subir
   setTimeout(runHealthCheck, 30_000);
   // Depois: a cada 5 minutos
   setInterval(runHealthCheck, 5 * 60 * 1000);
-  console.log('🩺 [HealthCheck] Agendado — primeira em 30s, depois a cada 5min');
+  // Renovação de tokens: a cada 24h
+  setInterval(refreshAllTokens, 24 * 60 * 60 * 1000);
+  setTimeout(refreshAllTokens, 60_000); // primeira renovação após 1min
+  console.log('🩺 [HealthCheck] Agendado — health a cada 5min, token refresh a cada 24h');
 }
 
 module.exports = { startHealthCheck, runHealthCheck, classifyError };

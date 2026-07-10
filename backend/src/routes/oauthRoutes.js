@@ -891,4 +891,50 @@ router.post('/auto-connect/:accountId', async (req, res) => {
   })();
 });
 
+/**
+ * POST /oauth/refresh-tokens
+ * Renova todos os tokens OAuth que vencem em menos de 20 dias.
+ * Instagram suporta renovação via ig_refresh_token (long-lived tokens).
+ */
+router.post('/refresh-tokens', async (req, res) => {
+  res.json({ success: true, message: 'Renovação de tokens iniciada em background...' });
+
+  const accounts = await Account.find({ accessToken: { $exists: true, $ne: '' }, igUserId: { $exists: true, $ne: '' } }).lean();
+  let renewed = 0, errors = 0;
+
+  for (const account of accounts) {
+    // Renova se vence em menos de 20 dias OU token IGAA (não tem data real, renova sempre preventivamente)
+    const daysLeft = account.tokenExpiresAt
+      ? (new Date(account.tokenExpiresAt) - Date.now()) / (1000 * 60 * 60 * 24)
+      : 0;
+    if (daysLeft > 20) continue;
+
+    try {
+      const url = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${account.accessToken}`;
+      const res2 = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      const data = await res2.json();
+      if (data.access_token) {
+        const expiresIn = data.expires_in ?? 5_184_000;
+        await Account.findByIdAndUpdate(account._id, {
+          accessToken:    data.access_token,
+          tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+          healthStatus:   'ativa',
+          lastError:      '',
+        });
+        console.log(`🔄 [TokenRefresh] @${account.username} — renovado por mais ${Math.round(expiresIn / 86400)} dias`);
+        renewed++;
+      } else {
+        console.log(`⚠️  [TokenRefresh] @${account.username} — falhou: ${JSON.stringify(data).slice(0, 120)}`);
+        errors++;
+      }
+    } catch (err) {
+      console.log(`⚠️  [TokenRefresh] @${account.username} — erro: ${err.message}`);
+      errors++;
+    }
+  }
+
+  console.log(`✅ [TokenRefresh] Concluído — renovados: ${renewed}, erros: ${errors}`);
+  broadcast('accounts', { action: 'tokens_refreshed', renewed, errors });
+});
+
 module.exports = router;

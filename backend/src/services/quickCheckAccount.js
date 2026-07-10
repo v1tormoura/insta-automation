@@ -180,18 +180,25 @@ async function quickCheckAndUpdate(account) {
 
   // 1. Valida token OAuth (detecta sessão expirada no Meta)
   const tokenOk = await validateOAuthToken(account);
-  if (tokenOk === false && account.healthStatus !== 'token_invalido') {
-    await Account.findByIdAndUpdate(account._id, {
-      healthStatus: 'token_invalido',
-      lastError:    'Token OAuth expirado — reconecte a conta via API',
-      lastSync:      now,
-    });
-    console.log(`🔑 [QuickCheck] @${username} — TOKEN INVÁLIDO`);
+  if (tokenOk === false) {
+    if (account.healthStatus !== 'token_invalido') {
+      await Account.findByIdAndUpdate(account._id, {
+        healthStatus: 'token_invalido',
+        lastError:    'Token OAuth expirado — reconecte a conta via API',
+        lastSync:      now,
+      });
+      console.log(`🔑 [QuickCheck] @${username} — TOKEN INVÁLIDO`);
+    }
     return { username, status: 'token_invalido', changed: true };
   }
-  if (tokenOk === true && account.healthStatus === 'token_invalido') {
-    await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '', lastSync: now });
-    return { username, status: 'ativa', changed: true };
+  // Token válido: zera qualquer status ruim vindo da Private API
+  if (tokenOk === true) {
+    const badStatuses = ['sessao_expirada', 'erro_login', 'token_invalido'];
+    if (badStatuses.includes(account.healthStatus)) {
+      await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '', lastSync: now });
+      console.log(`✅ [QuickCheck] @${username} — token OK, status corrigido para ativa`);
+      return { username, status: 'ativa', changed: true };
+    }
   }
 
   // 2. Verifica ban/restrição via perfil público
