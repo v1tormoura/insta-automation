@@ -3,6 +3,8 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 export default function Sessions() {
   const [sessions, setSessions] = useState([]);
   const [toast, setToast] = useState(null);
@@ -98,7 +100,7 @@ export default function Sessions() {
                   <td>
                     <div className="td-account">
                       {session.avatar ? (
-                        <img src={`http://localhost:3000${session.avatar}`} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />
+                        <img src={`${API_BASE}${session.avatar}`} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />
                       ) : (
                         <div className="td-avatar">{session.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                       )}

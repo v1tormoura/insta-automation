@@ -99,7 +99,7 @@ export default function Posts() {
   function isAccountSelected(id) { return !!selectedAccounts[String(id)]; }
 
   function avatarSrc(acc) {
-    if (acc.avatar?.startsWith('/uploads')) return `http://localhost:3000${acc.avatar}`;
+    if (acc.avatar?.startsWith('/uploads')) return `${API}${acc.avatar}`;
     return acc.avatar || null;
   }
 

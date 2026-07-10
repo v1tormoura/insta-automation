@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import Toast from '../components/Toast';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 export default function Proxies() {
   const [accounts, setAccounts] = useState([]);
   const [toast, setToast] = useState(null);
@@ -115,7 +117,7 @@ export default function Proxies() {
                   <td>
                     <div className="td-account">
                       {account.avatar ? (
-                        <img src={`http://localhost:3000${account.avatar}`} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />
+                        <img src={`${API_BASE}${account.avatar}`} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />
                       ) : (
                         <div className="td-avatar">{account.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                       )}

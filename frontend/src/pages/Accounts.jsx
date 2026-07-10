@@ -4,6 +4,9 @@ import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const avatarUrl = av => av ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`) : null;
+
 export default function Accounts() {
   const ACCOUNTS_CACHE_KEY = 'instaflow_accounts_cache';
 
@@ -831,7 +834,7 @@ export default function Accounts() {
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   {account.avatar ? (
                     <img
-                      src={account.avatar.startsWith('http') ? `http://localhost:3000/image-proxy?url=${encodeURIComponent(account.avatar)}` : `http://localhost:3000${account.avatar}`}
+                      src={avatarUrl(account.avatar)}
                       alt=""
                       onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
                       style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', border: `2px solid ${hc}44` }}
@@ -1568,7 +1571,7 @@ export default function Accounts() {
             <div style={{ padding:'20px 24px 18px', background:'linear-gradient(135deg,rgba(99,102,241,.12) 0%,rgba(139,92,246,.08) 100%)', borderBottom:'1px solid rgba(99,102,241,.15)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 {editProfileModal.avatar ? (
-                  <img src={editProfileModal.avatar.startsWith('http') ? `http://localhost:3000/image-proxy?url=${encodeURIComponent(editProfileModal.avatar)}` : `http://localhost:3000${editProfileModal.avatar}`}
+                  <img src={avatarUrl(editProfileModal.avatar)}
                     alt="" style={{ width:44, height:44, borderRadius:12, objectFit:'cover', border:'2px solid rgba(99,102,241,.4)' }} />
                 ) : (
                   <div style={{ width:44, height:44, borderRadius:12, background:'linear-gradient(135deg,#6366f133,#8b5cf633)', border:'2px solid rgba(99,102,241,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:800, color:'#818cf8' }}>
