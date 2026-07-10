@@ -20,10 +20,8 @@ function calculateScore(account) {
 
   if (!hasApiToken && !hasMobileSession && !hasCookieSession) score -= 35;
 
-  // Status de saúde
-  if (account.healthStatus === 'restrita')       score -= 30;
-  if (account.healthStatus === 'erro_login')     score -= 45;
-  if (account.healthStatus === 'sessao_expirada') score -= 40;
+  // Status de saúde (somente estados detectados via API pública)
+  if (account.healthStatus === 'restrita') score -= 30;
 
   // Erros recentes
   if (account.lastError) score -= 15;

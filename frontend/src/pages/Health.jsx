@@ -15,13 +15,11 @@ function timeAgo(d) {
 }
 
 function statusCfg(level, healthStatus) {
-  if (healthStatus === 'banida')          return { label: 'Banida',    bg: 'rgba(239,68,68,.15)',  color: '#f87171', dot: '#ef4444' };
-  if (healthStatus === 'sessao_expirada') return { label: 'Sess. expirada', bg: 'rgba(239,68,68,.12)', color: '#f87171', dot: '#ef4444' };
-  if (healthStatus === 'erro_login')      return { label: 'Erro login', bg: 'rgba(239,68,68,.12)', color: '#f87171', dot: '#ef4444' };
-  if (healthStatus === 'restrita')        return { label: 'Atenção',   bg: 'rgba(245,158,11,.12)', color: '#fbbf24', dot: '#f59e0b' };
-  if (level === 'atencao')                return { label: 'Atenção',   bg: 'rgba(245,158,11,.12)', color: '#fbbf24', dot: '#f59e0b' };
-  if (level === 'risco')                  return { label: 'Risco',     bg: 'rgba(239,68,68,.12)',  color: '#f87171', dot: '#ef4444' };
-  return                                         { label: 'Saudável',  bg: 'rgba(16,185,129,.12)', color: '#34d399', dot: '#10b981' };
+  if (healthStatus === 'banida')   return { label: 'Banida',   bg: 'rgba(239,68,68,.15)',  color: '#f87171', dot: '#ef4444' };
+  if (healthStatus === 'restrita') return { label: 'Restrita', bg: 'rgba(245,158,11,.12)', color: '#fbbf24', dot: '#f59e0b' };
+  if (level === 'atencao')         return { label: 'Atenção',  bg: 'rgba(245,158,11,.12)', color: '#fbbf24', dot: '#f59e0b' };
+  if (level === 'risco')           return { label: 'Risco',    bg: 'rgba(239,68,68,.12)',  color: '#f87171', dot: '#ef4444' };
+  return                                  { label: 'Saudável', bg: 'rgba(16,185,129,.12)', color: '#34d399', dot: '#10b981' };
 }
 
 function tokenBarColor(days) {
@@ -215,7 +213,7 @@ export default function Health() {
     { label: 'Atenção',     value: data.summary.atencao,  color: '#f59e0b' },
     { label: 'Risco',       value: data.summary.risco,    color: '#ef4444' },
     { label: 'Banidas',     value: data.summary.banida,   color: '#ef4444' },
-    { label: 'Sess. expirada', value: data.accounts.filter(a => a.healthStatus === 'sessao_expirada').length, color: '#f97316' },
+    { label: 'Restritas',    value: data.accounts.filter(a => a.healthStatus === 'restrita').length, color: '#f59e0b' },
   ];
 
   return (

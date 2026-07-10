@@ -691,19 +691,14 @@ export default function Accounts() {
     );
   }
   function healthLabel(s) {
-    if (s === 'ativa') return 'Saudável';
     if (s === 'restrita') return 'Restrita';
-    if (s === 'erro_login') return 'Erro login';
-    if (s === 'sessao_expirada') return 'Sess. expirada';
     if (s === 'banida') return 'Banida';
     return 'Saudável';
   }
   function healthBadge(s) {
-    if (s === 'ativa') return 'badge-green';
     if (s === 'restrita') return 'badge-amber';
     if (s === 'banida') return 'badge-red';
-    if (s === 'erro_login') return 'badge-red';
-    return 'badge-gray';
+    return 'badge-green';
   }
 
   return (
@@ -818,7 +813,7 @@ export default function Accounts() {
 
         {/* Rows */}
         {filteredAccounts.map((account, ri) => {
-          const hc = { ativa:'#10b981', restrita:'#f59e0b', erro_login:'#ef4444', sessao_expirada:'#f97316', banida:'#ef4444' }[account.healthStatus] || '#10b981';
+          const hc = { restrita:'#f59e0b', banida:'#ef4444' }[account.healthStatus] || '#10b981';
           const hl = healthLabel(account.healthStatus || 'ativa');
           return (
             <div key={account._id} style={{
