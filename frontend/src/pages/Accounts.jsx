@@ -137,8 +137,9 @@ export default function Accounts() {
   const [epPicFile, setEpPicFile]     = useState(null);
   const [epLoading, setEpLoading]     = useState(false);
 
-  const [epPassword, setEpPassword] = useState('');
-  const [epError,    setEpError]    = useState('');
+  const [epPassword,   setEpPassword]   = useState('');
+  const [epTotpSecret, setEpTotpSecret] = useState('');
+  const [epError,      setEpError]      = useState('');
 
   function openEditProfile(account) {
     setEditProfileModal(account);
@@ -147,6 +148,7 @@ export default function Accounts() {
     setEpGender(account.gender != null ? String(account.gender) : '');
     setEpPicFile(null);
     setEpPassword('');
+    setEpTotpSecret('');
     setEpError('');
   }
 
@@ -163,6 +165,9 @@ export default function Accounts() {
     try {
       if (epPassword.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/credentials`, { password: epPassword.trim() });
+      }
+      if (epTotpSecret.trim()) {
+        await api.patch(`/accounts/${editProfileModal._id}/totp-secret`, { totpSecret: epTotpSecret.trim() });
       }
       const form = new FormData();
       if (epFullName.trim()) form.append('fullName', epFullName.trim());
@@ -1681,6 +1686,32 @@ export default function Accounts() {
                 {!editProfileModal?.hasPassword && (
                   <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Necessária para editar via Private API. Salva automaticamente — só precisa digitar uma vez.</div>
                 )}
+              </div>
+
+              {/* Chave 2FA (TOTP) — opcional */}
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>
+                  Chave 2FA (Autenticador) <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'#334155' }}>— opcional</span>
+                </label>
+                {editProfileModal?.hasTotpSecret && !epTotpSecret ? (
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
+                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Chave 2FA salva — código gerado automaticamente</span>
+                    <button type="button" onClick={() => setEpTotpSecret(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={epTotpSecret.trim() === '' && editProfileModal?.hasTotpSecret ? '' : epTotpSecret}
+                    onChange={e => setEpTotpSecret(e.target.value)}
+                    placeholder="JBSWY3DPEHPK3PXP (chave secreta base32)"
+                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:12, color:'#e2e8f0', outline:'none', boxSizing:'border-box', fontFamily:'monospace' }}
+                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'}
+                  />
+                )}
+                <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>
+                  Cole a chave secreta do seu app autenticador (Google Authenticator → ⋮ → Exportar → chave base32). O sistema gera o código 2FA automaticamente no login.
+                </div>
               </div>
 
               {/* Erro inline */}
