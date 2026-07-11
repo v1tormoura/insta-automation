@@ -151,10 +151,15 @@ export default function Accounts() {
     if (account.hasPassword) {
       setEpChecking(true);
       api.post(`/accounts/${account._id}/test-login`)
-        .then(() => setEpCheckBad(false))
+        .then(() => { /* senha OK */ })
         .catch(err => {
-          setEpCheckBad(true);
-          setEpCheckMsg(err.response?.data?.error || err.message || '');
+          const msg = err.response?.data?.error || err.message || '';
+          // Challenge/2FA/checkpoint = senha aceita, só precisa de verificação extra
+          const isChallenge = /challenge|checkpoint|two.?factor|2fa|totp/i.test(msg);
+          if (!isChallenge) {
+            setEpCheckBad(true);
+            setEpCheckMsg(msg);
+          }
         })
         .finally(() => setEpChecking(false));
     }
@@ -179,7 +184,16 @@ export default function Accounts() {
           await api.post(`/accounts/${editProfileModal._id}/test-login`);
         } catch (testErr) {
           const msg = testErr.response?.data?.error || testErr.message || '';
-          const isBadPwd = /bad.?password|password.*incorrect|IgLoginBad|senha.*incorr/i.test(msg);
+          const isChallenge = /challenge|checkpoint|two.?factor|2fa|totp/i.test(msg);
+          const isBadPwd   = /bad.?password|password.*incorrect|IgLoginBad|senha.*incorr/i.test(msg);
+          if (isChallenge) {
+            // Senha aceita pelo Instagram — só precisa de verificação extra
+            showToast('success', 'Senha salva', `@${editProfileModal.username} — clique em Reconectar para resolver o challenge.`);
+            setEditProfileModal(null);
+            setEpLoading(false);
+            setEpVerifying(false);
+            return;
+          }
           setEpError(isBadPwd
             ? '❌ Senha incorreta. Verifique a senha digitada e tente novamente.'
             : `⚠️ ${msg.slice(0, 140)}`);
