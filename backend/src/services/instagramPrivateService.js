@@ -217,22 +217,10 @@ async function _tryAuthWithCookies(ig, account) {
 //   1. Sessao no banco
 //   2. cookies.json
 //   3. Arquivo ig_session.json
-//   4. Multilogin (se MULTILOGIN_MODE definido e ML6 rodando)
-//   5. Login com senha (se password configurado)
+//   4. challengeState check (só bloqueia se NENHUMA sessão funcionou)
+//   5. Multilogin (se MULTILOGIN_MODE definido e ML6 rodando)
+//   6. Login com senha (se password configurado)
 async function createClient(account, { forcePasswordLogin = false } = {}) {
-  // Se há um challenge pendente aguardando código do usuário, não tenta novo login
-  // (o KeepAlive chamaria createClient e sobrescreveria o challengeState válido)
-  if (!forcePasswordLogin && account.challengeState) {
-    const freshAcc = await Account.findById(account._id);
-    if (freshAcc?.challengeState) {
-      console.log(`[PrivateAPI] @${account.username} -- challenge pendente, aguardando código do usuário`);
-      const err = new Error('CHALLENGE_REQUIRED');
-      err.code = 'CHALLENGE_REQUIRED';
-      err.autoSent = false;
-      throw err;
-    }
-  }
-
   const IgApiClient = getIgApiClient();
   const ig = new IgApiClient();
 
@@ -246,8 +234,9 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
 
   const _skipToFile = (account.igSession === 'use_cookies');
 
-  // 1. Sessao do banco
-  if (account.igSession && !_skipToFile) {
+  // 1. Sessao do banco — tenta ANTES de verificar challengeState
+  //    (a sessão existente pode estar válida mesmo que um login recente tenha falhado com checkpoint)
+  if (!forcePasswordLogin && account.igSession && !_skipToFile) {
     let dbSaved = null;
     try {
       dbSaved = typeof account.igSession === 'string'
@@ -280,26 +269,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
 
         console.log(`[PrivateAPI] @${account.username} -- sessão válida mas IP requer checkpoint`);
 
-        // Tenta TOTP automático se a conta tem segredo salvo
-        const freshForChallenge = await Account.findById(account._id);
-        if (freshForChallenge?.totpSecret) {
-          try {
-            console.log(`[PrivateAPI] @${account.username} -- tentando resolver challenge com TOTP automático...`);
-            await ig.challenge.reset();
-            await ig.challenge.selectVerifyMethod('0'); // método autenticador
-            const autoCode = generateTotpCode(freshForChallenge.totpSecret);
-            await ig.challenge.sendSecurityCode(autoCode);
-            const me = await ig.account.currentUser();
-            const snapOk = await ig.state.serialize(); delete snapOk.constants; snapOk._deviceSeed = dbSeed;
-            await Account.findByIdAndUpdate(account._id, { igSession: JSON.stringify(snapOk), challengeState: '', healthStatus: 'ativa', lastError: '' });
-            console.log(`[PrivateAPI] @${account.username} -- challenge resolvido com TOTP automático!`);
-            return ig;
-          } catch (totpChallengeErr) {
-            console.log(`[PrivateAPI] @${account.username} -- TOTP automático no challenge falhou: ${totpChallengeErr.message}`);
-          }
-        }
-
-        // Fallback: envia código por email/SMS e aguarda usuário
+        // Envia código por email/SMS automaticamente
         let autoSent = false;
         try { await ig.challenge.reset(); await ig.challenge.auto(true); autoSent = true; console.log(`[PrivateAPI] @${account.username} -- código enviado`); } catch (ae) { console.log(`[PrivateAPI] @${account.username} -- auto() falhou: ${ae.message}`); }
         const snap = await ig.state.serialize(); delete snap.constants; snap._deviceSeed = dbSeed;
@@ -335,7 +305,20 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     }
   }
 
-  // 4. Multilogin (completamente opcional -- so tenta se configurado e ML6 acessivel)
+  // 4. challengeState check — só bloqueia se nenhuma sessão existente funcionou
+  //    (KeepAlive e postagens não devem sobrescrever um challenge pendente do usuário)
+  if (!forcePasswordLogin && account.challengeState) {
+    const freshAcc = await Account.findById(account._id);
+    if (freshAcc?.challengeState) {
+      console.log(`[PrivateAPI] @${account.username} -- challenge pendente, sessao expirada, aguardando código`);
+      const err = new Error('CHALLENGE_REQUIRED');
+      err.code = 'CHALLENGE_REQUIRED';
+      err.autoSent = false;
+      throw err;
+    }
+  }
+
+  // 5. Multilogin (completamente opcional -- so tenta se configurado e ML6 acessivel)
   const mlMode = (process.env.MULTILOGIN_MODE || '').toLowerCase();
   if (mlMode && (process.env.MULTILOGIN_EMAIL || mlMode === 'local')) {
     try {
@@ -355,7 +338,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     }
   }
 
-  // 5. Login com senha (sempre tenta se tiver senha configurada)
+  // 6. Login com senha (sempre tenta se tiver senha configurada)
   if (!account.password && !forcePasswordLogin) {
     const err = new Error(
       `@${account.username}: sem sessao valida. ` +
@@ -495,26 +478,6 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
 
         // Tenta enviar o código por email/SMS automaticamente (após salvar estado)
         let autoSent = false;
-        // Tenta resolver challenge com TOTP automaticamente se tiver segredo salvo
-        const freshForChallenge = await Account.findById(account._id);
-        if (freshForChallenge?.totpSecret) {
-          try {
-            const autoCode = generateTotpCode(freshForChallenge.totpSecret);
-            // Tenta resolver challenge com código TOTP (método 0 = TOTP, método 1 = email)
-            await ig.challenge.reset();
-            await ig.challenge.selectVerifyMethod('0'); // 0 = authenticator app
-            await ig.challenge.sendSecurityCode(autoCode);
-            const snap2 = await ig.state.serialize(); delete snap2.constants; snap2._deviceSeed = newSeed;
-            await Account.findByIdAndUpdate(account._id, {
-              igSession: JSON.stringify(snap2), challengeState: '', healthStatus: 'ativa', lastError: '',
-            });
-            console.log(`[PrivateAPI] @${account.username} -- challenge resolvido com TOTP automático!`);
-            return ig;
-          } catch (chalTotpErr) {
-            console.log(`[PrivateAPI] @${account.username} -- TOTP no challenge falhou: ${chalTotpErr.message}`);
-          }
-        }
-
         try {
           await ig.challenge.reset();
           await ig.challenge.auto(true);

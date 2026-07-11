@@ -24,9 +24,11 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     ig = await createClient(account);
   } catch (err) {
     if (err.code === 'CHALLENGE_REQUIRED') {
-      await Account.findByIdAndUpdate(account._id, { challengeState: null });
+      // Limpa challenge e sessão do banco (a sessão do banco está expirada/bloqueada).
+      // O createClient vai tentar: cookies → arquivo ig_session.json → login com senha + TOTP automático
+      await Account.findByIdAndUpdate(account._id, { challengeState: null, igSession: '' });
       const fresh = await Account.findById(account._id);
-      ig = await createClient(fresh, { forcePasswordLogin: true });
+      ig = await createClient(fresh);
     } else {
       throw err;
     }
