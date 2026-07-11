@@ -104,12 +104,13 @@ exports.getDashboard = async (req, res) => {
 
     const growth30Days = await Growth.find().sort({ createdAt: -1 }).limit(500);
 
-    // Série temporal: posts por dia nos últimos 90 dias (sempre 90 pontos, zeros nos vazios)
+    // Série temporal: posts publicados/processados por dia (últimos 90 dias)
+    // Usa updatedAt para capturar quando o post foi de fato publicado, não quando foi criado/agendado
     const ninetyDaysAgo = daysAgo(90);
     const dailyPostsRaw = await Post.aggregate([
-      { $match: { $or: [{ createdAt: { $gte: ninetyDaysAgo } }, { updatedAt: { $gte: ninetyDaysAgo } }] } },
+      { $match: { updatedAt: { $gte: ninetyDaysAgo } } },
       { $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: { $ifNull: ['$createdAt', '$updatedAt'] } } },
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
         count: { $sum: 1 },
       }},
     ]);
