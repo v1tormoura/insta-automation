@@ -140,50 +140,53 @@ async function exchangeCodeForToken(code) {
 }
 
 async function getLongLivedToken(shortToken) {
-  // Tokens IGAA do Instagram Business Login são long-lived (60 dias).
-  // Fazemos um refresh imediato para:
-  //   1. Iniciar o contador de 60 dias a partir de AGORA
-  //   2. Obter o expires_in real da API (não assumir 60 dias)
-  if (/^IGAA/i.test(shortToken)) {
-    console.log('🔄 [OAuth] Token IGAA — tentando refresh imediato para fixar expiração...');
-    try {
-      const refreshUrl = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(shortToken)}`;
-      const rRes  = await fetch(refreshUrl, { signal: AbortSignal.timeout(12_000) });
-      const rData = await rRes.json();
-      if (!rData.error && rData.access_token && rData.expires_in) {
-        const days = Math.round(rData.expires_in / 86400);
-        console.log(`✅ [OAuth] Token IGAA renovado — expira em ${days} dias`);
-        return { accessToken: rData.access_token, expiresIn: rData.expires_in };
-      }
-      console.log('⚠️ [OAuth] Refresh IGAA retornou:', JSON.stringify(rData).slice(0, 200));
-    } catch (e) {
-      console.log('⚠️ [OAuth] Refresh IGAA falhou:', e.message);
-    }
-    // Fallback: assume 60 dias (token pode ser novo demais para refresh)
-    console.log('✅ [OAuth] Token IGAA — usando com expiração padrão de 60 dias');
-    return { accessToken: shortToken, expiresIn: 60 * 24 * 60 * 60 };
-  }
-
   const secret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
-  console.log('🔄 [OAuth] Trocando por long-lived token...');
+  if (!secret) throw new Error('META_APP_SECRET não configurado');
 
-  const url = new URL('https://graph.instagram.com/access_token');
-  url.searchParams.set('grant_type',    'ig_exchange_token');
-  url.searchParams.set('client_secret', secret);
-  url.searchParams.set('access_token',  shortToken);
-
+  // Passo 1: ig_exchange_token — troca curto por longo (60 dias).
+  // Funciona para IGAA e outros tokens curtos emitidos pelo Instagram Business Login.
+  // ig_refresh_token NÃO funciona em tokens curtos — só em tokens já longos.
+  console.log('🔄 [OAuth] Trocando token por long-lived (ig_exchange_token)...');
   try {
-    const res  = await fetch(url.toString());
+    const url = new URL('https://graph.instagram.com/access_token');
+    url.searchParams.set('grant_type',    'ig_exchange_token');
+    url.searchParams.set('client_secret', secret);
+    url.searchParams.set('access_token',  shortToken);
+    const res  = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
     const text = await res.text();
     const data = JSON.parse(text);
-    if (!data.error && data.access_token) {
-      console.log('✅ [OAuth] Long-lived token obtido');
-      return { accessToken: data.access_token, expiresIn: data.expires_in ?? 5_184_000 };
+    if (!data.error && data.access_token && data.expires_in) {
+      const days = Math.round(data.expires_in / 86400);
+      console.log(`✅ [OAuth] Long-lived token obtido (ig_exchange_token) — ${days} dias`);
+      return { accessToken: data.access_token, expiresIn: data.expires_in };
     }
-    console.log('⚠️ [OAuth] Long-lived falhou:', text.slice(0, 200));
-  } catch {}
+    console.log('⚠️ [OAuth] ig_exchange_token retornou:', text.slice(0, 300));
+  } catch (e) {
+    console.log('⚠️ [OAuth] ig_exchange_token erro:', e.message);
+  }
 
-  throw new Error('Nenhum método de troca para long-lived token funcionou');
+  // Passo 2: ig_refresh_token — para tokens IGAA que JÁ são long-lived (renovação).
+  // Instagram pode rejeitar ig_exchange_token se o token já é long-lived.
+  if (/^IGAA/i.test(shortToken)) {
+    console.log('🔄 [OAuth] Tentando ig_refresh_token como fallback para token IGAA...');
+    try {
+      const url = new URL('https://graph.instagram.com/refresh_access_token');
+      url.searchParams.set('grant_type',   'ig_refresh_token');
+      url.searchParams.set('access_token', shortToken);
+      const res  = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+      const data = await res.json();
+      if (!data.error && data.access_token && data.expires_in) {
+        const days = Math.round(data.expires_in / 86400);
+        console.log(`✅ [OAuth] Token IGAA renovado (ig_refresh_token) — ${days} dias`);
+        return { accessToken: data.access_token, expiresIn: data.expires_in };
+      }
+      console.log('⚠️ [OAuth] ig_refresh_token retornou:', JSON.stringify(data).slice(0, 300));
+    } catch (e) {
+      console.log('⚠️ [OAuth] ig_refresh_token erro:', e.message);
+    }
+  }
+
+  throw new Error('Não foi possível obter token de longa duração (ig_exchange_token e ig_refresh_token falharam)');
 }
 
 async function getIgProfile(userId, accessToken) {
@@ -293,21 +296,20 @@ router.post('/connect/:accountId', async (req, res) => {
   }
 
   try {
-    // 1. Código → token
-    // Tokens do Instagram Business Login (IGAAL) já são long-lived (60 dias).
-    // O endpoint ig_exchange_token não se aplica a eles — salva direto.
+    // 1. Código → short token
     const { shortToken, userId: userIdStr } = await exchangeCodeForToken(code);
-    let accessToken    = shortToken;
-    let tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1_000); // 60 dias
 
-    // Troca short token → long-lived (60 dias)
+    // 2. Troca short → long-lived (60 dias)
+    let accessToken    = shortToken;
+    let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback: 1h (token curto)
+
     try {
       const ll = await getLongLivedToken(shortToken);
       accessToken    = ll.accessToken;
       tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
       console.log(`✅ [OAuth Connect] Long-lived token obtido (expira em ${Math.round(ll.expiresIn / 86400)} dias)`);
     } catch (llErr) {
-      console.warn(`⚠️ [OAuth Connect] Long-lived falhou, usando short token (1h): ${llErr.message}`);
+      console.warn(`⚠️ [OAuth Connect] Long-lived falhou — salvando short token com expiração real de 1h: ${llErr.message}`);
     }
 
     // helpers para disparar sync imediato após connect
@@ -439,14 +441,14 @@ router.get('/callback', async (req, res) => {
 
     // 2. Troca short → long-lived (60 dias)
     let accessToken    = shortToken;
-    let tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1_000);
+    let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback: 1h (token curto)
     try {
       const ll = await getLongLivedToken(shortToken);
       accessToken    = ll.accessToken;
       tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
       console.log(`✅ [OAuth Callback] Long-lived token (expira em ${Math.round(ll.expiresIn / 86400)} dias)`);
     } catch (llErr) {
-      console.warn(`⚠️ [OAuth Callback] Long-lived falhou, usando short token: ${llErr.message}`);
+      console.warn(`⚠️ [OAuth Callback] Long-lived falhou — short token com expiração real de 1h: ${llErr.message}`);
     }
 
     // 3. Se conta existente (state = _id), só salva o token — sem buscar perfil
