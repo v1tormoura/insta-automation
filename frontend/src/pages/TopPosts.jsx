@@ -153,7 +153,6 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
 /* ── Single RepublishModal ── */
 function RepublishModal({ ins, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
-  const [caption, setCaption]     = useState(ins.caption || '');
   const [postType, setPostType]   = useState(ins.mediaType === 'IMAGE' ? 'post' : 'reel');
   const [cleanMode, setCleanMode] = useState('limpeza_leve');
   const [interval, setInterval]   = useState('3');
@@ -162,20 +161,57 @@ function RepublishModal({ ins, onClose, accounts }) {
   const [error, setError]         = useState('');
   const [done, setDone]           = useState(false);
 
+  // caption
+  const [captionMode, setCaptionMode]     = useState('original');
+  const [customCaption, setCustomCaption] = useState('');
+  const [savedLegendId, setSavedLegendId] = useState('');
+  const [legends, setLegends]             = useState([]);
+
+  // cover
+  const [coverFile, setCoverFile]       = useState(null);
+  const [coverPreview, setCoverPreview] = useState('');
+  const coverInputRef = useRef(null);
+
   const [imgErr, setImgErr] = useState(false);
   const thumbSrc = !imgErr ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : null;
 
-  const toggle = id => setSelectedAccounts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  useEffect(() => {
+    api.get('/legends').then(r => setLegends(r.data || [])).catch(() => {});
+  }, []);
+
+  const toggle    = id => setSelectedAccounts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const selectAll = () => setSelectedAccounts(accounts.map(a => a._id));
   const clearAll  = () => setSelectedAccounts([]);
+
+  const onCoverChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+  };
 
   const submit = async () => {
     if (!selectedAccounts.length) { setError('Selecione ao menos uma conta'); return; }
     setLoading(true); setError('');
     try {
+      const effectiveCaption = captionMode === 'custom'
+        ? customCaption
+        : captionMode === 'saved'
+          ? (legends.find(l => l._id === savedLegendId)?.text || '')
+          : (ins.caption || '');
+
+      let coverUrl = ins.thumbnailUrl;
+      if (coverFile && postType === 'reel') {
+        const fd = new FormData();
+        fd.append('media', coverFile);
+        const r = await api.post('/media/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        coverUrl = r.data.media?.[0]?.url || ins.thumbnailUrl;
+      }
+
       await api.post('/insights/republish', {
-        igMediaId: ins.igMediaId, mediaUrl: ins.mediaUrl, thumbnailUrl: ins.thumbnailUrl,
-        mediaType: ins.mediaType, caption, accounts: selectedAccounts,
+        igMediaId: ins.igMediaId, mediaUrl: ins.mediaUrl,
+        thumbnailUrl: coverUrl,
+        mediaType: ins.mediaType, caption: effectiveCaption, accounts: selectedAccounts,
         postType, processMode: cleanMode, intervalMinutes: Number(interval) || 3,
         scheduledAt: scheduled || undefined,
       });
@@ -187,6 +223,12 @@ function RepublishModal({ ins, onClose, accounts }) {
       setLoading(false);
     }
   };
+
+  const btnStyle = active => ({
+    flex:1, padding:'7px 0', borderRadius:6, border:`1px solid ${active ? 'rgba(36,201,255,.5)' : 'rgba(51,65,85,.4)'}`,
+    background: active ? 'rgba(36,201,255,.12)' : 'rgba(2,12,28,.6)',
+    color: active ? '#22d7ff' : '#5a7a99', fontSize:11, fontWeight:600, cursor:'pointer',
+  });
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,.7)', backdropFilter:'blur(6px)', padding:16 }}>
@@ -217,7 +259,61 @@ function RepublishModal({ ins, onClose, accounts }) {
           </div>
           <div style={{ padding:'20px 22px', display:'flex', flexDirection:'column', gap:16 }}>
             <AccountSelector accounts={accounts} selectedAccounts={selectedAccounts} onToggle={toggle} onSelectAll={selectAll} onClearAll={clearAll} sourceId={ins.accountId} />
-            <CaptionField caption={caption} setCaption={setCaption} />
+
+            {/* Legenda */}
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:'#8eb2d5', display:'block', marginBottom:6 }}>Legenda</label>
+              <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+                <button style={btnStyle(captionMode==='original')} onClick={() => setCaptionMode('original')}>Original</button>
+                <button style={btnStyle(captionMode==='custom')}   onClick={() => setCaptionMode('custom')}>Nova legenda</button>
+                <button style={btnStyle(captionMode==='saved')}    onClick={() => setCaptionMode('saved')}>Legenda salva</button>
+              </div>
+              {captionMode === 'original' && (
+                <div style={{ padding:'8px 12px', background:'rgba(2,12,28,.5)', borderRadius:8, border:'1px solid rgba(51,65,85,.3)', fontSize:12, color:'#5a7a99', lineHeight:1.5, maxHeight:80, overflow:'auto' }}>
+                  {ins.caption || <em>Sem legenda</em>}
+                </div>
+              )}
+              {captionMode === 'custom' && (
+                <>
+                  <textarea value={customCaption} onChange={e => setCustomCaption(e.target.value)} maxLength={2200} rows={4}
+                    placeholder="Digite a nova legenda..."
+                    style={{ width:'100%', background:'rgba(2,12,28,.7)', border:'1px solid rgba(51,65,85,.5)', borderRadius:8, color:'#d9f4ff', fontSize:12, padding:'10px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
+                  <div style={{ textAlign:'right', fontSize:10, color:'#334155', marginTop:2 }}>{customCaption.length}/2200</div>
+                </>
+              )}
+              {captionMode === 'saved' && (
+                <div style={{ position:'relative' }}>
+                  <select value={savedLegendId} onChange={e => setSavedLegendId(e.target.value)}
+                    style={{ width:'100%', background:'rgba(2,12,28,.8)', border:'1px solid rgba(51,65,85,.5)', borderRadius:8, color: savedLegendId ? '#d9f4ff' : '#5a7a99', fontSize:12, padding:'8px 28px 8px 10px', outline:'none', appearance:'none', cursor:'pointer' }}>
+                    <option value="">Selecione uma legenda salva...</option>
+                    {legends.map(l => <option key={l._id} value={l._id}>{l.name || l.text?.slice(0,50)}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'#5a7a99', pointerEvents:'none' }} />
+                </div>
+              )}
+            </div>
+
+            {/* Capa (só para reels) */}
+            {postType === 'reel' && (
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:'#8eb2d5', display:'block', marginBottom:6 }}>Capa do reel</label>
+                <input ref={coverInputRef} type="file" accept="image/*" style={{ display:'none' }} onChange={onCoverChange} />
+                {coverPreview
+                  ? <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <img src={coverPreview} alt="capa" style={{ width:54, height:96, objectFit:'cover', borderRadius:6, border:'1px solid rgba(36,201,255,.3)' }} />
+                      <div>
+                        <div style={{ fontSize:11, color:'#22d7ff', marginBottom:4 }}>Capa selecionada</div>
+                        <button onClick={() => { setCoverFile(null); setCoverPreview(''); }} style={{ fontSize:11, color:'#f43f5e', background:'none', border:'none', cursor:'pointer', padding:0 }}>Remover</button>
+                      </div>
+                    </div>
+                  : <button onClick={() => coverInputRef.current?.click()}
+                      style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:7, border:'1px dashed rgba(51,65,85,.6)', background:'rgba(2,12,28,.5)', color:'#5a7a99', fontSize:12, cursor:'pointer' }}>
+                      <ImagePlus size={14} /> Escolher imagem de capa
+                    </button>
+                }
+              </div>
+            )}
+
             <PostSettings postType={postType} setPostType={setPostType} cleanMode={cleanMode} setCleanMode={setCleanMode} interval={interval} setInterval={setInterval} />
             <ScheduleField scheduled={scheduled} setScheduled={setScheduled} />
             {error && <ErrorBox msg={error} />}
