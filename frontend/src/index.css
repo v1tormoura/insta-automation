@@ -50,6 +50,15 @@
   --sidebar-w: 220px;
   --sidebar-collapsed: 64px;
   --header-h: 58px;
+
+  /* Semantic aliases used by page-specific CSS (Loop.css, etc.) */
+  --text-primary:   var(--text);
+  --text-secondary: var(--text2);
+  --text-muted:     var(--text3);
+  --surface:        var(--bg3);
+  --surface-alt:    var(--bg4);
+  --bg-primary:     var(--bg2);
+  --accent:         var(--indigo);
 }
 
 html { height: 100%; }
@@ -477,8 +486,25 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
-  .sidebar { position: fixed; left: -100%; top: 0; z-index: 100; transition: left .25s; }
-  .sidebar.open { left: 0; }
+  .sidebar {
+    position: fixed; left: -100%; top: 0; z-index: 100;
+    height: 100vh;
+    transition: left .25s cubic-bezier(.4,0,.2,1);
+    /* Force full width on mobile — overrides desktop collapsed state */
+    width: var(--sidebar-w) !important;
+    min-width: var(--sidebar-w) !important;
+  }
+  .sidebar.open {
+    left: 0;
+    box-shadow: 6px 0 40px rgba(0,0,0,.6);
+  }
+  /* Always show nav labels when sidebar slides open on mobile */
+  .sidebar.open .sb-item-txt    { opacity: 1 !important; width: auto !important; }
+  .sidebar.open .sb-brand-text  { opacity: 1 !important; overflow: visible !important; }
+  .sidebar.open .sb-group-label { opacity: 1 !important; height: auto !important; padding: 6px 10px 3px !important; overflow: visible !important; }
+  .sidebar.open .sb-user-info   { opacity: 1 !important; width: auto !important; overflow: visible !important; }
+  .sidebar.open .sb-collapse-btn { display: none; }
+
   .g4 { grid-template-columns: repeat(2, 1fr); }
   .g3 { grid-template-columns: repeat(2, 1fr); }
   .g21, .g32 { grid-template-columns: 1fr; }

@@ -705,7 +705,7 @@ export default function Accounts() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="accounts-stats-grid">
         {[
           { label: 'Conectadas', value: safeAccounts.length,  color: '#6366f1', icon: '🔗', sub: 'Total de contas' },
           { label: 'Ativas',     value: activeAccounts,        color: '#10b981', icon: '✅', sub: 'Status saudável' },

@@ -13,6 +13,6 @@ export default defineConfig({
     port: process.env.PORT ? Number(process.env.PORT) : 5174,
     strictPort: false,
     host: true,
-    https: true,
+    https: process.env.DISABLE_HTTPS !== 'true',
   }
 })

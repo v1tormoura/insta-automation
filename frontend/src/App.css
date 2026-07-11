@@ -239,8 +239,34 @@ tbody td { padding: 11px 12px; font-size: 13px; }
 .chart-legend-item .cl-name { color: var(--text2); flex: 1; }
 .chart-legend-item .cl-val { font-weight: 600; }
 
-/* ── MOBILE ── */
-.mobile-topbar { display: none; }
+/* ── ACCOUNTS STATS GRID (responsive, 5 cols → 3 → 2 → 1) ── */
+.accounts-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1100px) { .accounts-stats-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px)  { .accounts-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 380px)  { .accounts-stats-grid { grid-template-columns: 1fr; } }
+
+/* ── MOBILE TOPBAR ── */
+/* display controlled by CSS only — no inline display:flex in JSX */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 50px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,13,30,.92);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+
 @media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(3,1fr); } .charts-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 1000px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 768px) {
@@ -249,6 +275,8 @@ tbody td { padding: 11px 12px; font-size: 13px; }
   .grid-2, .grid-3, .charts-grid { grid-template-columns: 1fr; }
   .accounts-grid { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; }
-  .mobile-topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 16px; margin-bottom: 4px; }
+  .mobile-topbar { display: flex; }
+  /* Actions column in accounts table wraps on small screens */
+  .accounts-actions-col { flex-wrap: wrap; gap: 4px; }
 }
 @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }

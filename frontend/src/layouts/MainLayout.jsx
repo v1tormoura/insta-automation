@@ -154,9 +154,8 @@ export default function MainLayout({ children }) {
       </aside>
 
       <main className="mainContent">
-        {/* Mobile topbar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(6,13,30,.9)', position: 'sticky', top: 0, zIndex: 50 }}
-          className="mobile-topbar">
+        {/* Mobile topbar — display controlled by CSS (.mobile-topbar { display:none } → flex at ≤768px) */}
+        <div className="mobile-topbar">
           <button onClick={() => setMobileOpen(v => !v)}
             style={{ background: 'none', border: 'none', color: 'var(--text)', padding: 4, cursor: 'pointer', display: 'flex' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
