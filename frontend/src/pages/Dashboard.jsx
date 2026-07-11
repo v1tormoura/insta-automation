@@ -386,6 +386,99 @@ function PerformanceTable({ stats }) {
   );
 }
 
+/* ── helpers de notificação ── */
+function buildNotif(data, event) {
+  const a = data?.action || '';
+  if (event === 'posts') {
+    if (a === 'post_completed' || data?.status === 'concluido')
+      return { type: 'success', msg: `✅ Post publicado${data.username ? ` @${data.username}` : ''}` };
+    if (a === 'post_failed'    || data?.status === 'erro')
+      return { type: 'error',   msg: `❌ Falha ao publicar${data.username ? ` @${data.username}` : ''}${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
+    if (a === 'post_started')
+      return { type: 'info',    msg: `🚀 Publicação iniciada${data.username ? ` @${data.username}` : ''}` };
+    if (data?.status) return null; // silencia updates genéricos de status
+  }
+  if (event === 'accounts') {
+    if (a === 'oauth_connected')   return { type: 'success', msg: `🔗 ${data.username || 'Conta'} conectada via OAuth` };
+    if (a === 'token_recovered')   return { type: 'success', msg: `🔑 Token renovado: @${data.username || ''}` };
+    if (a === 'tokens_refreshed' && (data.refreshed || 0) > 0)
+      return { type: 'success', msg: `🔑 ${data.refreshed} token(s) renovado(s)` };
+    if (a === 'health_update' && data.healthStatus && data.healthStatus !== 'ativa')
+      return { type: data.healthStatus === 'banida' ? 'error' : 'warn',
+               msg: `⚠️ @${data.username || ''}: ${data.error || data.healthStatus}` };
+  }
+  if (event === 'loop') {
+    if (a === 'loop_started')  return { type: 'info',    msg: '🔄 Loop de postagens iniciado' };
+    if (a === 'loop_stopped')  return { type: 'info',    msg: '⏹ Loop pausado' };
+    if (a === 'loop_error')    return { type: 'error',   msg: `❌ Erro no loop${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
+    if (a === 'post_sent')     return { type: 'success', msg: `✅ Loop publicou${data.username ? ` @${data.username}` : ''}` };
+  }
+  if (event === 'insights' && a === 'sync_done')
+    return { type: 'info', msg: `📊 Insights sincronizados${data.count ? ` (${data.count} posts)` : ''}` };
+  return null;
+}
+
+/* ── NotificationPanel ── */
+function NotificationPanel({ notifs, unread, open, setOpen, onClear }) {
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = e => { if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, setOpen]);
+
+  const typeColor = { success:'#22c55e', error:'#f87171', warn:'#fbbf24', info:'#60a5fa' };
+
+  return (
+    <div ref={panelRef} style={{ position:'relative', display:'inline-block' }}>
+      <button
+        className="icon-button"
+        onClick={() => setOpen(v => !v)}
+        aria-label="Notificações"
+        style={{ position:'relative' }}
+      >
+        <Bell size={17} />
+        {unread > 0 && (
+          <span className="notification-pip" style={{ position:'absolute', top:-4, right:-4, minWidth:16, height:16, fontSize:9, fontWeight:800, background:'#f43f5e', color:'#fff', borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px', lineHeight:1 }}>
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 10px)', right:0, zIndex:9999,
+          width:320, maxHeight:420, overflowY:'auto',
+          background:'rgba(6,13,30,.97)', border:'1px solid rgba(51,65,85,.6)',
+          borderRadius:12, boxShadow:'0 16px 60px rgba(0,0,0,.6)', backdropFilter:'blur(12px)',
+        }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px 10px', borderBottom:'1px solid rgba(51,65,85,.3)' }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'#d9f4ff', letterSpacing:'.04em' }}>NOTIFICAÇÕES</span>
+            {notifs.length > 0 && (
+              <button onClick={onClear} style={{ fontSize:10, color:'#5a7a99', background:'none', border:'none', cursor:'pointer', padding:0 }}>Limpar tudo</button>
+            )}
+          </div>
+          {notifs.length === 0 ? (
+            <div style={{ padding:'28px 14px', textAlign:'center', fontSize:12, color:'#334155' }}>Nenhuma notificação ainda.</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column' }}>
+              {notifs.map(n => (
+                <div key={n.id} style={{ padding:'10px 14px', borderBottom:'1px solid rgba(51,65,85,.15)', display:'flex', alignItems:'flex-start', gap:8 }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:typeColor[n.type]||'#60a5fa', flexShrink:0, marginTop:5, boxShadow:`0 0 6px ${typeColor[n.type]||'#60a5fa'}` }} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, color:'#d9f4ff', lineHeight:1.4, wordBreak:'break-word' }}>{n.msg}</div>
+                    <div style={{ fontSize:10, color:'#334155', marginTop:3 }}>{n.time.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Dashboard ── */
 export default function Dashboard() {
   const [data, setData]             = useState(null);
@@ -398,8 +491,20 @@ export default function Dashboard() {
   const [accountsPeriod, setAccountsPeriod] = useState('hoje');
   const [problemsPeriod, setProblemsPeriod] = useState('hoje');
 
+  // Notificações
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen,     setNotifOpen]     = useState(false);
+  const [unread,        setUnread]        = useState(0);
+
   const loadRef = useRef(null);
   const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
+
+  const addNotif = useCallback((data, event) => {
+    const n = buildNotif(data, event);
+    if (!n) return;
+    setNotifications(prev => [{ id: Date.now() + Math.random(), ...n, time: new Date() }, ...prev].slice(0, 60));
+    setUnread(u => u + 1);
+  }, []);
 
   const load = useCallback(async () => {
     try { const r = await api.get('/dashboard');       setData(r.data); }       catch {}
@@ -419,7 +524,15 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [loadStats, loadInsights]);
 
-  useServerEvents(['posts', 'accounts', 'sessions', 'health', 'insights'], () => { loadRef.current?.(); loadStats(); loadInsights(); });
+  useServerEvents(
+    ['posts', 'accounts', 'sessions', 'health', 'insights', 'loop'],
+    (data, event) => {
+      loadRef.current?.();
+      loadStats();
+      loadInsights();
+      addNotif(data, event);
+    }
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -498,10 +611,13 @@ export default function Dashboard() {
             <button className="toolbar-button" onClick={() => setPeriod(p => p===7?14:p===14?30:7)}>
               <span>Atualizar: {period}d</span><ChevronDown size={15} />
             </button>
-            <button className="icon-button" onClick={() => showToast('Nenhuma nova notificação.')} aria-label="Notificações">
-              <Bell size={17} />
-              {(d.errorsToday||0) > 0 && <span className="notification-pip">{d.errorsToday}</span>}
-            </button>
+            <NotificationPanel
+              notifs={notifications}
+              unread={unread}
+              open={notifOpen}
+              setOpen={v => { setNotifOpen(v); if (v) setUnread(0); }}
+              onClear={() => { setNotifications([]); setUnread(0); setNotifOpen(false); }}
+            />
             <button className={`refresh-button ${refreshing?'is-refreshing':''}`} onClick={handleRefresh}>
               <RefreshCw size={17} />Atualizar
             </button>

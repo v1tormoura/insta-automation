@@ -655,9 +655,10 @@ export default function TopPosts() {
   const [type, setType]           = useState('Tudo');
   const [accountId, setAccountId] = useState('');
 
-  const [syncing, setSyncing]     = useState(false);
-  const [republishIns, setRepublishIns]   = useState(null);  // single post republish
-  const [bulkRepublish, setBulkRepublish] = useState(null);  // array of posts
+  const [syncing, setSyncing]             = useState(false);
+  const [nextSyncIn, setNextSyncIn]       = useState(null); // seconds until next auto-sync
+  const [republishIns, setRepublishIns]   = useState(null);
+  const [bulkRepublish, setBulkRepublish] = useState(null);
 
   // Multi-select state
   const [selectMode, setSelectMode]   = useState(false);
@@ -684,9 +685,33 @@ export default function TopPosts() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { api.get('/accounts?limit=200').then(r => setAccounts(r.data.accounts || [])).catch(() => {}); }, []);
+  // Reload from DB every 15 s
   useEffect(() => {
     const id = setInterval(() => loadRef.current?.(), 15_000);
     return () => clearInterval(id);
+  }, []);
+
+  // Auto-sync from Instagram API every 30 min + countdown display
+  useEffect(() => {
+    const INTERVAL = 30 * 60; // seconds
+    let remaining = INTERVAL;
+
+    const tick = setInterval(() => {
+      remaining -= 1;
+      setNextSyncIn(remaining);
+      if (remaining <= 0) {
+        remaining = INTERVAL;
+        setNextSyncIn(INTERVAL);
+        setSyncing(true);
+        api.post('/insights/sync')
+          .then(() => loadRef.current?.())
+          .catch(() => {})
+          .finally(() => setSyncing(false));
+      }
+    }, 1000);
+
+    setNextSyncIn(INTERVAL);
+    return () => clearInterval(tick);
   }, []);
 
   useServerEvents(['insights', 'posts'], () => loadRef.current?.());
@@ -745,10 +770,17 @@ export default function TopPosts() {
               style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 18px', borderRadius:10, border:`1px solid ${selectMode?'rgba(36,201,255,.5)':'rgba(51,65,85,.4)'}`, background: selectMode?'rgba(36,201,255,.15)':'rgba(51,65,85,.1)', color: selectMode?'#22d7ff':'#8eb2d5', fontSize:13, fontWeight:600, cursor:'pointer' }}>
               <CheckSquare size={15} /> {selectMode ? 'Cancelar seleção' : 'Selecionar posts'}
             </button>
-            <button onClick={handleSync} disabled={syncing}
-              style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 18px', borderRadius:10, border:'1px solid rgba(36,201,255,.3)', background:'rgba(36,201,255,.1)', color:'#22d7ff', fontSize:13, fontWeight:600, cursor: syncing?'not-allowed':'pointer', opacity: syncing?.7:1, whiteSpace:'nowrap' }}>
-              <RefreshCw size={15} style={{ animation: syncing?'spin 1s linear infinite':'none' }} /> Sincronizar
-            </button>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              {nextSyncIn !== null && !syncing && (
+                <span style={{ fontSize:11, color:'#334155', whiteSpace:'nowrap' }}>
+                  auto em {Math.floor(nextSyncIn/60)}:{String(nextSyncIn%60).padStart(2,'0')}
+                </span>
+              )}
+              <button onClick={handleSync} disabled={syncing}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 18px', borderRadius:10, border:'1px solid rgba(36,201,255,.3)', background:'rgba(36,201,255,.1)', color:'#22d7ff', fontSize:13, fontWeight:600, cursor: syncing?'not-allowed':'pointer', opacity: syncing?.7:1, whiteSpace:'nowrap' }}>
+                <RefreshCw size={15} style={{ animation: syncing?'spin 1s linear infinite':'none' }} /> {syncing ? 'Sincronizando…' : 'Sync'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

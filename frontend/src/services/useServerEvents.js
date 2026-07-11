@@ -32,8 +32,13 @@ export function useServerEvents(events, callback, { retryMs = 2000 } = {}) {
 
         // Registra handlers para cada evento
         events.forEach(event => {
-          es.addEventListener(event, () => {
-            try { cbRef.current(); } catch {}
+          es.addEventListener(event, (e) => {
+            try {
+              const data = e.data ? JSON.parse(e.data) : {};
+              cbRef.current(data, event);
+            } catch {
+              cbRef.current({}, event);
+            }
           });
         });
 
