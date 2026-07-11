@@ -131,7 +131,8 @@ export default function Accounts() {
 
   // Edit Profile modal
   const [editProfileModal, setEditProfileModal] = useState(null);
-  const [epLoading, setEpLoading]     = useState(false);
+  const [epLoading,    setEpLoading]    = useState(false);
+  const [epVerifying,  setEpVerifying]  = useState(false);
   const [epPassword,   setEpPassword]   = useState('');
   const [epTotpSecret, setEpTotpSecret] = useState('');
   const [epError,      setEpError]      = useState('');
@@ -154,16 +155,33 @@ export default function Accounts() {
     try {
       if (epPassword.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/credentials`, { password: epPassword.trim() });
+        // Verify the password is correct before marking as saved
+        setEpVerifying(true);
+        try {
+          await api.post(`/accounts/${editProfileModal._id}/test-login`);
+        } catch (testErr) {
+          const msg = testErr.response?.data?.error || testErr.message || '';
+          const isBadPwd = /bad.?password|password.*incorrect|IgLoginBad|senha.*incorr/i.test(msg);
+          setEpError(isBadPwd
+            ? '❌ Senha incorreta. Verifique a senha digitada e tente novamente.'
+            : `⚠️ ${msg.slice(0, 140)}`);
+          setEpLoading(false);
+          setEpVerifying(false);
+          return;
+        } finally {
+          setEpVerifying(false);
+        }
       }
       if (epTotpSecret.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/totp-secret`, { totpSecret: epTotpSecret.trim() });
       }
-      showToast('success', 'Credenciais salvas', `@${editProfileModal.username} — senha e 2FA atualizados.`);
+      showToast('success', 'Credenciais salvas', `@${editProfileModal.username} — login verificado com sucesso.`);
       setEditProfileModal(null);
     } catch (err) {
       setEpError(err.response?.data?.error || err.message || 'Erro ao salvar credenciais.');
     } finally {
       setEpLoading(false);
+      setEpVerifying(false);
     }
   }
 
@@ -223,17 +241,12 @@ export default function Accounts() {
       setImporting(true);
       const res = await api.post('/accounts/import-bulk', { accountsText: bulkText, connectApi: true });
       setBulkText('');
-      setBulkImportOpen(false);
       await loadAccounts();
-      const { total, errors = [], status } = res.data;
-      const errMsg = errors.length ? ` · ${errors.length} linha(s) inválida(s)` : '';
-      if (status === 'running') {
-        showToast('success', `${total} conta(s) salvas`, `Conectando via API em background...${errMsg}`);
-      } else {
-        showToast('success', `${total} conta(s) importadas`, errMsg || 'Importação concluída.');
-      }
+      // Show per-account results inside the modal instead of just a toast
+      setImportResults(res.data);
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || 'Erro ao importar contas.');
+      setBulkImportOpen(false);
     } finally {
       setImporting(false);
     }
@@ -1657,7 +1670,7 @@ export default function Accounts() {
                   Cancelar
                 </button>
                 <button onClick={submitEditProfile} disabled={epLoading} style={{ flex:2, padding:'10px', borderRadius:10, border:'none', background: epLoading ? 'rgba(99,102,241,.4)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', fontSize:13, fontWeight:700, cursor: epLoading ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxShadow: epLoading ? 'none' : '0 4px 16px rgba(99,102,241,.35)' }}>
-                  {epLoading ? <><span style={{ fontSize:16 }}>⏳</span> Salvando...</> : <><span style={{ fontSize:14 }}>🔑</span> Salvar credenciais</>}
+                  {epVerifying ? <><span style={{ fontSize:16 }}>⏳</span> Verificando senha...</> : epLoading ? <><span style={{ fontSize:16 }}>⏳</span> Salvando...</> : <><span style={{ fontSize:14 }}>🔑</span> Salvar credenciais</>}
                 </button>
               </div>
             </div>
