@@ -47,7 +47,7 @@ router.post('/upload', upload.single('image'), (req, res) => {
  * }
  */
 router.post('/', async (req, res) => {
-  const { accountIds, imageUrl, linkUrl, linkText } = req.body;
+  const { accountIds, imageUrl, linkUrl, linkText, intervalMinutes } = req.body;
 
   if (!Array.isArray(accountIds) || accountIds.length === 0) {
     return res.status(400).json({ error: 'Selecione pelo menos uma conta' });
@@ -56,35 +56,56 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'URL da imagem é obrigatória' });
   }
 
+  const intervalMs = Math.max(0, Number(intervalMinutes) || 0) * 60 * 1000;
   const results = [];
 
-  for (const accountId of accountIds) {
-    const account = await Account.findById(accountId).catch(() => null);
+  for (let i = 0; i < accountIds.length; i++) {
+    // Aplica intervalo entre contas (exceto antes da primeira)
+    if (i > 0 && intervalMs > 0) {
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+
+    const account = await Account.findById(accountIds[i]).catch(() => null);
     if (!account) {
-      results.push({ accountId, status: 'error', error: 'Conta não encontrada' });
+      results.push({ accountId: accountIds[i], status: 'error', error: 'Conta não encontrada' });
       continue;
     }
 
-    try {
-      const info = await postStory(account, {
-        imageUrl,
-        linkUrl:  linkUrl  || null,
-        linkText: linkText || 'Clique Aqui',
-      });
+    // Tenta postar com 1 retry automático em caso de "too many actions"
+    let lastErr;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const info = await postStory(account, {
+          imageUrl,
+          linkUrl:  linkUrl  || null,
+          linkText: linkText || 'Clique Aqui',
+        });
+        results.push({
+          accountId: accountIds[i],
+          username:  account.username,
+          status:    'success',
+          method:    info.method,
+          withLink:  info.withLink,
+        });
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        const isTooMany = /too many actions|please wait|rate limit|feedback_required/i.test(err.message);
+        if (isTooMany && attempt === 1) {
+          console.log(`⏳ [Story] @${account.username} — rate limit, aguardando 30s antes de tentar novamente...`);
+          await new Promise(r => setTimeout(r, 30_000));
+        }
+      }
+    }
+
+    if (lastErr) {
+      console.error(`❌ Story @${account.username}:`, lastErr.message);
       results.push({
-        accountId,
-        username: account.username,
-        status:   'success',
-        method:   info.method,
-        withLink: info.withLink,
-      });
-    } catch (err) {
-      console.error(`❌ Story @${account.username}:`, err.message);
-      results.push({
-        accountId,
-        username: account.username,
-        status:   'error',
-        error:    err.message,
+        accountId: accountIds[i],
+        username:  account.username,
+        status:    'error',
+        error:     lastErr.message,
       });
     }
   }
