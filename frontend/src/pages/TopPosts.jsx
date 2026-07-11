@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw, Send, X, ChevronDown, Flame, ExternalLink, CheckSquare, Square, Layers3 } from 'lucide-react';
+import { RefreshCw, Send, X, ChevronDown, Flame, ExternalLink, CheckSquare, Square, Layers3, ImagePlus } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 
@@ -242,25 +242,72 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
   const [cleanMode, setCleanMode] = useState('limpeza_leve');
   const [interval, setInterval]   = useState('3');
   const [scheduled, setScheduled] = useState('');
-  const [progress, setProgress]   = useState(null); // { done, total, error }
+  const [progress, setProgress]   = useState(null);
   const [error, setError]         = useState('');
   const [done, setDone]           = useState(false);
 
-  const toggle = id => setSelectedAccounts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  // caption
+  const [captionMode, setCaptionMode]     = useState('original'); // 'original'|'custom'|'saved'
+  const [customCaption, setCustomCaption] = useState('');
+  const [savedLegendId, setSavedLegendId] = useState('');
+  const [legends, setLegends]             = useState([]);
+
+  // cover
+  const [coverFile, setCoverFile]       = useState(null);
+  const [coverPreview, setCoverPreview] = useState('');
+  const coverInputRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/legends').then(r => setLegends(r.data || [])).catch(() => {});
+  }, []);
+
+  const toggle    = id => setSelectedAccounts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const selectAll = () => setSelectedAccounts(accounts.map(a => a._id));
   const clearAll  = () => setSelectedAccounts([]);
+
+  const onCoverChange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+  };
 
   const submit = async () => {
     if (!selectedAccounts.length) { setError('Selecione ao menos uma conta'); return; }
     setError('');
     setProgress({ done: 0, total: insArray.length });
+
+    // null = use each post's original caption
+    const effectiveCaption = captionMode === 'custom'
+      ? customCaption
+      : captionMode === 'saved'
+        ? (legends.find(l => l._id === savedLegendId)?.text || '')
+        : null;
+
+    // upload cover once, reuse URL for all posts
+    let coverUrl = '';
+    if (coverFile && postType === 'reel') {
+      try {
+        const fd = new FormData();
+        fd.append('media', coverFile);
+        const r = await api.post('/media/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        coverUrl = r.data.media?.[0]?.url || '';
+      } catch (e) {
+        setError('Erro ao enviar capa: ' + (e.response?.data?.error || e.message));
+        setProgress(null);
+        return;
+      }
+    }
+
     let successCount = 0;
     for (let i = 0; i < insArray.length; i++) {
       const ins = insArray[i];
       try {
         await api.post('/insights/republish', {
-          igMediaId: ins.igMediaId, mediaUrl: ins.mediaUrl, thumbnailUrl: ins.thumbnailUrl,
-          mediaType: ins.mediaType, caption: ins.caption || '',
+          igMediaId: ins.igMediaId, mediaUrl: ins.mediaUrl,
+          thumbnailUrl: coverUrl || ins.thumbnailUrl,
+          mediaType: ins.mediaType,
+          caption: effectiveCaption !== null ? effectiveCaption : (ins.caption || ''),
           accounts: selectedAccounts, postType,
           processMode: cleanMode, intervalMinutes: Number(interval) || 3,
           scheduledAt: scheduled || undefined,
@@ -285,15 +332,15 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
               <Layers3 size={16} style={{ color:'#22d7ff' }} /> Republicar {insArray.length} posts
             </div>
             <p style={{ margin:'4px 0 0', fontSize:12, color:'#5a7a99' }}>
-              Cada post usa sua legenda original. Escolha as contas de destino e as configurações.
+              Escolha as contas, legenda e configurações.
             </p>
           </div>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#5a7a99', padding:4 }}><X size={18} /></button>
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0 }}>
-          {/* Left: thumbnail grid of selected posts */}
-          <div style={{ padding:'18px 18px', borderRight:'1px solid rgba(51,65,85,.25)', maxHeight:460, overflowY:'auto' }}>
+          {/* Left: thumbnail grid */}
+          <div style={{ padding:'18px 18px', borderRight:'1px solid rgba(51,65,85,.25)', maxHeight:520, overflowY:'auto' }}>
             <div style={{ fontSize:11, fontWeight:600, color:'#5a7a99', marginBottom:10, letterSpacing:'.06em' }}>POSTS SELECIONADOS ({insArray.length})</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
               {insArray.map((ins, i) => {
@@ -316,9 +363,66 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           </div>
 
           {/* Right: settings */}
-          <div style={{ padding:'18px 22px', display:'flex', flexDirection:'column', gap:16 }}>
+          <div style={{ padding:'18px 22px', display:'flex', flexDirection:'column', gap:16, maxHeight:520, overflowY:'auto' }}>
             <AccountSelector accounts={accounts} selectedAccounts={selectedAccounts} onToggle={toggle} onSelectAll={selectAll} onClearAll={clearAll} />
             <PostSettings postType={postType} setPostType={setPostType} cleanMode={cleanMode} setCleanMode={setCleanMode} interval={interval} setInterval={setInterval} />
+
+            {/* Caption mode */}
+            <div>
+              <label style={{ fontSize:12, fontWeight:600, color:'#8eb2d5', display:'block', marginBottom:6 }}>Legenda</label>
+              <div style={{ display:'flex', gap:4, marginBottom:8 }}>
+                {[['original','Original'],['custom','Nova legenda'],['saved','Legenda salva']].map(([m,l]) => (
+                  <button key={m} onClick={() => setCaptionMode(m)}
+                    style={{ flex:1, fontSize:11, padding:'5px 4px', borderRadius:6, border: captionMode===m ? '1px solid #22d7ff' : '1px solid rgba(51,65,85,.5)', background: captionMode===m ? 'rgba(34,215,255,.1)' : 'transparent', color: captionMode===m ? '#22d7ff' : '#5a7a99', cursor:'pointer', fontWeight: captionMode===m ? 700 : 400 }}>{l}</button>
+                ))}
+              </div>
+              {captionMode === 'original' && (
+                <div style={{ fontSize:11, color:'#5a7a99' }}>Cada post mantém sua legenda original.</div>
+              )}
+              {captionMode === 'custom' && (
+                <>
+                  <textarea value={customCaption} onChange={e => setCustomCaption(e.target.value)} maxLength={2200} rows={3}
+                    placeholder="Digite a legenda para todos os posts..."
+                    style={{ width:'100%', background:'rgba(2,12,28,.7)', border:'1px solid rgba(51,65,85,.5)', borderRadius:8, color:'#d9f4ff', fontSize:12, padding:'10px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
+                  <div style={{ textAlign:'right', fontSize:10, color:'#334155', marginTop:2 }}>{customCaption.length}/2200</div>
+                </>
+              )}
+              {captionMode === 'saved' && (
+                <div style={{ position:'relative' }}>
+                  <select value={savedLegendId} onChange={e => setSavedLegendId(e.target.value)}
+                    style={{ width:'100%', background:'rgba(2,12,28,.8)', border:'1px solid rgba(51,65,85,.5)', borderRadius:8, color: savedLegendId ? '#d9f4ff' : '#5a7a99', fontSize:12, padding:'8px 28px 8px 10px', outline:'none', appearance:'none', cursor:'pointer', boxSizing:'border-box' }}>
+                    <option value="">— Escolha uma legenda —</option>
+                    {legends.map(l => <option key={l._id} value={l._id}>{l.title}{l.category ? ` (${l.category})` : ''}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'#5a7a99', pointerEvents:'none' }} />
+                </div>
+              )}
+            </div>
+
+            {/* Cover image (reels only) */}
+            {postType === 'reel' && (
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:'#8eb2d5', display:'block', marginBottom:6 }}>Capa do reel (opcional)</label>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <button onClick={() => coverInputRef.current?.click()}
+                    style={{ padding:'7px 14px', borderRadius:8, border:'1px solid rgba(51,65,85,.5)', background:'rgba(2,12,28,.7)', color:'#8eb2d5', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                    <ImagePlus size={13} /> {coverFile ? 'Trocar capa' : 'Adicionar capa'}
+                  </button>
+                  {coverPreview && (
+                    <img src={coverPreview} alt="capa" style={{ width:30, height:44, objectFit:'cover', borderRadius:4, border:'1px solid rgba(51,65,85,.5)', flexShrink:0 }} />
+                  )}
+                  {coverFile && (
+                    <button onClick={() => { setCoverFile(null); setCoverPreview(''); if (coverInputRef.current) coverInputRef.current.value = ''; }}
+                      style={{ fontSize:11, color:'#ef4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>✕</button>
+                  )}
+                </div>
+                <input ref={coverInputRef} type="file" accept="image/*" onChange={onCoverChange} style={{ display:'none' }} />
+                <div style={{ fontSize:10, color:'#334155', marginTop:3 }}>
+                  {coverFile ? coverFile.name : 'Todos os posts usarão esta capa.'}
+                </div>
+              </div>
+            )}
+
             <ScheduleField scheduled={scheduled} setScheduled={setScheduled} />
 
             {/* Progress */}

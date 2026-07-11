@@ -140,9 +140,27 @@ async function exchangeCodeForToken(code) {
 }
 
 async function getLongLivedToken(shortToken) {
-  // Tokens IGAA do Instagram Business Login já são long-lived (60 dias) — não precisam de troca.
+  // Tokens IGAA do Instagram Business Login são long-lived (60 dias).
+  // Fazemos um refresh imediato para:
+  //   1. Iniciar o contador de 60 dias a partir de AGORA
+  //   2. Obter o expires_in real da API (não assumir 60 dias)
   if (/^IGAA/i.test(shortToken)) {
-    console.log('✅ [OAuth] Token IGAA detectado — já é long-lived (60 dias), sem necessidade de troca.');
+    console.log('🔄 [OAuth] Token IGAA — tentando refresh imediato para fixar expiração...');
+    try {
+      const refreshUrl = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(shortToken)}`;
+      const rRes  = await fetch(refreshUrl, { signal: AbortSignal.timeout(12_000) });
+      const rData = await rRes.json();
+      if (!rData.error && rData.access_token && rData.expires_in) {
+        const days = Math.round(rData.expires_in / 86400);
+        console.log(`✅ [OAuth] Token IGAA renovado — expira em ${days} dias`);
+        return { accessToken: rData.access_token, expiresIn: rData.expires_in };
+      }
+      console.log('⚠️ [OAuth] Refresh IGAA retornou:', JSON.stringify(rData).slice(0, 200));
+    } catch (e) {
+      console.log('⚠️ [OAuth] Refresh IGAA falhou:', e.message);
+    }
+    // Fallback: assume 60 dias (token pode ser novo demais para refresh)
+    console.log('✅ [OAuth] Token IGAA — usando com expiração padrão de 60 dias');
     return { accessToken: shortToken, expiresIn: 60 * 24 * 60 * 60 };
   }
 

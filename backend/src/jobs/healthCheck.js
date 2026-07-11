@@ -307,8 +307,20 @@ async function refreshAllTokens() {
         });
         console.log(`🔄 [TokenRefresh] @${account.username} — renovado por ${Math.round(expiresIn / 86400)} dias`);
         renewed++;
+      } else {
+        console.log(`⚠️  [TokenRefresh] @${account.username} — falhou: ${JSON.stringify(data).slice(0, 120)}`);
+        // Refresh falhou e token já expirou → marca token_invalido imediatamente
+        if (daysLeft <= 0) {
+          await Account.findByIdAndUpdate(account._id, {
+            healthStatus: 'token_invalido',
+            lastError:    'Token expirado e não renovável automaticamente — reconecte a conta.',
+          });
+          console.log(`🔑 [TokenRefresh] @${account.username} — marcado como token_invalido`);
+        }
       }
-    } catch {}
+    } catch (err) {
+      console.log(`⚠️  [TokenRefresh] @${account.username} — erro: ${err.message}`);
+    }
     await delay(1000);
   }
   if (renewed > 0) {

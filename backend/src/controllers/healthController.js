@@ -45,10 +45,12 @@ function calculateScore(account) {
     score -= 20; // nunca sincronizado
   }
 
-  // Token API expirando em menos de 7 dias
-  if (account.tokenExpiresAt) {
+  // Token API inválido / expirado
+  if (account.healthStatus === 'token_invalido') {
+    score -= 60;
+  } else if (account.tokenExpiresAt) {
     const daysLeft = (new Date(account.tokenExpiresAt) - Date.now()) / (1000 * 60 * 60 * 24);
-    if (daysLeft < 0)  score -= 40;
+    if (daysLeft < 0)  score -= 60; // expirado mesmo sem health check ter detectado ainda
     else if (daysLeft < 7) score -= 15;
   }
 
@@ -56,7 +58,8 @@ function calculateScore(account) {
 }
 
 function getLevel(score, account) {
-  if (account.healthStatus === 'banida') return 'banida';
+  if (account.healthStatus === 'banida')         return 'banida';
+  if (account.healthStatus === 'token_invalido') return 'risco';
   if (score >= 75) return 'saudavel';
   if (score >= 45) return 'atencao';
   return 'risco';
