@@ -3,14 +3,15 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 
 const STATUS_META = {
-  concluido:   { label: 'Concluído',   color: '#22c55e', bg: 'rgba(34,197,94,.12)'  },
-  erro:        { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
-  processando: { label: 'Processando', color: '#818cf8', bg: 'rgba(129,140,248,.12)' },
-  agendado:    { label: 'Agendado',    color: '#f59e0b', bg: 'rgba(245,158,11,.12)'  },
-  pendente:    { label: 'Pendente',    color: '#94a3b8', bg: 'rgba(148,163,184,.12)' },
-  done:        { label: 'Concluído',   color: '#22c55e', bg: 'rgba(34,197,94,.12)'  },
-  running:     { label: 'Executando',  color: '#818cf8', bg: 'rgba(129,140,248,.12)' },
-  error:       { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
+  concluido:        { label: 'Concluído',   color: '#22c55e', bg: 'rgba(34,197,94,.12)'  },
+  erro:             { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
+  processando:      { label: 'Processando', color: '#818cf8', bg: 'rgba(129,140,248,.12)' },
+  agendado:         { label: 'Agendado',    color: '#f59e0b', bg: 'rgba(245,158,11,.12)'  },
+  pendente:         { label: 'Pendente',    color: '#94a3b8', bg: 'rgba(148,163,184,.12)' },
+  done:             { label: 'Concluído',   color: '#22c55e', bg: 'rgba(34,197,94,.12)'  },
+  done_with_errors: { label: 'Com erros',   color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
+  running:          { label: 'Executando',  color: '#818cf8', bg: 'rgba(129,140,248,.12)' },
+  error:            { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
 };
 
 const TYPE_ICON = {
@@ -85,19 +86,22 @@ export default function Logs() {
       caption:  p.caption,
       error:    p.error,
     })),
-    ...profileJobs.map(j => ({
-      _id:      j.jobId,
-      type:     'profile_edit',
-      status:   j.status,
-      date:     j.startedAt,
-      accounts: j.username || (j.results?.map(r => r.username).join(', ')) || '—',
-      error:    j.error,
-      results:  j.results,
-    })),
+    ...profileJobs.map(j => {
+      const hasErrors = j.results?.some(r => r.status === 'error');
+      return {
+        _id:      j.jobId,
+        type:     'profile_edit',
+        status:   j.status === 'done' && hasErrors ? 'done_with_errors' : j.status,
+        date:     j.startedAt,
+        accounts: j.username || (j.results?.map(r => r.username).join(', ')) || '—',
+        error:    j.error,
+        results:  j.results,
+      };
+    }),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const FILTERS = ['all', 'concluido', 'erro', 'processando', 'agendado', 'pendente'];
-  const statusMap = { concluido: ['concluido','done'], erro: ['erro','error'], processando: ['processando','running'] };
+  const statusMap = { concluido: ['concluido','done'], erro: ['erro','error','done_with_errors'], processando: ['processando','running'] };
   const filtered = filter === 'all'
     ? timeline
     : timeline.filter(e => (statusMap[filter] || [filter]).includes(e.status));
@@ -157,12 +161,19 @@ export default function Logs() {
                 {entry.media    && <span><span style={{ color: 'var(--text3)' }}>mídia: </span>{entry.media}</span>}
                 {entry.caption  && <span><span style={{ color: 'var(--text3)' }}>legenda: </span>{entry.caption.slice(0, 80)}{entry.caption.length > 80 ? '…' : ''}</span>}
                 {entry.error    && <span style={{ color: '#f87171' }}><span style={{ color: 'var(--text3)' }}>erro: </span>{entry.error}</span>}
-                {entry.results?.length > 0 && entry.results.map((r, i) => (
-                  <span key={i} style={{ color: r.ok ? '#22c55e' : '#f87171' }}>
-                    <span style={{ color: 'var(--text3)' }}>resultado [{r.username}]: </span>
-                    {r.ok ? '✓ ' + (r.message || 'ok') : '✗ ' + (r.error || 'falhou')}
-                  </span>
-                ))}
+                {entry.results?.length > 0 && entry.results.map((r, i) => {
+                  const ok = r.status === 'ok';
+                  let errorMsg = r.error || 'falhou';
+                  if (!ok && /challenge|checkpoint/i.test(errorMsg)) {
+                    errorMsg = 'Challenge Instagram — use Reconectar para resolver';
+                  }
+                  return (
+                    <span key={i} style={{ color: ok ? '#22c55e' : '#f87171' }}>
+                      <span style={{ color: 'var(--text3)' }}>resultado [{r.username}]: </span>
+                      {ok ? '✓ ' + (r.message || 'ok') : '✗ ' + errorMsg}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           );
