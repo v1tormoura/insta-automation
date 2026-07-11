@@ -466,7 +466,7 @@ export default function Posts() {
             </div>
 
             {/* Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginTop: 12 }}>
+            <div className="g3" style={{ gap: 6, marginTop: 12 }}>
               {[['Mídias', media.length], ['Contas', selectedCount], ['Total', totalEstimated]].map(([l, v]) => (
                 <div key={l} style={{ textAlign: 'center', background: 'var(--card2)', borderRadius: 8, padding: '8px 4px', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: -1 }}>{v}</div>

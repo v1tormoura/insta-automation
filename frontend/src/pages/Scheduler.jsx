@@ -43,7 +43,7 @@ export default function Scheduler() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="g3" style={{ gap: 12, marginBottom: 20 }}>
         {[
           { label: 'Posts na fila', value: posts.length, color: '#6366f1' },
           { label: 'Agendados', value: agendados, color: '#f59e0b' },

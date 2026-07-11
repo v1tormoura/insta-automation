@@ -244,7 +244,7 @@ function RepublishModal({ ins, onClose, accounts }) {
           </div>
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#5a7a99', padding:4 }}><X size={18} /></button>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'220px 1fr', gap:0 }}>
+        <div className="modal-sidebar">
           <div style={{ padding:'20px 18px', borderRight:'1px solid rgba(51,65,85,.25)' }}>
             <div style={{ aspectRatio:'9/16', borderRadius:10, overflow:'hidden', background:'#0a1628', marginBottom:12 }}>
               {thumbSrc
@@ -434,7 +434,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#5a7a99', padding:4 }}><X size={18} /></button>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0 }}>
+        <div className="modal-half">
           {/* Left: thumbnail grid */}
           <div style={{ padding:'18px 18px', borderRight:'1px solid rgba(51,65,85,.25)', maxHeight:520, overflowY:'auto' }}>
             <div style={{ fontSize:11, fontWeight:600, color:'#5a7a99', marginBottom:10, letterSpacing:'.06em' }}>POSTS SELECIONADOS ({insArray.length})</div>
@@ -603,7 +603,7 @@ function CaptionField({ caption, setCaption }) {
 
 function PostSettings({ postType, setPostType, cleanMode, setCleanMode, interval, setInterval }) {
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+    <div className="g3" style={{ gap:12 }}>
       {[
         { label:'Tipo', value:postType, setValue:setPostType, options:[['reel','Reels'],['post','Foto'],['story','Story']] },
         { label:'Clean mode', value:cleanMode, setValue:setCleanMode, options:CLEAN_MODES.map(m=>[m.value,m.label]) },
@@ -755,7 +755,7 @@ export default function TopPosts() {
   return (
     <div style={{ minHeight:'100vh', background:'transparent', padding:'0 0 80px' }}>
       {/* Header */}
-      <div style={{ padding:'28px 28px 0', marginBottom:24 }}>
+      <div className="tp-inner-pad" style={{ marginBottom:24 }}>
         <div style={{ fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'#22d7ff', marginBottom:6, display:'flex', alignItems:'center', gap:6 }}>
           <Flame size={13} /> TOP POSTS <span style={{ color:'#334155' }}>•</span> INSIGHTS OFICIAIS
         </div>
@@ -786,7 +786,7 @@ export default function TopPosts() {
       </div>
 
       {/* Filter bar */}
-      <div style={{ padding:'0 28px', marginBottom:12, display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
+      <div className="tp-hpad" style={{ marginBottom:12, display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
         <div style={{ display:'flex', background:'rgba(2,12,28,.7)', border:'1px solid rgba(51,65,85,.4)', borderRadius:9, overflow:'hidden' }}>
           {METRICS.map(m => (
             <button key={m} onClick={() => setMetric(m)}
@@ -828,7 +828,7 @@ export default function TopPosts() {
       </div>
 
       {/* Status bar */}
-      <div style={{ padding:'0 28px', marginBottom:20, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+      <div className="tp-hpad" style={{ marginBottom:20, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700 }}>
           <span style={{ width:7, height:7, borderRadius:'50%', background: isLive?'#2bdc94':'#fbbf24', boxShadow:`0 0 8px ${isLive?'#2bdc94':'#fbbf24'}`, display:'inline-block' }} />
           <span style={{ color: isLive?'#2bdc94':'#fbbf24' }}>{isLive ? 'AO VIVO' : fmtLastSync ? `Sync ${fmtLastSync}` : 'AGUARDANDO SYNC'}</span>
@@ -848,7 +848,7 @@ export default function TopPosts() {
           <div style={{ fontSize:12, color:'#334155' }}>Clique em "Sincronizar" para importar dados das contas conectadas via API.</div>
         </div>
       ) : (
-        <div style={{ padding:'0 28px', display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
+        <div className="tp-hpad" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
           {insights.map((ins, i) => (
             <PostCard
               key={ins._id}

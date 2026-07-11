@@ -590,3 +590,25 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
   .page-header-right { justify-content: flex-start; flex-wrap: wrap; }
   h2 { font-size: 17px; }
 }
+
+/* ── MODAL SPLIT LAYOUTS (responsive) ── */
+.modal-sidebar { display: grid; grid-template-columns: 220px 1fr; gap: 0; }
+.modal-half    { display: grid; grid-template-columns: 1fr 1fr;   gap: 0; }
+@media (max-width: 640px) {
+  .modal-sidebar,
+  .modal-half { grid-template-columns: 1fr; }
+  .modal-sidebar > :first-child,
+  .modal-half   > :first-child {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(51,65,85,.25);
+    max-height: none !important;
+  }
+}
+
+/* ── TOP POSTS INNER PADDING (mobile) ── */
+.tp-inner-pad { padding: 28px 28px 0; }
+.tp-hpad      { padding: 0 28px; }
+@media (max-width: 640px) {
+  .tp-inner-pad { padding: 16px 12px 0; }
+  .tp-hpad      { padding: 0 12px; }
+}

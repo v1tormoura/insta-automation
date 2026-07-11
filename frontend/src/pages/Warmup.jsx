@@ -202,7 +202,7 @@ export default function Warmup() {
                   </div>
 
                   {/* Limites numéricos */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div className="g3" style={{ gap: 12 }}>
                     {cfg.actions?.includes('likes') && (
                       <div>
                         <div style={labelStyle}>Max. Curtidas</div>

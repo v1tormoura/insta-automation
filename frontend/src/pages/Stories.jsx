@@ -298,7 +298,7 @@ export default function Stories() {
               </button>
             </div>
 
-            <div style={{ padding: '10px 12px 14px', display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 4, maxHeight: 290, overflowY: 'auto' }}>
+            <div className="g2" style={{ padding: '10px 12px 14px', gap: 4, maxHeight: 290, overflowY: 'auto' }}>
               {accounts.length === 0 && <span style={{ fontSize: 12, color: '#475569', gridColumn: '1/-1', padding: '8px 4px' }}>Carregando contas...</span>}
               {accounts.map(acc => {
                 const eligible = !!(acc.accessToken || acc.igSession);
