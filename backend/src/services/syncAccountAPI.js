@@ -89,11 +89,10 @@ async function syncViaAPI(account) {
             update.lastError      = '';
             console.log(`🔄 [API Sync] @${account.username} — token renovado após erro 190`);
           } catch (refreshErr) {
-            // Refresh falhou → sessão realmente expirada. Zera tokenExpiresAt para
-            // que o tokenRefreshJob a detecte e tente recuperar no próximo ciclo.
-            update.healthStatus   = 'sessao_expirada';
-            update.tokenExpiresAt = new Date(); // reflete a realidade: expirou agora
-            update.lastError      = `Sessão expirada (${new Date().toLocaleString('pt-BR')}) — reconecte via 🔗 API`;
+            // Refresh falhou — não altera tokenExpiresAt (mantém a data original para referência)
+            // O health check detectará o token inválido na próxima rodada via /me
+            update.healthStatus = 'token_invalido';
+            update.lastError    = `Token inválido — reconecte via 🔗 API`;
             console.log(`⚠️ [API Sync] @${account.username} — refresh falhou: ${refreshErr.message}`);
           }
         } else {
@@ -129,7 +128,7 @@ async function syncViaAPI(account) {
 
       // Renovação proativa: renova se expira em menos de 15 dias (ou se não temos data de expiração)
       const fifteenDays = 15 * 24 * 60 * 60 * 1000;
-      const needsRefresh = !expiresAt || (expiresAt - now) < fifteenDays;
+      const needsRefresh = expiresAt && (expiresAt - now) < fifteenDays;
       if (needsRefresh && account.accessToken?.match(/^(IGAAL|IGQ|IG)/)) {
         try {
           const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);

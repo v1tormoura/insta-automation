@@ -140,10 +140,10 @@ async function runTokenRefresh() {
         else skipped++;
       } catch (err) {
         console.error(`[TokenRefresh] @${acc.username} erro: ${err.message}`);
+        // Não altera healthStatus nem tokenExpiresAt — o token pode ainda ser válido
+        // (ex: Instagram exige 24h entre refreshes). O health check vai determinar o estado real.
         await Account.findByIdAndUpdate(acc._id, {
-          lastError:    `Falha ao renovar token: ${err.message}`,
-          healthStatus: 'sessao_expirada',
-          tokenExpiresAt: new Date(),
+          lastError: `Falha ao renovar token: ${err.message.slice(0, 100)}`,
         });
         errors++;
       }
