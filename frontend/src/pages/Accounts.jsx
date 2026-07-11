@@ -147,22 +147,6 @@ export default function Accounts() {
     setEpError('');
     setEpCheckBad(false);
     setEpCheckMsg('');
-    // Auto-verificar a senha salva ao abrir o modal
-    if (account.hasPassword) {
-      setEpChecking(true);
-      api.post(`/accounts/${account._id}/test-login`)
-        .then(() => { /* senha OK */ })
-        .catch(err => {
-          const msg = err.response?.data?.error || err.message || '';
-          // Challenge/2FA/checkpoint = senha aceita, só precisa de verificação extra
-          const isChallenge = /challenge|checkpoint|two.?factor|2fa|totp/i.test(msg);
-          if (!isChallenge) {
-            setEpCheckBad(true);
-            setEpCheckMsg(msg);
-          }
-        })
-        .finally(() => setEpChecking(false));
-    }
   }
 
   async function submitEditProfile() {
@@ -1658,8 +1642,8 @@ export default function Accounts() {
 
             <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
 
-              {/* Banner: senha incorreta (healthStatus OU check ao abrir) */}
-              {(editProfileModal.healthStatus === 'erro_login' || editProfileModal.healthStatus === 'sessao_expirada' || epCheckBad) && (
+              {/* Banner: senha incorreta (erro real de senha) */}
+              {(epCheckBad || editProfileModal.healthStatus === 'erro_login') && (
                 <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 14px', borderRadius:10, background:'rgba(239,68,68,.09)', border:'1px solid rgba(239,68,68,.3)' }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>❌</span>
                   <div>
@@ -1670,6 +1654,19 @@ export default function Accounts() {
                       </div>
                     )}
                     <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>Digite a senha correta abaixo para reconectar a conta.</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Banner: sessão expirada por challenge (senha ESTÁ correta) */}
+              {editProfileModal.healthStatus === 'sessao_expirada' && !epCheckBad && (
+                <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 14px', borderRadius:10, background:'rgba(245,158,11,.09)', border:'1px solid rgba(245,158,11,.3)' }}>
+                  <span style={{ fontSize:16, flexShrink:0 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#f59e0b' }}>Sessão expirada — Instagram requer verificação</div>
+                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>
+                      Sua senha e 2FA estão corretos. O Instagram pediu um código de verificação enviado para o email/celular da conta. Feche este modal e clique em <strong style={{ color:'#fbbf24' }}>Reconectar</strong> na conta para inserir o código.
+                    </div>
                   </div>
                 </div>
               )}
@@ -1692,8 +1689,7 @@ export default function Accounts() {
                     <span style={{ fontSize:13, color:'#94a3b8' }}>🔄 Verificando senha salva...</span>
                   </div>
                 ) : editProfileModal?.hasPassword && !epPassword.trim() && !epCheckBad &&
-                    editProfileModal?.healthStatus !== 'erro_login' &&
-                    editProfileModal?.healthStatus !== 'sessao_expirada' ? (
+                    editProfileModal?.healthStatus !== 'erro_login' ? (
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
                     <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva e verificada</span>
                     <button type="button" onClick={() => setEpPassword(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>

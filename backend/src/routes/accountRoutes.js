@@ -185,10 +185,6 @@ router.post('/:id/test-login', async (req, res) => {
     if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
     if (!account.password) return res.status(400).json({ error: 'Senha não configurada para esta conta' });
 
-    // Limpa sessão para forçar login fresco
-    account.igSession = '';
-    await account.save();
-
     let createClient;
     try {
       ({ createClient } = require('../services/instagramPrivateService'));
@@ -196,7 +192,8 @@ router.post('/:id/test-login', async (req, res) => {
       return res.status(500).json({ error: 'Pacote instagram-private-api não instalado' });
     }
 
-    await createClient(account);
+    // Força login com senha (sem apagar a sessão existente do banco)
+    await createClient(account, { forcePasswordLogin: true });
 
     const loginId = account.loginEmail?.trim() || account.username;
     res.json({
