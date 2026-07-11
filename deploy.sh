@@ -4,7 +4,7 @@ set -e
 cd /root/insta-automation
 
 echo "📥 Baixando alterações..."
-git pull origin docs/replace-readme
+git pull origin main
 
 # Detecta o que mudou desde o commit anterior
 CHANGED=$(git diff HEAD~1 --name-only 2>/dev/null || echo "all")
