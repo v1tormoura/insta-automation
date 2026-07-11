@@ -181,10 +181,20 @@ export default function Accounts() {
   }
 
   function goToPage(p) { setPage(p); loadAccounts(p); }
+
+  // Ref garante que SSE e polling sempre chamam a versão mais atual de loadAccounts
+  const loadRef = useRef(null);
+  loadRef.current = loadAccounts;
+
   // Escuta eventos de contas E de posts (status muda quando post termina)
-  useServerEvents(['accounts', 'posts'], loadAccounts);
+  // Usa wrapper () => para não passar args do SSE como targetPage
+  useServerEvents(['accounts', 'posts'], () => loadRef.current?.());
   // Polling a cada 3s para status em tempo real
-  useEffect(() => { loadAccounts(); const t = setInterval(loadAccounts, 3000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    loadRef.current?.();
+    const t = setInterval(() => loadRef.current?.(), 3000);
+    return () => clearInterval(t);
+  }, []);
 
   // Detect OAuth callback result from URL (?oauth=success&username=XXX or ?oauth=error&msg=XXX)
   useEffect(() => {
