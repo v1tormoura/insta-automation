@@ -76,7 +76,7 @@ export default function Legends() {
       <div className="layout-legends">
 
         {/* ── Form criar / editar ── */}
-        <form className="card" onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16, alignSelf: 'start' }}>
+        <form className="legends-form card" onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16, alignSelf: 'start' }}>
           <div className="card-header">
             <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {editId ? (

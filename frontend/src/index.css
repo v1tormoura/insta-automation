@@ -618,6 +618,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
   /* Stories: move Contas/Publicar column above Mídias */
   .stories-right-col { order: -1; }
 
+  /* Legends: disable sticky form on mobile so user can scroll to save button */
+  .legends-form { position: relative !important; top: 0 !important; }
+
   /* Accounts table: collapse to card layout */
   .acc-tbl-hd { display: none !important; }
   .tbl-scroll-inner { min-width: unset !important; }
