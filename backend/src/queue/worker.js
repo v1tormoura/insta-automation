@@ -95,30 +95,28 @@ async function publishWithRetry(post, account, preProcessedVideoUrl = null) {
 
   // ── 1. Graph API (Meta) ──────────────────────────────────────────────────
   if (hasGraph) {
-    // Refresh proativo: renova se expira em menos de 7 dias
+    // Refresh proativo APENAS se o token expira em menos de 7 dias E ainda não expirou
     const expiresAt = account.tokenExpiresAt ? new Date(account.tokenExpiresAt) : null;
-    if (expiresAt && (expiresAt - Date.now()) < 7 * 24 * 60 * 60 * 1000) {
+    const daysLeft  = expiresAt ? (expiresAt - Date.now()) / 86_400_000 : 999;
+
+    if (expiresAt && daysLeft > 0 && daysLeft < 7) {
       try {
-        console.log(`Token de @${account.username} expira em breve — renovando...`);
+        console.log(`Token de @${account.username} expira em ${Math.round(daysLeft)}d — renovando...`);
         const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);
         const newExpiry = new Date(Date.now() + expiresIn * 1000);
         await Account.findByIdAndUpdate(account._id, { accessToken: newToken, tokenExpiresAt: newExpiry });
         account.accessToken    = newToken;
         account.tokenExpiresAt = newExpiry;
-        console.log(`Token renovado — novo vencimento: ${newExpiry.toLocaleDateString()}`);
         writeAccountLog(account.username, `Token renovado — vence em ${newExpiry.toLocaleDateString()}`);
       } catch (refreshErr) {
-        console.log(`Refresh do token falhou: ${refreshErr.message}`);
-        if (/190|expired|invalid/i.test(refreshErr.message)) {
-          await Account.findByIdAndUpdate(account._id, {
-            accessToken: '', igUserId: '', tokenExpiresAt: null, healthStatus: 'sessao_expirada',
-          });
-          account.accessToken = '';
-          writeAccountLog(account.username, 'Token expirado — reconecte via API');
-        }
+        // Refresh falhou — mantém o token atual e tenta postar mesmo assim.
+        // Não apaga o token: ele pode ainda ser válido para postar.
+        console.log(`Refresh preventivo falhou para @${account.username}: ${refreshErr.message}`);
+        writeAccountLog(account.username, `Refresh falhou (${refreshErr.message.slice(0,60)}) — tentando postar com token atual`);
       }
     }
 
+    // Tenta Graph API com o token atual (original ou renovado)
     if (account.accessToken) {
       writeAccountLog(account.username, 'Tentando via Meta Graph API...');
       console.log(`Graph API -> @${account.username}`);
@@ -130,8 +128,10 @@ async function publishWithRetry(post, account, preProcessedVideoUrl = null) {
         writeAccountLog(account.username, `Graph API: ${err.message}`);
         console.log(`Graph API @${account.username}:`, err.message);
 
-        // Token expirou durante a postagem -> tenta refresh imediato
-        if (/190|session.*expired|token.*expired/i.test(err.message)) {
+        const isTokenError = /190|session.*expired|token.*expired|token.*invalid|invalid.*token|invalid.*oauth/i.test(err.message);
+
+        if (isTokenError) {
+          // Tenta renovar e retentar UMA vez
           try {
             const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);
             const newExpiry = new Date(Date.now() + expiresIn * 1000);
@@ -139,24 +139,22 @@ async function publishWithRetry(post, account, preProcessedVideoUrl = null) {
             account.accessToken = newToken;
             console.log(`Token renovado no erro — retentando Graph API...`);
             await postReelGraph(account, post, preProcessedVideoUrl);
-            writeAccountLog(account.username, 'Publicado via Graph API (apos refresh)');
+            writeAccountLog(account.username, 'Publicado via Graph API (após refresh)');
             return true;
           } catch (retry) {
-            console.log(`Retry Graph API apos refresh falhou: ${retry.message}`);
-            await Account.findByIdAndUpdate(account._id, {
-              accessToken: '', igUserId: '', tokenExpiresAt: null, healthStatus: 'sessao_expirada',
-            });
-            writeAccountLog(account.username, 'Token invalido — reconecte via API');
+            // Refresh + retry também falharam → marca token_invalido mas NÃO apaga
+            console.log(`Retry Graph API após refresh falhou: ${retry.message}`);
+            await Account.findByIdAndUpdate(account._id, { healthStatus: 'token_invalido' });
+            writeAccountLog(account.username, 'Token inválido — reconecte via 🔗 API');
+            // Erro de token: não faz sentido tentar Private API para Reels
+            throw new Error(`@${account.username}: Token inválido — reconecte via API`);
           }
-        } else if (/Invalid OAuth|token.*invalid|invalid.*token/i.test(err.message)) {
-          await Account.findByIdAndUpdate(account._id, {
-            accessToken: '', igUserId: '', tokenExpiresAt: null, healthStatus: 'sessao_expirada',
-          });
-          writeAccountLog(account.username, 'Token invalido — reconecte via API');
         }
 
+        // Erro não relacionado a token (rate limit, conteúdo, etc.)
+        // → tenta Private API como fallback
         if (!hasPrivate) throw err;
-        console.log(`Graph falhou -> Private API...`);
+        console.log(`Graph falhou (${err.message}) -> Private API...`);
       }
     }
   }
