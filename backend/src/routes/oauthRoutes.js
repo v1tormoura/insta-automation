@@ -506,8 +506,10 @@ router.get('/callback', async (req, res) => {
 
 router.delete('/disconnect/:accountId', async (req, res) => {
   try {
+    // Mantém igUserId para que o frontend saiba que esta conta já teve API conectada
+    // e mostre "Reconectar" em vez de "Conectar"
     await Account.findByIdAndUpdate(req.params.accountId, {
-      accessToken: '', igUserId: '', tokenExpiresAt: null,
+      accessToken: '', tokenExpiresAt: null, healthStatus: 'token_invalido',
     });
     res.json({ success: true });
   } catch (err) {

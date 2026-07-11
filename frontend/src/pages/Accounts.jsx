@@ -674,15 +674,17 @@ export default function Accounts() {
     );
   }
   function healthLabel(s) {
-    if (s === 'restrita') return 'Restrita';
-    if (s === 'banida') return 'Banida';
-    if (s === 'token_invalido') return 'Reconectar';
+    if (s === 'restrita')      return 'Restrita';
+    if (s === 'banida')        return 'Banida';
+    if (s === 'token_invalido') return 'Token expirado';
+    if (s === 'sessao_expirada') return 'Sessão expirada';
     return 'Saudável';
   }
   function healthBadge(s) {
-    if (s === 'restrita') return 'badge-amber';
-    if (s === 'banida') return 'badge-red';
+    if (s === 'restrita')       return 'badge-amber';
+    if (s === 'banida')         return 'badge-red';
     if (s === 'token_invalido') return 'badge-red';
+    if (s === 'sessao_expirada') return 'badge-amber';
     return 'badge-green';
   }
 
@@ -871,28 +873,31 @@ export default function Accounts() {
 
               {/* ações */}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                {account.igUserId ? (
-                  <>
-                    {account.healthStatus === 'token_invalido' ? (
-                      <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)' }}
-                        onClick={() => openOauthModal(account)} title="Token expirado — clique para reconectar">🔄 Reconectar</button>
-                    ) : (
-                      <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
-                        title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
-                    )}
-                    <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Credenciais da conta">✏️ Editar</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
-                    <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }} onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar perfil do Instagram">✏️ Editar</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
-                  </>
-                )}
+                {(() => {
+                  const hasToken    = !!account.accessToken;
+                  const hadApi      = !!(account.igUserId);
+                  const needsRecon  = !hasToken || account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
+                  return (
+                    <>
+                      {hasToken && !needsRecon ? (
+                        <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
+                          title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
+                      ) : (hadApi || needsRecon) ? (
+                        <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)' }}
+                          onClick={() => openOauthModal(account)} title="Token expirado — clique para reconectar">🔄 Reconectar</button>
+                      ) : (
+                        <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
+                      )}
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Credenciais da conta">✏️ Editar</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
+                      {hasToken && (
+                        <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }}
+                          onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
+                      )}
+                      <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           );
