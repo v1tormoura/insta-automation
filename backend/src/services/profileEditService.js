@@ -22,15 +22,15 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   let ig;
   try {
     ig = await createClient(account);
-  } catch (err) {
-    if (err.code === 'CHALLENGE_REQUIRED') {
-      // Limpa challenge e sessão do banco (a sessão do banco está expirada/bloqueada).
-      // O createClient vai tentar: cookies → arquivo ig_session.json → login com senha + TOTP automático
-      await Account.findByIdAndUpdate(account._id, { challengeState: null, igSession: '' });
-      const fresh = await Account.findById(account._id);
+  } catch (firstErr) {
+    if (firstErr.code !== 'CHALLENGE_REQUIRED' && firstErr.code !== 'TOTP_REQUIRED') throw firstErr;
+    // Sessão expirada ou challenge — limpa estado e tenta login fresco (senha + TOTP automático)
+    await Account.findByIdAndUpdate(account._id, { challengeState: null, igSession: '' });
+    const fresh = await Account.findById(account._id);
+    try {
       ig = await createClient(fresh);
-    } else {
-      throw err;
+    } catch (retryErr) {
+      throw retryErr;
     }
   }
 

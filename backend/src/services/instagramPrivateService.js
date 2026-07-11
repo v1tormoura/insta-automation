@@ -448,10 +448,38 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
           loginErr?.response?.body?.two_factor_info?.totp_two_factor_on;
 
         if (isTotpChallenge) {
-          const twoFactorInfo = loginErr?.response?.body?.two_factor_info || {};
+          const twoFactorInfo       = loginErr?.response?.body?.two_factor_info || {};
+          const twoFactorIdentifier = twoFactorInfo.two_factor_identifier || '';
+
+          // Tenta TOTP automático — checkpoint oferece opção de autenticador
+          const freshForAutoTotp = await Account.findById(account._id);
+          if (freshForAutoTotp?.totpSecret) {
+            try {
+              const autoCode = generateTotpCode(freshForAutoTotp.totpSecret);
+              console.log(`[PrivateAPI] @${account.username} -- TOTP auto (checkpoint/isTotpChallenge)...`);
+              let user;
+              if (twoFactorIdentifier) {
+                user = await ig.account.twoFactorLogin({
+                  username: account.username, verificationCode: autoCode,
+                  twoFactorIdentifier, verificationMethod: '3', trustThisDevice: '1',
+                });
+              } else {
+                await ig.challenge.sendSecurityCode(autoCode);
+                user = await ig.account.currentUser();
+              }
+              const snap = await ig.state.serialize(); delete snap.constants; snap._deviceSeed = newSeed;
+              await Account.findByIdAndUpdate(account._id, {
+                igSession: JSON.stringify(snap), challengeState: '', healthStatus: 'ativa', lastError: '',
+              });
+              console.log(`[PrivateAPI] @${account.username} -- TOTP auto (checkpoint) OK!`);
+              return ig;
+            } catch (autoTotpErr) {
+              console.log(`[PrivateAPI] @${account.username} -- TOTP auto (checkpoint) falhou: ${autoTotpErr.message}`);
+            }
+          }
+
           _pendingTotp.set(String(account._id), {
-            ig, twoFactorIdentifier: twoFactorInfo.two_factor_identifier || '',
-            seed: newSeed, username: account.username, fromChallenge: true,
+            ig, twoFactorIdentifier, seed: newSeed, username: account.username, fromChallenge: true,
           });
           const err = new Error('TOTP_REQUIRED'); err.code = 'TOTP_REQUIRED'; throw err;
         }
