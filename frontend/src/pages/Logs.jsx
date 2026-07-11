@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 
@@ -60,7 +60,17 @@ export default function Logs() {
     }
   }, []);
 
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; }, [load]);
+
   useEffect(() => { load(); }, [load]);
+
+  // Poll every 10 s as fallback when SSE is idle
+  useEffect(() => {
+    const id = setInterval(() => loadRef.current?.(), 10_000);
+    return () => clearInterval(id);
+  }, []);
+
   useServerEvents(['posts', 'profile_edit', 'accounts'], load);
 
   // Montar timeline unificada

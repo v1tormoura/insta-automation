@@ -49,10 +49,12 @@ exports.getDashboard = async (req, res) => {
       a.healthStatus === 'ativa' ||
       (a.accessToken && a.igUserId && !BAD.includes(a.healthStatus))
     ).length;
-    const restrictedAccounts = accounts.filter((a) => a.healthStatus === 'restrita').length;
-    const bannedAccounts = accounts.filter((a) => a.healthStatus === 'banida').length;
-    const tokenInvalidAccounts = accounts.filter((a) => a.healthStatus === 'token_invalido').length;
-    const busyAccounts = accounts.filter((a) => a.isBusy).length;
+    const restrictedAccounts    = accounts.filter((a) => a.healthStatus === 'restrita').length;
+    const bannedAccounts        = accounts.filter((a) => a.healthStatus === 'banida').length;
+    const tokenInvalidAccounts  = accounts.filter((a) => a.healthStatus === 'token_invalido').length;
+    const expiredSessions       = accounts.filter((a) => a.healthStatus === 'sessao_expirada').length;
+    const loginErrorAccounts    = accounts.filter((a) => a.healthStatus === 'erro_login').length;
+    const busyAccounts          = accounts.filter((a) => a.isBusy).length;
 
     const sessionsOk = accounts.filter((a) => hasSession(a.username)).length;
     const sessionsMissing = totalAccounts - sessionsOk;
