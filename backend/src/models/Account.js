@@ -90,7 +90,7 @@ const accountSchema = new mongoose.Schema(
 
     healthStatus: {
       type: String,
-      enum: ['ativa', 'restrita', 'erro_login', 'sessao_expirada', 'banida'],
+      enum: ['ativa', 'restrita', 'erro_login', 'sessao_expirada', 'banida', 'token_invalido', 'conta_pessoal'],
       default: 'ativa',
     },
 

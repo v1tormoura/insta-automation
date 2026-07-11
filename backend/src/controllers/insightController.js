@@ -120,23 +120,45 @@ exports.republishPost = async (req, res) => {
 
     const finalPostType = postType || (isVideo ? 'reel' : 'post');
     const baseDate      = scheduledAt ? new Date(scheduledAt) : new Date();
-    const delay         = Math.max(baseDate.getTime() - Date.now(), 0);
+    const intervalMs    = Math.max(0, (intervalMinutes || 0)) * 60 * 1000;
 
-    const post = await Post.create({
-      media:    filename,
-      mediaType: isVideo ? 'video' : 'image',
-      postType: finalPostType,
-      caption:  caption || '',
-      processMode: processMode || 'limpeza_leve',
-      accounts,
-      scheduledAt: baseDate,
-      status: delay > 0 ? 'agendado' : 'pendente',
-    });
-
-    await postQueue.add('newPost', { postId: post._id }, { delay });
-    broadcast('posts', { action: 'created' });
-
-    res.json({ success: true, post });
+    if (intervalMs > 0) {
+      // Com intervalo: um post por conta, cada um agendado com delay crescente
+      const posts = [];
+      for (let i = 0; i < accounts.length; i++) {
+        const accountDelay = Math.max(baseDate.getTime() + i * intervalMs - Date.now(), 0);
+        const p = await Post.create({
+          media:       filename,
+          mediaType:   isVideo ? 'video' : 'image',
+          postType:    finalPostType,
+          caption:     caption || '',
+          processMode: processMode || 'limpeza_leve',
+          accounts:    [accounts[i]],
+          scheduledAt: new Date(Date.now() + accountDelay),
+          status: accountDelay > 0 ? 'agendado' : 'pendente',
+        });
+        await postQueue.add('newPost', { postId: p._id }, { delay: accountDelay });
+        posts.push(p);
+      }
+      broadcast('posts', { action: 'created' });
+      res.json({ success: true, total: posts.length, post: posts[0] });
+    } else {
+      // Sem intervalo: todas as contas ao mesmo tempo
+      const delay = Math.max(baseDate.getTime() - Date.now(), 0);
+      const post = await Post.create({
+        media:       filename,
+        mediaType:   isVideo ? 'video' : 'image',
+        postType:    finalPostType,
+        caption:     caption || '',
+        processMode: processMode || 'limpeza_leve',
+        accounts,
+        scheduledAt: baseDate,
+        status: delay > 0 ? 'agendado' : 'pendente',
+      });
+      await postQueue.add('newPost', { postId: post._id }, { delay });
+      broadcast('posts', { action: 'created' });
+      res.json({ success: true, post });
+    }
   } catch (err) {
     console.error('[republishPost]', err.message);
     res.status(500).json({ error: err.message });
