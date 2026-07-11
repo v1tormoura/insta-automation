@@ -612,3 +612,29 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
   .tp-inner-pad { padding: 16px 12px 0; }
   .tp-hpad      { padding: 0 12px; }
 }
+
+/* ── STORIES + ACCOUNTS mobile fixes ── */
+@media (max-width: 768px) {
+  /* Stories: move Contas/Publicar column above Mídias */
+  .stories-right-col { order: -1; }
+
+  /* Accounts table: collapse to card layout */
+  .acc-tbl-hd { display: none !important; }
+  .tbl-scroll-inner { min-width: unset !important; }
+  .acc-tbl-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 13px 16px !important;
+  }
+  /* Account info (2nd child) fills remaining width */
+  .acc-tbl-row > :nth-child(2) { flex: 1; min-width: 0; }
+  /* Hide secondary columns: seguidores, seguindo, posts, última sync */
+  .acc-tbl-row > :nth-child(3),
+  .acc-tbl-row > :nth-child(4),
+  .acc-tbl-row > :nth-child(5),
+  .acc-tbl-row > :nth-child(7) { display: none !important; }
+  /* Actions row: full width */
+  .acc-tbl-row > :nth-child(8) { width: 100%; }
+}

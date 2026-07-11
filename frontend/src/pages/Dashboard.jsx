@@ -777,7 +777,7 @@ export default function Dashboard() {
         </section>
 
         {/* ── Bottom grid ── */}
-        <section className="bottom-grid" style={{ gridTemplateColumns:'repeat(3,1fr)' }}>
+        <section className="bottom-grid">
 
           {/* LOGS RECENTES */}
           <div className="panel compact-panel logs-panel">

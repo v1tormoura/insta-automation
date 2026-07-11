@@ -802,7 +802,7 @@ export default function Accounts() {
         <div className="tbl-scroll-inner">
 
         {/* Table header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 1.4fr 2.4fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
+        <div className="acc-tbl-hd" style={{ display: 'grid', gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 1.4fr 2.4fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
           {['', 'Conta', 'Seguidores', 'Seguindo', 'Posts', 'Status', 'Última sync', 'Ações'].map((h, i) => (
             <div key={i} style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: .6 }}>{h}</div>
           ))}
@@ -813,7 +813,7 @@ export default function Accounts() {
           const hc = { restrita:'#f59e0b', banida:'#ef4444', token_invalido:'#ef4444' }[account.healthStatus] || '#10b981';
           const hl = healthLabel(account.healthStatus || 'ativa');
           return (
-            <div key={account._id} style={{
+            <div key={account._id} className="acc-tbl-row" style={{
               display: 'grid',
               gridTemplateColumns: '32px 2fr 1fr 1fr 1fr 1fr 1.4fr 2.4fr',
               gap: 0,

@@ -282,7 +282,7 @@ export default function Stories() {
         </div>
 
         {/* ── Coluna direita ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+        <div className="stories-right-col" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
 
           {/* Contas */}
           <div style={{ ...PANEL, overflow: 'visible' }}>
