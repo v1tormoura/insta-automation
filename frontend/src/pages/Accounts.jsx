@@ -697,17 +697,19 @@ export default function Accounts() {
     );
   }
   function healthLabel(s) {
-    if (s === 'restrita')      return 'Restrita';
-    if (s === 'banida')        return 'Banida';
-    if (s === 'token_invalido') return 'Token expirado';
+    if (s === 'restrita')        return 'Restrita';
+    if (s === 'banida')          return 'Banida';
+    if (s === 'token_invalido')  return 'Token expirado';
     if (s === 'sessao_expirada') return 'Sessão expirada';
+    if (s === 'erro_login')      return 'Erro de login';
     return 'Saudável';
   }
   function healthBadge(s) {
-    if (s === 'restrita')       return 'badge-amber';
-    if (s === 'banida')         return 'badge-red';
-    if (s === 'token_invalido') return 'badge-red';
+    if (s === 'restrita')        return 'badge-amber';
+    if (s === 'banida')          return 'badge-red';
+    if (s === 'token_invalido')  return 'badge-red';
     if (s === 'sessao_expirada') return 'badge-amber';
+    if (s === 'erro_login')      return 'badge-red';
     return 'badge-green';
   }
 
@@ -823,7 +825,7 @@ export default function Accounts() {
 
         {/* Rows */}
         {filteredAccounts.map((account, ri) => {
-          const hc = { restrita:'#f59e0b', banida:'#ef4444', token_invalido:'#ef4444' }[account.healthStatus] || '#10b981';
+          const hc = { restrita:'#f59e0b', banida:'#ef4444', token_invalido:'#ef4444', sessao_expirada:'#f59e0b', erro_login:'#ef4444' }[account.healthStatus] || '#10b981';
           const hl = healthLabel(account.healthStatus || 'ativa');
           return (
             <div key={account._id} className="acc-tbl-row" style={{
@@ -1614,16 +1616,34 @@ export default function Accounts() {
 
             <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
 
-              {/* Aviso */}
-              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:10, background:'rgba(99,102,241,.07)', border:'1px solid rgba(99,102,241,.18)' }}>
-                <span style={{ fontSize:16 }}>🔑</span>
-                <span style={{ fontSize:12, color:'#94a3b8' }}>Salve a senha e a chave 2FA para que o sistema faça login automaticamente quando necessário.</span>
-              </div>
+              {/* Aviso de erro de login */}
+              {(editProfileModal.healthStatus === 'erro_login' || editProfileModal.healthStatus === 'sessao_expirada') && (
+                <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 14px', borderRadius:10, background:'rgba(239,68,68,.09)', border:'1px solid rgba(239,68,68,.3)' }}>
+                  <span style={{ fontSize:16, flexShrink:0 }}>❌</span>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#f87171' }}>
+                      {editProfileModal.healthStatus === 'erro_login' ? 'Login falhou — senha incorreta' : 'Sessão expirada'}
+                    </div>
+                    {editProfileModal.lastError && (
+                      <div style={{ fontSize:11, color:'#f87171', opacity:.8, marginTop:2 }}>{editProfileModal.lastError.slice(0, 100)}</div>
+                    )}
+                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>Digite a senha correta abaixo para reconectar a conta.</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Aviso padrão */}
+              {editProfileModal.healthStatus !== 'erro_login' && editProfileModal.healthStatus !== 'sessao_expirada' && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:10, background:'rgba(99,102,241,.07)', border:'1px solid rgba(99,102,241,.18)' }}>
+                  <span style={{ fontSize:16 }}>🔑</span>
+                  <span style={{ fontSize:12, color:'#94a3b8' }}>Salve a senha e a chave 2FA para que o sistema faça login automaticamente quando necessário.</span>
+                </div>
+              )}
 
               {/* Senha */}
               <div>
                 <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Senha da conta</label>
-                {editProfileModal?.hasPassword && !epPassword ? (
+                {editProfileModal?.hasPassword && !epPassword && editProfileModal?.healthStatus !== 'erro_login' && editProfileModal?.healthStatus !== 'sessao_expirada' ? (
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
                     <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva</span>
                     <button type="button" onClick={() => setEpPassword(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
