@@ -29,6 +29,7 @@ services:
       - uploads:/app/uploads
       - sessions:/app/sessions
       - data:/app/data
+      - ./backend/src:/app/src   # código-fonte montado: restart basta, sem rebuild
     ports:
       - "3000:3000"
     command: node src/app.js
@@ -51,6 +52,7 @@ services:
       - uploads:/app/uploads
       - sessions:/app/sessions
       - data:/app/data
+      - ./backend/src:/app/src   # código-fonte montado: restart basta, sem rebuild
     command: node src/queue/worker.js
     networks:
       - instaflow
