@@ -1534,12 +1534,22 @@ export default function Accounts() {
                     const sel = !!selectedBulkAccounts[String(acc._id)];
                     return (
                       <button key={acc._id} onClick={() => toggleBulkAccount(acc._id)} style={{
-                        padding:'4px 10px', borderRadius:999, fontSize:12, fontWeight:600, cursor:'pointer',
+                        padding:'4px 10px 4px 4px', borderRadius:999, fontSize:12, fontWeight:600, cursor:'pointer',
                         border:`1px solid ${sel ? 'rgba(99,102,241,.5)' : 'rgba(51,65,85,.5)'}`,
                         background: sel ? 'rgba(99,102,241,.2)' : 'rgba(30,41,59,.6)',
                         color: sel ? '#a5b4fc' : '#64748b',
                         transition:'all .15s',
-                      }}>@{acc.username}</button>
+                        display:'flex', alignItems:'center', gap:6,
+                      }}>
+                        <div style={{ position:'relative', width:22, height:22, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'rgba(99,102,241,.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#818cf8' }}>
+                          {acc.username?.[0]?.toUpperCase()}
+                          {acc.avatar && (
+                            <img src={avatarUrl(acc.avatar)} alt="" onError={e => e.target.style.display='none'}
+                              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                          )}
+                        </div>
+                        @{acc.username}
+                      </button>
                     );
                   })}
                 </div>
