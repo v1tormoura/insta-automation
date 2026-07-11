@@ -684,7 +684,7 @@ export default function Accounts() {
     if (s === 'restrita')       return 'badge-amber';
     if (s === 'banida')         return 'badge-red';
     if (s === 'token_invalido') return 'badge-red';
-    if (s === 'sessao_expirada') return 'badge-red';
+    if (s === 'sessao_expirada') return 'badge-amber';
     return 'badge-green';
   }
 
