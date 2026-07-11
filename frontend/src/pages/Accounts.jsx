@@ -136,19 +136,37 @@ export default function Accounts() {
   const [epPassword,   setEpPassword]   = useState('');
   const [epTotpSecret, setEpTotpSecret] = useState('');
   const [epError,      setEpError]      = useState('');
+  const [epChecking,   setEpChecking]   = useState(false);
+  const [epCheckBad,   setEpCheckBad]   = useState(false);
+  const [epCheckMsg,   setEpCheckMsg]   = useState('');
 
   function openEditProfile(account) {
     setEditProfileModal(account);
     setEpPassword('');
     setEpTotpSecret('');
     setEpError('');
+    setEpCheckBad(false);
+    setEpCheckMsg('');
+    // Auto-verificar a senha salva ao abrir o modal
+    if (account.hasPassword) {
+      setEpChecking(true);
+      api.post(`/accounts/${account._id}/test-login`)
+        .then(() => setEpCheckBad(false))
+        .catch(err => {
+          setEpCheckBad(true);
+          setEpCheckMsg(err.response?.data?.error || err.message || '');
+        })
+        .finally(() => setEpChecking(false));
+    }
   }
 
   async function submitEditProfile() {
     if (!editProfileModal) return;
     setEpError('');
     if (!epPassword.trim() && !epTotpSecret.trim()) {
-      setEpError('Preencha pelo menos a senha ou a chave 2FA.');
+      setEpError(epCheckBad
+        ? '❌ Senha incorreta. Digite a senha correta no campo acima.'
+        : 'Preencha pelo menos a senha ou a chave 2FA.');
       return;
     }
     setEpLoading(true);
@@ -1616,24 +1634,26 @@ export default function Accounts() {
 
             <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
 
-              {/* Aviso de erro de login */}
-              {(editProfileModal.healthStatus === 'erro_login' || editProfileModal.healthStatus === 'sessao_expirada') && (
+              {/* Banner: senha incorreta (healthStatus OU check ao abrir) */}
+              {(editProfileModal.healthStatus === 'erro_login' || editProfileModal.healthStatus === 'sessao_expirada' || epCheckBad) && (
                 <div style={{ display:'flex', alignItems:'flex-start', gap:10, padding:'10px 14px', borderRadius:10, background:'rgba(239,68,68,.09)', border:'1px solid rgba(239,68,68,.3)' }}>
                   <span style={{ fontSize:16, flexShrink:0 }}>❌</span>
                   <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:'#f87171' }}>
-                      {editProfileModal.healthStatus === 'erro_login' ? 'Login falhou — senha incorreta' : 'Sessão expirada'}
-                    </div>
-                    {editProfileModal.lastError && (
-                      <div style={{ fontSize:11, color:'#f87171', opacity:.8, marginTop:2 }}>{editProfileModal.lastError.slice(0, 100)}</div>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#f87171' }}>Senha incorreta — login falhou</div>
+                    {(epCheckMsg || editProfileModal.lastError) && (
+                      <div style={{ fontSize:11, color:'#f87171', opacity:.8, marginTop:2 }}>
+                        {(epCheckMsg || editProfileModal.lastError).slice(0, 100)}
+                      </div>
                     )}
                     <div style={{ fontSize:11, color:'#94a3b8', marginTop:4 }}>Digite a senha correta abaixo para reconectar a conta.</div>
                   </div>
                 </div>
               )}
 
-              {/* Aviso padrão */}
-              {editProfileModal.healthStatus !== 'erro_login' && editProfileModal.healthStatus !== 'sessao_expirada' && (
+              {/* Banner padrão (só quando não há erro e não está verificando) */}
+              {!epCheckBad && !epChecking &&
+               editProfileModal.healthStatus !== 'erro_login' &&
+               editProfileModal.healthStatus !== 'sessao_expirada' && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderRadius:10, background:'rgba(99,102,241,.07)', border:'1px solid rgba(99,102,241,.18)' }}>
                   <span style={{ fontSize:16 }}>🔑</span>
                   <span style={{ fontSize:12, color:'#94a3b8' }}>Salve a senha e a chave 2FA para que o sistema faça login automaticamente quando necessário.</span>
@@ -1643,9 +1663,15 @@ export default function Accounts() {
               {/* Senha */}
               <div>
                 <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Senha da conta</label>
-                {editProfileModal?.hasPassword && !epPassword && editProfileModal?.healthStatus !== 'erro_login' && editProfileModal?.healthStatus !== 'sessao_expirada' ? (
+                {epChecking ? (
+                  <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', background:'rgba(99,102,241,.05)', border:'1px solid rgba(99,102,241,.15)', borderRadius:8 }}>
+                    <span style={{ fontSize:13, color:'#94a3b8' }}>🔄 Verificando senha salva...</span>
+                  </div>
+                ) : editProfileModal?.hasPassword && !epPassword.trim() && !epCheckBad &&
+                    editProfileModal?.healthStatus !== 'erro_login' &&
+                    editProfileModal?.healthStatus !== 'sessao_expirada' ? (
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
-                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva</span>
+                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva e verificada</span>
                     <button type="button" onClick={() => setEpPassword(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
                   </div>
                 ) : (
