@@ -87,32 +87,42 @@ async function _webFetch(url, opts, proxyUrl) {
   }
 }
 
-async function _webApiGet(url, { sessionid, csrftoken }, proxyUrl) {
+async function _igFetch(url, opts, { sessionid, csrftoken }, proxyUrl) {
   const r = await _webFetch(url, {
+    ...opts,
     headers: {
       ...WEB_HEADERS_BASE,
       'Cookie': `sessionid=${sessionid}; csrftoken=${csrftoken}`,
       'X-CSRFToken': csrftoken,
+      ...(opts.headers || {}),
     },
   }, proxyUrl);
+
   if (r.status === 401 || r.status === 403) throw new Error(`web_auth_failed:${r.status}`);
-  return r.json();
+
+  const text = await r.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Instagram retornou HTML ou página de segurança — sessionid não é aceito neste IP
+    const snippet = text.slice(0, 120).replace(/\s+/g, ' ');
+    throw new Error(`Instagram bloqueou a requisição neste IP (resposta não-JSON: "${snippet}"). Use um proxy residencial na conta.`);
+  }
 }
 
-async function _webApiPost(url, body, { sessionid, csrftoken }, proxyUrl) {
-  const r = await _webFetch(url, {
+async function _webApiGet(url, creds, proxyUrl) {
+  const data = await _igFetch(url, {}, creds, proxyUrl);
+  if (data.status === 'fail') throw new Error(data.message || 'web API erro');
+  return data;
+}
+
+async function _webApiPost(url, body, creds, proxyUrl) {
+  const data = await _igFetch(url, {
     method: 'POST',
-    headers: {
-      ...WEB_HEADERS_BASE,
-      'Cookie': `sessionid=${sessionid}; csrftoken=${csrftoken}`,
-      'X-CSRFToken': csrftoken,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body).toString(),
-  }, proxyUrl);
-  if (r.status === 401 || r.status === 403) throw new Error(`web_auth_failed:${r.status}`);
-  const data = await r.json().catch(() => ({}));
-  if (data.status === 'fail' || data.message) throw new Error(data.message || 'web API retornou erro');
+  }, creds, proxyUrl);
+  if (data.status === 'fail') throw new Error(data.message || 'web API erro');
   return data;
 }
 
