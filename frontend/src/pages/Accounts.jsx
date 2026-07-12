@@ -929,7 +929,7 @@ export default function Accounts() {
                       ) : (
                         <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
                       )}
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Credenciais da conta">✏️ Editar</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar credenciais da conta">✏️</button>
                       <button
                         className="btn btn-sm"
                         onClick={() => { setSessionModal(account); setSessionId(''); }}
