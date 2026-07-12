@@ -930,7 +930,14 @@ export default function Accounts() {
                         <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
                       )}
                       <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Credenciais da conta">✏️ Editar</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setSessionModal(account); setSessionId(''); }} title="Importar sessionid do browser">🍪</button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => { setSessionModal(account); setSessionId(''); }}
+                        title={account.hasIgSession ? 'Sessão Private API ativa — clique para reimportar' : 'Importar sessionid do browser'}
+                        style={account.hasIgSession
+                          ? { background: 'rgba(16,185,129,.15)', color: '#34d399', border: '1px solid rgba(16,185,129,.3)' }
+                          : { background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)' }}
+                      >🍪</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
                       {hasToken && (
                         <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }}
