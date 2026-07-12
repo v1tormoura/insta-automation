@@ -571,10 +571,11 @@ router.post('/:id/import-session', async (req, res) => {
     state._rawSessionid   = sessionid;
     const displayName = me?.username || account.username;
     await Account.findByIdAndUpdate(account._id, {
-      igSession:      JSON.stringify(state),
-      challengeState: '',
-      healthStatus:   needsCheckpoint ? 'sessao_expirada' : 'ativa',
-      lastError:      needsCheckpoint ? 'checkpoint_required — sessão salva, tente publicar' : '',
+      igSession:        JSON.stringify(state),
+      rawWebSessionid:  sessionid,   // campo separado — não é apagado pelo keepAlive
+      challengeState:   '',
+      healthStatus:     needsCheckpoint ? 'sessao_expirada' : 'ativa',
+      lastError:        needsCheckpoint ? 'checkpoint_required — sessão salva, tente publicar' : '',
     });
 
     const msg = needsCheckpoint

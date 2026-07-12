@@ -117,8 +117,11 @@ async function _webApiPost(url, body, { sessionid, csrftoken }, proxyUrl) {
 }
 
 async function _editViaWebApi(account, { fullName, biography, gender, customGender, picBuffer }) {
-  const creds = _extractCookies(account.igSession);
-  if (!creds?.sessionid) throw new Error('sessionid não encontrado no igSession salvo');
+  // Tenta primeiro o campo dedicado (não apagado pelo keepAlive), depois parseia igSession
+  const rawSid = account.rawWebSessionid
+    || _extractCookies(account.igSession)?.sessionid;
+  if (!rawSid) throw new Error('Sessão expirada — reimporte o sessionid via 🍪 na página de contas');
+  const creds = { sessionid: rawSid, csrftoken: _extractCookies(account.igSession)?.csrftoken || '' };
 
   const proxy = account.proxy?.trim() || null;
   const results = {};
@@ -258,14 +261,14 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
       console.log(`[EditProfile] @${account.username} — mobile API rejeitou, tentando web API...`);
       // Recarrega conta pois igSession pode ter sido apagado acima
       const fresh = await Account.findById(account._id);
-      if (!fresh?.igSession) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
+      if (!fresh?.igSession && !fresh?.rawWebSessionid) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
       return _editViaWebApi(fresh, { fullName, biography, gender, customGender, picBuffer });
     }
   }
 
-  // Sem mobile API — tenta web API diretamente se há igSession
+  // Sem mobile API — tenta web API diretamente se há sessão salva
   const freshForWeb = await Account.findById(account._id);
-  if (freshForWeb?.igSession) {
+  if (freshForWeb?.igSession || freshForWeb?.rawWebSessionid) {
     console.log(`[EditProfile] @${account.username} — usando web API (sem mobile session)`);
     return _editViaWebApi(freshForWeb, { fullName, biography, gender, customGender, picBuffer });
   }
