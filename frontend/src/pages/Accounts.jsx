@@ -1325,12 +1325,27 @@ export default function Accounts() {
             <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 6px' }}>
               Conta: <strong>@{sessionModal.username}</strong>
             </p>
-            <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
-              <strong style={{ color: 'var(--text1)' }}>Como obter o sessionid:</strong><br/>
-              1. Abra <strong>instagram.com</strong> no Chrome e faça login normalmente<br/>
-              2. Pressione <strong>F12</strong> → aba <strong>Application</strong> → <strong>Cookies</strong> → <strong>instagram.com</strong><br/>
-              3. Encontre o cookie <strong>sessionid</strong> e copie o valor<br/>
-              4. Cole abaixo e clique em Conectar
+            <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+              <strong style={{ color: 'var(--text1)' }}>⚡ Opção 1 — Bookmarklet (mais fácil)</strong><br/>
+              <span style={{ color: 'var(--text3)', fontSize: 11 }}>Arraste o botão abaixo para a barra de favoritos do Chrome:</span><br/>
+              <div style={{ margin: '6px 0 8px' }}>
+                {/* eslint-disable-next-line no-script-url */}
+                <a
+                  href={"javascript:(function(){var c=document.cookie.split(';').find(x=>x.trim().startsWith('sessionid='));if(c){var v=c.trim().split('=')[1];prompt('Copie o sessionid:',v);}else{alert('Nao encontrou sessionid. Abra em instagram.com');}})();"}
+                  style={{ display: 'inline-block', padding: '4px 12px', background: 'var(--accent)', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none', cursor: 'grab', userSelect: 'none' }}
+                  onClick={e => e.preventDefault()}
+                  draggable
+                >
+                  📋 Get SessionID
+                </a>
+              </div>
+              1. Arraste o botão acima para a barra de favoritos<br/>
+              2. Abra <strong>instagram.com</strong> já logado<br/>
+              3. Clique no favorito <strong>Get SessionID</strong> — vai aparecer o valor<br/>
+              4. Copie e cole abaixo<br/>
+              <br/>
+              <strong style={{ color: 'var(--text1)' }}>🔧 Opção 2 — Manual (F12)</strong><br/>
+              F12 → <strong>Application</strong> → <strong>Cookies</strong> → <strong>instagram.com</strong> → copie o valor de <strong>sessionid</strong>
             </div>
             <input
               className="inp"
