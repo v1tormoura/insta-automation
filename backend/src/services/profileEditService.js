@@ -28,16 +28,37 @@ const WEB_HEADERS_BASE = {
 function _extractCookies(igSessionStr) {
   try {
     const state = JSON.parse(igSessionStr);
+
     // Caminho rápido: sessionid bruto salvo durante o import
     if (state._rawSessionid) {
       return { sessionid: state._rawSessionid, csrftoken: state._rawCsrftoken || '', ds_user_id: state._rawDsUserId || '' };
     }
-    // Fallback: parseia o cookieJar serializado (array ou nested)
+
+    // Parseia o cookieJar — suporta formato flat [{key,value}] e nested {domain:{path:{key:{value}}}}
     const jar = state.cookieJarSerialization;
-    const cookies = Array.isArray(jar?.cookies) ? jar.cookies
-      : Array.isArray(jar) ? jar : [];
+    if (!jar) return null;
+
+    let cookies = [];
+    if (Array.isArray(jar.cookies)) {
+      cookies = jar.cookies;
+    } else if (jar.cookies && typeof jar.cookies === 'object') {
+      for (const domain of Object.values(jar.cookies)) {
+        for (const pathObj of Object.values(domain)) {
+          if (Array.isArray(pathObj)) {
+            cookies.push(...pathObj);
+          } else {
+            for (const [k, v] of Object.entries(pathObj)) {
+              cookies.push({ key: k, value: typeof v === 'object' ? (v.value || '') : v });
+            }
+          }
+        }
+      }
+    }
+
     const get = key => cookies.find(c => c.key === key)?.value || '';
-    return { sessionid: get('sessionid'), csrftoken: get('csrftoken'), ds_user_id: get('ds_user_id') };
+    const sessionid = get('sessionid');
+    if (!sessionid) return null;
+    return { sessionid, csrftoken: get('csrftoken'), ds_user_id: get('ds_user_id') };
   } catch {
     return null;
   }
