@@ -564,10 +564,11 @@ router.post('/:id/import-session', async (req, res) => {
       console.log(`[SessionImport] @${account.username} -- validação web falhou (${e.message}), salvando`);
     }
 
-    // Salva sessão no banco
+    // Salva sessão no banco (inclui sessionid bruto para uso direto na web API)
     const state = await ig.state.serialize();
     delete state.constants;
-    state._deviceSeed = seed;
+    state._deviceSeed     = seed;
+    state._rawSessionid   = sessionid;
     const displayName = me?.username || account.username;
     await Account.findByIdAndUpdate(account._id, {
       igSession:      JSON.stringify(state),

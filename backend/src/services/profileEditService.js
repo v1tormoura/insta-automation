@@ -28,7 +28,14 @@ const WEB_HEADERS_BASE = {
 function _extractCookies(igSessionStr) {
   try {
     const state = JSON.parse(igSessionStr);
-    const cookies = state.cookieJarSerialization?.cookies || [];
+    // Caminho rápido: sessionid bruto salvo durante o import
+    if (state._rawSessionid) {
+      return { sessionid: state._rawSessionid, csrftoken: state._rawCsrftoken || '', ds_user_id: state._rawDsUserId || '' };
+    }
+    // Fallback: parseia o cookieJar serializado (array ou nested)
+    const jar = state.cookieJarSerialization;
+    const cookies = Array.isArray(jar?.cookies) ? jar.cookies
+      : Array.isArray(jar) ? jar : [];
     const get = key => cookies.find(c => c.key === key)?.value || '';
     return { sessionid: get('sessionid'), csrftoken: get('csrftoken'), ds_user_id: get('ds_user_id') };
   } catch {
