@@ -64,21 +64,40 @@ function _extractCookies(igSessionStr) {
   }
 }
 
-async function _webApiGet(url, { sessionid, csrftoken }) {
-  const r = await fetch(url, {
+function _makeDispatcher(proxyUrl) {
+  if (!proxyUrl) return undefined;
+  try {
+    const { ProxyAgent } = require('undici');
+    return new ProxyAgent(proxyUrl.trim());
+  } catch {
+    return undefined;
+  }
+}
+
+async function _webFetch(url, opts, proxyUrl) {
+  const dispatcher = _makeDispatcher(proxyUrl);
+  try {
+    return await fetch(url, { ...opts, ...(dispatcher ? { dispatcher } : {}), signal: AbortSignal.timeout(20_000) });
+  } catch (e) {
+    const cause = e.cause?.message || e.cause?.code || e.message || 'desconhecido';
+    throw new Error(`Falha de rede ao acessar Instagram (${cause}). Configure um proxy residencial na conta.`);
+  }
+}
+
+async function _webApiGet(url, { sessionid, csrftoken }, proxyUrl) {
+  const r = await _webFetch(url, {
     headers: {
       ...WEB_HEADERS_BASE,
       'Cookie': `sessionid=${sessionid}; csrftoken=${csrftoken}`,
       'X-CSRFToken': csrftoken,
     },
-    signal: AbortSignal.timeout(15_000),
-  });
+  }, proxyUrl);
   if (r.status === 401 || r.status === 403) throw new Error(`web_auth_failed:${r.status}`);
   return r.json();
 }
 
-async function _webApiPost(url, body, { sessionid, csrftoken }) {
-  const r = await fetch(url, {
+async function _webApiPost(url, body, { sessionid, csrftoken }, proxyUrl) {
+  const r = await _webFetch(url, {
     method: 'POST',
     headers: {
       ...WEB_HEADERS_BASE,
@@ -87,8 +106,7 @@ async function _webApiPost(url, body, { sessionid, csrftoken }) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams(body).toString(),
-    signal: AbortSignal.timeout(15_000),
-  });
+  }, proxyUrl);
   if (r.status === 401 || r.status === 403) throw new Error(`web_auth_failed:${r.status}`);
   const data = await r.json().catch(() => ({}));
   if (data.status === 'fail' || data.message) throw new Error(data.message || 'web API retornou erro');
@@ -99,13 +117,14 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
   const creds = _extractCookies(account.igSession);
   if (!creds?.sessionid) throw new Error('sessionid não encontrado no igSession salvo');
 
+  const proxy = account.proxy?.trim() || null;
   const results = {};
   const dbUpdate = { healthStatus: 'ativa', lastError: '' };
 
   if (fullName !== undefined || biography !== undefined || gender !== undefined) {
     const meData = await _webApiGet(
       'https://www.instagram.com/api/v1/accounts/current_user/?edit=true',
-      creds
+      creds, proxy
     );
     const current = meData.user || meData;
 
@@ -118,7 +137,7 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
       phone_number:  current.phone_number || '',
       gender:        String(gender !== undefined ? Number(gender) : (current.gender ?? 4)),
       custom_gender: customGender !== undefined ? customGender : (current.custom_gender || ''),
-    }, creds);
+    }, creds, proxy);
 
     results.profileEdited = true;
     console.log(`[EditProfile/Web] @${account.username} — nome/bio/genero atualizados`);
@@ -131,7 +150,7 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
     // Foto via web API: multipart/form-data
     const formData = new FormData();
     formData.append('profile_pic', new Blob([picBuffer], { type: 'image/jpeg' }), 'photo.jpg');
-    const r = await fetch('https://www.instagram.com/api/v1/accounts/change_profile_picture/', {
+    const r = await _webFetch('https://www.instagram.com/api/v1/accounts/change_profile_picture/', {
       method: 'POST',
       headers: {
         ...WEB_HEADERS_BASE,
@@ -139,8 +158,7 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
         'X-CSRFToken': creds.csrftoken,
       },
       body: formData,
-      signal: AbortSignal.timeout(30_000),
-    });
+    }, proxy);
     if (!r.ok) throw new Error(`Falha ao trocar foto via web API: HTTP ${r.status}`);
     results.pictureChanged = true;
     console.log(`[EditProfile/Web] @${account.username} — foto trocada`);
