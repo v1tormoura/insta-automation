@@ -530,26 +530,38 @@ router.post('/:id/import-session', async (req, res) => {
         err => err ? reject(err) : resolve());
     });
 
-    // Testa a sessão — aceita tanto sucesso quanto checkpoint_required
-    // (checkpoint_required = sessionid válido mas API mobile quer verificação)
+    // Valida o sessionid via API web (mesmo domínio de onde veio o cookie)
+    // Evita falsos "login_required" causados por mismatch de device fingerprint da API mobile
     let me = null;
     let needsCheckpoint = false;
     try {
-      me = await ig.account.currentUser();
-      console.log(`[SessionImport] @${me.username} -- sessão válida`);
-    } catch (e) {
-      const msg = e.message || '';
-      if (msg.includes('checkpoint_required') || msg.includes('checkpoint') || e.name === 'IgCheckpointError') {
-        // Sessão reconhecida pelo Instagram, só precisa de verificação na API mobile
-        needsCheckpoint = true;
-        console.log(`[SessionImport] @${account.username} -- sessionid válido (checkpoint_required, salvando)`);
-      } else if (msg.includes('login_required') || msg.includes('not authorized')) {
+      const r = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
+        headers: {
+          'Cookie': `sessionid=${sessionid}`,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'X-CSRFToken': 'missing',
+          'X-IG-App-ID': '936619743392459',
+          'Referer': 'https://www.instagram.com/',
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (r.status === 401 || r.status === 403) {
         return res.status(400).json({ error: 'sessionid inválido ou expirado. Copie novamente do browser.' });
-      } else {
-        // Qualquer outro erro: tenta salvar mesmo assim
-        needsCheckpoint = true;
-        console.log(`[SessionImport] @${account.username} -- aviso: ${msg} — salvando mesmo assim`);
       }
+      const data = await r.json().catch(() => ({}));
+      if (data?.user?.username) {
+        me = data.user;
+        console.log(`[SessionImport] @${me.username} -- sessionid válido via web API`);
+      } else if (data?.message === 'checkpoint_required' || data?.checkpoint_url) {
+        needsCheckpoint = true;
+        console.log(`[SessionImport] @${account.username} -- checkpoint_required, salvando mesmo assim`);
+      } else {
+        // Resposta inesperada mas não é erro de auth — salva
+        console.log(`[SessionImport] @${account.username} -- resposta inesperada (${r.status}), salvando`);
+      }
+    } catch (e) {
+      // Timeout ou erro de rede — salva mesmo assim para não bloquear o usuário
+      console.log(`[SessionImport] @${account.username} -- validação web falhou (${e.message}), salvando`);
     }
 
     // Salva sessão no banco
