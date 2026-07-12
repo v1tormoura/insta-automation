@@ -18,11 +18,14 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 
 const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 
+// Usa o endpoint mobile (i.instagram.com) que o VPS já acessa para postar Reels
+const IG_HOST = 'https://i.instagram.com';
 const WEB_HEADERS_BASE = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'User-Agent': 'Instagram 361.0.0.39.109 Android (28/9; 420dpi; 1080x1794; Xiaomi/MI 6; sagit; qcom; pt_BR; 574767436)',
   'X-IG-App-ID': '936619743392459',
-  'Origin': 'https://www.instagram.com',
-  'Referer': 'https://www.instagram.com/accounts/edit/',
+  'X-IG-Capabilities': '3brTvw==',
+  'Accept-Language': 'pt-BR',
+  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
 };
 
 function _extractCookies(igSessionStr) {
@@ -123,12 +126,12 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
 
   if (fullName !== undefined || biography !== undefined || gender !== undefined) {
     const meData = await _webApiGet(
-      'https://www.instagram.com/api/v1/accounts/current_user/?edit=true',
+      `${IG_HOST}/api/v1/accounts/current_user/`,
       creds, proxy
     );
     const current = meData.user || meData;
 
-    await _webApiPost('https://www.instagram.com/api/v1/accounts/edit/', {
+    await _webApiPost(`${IG_HOST}/api/v1/accounts/edit/`, {
       username:      current.username || account.username,
       full_name:     fullName    !== undefined ? fullName    : (current.full_name || ''),
       biography:     biography   !== undefined ? biography   : (current.biography || ''),
@@ -150,7 +153,7 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
     // Foto via web API: multipart/form-data
     const formData = new FormData();
     formData.append('profile_pic', new Blob([picBuffer], { type: 'image/jpeg' }), 'photo.jpg');
-    const r = await _webFetch('https://www.instagram.com/api/v1/accounts/change_profile_picture/', {
+    const r = await _webFetch(`${IG_HOST}/api/v1/accounts/change_profile_picture/`, {
       method: 'POST',
       headers: {
         ...WEB_HEADERS_BASE,
