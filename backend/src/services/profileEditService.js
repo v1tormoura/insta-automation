@@ -34,12 +34,30 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     }
   }
 
+  async function guardedCall(fn) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e.statusCode === 403 || /login.required|not.authorized|login_required/i.test(e.message)) {
+        await Account.findByIdAndUpdate(account._id, {
+          igSession: '',
+          healthStatus: 'sessao_expirada',
+          lastError: 'Sessão expirada — reimporte o sessionid via 🍪 na página de contas',
+        });
+        const err = new Error('Sessão expirada — reimporte o sessionid via 🍪 na página de contas');
+        err.code = 'SESSION_EXPIRED';
+        throw err;
+      }
+      throw e;
+    }
+  }
+
   const results = {};
   const dbUpdate = { healthStatus: 'ativa', lastError: '' };
 
   // ── 1. Editar nome / bio / gênero ─────────────────────────────────────────
   if (fullName !== undefined || biography !== undefined || gender !== undefined) {
-    const current = await ig.account.currentUser();
+    const current = await guardedCall(() => ig.account.currentUser());
 
     const payload = {
       username:      current.username,
@@ -52,7 +70,7 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
       custom_gender: customGender !== undefined ? customGender : (current.custom_gender || ''),
     };
 
-    await ig.account.editProfile(payload);
+    await guardedCall(() => ig.account.editProfile(payload));
     results.profileEdited = true;
     console.log(`[EditProfile] @${account.username} — nome/bio/genero atualizados`);
 
@@ -72,7 +90,7 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   }
 
   if (picBuffer) {
-    await ig.account.changeProfilePicture(picBuffer);
+    await guardedCall(() => ig.account.changeProfilePicture(picBuffer));
     results.pictureChanged = true;
     console.log(`[EditProfile] @${account.username} — foto de perfil trocada`);
 
