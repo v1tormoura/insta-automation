@@ -137,12 +137,12 @@
 .panel-title { display: flex; align-items: center; gap: 9px; color: #bfeaff; }
 .panel-title h2 { font-size: 12px; margin: 0; letter-spacing: -.01em; }
 .view-all { border: 1px solid rgba(74,159,235,.22); border-radius: 5px; background: rgba(5,28,57,.62); color: #a7cbe8; font-size: 10px; min-height: 23px; padding: 0 7px; display: inline-flex; align-items: center; gap: 1px; cursor: pointer; }
-.forecast-panel { min-height: 210px; }
-.forecast-content { height: 168px; position: relative; overflow: hidden; }
-.forecast-graphic { position: absolute; inset: 5px 0 0; display: grid; place-items: center; }
+.forecast-panel { min-height: 230px; }
+.forecast-content { height: 190px; position: relative; overflow: hidden; }
+.forecast-graphic { position: absolute; inset: 5px 0 24px; display: grid; place-items: center; }
 .folder-holo { color: #46d9ff; opacity: .75; filter: drop-shadow(0 0 10px rgba(16,195,255,.8)); z-index: 2; animation: dash-hoverSlow 3.2s ease-in-out infinite; }
 .holo-floor { position: absolute; bottom: 5px; width: 74%; height: 38px; border-radius: 50%; border: 1px solid rgba(35,197,255,.55); box-shadow: inset 0 0 22px rgba(8,185,255,.16), 0 0 22px rgba(12,191,255,.24); background: radial-gradient(ellipse, rgba(26,180,255,.22), transparent 68%); }
-.forecast-chart { position: absolute; inset: 15px 12px 4px; }
+.forecast-chart { position: absolute; inset: 8px 4px 4px; }
 .empty-copy { position: absolute; z-index: 2; left: 50%; top: 56%; width: 100%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
 .empty-copy h2 { font-size: 15px; margin: 0; color: #d3edff; }
 .empty-copy p { margin: 6px 0 0; font-size: 11px; color: #89aaca; }

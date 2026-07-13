@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {
   Area, AreaChart, Line, LineChart as RechartLineChart,
-  ResponsiveContainer, Tooltip,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
@@ -545,7 +545,21 @@ export default function Dashboard() {
   const d = data || {};
 
   const sparkDaily = useMemo(() => (d.dailyPosts || []).slice(-period).map(x => x.posts || 0), [d.dailyPosts, period]);
-  const forecastData = useMemo(() => (d.dailyPosts || []).slice(-8).map(x => ({ day: x.date || '', value: x.posts || 0 })), [d.dailyPosts]);
+  const forecastData = useMemo(() => {
+    const past = (d.dailyPosts || []).slice(-period).map(x => ({
+      day: x.label || x.date || '',
+      value: x.posts || 0,
+    }));
+    // Adiciona postagens agendadas futuras agrupadas por dia
+    const futureMap = {};
+    (d.upcomingPosts || []).forEach(post => {
+      if (!post.scheduledAt) return;
+      const key = new Date(post.scheduledAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+      futureMap[key] = (futureMap[key] || 0) + 1;
+    });
+    Object.entries(futureMap).forEach(([day, value]) => past.push({ day, value, forecast: true }));
+    return past;
+  }, [d.dailyPosts, d.upcomingPosts, period]);
 
   const queueItems = [
     { label: 'Postados hoje',   value: d.postsToday      || 0, color: '#20b7ff' },
@@ -679,7 +693,7 @@ export default function Dashboard() {
               </div>
             } />
             <div className="forecast-content">
-              {forecastData.length === 0 && (
+              {!forecastData.some(x => x.value > 0) && (
                 <>
                   <div className="forecast-graphic">
                     <div className="folder-holo"><FolderOpen size={58} strokeWidth={1.15} /></div>
@@ -691,17 +705,19 @@ export default function Dashboard() {
                   </div>
                 </>
               )}
-              <div className="forecast-chart" style={{ opacity: forecastData.length ? 1 : 0.33 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={forecastData} margin={{ top:18, right:0, left:0, bottom:0 }}>
+              <div className="forecast-chart" style={{ opacity: forecastData.some(x => x.value > 0) ? 1 : 0.33 }}>
+                <ResponsiveContainer width="100%" height={160}>
+                  <AreaChart data={forecastData} margin={{ top:10, right:4, left:-28, bottom:0 }}>
                     <defs>
                       <linearGradient id="fg" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%"   stopColor="#26c7ff" stopOpacity={0.34} />
                         <stop offset="100%" stopColor="#26c7ff" stopOpacity={0}    />
                       </linearGradient>
                     </defs>
-                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'#d8efff' }} />
-                    <Area type="monotone" dataKey="value" stroke="#27c6ff" strokeWidth={2} fill="url(#fg)" />
+                    <XAxis dataKey="day" tick={{ fontSize:10, fill:'#5a8aaa' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                    <YAxis allowDecimals={false} tick={{ fontSize:10, fill:'#5a8aaa' }} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'#d8efff' }} formatter={v => [v, 'Postagens']} />
+                    <Area type="monotone" dataKey="value" stroke="#27c6ff" strokeWidth={2} fill="url(#fg)" dot={false} activeDot={{ r:4, fill:'#27c6ff' }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
