@@ -53,6 +53,7 @@ export default function Accounts() {
   const [reconnectAllOpen, setReconnectAllOpen] = useState(false);
   const [reconnectAllJob, setReconnectAllJob]   = useState(null); // { jobId, total, done, results }
   const [reconnectAllRunning, setReconnectAllRunning] = useState(false);
+  const [reconnectProxy, setReconnectProxy]     = useState('');
   const [totpModal, setTotpModal]         = useState(null);  // { _id, username }
   const [totpCode, setTotpCode]           = useState('');
   const [totpLoading, setTotpLoading]     = useState(false);
@@ -293,6 +294,10 @@ export default function Accounts() {
   async function startReconnectAll() {
     setReconnectAllRunning(true);
     try {
+      if (reconnectProxy.trim()) {
+        await api.post('/accounts/proxies/bulk-apply', { proxiesText: reconnectProxy.trim() });
+        showToast('success', 'Proxy aplicado', 'Proxy configurado em todas as contas.');
+      }
       const res = await api.post('/accounts/reconnect-all');
       if (!res.data.jobId) {
         showToast('info', 'Nada a fazer', res.data.message || 'Nenhuma conta com senha.');
@@ -1139,18 +1144,37 @@ export default function Accounts() {
 
             {!reconnectAllJob ? (
               <>
-                <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 13, color: 'var(--text1)', marginBottom: 6 }}>O que acontece ao conectar:</div>
-                  <ul style={{ fontSize: 12, color: 'var(--text2)', margin: 0, paddingLeft: 20, lineHeight: 2 }}>
-                    <li>Login com <strong>senha + 2FA automático</strong> para cada conta</li>
-                    <li>Sessão salva no banco — válida por semanas</li>
-                    <li>Contas que precisam de verificação mostram status de challenge</li>
-                    <li>Requer <strong>proxy residencial/4G</strong> configurado por conta (IP de VPS é bloqueado)</li>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>
+                    PROXY RESIDENCIAL / 4G — aplicar a todas as contas
+                  </label>
+                  <input
+                    className="input"
+                    style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
+                    placeholder="http://usuario:senha@host:porta"
+                    value={reconnectProxy}
+                    onChange={e => setReconnectProxy(e.target.value)}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 5 }}>
+                    Cole a URL do proxy 4G/residencial. Será aplicado a <strong>todas as contas</strong> antes de conectar.
+                    Deixe vazio se cada conta já tem proxy configurado.
+                  </div>
+                </div>
+
+                <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, border: '1px solid var(--border)' }}>
+                  <ul style={{ fontSize: 12, color: 'var(--text2)', margin: 0, paddingLeft: 18, lineHeight: 2 }}>
+                    <li>Login automático com <strong>senha + 2FA</strong> em todas as contas com senha</li>
+                    <li>Sessão salva no banco — válida por semanas sem novo login</li>
+                    <li>Contas com challenge recebem botão "Verificar" para inserir o código</li>
                   </ul>
                 </div>
-                <div style={{ fontSize: 12, color: '#fbbf24', background: '#fbbf2410', border: '1px solid #fbbf2430', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
-                  Sem proxy por conta: configure o proxy residencial ou 4G no botão <strong>Proxy</strong> de cada conta antes de conectar.
-                </div>
+
+                {!reconnectProxy.trim() && (
+                  <div style={{ fontSize: 12, color: '#fbbf24', background: '#fbbf2410', border: '1px solid #fbbf2430', borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>
+                    Sem proxy: Instagram bloqueia login com senha a partir de IP de VPS (datacenter).
+                  </div>
+                )}
+
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => setReconnectAllOpen(false)}>Cancelar</button>
                   <button className="btn btn-primary" onClick={startReconnectAll} disabled={reconnectAllRunning}>
