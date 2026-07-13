@@ -942,7 +942,7 @@ export default function Accounts() {
               <div style={{ fontSize: 13, color: '#64748b' }}>{fmt(account.postsCount)}</div>
 
               {/* status */}
-              <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{
                   fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
                   background: `${hc}18`, color: hc, border: `1px solid ${hc}33`,
@@ -951,6 +951,18 @@ export default function Accounts() {
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: hc, display: 'inline-block' }} />
                   {hl}
                 </span>
+                {account.proxy && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
+                    background: account.proxyStatus === 'online' ? '#10b98118' : '#64748b18',
+                    color: account.proxyStatus === 'online' ? '#10b981' : '#64748b',
+                    border: `1px solid ${account.proxyStatus === 'online' ? '#10b98133' : '#64748b33'}`,
+                    display: 'inline-flex', alignItems: 'center', gap: 3,
+                  }}>
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: account.proxyStatus === 'online' ? '#10b981' : '#64748b', display: 'inline-block' }} />
+                    Proxy {account.proxyStatus === 'online' ? 'online' : account.proxyStatus === 'offline' ? 'offline' : 'não testado'}
+                  </span>
+                )}
               </div>
 
               {/* última sync */}
