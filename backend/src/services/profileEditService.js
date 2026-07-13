@@ -199,18 +199,6 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     picBuffer = Buffer.from(await res.arrayBuffer());
   }
 
-  // Se tem senha e a sessão salva é do browser (tem _rawSessionid), limpa antes
-  // para evitar estado misto (browser cookies + mobile device fingerprint) que causa 403
-  if (account.password && account.igSession) {
-    try {
-      const state = JSON.parse(account.igSession);
-      if (state._rawSessionid) {
-        await Account.findByIdAndUpdate(account._id, { igSession: '' });
-        account = await Account.findById(account._id);
-      }
-    } catch {}
-  }
-
   // Tenta mobile API primeiro
   let ig = null;
   try {
