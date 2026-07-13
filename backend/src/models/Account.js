@@ -131,6 +131,12 @@ const accountSchema = new mongoose.Schema(
       default: '',
     },
 
+    // sessionid bruto extraído do browser via 🍪 — não é apagado pelo keepAlive
+    rawWebSessionid: {
+      type: String,
+      default: '',
+    },
+
     // ─── Meta Graph API ───────────────────────────────────────────────────
     // igUserId      — numeric Instagram User ID (e.g. "17841400000000001")
     // accessToken   — long-lived user access token (valid ~60 days)

@@ -191,7 +191,7 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
   return results;
 }
 
-async function editProfile(account, { fullName, biography, gender, profilePicUrl, profilePicBuffer, customGender }) {
+async function editProfile(account, { fullName, biography, gender, profilePicUrl, profilePicBuffer, customGender }, _retried = false) {
   let picBuffer = profilePicBuffer || null;
   if (!picBuffer && profilePicUrl) {
     const res = await fetch(profilePicUrl);
@@ -216,8 +216,24 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   try {
     ig = await createClient(account);
   } catch (firstErr) {
-    // ig continua null → tenta web API abaixo (rawWebSessionid)
-    console.log(`[EditProfile] @${account.username} — mobile API falhou (${firstErr.code || firstErr.message?.slice(0,60)}), tentando web API...`);
+    if (firstErr.code === 'CHALLENGE_REQUIRED') {
+      await Account.findByIdAndUpdate(account._id, {
+        healthStatus: 'sessao_expirada',
+        lastError: 'Verificação de segurança necessária — clique em Reconectar na conta para inserir o código',
+      });
+      throw new Error(`@${account.username}: Instagram enviou um código de verificação — clique em Reconectar e insira o código.`);
+    }
+    if (firstErr.code === 'TOTP_REQUIRED') {
+      throw new Error(`@${account.username}: 2FA necessário — configure a chave 2FA no botão ✏️ da conta.`);
+    }
+    if (firstErr.code === 'LOGIN_EMAIL_REQUIRED') {
+      throw new Error(`@${account.username}: Instagram não reconheceu o username — configure o email de login no botão ✏️.`);
+    }
+    if (account.password) {
+      throw new Error(`@${account.username}: falha no login — ${firstErr.message}`);
+    }
+    // Sem senha — ig continua null → tenta web API abaixo
+    console.log(`[EditProfile] @${account.username} — sem senha, mobile API falhou (${firstErr.code || firstErr.message?.slice(0,60)}), tentando web API...`);
   }
 
   if (ig) {
@@ -276,10 +292,14 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
       return results;
     } catch (mobileErr) {
       if (mobileErr.code !== 'MOBILE_API_REJECTED') throw mobileErr;
-      console.log(`[EditProfile] @${account.username} — mobile API rejeitou, tentando web API...`);
-      // Recarrega conta pois igSession pode ter sido apagado acima
+      if (account.password && !_retried) {
+        // Sessão com device mismatch — recria com login fresh via senha
+        console.log(`[EditProfile] @${account.username} — mobile API rejeitou sessão, recriando com senha...`);
+        await Account.findByIdAndUpdate(account._id, { igSession: '' });
+        return editProfile(await Account.findById(account._id), { fullName, biography, gender, profilePicUrl: null, profilePicBuffer: picBuffer, customGender }, true);
+      }
       const fresh = await Account.findById(account._id);
-      if (!fresh?.igSession && !fresh?.rawWebSessionid) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
+      if (!fresh?.rawWebSessionid) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
       return _editViaWebApi(fresh, { fullName, biography, gender, customGender, picBuffer });
     }
   }
