@@ -51,6 +51,27 @@ router.post('/proxies/bulk-apply', bulkApplyProxies);
 router.delete('/:id', deleteAccount);
 router.post('/:id/sync', syncAccount);
 router.post('/:id/open', openAccount);
+router.post('/:id/reconnect', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+    if (!account.password) return res.status(400).json({ error: 'Conta sem senha configurada' });
+
+    const { createClient } = require('../services/instagramPrivateService');
+    await Account.findByIdAndUpdate(account._id, { challengeState: '' });
+    const fresh = await Account.findById(account._id);
+    await createClient(fresh, { forcePasswordLogin: true });
+    await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '' });
+    const { broadcast } = require('../events/broadcaster');
+    broadcast('accounts', { action: 'synced' });
+    res.json({ success: true });
+  } catch (err) {
+    const code = err.code || '';
+    const status = code === 'CHALLENGE_REQUIRED' ? 'sessao_expirada' : code === 'TOTP_REQUIRED' ? 'sessao_expirada' : 'erro_login';
+    await Account.findByIdAndUpdate(req.params.id, { healthStatus: status, lastError: err.message }).catch(() => {});
+    res.status(400).json({ error: err.message, code });
+  }
+});
 router.post('/connect-bulk', connectBulkAccounts);
 
 router.post('/connect', (req, res) => {

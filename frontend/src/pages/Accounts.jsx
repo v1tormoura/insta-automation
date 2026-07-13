@@ -973,6 +973,29 @@ export default function Accounts() {
                       ) : (
                         <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
                       )}
+                      {account.hasPassword && (
+                        <button className="btn btn-sm" title="Login automático com senha"
+                          style={{ background:'rgba(99,102,241,.15)', color:'#818cf8', border:'1px solid rgba(99,102,241,.3)', fontSize:11 }}
+                          disabled={!!connectingApi[account._id]}
+                          onClick={async () => {
+                            setConnectingApi(p => ({ ...p, [account._id]: true }));
+                            try {
+                              await api.post(`/accounts/${account._id}/reconnect`);
+                              showToast('success', 'Conectada!', `@${account.username} conectada com sucesso.`);
+                              loadAccounts();
+                            } catch (err) {
+                              const msg = err.response?.data?.error || err.message || '';
+                              const code = err.response?.data?.code || '';
+                              if (code === 'CHALLENGE_REQUIRED') showToast('warning', 'Verificação necessária', `@${account.username} — clique em Reconectar e insira o código.`);
+                              else if (code === 'TOTP_REQUIRED') showToast('warning', '2FA necessário', `@${account.username} — configure a chave 2FA no ✏️.`);
+                              else showToast('error', 'Erro ao conectar', msg.slice(0, 100));
+                            } finally {
+                              setConnectingApi(p => ({ ...p, [account._id]: false }));
+                            }
+                          }}>
+                          {connectingApi[account._id] ? '...' : '⚡'}
+                        </button>
+                      )}
                       <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar credenciais da conta">✏️</button>
                       <button
                         className="btn btn-sm"
