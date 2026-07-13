@@ -204,12 +204,8 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   try {
     ig = await createClient(account);
   } catch (firstErr) {
-    if (firstErr.code === 'CHALLENGE_REQUIRED' || firstErr.code === 'TOTP_REQUIRED') {
-      await Account.findByIdAndUpdate(account._id, { challengeState: null, igSession: '' });
-      const fresh = await Account.findById(account._id);
-      try { ig = await createClient(fresh); } catch {}
-    }
-    // SESSION_EXPIRED ou outro: ig continua null → tenta web API abaixo
+    // ig continua null → tenta web API abaixo (rawWebSessionid)
+    console.log(`[EditProfile] @${account.username} — mobile API falhou (${firstErr.code || firstErr.message?.slice(0,60)}), tentando web API...`);
   }
 
   if (ig) {
