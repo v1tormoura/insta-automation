@@ -50,6 +50,9 @@ export default function Accounts() {
   const [oauthResult, setOauthResult]     = useState(null);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting]         = useState(false);
+  const [reconnectAllOpen, setReconnectAllOpen] = useState(false);
+  const [reconnectAllJob, setReconnectAllJob]   = useState(null); // { jobId, total, done, results }
+  const [reconnectAllRunning, setReconnectAllRunning] = useState(false);
   const [totpModal, setTotpModal]         = useState(null);  // { _id, username }
   const [totpCode, setTotpCode]           = useState('');
   const [totpLoading, setTotpLoading]     = useState(false);
@@ -220,15 +223,35 @@ export default function Accounts() {
   const loadRef = useRef(null);
   loadRef.current = loadAccounts;
 
-  // Escuta eventos de contas E de posts (status muda quando post termina)
-  // Usa wrapper () => para não passar args do SSE como targetPage
   useServerEvents(['accounts', 'posts'], () => loadRef.current?.());
-  // Polling a cada 3s para status em tempo real
   useEffect(() => {
     loadRef.current?.();
     const t = setInterval(() => loadRef.current?.(), 3000);
     return () => clearInterval(t);
   }, []);
+
+  // Polling do job de reconexão em massa
+  useEffect(() => {
+    if (!reconnectAllJob?.jobId) return;
+    const t = setInterval(async () => {
+      try {
+        const res = await api.get(`/accounts/import-job/${reconnectAllJob.jobId}`);
+        const job = res.data;
+        setReconnectAllJob(prev => ({ ...prev, done: job.done, results: job.apiResults || [] }));
+        if (job.status === 'done' || job.status === 'error') {
+          clearInterval(t);
+          setReconnectAllRunning(false);
+          const ok = (job.apiResults || []).filter(r => r.apiStatus === 'conectada').length;
+          const fail = (job.apiResults || []).filter(r => r.apiStatus === 'erro').length;
+          const challenge = (job.apiResults || []).filter(r => r.apiStatus === 'challenge_required' || r.apiStatus === 'totp_required').length;
+          showToast(fail === 0 && challenge === 0 ? 'success' : 'info', 'Reconexão concluída',
+            `${ok} conectada(s), ${challenge} precisam de verificação, ${fail} erro(s).`);
+          loadAccounts();
+        }
+      } catch {}
+    }, 2000);
+    return () => clearInterval(t);
+  }, [reconnectAllJob?.jobId]);
 
   // Detect OAuth callback result from URL (?oauth=success&username=XXX or ?oauth=error&msg=XXX)
   useEffect(() => {
@@ -258,13 +281,28 @@ export default function Accounts() {
       const res = await api.post('/accounts/import-bulk', { accountsText: bulkText, connectApi: true });
       setBulkText('');
       await loadAccounts();
-      // Show per-account results inside the modal instead of just a toast
       setImportResults(res.data);
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || 'Erro ao importar contas.');
       setBulkImportOpen(false);
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function startReconnectAll() {
+    setReconnectAllRunning(true);
+    try {
+      const res = await api.post('/accounts/reconnect-all');
+      if (!res.data.jobId) {
+        showToast('info', 'Nada a fazer', res.data.message || 'Nenhuma conta com senha.');
+        setReconnectAllRunning(false);
+        return;
+      }
+      setReconnectAllJob({ jobId: res.data.jobId, total: res.data.total, done: 0, results: [] });
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
+      setReconnectAllRunning(false);
     }
   }
 
@@ -739,7 +777,8 @@ export default function Accounts() {
           <p>Monitore perfis, sessões, saúde da conta e automações em tempo real.</p>
         </div>
         <div className="page-header-right">
-          <button onClick={() => setBulkImportOpen(true)} className="btn btn-ghost btn-sm">Importar lote</button>
+          <button onClick={() => setBulkImportOpen(true)} className="btn btn-ghost btn-sm">📥 Importar CSV</button>
+          <button onClick={() => setReconnectAllOpen(true)} className="btn btn-ghost btn-sm">⚡ Conectar todas</button>
           <button onClick={() => { setBulkProfileEditOpen(true); }} className="btn btn-ghost btn-sm">👤 Editar Perfil</button>
           <button onClick={openOauthNew} className="btn btn-primary btn-sm">🔗 Conectar via API</button>
         </div>
@@ -987,19 +1026,23 @@ export default function Accounts() {
 
             {!importResults ? (
               <>
-                <p style={{ fontSize: 13, color: 'var(--text2)', margin: '8px 0 4px' }}>
-                  Cole uma conta por linha — formato recomendado:
-                  <code style={{ background: 'var(--card2)', padding: '2px 6px', borderRadius: 4, fontSize: 12, marginLeft: 6 }}>usuario:senha:email:CHAVE_2FA</code>
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
-                  A chave 2FA (base32) permite login automático sem digitar código. Email é necessário para stories via API privada.
-                </p>
-                <textarea className="txta" style={{ marginTop: 4 }} rows={8}
-                  placeholder={"usuario1:senha1:email1@gmail.com:JBSWY3DPEHPK3PXP\nusuario2:senha2:+5511999990000:CHAVE2FA\nusuario3:senha3:email3@gmail.com"}
+                <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.5px' }}>Formato CSV (recomendado)</div>
+                  <pre style={{ margin: 0, fontSize: 12, color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`usuario,senha,chave_2fa\nconta1,minhasenha123,JBSWY3DPEHPK3PXP\nconta2,outrasenha456,\nconta3,terceirasenha,CHAVEBASE32AQUI`}</pre>
+                  <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 6 }}>
+                    Coluna <code style={{ background: 'var(--card3,#1e293b)', padding: '1px 5px', borderRadius: 3 }}>chave_2fa</code> opcional — preencha para login automático sem digitar código.
+                    Também aceita formato <code style={{ background: 'var(--card3,#1e293b)', padding: '1px 5px', borderRadius: 3 }}>usuario:senha:CHAVE</code> uma por linha.
+                  </div>
+                </div>
+                <textarea className="txta" style={{ marginTop: 0, fontFamily: 'monospace', fontSize: 13 }} rows={9}
+                  placeholder={"usuario,senha,chave_2fa\nconta1,senha123,JBSWY3DPEHPK3PXP\nconta2,senha456,\nconta3,senha789,CHAVE2FABASE32"}
                   value={bulkText} onChange={e => setBulkText(e.target.value)} />
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6 }}>
+                  {bulkText.trim() ? `${bulkText.trim().split('\n').filter(Boolean).length} linha(s) detectada(s)` : 'Cole o CSV acima ou copie direto do Excel/Sheets.'}
+                </div>
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => { setBulkImportOpen(false); setImportResults(null); }}>Cancelar</button>
-                  <button className="btn btn-primary" onClick={importBulkAccounts} disabled={importing}>
+                  <button className="btn btn-primary" onClick={importBulkAccounts} disabled={importing || !bulkText.trim()}>
                     {importing ? 'Importando e conectando...' : 'Importar e conectar'}
                   </button>
                 </div>
@@ -1074,6 +1117,98 @@ export default function Accounts() {
                 <div className="modal-actions">
                   <button className="btn btn-ghost" onClick={() => { setImportResults(null); }}>Importar mais</button>
                   <button className="btn btn-primary" onClick={() => { setBulkImportOpen(false); setImportResults(null); }}>Fechar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reconectar todas modal */}
+      {reconnectAllOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(540px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>⚡ Conectar todas as contas</h3>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>Faz login automático em todas as contas com senha configurada</span>
+              </div>
+              <button onClick={() => { if (!reconnectAllRunning) { setReconnectAllOpen(false); setReconnectAllJob(null); } }}
+                style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+
+            {!reconnectAllJob ? (
+              <>
+                <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '12px 16px', marginBottom: 16, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text1)', marginBottom: 6 }}>O que acontece ao conectar:</div>
+                  <ul style={{ fontSize: 12, color: 'var(--text2)', margin: 0, paddingLeft: 20, lineHeight: 2 }}>
+                    <li>Login com <strong>senha + 2FA automático</strong> para cada conta</li>
+                    <li>Sessão salva no banco — válida por semanas</li>
+                    <li>Contas que precisam de verificação mostram status de challenge</li>
+                    <li>Requer <strong>proxy residencial/4G</strong> configurado por conta (IP de VPS é bloqueado)</li>
+                  </ul>
+                </div>
+                <div style={{ fontSize: 12, color: '#fbbf24', background: '#fbbf2410', border: '1px solid #fbbf2430', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
+                  Sem proxy por conta: configure o proxy residencial ou 4G no botão <strong>Proxy</strong> de cada conta antes de conectar.
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-ghost" onClick={() => setReconnectAllOpen(false)}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={startReconnectAll} disabled={reconnectAllRunning}>
+                    {reconnectAllRunning ? 'Iniciando...' : '⚡ Conectar todas agora'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Progress bar */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)', marginBottom: 4 }}>
+                    <span>{reconnectAllRunning ? 'Conectando...' : 'Concluído'}</span>
+                    <span>{reconnectAllJob.done}/{reconnectAllJob.total}</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--card2)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${reconnectAllJob.total ? (reconnectAllJob.done / reconnectAllJob.total) * 100 : 0}%`, background: reconnectAllRunning ? '#6366f1' : '#34d399', borderRadius: 4, transition: 'width .4s' }} />
+                  </div>
+                </div>
+
+                <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {(reconnectAllJob.results || []).map((r, i) => {
+                    const statusMap = {
+                      conectada:          { color: '#34d399', label: '✅ Conectada' },
+                      challenge_required: { color: '#fbbf24', label: '📧 Verificação pendente' },
+                      totp_required:      { color: '#60a5fa', label: '🔐 2FA pendente' },
+                      erro:               { color: '#f87171', label: '❌ Erro' },
+                    };
+                    const s = statusMap[r.apiStatus] || { color: '#94a3b8', label: r.apiStatus };
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--card2)', borderRadius: 6, padding: '7px 12px', border: `1px solid ${s.color}33` }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>@{r.username}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {(r.apiStatus === 'challenge_required' || r.apiStatus === 'totp_required') && r.accountId && (
+                            <button className="btn btn-sm" style={{ fontSize: 11, padding: '3px 10px', background: '#fbbf2422', color: '#fbbf24', border: '1px solid #fbbf2444' }}
+                              onClick={() => { setReconnectAllOpen(false); openMobileModal({ _id: r.accountId, username: r.username }); }}>
+                              Verificar
+                            </button>
+                          )}
+                          <span style={{ fontSize: 12, color: s.color, whiteSpace: 'nowrap' }}>{s.label}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {reconnectAllRunning && reconnectAllJob.done < reconnectAllJob.total && (
+                    <div style={{ fontSize: 12, color: 'var(--text2)', padding: '6px 12px', textAlign: 'center' }}>
+                      Aguardando próxima conta...
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-actions" style={{ marginTop: 12 }}>
+                  {!reconnectAllRunning && (
+                    <button className="btn btn-ghost" onClick={startReconnectAll}>Reconectar novamente</button>
+                  )}
+                  <button className="btn btn-primary" disabled={reconnectAllRunning} onClick={() => { setReconnectAllOpen(false); setReconnectAllJob(null); }}>
+                    {reconnectAllRunning ? 'Aguarde...' : 'Fechar'}
+                  </button>
                 </div>
               </>
             )}

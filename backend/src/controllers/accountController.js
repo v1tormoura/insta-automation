@@ -157,15 +157,114 @@ exports.syncAllAccounts = async (req, res) => {
   }
 };
 
+exports.reconnectAllAccounts = async (req, res) => {
+  try {
+    let createClient;
+    try { ({ createClient } = require('../services/instagramPrivateService')); } catch (_) {}
+    if (!createClient) return res.status(500).json({ error: 'instagram-private-api não instalado' });
+
+    const accounts = await Account.find({ password: { $ne: '' } }).lean();
+    if (!accounts.length) return res.json({ success: true, message: 'Nenhuma conta com senha configurada.', jobId: null, total: 0 });
+
+    const jobId = `reconnect_${_importSeq++}`;
+    _importJobs.set(jobId, { status: 'running', total: accounts.length, done: 0, apiResults: [], startedAt: new Date() });
+    res.json({ success: true, jobId, total: accounts.length });
+
+    (async () => {
+      for (const account of accounts) {
+        const job = _importJobs.get(jobId);
+        try {
+          await Account.findByIdAndUpdate(account._id, { challengeState: '' });
+          const fresh = await Account.findById(account._id);
+          await createClient(fresh, { forcePasswordLogin: true });
+          await Account.findByIdAndUpdate(account._id, { healthStatus: 'ativa', lastError: '' });
+          job.apiResults.push({ username: account.username, apiStatus: 'conectada' });
+        } catch (err) {
+          const code = err.code || '';
+          const apiStatus = code === 'TOTP_REQUIRED' ? 'totp_required'
+            : (code === 'CHALLENGE_REQUIRED' || /challenge/i.test(err.message)) ? 'challenge_required'
+            : 'erro';
+          await Account.findByIdAndUpdate(account._id, {
+            healthStatus: apiStatus === 'erro' ? 'erro_login' : 'sessao_expirada',
+            lastError: err.message,
+          });
+          job.apiResults.push({ username: account.username, accountId: String(account._id), apiStatus, error: err.message, autoSent: err.autoSent || false });
+        }
+        job.done++;
+        broadcast('accounts', { action: 'synced' });
+        broadcast('import_job', { jobId, done: job.done, total: job.total, latest: job.apiResults[job.apiResults.length - 1] });
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      const job = _importJobs.get(jobId);
+      job.status = 'done'; job.finishedAt = new Date();
+      broadcast('import_job', { jobId, status: 'done', apiResults: job.apiResults });
+      broadcast('accounts', { action: 'synced' });
+    })().catch(err => { const j = _importJobs.get(jobId); if (j) { j.status = 'error'; j.error = err.message; } });
+  } catch (err) {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  }
+};
+
+function _parseAccountLines(text) {
+  const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!allLines.length) return { rows: [], errors: [] };
+
+  const firstLower = allLines[0].toLowerCase();
+  const sep = firstLower.includes('\t') ? '\t' : firstLower.includes(';') ? ';' : ',';
+  const HEADER_WORDS = ['usuario', 'username', 'user', 'conta', 'account', 'senha', 'password', 'pass', 'login'];
+  const isCSV = sep !== ':' && HEADER_WORDS.some(w => firstLower.includes(w));
+
+  const rows = [];
+  const errors = [];
+
+  if (isCSV) {
+    const rawHeaders = allLines[0].split(sep).map(h => h.trim().toLowerCase().replace(/[\s"']/g, '').replace(/-/g, '_'));
+    const idx = h => rawHeaders.findIndex(r => r.includes(h));
+    const uIdx = rawHeaders.findIndex(r => ['usuario','username','user','conta','account','login'].some(k => r.includes(k)));
+    const pIdx = rawHeaders.findIndex(r => ['senha','password','pass','pwd'].some(k => r.includes(k)));
+    const tIdx = rawHeaders.findIndex(r => ['chave','totp','2fa','secret'].some(k => r.includes(k)));
+    const eIdx = idx('email');
+
+    if (uIdx < 0 || pIdx < 0) { errors.push('CSV inválido — colunas "usuario" e "senha" são obrigatórias'); return { rows, errors }; }
+
+    for (const line of allLines.slice(1)) {
+      const cols = line.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
+      const username = (cols[uIdx] || '').replace(/^@+/, '');
+      const password = cols[pIdx] || '';
+      if (!username || !password) { errors.push(`Linha ignorada (vazia): ${line}`); continue; }
+      rows.push({ username, password, loginEmail: eIdx >= 0 ? cols[eIdx] || '' : '', totpSecret: tIdx >= 0 ? (cols[tIdx] || '').replace(/\s/g, '').toUpperCase() : '' });
+    }
+  } else {
+    for (const line of allLines) {
+      const parts = line.split(':');
+      if (parts.length < 2) { errors.push(`Linha inválida: ${line}`); continue; }
+      const username = String(parts[0] || '').trim().replace(/^@+/, '');
+      const password = String(parts[1] || '').trim();
+      let loginEmail = '', totpSecret = '';
+      if (parts.length >= 4) {
+        loginEmail = parts.slice(2, parts.length - 1).join(':').trim();
+        totpSecret = parts[parts.length - 1].replace(/\s/g, '').toUpperCase();
+      } else if (parts.length === 3) {
+        const third = parts[2].trim();
+        if (/^[A-Z2-7]{16,64}$/i.test(third.replace(/\s/g, ''))) totpSecret = third.replace(/\s/g, '').toUpperCase();
+        else loginEmail = third;
+      }
+      if (!username || !password) { errors.push(`Linha inválida (usuário ou senha vazios): ${line}`); continue; }
+      rows.push({ username, password, loginEmail, totpSecret });
+    }
+  }
+  return { rows, errors };
+}
+
 exports.importBulkAccounts = async (req, res) => {
   try {
     const text       = req.body.accountsText || '';
     const connectApi = req.body.connectApi !== false;
 
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const { rows, errors: parseErrors } = _parseAccountLines(text);
+    const errors = [...parseErrors];
 
     const imported      = [];
-    const errors        = [];
     const savedAccounts = [];
 
     // Lazy-load private API service
@@ -175,28 +274,7 @@ exports.importBulkAccounts = async (req, res) => {
     } catch (_) { createClient = null; }
 
     // ── Passo 1: salva todas as contas no banco (rápido) ─────────────────────
-    for (const line of lines) {
-      const parts = line.split(':');
-      if (parts.length < 2) { errors.push(`Linha inválida (sem ':'): ${line}`); continue; }
-
-      const username = String(parts[0] || '').trim().replace(/^@+/, '');
-      const password = String(parts[1] || '').trim();
-
-      let loginEmail = '';
-      let totpSecret = '';
-
-      if (parts.length >= 4) {
-        loginEmail = parts.slice(2, parts.length - 1).join(':').trim();
-        totpSecret = parts[parts.length - 1].replace(/\s/g, '').toUpperCase();
-      } else if (parts.length === 3) {
-        const third = parts[2].trim();
-        if (/^[A-Z2-7]{16,64}$/i.test(third.replace(/\s/g, '')))
-          totpSecret = third.replace(/\s/g, '').toUpperCase();
-        else
-          loginEmail = third;
-      }
-
-      if (!username || !password) { errors.push(`Linha inválida (usuário ou senha vazios): ${line}`); continue; }
+    for (const { username, password, loginEmail, totpSecret } of rows) {
 
       const updateFields = { username, password, name: username, status: 'ativa', healthStatus: 'ativa' };
       if (loginEmail) updateFields.loginEmail = loginEmail;
