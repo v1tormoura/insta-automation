@@ -41,13 +41,6 @@ export default function Accounts() {
   const [mobileCode, setMobileCode]       = useState('');
   const [mobileStep, setMobileStep]       = useState('idle'); // idle | loading | needsCode | done
   const [mobileMsg, setMobileMsg]         = useState('');
-  // oauthModal: null | { _id, username } — conta existente, ou { _id:'new', username:'Nova conta' }
-  const [oauthModal, setOauthModal]       = useState(null);
-  const [oauthUrl, setOauthUrl]           = useState('');
-  const [oauthUrlLoading, setOauthUrlLoading] = useState(false);
-  const [oauthPasted, setOauthPasted]     = useState('');
-  const [oauthLoading, setOauthLoading]   = useState(false);
-  const [oauthResult, setOauthResult]     = useState(null);
   const [importResults, setImportResults] = useState(null);
   const [importing, setImporting]         = useState(false);
   const [reconnectAllOpen, setReconnectAllOpen] = useState(false);
@@ -305,76 +298,6 @@ export default function Accounts() {
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao iniciar edição em massa.'); }
   }
 
-  // Abre o modal OAuth (conta existente ou nova)
-  function openOauthModal(account) {
-    setOauthModal(account);
-    setOauthResult(null);
-    setOauthPasted('');
-    setOauthUrl('');
-  }
-
-  // Botão "Conectar via API" no topo — cria nova conta
-  function openOauthNew() {
-    openOauthModal({ _id: 'new', username: 'Nova conta' });
-  }
-
-  // Auto-connect: usa cookies.json importados para fazer OAuth em background sem janela visível
-  async function autoConnect(account) {
-    showToast('info', 'Conectando...', `Iniciando OAuth automático para @${account.username}...`);
-    try {
-      await api.post(`/api/oauth/auto-connect/${account._id}`);
-      showToast('success', 'Em progresso', `Conectando @${account.username} em background. Aguarde ~30 segundos e recarregue a página.`);
-    } catch (e) {
-      const msg = e.response?.data?.error || e.message;
-      showToast('error', 'Erro', msg);
-    }
-  }
-
-  // Busca URL de autorização quando o modal abre
-  useEffect(() => {
-    if (!oauthModal) return;
-    setOauthUrlLoading(true);
-    const accountId = oauthModal._id || 'new';
-    api.get(`/oauth/url?accountId=${accountId}`)
-      .then(r => setOauthUrl(r.data.url || ''))
-      .catch(() => setOauthUrl(''))
-      .finally(() => setOauthUrlLoading(false));
-  }, [oauthModal?._id]);
-
-  // Envia a URL colada (barra de endereços) ou código direto para trocar por token
-  async function submitOauthPaste() {
-    const raw = oauthPasted.trim();
-    if (!raw) return showToast('warning', 'Atenção', 'Cole a URL ou o código que apareceu no navegador.');
-    setOauthLoading(true);
-    try {
-      const accountId = oauthModal._id || 'new';
-      const trimmed = raw.trim();
-
-      // Detecta se é um token direto (IGAA... ou EAA...) — salva sem precisar de OAuth
-      if (/^(IGAA|IGQV|EAA|EAAA)[A-Za-z0-9_-]{20,}/.test(trimmed)) {
-        await api.patch(`/accounts/${accountId}/credentials`, { accessToken: trimmed });
-        setOauthResult({ success: true, message: 'Token salvo! Conta conectada via token direto.' });
-        await loadAccounts();
-        return;
-      }
-
-      // Aceita: URL completa, "code=ABC", "?code=ABC", ou só o valor do código
-      let pastedUrl = trimmed;
-      if (!trimmed.startsWith('http')) {
-        const codeMatch = trimmed.match(/(?:^|[?&])code=([^&\s]+)/i);
-        const code = codeMatch ? codeMatch[1] : trimmed.replace(/\s/g, '');
-        pastedUrl = `${API_BASE}/api/oauth/callback?code=${encodeURIComponent(code)}&state=${accountId}`;
-      }
-      const res = await api.post(`/oauth/connect/${accountId}`, { pastedUrl });
-      setOauthResult({ success: true, message: res.data.message });
-      await loadAccounts();
-    } catch (err) {
-      setOauthResult({ success: false, message: err.response?.data?.error || 'Erro ao conectar.' });
-    } finally {
-      setOauthLoading(false);
-    }
-  }
-
   async function renameAccount() {
     if (!renameModal || !renameValue.trim()) return;
     try {
@@ -384,16 +307,6 @@ export default function Accounts() {
       loadAccounts();
     } catch (e) {
       showToast('error', 'Erro', e.response?.data?.error || 'Falha ao renomear');
-    }
-  }
-
-  async function disconnectOauth(accountId) {
-    try {
-      await api.delete(`/oauth/disconnect/${accountId}`);
-      await loadAccounts();
-      showToast('success', 'Desconectado', 'Token removido. Conta voltará a usar API privada.');
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || 'Erro ao desconectar.');
     }
   }
 
@@ -758,10 +671,9 @@ export default function Accounts() {
           <p>Monitore perfis, sessões, saúde da conta e automações em tempo real.</p>
         </div>
         <div className="page-header-right">
-          <button onClick={() => setBulkImportOpen(true)} className="btn btn-ghost btn-sm">📥 Importar CSV</button>
           <button onClick={() => setReconnectAllOpen(true)} className="btn btn-ghost btn-sm">⚡ Conectar todas</button>
           <button onClick={() => { setBulkProfileEditOpen(true); }} className="btn btn-ghost btn-sm">👤 Editar Perfil</button>
-          <button onClick={openOauthNew} className="btn btn-primary btn-sm">🔗 Conectar via API</button>
+          <button onClick={() => setBulkImportOpen(true)} className="btn btn-primary btn-sm">➕ Importar contas</button>
         </div>
       </div>
 
@@ -946,63 +858,41 @@ export default function Accounts() {
 
               {/* ações */}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                {(() => {
-                  const hasToken    = !!account.accessToken;
-                  const hadApi      = !!(account.igUserId);
-                  const needsRecon  = !hasToken || account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
-                  return (
-                    <>
-                      {hasToken && !needsRecon ? (
-                        <span className="btn btn-sm" style={{ background:'rgba(16,185,129,.15)', color:'#34d399', border:'1px solid rgba(16,185,129,.3)', cursor:'default' }}
-                          title={`API conectada — token expira em ${account.tokenExpiresAt ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR') : '?'}`}>✅ API</span>
-                      ) : (hadApi || needsRecon) ? (
-                        <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)' }}
-                          onClick={() => openOauthModal(account)} title="Token expirado — clique para reconectar">🔄 Reconectar</button>
-                      ) : (
-                        <button className="btn btn-primary btn-sm" onClick={() => openOauthModal(account)} title="Autorizar via Meta OAuth">🔗 Conectar</button>
-                      )}
-                      {account.hasPassword && (
-                        <button className="btn btn-sm" title="Login automático com senha"
-                          style={{ background:'rgba(99,102,241,.15)', color:'#818cf8', border:'1px solid rgba(99,102,241,.3)', fontSize:11 }}
-                          disabled={!!connectingApi[account._id]}
-                          onClick={async () => {
-                            setConnectingApi(p => ({ ...p, [account._id]: true }));
-                            try {
-                              await api.post(`/accounts/${account._id}/reconnect`);
-                              showToast('success', 'Conectada!', `@${account.username} conectada com sucesso.`);
-                              loadAccounts();
-                            } catch (err) {
-                              const msg = err.response?.data?.error || err.message || '';
-                              const code = err.response?.data?.code || '';
-                              if (code === 'NO_PROXY') showToast('warning', 'Proxy necessário', `@${account.username} — clique em Proxy e configure um proxy residencial antes de reconectar.`);
-                              else if (code === 'CHALLENGE_REQUIRED') showToast('warning', 'IP bloqueado', `@${account.username} — configure um proxy residencial (botão Proxy) e tente novamente.`);
-                              else if (code === 'TOTP_REQUIRED') showToast('warning', '2FA necessário', `@${account.username} — configure a chave 2FA no ✏️.`);
-                              else showToast('error', 'Erro ao conectar', msg.slice(0, 100));
-                            } finally {
-                              setConnectingApi(p => ({ ...p, [account._id]: false }));
-                            }
-                          }}>
-                          {connectingApi[account._id] ? '...' : '⚡'}
-                        </button>
-                      )}
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar credenciais da conta">✏️</button>
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => { setSessionModal(account); setSessionId(''); }}
-                        title={account.hasIgSession ? 'Sessão Private API ativa — clique para reimportar' : 'Importar sessionid do browser'}
-                        style={account.hasIgSession
-                          ? { background: 'rgba(16,185,129,.15)', color: '#34d399', border: '1px solid rgba(16,185,129,.3)' }
-                          : { background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)' }}
-                      >🍪</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
-                      {hasToken && (
-                        <button className="btn btn-sm" style={{ background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', fontSize:11 }}
-                          onClick={() => disconnectOauth(account._id)} title="Remover token API">Desconectar</button>
-                      )}
-                      <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
-                    </>
-                  );
-                })()}
+                {account.hasPassword && (
+                  <button className="btn btn-sm" title="Reconectar via Private API (senha + proxy)"
+                    style={{ background:'rgba(99,102,241,.15)', color:'#818cf8', border:'1px solid rgba(99,102,241,.3)', fontSize:11 }}
+                    disabled={!!connectingApi[account._id]}
+                    onClick={async () => {
+                      setConnectingApi(p => ({ ...p, [account._id]: true }));
+                      try {
+                        await api.post(`/accounts/${account._id}/reconnect`);
+                        showToast('success', 'Conectada!', `@${account.username} conectada com sucesso.`);
+                        loadAccounts();
+                      } catch (err) {
+                        const msg = err.response?.data?.error || err.message || '';
+                        const code = err.response?.data?.code || '';
+                        if (code === 'NO_PROXY') showToast('warning', 'Proxy necessário', `@${account.username} — clique em Proxy e configure um proxy residencial antes de reconectar.`);
+                        else if (code === 'CHALLENGE_REQUIRED') showToast('warning', 'IP bloqueado', `@${account.username} — configure um proxy residencial (botão Proxy) e tente novamente.`);
+                        else if (code === 'TOTP_REQUIRED') showToast('warning', '2FA necessário', `@${account.username} — configure a chave 2FA no ✏️.`);
+                        else showToast('error', 'Erro ao conectar', msg.slice(0, 100));
+                      } finally {
+                        setConnectingApi(p => ({ ...p, [account._id]: false }));
+                      }
+                    }}>
+                    {connectingApi[account._id] ? '...' : '⚡'}
+                  </button>
+                )}
+                <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar credenciais da conta">✏️</button>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => { setSessionModal(account); setSessionId(''); }}
+                  title={account.hasIgSession ? 'Sessão Private API ativa — clique para reimportar' : 'Importar sessionid do browser'}
+                  style={account.hasIgSession
+                    ? { background: 'rgba(16,185,129,.15)', color: '#34d399', border: '1px solid rgba(16,185,129,.3)' }
+                    : { background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)' }}
+                >🍪</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => openProxyModal(account)}>Proxy</button>
+                <button className="btn btn-danger btn-sm" onClick={() => deleteAccount(account._id)}>Excluir</button>
               </div>
             </div>
           );
@@ -1563,120 +1453,6 @@ export default function Accounts() {
               <button className="btn btn-ghost" onClick={() => setProxyModalOpen(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={saveProxy}>Salvar proxy</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* OAuth Modal — conectar via Meta API (nova conta ou conta existente) */}
-      {oauthModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(500px,100%)' }}>
-
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <div>
-                <h3 style={{ margin: 0 }}>Conectar via Meta API</h3>
-                <span style={{ fontSize: 12, color: 'var(--text2)' }}>
-                  {oauthModal._id === 'new' ? 'Nova conta' : `@${oauthModal.username}`}
-                </span>
-              </div>
-              <button onClick={() => setOauthModal(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
-            </div>
-
-            {/* ── Sucesso ── */}
-            {oauthResult?.success ? (
-              <>
-                <div style={{ background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
-                  <div style={{ color: '#34d399', fontWeight: 700, fontSize: 15, marginBottom: 4 }}>✅ Conta conectada!</div>
-                  <div style={{ fontSize: 13, color: 'var(--text2)' }}>{oauthResult.message}</div>
-                </div>
-                <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 16px' }}>
-                  Token salvo. Postagens feitas via Meta Graph API — sem browser, válido por ~60 dias.
-                </p>
-                <div className="modal-actions">
-                  <button className="btn btn-primary" onClick={() => setOauthModal(null)}>Fechar</button>
-                </div>
-              </>
-
-            ) : oauthResult?.success === false ? (
-              /* ── Erro ── */
-              <>
-                <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
-                  <div style={{ color: '#f87171', fontWeight: 700, marginBottom: 4 }}>❌ Erro ao conectar</div>
-                  <div style={{ fontSize: 13, color: 'var(--text2)' }}>{oauthResult.message}</div>
-                </div>
-                <div className="modal-actions">
-                  <button className="btn btn-ghost" onClick={() => setOauthResult(null)}>Tentar novamente</button>
-                  <button className="btn btn-ghost" onClick={() => setOauthModal(null)}>Fechar</button>
-                </div>
-              </>
-
-            ) : (
-              /* ── Formulário principal ── */
-              <>
-                {/* Passo 1 — Abrir link de autorização */}
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: 'var(--text1)' }}>
-                    Passo 1 — Abra o link de autorização
-                  </div>
-                  {oauthUrlLoading ? (
-                    <div style={{ fontSize: 12, color: 'var(--text2)' }}>Gerando link...</div>
-                  ) : oauthUrl ? (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}
-                        onClick={() => window.open(oauthUrl, '_blank')}>
-                        🔗 Abrir no navegador
-                      </button>
-                      <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}
-                        onClick={() => { navigator.clipboard.writeText(oauthUrl); showToast('success', 'Link copiado!', ''); }}>
-                        📋 Copiar link
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 12, color: '#f87171' }}>Erro ao gerar link. Feche e tente novamente.</div>
-                  )}
-                  <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 8, lineHeight: 1.6 }}>
-                    Clique em <strong>"Abrir no navegador"</strong>, faça login no Instagram e clique <strong>Autorizar</strong>.
-                    Você vai ver um <strong style={{ color: '#fbbf24' }}>erro de conexão</strong> — isso é normal, ignore.
-                  </div>
-                </div>
-
-                {/* Divisor */}
-                <div style={{ borderTop: '1px solid var(--border2)', margin: '0 0 20px' }} />
-
-                {/* Passo 2 — Colar URL de retorno */}
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, color: 'var(--text1)' }}>
-                    Passo 2 — Cole a URL da barra de endereços
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10, lineHeight: 1.6 }}>
-                    Na página de erro, <strong>copie a URL completa</strong> da barra de endereços
-                    (começa com <code style={{ background: 'var(--card2)', padding: '1px 4px', borderRadius: 3 }}>instaflow.pro:3001...?code=</code>)
-                    e cole abaixo. Pode colar também só o valor do <code style={{ background: 'var(--card2)', padding: '1px 4px', borderRadius: 3 }}>code=</code>.
-                  </div>
-                  <textarea
-                    className="txta"
-                    rows={3}
-                    placeholder="https://instaflow.pro:3001/api/oauth/callback?code=AQC... ou só o código"
-                    value={oauthPasted}
-                    onChange={e => setOauthPasted(e.target.value)}
-                    style={{ fontSize: 12 }}
-                  />
-                </div>
-
-                <div className="modal-actions">
-                  <button className="btn btn-ghost" onClick={() => setOauthModal(null)}>Cancelar</button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={submitOauthPaste}
-                    disabled={oauthLoading || !oauthPasted.trim()}
-                  >
-                    {oauthLoading ? 'Conectando...' : '✅ Conectar'}
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}
