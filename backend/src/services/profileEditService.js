@@ -18,19 +18,14 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 
 const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 
-const IG_HOST = 'https://www.instagram.com';
+const IG_HOST = 'https://i.instagram.com';
 const WEB_HEADERS_BASE = {
-  'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  'User-Agent': 'Instagram 361.0.0.39.109 Android (28/9; 420dpi; 1080x1794; Xiaomi/MI 6; sagit; qcom; pt_BR; 574767436)',
   'X-IG-App-ID': '936619743392459',
   'X-IG-Capabilities': '3brTvwE=',
   'X-IG-WWW-Claim': '0',
   'Accept': '*/*',
   'Accept-Language': 'pt-BR,pt;q=0.9',
-  'Origin': 'https://www.instagram.com',
-  'Referer': 'https://www.instagram.com/',
-  'Sec-Fetch-Site': 'same-origin',
-  'Sec-Fetch-Mode': 'cors',
-  'Sec-Fetch-Dest': 'empty',
 };
 
 function _extractCookies(igSessionStr) {
@@ -85,10 +80,23 @@ function _makeDispatcher(proxyUrl) {
 async function _webFetch(url, opts, proxyUrl) {
   const dispatcher = _makeDispatcher(proxyUrl);
   try {
-    return await fetch(url, { ...opts, ...(dispatcher ? { dispatcher } : {}), signal: AbortSignal.timeout(20_000) });
+    const res = await fetch(url, {
+      ...opts,
+      ...(dispatcher ? { dispatcher } : {}),
+      signal: AbortSignal.timeout(20_000),
+      redirect: 'manual',
+    });
+    // redirect manual → status 3xx = sessionid inválido/expirado
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location') || '';
+      throw new Error(`Sessão expirada (redirect para ${loc.slice(0, 60) || 'login'}) — reimporte o sessionid via 🍪`);
+    }
+    return res;
   } catch (e) {
+    if (e.message.startsWith('Sessão expirada')) throw e;
     const cause = e.cause?.message || e.cause?.code || e.message || 'desconhecido';
-    throw new Error(`Falha de rede ao acessar Instagram (${cause}). Configure um proxy residencial na conta.`);
+    if (/redirect/i.test(cause)) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
+    throw new Error(`Falha de rede ao acessar Instagram (${cause}).`);
   }
 }
 
