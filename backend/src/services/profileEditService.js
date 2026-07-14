@@ -209,8 +209,14 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
       await Account.findByIdAndUpdate(account._id, {
         healthStatus: 'sessao_expirada',
         challengeState: '',
-        lastError: 'Sessão expirada — reimporte cookies ou configure proxy e clique ⚡',
+        lastError: 'Sessão mobile expirada — tentando web API',
       });
+      // Tenta web API com rawWebSessionid antes de desistir
+      const freshForWeb = await Account.findById(account._id);
+      if (freshForWeb?.rawWebSessionid) {
+        console.log(`[EditProfile] @${account.username} — CHALLENGE no mobile, usando web API com rawWebSessionid...`);
+        return _editViaWebApi(freshForWeb, { fullName, biography, gender, customGender, picBuffer });
+      }
       const hasProxy = account.proxy?.trim();
       throw new Error(`@${account.username}: Sessão expirada — ${hasProxy ? 'clique ⚡ para reconectar via proxy' : 'reimporte os cookies (🍪) ou configure um proxy residencial e clique ⚡ Reconectar'}`);
     }
