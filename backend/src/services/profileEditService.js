@@ -205,11 +205,14 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     ig = await createClient(account);
   } catch (firstErr) {
     if (firstErr.code === 'CHALLENGE_REQUIRED') {
+      // Limpa challengeState para não bloquear passo 4 em chamadas futuras
       await Account.findByIdAndUpdate(account._id, {
         healthStatus: 'sessao_expirada',
-        lastError: 'Verificação de segurança necessária — clique em Reconectar na conta para inserir o código',
+        challengeState: '',
+        lastError: 'Sessão expirada — reimporte cookies ou configure proxy e clique ⚡',
       });
-      throw new Error(`@${account.username}: Instagram enviou um código de verificação — clique em Reconectar e insira o código.`);
+      const hasProxy = account.proxy?.trim();
+      throw new Error(`@${account.username}: Sessão expirada — ${hasProxy ? 'clique ⚡ para reconectar via proxy' : 'reimporte os cookies (🍪) ou configure um proxy residencial e clique ⚡ Reconectar'}`);
     }
     if (firstErr.code === 'TOTP_REQUIRED') {
       throw new Error(`@${account.username}: 2FA necessário — configure a chave 2FA no botão ✏️ da conta.`);

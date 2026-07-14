@@ -974,7 +974,8 @@ export default function Accounts() {
                             } catch (err) {
                               const msg = err.response?.data?.error || err.message || '';
                               const code = err.response?.data?.code || '';
-                              if (code === 'CHALLENGE_REQUIRED') showToast('warning', 'Verificação necessária', `@${account.username} — clique em Reconectar e insira o código.`);
+                              if (code === 'NO_PROXY') showToast('warning', 'Proxy necessário', `@${account.username} — clique em Proxy e configure um proxy residencial antes de reconectar.`);
+                              else if (code === 'CHALLENGE_REQUIRED') showToast('warning', 'IP bloqueado', `@${account.username} — configure um proxy residencial (botão Proxy) e tente novamente.`);
                               else if (code === 'TOTP_REQUIRED') showToast('warning', '2FA necessário', `@${account.username} — configure a chave 2FA no ✏️.`);
                               else showToast('error', 'Erro ao conectar', msg.slice(0, 100));
                             } finally {

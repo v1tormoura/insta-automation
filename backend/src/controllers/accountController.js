@@ -184,8 +184,10 @@ exports.reconnectAllAccounts = async (req, res) => {
           const apiStatus = code === 'TOTP_REQUIRED' ? 'totp_required'
             : (code === 'CHALLENGE_REQUIRED' || /challenge/i.test(err.message)) ? 'challenge_required'
             : 'erro';
+          // Limpa challengeState após falha para não bloquear futuros createClient
           await Account.findByIdAndUpdate(account._id, {
             healthStatus: apiStatus === 'erro' ? 'erro_login' : 'sessao_expirada',
+            challengeState: '',
             lastError: err.message,
           });
           job.apiResults.push({ username: account.username, accountId: String(account._id), apiStatus, error: err.message, autoSent: err.autoSent || false });

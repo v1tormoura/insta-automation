@@ -52,10 +52,19 @@ router.delete('/:id', deleteAccount);
 router.post('/:id/sync', syncAccount);
 router.post('/:id/open', openAccount);
 router.post('/:id/reconnect', async (req, res) => {
+  let account;
   try {
-    const account = await Account.findById(req.params.id);
+    account = await Account.findById(req.params.id);
     if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
     if (!account.password) return res.status(400).json({ error: 'Conta sem senha configurada' });
+    if (!account.proxy?.trim()) {
+      // Sem proxy: limpa challengeState mas não tenta login (evita gerar novo challenge)
+      await Account.findByIdAndUpdate(account._id, { challengeState: '' });
+      return res.status(400).json({
+        code: 'NO_PROXY',
+        error: 'Configure um proxy residencial na conta (botão Proxy) antes de reconectar por senha.',
+      });
+    }
 
     const { createClient } = require('../services/instagramPrivateService');
     await Account.findByIdAndUpdate(account._id, { challengeState: '' });
@@ -67,7 +76,9 @@ router.post('/:id/reconnect', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     const code = err.code || '';
-    const status = code === 'CHALLENGE_REQUIRED' ? 'sessao_expirada' : code === 'TOTP_REQUIRED' ? 'sessao_expirada' : 'erro_login';
+    // Sempre limpa challengeState após falha — evita bloqueio no passo 4 do createClient
+    await Account.findByIdAndUpdate(req.params.id, { challengeState: '' }).catch(() => {});
+    const status = (code === 'CHALLENGE_REQUIRED' || code === 'TOTP_REQUIRED') ? 'sessao_expirada' : 'erro_login';
     await Account.findByIdAndUpdate(req.params.id, { healthStatus: status, lastError: err.message }).catch(() => {});
     res.status(400).json({ error: err.message, code });
   }
