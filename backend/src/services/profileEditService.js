@@ -26,6 +26,11 @@ const WEB_HEADERS_BASE = {
   'X-IG-WWW-Claim': '0',
   'Accept': '*/*',
   'Accept-Language': 'pt-BR,pt;q=0.9',
+  'Origin': 'https://i.instagram.com',
+  'Referer': 'https://i.instagram.com/',
+  'Sec-Fetch-Site': 'same-origin',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Dest': 'empty',
 };
 
 function _extractCookies(igSessionStr) {
