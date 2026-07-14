@@ -157,67 +157,22 @@ export default function Accounts() {
     if (!editProfileModal) return;
     setEpError('');
     if (!epPassword.trim() && !epTotpSecret.trim()) {
-      if (!editProfileModal.hasPassword) {
-        setEpError('Preencha pelo menos a senha para salvar.');
-        return;
-      }
-      // Testa a senha já salva sem alterar nada
-      setEpLoading(true);
-      setEpVerifying(true);
-      try {
-        await api.post(`/accounts/${editProfileModal._id}/test-login`);
-        showToast('success', '✅ Senha correta', `@${editProfileModal.username} — login funcionando.`);
-        setEditProfileModal(null);
-      } catch (testErr) {
-        const msg = testErr.response?.data?.error || testErr.message || '';
-        const isChallenge = /challenge|checkpoint|two.?factor|2fa|totp/i.test(msg);
-        if (isChallenge) {
-          showToast('warning', 'Verificação necessária', `@${editProfileModal.username} — senha correta, mas Instagram pede verificação extra.`);
-          setEditProfileModal(null);
-        } else {
-          setEpError('❌ Senha salva está incorreta — digite a nova senha no campo acima.');
-        }
-      } finally {
-        setEpLoading(false);
-        setEpVerifying(false);
-      }
+      setEpError(editProfileModal.hasPassword
+        ? 'Nenhuma alteração. Digite a nova senha acima para trocar, ou feche.'
+        : 'Preencha a senha para salvar.');
       return;
     }
     setEpLoading(true);
     try {
       if (epPassword.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/credentials`, { password: epPassword.trim() });
-        // Verify the password is correct before marking as saved
-        setEpVerifying(true);
-        try {
-          await api.post(`/accounts/${editProfileModal._id}/test-login`);
-        } catch (testErr) {
-          const msg = testErr.response?.data?.error || testErr.message || '';
-          const isChallenge = /challenge|checkpoint|two.?factor|2fa|totp/i.test(msg);
-          const isBadPwd   = /bad.?password|password.*incorrect|IgLoginBad|senha.*incorr/i.test(msg);
-          if (isChallenge) {
-            // Senha aceita pelo Instagram — só precisa de verificação extra
-            showToast('success', 'Senha salva', `@${editProfileModal.username} — clique em Reconectar para resolver o challenge.`);
-            setEditProfileModal(null);
-            setEpLoading(false);
-            setEpVerifying(false);
-            return;
-          }
-          setEpError(isBadPwd
-            ? '❌ Senha incorreta. Verifique a senha digitada e tente novamente.'
-            : `⚠️ ${msg.slice(0, 140)}`);
-          setEpLoading(false);
-          setEpVerifying(false);
-          return;
-        } finally {
-          setEpVerifying(false);
-        }
       }
       if (epTotpSecret.trim()) {
         await api.patch(`/accounts/${editProfileModal._id}/totp-secret`, { totpSecret: epTotpSecret.trim() });
       }
-      showToast('success', 'Credenciais salvas', `@${editProfileModal.username} — login verificado com sucesso.`);
+      showToast('success', '✅ Credenciais salvas', `@${editProfileModal.username} — use ⚡ para conectar via proxy.`);
       setEditProfileModal(null);
+      loadAccounts();
     } catch (err) {
       setEpError(err.response?.data?.error || err.message || 'Erro ao salvar credenciais.');
     } finally {
