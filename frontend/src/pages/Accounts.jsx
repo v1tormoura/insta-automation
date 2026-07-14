@@ -137,9 +137,8 @@ export default function Accounts() {
   const [editProfileModal, setEditProfileModal] = useState(null);
   const [epLoading,    setEpLoading]    = useState(false);
   const [epVerifying,  setEpVerifying]  = useState(false);
-  const [epPassword,          setEpPassword]          = useState('');
-  const [epShowPasswordInput, setEpShowPasswordInput] = useState(false);
-  const [epTotpSecret,        setEpTotpSecret]        = useState('');
+  const [epPassword,   setEpPassword]   = useState('');
+  const [epTotpSecret, setEpTotpSecret] = useState('');
   const [epError,             setEpError]             = useState('');
   const [epChecking,   setEpChecking]   = useState(false);
   const [epCheckBad,   setEpCheckBad]   = useState(false);
@@ -148,7 +147,6 @@ export default function Accounts() {
   function openEditProfile(account) {
     setEditProfileModal(account);
     setEpPassword('');
-    setEpShowPasswordInput(false);
     setEpTotpSecret('');
     setEpError('');
     setEpCheckBad(false);
@@ -1903,22 +1901,14 @@ export default function Accounts() {
               {/* Senha */}
               <div>
                 <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>Senha da conta</label>
-                {epChecking ? (
-                  <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', background:'rgba(99,102,241,.05)', border:'1px solid rgba(99,102,241,.15)', borderRadius:8 }}>
-                    <span style={{ fontSize:13, color:'#94a3b8' }}>🔄 Verificando senha salva...</span>
-                  </div>
-                ) : editProfileModal?.hasPassword && !epShowPasswordInput && !epPassword.trim() && !epCheckBad &&
-                    editProfileModal?.healthStatus !== 'erro_login' ? (
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
-                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva e verificada</span>
-                    <button type="button" onClick={() => setEpShowPasswordInput(true)} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
-                  </div>
-                ) : (
-                  <input type="password" value={epPassword} onChange={e => setEpPassword(e.target.value)}
-                    placeholder="Digite a senha do Instagram" autoFocus
-                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box', transition:'border .2s' }}
-                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
-                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                <input type="password" value={epPassword} onChange={e => setEpPassword(e.target.value)}
+                  placeholder={editProfileModal?.hasPassword ? '••••••••  (deixe vazio para manter)' : 'Digite a senha do Instagram'}
+                  autoFocus={!editProfileModal?.hasPassword}
+                  style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:13, color:'#e2e8f0', outline:'none', boxSizing:'border-box', transition:'border .2s' }}
+                  onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                  onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                {editProfileModal?.hasPassword && (
+                  <div style={{ fontSize:11, color:'#34d399', marginTop:4 }}>✅ Senha salva — preencha acima para trocar</div>
                 )}
               </div>
 
@@ -1927,19 +1917,17 @@ export default function Accounts() {
                 <label style={{ fontSize:11, fontWeight:700, color:'#475569', textTransform:'uppercase', letterSpacing:.6, display:'block', marginBottom:6 }}>
                   Chave 2FA <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0, color:'#334155' }}>— opcional</span>
                 </label>
-                {editProfileModal?.hasTotpSecret && !epTotpSecret ? (
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
-                    <span style={{ fontSize:13, color:'#34d399' }}>✅ Chave 2FA salva — código gerado automaticamente</span>
-                    <button type="button" onClick={() => setEpTotpSecret(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
-                  </div>
-                ) : (
-                  <input type="text" value={epTotpSecret} onChange={e => setEpTotpSecret(e.target.value)}
-                    placeholder="JBSWY3DPEHPK3PXP (base32)"
-                    style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:12, color:'#e2e8f0', outline:'none', boxSizing:'border-box', fontFamily:'monospace' }}
-                    onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
-                    onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                <input type="text" value={epTotpSecret} onChange={e => setEpTotpSecret(e.target.value)}
+                  placeholder={editProfileModal?.hasTotpSecret ? 'Chave 2FA salva  (deixe vazio para manter)' : 'JBSWY3DPEHPK3PXP (base32)'}
+                  style={{ width:'100%', background:'rgba(15,23,42,.8)', border:'1px solid rgba(51,65,85,.6)', borderRadius:8, padding:'9px 12px', fontSize:12, color:'#e2e8f0', outline:'none', boxSizing:'border-box', fontFamily:'monospace' }}
+                  onFocus={e => e.target.style.borderColor='rgba(99,102,241,.6)'}
+                  onBlur={e => e.target.style.borderColor='rgba(51,65,85,.6)'} />
+                {editProfileModal?.hasTotpSecret && (
+                  <div style={{ fontSize:11, color:'#34d399', marginTop:4 }}>✅ Chave 2FA salva — código gerado automaticamente</div>
                 )}
-                <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Cole a chave secreta base32 do Google Authenticator. O sistema gera o código 2FA sozinho no login.</div>
+                {!editProfileModal?.hasTotpSecret && (
+                  <div style={{ fontSize:11, color:'#475569', marginTop:4 }}>Cole a chave secreta base32 do Google Authenticator. O sistema gera o código 2FA sozinho no login.</div>
+                )}
               </div>
 
               {/* Erro inline */}
