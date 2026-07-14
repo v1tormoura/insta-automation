@@ -157,9 +157,30 @@ export default function Accounts() {
     if (!editProfileModal) return;
     setEpError('');
     if (!epPassword.trim() && !epTotpSecret.trim()) {
-      setEpError(epCheckBad
-        ? '❌ Senha incorreta. Digite a senha correta no campo acima.'
-        : 'Preencha pelo menos a senha ou a chave 2FA.');
+      if (!editProfileModal.hasPassword) {
+        setEpError('Preencha pelo menos a senha para salvar.');
+        return;
+      }
+      // Testa a senha já salva sem alterar nada
+      setEpLoading(true);
+      setEpVerifying(true);
+      try {
+        await api.post(`/accounts/${editProfileModal._id}/test-login`);
+        showToast('success', '✅ Senha correta', `@${editProfileModal.username} — login funcionando.`);
+        setEditProfileModal(null);
+      } catch (testErr) {
+        const msg = testErr.response?.data?.error || testErr.message || '';
+        const isChallenge = /challenge|checkpoint|two.?factor|2fa|totp/i.test(msg);
+        if (isChallenge) {
+          showToast('warning', 'Verificação necessária', `@${editProfileModal.username} — senha correta, mas Instagram pede verificação extra.`);
+          setEditProfileModal(null);
+        } else {
+          setEpError('❌ Senha salva está incorreta — digite a nova senha no campo acima.');
+        }
+      } finally {
+        setEpLoading(false);
+        setEpVerifying(false);
+      }
       return;
     }
     setEpLoading(true);
