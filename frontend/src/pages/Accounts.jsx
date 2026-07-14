@@ -137,9 +137,10 @@ export default function Accounts() {
   const [editProfileModal, setEditProfileModal] = useState(null);
   const [epLoading,    setEpLoading]    = useState(false);
   const [epVerifying,  setEpVerifying]  = useState(false);
-  const [epPassword,   setEpPassword]   = useState('');
-  const [epTotpSecret, setEpTotpSecret] = useState('');
-  const [epError,      setEpError]      = useState('');
+  const [epPassword,          setEpPassword]          = useState('');
+  const [epShowPasswordInput, setEpShowPasswordInput] = useState(false);
+  const [epTotpSecret,        setEpTotpSecret]        = useState('');
+  const [epError,             setEpError]             = useState('');
   const [epChecking,   setEpChecking]   = useState(false);
   const [epCheckBad,   setEpCheckBad]   = useState(false);
   const [epCheckMsg,   setEpCheckMsg]   = useState('');
@@ -147,6 +148,7 @@ export default function Accounts() {
   function openEditProfile(account) {
     setEditProfileModal(account);
     setEpPassword('');
+    setEpShowPasswordInput(false);
     setEpTotpSecret('');
     setEpError('');
     setEpCheckBad(false);
@@ -1905,11 +1907,11 @@ export default function Accounts() {
                   <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px', background:'rgba(99,102,241,.05)', border:'1px solid rgba(99,102,241,.15)', borderRadius:8 }}>
                     <span style={{ fontSize:13, color:'#94a3b8' }}>🔄 Verificando senha salva...</span>
                   </div>
-                ) : editProfileModal?.hasPassword && !epPassword.trim() && !epCheckBad &&
+                ) : editProfileModal?.hasPassword && !epShowPasswordInput && !epPassword.trim() && !epCheckBad &&
                     editProfileModal?.healthStatus !== 'erro_login' ? (
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.2)', borderRadius:8 }}>
                     <span style={{ fontSize:13, color:'#34d399' }}>✅ Senha salva e verificada</span>
-                    <button type="button" onClick={() => setEpPassword(' ')} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
+                    <button type="button" onClick={() => setEpShowPasswordInput(true)} style={{ fontSize:11, color:'#475569', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Trocar</button>
                   </div>
                 ) : (
                   <input type="password" value={epPassword} onChange={e => setEpPassword(e.target.value)}
