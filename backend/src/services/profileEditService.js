@@ -228,8 +228,15 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     if (firstErr.code === 'TOTP_REQUIRED') {
       throw new Error(`@${account.username}: 2FA necessário — configure a chave 2FA no botão ✏️ da conta.`);
     }
-    if (firstErr.code === 'LOGIN_EMAIL_REQUIRED') {
-      throw new Error(`@${account.username}: Instagram não reconheceu o username — configure o email de login no botão ✏️.`);
+    if (firstErr.code === 'LOGIN_EMAIL_REQUIRED' || firstErr.code === 'MOBILE_API_REJECTED') {
+      const freshForWeb2 = await Account.findById(account._id);
+      if (freshForWeb2?.rawWebSessionid) {
+        console.log(`[EditProfile] @${account.username} — ${firstErr.code}, usando web API com rawWebSessionid...`);
+        return _editViaWebApi(freshForWeb2, { fullName, biography, gender, customGender, picBuffer });
+      }
+      if (firstErr.code === 'LOGIN_EMAIL_REQUIRED') {
+        throw new Error(`@${account.username}: Instagram não reconheceu o username — reimporte o sessionid via 🍪 ou configure o email de login no ✏️.`);
+      }
     }
     if (account.password) {
       throw new Error(`@${account.username}: falha no login — ${firstErr.message}`);
