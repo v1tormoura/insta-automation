@@ -882,7 +882,8 @@ export default function Accounts() {
                     {connectingApi[account._id] ? '...' : '⚡'}
                   </button>
                 )}
-                <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar credenciais da conta">✏️</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setBulkProfileEditOpen(true)} title="Editar perfil de todas as contas">👤</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => openEditProfile(account)} title="Editar credenciais (senha/2FA)">✏️</button>
                 <button
                   className="btn btn-sm"
                   onClick={() => { setSessionModal(account); setSessionId(''); }}
