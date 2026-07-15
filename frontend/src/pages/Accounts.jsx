@@ -80,8 +80,8 @@ export default function Accounts() {
   const [bpJobStatus, setBpJobStatus] = useState(null);
 
   async function submitBulkProfileEdit() {
-    const ids = selectedBulkAccountIds();
-    if (!ids.length) { showToast('error', 'Nenhuma conta', 'Selecione pelo menos uma conta.'); return; }
+    const selectedIds = selectedBulkAccountIds();
+    const ids = selectedIds.length > 0 ? selectedIds : safeAccounts.map(a => a._id);
     const hasText = bpFullName.trim() || bpBio.trim() !== '' || bpGender !== '';
     if (!hasText && !bpPicFile) { showToast('error', 'Nenhuma alteração', 'Preencha pelo menos um campo ou selecione uma foto.'); return; }
 
@@ -1466,7 +1466,11 @@ export default function Accounts() {
             <div style={{ padding:'20px 24px 18px', background:'linear-gradient(135deg,rgba(99,102,241,.12),rgba(139,92,246,.08))', borderBottom:'1px solid rgba(99,102,241,.15)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
               <div>
                 <div style={{ fontSize:15, fontWeight:800, color:'#f1f5f9' }}>👥 Editar Perfil em Massa</div>
-                <div style={{ fontSize:12, color:'#6366f1', marginTop:2 }}>{selectedBulkAccountIds().length} conta(s) selecionada(s)</div>
+                <div style={{ fontSize:12, color:'#6366f1', marginTop:2 }}>
+                  {selectedBulkAccountIds().length > 0
+                    ? `${selectedBulkAccountIds().length} conta(s) selecionada(s)`
+                    : `Todas as contas (${safeAccounts.length})`}
+                </div>
               </div>
               <button onClick={() => setBulkProfileEditOpen(false)} style={{ width:32, height:32, borderRadius:8, background:'rgba(51,65,85,.5)', border:'1px solid rgba(51,65,85,.7)', color:'#64748b', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
             </div>
