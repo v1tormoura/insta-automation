@@ -528,6 +528,55 @@ router.post('/:id/init-mobile-session', async (req, res) => {
 });
 
 /**
+ * POST /accounts/bulk-import-sessions
+ * Importa sessionids em lote: [{ username, sessionid }]
+ */
+router.post('/bulk-import-sessions', async (req, res) => {
+  const { sessions } = req.body; // [{ username, sessionid }]
+  if (!Array.isArray(sessions) || !sessions.length)
+    return res.status(400).json({ error: 'Envie um array de { username, sessionid }' });
+
+  const results = [];
+  for (const { username, sessionid } of sessions) {
+    if (!username || !sessionid) { results.push({ username, status: 'erro', error: 'username ou sessionid vazio' }); continue; }
+    try {
+      const account = await Account.findOne({ username: username.trim().replace(/^@/, '') });
+      if (!account) { results.push({ username, status: 'erro', error: 'conta não encontrada na automação' }); continue; }
+
+      let sid = sessionid.trim();
+      try { sid = decodeURIComponent(sid); } catch {}
+
+      // Valida sessionid via web API
+      const r = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
+        headers: {
+          'Cookie': `sessionid=${sid}`,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
+          'X-IG-App-ID': '936619743392459',
+        },
+        signal: AbortSignal.timeout(10_000),
+      }).catch(() => null);
+
+      const valid = r && r.status !== 401 && r.status !== 403;
+
+      await Account.findByIdAndUpdate(account._id, {
+        rawWebSessionid: sid,
+        challengeState: '',
+        healthStatus: valid ? 'ativa' : 'sessao_expirada',
+        lastError: valid ? '' : 'sessionid pode estar expirado',
+      });
+
+      broadcast('accounts', { action: 'synced' });
+      results.push({ username, status: valid ? 'ok' : 'salvo_sem_validar' });
+    } catch (err) {
+      results.push({ username, status: 'erro', error: err.message });
+    }
+  }
+
+  const ok = results.filter(r => r.status === 'ok' || r.status === 'salvo_sem_validar').length;
+  res.json({ total: sessions.length, imported: ok, results });
+});
+
+/**
  * POST /accounts/:id/import-session
  * Importa sessão diretamente pelo sessionid do cookie do Instagram.
  * O usuário copia o valor do cookie "sessionid" do browser e cola aqui.

@@ -68,6 +68,32 @@ export default function Accounts() {
   const [cookieText, setCookieText]       = useState('');
   const [cookieLoading, setCookieLoading] = useState(false);
 
+  // Bulk sessionid import modal
+  const [bulkSessionOpen, setBulkSessionOpen]   = useState(false);
+  const [bulkSessionText, setBulkSessionText]   = useState('');
+  const [bulkSessionLoading, setBulkSessionLoading] = useState(false);
+  const [bulkSessionResults, setBulkSessionResults] = useState(null);
+
+  async function submitBulkSessions() {
+    const lines = bulkSessionText.trim().split('\n').filter(Boolean);
+    if (!lines.length) return;
+    const sessions = lines.map(line => {
+      const [username, ...rest] = line.split(':');
+      return { username: username.trim().replace(/^@/, ''), sessionid: rest.join(':').trim() };
+    }).filter(s => s.username && s.sessionid);
+    if (!sessions.length) return;
+    setBulkSessionLoading(true);
+    try {
+      const res = await api.post('/accounts/bulk-import-sessions', { sessions });
+      setBulkSessionResults(res.data);
+      loadAccounts();
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
+    } finally {
+      setBulkSessionLoading(false);
+    }
+  }
+
   // Bulk profile edit modal
   const [bulkProfileEditOpen, setBulkProfileEditOpen] = useState(false);
   const [bpFullName, setBpFullName]   = useState('');
@@ -673,6 +699,7 @@ export default function Accounts() {
         <div className="page-header-right">
           <button onClick={() => setReconnectAllOpen(true)} className="btn btn-ghost btn-sm">⚡ Conectar todas</button>
           <button onClick={() => { setBulkProfileEditOpen(true); }} className="btn btn-ghost btn-sm">👤 Editar Perfil</button>
+          <button onClick={() => { setBulkSessionOpen(true); setBulkSessionResults(null); setBulkSessionText(''); }} className="btn btn-ghost btn-sm">🍪 Importar Sessions</button>
           <button onClick={() => setBulkImportOpen(true)} className="btn btn-primary btn-sm">➕ Importar contas</button>
         </div>
       </div>
@@ -1454,6 +1481,67 @@ export default function Accounts() {
               <button className="btn btn-ghost" onClick={() => setProxyModalOpen(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={saveProxy}>Salvar proxy</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Sessionid Import Modal */}
+      {bulkSessionOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(540px,100%)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div>
+                <h3 style={{ margin:0 }}>🍪 Importar Sessions em Lote</h3>
+                <span style={{ fontSize:12, color:'var(--text2)' }}>Uma conta por linha no formato usuario:sessionid</span>
+              </div>
+              <button onClick={() => { setBulkSessionOpen(false); setBulkSessionResults(null); }}
+                style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
+            </div>
+
+            {!bulkSessionResults ? (
+              <>
+                <div style={{ background:'var(--card2)', borderRadius:8, padding:'10px 14px', marginBottom:12, border:'1px solid var(--border)' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--text2)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.5px' }}>Formato</div>
+                  <pre style={{ margin:0, fontSize:12, color:'var(--text1)', lineHeight:1.6, fontFamily:'monospace' }}>{`conta1:SESSIONID_AQUI\nconta2:OUTRO_SESSIONID\n@conta3:MAIS_UM_SESSIONID`}</pre>
+                  <div style={{ fontSize:11, color:'var(--text2)', marginTop:6 }}>
+                    O <code style={{ background:'var(--card3,#1e293b)', padding:'1px 5px', borderRadius:3 }}>sessionid</code> é o cookie do Instagram — extraia do DevTools (F12 → Aplicativo → Cookies → instagram.com).
+                    A conta precisa estar cadastrada na automação. O @ no início é opcional.
+                  </div>
+                </div>
+                <textarea className="txta" style={{ fontFamily:'monospace', fontSize:13, marginTop:0 }} rows={8}
+                  placeholder={"conta1:ABC123DEF456...\nconta2:XYZ789GHI012...\nconta3:JKL345MNO678..."}
+                  value={bulkSessionText} onChange={e => setBulkSessionText(e.target.value)} />
+                <div style={{ fontSize:12, color:'var(--text2)', marginTop:6 }}>
+                  {bulkSessionText.trim() ? `${bulkSessionText.trim().split('\n').filter(Boolean).length} linha(s)` : 'Cole as sessões acima.'}
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-ghost" onClick={() => setBulkSessionOpen(false)}>Cancelar</button>
+                  <button className="btn btn-primary" onClick={submitBulkSessions} disabled={bulkSessionLoading || !bulkSessionText.trim()}>
+                    {bulkSessionLoading ? 'Importando...' : '✅ Importar'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:13, color:'var(--text2)', marginBottom:10 }}>
+                  <strong style={{ color:'var(--text1)' }}>{bulkSessionResults.imported} de {bulkSessionResults.total} importadas com sucesso</strong>
+                </div>
+                <div style={{ maxHeight:280, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
+                  {bulkSessionResults.results.map((r, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, background:'var(--card2)', borderRadius:6, padding:'7px 12px', border:`1px solid ${r.status === 'ok' || r.status === 'salvo_sem_validar' ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)'}` }}>
+                      <span>{r.status === 'ok' ? '✅' : r.status === 'salvo_sem_validar' ? '⚠️' : '❌'}</span>
+                      <span style={{ fontWeight:600, fontSize:13 }}>@{r.username}</span>
+                      {r.error && <span style={{ fontSize:12, color:'#f87171', marginLeft:'auto' }}>{r.error}</span>}
+                      {r.status === 'salvo_sem_validar' && <span style={{ fontSize:12, color:'#fbbf24', marginLeft:'auto' }}>Salvo — valide se está ativo</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-ghost" onClick={() => setBulkSessionResults(null)}>Importar mais</button>
+                  <button className="btn btn-primary" onClick={() => { setBulkSessionOpen(false); setBulkSessionResults(null); }}>Fechar</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -1,18 +1,11 @@
 'use strict';
 
-/**
- * Edição de perfil via Private API (nome, bio, gênero, foto).
- * Tenta primeiro mobile API; se o sessionid for do browser (web),
- * faz fallback automático para a API web do Instagram.
- *
- * Gênero: 1 = Masculino, 2 = Feminino, 3 = Não-binário/Personalizado, 4 = Prefiro não dizer
- */
-
 const fs   = require('fs');
 const path = require('path');
 const Account = require('../models/Account');
 const { createClient } = require('./instagramPrivateService');
 const { broadcast }    = require('../events/broadcaster');
+const { editProfilePuppeteer } = require('./puppeteerProfileService');
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -217,7 +210,20 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     picBuffer = Buffer.from(await res.arrayBuffer());
   }
 
-  // Tenta mobile API primeiro
+  // Puppeteer é o método principal — usa browser real, não quebra com mudanças de header
+  if (account.rawWebSessionid) {
+    try {
+      return await editProfilePuppeteer(account, { fullName, biography, picBuffer });
+    } catch (puppeteerErr) {
+      console.log(`[EditProfile] @${account.username} — Puppeteer falhou (${puppeteerErr.message}), tentando API...`);
+      // Cai para API apenas se Puppeteer falhou por motivo não relacionado a sessão
+      if (puppeteerErr.message.includes('sessionid expirado') || puppeteerErr.message.includes('Sem sessionid')) {
+        throw puppeteerErr;
+      }
+    }
+  }
+
+  // Fallback: tenta mobile API
   let ig = null;
   try {
     ig = await createClient(account);
