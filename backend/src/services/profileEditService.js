@@ -215,11 +215,8 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     try {
       return await editProfilePuppeteer(account, { fullName, biography, picBuffer });
     } catch (puppeteerErr) {
-      console.log(`[EditProfile] @${account.username} — Puppeteer falhou (${puppeteerErr.message}), tentando API...`);
-      // Cai para API apenas se Puppeteer falhou por motivo não relacionado a sessão
-      if (puppeteerErr.message.includes('sessionid expirado') || puppeteerErr.message.includes('Sem sessionid')) {
-        throw puppeteerErr;
-      }
+      console.error(`[EditProfile] @${account.username} — Puppeteer erro:`, puppeteerErr.message);
+      throw new Error(`Falha ao editar perfil: ${puppeteerErr.message}`);
     }
   }
 
