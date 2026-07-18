@@ -66,6 +66,76 @@ function getIgApiClient() {
   }
 }
 
+const WEB_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+/**
+ * Sync via rawWebSessionid — valida sessão e busca stats via web_profile_info.
+ */
+async function syncViaWebSession(account) {
+  const sid = account.rawWebSessionid;
+  const headers = {
+    'Cookie': `sessionid=${sid}`,
+    'User-Agent': WEB_UA,
+    'X-IG-App-ID': '936619743392459',
+  };
+
+  // 1. Valida sessão e obtém username/nome
+  const meR = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
+    headers, signal: AbortSignal.timeout(10_000),
+  });
+  const meText = await meR.text();
+  let meData;
+  try { meData = JSON.parse(meText); } catch { return; }
+  const user = meData.user;
+  if (!user?.username) return;
+
+  // 2. Busca contadores — tenta /users/{pk}/info/ depois web_profile_info
+  let followers = 0, following = 0, postsCount = 0;
+
+  // Tentativa 1: /users/{pk}/info/ retorna follower_count direto
+  if (user.pk) {
+    try {
+      const infoR = await fetch(`https://www.instagram.com/api/v1/users/${user.pk}/info/`, {
+        headers, signal: AbortSignal.timeout(10_000),
+      });
+      const infoData = await infoR.json().catch(() => ({}));
+      const u = infoData.user;
+      if (u) {
+        followers  = u.follower_count  || 0;
+        following  = u.following_count || 0;
+        postsCount = u.media_count     || 0;
+      }
+    } catch {}
+  }
+
+  // Tentativa 2: web_profile_info (formato GraphQL edge)
+  if (!followers && !following && !postsCount) {
+    try {
+      const prR = await fetch(
+        `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user.username)}`,
+        { headers, signal: AbortSignal.timeout(10_000) }
+      );
+      const prData = await prR.json().catch(() => ({}));
+      const pu = prData?.data?.user;
+      if (pu) {
+        followers  = pu.edge_followed_by?.count             || pu.follower_count  || 0;
+        following  = pu.edge_follow?.count                  || pu.following_count || 0;
+        postsCount = pu.edge_owner_to_timeline_media?.count || pu.media_count     || 0;
+      }
+    } catch {}
+  }
+
+  await Account.findByIdAndUpdate(account._id, {
+    followers,
+    following,
+    postsCount,
+    name:        user.full_name || account.name || '',
+    healthStatus: 'ativa',
+    lastError:   '',
+    lastSync:    new Date(),
+  });
+}
+
 /**
  * Sincroniza uma única conta via Private API (sem Puppeteer).
  * Retorna true se conseguiu sincronizar, false caso contrário.
@@ -166,10 +236,14 @@ async function runFastSync() {
     const accounts = await Account.find({
       status:  { $ne: 'banida' },
       isBusy:  { $ne: true },
-    }).select('username _id igSession avatar name bio followers following postsCount proxy');
+    }).select('username _id igSession rawWebSessionid avatar name bio followers following postsCount proxy');
 
     for (const acc of accounts) {
-      // Pula contas sem nenhuma sessão disponível
+      // rawWebSessionid tem prioridade: igSession pode ser um shell sem dados mobile reais
+      if (acc.rawWebSessionid) {
+        try { await syncViaWebSession(acc); synced++; } catch {}
+        continue;
+      }
       const hasCookies = fs.existsSync(path.join(SESSIONS_ROOT, acc.username, 'cookies.json'));
       if (!acc.igSession && !hasCookies) continue;
 

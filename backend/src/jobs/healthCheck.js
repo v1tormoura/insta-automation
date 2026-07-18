@@ -178,28 +178,74 @@ async function checkViaPrivateAPI(account) {
 }
 
 /**
+ * Verifica saúde via rawWebSessionid (fetch server-side igual ao import-session).
+ */
+const WEB_UA_HC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+async function checkViaWebSession(account) {
+  try {
+    const sid = account.rawWebSessionid;
+    const headers = {
+      'Cookie': `sessionid=${sid}`,
+      'User-Agent': WEB_UA_HC,
+      'X-IG-App-ID': '936619743392459',
+    };
+    const r = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
+      headers, signal: AbortSignal.timeout(10_000),
+    });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch { return { status: null, error: 'non-JSON' }; }
+    if (r.status === 401 || data.message === 'login_required') return { status: 'sessao_expirada', error: 'Sessão expirada — reimporte via 🍪' };
+    if (data.user?.username) {
+      // Busca stats via web_profile_info
+      try {
+        const prR = await fetch(
+          `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(data.user.username)}`,
+          { headers, signal: AbortSignal.timeout(10_000) }
+        );
+        const prData = await prR.json().catch(() => ({}));
+        const pu = prData?.data?.user;
+        if (pu) {
+          await Account.findByIdAndUpdate(account._id, {
+            followers:  pu.edge_followed_by?.count             || 0,
+            following:  pu.edge_follow?.count                  || 0,
+            postsCount: pu.edge_owner_to_timeline_media?.count || 0,
+          }).catch(() => {});
+        }
+      } catch {}
+      return { status: 'ativa', error: '' };
+    }
+    return { status: null, error: data.message || 'sem resposta' };
+  } catch (err) {
+    if (/timeout|ETIMEDOUT/i.test(err.message)) return { status: null, error: 'timeout' };
+    return { status: null, error: err.message };
+  }
+}
+
+/**
  * Roda o health check em uma conta.
  */
 async function checkOneAccount(account) {
-  // Recarrega do DB para usar sempre o token mais recente (evita race com OAuth)
   const fresh = await Account.findById(account._id)
-    .select('username _id accessToken igSession healthStatus status lastError lastSync');
+    .select('username _id accessToken igSession rawWebSessionid healthStatus status lastError lastSync');
   if (!fresh) return;
 
-  // Pula verificação se a conta foi sincronizada nos últimos 2 minutos
-  // (evita sobrescrever um OAuth recém-conectado com resultado de token antigo)
   const twoMinAgo = Date.now() - 2 * 60 * 1000;
   if (fresh.lastSync && new Date(fresh.lastSync).getTime() > twoMinAgo) return;
 
   let result = { status: null, error: '' };
 
-  // Prioridade: Graph API (token OAuth) → Private API (igSession)
-  if (fresh.accessToken) {
-    result = await checkViaGraphAPI(fresh);
-  } else if (fresh.igSession) {
+  // Prioridade: igSession → rawWebSessionid → accessToken (OAuth legado)
+  // igSession e rawWebSessionid são mais confiáveis que o accessToken Graph API
+  if (fresh.igSession) {
     result = await checkViaPrivateAPI(fresh);
+  } else if (fresh.rawWebSessionid) {
+    result = await checkViaWebSession(fresh);
+  } else if (fresh.accessToken) {
+    result = await checkViaGraphAPI(fresh);
   } else {
-    return; // sem credenciais — nada a checar
+    return; // sem credenciais
   }
 
   // Só atualiza se houve mudança real de status
@@ -246,10 +292,11 @@ async function runHealthCheck() {
     const accounts = await Account.find({
       isBusy: { $ne: true },
       $or: [
-        { accessToken: { $exists: true, $ne: '' } },
-        { igSession:   { $exists: true, $ne: '' } },
+        { igSession:       { $exists: true, $ne: '' } },
+        { rawWebSessionid: { $exists: true, $ne: '' } },
+        { accessToken:     { $exists: true, $ne: '' } },
       ],
-    }).select('username _id accessToken igSession healthStatus status lastError');
+    }).select('username _id accessToken igSession rawWebSessionid healthStatus status lastError');
 
     console.log(`🩺 [HealthCheck] Verificando ${accounts.length} conta(s)...`);
 

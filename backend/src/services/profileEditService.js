@@ -10,187 +10,144 @@ const { editProfilePuppeteer } = require('./puppeteerProfileService');
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
 const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
-
-// www.instagram.com retorna JSON para requests com User-Agent de browser + X-IG-App-ID
-// (provado pelo import-session que usa a mesma URL e funciona)
 const IG_HOST = 'https://www.instagram.com';
-const WEB_HEADERS_BASE = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-  'X-IG-App-ID': '936619743392459',
-  'X-Requested-With': 'XMLHttpRequest',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'pt-BR,pt;q=0.9',
-  'Sec-Fetch-Site': 'same-origin',
-  'Sec-Fetch-Mode': 'cors',
-  'Sec-Fetch-Dest': 'empty',
-  'Origin': 'https://www.instagram.com',
-  'Referer': 'https://www.instagram.com/',
-};
+// Mesmo UA usado pelo import-session (comprovadamente funciona)
+const IG_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 function _extractCookies(igSessionStr) {
   try {
     const state = JSON.parse(igSessionStr);
-
-    // Caminho rápido: sessionid bruto salvo durante o import
     if (state._rawSessionid) {
       return { sessionid: state._rawSessionid, csrftoken: state._rawCsrftoken || '', ds_user_id: state._rawDsUserId || '' };
     }
-
-    // Parseia o cookieJar — suporta formato flat [{key,value}] e nested {domain:{path:{key:{value}}}}
     const jar = state.cookieJarSerialization;
     if (!jar) return null;
-
     let cookies = [];
     if (Array.isArray(jar.cookies)) {
       cookies = jar.cookies;
     } else if (jar.cookies && typeof jar.cookies === 'object') {
       for (const domain of Object.values(jar.cookies)) {
         for (const pathObj of Object.values(domain)) {
-          if (Array.isArray(pathObj)) {
-            cookies.push(...pathObj);
-          } else {
-            for (const [k, v] of Object.entries(pathObj)) {
-              cookies.push({ key: k, value: typeof v === 'object' ? (v.value || '') : v });
-            }
-          }
+          if (Array.isArray(pathObj)) cookies.push(...pathObj);
+          else for (const [k, v] of Object.entries(pathObj))
+            cookies.push({ key: k, value: typeof v === 'object' ? (v.value || '') : v });
         }
       }
     }
-
     const get = key => cookies.find(c => c.key === key)?.value || '';
     const sessionid = get('sessionid');
     if (!sessionid) return null;
     return { sessionid, csrftoken: get('csrftoken'), ds_user_id: get('ds_user_id') };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-function _makeDispatcher(proxyUrl) {
-  if (!proxyUrl) return undefined;
-  try {
-    const { ProxyAgent } = require('undici');
-    return new ProxyAgent(proxyUrl.trim());
-  } catch {
-    return undefined;
-  }
+function _makeProxy(proxyUrl) {
+  if (!proxyUrl?.trim()) return undefined;
+  try { return new (require('undici').ProxyAgent)(proxyUrl.trim()); } catch { return undefined; }
 }
 
-async function _webFetch(url, opts, proxyUrl) {
-  const dispatcher = _makeDispatcher(proxyUrl);
-  try {
-    const res = await fetch(url, {
-      ...opts,
-      ...(dispatcher ? { dispatcher } : {}),
-      signal: AbortSignal.timeout(20_000),
-      redirect: 'manual',
-    });
-    // redirect manual → status 3xx = sessionid inválido/expirado
-    if (res.status >= 300 && res.status < 400) {
-      const loc = res.headers.get('location') || '';
-      throw new Error(`Sessão expirada (redirect para ${loc.slice(0, 60) || 'login'}) — reimporte o sessionid via 🍪`);
-    }
-    return res;
-  } catch (e) {
-    if (e.message.startsWith('Sessão expirada')) throw e;
-    const cause = e.cause?.message || e.cause?.code || e.message || 'desconhecido';
-    if (/redirect/i.test(cause)) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
-    throw new Error(`Falha de rede ao acessar Instagram (${cause}).`);
-  }
-}
-
-async function _igFetch(url, opts, { sessionid, csrftoken }, proxyUrl) {
-  const r = await _webFetch(url, {
-    ...opts,
+// Fetch direto — mesma abordagem do import-session que funciona
+async function _igGet(sessionid, proxy) {
+  const dispatcher = _makeProxy(proxy);
+  const r = await fetch(`${IG_HOST}/api/v1/accounts/current_user/?edit=true`, {
     headers: {
-      ...WEB_HEADERS_BASE,
-      'Cookie': `sessionid=${sessionid}; csrftoken=${csrftoken}`,
-      'X-CSRFToken': csrftoken,
-      ...(opts.headers || {}),
+      'Cookie': `sessionid=${sessionid}`,
+      'User-Agent': IG_UA,
+      'X-IG-App-ID': '936619743392459',
     },
-  }, proxyUrl);
-
-  if (r.status === 401 || r.status === 403) throw new Error(`web_auth_failed:${r.status}`);
-
+    signal: AbortSignal.timeout(20_000),
+    ...(dispatcher ? { dispatcher } : {}),
+  });
   const text = await r.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    // Instagram retornou HTML ou página de segurança — sessionid não é aceito neste IP
-    const snippet = text.slice(0, 120).replace(/\s+/g, ' ');
-    throw new Error(`Instagram bloqueou a requisição neste IP (resposta não-JSON: "${snippet}"). Use um proxy residencial na conta.`);
+  let data;
+  try { data = JSON.parse(text); } catch {
+    if (r.status >= 300 && r.status < 400) throw new Error('Sessão expirada (redirect) — reimporte via 🍪');
+    throw new Error('Instagram não retornou JSON — verifique o proxy ou tente novamente');
   }
+  if (r.status === 401 || data.message === 'login_required') throw new Error('Sessão expirada — reimporte via 🍪');
+  if (!data.user?.username) throw new Error(data.message || `Sessão inválida (${r.status})`);
+  // Extrai csrftoken do Set-Cookie da resposta
+  const setCookie = r.headers.get('set-cookie') || '';
+  const csrfMatch = setCookie.match(/csrftoken=([^;,\s]+)/);
+  return { user: data.user, csrftoken: csrfMatch ? csrfMatch[1] : '' };
 }
 
-async function _webApiGet(url, creds, proxyUrl) {
-  const data = await _igFetch(url, {}, creds, proxyUrl);
-  if (data.status === 'fail') throw new Error(data.message || 'web API erro');
-  return data;
-}
-
-async function _webApiPost(url, body, creds, proxyUrl) {
-  const data = await _igFetch(url, {
+async function _igPost(path, body, sessionid, csrftoken, proxy) {
+  const dispatcher = _makeProxy(proxy);
+  const r = await fetch(`${IG_HOST}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Cookie': `sessionid=${sessionid}; csrftoken=${csrftoken}`,
+      'User-Agent': IG_UA,
+      'X-IG-App-ID': '936619743392459',
+      'X-CSRFToken': csrftoken,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Origin': IG_HOST,
+      'Referer': `${IG_HOST}/accounts/edit/`,
+    },
     body: new URLSearchParams(body).toString(),
-  }, creds, proxyUrl);
-  if (data.status === 'fail') throw new Error(data.message || 'web API erro');
+    signal: AbortSignal.timeout(20_000),
+    ...(dispatcher ? { dispatcher } : {}),
+  });
+  const text = await r.text();
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`HTTP ${r.status}`); }
+  if (!r.ok || data.status === 'fail') throw new Error(data.message || `HTTP ${r.status}`);
   return data;
 }
 
 async function _editViaWebApi(account, { fullName, biography, gender, customGender, picBuffer }) {
-  // Tenta primeiro o campo dedicado (não apagado pelo keepAlive), depois parseia igSession
-  const rawSid = account.rawWebSessionid
-    || _extractCookies(account.igSession)?.sessionid;
-  if (!rawSid) throw new Error('Sessão expirada — reimporte o sessionid via 🍪 na página de contas');
-  const creds = { sessionid: rawSid, csrftoken: _extractCookies(account.igSession)?.csrftoken || '' };
+  const sessionid = account.rawWebSessionid || _extractCookies(account.igSession)?.sessionid;
+  if (!sessionid) throw new Error('Sessão expirada — reimporte o sessionid via 🍪');
 
   const proxy = account.proxy?.trim() || null;
-  const results = {};
   const dbUpdate = { healthStatus: 'ativa', lastError: '' };
+  const results = {};
 
   if (fullName !== undefined || biography !== undefined || gender !== undefined) {
-    const meData = await _webApiGet(
-      `${IG_HOST}/api/v1/accounts/current_user/`,
-      creds, proxy
-    );
-    const current = meData.user || meData;
+    const { user: current, csrftoken } = await _igGet(sessionid, proxy);
 
-    await _webApiPost(`${IG_HOST}/api/v1/accounts/edit/`, {
+    // Fallback csrftoken do igSession se a resposta não trouxe
+    const csrf = csrftoken || _extractCookies(account.igSession)?.csrftoken || 'missing';
+
+    await _igPost('/api/v1/accounts/edit/', {
       username:      current.username || account.username,
-      full_name:     fullName    !== undefined ? fullName    : (current.full_name || ''),
-      biography:     biography   !== undefined ? biography   : (current.biography || ''),
-      external_url:  current.external_url || '',
-      email:         current.email        || '',
-      phone_number:  current.phone_number || '',
+      full_name:     fullName    !== undefined ? fullName    : (current.full_name    || ''),
+      biography:     biography   !== undefined ? biography   : (current.biography    || ''),
+      external_url:  current.external_url  || '',
+      email:         current.email         || '',
+      phone_number:  current.phone_number  || '',
       gender:        String(gender !== undefined ? Number(gender) : (current.gender ?? 4)),
       custom_gender: customGender !== undefined ? customGender : (current.custom_gender || ''),
-    }, creds, proxy);
+    }, sessionid, csrf, proxy);
 
     results.profileEdited = true;
-    console.log(`[EditProfile/Web] @${account.username} — nome/bio/genero atualizados`);
     if (fullName  !== undefined) dbUpdate.name = fullName;
     if (biography !== undefined) dbUpdate.bio  = biography;
+    console.log(`[EditProfile/Web] @${account.username} — perfil atualizado`);
     await delay(1500);
   }
 
   if (picBuffer) {
-    // Foto via web API: multipart/form-data
+    const csrf2 = _extractCookies(account.igSession)?.csrftoken || 'missing';
+    const dispatcher = _makeProxy(proxy);
     const formData = new FormData();
     formData.append('profile_pic', new Blob([picBuffer], { type: 'image/jpeg' }), 'photo.jpg');
-    const r = await _webFetch(`${IG_HOST}/api/v1/accounts/change_profile_picture/`, {
+    const r = await fetch(`${IG_HOST}/api/v1/accounts/change_profile_picture/`, {
       method: 'POST',
       headers: {
-        ...WEB_HEADERS_BASE,
-        'Cookie': `sessionid=${creds.sessionid}; csrftoken=${creds.csrftoken}`,
-        'X-CSRFToken': creds.csrftoken,
+        'Cookie': `sessionid=${sessionid}; csrftoken=${csrf2}`,
+        'User-Agent': IG_UA,
+        'X-IG-App-ID': '936619743392459',
+        'X-CSRFToken': csrf2,
       },
       body: formData,
-    }, proxy);
-    if (!r.ok) throw new Error(`Falha ao trocar foto via web API: HTTP ${r.status}`);
+      signal: AbortSignal.timeout(30_000),
+      ...(dispatcher ? { dispatcher } : {}),
+    });
+    if (!r.ok) throw new Error(`Falha ao trocar foto: HTTP ${r.status}`);
     results.pictureChanged = true;
     console.log(`[EditProfile/Web] @${account.username} — foto trocada`);
-
     try {
       if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
       fs.writeFileSync(path.join(AVATARS_DIR, `${account.username}.jpg`), picBuffer);
@@ -211,32 +168,38 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     picBuffer = Buffer.from(await res.arrayBuffer());
   }
 
-  // Puppeteer é o método principal — usa browser real, não quebra com mudanças de header
-  if (account.rawWebSessionid || account.igSession) {
+  // rawWebSessionid presente → fetch server-side direto (igual ao import-session que funciona)
+  if (account.rawWebSessionid) {
+    console.log(`[EditProfile] @${account.username} — web API direta (rawWebSessionid)`);
+    return _editViaWebApi(account, { fullName, biography, gender, customGender, picBuffer });
+  }
+
+  if (account.igSession) {
     try {
       return await editProfilePuppeteer(account, { fullName, biography, picBuffer });
     } catch (puppeteerErr) {
-      console.error(`[EditProfile] @${account.username} — Puppeteer erro:`, puppeteerErr.message);
-      throw new Error(`Falha ao editar perfil: ${puppeteerErr.message}`);
+      console.log(`[EditProfile] @${account.username} — Puppeteer falhou (${puppeteerErr.message.slice(0,60)}), tentando web API...`);
+      if (puppeteerErr.message.includes('sessionid expirado') || puppeteerErr.message.includes('Sem sessionid')) {
+        throw puppeteerErr;
+      }
+      const fresh = await Account.findById(account._id);
+      return _editViaWebApi(fresh, { fullName, biography, gender, customGender, picBuffer });
     }
   }
 
-  // Fallback: tenta mobile API
+  // Sem sessionid web — tenta mobile API
   let ig = null;
   try {
     ig = await createClient(account);
   } catch (firstErr) {
     if (firstErr.code === 'CHALLENGE_REQUIRED') {
-      // Limpa challengeState para não bloquear passo 4 em chamadas futuras
       await Account.findByIdAndUpdate(account._id, {
         healthStatus: 'sessao_expirada',
         challengeState: '',
         lastError: 'Sessão mobile expirada — tentando web API',
       });
-      // Tenta web API com rawWebSessionid antes de desistir
       const freshForWeb = await Account.findById(account._id);
       if (freshForWeb?.rawWebSessionid) {
-        console.log(`[EditProfile] @${account.username} — CHALLENGE no mobile, usando web API com rawWebSessionid...`);
         return _editViaWebApi(freshForWeb, { fullName, biography, gender, customGender, picBuffer });
       }
       const hasProxy = account.proxy?.trim();
@@ -248,7 +211,6 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     if (firstErr.code === 'LOGIN_EMAIL_REQUIRED' || firstErr.code === 'MOBILE_API_REJECTED') {
       const freshForWeb2 = await Account.findById(account._id);
       if (freshForWeb2?.rawWebSessionid) {
-        console.log(`[EditProfile] @${account.username} — ${firstErr.code}, usando web API com rawWebSessionid...`);
         return _editViaWebApi(freshForWeb2, { fullName, biography, gender, customGender, picBuffer });
       }
       if (firstErr.code === 'LOGIN_EMAIL_REQUIRED') {
@@ -258,18 +220,16 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     if (account.password) {
       throw new Error(`@${account.username}: falha no login — ${firstErr.message}`);
     }
-    // Sem senha — ig continua null → tenta web API abaixo
     console.log(`[EditProfile] @${account.username} — sem senha, mobile API falhou (${firstErr.code || firstErr.message?.slice(0,60)}), tentando web API...`);
   }
 
   if (ig) {
-    // Mobile API disponível — usa ela
     async function guardedCall(fn) {
       try {
         return await fn();
       } catch (e) {
         if (e.statusCode === 403 || /login.required|not.authorized|login_required/i.test(e.message)) {
-          ig = null; // sinaliza para tentar web API
+          ig = null;
           const webErr = new Error('MOBILE_API_REJECTED');
           webErr.code = 'MOBILE_API_REJECTED';
           throw webErr;
@@ -319,7 +279,6 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     } catch (mobileErr) {
       if (mobileErr.code !== 'MOBILE_API_REJECTED') throw mobileErr;
       if (account.password && !_retried) {
-        // Sessão com device mismatch — recria com login fresh via senha
         console.log(`[EditProfile] @${account.username} — mobile API rejeitou sessão, recriando com senha...`);
         await Account.findByIdAndUpdate(account._id, { igSession: '' });
         return editProfile(await Account.findById(account._id), { fullName, biography, gender, profilePicUrl: null, profilePicBuffer: picBuffer, customGender }, true);
@@ -330,7 +289,6 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
     }
   }
 
-  // Sem mobile API — tenta web API diretamente se há sessão salva
   const freshForWeb = await Account.findById(account._id);
   if (freshForWeb?.igSession || freshForWeb?.rawWebSessionid) {
     console.log(`[EditProfile] @${account.username} — usando web API (sem mobile session)`);
@@ -353,8 +311,8 @@ async function bulkEditProfiles(edits, { delayBetween = 5000, jobId } = {}) {
       continue;
     }
 
-    if (!account.igSession && !account.password) {
-      results.push({ accountId: edit.accountId, username: account.username, status: 'error', error: 'Sem sessao ou senha — nao e possivel editar via Private API' });
+    if (!account.igSession && !account.password && !account.rawWebSessionid) {
+      results.push({ accountId: edit.accountId, username: account.username, status: 'error', error: 'Sem sessao — importe cookies via 🍪 ou configure senha' });
       if (jobId) broadcast('profile_edit', { jobId, done: i + 1, total, latest: { accountId: edit.accountId, username: account.username, status: 'error' } });
       continue;
     }

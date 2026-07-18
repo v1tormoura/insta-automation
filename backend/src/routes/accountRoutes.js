@@ -1083,4 +1083,23 @@ router.post('/:id/challenge-sms', async (req, res) => {
   }
 });
 
+/**
+ * POST /accounts/clear-oauth-tokens
+ * Remove accessToken/tokenExpiresAt/igUserId antigos (legado OAuth removido).
+ * Deixa o health check usar igSession/rawWebSessionid em vez do token expirado.
+ */
+router.post('/clear-oauth-tokens', async (req, res) => {
+  try {
+    const result = await Account.updateMany(
+      { accessToken: { $exists: true, $ne: '' } },
+      { $unset: { accessToken: '', tokenExpiresAt: '', igUserId: '' },
+        $set:   { lastError: '', healthStatus: 'ativa' } }
+    );
+    broadcast('accounts', { action: 'synced' });
+    res.json({ cleared: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

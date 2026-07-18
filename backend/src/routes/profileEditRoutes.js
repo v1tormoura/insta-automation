@@ -68,8 +68,8 @@ router.post('/:id', upload.single('photo'), async (req, res) => {
   const account = await Account.findById(req.params.id).catch(() => null);
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-  if (!account.igSession && !account.password) {
-    return res.status(400).json({ error: 'Conta sem sessão ou senha — Private API indisponível' });
+  if (!account.igSession && !account.password && !account.rawWebSessionid) {
+    return res.status(400).json({ error: 'Conta sem sessão — importe cookies via 🍪 ou configure senha' });
   }
 
   const body = {
