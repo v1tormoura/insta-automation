@@ -147,10 +147,23 @@ export default function Accounts() {
   const filteredAccounts = safeAccounts.filter(acc => {
     const match = acc.username?.toLowerCase().includes(search.toLowerCase()) || acc.name?.toLowerCase().includes(search.toLowerCase());
     if (!match) return false;
-    if (filter === 'active') return !acc.healthStatus || acc.healthStatus === 'ativa';
-    if (filter === 'restricted') return acc.healthStatus && acc.healthStatus !== 'ativa';
+    if (filter === 'active')    return !acc.healthStatus || acc.healthStatus === 'ativa';
+    if (filter === 'restricted') return acc.healthStatus === 'restrita';
+    if (filter === 'token')     return acc.healthStatus === 'token_invalido';
+    if (filter === 'banned')    return acc.healthStatus === 'banida';
+    if (filter === 'error')     return acc.healthStatus === 'erro_login' || acc.healthStatus === 'sessao_expirada';
     return true;
   });
+
+  const countBy = s => safeAccounts.filter(a => a.healthStatus === s).length;
+  const FILTERS = [
+    { key: 'all',        label: 'Todas',          count: safeAccounts.length },
+    { key: 'active',     label: 'Ativas',          count: activeAccounts },
+    { key: 'restricted', label: 'Restritas',       count: countBy('restrita') },
+    { key: 'token',      label: 'Token expirado',  count: countBy('token_invalido') },
+    { key: 'banned',     label: 'Banidas',         count: countBy('banida') },
+    { key: 'error',      label: 'Com erro',        count: safeAccounts.filter(a => a.healthStatus === 'erro_login' || a.healthStatus === 'sessao_expirada').length },
+  ];
 
   function fmt(v) { return Number(v || 0).toLocaleString('pt-BR'); }
   function fmtDate(d) { if (!d) return 'Nunca'; return new Date(d).toLocaleString('pt-BR'); }
@@ -255,12 +268,18 @@ export default function Accounts() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            {['all', 'active', 'restricted'].map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600,
-                background: filter === f ? '#6366f1' : 'rgba(51,65,85,.4)',
-                color: filter === f ? '#fff' : '#94a3b8',
-              }}>{{ all: 'Todas', active: 'Ativas', restricted: 'Restritas' }[f]}</button>
+            {FILTERS.map(f => (
+              <button key={f.key} onClick={() => setFilter(f.key)} style={{
+                fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600,
+                background: filter === f.key ? '#6366f1' : 'rgba(51,65,85,.4)',
+                color: filter === f.key ? '#fff' : '#94a3b8',
+                display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                {f.label}
+                {f.count > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 800, background: filter === f.key ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.1)', borderRadius: 10, padding: '1px 6px' }}>{f.count}</span>
+                )}
+              </button>
             ))}
           </div>
         </div>
