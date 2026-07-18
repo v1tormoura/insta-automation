@@ -23,8 +23,27 @@ async function _launch(proxy) {
   return puppeteer.launch({ headless: true, executablePath: CHROMIUM, args });
 }
 
+function _extractSessionid(igSession) {
+  try {
+    const state = JSON.parse(igSession);
+    if (state._rawSessionid) return state._rawSessionid;
+    const jar = state.cookieJarSerialization;
+    if (!jar) return null;
+    let cookies = [];
+    if (Array.isArray(jar.cookies)) cookies = jar.cookies;
+    else if (jar.cookies && typeof jar.cookies === 'object') {
+      for (const domain of Object.values(jar.cookies))
+        for (const pathObj of Object.values(domain))
+          if (Array.isArray(pathObj)) cookies.push(...pathObj);
+          else for (const [k, v] of Object.entries(pathObj))
+            cookies.push({ key: k, value: typeof v === 'object' ? (v.value || '') : v });
+    }
+    return cookies.find(c => c.key === 'sessionid')?.value || null;
+  } catch { return null; }
+}
+
 async function editProfilePuppeteer(account, { fullName, biography, picBuffer } = {}) {
-  const sessionid = account.rawWebSessionid;
+  const sessionid = account.rawWebSessionid || _extractSessionid(account.igSession);
   if (!sessionid) throw new Error('Sem sessionid — importe via 🍪 antes de editar o perfil.');
 
   const browser = await _launch(account.proxy);

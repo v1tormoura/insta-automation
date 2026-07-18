@@ -211,7 +211,7 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   }
 
   // Puppeteer é o método principal — usa browser real, não quebra com mudanças de header
-  if (account.rawWebSessionid) {
+  if (account.rawWebSessionid || account.igSession) {
     try {
       return await editProfilePuppeteer(account, { fullName, biography, picBuffer });
     } catch (puppeteerErr) {
