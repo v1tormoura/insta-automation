@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5B21B6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bgB)"/>
+  <text x="512" y="720"
+    font-family="'Arial Black', Arial, sans-serif"
+    font-size="580" font-weight="900"
+    fill="white" text-anchor="middle"
+    letter-spacing="-20">M</text>
+</svg>

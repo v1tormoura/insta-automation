@@ -2,11 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "InstaFlow Frontend",
+      "name": "MouraFlow Frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5200,
-      "env": { "PORT": "5200" }
+      "env": { "PORT": "5200", "DISABLE_HTTPS": "true" },
       "cwd": "frontend"
     }
   ]

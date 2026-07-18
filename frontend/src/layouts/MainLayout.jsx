@@ -96,10 +96,10 @@ export default function MainLayout({ children }) {
         {/* Brand */}
         <div className="sb-brand">
           <div className="sb-logo" style={{ padding: 0, overflow: 'hidden', background: 'none', border: 'none' }}>
-            <img src="/instaflow-app-icon.svg" alt="logo" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+            <img src="/mouraflow-icon.svg" alt="logo" style={{ width: 34, height: 34, objectFit: 'contain' }} />
           </div>
           <div className="sb-brand-text">
-            <strong>InstaFlow</strong>
+            <strong>MouraFlow</strong>
             <span>Automação Pro</span>
           </div>
           <button className="sb-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'Expandir' : 'Recolher'}>
@@ -162,7 +162,7 @@ export default function MainLayout({ children }) {
               <path d="M3 12h18M3 6h18M3 18h18"/>
             </svg>
           </button>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>InstaFlow</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>MouraFlow</span>
         </div>
 
         {isDash ? children : <div className="padded-page">{children}</div>}

@@ -894,7 +894,7 @@ export default function Dashboard() {
           <span>Worker <b style={{ color:d.system?.worker?'#2add90':'#ff5f5f' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>
           <span>Contas <b>{fmt(d.totalAccounts)}</b></span>
           <span>Posts <b>{fmt(d.totalPosts)}</b></span>
-          <button onClick={() => showToast('Versão 2.4.7 — InstaFlow Pulse')}>Novidades</button>
+          <button onClick={() => showToast('Versão 2.4.7 — MouraFlow Pulse')}>Novidades</button>
         </footer>
       </main>
 

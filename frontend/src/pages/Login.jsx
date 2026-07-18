@@ -80,9 +80,9 @@ export default function Login() {
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
-              <img src="/instaflow-app-icon.svg" alt="InstaFlow" style={{ width: 38, height: 38, objectFit: 'contain' }} />
+              <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 38, height: 38, objectFit: 'contain' }} />
               <div>
-                <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 17, lineHeight: 1 }}>InstaFlow</div>
+                <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 17, lineHeight: 1 }}>MouraFlow</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>Automação Pro</div>
               </div>
             </div>
