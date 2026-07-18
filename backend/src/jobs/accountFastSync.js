@@ -68,6 +68,11 @@ function getIgApiClient() {
 
 const WEB_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
+function makeProxyFS(proxyUrl) {
+  if (!proxyUrl?.trim()) return undefined;
+  try { return new (require('undici').ProxyAgent)(proxyUrl.trim()); } catch { return undefined; }
+}
+
 /**
  * Sync via rawWebSessionid — valida sessão e busca stats via web_profile_info.
  */
@@ -78,11 +83,11 @@ async function syncViaWebSession(account) {
     'User-Agent': WEB_UA,
     'X-IG-App-ID': '936619743392459',
   };
+  const dispatcher = makeProxyFS(account.proxy);
+  const fetchOpts = (extra = {}) => ({ headers, signal: AbortSignal.timeout(10_000), ...extra, ...(dispatcher ? { dispatcher } : {}) });
 
   // 1. Valida sessão e obtém username/nome
-  const meR = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
-    headers, signal: AbortSignal.timeout(10_000),
-  });
+  const meR = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', fetchOpts());
   const meText = await meR.text();
   let meData;
   try { meData = JSON.parse(meText); } catch { return; }
@@ -95,9 +100,7 @@ async function syncViaWebSession(account) {
   // Tentativa 1: /users/{pk}/info/ retorna follower_count direto
   if (user.pk) {
     try {
-      const infoR = await fetch(`https://www.instagram.com/api/v1/users/${user.pk}/info/`, {
-        headers, signal: AbortSignal.timeout(10_000),
-      });
+      const infoR = await fetch(`https://www.instagram.com/api/v1/users/${user.pk}/info/`, fetchOpts());
       const infoData = await infoR.json().catch(() => ({}));
       const u = infoData.user;
       if (u) {
@@ -113,7 +116,7 @@ async function syncViaWebSession(account) {
     try {
       const prR = await fetch(
         `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(user.username)}`,
-        { headers, signal: AbortSignal.timeout(10_000) }
+        fetchOpts()
       );
       const prData = await prR.json().catch(() => ({}));
       const pu = prData?.data?.user;

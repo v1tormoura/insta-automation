@@ -24,6 +24,12 @@ export default function Accounts() {
   const [connecting, setConnecting] = useState({});   // { [accountId|'new']: true }
   const [pastedUrl, setPastedUrl] = useState('');
   const [connectingPaste, setConnectingPaste] = useState(false);
+  const [proxyModal, setProxyModal] = useState(null); // account object
+  const [proxyValue, setProxyValue] = useState('');
+  const [savingProxy, setSavingProxy] = useState(false);
+  const [bulkProxyOpen, setBulkProxyOpen] = useState(false);
+  const [bulkProxyText, setBulkProxyText] = useState('');
+  const [savingBulkProxy, setSavingBulkProxy] = useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -96,6 +102,32 @@ export default function Accounts() {
     }
   }
 
+  function openProxyModal(account) { setProxyModal(account); setProxyValue(account.proxy || ''); }
+
+  async function saveProxy() {
+    setSavingProxy(true);
+    try {
+      await api.patch(`/accounts/${proxyModal._id}/proxy`, { proxy: proxyValue.trim() });
+      showToast('success', 'Proxy salvo', `@${proxyModal.username} — proxy atualizado.`);
+      setProxyModal(null);
+      loadAccounts();
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
+    finally { setSavingProxy(false); }
+  }
+
+  async function saveBulkProxy() {
+    if (!bulkProxyText.trim()) return showToast('warning', 'Atenção', 'Cole pelo menos um proxy.');
+    setSavingBulkProxy(true);
+    try {
+      const res = await api.post('/accounts/proxies/bulk-apply', { proxiesText: bulkProxyText.trim() });
+      showToast('success', 'Proxies aplicados', res.data.message || `${res.data.applied} conta(s) atualizadas.`);
+      setBulkProxyOpen(false);
+      setBulkProxyText('');
+      loadAccounts();
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
+    finally { setSavingBulkProxy(false); }
+  }
+
   function deleteAccount(id) { setAccountToDelete(id); setDeleteModal(true); }
 
   async function confirmDelete() {
@@ -159,6 +191,7 @@ export default function Accounts() {
           <p>Conecte contas via Meta API e monitore saúde em tempo real.</p>
         </div>
         <div className="page-header-right">
+          <button className="btn btn-ghost btn-sm" onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }}>🌐 Proxies em massa</button>
           <button
             className="btn btn-primary btn-sm"
             disabled={!!connecting['new']}
@@ -307,7 +340,7 @@ export default function Accounts() {
                   <div style={{ fontSize: 11, color: '#475569' }}>{fmtDate(account.lastSync)}</div>
 
                   {/* Ações */}
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                       className="btn btn-sm"
                       disabled={!!connecting[account._id]}
@@ -321,6 +354,19 @@ export default function Accounts() {
                       }}
                     >
                       {connecting[account._id] ? '...' : needsReconnect ? '🔗 Reconectar' : '🔗 Conectar'}
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => openProxyModal(account)}
+                      title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
+                      style={{
+                        background: account.proxy ? 'rgba(16,185,129,.12)' : 'rgba(51,65,85,.3)',
+                        color: account.proxy ? '#34d399' : '#64748b',
+                        border: `1px solid ${account.proxy ? 'rgba(16,185,129,.3)' : 'rgba(51,65,85,.4)'}`,
+                        fontSize: 11,
+                      }}
+                    >
+                      🌐
                     </button>
                     <button
                       className="btn btn-danger btn-sm"
@@ -421,6 +467,86 @@ export default function Accounts() {
                 disabled={connectingPaste || !pastedUrl.trim()}
               >
                 {connectingPaste ? 'Conectando...' : '✓ Conectar conta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Proxy por conta */}
+      {proxyModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(460px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>🌐 Proxy da conta</h3>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>@{proxyModal.username}</div>
+              </div>
+              <button onClick={() => setProxyModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+              As chamadas de API desta conta (health check, sync) sairão por este proxy — IP diferente por conta.
+            </div>
+            <input
+              className="input"
+              style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
+              placeholder="http://usuario:senha@host:porta"
+              value={proxyValue}
+              onChange={e => setProxyValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveProxy()}
+              autoFocus
+            />
+            {proxyModal.proxy && (
+              <div style={{ fontSize: 11, color: '#34d399', marginTop: 6 }}>✅ Proxy atual: {proxyModal.proxy}</div>
+            )}
+            <div className="modal-actions" style={{ marginTop: 14 }}>
+              <button className="btn btn-ghost" onClick={() => { setProxyValue(''); saveProxy(); }} disabled={savingProxy}>Remover proxy</button>
+              <button className="btn btn-ghost" onClick={() => setProxyModal(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveProxy} disabled={savingProxy}>
+                {savingProxy ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Proxies em massa */}
+      {bulkProxyOpen && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(520px,100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0 }}>🌐 Proxies em massa</h3>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>Distribui um proxy diferente por conta</div>
+              </div>
+              <button onClick={() => setBulkProxyOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+            </div>
+
+            <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>Formato — um proxy por linha:</div>
+              <pre style={{ margin: 0, fontSize: 12, color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`http://user1:pass1@host1:porta\nhttp://user2:pass2@host2:porta\nhttp://user3:pass3@host3:porta`}</pre>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 6 }}>
+                Se tiver menos proxies que contas, eles são rotacionados. Se tiver o mesmo número, cada conta fica com o seu proxy exclusivo.
+              </div>
+            </div>
+
+            <textarea
+              className="txta"
+              rows={8}
+              style={{ fontFamily: 'monospace', fontSize: 13, marginTop: 0 }}
+              placeholder={'http://user1:pass1@host1:3128\nhttp://user2:pass2@host2:3128\n...'}
+              value={bulkProxyText}
+              onChange={e => setBulkProxyText(e.target.value)}
+            />
+            <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6 }}>
+              {bulkProxyText.trim()
+                ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)`
+                : 'Cole os proxies acima.'}
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: 12 }}>
+              <button className="btn btn-ghost" onClick={() => setBulkProxyOpen(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>
+                {savingBulkProxy ? 'Aplicando...' : '✅ Aplicar proxies'}
               </button>
             </div>
           </div>

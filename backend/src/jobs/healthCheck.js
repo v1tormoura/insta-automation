@@ -182,6 +182,11 @@ async function checkViaPrivateAPI(account) {
  */
 const WEB_UA_HC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
+function makeProxyHC(proxyUrl) {
+  if (!proxyUrl?.trim()) return undefined;
+  try { return new (require('undici').ProxyAgent)(proxyUrl.trim()); } catch { return undefined; }
+}
+
 async function checkViaWebSession(account) {
   try {
     const sid = account.rawWebSessionid;
@@ -190,19 +195,19 @@ async function checkViaWebSession(account) {
       'User-Agent': WEB_UA_HC,
       'X-IG-App-ID': '936619743392459',
     };
-    const r = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
-      headers, signal: AbortSignal.timeout(10_000),
-    });
+    const dispatcher = makeProxyHC(account.proxy);
+    const fetchOpts = (extra = {}) => ({ headers, signal: AbortSignal.timeout(10_000), ...extra, ...(dispatcher ? { dispatcher } : {}) });
+
+    const r = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', fetchOpts());
     const text = await r.text();
     let data;
     try { data = JSON.parse(text); } catch { return { status: null, error: 'non-JSON' }; }
     if (r.status === 401 || data.message === 'login_required') return { status: 'sessao_expirada', error: 'Sessão expirada — reimporte via 🍪' };
     if (data.user?.username) {
-      // Busca stats via web_profile_info
       try {
         const prR = await fetch(
           `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(data.user.username)}`,
-          { headers, signal: AbortSignal.timeout(10_000) }
+          fetchOpts()
         );
         const prData = await prR.json().catch(() => ({}));
         const pu = prData?.data?.user;
@@ -228,7 +233,7 @@ async function checkViaWebSession(account) {
  */
 async function checkOneAccount(account) {
   const fresh = await Account.findById(account._id)
-    .select('username _id accessToken igSession rawWebSessionid healthStatus status lastError lastSync');
+    .select('username _id accessToken igSession rawWebSessionid healthStatus status lastError lastSync proxy');
   if (!fresh) return;
 
   const twoMinAgo = Date.now() - 2 * 60 * 1000;
