@@ -29,7 +29,8 @@ async function _launch(proxy) {
   const args = [
     '--no-sandbox', '--disable-setuid-sandbox',
     '--disable-dev-shm-usage', '--disable-gpu',
-    '--window-size=390,844',
+    '--window-size=1280,800',
+    '--disable-features=ServiceWorker',
   ];
   if (server) args.push(`--proxy-server=${server}`);
   return puppeteer.launch({ headless: true, executablePath: CHROMIUM, args });
@@ -81,6 +82,14 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
     if (page.url().includes('/accounts/login') || page.url().includes('/challenge/')) {
       throw new Error('sessionid expirado ou conta bloqueada — reimporte via 🍪');
     }
+
+    // Desregistra service workers para evitar interceptação do fetch pelo SW do Instagram
+    await page.evaluate(async () => {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    }).catch(() => {});
 
     // Executa edição de perfil via fetch dentro do contexto do browser
     // (mesma origem = cookies e CSRF automáticos, sem bloqueio de headers)
