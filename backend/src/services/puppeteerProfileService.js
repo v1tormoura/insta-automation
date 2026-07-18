@@ -76,40 +76,33 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
       { name: 'sessionid', value: sessionid, domain: '.instagram.com', path: '/', secure: true, httpOnly: true },
     );
 
-    // Carrega instagram.com para estabelecer sessão completa (cookies CSRF etc.)
-    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 40_000 });
+    // Navega diretamente para o endpoint de API do Instagram (sem SPA, sem service worker)
+    await page.setExtraHTTPHeaders({
+      'Accept': 'application/json',
+      'X-IG-App-ID': '936619743392459',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+    });
 
-    if (page.url().includes('/accounts/login') || page.url().includes('/challenge/')) {
-      throw new Error('sessionid expirado ou conta bloqueada — reimporte via 🍪');
+    const meResponse = await page.goto(
+      'https://i.instagram.com/api/v1/accounts/current_user/?edit=true',
+      { waitUntil: 'domcontentloaded', timeout: 20_000 }
+    );
+    const meText = await meResponse.text();
+    let meData = {};
+    try { meData = JSON.parse(meText); } catch {}
+    const me = meData.user || meData;
+
+    if (!me?.username) {
+      if (meText.includes('login') || meText.includes('401') || meResponse.status() === 401) {
+        throw new Error('sessionid expirado — reimporte via 🍪');
+      }
+      throw new Error(`Sessão inválida (${meResponse.status()}): ${meText.slice(0, 100)}`);
     }
 
-    // Desregistra service workers para evitar interceptação do fetch pelo SW do Instagram
-    await page.evaluate(async () => {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
-      }
-    }).catch(() => {});
-
-    // Executa edição de perfil via fetch dentro do contexto do browser
-    // (mesma origem = cookies e CSRF automáticos, sem bloqueio de headers)
-    const result = await page.evaluate(async ({ fullName, biography }) => {
+    // Agora estamos no contexto de i.instagram.com — POST é same-origin
+    const result = await page.evaluate(async ({ fullName, biography, me }) => {
       try {
         const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
-
-        // Busca dados atuais do perfil
-        const meResp = await fetch('/api/v1/accounts/current_user/?edit=true', {
-          headers: { 'X-IG-App-ID': '936619743392459', 'X-CSRFToken': csrfToken },
-          credentials: 'include',
-        });
-        if (!meResp.ok) return { error: `Sessão inválida: HTTP ${meResp.status}` };
-        const meText = await meResp.text().catch(() => '');
-        let meData = {};
-        try { meData = JSON.parse(meText); } catch {}
-        const me = meData.user || meData;
-        if (!me?.username) return { error: `Sessão inválida (resposta: ${meText.slice(0, 120)}) — reimporte via 🍪` };
-
-        // Edita perfil
         const body = new URLSearchParams({
           username:      me.username,
           full_name:     fullName  !== undefined ? fullName  : (me.full_name  || ''),
@@ -120,7 +113,6 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
           gender:        String(me.gender ?? 4),
           custom_gender: me.custom_gender || '',
         });
-
         const editResp = await fetch('/api/v1/accounts/edit/', {
           method: 'POST',
           headers: {
@@ -131,16 +123,13 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
           body: body.toString(),
           credentials: 'include',
         });
-
         const editData = await editResp.json().catch(() => ({}));
         if (!editResp.ok || editData.status === 'fail') {
           return { error: editData.message || `HTTP ${editResp.status}` };
         }
         return { ok: true, username: me.username };
-      } catch (e) {
-        return { error: e.message };
-      }
-    }, { fullName, biography });
+      } catch (e) { return { error: e.message }; }
+    }, { fullName, biography, me });
 
     if (result.error) throw new Error(result.error);
 
