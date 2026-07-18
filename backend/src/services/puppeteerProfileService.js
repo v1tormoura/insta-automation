@@ -13,13 +13,25 @@ puppeteer.use(StealthPlugin());
 const CHROMIUM = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
 const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 
+function _parseProxy(proxy) {
+  if (!proxy?.trim()) return { server: null, username: null, password: null };
+  try {
+    const url = new URL(proxy.trim().startsWith('http') ? proxy.trim() : `http://${proxy.trim()}`);
+    const server = `${url.protocol}//${url.hostname}:${url.port}`;
+    return { server, username: url.username || null, password: url.password || null };
+  } catch {
+    return { server: proxy.trim(), username: null, password: null };
+  }
+}
+
 async function _launch(proxy) {
+  const { server } = _parseProxy(proxy);
   const args = [
     '--no-sandbox', '--disable-setuid-sandbox',
     '--disable-dev-shm-usage', '--disable-gpu',
     '--window-size=390,844',
   ];
-  if (proxy?.trim()) args.push(`--proxy-server=${proxy.trim()}`);
+  if (server) args.push(`--proxy-server=${server}`);
   return puppeteer.launch({ headless: true, executablePath: CHROMIUM, args });
 }
 
@@ -50,6 +62,9 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
   const page    = await browser.newPage();
 
   try {
+    const { username: proxyUser, password: proxyPass } = _parseProxy(account.proxy);
+    if (proxyUser) await page.authenticate({ username: proxyUser, password: proxyPass });
+
     await page.setUserAgent(
       'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
     );
