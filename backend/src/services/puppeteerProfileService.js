@@ -76,15 +76,15 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
       { name: 'sessionid', value: sessionid, domain: '.instagram.com', path: '/', secure: true, httpOnly: true },
     );
 
-    // Navega diretamente para o endpoint de API do Instagram (sem SPA, sem service worker)
+    // Navega diretamente para o endpoint JSON — antes do SPA carregar, sem service worker
     await page.setExtraHTTPHeaders({
-      'Accept': 'application/json',
+      'Accept': 'application/json, text/plain, */*',
       'X-IG-App-ID': '936619743392459',
-      'Accept-Language': 'pt-BR,pt;q=0.9',
+      'X-Requested-With': 'XMLHttpRequest',
     });
 
     const meResponse = await page.goto(
-      'https://i.instagram.com/api/v1/accounts/current_user/?edit=true',
+      'https://www.instagram.com/api/v1/accounts/current_user/?edit=true',
       { waitUntil: 'domcontentloaded', timeout: 20_000 }
     );
     const meText = await meResponse.text();
@@ -93,16 +93,68 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
     const me = meData.user || meData;
 
     if (!me?.username) {
-      if (meText.includes('login') || meText.includes('401') || meResponse.status() === 401) {
+      const status = meResponse.status();
+      if (status === 401 || meText.includes('"login_required"') || meText.includes('"not_authorized"')) {
         throw new Error('sessionid expirado — reimporte via 🍪');
       }
-      throw new Error(`Sessão inválida (${meResponse.status()}): ${meText.slice(0, 100)}`);
+      // Ainda retornou HTML: usa o sessionid direto via fetch com headers completos
+      const fallback = await page.evaluate(async ({ sid, fullName, biography }) => {
+        try {
+          const meR = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', {
+            headers: {
+              'Cookie': `sessionid=${sid}`,
+              'X-IG-App-ID': '936619743392459',
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'application/json',
+            },
+            credentials: 'include',
+          });
+          const t = await meR.text();
+          let d = {}; try { d = JSON.parse(t); } catch {}
+          const u = d.user || d;
+          if (!u?.username) return { error: `sem username (${meR.status}): ${t.slice(0, 80)}` };
+
+          const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+          const body = new URLSearchParams({
+            username: u.username,
+            full_name: fullName !== undefined ? fullName : (u.full_name || ''),
+            biography: biography !== undefined ? biography : (u.biography || ''),
+            external_url: u.external_url || '',
+            email: u.email || '',
+            phone_number: u.phone_number || '',
+            gender: String(u.gender ?? 4),
+            custom_gender: u.custom_gender || '',
+          });
+          const editR = await fetch('https://www.instagram.com/api/v1/accounts/edit/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-CSRFToken': csrf,
+              'X-IG-App-ID': '936619743392459',
+            },
+            body: body.toString(),
+            credentials: 'include',
+          });
+          const ed = await editR.json().catch(() => ({}));
+          if (!editR.ok || ed.status === 'fail') return { error: ed.message || `HTTP ${editR.status}` };
+          return { ok: true };
+        } catch (e) { return { error: e.message }; }
+      }, { sid: sessionid, fullName, biography });
+
+      if (fallback.error) throw new Error(fallback.error);
+      // fallback funcionou — pula para o save do DB
+      const dbUpdate = { healthStatus: 'ativa', lastError: '' };
+      if (fullName !== undefined) dbUpdate.name = fullName;
+      await Account.findByIdAndUpdate(account._id, dbUpdate);
+      broadcast('accounts', { action: 'synced' });
+      console.log(`[PuppeteerEdit] @${account.username} — concluído (fallback fetch)`);
+      return { profileEdited: fullName !== undefined || biography !== undefined, pictureChanged: false };
     }
 
-    // Agora estamos no contexto de i.instagram.com — POST é same-origin
+    // Caso normal: navegação direta retornou JSON
     const result = await page.evaluate(async ({ fullName, biography, me }) => {
       try {
-        const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+        const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
         const body = new URLSearchParams({
           username:      me.username,
           full_name:     fullName  !== undefined ? fullName  : (me.full_name  || ''),
@@ -113,21 +165,19 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
           gender:        String(me.gender ?? 4),
           custom_gender: me.custom_gender || '',
         });
-        const editResp = await fetch('/api/v1/accounts/edit/', {
+        const editR = await fetch('/api/v1/accounts/edit/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrfToken,
+            'X-CSRFToken': csrf,
             'X-IG-App-ID': '936619743392459',
           },
           body: body.toString(),
           credentials: 'include',
         });
-        const editData = await editResp.json().catch(() => ({}));
-        if (!editResp.ok || editData.status === 'fail') {
-          return { error: editData.message || `HTTP ${editResp.status}` };
-        }
-        return { ok: true, username: me.username };
+        const ed = await editR.json().catch(() => ({}));
+        if (!editR.ok || ed.status === 'fail') return { error: ed.message || `HTTP ${editR.status}` };
+        return { ok: true };
       } catch (e) { return { error: e.message }; }
     }, { fullName, biography, me });
 
