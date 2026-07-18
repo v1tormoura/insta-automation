@@ -66,81 +66,100 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
     if (proxyUser) await page.authenticate({ username: proxyUser, password: proxyPass });
 
     await page.setUserAgent(
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
     );
-    await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+    await page.setViewport({ width: 1280, height: 800 });
     await page.setExtraHTTPHeaders({ 'Accept-Language': 'pt-BR,pt;q=0.9' });
 
-    await page.setCookie({
-      name: 'sessionid', value: sessionid,
-      domain: '.instagram.com', path: '/', secure: true, httpOnly: true,
-    });
+    await page.setCookie(
+      { name: 'sessionid', value: sessionid, domain: '.instagram.com', path: '/', secure: true, httpOnly: true },
+    );
 
-    await page.goto('https://www.instagram.com/accounts/edit/', {
-      waitUntil: 'networkidle2', timeout: 40_000,
-    });
+    // Carrega instagram.com para estabelecer sessão completa (cookies CSRF etc.)
+    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 40_000 });
 
-    const url = page.url();
-    if (url.includes('/accounts/login') || url.includes('/challenge/')) {
+    if (page.url().includes('/accounts/login') || page.url().includes('/challenge/')) {
       throw new Error('sessionid expirado ou conta bloqueada — reimporte via 🍪');
     }
 
-    // Nome completo
-    if (fullName !== undefined) {
-      const sel = 'input[name="fullName"], input[aria-label*="name" i], input[aria-label*="nome" i]';
-      const el = await page.waitForSelector(sel, { timeout: 15_000 });
-      await el.click({ clickCount: 3 });
-      await el.evaluate(n => n.value = '');
-      await el.type(fullName, { delay: 40 });
-    }
-
-    // Bio
-    if (biography !== undefined) {
-      const sel = 'textarea[name="biography"], textarea[aria-label*="bio" i]';
-      const el = await page.waitForSelector(sel, { timeout: 10_000 });
-      await el.click({ clickCount: 3 });
-      await el.evaluate(n => n.value = '');
-      await el.type(biography, { delay: 25 });
-    }
-
-    // Salva alterações de texto
-    if (fullName !== undefined || biography !== undefined) {
-      const btn = await page.waitForSelector('button[type="submit"]', { timeout: 5_000 });
-      await btn.click();
-      await new Promise(r => setTimeout(r, 2_500));
-    }
-
-    // Foto de perfil
-    if (picBuffer) {
-      const tmp = path.join(os.tmpdir(), `ig_pic_${account._id}_${Date.now()}.jpg`);
-      fs.writeFileSync(tmp, picBuffer);
+    // Executa edição de perfil via fetch dentro do contexto do browser
+    // (mesma origem = cookies e CSRF automáticos, sem bloqueio de headers)
+    const result = await page.evaluate(async ({ fullName, biography }) => {
       try {
-        // Tenta localizar o input de foto ou botão de troca
-        const fileInput = await page.$('input[type="file"][accept*="image"]');
-        if (fileInput) {
-          await fileInput.uploadFile(tmp);
-          await new Promise(r => setTimeout(r, 3_000));
-        } else {
-          // Alternativa: clica no avatar/botão de foto e captura o fileChooser
-          const photoTrigger = await page.$('button[class*="photo"], img[data-testid*="user-avatar"], ._aatk');
-          if (photoTrigger) {
-            const [chooser] = await Promise.all([
-              page.waitForFileChooser({ timeout: 5_000 }).catch(() => null),
-              photoTrigger.click(),
-            ]);
-            if (chooser) { await chooser.accept([tmp]); await new Promise(r => setTimeout(r, 3_000)); }
-          }
+        const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+        // Busca dados atuais do perfil
+        const meResp = await fetch('/api/v1/accounts/current_user/?edit=true', {
+          headers: { 'X-IG-App-ID': '936619743392459', 'X-CSRFToken': csrfToken },
+          credentials: 'include',
+        });
+        if (!meResp.ok) return { error: `Sessão inválida: HTTP ${meResp.status}` };
+        const meData = await meResp.json().catch(() => ({}));
+        const me = meData.user || meData;
+        if (!me?.username) return { error: 'Sessão inválida — reimporte via 🍪' };
+
+        // Edita perfil
+        const body = new URLSearchParams({
+          username:      me.username,
+          full_name:     fullName  !== undefined ? fullName  : (me.full_name  || ''),
+          biography:     biography !== undefined ? biography : (me.biography  || ''),
+          external_url:  me.external_url  || '',
+          email:         me.email         || '',
+          phone_number:  me.phone_number  || '',
+          gender:        String(me.gender ?? 4),
+          custom_gender: me.custom_gender || '',
+        });
+
+        const editResp = await fetch('/api/v1/accounts/edit/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken,
+            'X-IG-App-ID': '936619743392459',
+          },
+          body: body.toString(),
+          credentials: 'include',
+        });
+
+        const editData = await editResp.json().catch(() => ({}));
+        if (!editResp.ok || editData.status === 'fail') {
+          return { error: editData.message || `HTTP ${editResp.status}` };
         }
-      } finally {
-        try { fs.unlinkSync(tmp); } catch {}
+        return { ok: true, username: me.username };
+      } catch (e) {
+        return { error: e.message };
       }
+    }, { fullName, biography });
 
-      // Cache local do avatar
-      try {
-        if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
-        fs.writeFileSync(path.join(AVATARS_DIR, `${account.username}.jpg`), picBuffer);
-        await Account.findByIdAndUpdate(account._id, { avatar: `/uploads/avatars/${account.username}.jpg` });
-      } catch {}
+    if (result.error) throw new Error(result.error);
+
+    // Foto de perfil via fetch dentro do browser
+    if (picBuffer) {
+      const b64 = picBuffer.toString('base64');
+      const photoResult = await page.evaluate(async (b64) => {
+        try {
+          const csrfToken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+          const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: 'image/jpeg' });
+          const form = new FormData();
+          form.append('profile_pic', blob, 'photo.jpg');
+          const r = await fetch('/api/v1/accounts/change_profile_picture/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken, 'X-IG-App-ID': '936619743392459' },
+            body: form,
+            credentials: 'include',
+          });
+          return { ok: r.ok, status: r.status };
+        } catch (e) { return { error: e.message }; }
+      }, b64);
+
+      if (!photoResult.error && photoResult.ok) {
+        try {
+          if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
+          fs.writeFileSync(path.join(AVATARS_DIR, `${account.username}.jpg`), picBuffer);
+          await Account.findByIdAndUpdate(account._id, { avatar: `/uploads/avatars/${account.username}.jpg` });
+        } catch {}
+      }
     }
 
     const dbUpdate = { healthStatus: 'ativa', lastError: '' };
@@ -150,6 +169,7 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
 
     console.log(`[PuppeteerEdit] @${account.username} — concluído`);
     return { profileEdited: fullName !== undefined || biography !== undefined, pictureChanged: !!picBuffer };
+
   } catch (err) {
     await Account.findByIdAndUpdate(account._id, { lastError: err.message }).catch(() => {});
     throw err;
