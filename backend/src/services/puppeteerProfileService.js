@@ -94,9 +94,11 @@ async function editProfilePuppeteer(account, { fullName, biography, picBuffer } 
           credentials: 'include',
         });
         if (!meResp.ok) return { error: `Sessão inválida: HTTP ${meResp.status}` };
-        const meData = await meResp.json().catch(() => ({}));
+        const meText = await meResp.text().catch(() => '');
+        let meData = {};
+        try { meData = JSON.parse(meText); } catch {}
         const me = meData.user || meData;
-        if (!me?.username) return { error: 'Sessão inválida — reimporte via 🍪' };
+        if (!me?.username) return { error: `Sessão inválida (resposta: ${meText.slice(0, 120)}) — reimporte via 🍪` };
 
         // Edita perfil
         const body = new URLSearchParams({
