@@ -22,6 +22,8 @@ export default function Accounts() {
   const [pagination, setPagination] = useState(null);
   const [oauthModal, setOauthModal] = useState(null); // { account, url }
   const [connecting, setConnecting] = useState({});   // { [accountId|'new']: true }
+  const [pastedUrl, setPastedUrl] = useState('');
+  const [connectingPaste, setConnectingPaste] = useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -68,11 +70,29 @@ export default function Accounts() {
       const res = await api.get('/oauth/url', { params });
       const url = res.data?.url;
       if (!url) throw new Error('URL não retornada');
+      setPastedUrl('');
       setOauthModal({ account: account || null, url });
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || err.message);
     } finally {
       setConnecting(p => ({ ...p, [key]: false }));
+    }
+  }
+
+  async function submitPastedUrl() {
+    if (!pastedUrl.trim()) return showToast('warning', 'Atenção', 'Cole a URL de retorno antes de confirmar.');
+    const accountId = oauthModal?.account?._id || 'new';
+    setConnectingPaste(true);
+    try {
+      const res = await api.post(`/oauth/connect/${accountId}`, { pastedUrl: pastedUrl.trim() });
+      showToast('success', 'Conta conectada!', res.data.message || `@${res.data.username || ''} conectada via Meta API`);
+      setOauthModal(null);
+      setPastedUrl('');
+      loadAccounts();
+    } catch (err) {
+      showToast('error', 'Erro ao conectar', err.response?.data?.error || err.message);
+    } finally {
+      setConnectingPaste(false);
     }
   }
 
@@ -340,40 +360,68 @@ export default function Accounts() {
       {/* OAuth Connect Modal */}
       {oauthModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(500px,100%)' }}>
+          <div className="modal" style={{ width: 'min(520px,100%)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>
-                {oauthModal.account ? `🔗 Conectar @${oauthModal.account.username}` : '🔗 Adicionar conta'}
-              </h3>
+              <div>
+                <h3 style={{ margin: 0 }}>🔗 Conectar via Meta API</h3>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>
+                  {oauthModal.account ? `@${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
+                </div>
+              </div>
               <button onClick={() => setOauthModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
 
-            <div style={{ background: 'var(--card2)', borderRadius: 10, padding: '14px 16px', border: '1px solid var(--border)', marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .5 }}>Como conectar</div>
-              <ol style={{ fontSize: 13, color: 'var(--text1)', margin: 0, paddingLeft: 18, lineHeight: 2 }}>
-                <li>Clique em <strong>Abrir link de autorização</strong> abaixo</li>
-                <li>Faça login no Instagram e autorize o aplicativo</li>
-                <li>A conta será conectada automaticamente</li>
-              </ol>
+            {/* Step 1 */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#6366f1', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
+                Copie o link de autorização
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                <div style={{ flex: 1, background: 'rgba(15,23,42,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {oauthModal.url}
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(oauthModal.url); showToast('success', 'Copiado!', 'Link de autorização copiado.'); }}
+                  style={{ padding: '0 14px', borderRadius: 8, border: '1px solid rgba(99,102,241,.4)', background: 'rgba(99,102,241,.15)', color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  📋 Copiar
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                Cole esse link no seu <strong style={{ color: '#94a3b8' }}>navegador isolado</strong> (Multilogin, Dolphin Anty, AdsPower, etc.) e autorize o aplicativo.
+              </div>
             </div>
 
-            <div style={{ background: 'rgba(99,102,241,.08)', borderRadius: 8, padding: '10px 14px', border: '1px solid rgba(99,102,241,.2)', marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: '#a5b4fc', marginBottom: 4, fontWeight: 600 }}>URL de autorização</div>
-              <div style={{ fontSize: 11, color: '#64748b', wordBreak: 'break-all', fontFamily: 'monospace', lineHeight: 1.5 }}>{oauthModal.url}</div>
+            {/* Step 2 */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#6366f1', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span>
+                Cole a URL de retorno
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
+                Após autorizar, a barra de endereços vai mostrar uma URL começando com <code style={{ background: 'rgba(51,65,85,.5)', padding: '1px 5px', borderRadius: 3 }}>localhost:3000</code>. Copie inteira e cole aqui:
+              </div>
+              <textarea
+                value={pastedUrl}
+                onChange={e => setPastedUrl(e.target.value)}
+                placeholder="https://localhost:3000/api/oauth/callback?code=..."
+                rows={3}
+                style={{ width: '100%', background: 'rgba(15,23,42,.8)', border: `1px solid ${pastedUrl ? 'rgba(99,102,241,.5)' : 'rgba(51,65,85,.6)'}`, borderRadius: 8, padding: '9px 12px', fontSize: 12, color: '#e2e8f0', outline: 'none', resize: 'none', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                onFocus={e => e.target.style.borderColor = 'rgba(99,102,241,.6)'}
+                onBlur={e => e.target.style.borderColor = pastedUrl ? 'rgba(99,102,241,.5)' : 'rgba(51,65,85,.6)'}
+              />
             </div>
 
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setOauthModal(null)}>Fechar</button>
-              <a
-                href={oauthModal.url}
-                target="_blank"
-                rel="noreferrer"
+            <div className="modal-actions" style={{ marginTop: 16 }}>
+              <button className="btn btn-ghost" onClick={() => { setOauthModal(null); setPastedUrl(''); }}>Cancelar</button>
+              <button
                 className="btn btn-primary"
-                style={{ textDecoration: 'none' }}
-                onClick={() => setOauthModal(null)}
+                onClick={submitPastedUrl}
+                disabled={connectingPaste || !pastedUrl.trim()}
               >
-                Abrir link de autorização →
-              </a>
+                {connectingPaste ? 'Conectando...' : '✓ Conectar conta'}
+              </button>
             </div>
           </div>
         </div>
