@@ -19,6 +19,8 @@ import Loop from './pages/Loop';
 import OAuthCallback from './pages/OAuthCallback';
 import TopPosts from './pages/TopPosts';
 import Login from './pages/Login';
+import Termos from './pages/Termos';
+import Privacidade from './pages/Privacidade';
 import { isAuthenticated } from './services/auth';
 
 function PrivateRoute({ children }) {
@@ -29,6 +31,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/termos" element={<Termos />} />
+      <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />
 
       <Route path="/*" element={
