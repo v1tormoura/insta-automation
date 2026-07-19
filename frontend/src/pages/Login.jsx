@@ -214,17 +214,17 @@ export default function Login() {
 
       {/* Rodapé legal — necessário para verificação Meta */}
       <div style={{ marginTop: 24, textAlign: 'center', lineHeight: 1.7 }}>
-        <div style={{ fontSize: 11, color: '#475569' }}>
+        <div style={{ fontSize: 11, color: '#94a3b8' }}>
           MouraFlow é um serviço operado por{' '}
-          <strong style={{ color: '#64748b' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong>
+          <strong style={{ color: '#cbd5e1' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong>
         </div>
-        <div style={{ fontSize: 11, color: '#475569' }}>CNPJ: 67.761.040/0001-27</div>
+        <div style={{ fontSize: 11, color: '#94a3b8' }}>CNPJ: 67.761.040/0001-27</div>
         <div style={{ marginTop: 6, fontSize: 11 }}>
-          <a href="/termos" style={{ color: '#6366f1', textDecoration: 'none' }}>Termos de Uso</a>
-          <span style={{ color: '#334155', margin: '0 6px' }}>·</span>
-          <a href="/privacidade" style={{ color: '#6366f1', textDecoration: 'none' }}>Política de Privacidade</a>
-          <span style={{ color: '#334155', margin: '0 6px' }}>·</span>
-          <a href="mailto:contato@instaflow.pro" style={{ color: '#6366f1', textDecoration: 'none' }}>Contato</a>
+          <a href="/termos" style={{ color: '#818cf8', textDecoration: 'none' }}>Termos de Uso</a>
+          <span style={{ color: '#64748b', margin: '0 6px' }}>·</span>
+          <a href="/privacidade" style={{ color: '#818cf8', textDecoration: 'none' }}>Política de Privacidade</a>
+          <span style={{ color: '#64748b', margin: '0 6px' }}>·</span>
+          <a href="mailto:contato@instaflow.pro" style={{ color: '#818cf8', textDecoration: 'none' }}>Contato</a>
         </div>
       </div>
     </div>
