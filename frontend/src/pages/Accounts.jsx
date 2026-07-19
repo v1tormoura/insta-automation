@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
@@ -20,11 +21,14 @@ export default function Accounts() {
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
-  const [oauthModal, setOauthModal] = useState(null); // { account, url }
-  const [connecting, setConnecting] = useState({});   // { [accountId|'new']: true }
-  const [pastedUrl, setPastedUrl] = useState('');
-  const [connectingPaste, setConnectingPaste] = useState(false);
-  const [proxyModal, setProxyModal] = useState(null); // account object
+  const [oauthModal, setOauthModal] = useState(null);   // { account, url }
+  const [oauthWaiting, setOauthWaiting] = useState(false);
+  const [connecting, setConnecting] = useState({});     // { [accountId|'new']: true }
+  const [proxyModal, setProxyModal] = useState(null);   // account object
+  const oauthModalRef   = useRef(null);
+  const oauthWaitingRef = useRef(false);
+  oauthModalRef.current   = oauthModal;
+  oauthWaitingRef.current = oauthWaiting;
   const [proxyValue, setProxyValue] = useState('');
   const [savingProxy, setSavingProxy] = useState(false);
   const [bulkProxyOpen, setBulkProxyOpen] = useState(false);
@@ -47,7 +51,18 @@ export default function Accounts() {
   const loadRef = useRef(null);
   loadRef.current = loadAccounts;
 
-  useServerEvents(['accounts', 'posts'], () => loadRef.current?.());
+  useServerEvents(['accounts', 'posts'], (data) => {
+    loadRef.current?.();
+    if (data?.action === 'oauth_connected' && oauthWaitingRef.current) {
+      const modal = oauthModalRef.current;
+      const isMatch = !modal?.account || modal?.account?._id === data.accountId;
+      if (isMatch) {
+        setOauthModal(null);
+        setOauthWaiting(false);
+        showToast('success', 'Conta conectada!', `@${data.username || ''} conectada via Meta API`);
+      }
+    }
+  });
   useEffect(() => {
     loadRef.current?.();
     const t = setInterval(() => loadRef.current?.(), 3000);
@@ -76,29 +91,12 @@ export default function Accounts() {
       const res = await api.get('/oauth/url', { params });
       const url = res.data?.url;
       if (!url) throw new Error('URL não retornada');
-      setPastedUrl('');
+      setOauthWaiting(false);
       setOauthModal({ account: account || null, url });
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || err.message);
     } finally {
       setConnecting(p => ({ ...p, [key]: false }));
-    }
-  }
-
-  async function submitPastedUrl() {
-    if (!pastedUrl.trim()) return showToast('warning', 'Atenção', 'Cole a URL de retorno antes de confirmar.');
-    const accountId = oauthModal?.account?._id || 'new';
-    setConnectingPaste(true);
-    try {
-      const res = await api.post(`/oauth/connect/${accountId}`, { pastedUrl: pastedUrl.trim() });
-      showToast('success', 'Conta conectada!', res.data.message || `@${res.data.username || ''} conectada via Meta API`);
-      setOauthModal(null);
-      setPastedUrl('');
-      loadAccounts();
-    } catch (err) {
-      showToast('error', 'Erro ao conectar', err.response?.data?.error || err.message);
-    } finally {
-      setConnectingPaste(false);
     }
   }
 
@@ -425,69 +423,82 @@ export default function Accounts() {
       {/* OAuth Connect Modal */}
       {oauthModal && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(520px,100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <style>{`@keyframes mf-spin{to{transform:rotate(360deg)}}`}</style>
+          <div className="modal" style={{ width: 'min(480px,100%)' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div>
                 <h3 style={{ margin: 0 }}>🔗 Conectar via Meta API</h3>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>
-                  {oauthModal.account ? `@${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
+                  {oauthModal.account ? `Reconectar @${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
                 </div>
               </div>
-              <button onClick={() => setOauthModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
 
-            {/* Step 1 */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#6366f1', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span>
-                Copie o link de autorização
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                <div style={{ flex: 1, background: 'rgba(15,23,42,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {oauthModal.url}
+            {!oauthWaiting ? (
+              <>
+                {/* Link + Copy */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>
+                    1. Copie o link ou escaneie o QR com o emulador
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                    <div style={{ flex: 1, background: 'rgba(15,23,42,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {oauthModal.url}
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(oauthModal.url);
+                        setOauthWaiting(true);
+                      }}
+                      style={{ padding: '0 16px', borderRadius: 8, border: '1px solid rgba(99,102,241,.4)', background: 'rgba(99,102,241,.15)', color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      📋 Copiar
+                    </button>
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 0' }}>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>📱 Ou escaneie com o emulador</div>
+                  <div style={{ background: '#fff', borderRadius: 12, padding: 12, display: 'inline-flex' }}>
+                    <QRCodeSVG value={oauthModal.url} size={190} />
+                  </div>
+                  <button
+                    onClick={() => setOauthWaiting(true)}
+                    style={{ fontSize: 11, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginTop: 4 }}
+                  >
+                    Já abri o link no emulador →
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Waiting state */
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '28px 0' }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: '50%',
+                  border: '3px solid rgba(99,102,241,.2)',
+                  borderTopColor: '#6366f1',
+                  animation: 'mf-spin 0.9s linear infinite',
+                }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>Aguardando autorização...</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, lineHeight: 1.5 }}>
+                    Autorize o app no emulador.<br />
+                    A conta será conectada automaticamente.
+                  </div>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(oauthModal.url); showToast('success', 'Copiado!', 'Link de autorização copiado.'); }}
-                  style={{ padding: '0 14px', borderRadius: 8, border: '1px solid rgba(99,102,241,.4)', background: 'rgba(99,102,241,.15)', color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => setOauthWaiting(false)}
+                  style={{ fontSize: 12, color: '#64748b', background: 'none', border: '1px solid rgba(51,65,85,.4)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}
                 >
-                  📋 Copiar
+                  ← Voltar ao link
                 </button>
               </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
-                Cole esse link no seu <strong style={{ color: '#94a3b8' }}>navegador isolado</strong> (Multilogin, Dolphin Anty, AdsPower, etc.) e autorize o aplicativo.
-              </div>
-            </div>
+            )}
 
-            {/* Step 2 */}
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#6366f1', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span>
-                Cole a URL de retorno
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
-                Após autorizar, a barra de endereços vai mostrar uma URL começando com <code style={{ background: 'rgba(51,65,85,.5)', padding: '1px 5px', borderRadius: 3 }}>localhost:3000</code>. Copie inteira e cole aqui:
-              </div>
-              <textarea
-                value={pastedUrl}
-                onChange={e => setPastedUrl(e.target.value)}
-                placeholder="https://localhost:3000/api/oauth/callback?code=..."
-                rows={3}
-                style={{ width: '100%', background: 'rgba(15,23,42,.8)', border: `1px solid ${pastedUrl ? 'rgba(99,102,241,.5)' : 'rgba(51,65,85,.6)'}`, borderRadius: 8, padding: '9px 12px', fontSize: 12, color: '#e2e8f0', outline: 'none', resize: 'none', fontFamily: 'monospace', boxSizing: 'border-box' }}
-                onFocus={e => e.target.style.borderColor = 'rgba(99,102,241,.6)'}
-                onBlur={e => e.target.style.borderColor = pastedUrl ? 'rgba(99,102,241,.5)' : 'rgba(51,65,85,.6)'}
-              />
-            </div>
-
-            <div className="modal-actions" style={{ marginTop: 16 }}>
-              <button className="btn btn-ghost" onClick={() => { setOauthModal(null); setPastedUrl(''); }}>Cancelar</button>
-              <button
-                className="btn btn-primary"
-                onClick={submitPastedUrl}
-                disabled={connectingPaste || !pastedUrl.trim()}
-              >
-                {connectingPaste ? 'Conectando...' : '✓ Conectar conta'}
-              </button>
-            </div>
           </div>
         </div>
       )}
