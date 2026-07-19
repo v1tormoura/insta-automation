@@ -462,6 +462,8 @@ router.get('/callback', async (req, res) => {
       const account = await Account.findById(state).lean();
       const username = account?.username || userIdStr;
       console.log(`✅ OAuth Instagram — @${username} token salvo`);
+      broadcast('accounts', { action: 'oauth_connected', username, accountId: state });
+      setImmediate(() => runHealthCheck().catch(() => {}));
       return res.redirect(`${FRONTEND}/accounts?oauth=success&username=${encodeURIComponent(username)}`);
     }
 
@@ -496,6 +498,8 @@ router.get('/callback', async (req, res) => {
     }
 
     console.log(`✅ OAuth Instagram — @${username} conectada`);
+    broadcast('accounts', { action: 'oauth_connected', username });
+    setImmediate(() => runHealthCheck().catch(() => {}));
     res.redirect(`${FRONTEND}/accounts?oauth=success&username=${encodeURIComponent(username)}`);
 
   } catch (err) {
