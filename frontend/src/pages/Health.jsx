@@ -202,13 +202,19 @@ function AccountCard({ account }) {
 
 export default function Health() {
   const [data, setData]       = useState(null);
+  const [error, setError]     = useState(null);
   const [filter, setFilter]   = useState('all');
   const [checking, setChecking] = useState(false);
   const [, setTick] = useState(0);
 
   async function load() {
-    try { const res = await api.get('/health'); setData(res.data); }
-    catch {}
+    try {
+      const res = await api.get('/health');
+      setData(res.data);
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Erro ao carregar saúde das contas');
+    }
   }
 
   useServerEvents(['accounts'], load);
@@ -232,11 +238,20 @@ export default function Health() {
   }
 
   if (!data) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: '#475569', gap: 10 }}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
-        <path d="M21 12a9 9 0 11-6.219-8.56"/>
-      </svg>
-      Carregando saúde das contas...
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#475569', gap: 10 }}>
+      {error ? (
+        <>
+          <span style={{ color: '#f87171', fontSize: 13 }}>Erro: {error}</span>
+          <button onClick={load} style={{ marginTop: 8, padding: '6px 16px', borderRadius: 8, background: 'rgba(6,182,212,.15)', border: '1px solid rgba(6,182,212,.3)', color: '#67e8f9', cursor: 'pointer', fontSize: 13 }}>Tentar novamente</button>
+        </>
+      ) : (
+        <>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+          </svg>
+          Carregando saúde das contas...
+        </>
+      )}
     </div>
   );
 
