@@ -1,5 +1,12 @@
 /* App.css — legacy page-specific classes (resets/vars now in index.css) */
 
+/* ── TABLE SCROLL (accounts & other pages) ── */
+.tbl-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tbl-scroll-wrap::-webkit-scrollbar { height: 4px; }
+.tbl-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+.tbl-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(99,102,241,.35); border-radius: 4px; }
+.tbl-scroll-inner { min-width: 700px; }
+
 /* ── PAGE HEADER (used by old pages) ── */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
 .page-header-left .eyebrow { font-size: 11px; font-weight: 600; color: var(--cyan); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
@@ -248,7 +255,7 @@ tbody td { padding: 11px 12px; font-size: 13px; }
 }
 @media (max-width: 1100px) { .accounts-stats-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 640px)  { .accounts-stats-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 380px)  { .accounts-stats-grid { grid-template-columns: 1fr; } }
+@media (max-width: 300px)  { .accounts-stats-grid { grid-template-columns: 1fr; } }
 
 /* ── RESPONSIVE GRIDS ── */
 .resp-grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }

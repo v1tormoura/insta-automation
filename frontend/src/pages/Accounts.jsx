@@ -256,11 +256,11 @@ export default function Accounts() {
             <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Contas conectadas</div>
             <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>Mostrando {filteredAccounts.length} de {safeAccounts.length} conta(s)</div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: 2 }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#475569' }}>🔍</span>
               <input
-                style={{ background: 'rgba(30,41,59,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '7px 12px 7px 30px', fontSize: 13, color: '#e2e8f0', outline: 'none', width: 200 }}
+                style={{ background: 'rgba(30,41,59,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '7px 12px 7px 30px', fontSize: 13, color: '#e2e8f0', outline: 'none', width: 160 }}
                 placeholder="Buscar conta..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -271,7 +271,7 @@ export default function Accounts() {
                 fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600,
                 background: filter === f.key ? '#6366f1' : 'rgba(51,65,85,.4)',
                 color: filter === f.key ? '#fff' : '#94a3b8',
-                display: 'flex', alignItems: 'center', gap: 5,
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
               }}>
                 {f.label}
                 {f.count > 0 && (
@@ -286,7 +286,7 @@ export default function Accounts() {
           <div className="tbl-scroll-inner">
 
             {/* Table header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.4fr 1.8fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
+            <div className="acc-tbl-hd" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.4fr 1.8fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
               {['Conta', 'Seguidores', 'Seguindo', 'Posts', 'Status', 'Última sync', 'Ações'].map((h, i) => (
                 <div key={i} style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: .6 }}>{h}</div>
               ))}
@@ -299,6 +299,7 @@ export default function Accounts() {
               const needsReconnect = account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
               return (
                 <div key={account._id}
+                  className="acc-tbl-row"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.4fr 1.8fr',

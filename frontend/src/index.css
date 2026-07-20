@@ -643,13 +643,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
     gap: 8px !important;
     padding: 13px 16px !important;
   }
-  /* Account info (2nd child) fills remaining width */
-  .acc-tbl-row > :nth-child(2) { flex: 1; min-width: 0; }
-  /* Hide secondary columns: seguidores, seguindo, posts, última sync */
+  /* Account info (child 1) fills remaining width */
+  .acc-tbl-row > :nth-child(1) { flex: 1; min-width: 0; }
+  /* Hide: Seguidores (2), Seguindo (3), Posts (4), Última sync (6) */
+  .acc-tbl-row > :nth-child(2),
   .acc-tbl-row > :nth-child(3),
   .acc-tbl-row > :nth-child(4),
-  .acc-tbl-row > :nth-child(5),
-  .acc-tbl-row > :nth-child(7) { display: none !important; }
+  .acc-tbl-row > :nth-child(6) { display: none !important; }
   /* Actions row: full width */
-  .acc-tbl-row > :nth-child(8) { width: 100%; }
+  .acc-tbl-row > :nth-child(7) { width: 100%; }
 }

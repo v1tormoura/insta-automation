@@ -3,9 +3,9 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity, AlertTriangle, Bell, ChevronDown, ChevronRight,
-  Clock3, Flame, FolderOpen, HeartPulse, Layers3,
+  Clock3, Flame, FolderOpen, Globe, HeartPulse, Layers3,
   MoreHorizontal, Plus, RefreshCw, Send,
-  ShieldCheck, TrendingUp,
+  ShieldCheck, TrendingUp, WifiOff, Zap,
 } from 'lucide-react';
 import {
   Area, AreaChart, Line, LineChart as RechartLineChart,
@@ -501,6 +501,7 @@ export default function Dashboard() {
   const [period, setPeriod]         = useState(7);
   const [accountsPeriod, setAccountsPeriod] = useState('hoje');
   const [problemsPeriod, setProblemsPeriod] = useState('hoje');
+  const [proxyCount, setProxyCount] = useState(0);
 
   // Notificações
   const [notifications, setNotifications] = useState([]);
@@ -526,14 +527,17 @@ export default function Dashboard() {
   const loadInsights = useCallback(async () => {
     try { const r = await api.get('/insights', { params: { period:'30d', limit:6 } }); setTopInsights(r.data?.insights || []); } catch {}
   }, []);
+  const loadProxies = useCallback(async () => {
+    try { const r = await api.get('/proxies'); const list = r.data?.proxies || (Array.isArray(r.data) ? r.data : []); setProxyCount(list.length); } catch {}
+  }, []);
 
   loadRef.current = load;
 
-  useEffect(() => { load(); loadStats(); loadInsights(); }, [load, loadStats, loadInsights]);
+  useEffect(() => { load(); loadStats(); loadInsights(); loadProxies(); }, [load, loadStats, loadInsights, loadProxies]);
   useEffect(() => {
-    const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); }, 15_000);
+    const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); loadProxies(); }, 15_000);
     return () => clearInterval(id);
-  }, [loadStats, loadInsights]);
+  }, [loadStats, loadInsights, loadProxies]);
 
   useServerEvents(
     ['posts', 'accounts', 'sessions', 'health', 'insights', 'loop'],
@@ -602,6 +606,8 @@ export default function Dashboard() {
   })), [d.activities]);
 
   const sysOk = d.system?.backend && d.system?.mongo;
+  const bannedCount = useMemo(() => accountStats.filter(a => a.healthStatus === 'banida').length, [accountStats]);
+  const fallenCount = useMemo(() => accountStats.filter(a => ['token_invalido', 'sessao_expirada'].includes(a.healthStatus)).length, [accountStats]);
 
   const accountsAddedValue = accountsPeriod === 'hoje' ? (d.accountsAddedToday || 0)
                            : accountsPeriod === '7d'   ? (d.accountsAdded7d    || 0)
@@ -866,6 +872,34 @@ export default function Dashboard() {
                   </li>
                 );
               })}
+            </ul>
+          </div>
+
+          {/* SISTEMA */}
+          <div className="panel compact-panel sistema-panel">
+            <PanelHeader title="SISTEMA" icon={ShieldCheck} right={
+              <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6, background: sysOk?'rgba(34,215,133,.12)':'rgba(239,68,68,.12)', color: sysOk?'#2bdc94':'#f87171', border:`1px solid ${sysOk?'rgba(34,215,133,.3)':'rgba(239,68,68,.3)'}` }}>
+                {sysOk ? 'ONLINE' : 'ALERTA'}
+              </span>
+            } />
+            <ul style={{ listStyle:'none', margin:0, padding:0, display:'flex', flexDirection:'column', gap:0 }}>
+              {[
+                { icon: <Zap size={15} />,         label: 'Automações Ativas', value: d.activeAccounts || 0, color: '#22d7ff',                                         sub: `${d.totalAccounts||0} configuradas` },
+                { icon: <Globe size={15} />,        label: 'Proxies Online',    value: proxyCount,            color: '#10b981',                                         sub: 'Todas as regiões estáveis' },
+                { icon: <AlertTriangle size={15}/>, label: 'Contas Banidas',    value: bannedCount,           color: bannedCount>0 ? '#ef4444' : '#334155',             sub: bannedCount>0 ? 'Ação necessária' : 'Nenhuma banida' },
+                { icon: <WifiOff size={15} />,      label: 'Contas Caídas',     value: fallenCount,           color: fallenCount>0 ? '#f59e0b' : '#334155',            sub: fallenCount>0 ? 'Reconectar necessário' : 'Todas online' },
+              ].map(item => (
+                <li key={item.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'1px solid rgba(51,65,85,.12)' }}>
+                  <span style={{ width:34, height:34, borderRadius:10, background:`${item.color}14`, border:`1px solid ${item.color}22`, display:'flex', alignItems:'center', justifyContent:'center', color:item.color, flexShrink:0 }}>
+                    {item.icon}
+                  </span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#c8ddf0' }}>{item.label}</div>
+                    <div style={{ fontSize:10, color:'#476580', marginTop:1 }}>{item.sub}</div>
+                  </div>
+                  <strong style={{ fontSize:22, fontWeight:800, color:item.color, letterSpacing:-0.5, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{item.value}</strong>
+                </li>
+              ))}
             </ul>
           </div>
 
