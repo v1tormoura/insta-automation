@@ -304,7 +304,7 @@
 }
 @media (max-width: 700px) {
   .dashboard { padding: 16px 12px; }
-  .topbar { flex-direction: column; }
+  .dash-header { flex-direction: column; }
   .toolbar { max-width: 100%; width: 100%; justify-content: flex-start; }
   .clock-chip { display: none; }
   .title-line { flex-direction: column; gap: 5px; }

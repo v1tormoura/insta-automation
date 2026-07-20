@@ -90,7 +90,7 @@ a { text-decoration: none; color: inherit; }
 /* APP SHELL */
 .appShell {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100vh;
   background: var(--bg);
   position: relative;
@@ -118,18 +118,19 @@ a { text-decoration: none; color: inherit; }
 }
 @keyframes orbFloat { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(40px,30px) scale(1.05)} }
 
-/* TOPBAR — always visible */
+/* TOPBAR — mobile only (hidden on desktop) */
 .topbar {
-  display: flex;
+  display: none;
   align-items: center;
   height: 56px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
-  background: rgba(6,13,30,.96);
+  background: rgba(6,12,23,.96);
   backdrop-filter: blur(20px);
   flex-shrink: 0;
-  position: relative;
-  z-index: 50;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 150;
 }
 .topbar-hamburger {
   background: none;
@@ -167,23 +168,23 @@ a { text-decoration: none; color: inherit; }
 }
 .topbar-cmd:hover { color: var(--text); background: rgba(255,255,255,.05); }
 
-/* DRAWER SIDEBAR */
+/* SIDEBAR — persistent on desktop, sliding drawer on mobile */
 .drawer {
-  position: fixed;
-  left: -290px;
-  top: 0;
+  position: relative;
+  left: auto;
+  top: auto;
   height: 100vh;
-  width: 272px;
+  width: 220px;
+  flex-shrink: 0;
   background: rgba(7,12,24,.98);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  z-index: 200;
-  transition: left .28s cubic-bezier(.4,0,.2,1);
+  z-index: 50;
   backdrop-filter: blur(20px);
   overflow: hidden;
 }
-.drawer.drawer-open { left: 0; }
+/* drawer-open only matters on mobile — desktop sidebar is always visible */
 
 .drawer-header {
   display: flex;
@@ -490,25 +491,31 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
 /* RESPONSIVE */
+/* Hide close button on desktop, show on mobile */
+.drawer-close-btn { display: none; }
+
 @media (max-width: 768px) {
-  .sidebar {
-    position: fixed; left: -100%; top: 0; z-index: 100;
-    height: 100vh;
-    transition: left .25s cubic-bezier(.4,0,.2,1);
-    /* Force full width on mobile — overrides desktop collapsed state */
-    width: var(--sidebar-w) !important;
-    min-width: var(--sidebar-w) !important;
+  /* Stack: fixed topbar + scrollable content */
+  .appShell { flex-direction: column; overflow-y: auto; }
+
+  /* Show mobile topbar */
+  .topbar { display: flex; }
+
+  /* Push content below fixed topbar */
+  .mainContent { padding-top: 56px; }
+
+  /* Sidebar becomes a sliding drawer */
+  .drawer {
+    position: fixed;
+    left: -272px; top: 0;
+    width: 272px; height: 100%;
+    z-index: 200;
+    transition: left .28s cubic-bezier(.4,0,.2,1);
   }
-  .sidebar.open {
-    left: 0;
-    box-shadow: 6px 0 40px rgba(0,0,0,.6);
-  }
-  /* Always show nav labels when sidebar slides open on mobile */
-  .sidebar.open .sb-item-txt    { opacity: 1 !important; width: auto !important; }
-  .sidebar.open .sb-brand-text  { opacity: 1 !important; overflow: visible !important; }
-  .sidebar.open .sb-group-label { opacity: 1 !important; height: auto !important; padding: 6px 10px 3px !important; overflow: visible !important; }
-  .sidebar.open .sb-user-info   { opacity: 1 !important; width: auto !important; overflow: visible !important; }
-  .sidebar.open .sb-collapse-btn { display: none; }
+  .drawer.drawer-open { left: 0; box-shadow: 6px 0 40px rgba(0,0,0,.6); }
+
+  /* Show close (X) button inside drawer on mobile */
+  .drawer-close-btn { display: flex; align-items: center; }
 
   .g4 { grid-template-columns: repeat(2, 1fr); }
   .g3 { grid-template-columns: repeat(2, 1fr); }

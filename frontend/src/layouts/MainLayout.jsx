@@ -97,8 +97,9 @@ export default function MainLayout({ children }) {
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>MouraFlow</span>
           </div>
           <button
+            className="drawer-close-btn"
             onClick={() => setDrawerOpen(false)}
-            style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', display: 'flex', padding: 4 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', padding: 4 }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12"/>
