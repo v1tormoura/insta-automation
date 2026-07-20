@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:       #060d1e;
+  --bg:       #060c17;
   --bg2:      #0a1628;
   --bg3:      #0d1c35;
   --bg4:      #112040;
@@ -45,7 +45,7 @@
   --glow-sm:  0 0 12px rgba(0,212,255,.15);
 
   --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+  --font-display: 'Outfit', 'Space Grotesk', 'Inter', sans-serif;
 
   --sidebar-w: 220px;
   --sidebar-collapsed: 64px;

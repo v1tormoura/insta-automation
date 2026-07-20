@@ -73,23 +73,34 @@ const quickActions = [
 
 /* ── MetricCard ── */
 function MetricCard({ title, value, meta, kind, tone, spark = [] }) {
+  const orbType = kind === 'crystal' ? 'warm' : kind === 'hourglass' ? 'warm' : kind === 'ice' ? 'violet' : 'cyan';
+  const sparkColor = orbType === 'warm' ? '#ff9a35' : orbType === 'violet' ? '#a78bfa' : '#00D9FF';
+  const gradId = `sg-${title.replace(/\s+/g, '').toLowerCase()}`;
   return (
-    <article className={`metric-card tone-${tone}`}>
+    <article className="metric-card">
       <div className="card-grid" aria-hidden="true" />
-      <div className="metric-head">
-        <span>{title}</span>
-        <button aria-label={`Mais opções de ${title}`}><MoreHorizontal size={18} /></button>
+      <div className="card-top-line" aria-hidden="true" />
+      <div className="metric-content">
+        <div>
+          <div className="metric-label">{title}</div>
+          <div className="metric-value">{value}</div>
+          <div className="metric-sub">{meta}</div>
+        </div>
+        <div className={`kpi-orb kpi-orb-${orbType}`} aria-hidden="true" />
       </div>
-      <div className="metric-value">{value}</div>
-      <div className={`metric-meta ${tone}`}>{meta}</div>
-      <div className="metric-line">
+      <div className="metric-spark">
         <ResponsiveContainer width="100%" height="100%">
-          <RechartLineChart data={spark.map((y, i) => ({ i, y }))}>
-            <Line type="monotone" dataKey="y" stroke={tone === 'amber' ? '#ffae35' : '#24caff'} strokeWidth={2} dot={false} />
-          </RechartLineChart>
+          <AreaChart data={spark.map((y, i) => ({ i, y }))}>
+            <defs>
+              <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor={sparkColor} stopOpacity={0.45} />
+                <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <Area type="monotone" dataKey="y" stroke={sparkColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} />
+          </AreaChart>
         </ResponsiveContainer>
       </div>
-      <Visual kind={kind} />
     </article>
   );
 }
@@ -606,12 +617,12 @@ export default function Dashboard() {
 
       <main className="dashboard">
         {/* ── Topbar ── */}
-        <header className="topbar">
+        <header className="dash-header">
           <div className="header-left">
             <div>
               <div className="eyebrow">DASHBOARD</div>
               <div className="title-line">
-                <h1>Visão geral</h1>
+                <h1>Visão geral, <span style={{ color: '#00D9FF' }}>Vitor Marcelo</span></h1>
                 <span className="live-status">
                   <span style={{ background: sysOk ? '#2bdc94' : '#ff5f5f', boxShadow:`0 0 10px ${sysOk?'#2bdc94':'#ff5f5f'}` }} />
                   {sysOk ? 'Todos os sistemas operacionais' : 'Verificar sistemas'}
