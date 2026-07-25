@@ -9,19 +9,86 @@ const { startWarmup, stopWarmupAndSave, getActiveJobs } = require('../jobs/warmu
 // GET /warmup — lista status de todas as contas
 router.get('/', async (req, res) => {
   try {
-    const accounts = await Account.find({}, 'username avatar warmupActive warmupIntensity warmupActions warmupInterval warmupMaxLikes warmupMaxComments warmupMaxFollows warmupComments');
+    const accounts = await Account.find({}, 'username avatar name followers following postsCount accountType healthStatus tokenExpiresAt warmupActive warmupIntensity warmupActions warmupInterval warmupMaxLikes warmupMaxComments warmupMaxFollows warmupComments igSession');
     const activeIds = getActiveJobs();
     const data = accounts.map(a => ({
-      _id: a._id,
-      username: a.username,
-      avatar: a.avatar,
-      warmupActive: a.warmupActive || false,
+      _id:             a._id,
+      username:        a.username,
+      avatar:          a.avatar,
+      name:            a.name,
+      followers:       a.followers,
+      following:       a.following,
+      postsCount:      a.postsCount,
+      accountType:     a.accountType,
+      healthStatus:    a.healthStatus,
+      tokenExpiresAt:  a.tokenExpiresAt,
+      warmupActive:    a.warmupActive || false,
       warmupIntensity: a.warmupIntensity || 'leve',
-      warmupActions: a.warmupActions || ['likes'],
-      warmupInterval: a.warmupInterval || 30,
-      running: activeIds.includes(String(a._id)),
+      warmupActions:   a.warmupActions || ['likes'],
+      warmupInterval:  a.warmupInterval || 30,
+      warmupMaxLikes:      a.warmupMaxLikes    || 6,
+      warmupMaxComments:   a.warmupMaxComments || 2,
+      warmupMaxFollows:    a.warmupMaxFollows  || 4,
+      warmupComments:      a.warmupComments    || [],
+      running:         activeIds.includes(String(a._id)),
+      hasSession:      !!(a.igSession && a.igSession !== 'use_cookies' && a.igSession.length > 10),
     }));
     res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /warmup/:id/login — cria sessão Private API via username+password
+router.post('/:id/login', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Senha é obrigatória.' });
+
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada.' });
+
+    const { IgApiClient } = require('instagram-private-api');
+    const ig = new IgApiClient();
+    ig.state.generateDevice(account.username);
+
+    try {
+      await ig.simulate.preLoginFlow();
+    } catch {}
+
+    await ig.account.login(account.username, password);
+
+    try {
+      await ig.simulate.postLoginFlow();
+    } catch {}
+
+    const state = await ig.state.serialize();
+    delete state.constants;
+    const sessionStr = JSON.stringify({ ...state, _deviceSeed: account.username });
+
+    await Account.findByIdAndUpdate(account._id, { igSession: sessionStr });
+
+    res.json({ ok: true, message: 'Sessão conectada com sucesso!' });
+  } catch (err) {
+    const msg = err.message || '';
+    if (/IgLoginTwoFactorRequiredError/.test(msg) || /two_factor/.test(msg)) {
+      return res.status(400).json({ error: 'Esta conta tem verificação em duas etapas ativada. Desative temporariamente o 2FA e tente novamente.' });
+    }
+    if (/IgCheckpointError/.test(msg) || /checkpoint/.test(msg)) {
+      return res.status(400).json({ error: 'Instagram bloqueou o login (checkpoint). Abra o app do Instagram, confirme o login e tente novamente.' });
+    }
+    if (/IgLoginBadPasswordError/.test(msg) || /bad_password/.test(msg)) {
+      return res.status(400).json({ error: 'Senha incorreta. Verifique e tente novamente.' });
+    }
+    res.status(500).json({ error: `Erro ao fazer login: ${err.message}` });
+  }
+});
+
+// POST /warmup/:id/logout — remove sessão Private API
+router.post('/:id/logout', async (req, res) => {
+  try {
+    await Account.findByIdAndUpdate(req.params.id, { igSession: '' });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
