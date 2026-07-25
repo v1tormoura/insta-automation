@@ -18,6 +18,11 @@ import Warmup from './pages/Warmup';
 import Loop from './pages/Loop';
 import OAuthCallback from './pages/OAuthCallback';
 import TopPosts from './pages/TopPosts';
+import BestTimes from './pages/BestTimes';
+import TrendingAudio from './pages/TrendingAudio';
+import ABTest from './pages/ABTest';
+import SmartRepost from './pages/SmartRepost';
+import ViralHunter from './pages/ViralHunter';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -53,7 +58,12 @@ export default function App() {
               <Route path="/stories"      element={<Stories />} />
               <Route path="/warmup"       element={<Warmup />} />
               <Route path="/loop"         element={<Loop />} />
-              <Route path="/top-posts"    element={<TopPosts />} />
+              <Route path="/top-posts"      element={<TopPosts />} />
+              <Route path="/best-times"     element={<BestTimes />} />
+              <Route path="/trending-audio" element={<TrendingAudio />} />
+              <Route path="/ab-test"        element={<ABTest />} />
+              <Route path="/smart-repost"   element={<SmartRepost />} />
+              <Route path="/viral-hunter"   element={<ViralHunter />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>
