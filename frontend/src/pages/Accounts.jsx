@@ -315,7 +315,7 @@ export default function Accounts() {
       </div>
 
       {/* ── Cards grid ───────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {filteredAccounts.map(account => {
           const hc          = healthColor(account.healthStatus);
           const hl          = healthLabel(account.healthStatus || 'ativa');
@@ -338,9 +338,9 @@ export default function Accounts() {
               onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(51,65,85,.45)'}
             >
               {/* ── Card body ── */}
-              <div style={{ padding: '16px 18px 14px' }}>
+              <div style={{ padding: '13px 15px 11px' }}>
                 {/* Avatar + name row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                   {/* Avatar */}
                   <div style={{ flexShrink: 0, position: 'relative' }}>
                     {account.avatar ? (
@@ -348,16 +348,16 @@ export default function Accounts() {
                         src={avatarUrl(account.avatar)}
                         alt=""
                         onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                        style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${hc}55`, display: 'block' }}
+                        style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${hc}55`, display: 'block' }}
                       />
                     ) : null}
                     <div style={{
-                      width: 52, height: 52, borderRadius: '50%',
+                      width: 44, height: 44, borderRadius: '50%',
                       background: 'linear-gradient(135deg,#6366f133,#8b5cf633)',
                       border: '2px solid #6366f133',
                       display: account.avatar ? 'none' : 'flex',
                       alignItems: 'center', justifyContent: 'center',
-                      fontSize: 20, fontWeight: 800, color: '#818cf8',
+                      fontSize: 17, fontWeight: 800, color: '#818cf8',
                     }}>
                       {account.username?.charAt(0)?.toUpperCase() || 'I'}
                     </div>
@@ -365,24 +365,24 @@ export default function Accounts() {
 
                   {/* Name / username / badges */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
                         {account.name || account.username}
                       </span>
-                      <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" style={{ color: '#475569', fontSize: 12, textDecoration: 'none', lineHeight: 1, flexShrink: 0 }}>↗</a>
+                      <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" style={{ color: '#475569', fontSize: 11, textDecoration: 'none', lineHeight: 1, flexShrink: 0 }}>↗</a>
                     </div>
-                    <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>@{account.username}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>@{account.username}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
                       <span style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 8px 2px 6px', borderRadius: 20,
+                        fontSize: 10, fontWeight: 600, padding: '2px 7px 2px 5px', borderRadius: 20,
                         background: `${hc}18`, color: hc, border: `1px solid ${hc}30`,
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                       }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: hc, boxShadow: `0 0 5px ${hc}` }} />
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: hc, boxShadow: `0 0 4px ${hc}` }} />
                         {hl}
                       </span>
                       <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                        fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
                         background: 'rgba(51,65,85,.5)', color: '#64748b', letterSpacing: '.4px',
                       }}>
                         {accType}
@@ -392,18 +392,18 @@ export default function Accounts() {
                 </div>
 
                 {/* Stats row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', paddingTop: 10, borderTop: '1px solid rgba(51,65,85,.3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', paddingTop: 8, borderTop: '1px solid rgba(51,65,85,.3)' }}>
                   {[
                     { label: 'SEGUIDORES',  value: fmt(account.followers)  },
                     { label: 'SEGUINDO',    value: fmt(account.following)  },
                     { label: 'PUBLICAÇÕES', value: fmt(account.postsCount) },
                   ].map((s, i) => (
                     <div key={s.label} style={{
-                      textAlign: 'center', padding: '10px 4px',
+                      textAlign: 'center', padding: '8px 4px',
                       borderRight: i < 2 ? '1px solid rgba(51,65,85,.3)' : 'none',
                     }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: '#3d4f6a', letterSpacing: '.7px', marginBottom: 5, textTransform: 'uppercase' }}>{s.label}</div>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: '#e2e8f0', letterSpacing: -0.5 }}>{s.value}</div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: '#3d4f6a', letterSpacing: '.7px', marginBottom: 4, textTransform: 'uppercase' }}>{s.label}</div>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: '#e2e8f0', letterSpacing: -0.5 }}>{s.value}</div>
                     </div>
                   ))}
                 </div>
@@ -411,7 +411,7 @@ export default function Accounts() {
 
               {/* ── Meta row ── */}
               <div style={{ height: 1, background: 'rgba(51,65,85,.3)' }} />
-              <div style={{ padding: '9px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ padding: '7px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: isHealthy ? '#10b981' : '#f87171', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IcoWifi />
                   {isHealthy ? 'API conectada' : 'API desconectada'}
@@ -424,7 +424,7 @@ export default function Accounts() {
 
               {/* ── Actions ── */}
               <div style={{ height: 1, background: 'rgba(51,65,85,.3)' }} />
-              <div style={{ padding: '10px 14px', display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ padding: '8px 12px', display: 'flex', gap: 5, alignItems: 'center' }}>
                 {/* Ver */}
                 <a
                   href={`https://instagram.com/${account.username}`}

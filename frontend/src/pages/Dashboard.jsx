@@ -397,8 +397,8 @@ function PerformanceTable({ stats }) {
   );
 }
 
-/* ── helpers de notificação ── */
-function buildNotif(data, event) {
+/* ── (notifications moved to MainLayout global bell) ── */
+function _unused_buildNotif(data, event) {
   const a = data?.action || '';
   if (event === 'posts') {
     if (a === 'post_completed' || data?.status === 'concluido')
@@ -429,8 +429,8 @@ function buildNotif(data, event) {
   return null;
 }
 
-/* ── NotificationPanel ── */
-function NotificationPanel({ notifs, unread, open, setOpen, onClear }) {
+/* ── NotificationPanel ── (kept for reference but not used — moved to MainLayout) */
+function _unused_NotificationPanel({ notifs, unread, open, setOpen, onClear }) {
   const panelRef = useRef(null);
   useEffect(() => {
     if (!open) return;
@@ -490,6 +490,110 @@ function NotificationPanel({ notifs, unread, open, setOpen, onClear }) {
   );
 }
 
+/* ── SmartInsights ── */
+function InsightCard({ icon, title, value, sub, detail, color, action }) {
+  return (
+    <div style={{ background:'rgba(255,255,255,.025)', border:`1px solid ${color}28`, borderRadius:14, padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}>
+      <div style={{ position:'absolute', top:-20, right:-14, width:80, height:80, borderRadius:'50%', background:`${color}09`, pointerEvents:'none' }} />
+      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+        <span style={{ width:34, height:34, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>{icon}</span>
+        <div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#5a7a99', letterSpacing:'.07em', textTransform:'uppercase' }}>{title}</div>
+          <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1.1, marginTop:2 }}>{value}</div>
+        </div>
+      </div>
+      <div style={{ fontSize:12, color:'#8eb2d5', lineHeight:1.5 }}>{sub}</div>
+      {detail && <div style={{ fontSize:11, color:`${color}cc`, fontWeight:600, borderTop:`1px solid ${color}18`, paddingTop:8, marginTop:2 }}>{detail}</div>}
+      {action && (
+        <button onClick={action.fn} style={{ alignSelf:'flex-start', fontSize:10, fontWeight:700, color, background:`${color}15`, border:`1px solid ${color}30`, borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SmartInsights({ accountStats, data: d }) {
+  const totalAccounts  = accountStats.length;
+  const healthy        = accountStats.filter(a => a.healthStatus === 'ativa' || a.status === 'connected').length;
+  const banned         = accountStats.filter(a => a.healthStatus === 'banida').length;
+  const tokenFailed    = accountStats.filter(a => ['token_invalido','sessao_expirada'].includes(a.healthStatus)).length;
+  const successRate    = totalAccounts > 0 ? Math.round(healthy / totalAccounts * 100) : 0;
+
+  const totalFollowers = accountStats.reduce((s, a) => s + (a.followers || 0), 0);
+  const growth30d      = accountStats.reduce((s, a) => s + (a.growth30d || 0), 0);
+  const growthPct      = totalFollowers > 0 ? ((growth30d / totalFollowers) * 100).toFixed(2) : '0.00';
+
+  const posts30d       = accountStats.reduce((s, a) => s + (a.posts30d || 0), 0);
+  const failures30d    = accountStats.reduce((s, a) => s + (a.failures30d || 0), 0);
+  const postSuccessRate = (posts30d + failures30d) > 0 ? Math.round(posts30d / (posts30d + failures30d) * 100) : 100;
+
+  const bestAccount    = [...accountStats].sort((a,b) => (b.followers||0) - (a.followers||0))[0];
+  const worstAccount   = banned > 0 ? accountStats.find(a => a.healthStatus === 'banida') : null;
+
+  const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
+
+  const insights = [
+    {
+      icon:   '📈',
+      title:  'CRESCIMENTO 30 DIAS',
+      value:  growth30d >= 0 ? `+${fmtK(growth30d)}` : fmtK(growth30d),
+      sub:    `${totalAccounts} conta(s) geraram ${growth30d >= 0 ? '+' : ''}${growthPct}% de crescimento no total de seguidores nos últimos 30 dias.`,
+      detail: growth30d > 0
+        ? `🏆 Melhor conta: @${bestAccount?.username || '—'} com ${fmtK(bestAccount?.followers)} seguidores`
+        : totalAccounts === 0 ? 'Adicione contas para ver o crescimento.' : 'Nenhum crescimento registrado ainda.',
+      color:  growth30d >= 0 ? '#22d7ff' : '#f87171',
+    },
+    {
+      icon:   '🏥',
+      title:  'SAÚDE DAS CONTAS',
+      value:  `${successRate}%`,
+      sub:    `${healthy} de ${totalAccounts} conta(s) estão saudáveis. ${banned > 0 ? `${banned} banida(s)` : 'Nenhuma banida'}. ${tokenFailed > 0 ? `${tokenFailed} com token expirado.` : ''}`.trim(),
+      detail: banned > 0
+        ? `⚠️ Conta banida detectada — verifique @${worstAccount?.username || '—'}`
+        : tokenFailed > 0
+          ? `🔑 ${tokenFailed} token(s) precisam ser renovados`
+          : '✅ Todas as contas em perfeita saúde',
+      color:  successRate >= 80 ? '#22c55e' : successRate >= 60 ? '#f59e0b' : '#ef4444',
+    },
+    {
+      icon:   '🚀',
+      title:  'TAXA DE PUBLICAÇÃO',
+      value:  `${postSuccessRate}%`,
+      sub:    `${posts30d} postagens concluídas e ${failures30d} falhas nos últimos 30 dias. ${posts30d === 0 ? 'Comece a postar para ver estatísticas.' : `Média de ${totalAccounts > 0 ? Math.round(posts30d / Math.max(totalAccounts,1)) : 0} posts/conta.`}`,
+      detail: postSuccessRate < 80
+        ? `💡 Taxa abaixo do ideal — verifique os logs de erros`
+        : failures30d > 0
+          ? `⚡ ${failures30d} falha(s) detectada(s) — nada crítico`
+          : '🎯 Publicações perfeitas sem falhas',
+      color:  postSuccessRate >= 90 ? '#22c55e' : postSuccessRate >= 70 ? '#f59e0b' : '#ef4444',
+    },
+    {
+      icon:   '📊',
+      title:  'FILA E AGENDAMENTOS',
+      value:  fmtK((d.pendingPosts || 0) + (d.scheduledPosts || 0)),
+      sub:    `${d.pendingPosts || 0} postagens na fila + ${d.scheduledPosts || 0} agendadas. ${d.processingPosts > 0 ? `${d.processingPosts} publicando agora.` : ''} ${(d.pendingPosts || 0) === 0 && (d.scheduledPosts || 0) === 0 ? 'Adicione posts à fila para manter o ritmo.' : ''}`.trim(),
+      detail: (d.pendingPosts || 0) + (d.scheduledPosts || 0) === 0
+        ? '💡 Fila vazia — adicione conteúdo para manter engajamento'
+        : (d.pendingPosts || 0) > 10
+          ? `🔥 Ótima fila — ${d.pendingPosts} posts prontos para publicar`
+          : '✅ Fila ativa com posts programados',
+      color:  '#a78bfa',
+    },
+  ];
+
+  return (
+    <section style={{ padding:'0 0 4px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:11, fontWeight:700, letterSpacing:'.1em', color:'#22d7ff', marginBottom:12 }}>
+        <TrendingUp size={14} /> INSIGHTS INTELIGENTES — MELHORE SUA ESTRATÉGIA
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+        {insights.map(ins => <InsightCard key={ins.title} {...ins} />)}
+      </div>
+    </section>
+  );
+}
+
 /* ── Dashboard ── */
 export default function Dashboard() {
   const [data, setData]             = useState(null);
@@ -503,20 +607,8 @@ export default function Dashboard() {
   const [problemsPeriod, setProblemsPeriod] = useState('hoje');
   const [proxyCount, setProxyCount] = useState(0);
 
-  // Notificações
-  const [notifications, setNotifications] = useState([]);
-  const [notifOpen,     setNotifOpen]     = useState(false);
-  const [unread,        setUnread]        = useState(0);
-
   const loadRef = useRef(null);
   const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
-
-  const addNotif = useCallback((data, event) => {
-    const n = buildNotif(data, event);
-    if (!n) return;
-    setNotifications(prev => [{ id: Date.now() + Math.random(), ...n, time: new Date() }, ...prev].slice(0, 60));
-    setUnread(u => u + 1);
-  }, []);
 
   const load = useCallback(async () => {
     try { const r = await api.get('/dashboard');       setData(r.data); }       catch {}
@@ -541,11 +633,10 @@ export default function Dashboard() {
 
   useServerEvents(
     ['posts', 'accounts', 'sessions', 'health', 'insights', 'loop'],
-    (data, event) => {
+    () => {
       loadRef.current?.();
       loadStats();
       loadInsights();
-      addNotif(data, event);
     }
   );
 
@@ -642,13 +733,6 @@ export default function Dashboard() {
             <button className="toolbar-button" onClick={() => setPeriod(p => p===7?14:p===14?30:7)}>
               <span>Atualizar: {period}d</span><ChevronDown size={15} />
             </button>
-            <NotificationPanel
-              notifs={notifications}
-              unread={unread}
-              open={notifOpen}
-              setOpen={v => { setNotifOpen(v); if (v) setUnread(0); }}
-              onClear={() => { setNotifications([]); setUnread(0); setNotifOpen(false); }}
-            />
             <button className={`refresh-button ${refreshing?'is-refreshing':''}`} onClick={handleRefresh}>
               <RefreshCw size={17} />Atualizar
             </button>
@@ -769,6 +853,9 @@ export default function Dashboard() {
         <section className="operations-grid" style={{ gridTemplateColumns:'1fr' }}>
           <PerformanceTable stats={accountStats} />
         </section>
+
+        {/* ── 4 Intelligent Insights ── */}
+        <SmartInsights accountStats={accountStats} data={d} />
 
         {/* ── Top Posts widget ── */}
         <section className="operations-grid" style={{ gridTemplateColumns:'1fr' }}>

@@ -1,6 +1,8 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { removeToken } from '../services/auth';
+import { useServerEvents } from '../services/useServerEvents';
+import { pushNotification, clearNotifications, markRead, useNotifications } from '../services/useNotifications';
 
 const ic = (children, w = 18) => (
   <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -30,6 +32,7 @@ const ICONS = {
   abtest:    ic(<><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></>),
   repost:    ic(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
   hunter:    ic(<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>),
+  bell:      ic(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>),
 };
 
 const NAV_GROUPS = [
@@ -84,12 +87,144 @@ const NAV_GROUPS = [
   },
 ];
 
+/* ── build notification from SSE event ── */
+function buildNotif(data, event) {
+  const a = data?.action || '';
+  if (event === 'posts') {
+    if (a === 'post_completed' || data?.status === 'concluido')
+      return { type: 'success', msg: `✅ Post publicado${data.username ? ` @${data.username}` : ''}${data.caption ? ` — "${String(data.caption).slice(0,40)}"` : ''}` };
+    if (a === 'post_failed' || data?.status === 'erro')
+      return { type: 'error', msg: `❌ Falha ao publicar${data.username ? ` @${data.username}` : ''}${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
+    if (a === 'post_started')
+      return { type: 'info', msg: `🚀 Publicação iniciada${data.username ? ` @${data.username}` : ''}` };
+    if (data?.status) return null;
+  }
+  if (event === 'accounts') {
+    if (a === 'oauth_connected')   return { type: 'success', msg: `🔗 ${data.username || 'Conta'} conectada via OAuth` };
+    if (a === 'token_recovered')   return { type: 'success', msg: `🔑 Token renovado: @${data.username || ''}` };
+    if (a === 'tokens_refreshed' && (data.refreshed || 0) > 0)
+      return { type: 'success', msg: `🔑 ${data.refreshed} token(s) renovado(s)` };
+    if (a === 'health_update' && data.healthStatus && data.healthStatus !== 'ativa')
+      return { type: data.healthStatus === 'banida' ? 'error' : 'warn', msg: `⚠️ @${data.username || ''}: ${data.error || data.healthStatus}` };
+    if (a === 'sync_done') return { type: 'info', msg: `🔄 Sincronização concluída${data.count ? ` — ${data.count} contas` : ''}` };
+  }
+  if (event === 'loop') {
+    if (a === 'loop_started') return { type: 'info',    msg: '🔄 Loop de postagens iniciado' };
+    if (a === 'loop_stopped') return { type: 'info',    msg: '⏹ Loop pausado' };
+    if (a === 'loop_error')   return { type: 'error',   msg: `❌ Erro no loop${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
+    if (a === 'post_sent')    return { type: 'success', msg: `✅ Loop publicou${data.username ? ` @${data.username}` : ''}` };
+  }
+  if (event === 'insights' && a === 'sync_done')
+    return { type: 'info', msg: `📊 Insights sincronizados${data.count ? ` (${data.count} posts)` : ''}` };
+  if (event === 'warmup') {
+    if (a === 'warmup_started') return { type: 'info',    msg: `🔥 Aquecimento iniciado${data.username ? ` — @${data.username}` : ''}` };
+    if (a === 'warmup_stopped') return { type: 'info',    msg: `⏹ Aquecimento parado${data.username ? ` — @${data.username}` : ''}` };
+    if (a === 'warmup_action')  return { type: 'success', msg: `💪 Ação de aquecimento: ${data.actionType || ''}${data.username ? ` @${data.username}` : ''}` };
+  }
+  return null;
+}
+
+/* ── NotificationBell ── */
+function NotificationBell() {
+  const { notifs, unread } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const panelRef = useRef(null);
+
+  const typeColor = { success: '#22c55e', error: '#f87171', warn: '#fbbf24', info: '#60a5fa' };
+
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  return (
+    <div ref={panelRef} style={{ position: 'relative' }}>
+      <button
+        onClick={() => { setOpen(v => !v); if (!open) markRead(); }}
+        aria-label="Notificações"
+        style={{
+          position: 'relative', background: 'none', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'var(--text2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'border-color .15s, color .15s',
+        }}
+      >
+        {ICONS.bell}
+        {unread > 0 && (
+          <span style={{
+            position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16,
+            fontSize: 9, fontWeight: 800, background: '#f43f5e', color: '#fff',
+            borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 3px', lineHeight: 1, boxShadow: '0 0 8px rgba(244,63,94,.6)',
+          }}>
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 10px)', right: 0, zIndex: 9999,
+          width: 340, maxHeight: 440, overflowY: 'auto',
+          background: 'var(--bg2)', border: '1px solid var(--border)',
+          borderRadius: 12, boxShadow: '0 16px 60px rgba(0,0,0,.5)', backdropFilter: 'blur(12px)',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 14px 10px', borderBottom: '1px solid var(--border)',
+            position: 'sticky', top: 0, background: 'var(--bg2)',
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', letterSpacing: '.08em' }}>
+              NOTIFICAÇÕES {unread > 0 && <span style={{ color: '#f43f5e' }}>({unread})</span>}
+            </span>
+            {notifs.length > 0 && (
+              <button onClick={() => { clearNotifications(); setOpen(false); }} style={{ fontSize: 10, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                Limpar tudo
+              </button>
+            )}
+          </div>
+          {notifs.length === 0 ? (
+            <div style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12, color: 'var(--text3)' }}>
+              Nenhuma notificação ainda.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {notifs.map(n => (
+                <div key={n.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: typeColor[n.type] || '#60a5fa', flexShrink: 0, marginTop: 4, boxShadow: `0 0 6px ${typeColor[n.type] || '#60a5fa'}` }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.4, wordBreak: 'break-word' }}>{n.msg}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 3 }}>
+                      {n.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MainLayout({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location  = useLocation();
   const navigate  = useNavigate();
 
   useEffect(() => { setDrawerOpen(false); }, [location]);
+
+  /* SSE events → global notifications */
+  useServerEvents(
+    ['posts', 'accounts', 'loop', 'insights', 'warmup'],
+    (data, event) => {
+      const n = buildNotif(data, event);
+      if (n) pushNotification(n);
+    }
+  );
 
   const isDash = location.pathname === '/';
   function logout() { removeToken(); navigate('/login'); }
@@ -108,10 +243,13 @@ export default function MainLayout({ children }) {
       <aside className={`drawer${drawerOpen ? ' drawer-open' : ''}`}>
         {/* Header inside drawer */}
         <div className="drawer-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => navigate('/')}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
             <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>MouraFlow</span>
-          </div>
+          </button>
           <button
             className="drawer-close-btn"
             onClick={() => setDrawerOpen(false)}
@@ -173,16 +311,23 @@ export default function MainLayout({ children }) {
           </svg>
         </button>
 
-        <div className="topbar-logo">
+        <button
+          onClick={() => navigate('/')}
+          className="topbar-logo"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}
+        >
           <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           <span>MouraFlow</span>
-        </div>
-
-        <button className="topbar-cmd" aria-label="Atalhos">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
-          </svg>
         </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          <NotificationBell />
+          <button className="topbar-cmd" aria-label="Atalhos">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
+            </svg>
+          </button>
+        </div>
       </header>
 
       {/* Page content */}

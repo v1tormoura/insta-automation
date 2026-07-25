@@ -25,7 +25,7 @@ exports.search = async (req, res) => {
 
     /* Step 1 — resolve hashtag to an ID */
     const hashRes = await fetch(
-      `https://graph.instagram.com/v21.0/ig_hashtag_search?user_id=${igUserId}&q=${encodeURIComponent(tag)}&access_token=${accessToken}`,
+      `https://graph.facebook.com/v21.0/ig_hashtag_search?user_id=${igUserId}&q=${encodeURIComponent(tag)}&access_token=${accessToken}`,
       { signal: AbortSignal.timeout(12000) }
     );
     const hashData = await hashRes.json();
@@ -38,7 +38,7 @@ exports.search = async (req, res) => {
     const endpoint  = type === 'recent' ? 'recent_media' : 'top_media';
     const fields    = 'id,caption,media_type,media_url,thumbnail_url,like_count,comments_count,timestamp,permalink';
     const mediaRes  = await fetch(
-      `https://graph.instagram.com/v21.0/${hashtagId}/${endpoint}?user_id=${igUserId}&fields=${fields}&access_token=${accessToken}`,
+      `https://graph.facebook.com/v21.0/${hashtagId}/${endpoint}?user_id=${igUserId}&fields=${fields}&access_token=${accessToken}`,
       { signal: AbortSignal.timeout(15000) }
     );
     const mediaData = await mediaRes.json();
