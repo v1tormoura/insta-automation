@@ -65,7 +65,6 @@ const NAV_GROUPS = [
       { to: '/accounts', label: 'Contas',        icon: ICONS.accounts },
       { to: '/health',   label: 'Saúde',         icon: ICONS.health },
       { to: '/proxies',  label: 'Proxies',        icon: ICONS.proxies },
-      { to: '/settings', label: 'Configurações', icon: ICONS.settings },
     ],
   },
   {

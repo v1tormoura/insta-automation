@@ -99,11 +99,30 @@ export default function ViralHunter() {
       </form>
 
       {/* Error */}
-      {error && (
-        <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 10, padding: '12px 16px', color: '#f87171', fontSize: 13, marginBottom: 14 }}>
-          ⚠️ {error}
-        </div>
-      )}
+      {error && (() => {
+        const isToken = /oauth|token|access/i.test(error);
+        const isNoAcct = /nenhuma conta|nenhuma conta/i.test(error);
+        return (
+          <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 12, padding: '14px 18px', marginBottom: 14 }}>
+            <div style={{ color: '#f87171', fontSize: 13, fontWeight: 700, marginBottom: isToken || isNoAcct ? 8 : 0 }}>
+              ⚠️ {error}
+            </div>
+            {isToken && (
+              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
+                O token de acesso da sua conta está <strong style={{ color: '#fbbf24' }}>expirado ou inválido</strong>.
+                Acesse <a href="/accounts" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>Contas</a> e reconecte
+                sua conta via OAuth para gerar um novo token válido.
+              </div>
+            )}
+            {isNoAcct && (
+              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
+                Nenhuma conta está conectada via Instagram Graph API. Acesse{' '}
+                <a href="/accounts" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>Contas</a> e conecte uma conta Business/Creator.
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Empty state */}
       {!searched && !error && (
