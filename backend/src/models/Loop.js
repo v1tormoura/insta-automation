@@ -10,6 +10,7 @@ const loopSchema = new mongoose.Schema({
   type:            { type: String, enum: ['reel', 'story', 'post'], default: 'reel' },
   intervalMinutes: { type: Number, default: 60, min: 1 },
   caption:         { type: String, default: '' },
+  coverFile:       { type: String, default: '' },
 
   // estado
   status:       { type: String, enum: ['ativo', 'pausado', 'erro'], default: 'ativo' },
