@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 
-const PERIODS = ['7d','30d','90d'];
+const PERIODS = ['7d', '30d', '90d'];
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const fmtK = v => { const n = Number(v || 0); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); };
+const avatarSrc = av => av
+  ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`)
+  : null;
 
 export default function BestTimes() {
   const [data,    setData]    = useState(null);
@@ -22,35 +27,35 @@ export default function BestTimes() {
   const accounts   = data?.accounts || [];
 
   return (
-    <>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 4 }}>Viralizar</div>
-        <h1>Melhores Horários</h1>
-        <p style={{ color: 'var(--text2)', fontSize: 13, marginTop: 4 }}>Horário ideal de postagem por conta com base no engajamento histórico</p>
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <div className="tabs">
-          {PERIODS.map(p => (
-            <button key={p} className={`tab${period === p ? ' active' : ''}`} onClick={() => setPeriod(p)}>{p}</button>
-          ))}
+    <div className="page-container">
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 6 }}>Viralizar</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Melhores Horários</h1>
+            <p style={{ margin: '6px 0 0', color: 'var(--text2)', fontSize: 13, lineHeight: 1.5 }}>
+              Horário ideal de postagem por conta com base no engajamento histórico real da API
+            </p>
+          </div>
+          <div className="tabs" style={{ flexShrink: 0 }}>
+            {PERIODS.map(p => (
+              <button key={p} className={`tab${period === p ? ' active' : ''}`} onClick={() => setPeriod(p)}>{p}</button>
+            ))}
+          </div>
         </div>
-        {globalPeak !== null && (
-          <span style={{ fontSize: 13, color: 'var(--text2)' }}>
-            Pico global: <strong style={{ color: 'var(--cyan)' }}>{String(globalPeak).padStart(2,'0')}:00</strong>
-          </span>
-        )}
       </div>
 
       {loading && (
-        <div className="card card-p" style={{ textAlign: 'center', color: 'var(--text2)', padding: 40 }}>
-          Calculando melhores horários...
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+          <p style={{ fontSize: 13 }}>Calculando melhores horários...</p>
         </div>
       )}
 
       {error && (
-        <div className="card card-p" style={{ color: 'var(--red)', textAlign: 'center', padding: 32 }}>
-          {error}
+        <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 12, padding: '14px 18px', color: '#f87171', fontSize: 13 }}>
+          ⚠️ {error}
         </div>
       )}
 
@@ -64,60 +69,143 @@ export default function BestTimes() {
 
       {!loading && accounts.length > 0 && (
         <>
-          {/* Global summary row */}
-          <div className="g4" style={{ marginBottom: 20 }}>
+          {/* KPI bar */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, marginBottom: 24 }}>
             {[
-              { label: 'Pico global', value: globalPeak !== null ? `${String(globalPeak).padStart(2,'0')}h` : '—', color: 'var(--cyan)' },
-              { label: 'Contas analisadas', value: String(accounts.length), color: 'var(--indigo)' },
-              { label: 'Período', value: period, color: 'var(--text2)' },
-              { label: 'Dados de', value: 'Insights reais', color: 'var(--green)' },
+              { label: 'Pico global',        value: globalPeak !== null ? `${String(globalPeak).padStart(2,'0')}h` : '—', color: 'var(--cyan)',  icon: '⏰' },
+              { label: 'Contas analisadas',  value: String(accounts.length),   color: 'var(--indigo)', icon: '👤' },
+              { label: 'Período',            value: period,                     color: 'var(--text2)',  icon: '📅' },
+              { label: 'Fonte dos dados',    value: 'API oficial',              color: '#22c55e',       icon: '✅' },
             ].map(s => (
-              <div key={s.label} className="card card-p">
-                <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: 'var(--font-display)', letterSpacing: '-1px' }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>{s.label}</div>
+              <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{s.icon}</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 20, color: s.color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: '.05em', marginTop: 3, textTransform: 'uppercase' }}>{s.label}</div>
+                </div>
               </div>
             ))}
           </div>
 
-          {/* Per-account charts */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Per-account cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {accounts.map(a => {
-              const maxV = Math.max(...a.hours.map(h => h.avgEngagement), 1);
+              const maxV    = Math.max(...a.hours.map(h => h.avgEngagement), 1);
+              const src     = avatarSrc(a.avatar);
+              const totalPosts = a.hours.reduce((s, h) => s + h.count, 0);
+              const peakEng    = a.hours[a.peakHour]?.avgEngagement || 0;
+              const isPeakNow  = new Date().getHours() === a.peakHour;
+
               return (
-                <div key={String(a.accountId)} className="card card-p">
-                  <div className="sec-header">
-                    <div className="sec-title">@{a.username}</div>
-                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>
-                      Pico: <strong style={{ color: 'var(--cyan)' }}>{String(a.peakHour).padStart(2,'0')}:00</strong>
-                      {' · '}{a.hours.reduce((s, h) => s + h.count, 0)} posts analisados
-                    </span>
+                <div key={String(a.accountId)} style={{
+                  background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16,
+                  overflow: 'hidden',
+                }}>
+                  {/* Card header */}
+                  <div style={{ padding: '18px 20px 14px', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    {/* Avatar */}
+                    <div style={{ flexShrink: 0 }}>
+                      <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--border)', background: 'var(--bg3)' }}>
+                        {src
+                          ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={e => { e.target.style.display = 'none'; }} />
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 20, color: 'var(--cyan)' }}>
+                              {a.username?.[0]?.toUpperCase()}
+                            </div>
+                        }
+                      </div>
+                    </div>
+
+                    {/* Account info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        @{a.username}
+                      </div>
+                      {a.name && a.name !== a.username && (
+                        <div style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500, marginTop: 1 }}>{a.name}</div>
+                      )}
+                      <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                        {a.followers != null && (
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{fmtK(a.followers)}</span>
+                            <span style={{ fontSize: 10, color: 'var(--text3)', marginLeft: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>Seguidores</span>
+                          </div>
+                        )}
+                        <div>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>{totalPosts}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text3)', marginLeft: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>Posts analisados</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Peak callout */}
+                    <div style={{
+                      flexShrink: 0, textAlign: 'center', background: 'rgba(0,212,255,.08)',
+                      border: '1px solid rgba(0,212,255,.2)', borderRadius: 12, padding: '10px 16px',
+                    }}>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Melhor horário</div>
+                      <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--cyan)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                        {String(a.peakHour).padStart(2, '0')}:00
+                      </div>
+                      {isPeakNow && (
+                        <div style={{ fontSize: 10, color: '#22c55e', fontWeight: 700, marginTop: 4 }}>● AGORA</div>
+                      )}
+                      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 4 }}>eng. {peakEng}</div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 64 }}>
-                    {a.hours.map(h => {
-                      const height = Math.max(2, Math.round((h.avgEngagement / maxV) * 56));
-                      const isPeak = h.hour === a.peakHour;
-                      return (
-                        <div
-                          key={h.hour}
-                          title={`${String(h.hour).padStart(2,'0')}:00 — eng. ${h.avgEngagement} (${h.count} posts)`}
-                          style={{
-                            flex: 1, height,
-                            borderRadius: '2px 2px 0 0',
-                            background: isPeak
-                              ? 'var(--cyan)'
-                              : h.avgEngagement > maxV * 0.65 ? 'rgba(0,212,255,.5)'
-                              : h.avgEngagement > maxV * 0.35 ? 'rgba(0,212,255,.22)'
-                              : 'rgba(0,180,255,.09)',
-                            boxShadow: isPeak ? '0 0 8px rgba(0,212,255,.5)' : 'none',
-                            cursor: h.count ? 'default' : undefined,
-                            opacity: h.count === 0 ? 0.3 : 1,
-                          }}
-                        />
-                      );
-                    })}
+
+                  {/* Bar chart */}
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 72, background: 'var(--bg3)', borderRadius: 10, padding: '10px 10px 0' }}>
+                      {a.hours.map(h => {
+                        const height = Math.max(2, Math.round((h.avgEngagement / maxV) * 52));
+                        const isPeak = h.hour === a.peakHour;
+                        const isHigh = h.avgEngagement > maxV * 0.65;
+                        const isMed  = h.avgEngagement > maxV * 0.35;
+                        return (
+                          <div
+                            key={h.hour}
+                            title={`${String(h.hour).padStart(2,'0')}:00 — engajamento médio: ${h.avgEngagement} (${h.count} posts)`}
+                            style={{
+                              flex: 1, height,
+                              borderRadius: '3px 3px 0 0',
+                              background: isPeak
+                                ? 'var(--cyan)'
+                                : isHigh ? 'rgba(0,212,255,.5)'
+                                : isMed  ? 'rgba(0,212,255,.22)'
+                                : 'rgba(0,180,255,.09)',
+                              boxShadow: isPeak ? '0 0 10px rgba(0,212,255,.5)' : 'none',
+                              opacity: h.count === 0 ? 0.25 : 1,
+                              cursor: 'default',
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    {/* Hour labels */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: 'var(--text3)', padding: '0 2px' }}>
+                      {['00h','03h','06h','09h','12h','15h','18h','21h','23h'].map(h => <span key={h}>{h}</span>)}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, fontSize: 9, color: 'var(--text3)' }}>
-                    {['00h','03h','06h','09h','12h','15h','18h','21h','23h'].map(h => <span key={h}>{h}</span>)}
+
+                  {/* Best hours detail row */}
+                  <div style={{ borderTop: '1px solid var(--border)', padding: '10px 20px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginRight: 4 }}>Top horários:</span>
+                    {[...a.hours]
+                      .filter(h => h.count > 0)
+                      .sort((x, y) => y.avgEngagement - x.avgEngagement)
+                      .slice(0, 5)
+                      .map(h => (
+                        <span key={h.hour} style={{
+                          fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20,
+                          background: h.hour === a.peakHour ? 'rgba(0,212,255,.15)' : 'var(--bg3)',
+                          color: h.hour === a.peakHour ? 'var(--cyan)' : 'var(--text2)',
+                          border: h.hour === a.peakHour ? '1px solid rgba(0,212,255,.3)' : '1px solid var(--border)',
+                        }}>
+                          {String(h.hour).padStart(2,'0')}h
+                        </span>
+                      ))
+                    }
                   </div>
                 </div>
               );
@@ -125,6 +213,6 @@ export default function BestTimes() {
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

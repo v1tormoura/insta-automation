@@ -450,16 +450,54 @@ export default function Warmup() {
         })}
       </div>
 
-      {/* Info footer */}
+      {/* Status insight */}
       {accounts.length > 0 && (
-        <div className="card card-p" style={{ marginTop: 20, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ fontSize: 22, flexShrink: 0 }}>🔥</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Como funciona o aquecimento</div>
-            <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
-              O aquecimento simula comportamento orgânico: curtidas, comentários e follows em conteúdos do nicho.
-              Reduz o risco de shadowban e melhora o alcance inicial das postagens.
-              Use intensidade <strong>Leve</strong> para contas novas e <strong>Médio</strong> para contas estabelecidas.
+        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Live status card */}
+          <div style={{
+            background: activeCount > 0 ? 'rgba(34,197,94,.06)' : 'var(--bg2)',
+            border: `1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'var(--border)'}`,
+            borderRadius: 14, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 16,
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: activeCount > 0 ? 'rgba(34,197,94,.15)' : 'var(--bg3)',
+              border: `1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'var(--border)'}`,
+              fontSize: 20,
+            }}>
+              {activeCount > 0 ? '🔥' : '💤'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: activeCount > 0 ? '#22c55e' : 'var(--text)', marginBottom: 3 }}>
+                {activeCount > 0
+                  ? `${activeCount} conta${activeCount > 1 ? 's' : ''} aquecendo agora`
+                  : 'Nenhuma conta em aquecimento'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>
+                {activeCount > 0
+                  ? `${accounts.filter(a => a.warmupActive).map(a => `@${a.username}`).join(', ')} — simulando ações orgânicas no nicho`
+                  : 'Inicie o aquecimento em uma ou mais contas para evitar shadowban e melhorar o alcance.'}
+              </div>
+            </div>
+            {activeCount > 0 && (
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', display: 'inline-block' }} />
+                <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 700 }}>ATIVO</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tips card */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <div style={{ fontSize: 20, flexShrink: 0 }}>💡</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4, color: 'var(--text)' }}>Boas práticas de aquecimento</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+                Use <strong>Leve</strong> para contas novas · <strong>Médio</strong> para contas estabelecidas · <strong>Agressivo</strong> apenas para contas experientes.
+                Ciclo recomendado: 20–30 min entre ações. Evite ultrapassar 50 curtidas/dia em contas novas.
+              </div>
             </div>
           </div>
         </div>

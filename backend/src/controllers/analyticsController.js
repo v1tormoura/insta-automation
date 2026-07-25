@@ -1,6 +1,7 @@
 'use strict';
 const mongoose = require('mongoose');
 const Insight  = require('../models/Insight');
+const Account  = require('../models/Account');
 
 // GET /analytics/best-times?accountId=&period=30d
 exports.getBestTimes = async (req, res) => {
@@ -51,6 +52,19 @@ exports.getBestTimes = async (req, res) => {
     const accounts = Object.values(map).map(a => {
       const peak = a.hours.reduce((best, h) => h.avgEngagement > best.avgEngagement ? h : best, a.hours[0]);
       return { ...a, peakHour: peak.hour };
+    });
+
+    // Enrich with avatar + name + followers from Account collection
+    const accountDocs = await Account.find(
+      { _id: { $in: accounts.map(a => a.accountId) } },
+      { _id: 1, avatar: 1, name: 1, followers: 1 }
+    ).lean();
+    const accountMap = Object.fromEntries(accountDocs.map(d => [String(d._id), d]));
+    accounts.forEach(a => {
+      const doc = accountMap[String(a.accountId)] || {};
+      a.avatar    = doc.avatar    || null;
+      a.name      = doc.name      || null;
+      a.followers = doc.followers ?? null;
     });
 
     // Global peak across all accounts

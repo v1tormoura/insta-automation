@@ -100,18 +100,18 @@ export default function ViralHunter() {
 
       {/* Error */}
       {error && (() => {
-        const isToken = /oauth|token|access/i.test(error);
-        const isNoAcct = /nenhuma conta|nenhuma conta/i.test(error);
+        const isTokenErr = /oauth|cannot parse|invalid.*token/i.test(error);
+        const isNoAcct   = /nenhuma conta/i.test(error);
         return (
           <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 12, padding: '14px 18px', marginBottom: 14 }}>
-            <div style={{ color: '#f87171', fontSize: 13, fontWeight: 700, marginBottom: isToken || isNoAcct ? 8 : 0 }}>
+            <div style={{ color: '#f87171', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
               ⚠️ {error}
             </div>
-            {isToken && (
-              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
-                O token de acesso da sua conta está <strong style={{ color: '#fbbf24' }}>expirado ou inválido</strong>.
-                Acesse <a href="/accounts" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>Contas</a> e reconecte
-                sua conta via OAuth para gerar um novo token válido.
+            {isTokenErr && (
+              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+                A busca por hashtags usa o endpoint <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 4 }}>ig_hashtag_search</code> da Meta,
+                que exige permissões adicionais de Facebook Login (<code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 4 }}>instagram_basic</code> + <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 4 }}>pages_read_engagement</code>).
+                Acesse <a href="/accounts" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>Contas</a> e reconecte sua conta — o app solicitará as permissões corretas automaticamente.
               </div>
             )}
             {isNoAcct && (
