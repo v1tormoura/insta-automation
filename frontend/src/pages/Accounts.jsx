@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
@@ -39,6 +38,9 @@ export default function Accounts() {
   const [pagination,     setPagination]     = useState(null);
   const [oauthModal,     setOauthModal]     = useState(null);
   const [oauthWaiting,   setOauthWaiting]   = useState(false);
+  const [callbackUrl,    setCallbackUrl]    = useState('');
+  const [oauthConnecting, setOauthConnecting] = useState(false);
+  const [oauthError,     setOauthError]     = useState('');
   const [connecting,     setConnecting]     = useState({});
   const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
@@ -115,6 +117,25 @@ export default function Accounts() {
       setOauthModal({ account: account || null, url });
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
     finally { setConnecting(p => ({ ...p, [key]: false })); }
+  }
+
+  async function handleManualConnect() {
+    if (!callbackUrl.trim()) return;
+    setOauthConnecting(true);
+    setOauthError('');
+    try {
+      const urlObj  = new URL(callbackUrl.trim());
+      const state   = urlObj.searchParams.get('state') || oauthModal?.state || 'new';
+      const res     = await api.post(`/oauth/connect/${state}`, { pastedUrl: callbackUrl.trim() });
+      const username = res.data?.username || '';
+      setOauthModal(null); setCallbackUrl(''); setOauthWaiting(false);
+      showToast('success', 'Conta conectada!', `@${username} conectada via Meta API`);
+      loadAccounts();
+    } catch (err) {
+      setOauthError(err.response?.data?.error || err.message || 'Falha ao conectar');
+    } finally {
+      setOauthConnecting(false);
+    }
   }
 
   function openProxyModal(account) { setProxyModal(account); setProxyValue(account.proxy || ''); }
@@ -531,44 +552,91 @@ export default function Accounts() {
       {/* ── OAuth Modal ──────────────────────────────────────────── */}
       {oauthModal && (
         <div className="modal-overlay">
-          <style>{`@keyframes mf-spin{to{transform:rotate(360deg)}}`}</style>
-          <div className="modal" style={{ width: 'min(480px,100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div className="modal" style={{ width: 'min(520px,100%)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
               <div>
-                <h3 style={{ margin: 0 }}>🔗 Conectar via Meta API</h3>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>🔗</span> Conectar via Meta API
+                </h3>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>
                   {oauthModal.account ? `Reconectar @${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
                 </div>
               </div>
-              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
-            {!oauthWaiting ? (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>1. Copie o link ou escaneie o QR com o emulador</div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                    <div style={{ flex: 1, background: 'rgba(15,23,42,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{oauthModal.url}</div>
-                    <button onClick={() => { navigator.clipboard.writeText(oauthModal.url); setOauthWaiting(true); }} style={{ padding: '0 16px', borderRadius: 8, border: '1px solid rgba(99,102,241,.4)', background: 'rgba(99,102,241,.15)', color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>📋 Copiar</button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 0' }}>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>📱 Ou escaneie com o emulador</div>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 12, display: 'inline-flex' }}>
-                    <QRCodeSVG value={oauthModal.url} size={190} />
-                  </div>
-                  <button onClick={() => setOauthWaiting(true)} style={{ fontSize: 11, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginTop: 4 }}>Já abri o link no emulador →</button>
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '28px 0' }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%', border: '3px solid rgba(99,102,241,.2)', borderTopColor: '#6366f1', animation: 'mf-spin 0.9s linear infinite' }} />
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>Aguardando autorização...</div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, lineHeight: 1.5 }}>Autorize o app no emulador.<br />A conta será conectada automaticamente.</div>
-                </div>
-                <button onClick={() => setOauthWaiting(false)} style={{ fontSize: 12, color: '#64748b', background: 'none', border: '1px solid rgba(51,65,85,.4)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>← Voltar ao link</button>
+
+            {/* Step 1 */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--cyan)', color: '#000', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</div>
+                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Copie o link de autorização</span>
               </div>
-            )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, padding: '9px 12px', fontSize: 11, color: 'var(--text3)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {oauthModal.url}
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(oauthModal.url); }}
+                  style={{ padding: '0 16px', borderRadius: 9, border: '1px solid rgba(0,212,255,.35)', background: 'rgba(0,212,255,.1)', color: 'var(--cyan)', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  📋 Copiar
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8, lineHeight: 1.6 }}>
+                Cole esse link no seu <strong style={{ color: 'var(--text2)' }}>navegador isolado</strong> (Dolphin Anty, AdsPower, etc.) e autorize o aplicativo.
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid var(--border)', marginBottom: 20 }} />
+
+            {/* Step 2 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,212,255,.15)', border: '1px solid rgba(0,212,255,.3)', color: 'var(--cyan)', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</div>
+                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Cole a URL de retorno</span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 10, lineHeight: 1.6 }}>
+                Após autorizar, a barra de endereços vai mostrar uma URL começando com{' '}
+                <code style={{ background: 'var(--bg3)', padding: '1px 6px', borderRadius: 4, color: 'var(--cyan)', fontSize: 11 }}>localhost:3000</code>.
+                Copie inteira e cole aqui:
+              </div>
+              <textarea
+                value={callbackUrl}
+                onChange={e => { setCallbackUrl(e.target.value); setOauthError(''); }}
+                placeholder="https://localhost:3000/api/oauth/callback?code=..."
+                rows={3}
+                style={{
+                  width: '100%', boxSizing: 'border-box', padding: '10px 12px',
+                  borderRadius: 9, border: `1px solid ${oauthError ? 'rgba(239,68,68,.5)' : 'var(--border)'}`,
+                  background: 'var(--bg3)', color: 'var(--text)', fontSize: 12,
+                  fontFamily: 'monospace', resize: 'none', lineHeight: 1.5, outline: 'none',
+                }}
+              />
+              {oauthError && (
+                <div style={{ fontSize: 12, color: '#f87171', marginTop: 6 }}>⚠️ {oauthError}</div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button
+                onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); }}
+                style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleManualConnect}
+                disabled={!callbackUrl.trim() || oauthConnecting}
+                style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: callbackUrl.trim() ? 'var(--cyan)' : 'var(--bg3)', color: callbackUrl.trim() ? '#000' : 'var(--text3)', fontSize: 13, fontWeight: 700, cursor: callbackUrl.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
+              >
+                {oauthConnecting
+                  ? <><span style={{ width:14, height:14, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Conectando...</>
+                  : '✓ Conectar conta'}
+              </button>
+            </div>
           </div>
         </div>
       )}
