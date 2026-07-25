@@ -32,6 +32,7 @@ const ICONS = {
   abtest:    ic(<><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></>),
   repost:    ic(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
   hunter:    ic(<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>),
+  promo:     ic(<><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></>),
   bell:      ic(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>),
 };
 
@@ -76,6 +77,7 @@ const NAV_GROUPS = [
       { to: '/ab-test',        label: 'A/B Teste',         icon: ICONS.abtest    },
       { to: '/smart-repost',   label: 'Repost',            icon: ICONS.repost    },
       { to: '/viral-hunter',   label: 'Caçador de Virais', icon: ICONS.hunter    },
+      { to: '/promo',           label: 'Divulgação',        icon: ICONS.promo     },
     ],
   },
   {

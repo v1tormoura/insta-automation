@@ -23,6 +23,7 @@ import TrendingAudio from './pages/TrendingAudio';
 import ABTest from './pages/ABTest';
 import SmartRepost from './pages/SmartRepost';
 import ViralHunter from './pages/ViralHunter';
+import Promo from './pages/Promo';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -64,6 +65,7 @@ export default function App() {
               <Route path="/ab-test"        element={<ABTest />} />
               <Route path="/smart-repost"   element={<SmartRepost />} />
               <Route path="/viral-hunter"   element={<ViralHunter />} />
+              <Route path="/promo"          element={<Promo />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>

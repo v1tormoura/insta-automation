@@ -10,6 +10,7 @@ const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
 const traduzirErro        = require('../utils/traduzirErro');
+const { runPromoAfterPost } = require('../jobs/promoJob');
 
 connectDB();
 
@@ -133,6 +134,9 @@ const worker = new Worker(
         await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
         broadcast('accounts', { action: 'synced' });
         successCount++;
+
+        // Dispara promo assincronamente (sem bloquear o worker)
+        runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
 
       } catch (err) {
         errorCount++;

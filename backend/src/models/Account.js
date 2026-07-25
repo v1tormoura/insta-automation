@@ -198,6 +198,15 @@ const accountSchema = new mongoose.Schema(
     warmupMaxComments: { type: Number, default: 2 },
     warmupMaxFollows: { type: Number, default: 4 },
     warmupComments: { type: [String], default: [] },
+
+    // ─── Divulgação automática (Promo) ───────────────────────────────────
+    promoEnabled:        { type: Boolean, default: false },
+    promoLink:           { type: String,  default: '' },
+    autoComment:         { type: Boolean, default: true  },
+    autoCommentTemplate: { type: String,  default: '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' },
+    autoStory:           { type: Boolean, default: false },
+    autoBio:             { type: Boolean, default: false },
+    lastPromoAt:         { type: Date,    default: null  },
   },
   {
     timestamps: true,
