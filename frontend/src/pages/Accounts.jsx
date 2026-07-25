@@ -8,32 +8,49 @@ import ConfirmModal from '../components/ConfirmModal';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const avatarUrl = av => av ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`) : null;
 
+/* ── SVG icons ─────────────────────────────────────────────────────── */
+const IcoUsers   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+const IcoShield  = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>;
+const IcoWarn    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+const IcoTrend   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>;
+const IcoGrid    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>;
+const IcoEye     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
+const IcoPerson  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const IcoSignal  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
+const IcoCheck   = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+const IcoTrash   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>;
+const IcoSync    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
+const IcoLink    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
+const IcoWave    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+const IcoWifi    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
+
 export default function Accounts() {
   const ACCOUNTS_CACHE_KEY = 'instaflow_accounts_cache';
 
   const [accounts, setAccounts] = useState(() => {
     try { const c = localStorage.getItem(ACCOUNTS_CACHE_KEY); return c ? JSON.parse(c) : []; } catch { return []; }
   });
-  const [toast, setToast] = useState(null);
-  const [deleteModal, setDeleteModal] = useState(false);
-  const [accountToDelete, setAccountToDelete] = useState(null);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
-  const [oauthModal, setOauthModal] = useState(null);   // { account, url }
-  const [oauthWaiting, setOauthWaiting] = useState(false);
-  const [connecting, setConnecting] = useState({});     // { [accountId|'new']: true }
-  const [proxyModal, setProxyModal] = useState(null);   // account object
+  const [toast,          setToast]          = useState(null);
+  const [deleteModal,    setDeleteModal]    = useState(false);
+  const [accountToDelete,setAccountToDelete]= useState(null);
+  const [search,         setSearch]         = useState('');
+  const [filter,         setFilter]         = useState('all');
+  const [page,           setPage]           = useState(1);
+  const [pagination,     setPagination]     = useState(null);
+  const [oauthModal,     setOauthModal]     = useState(null);
+  const [oauthWaiting,   setOauthWaiting]   = useState(false);
+  const [connecting,     setConnecting]     = useState({});
+  const [proxyModal,     setProxyModal]     = useState(null);
+  const [syncing,        setSyncing]        = useState(false);
   const oauthModalRef   = useRef(null);
   const oauthWaitingRef = useRef(false);
   oauthModalRef.current   = oauthModal;
   oauthWaitingRef.current = oauthWaiting;
-  const [proxyValue, setProxyValue] = useState('');
-  const [savingProxy, setSavingProxy] = useState(false);
-  const [bulkProxyOpen, setBulkProxyOpen] = useState(false);
-  const [bulkProxyText, setBulkProxyText] = useState('');
-  const [savingBulkProxy, setSavingBulkProxy] = useState(false);
+  const [proxyValue,     setProxyValue]     = useState('');
+  const [savingProxy,    setSavingProxy]    = useState(false);
+  const [bulkProxyOpen,  setBulkProxyOpen]  = useState(false);
+  const [bulkProxyText,  setBulkProxyText]  = useState('');
+  const [savingBulkProxy,setSavingBulkProxy]= useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -44,6 +61,15 @@ export default function Accounts() {
       setAccounts(list); setPagination(res.data.pagination || null);
       localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(list));
     } catch (err) { console.log('Erro ao carregar contas:', err.message); }
+  }
+
+  async function syncAll() {
+    setSyncing(true);
+    try {
+      await api.post('/accounts/sync-all').catch(() => {});
+      await loadAccounts();
+      showToast('success', 'Sincronizado!', 'Todas as contas foram sincronizadas.');
+    } finally { setSyncing(false); }
   }
 
   function goToPage(p) { setPage(p); loadAccounts(p); }
@@ -57,8 +83,7 @@ export default function Accounts() {
       const modal = oauthModalRef.current;
       const isMatch = !modal?.account || modal?.account?._id === data.accountId;
       if (isMatch) {
-        setOauthModal(null);
-        setOauthWaiting(false);
+        setOauthModal(null); setOauthWaiting(false);
         showToast('success', 'Conta conectada!', `@${data.username || ''} conectada via Meta API`);
       }
     }
@@ -69,17 +94,12 @@ export default function Accounts() {
     return () => clearInterval(t);
   }, []);
 
-  // Handle OAuth callback result (?oauth=success&username=X or ?oauth=error&msg=X)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const oauth = params.get('oauth');
     if (!oauth) return;
-    if (oauth === 'success') {
-      showToast('success', 'Conta conectada!', `@${params.get('username') || ''} adicionada via Meta API`);
-      loadAccounts();
-    } else if (oauth === 'error') {
-      showToast('error', 'Erro na conexão', params.get('msg') || 'Falha no OAuth');
-    }
+    if (oauth === 'success') { showToast('success', 'Conta conectada!', `@${params.get('username') || ''} adicionada via Meta API`); loadAccounts(); }
+    else if (oauth === 'error') { showToast('error', 'Erro na conexão', params.get('msg') || 'Falha no OAuth'); }
     window.history.replaceState({}, '', '/accounts');
   }, []);
 
@@ -93,11 +113,8 @@ export default function Accounts() {
       if (!url) throw new Error('URL não retornada');
       setOauthWaiting(false);
       setOauthModal({ account: account || null, url });
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || err.message);
-    } finally {
-      setConnecting(p => ({ ...p, [key]: false }));
-    }
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
+    finally { setConnecting(p => ({ ...p, [key]: false })); }
   }
 
   function openProxyModal(account) { setProxyModal(account); setProxyValue(account.proxy || ''); }
@@ -107,8 +124,7 @@ export default function Accounts() {
     try {
       await api.patch(`/accounts/${proxyModal._id}/proxy`, { proxy: proxyValue.trim() });
       showToast('success', 'Proxy salvo', `@${proxyModal.username} — proxy atualizado.`);
-      setProxyModal(null);
-      loadAccounts();
+      setProxyModal(null); loadAccounts();
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
     finally { setSavingProxy(false); }
   }
@@ -119,59 +135,61 @@ export default function Accounts() {
     try {
       const res = await api.post('/accounts/proxies/bulk-apply', { proxiesText: bulkProxyText.trim() });
       showToast('success', 'Proxies aplicados', res.data.message || `${res.data.applied} conta(s) atualizadas.`);
-      setBulkProxyOpen(false);
-      setBulkProxyText('');
-      loadAccounts();
+      setBulkProxyOpen(false); setBulkProxyText(''); loadAccounts();
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
     finally { setSavingBulkProxy(false); }
   }
 
   function deleteAccount(id) { setAccountToDelete(id); setDeleteModal(true); }
-
   async function confirmDelete() {
-    try {
-      await api.delete(`/accounts/${accountToDelete}`);
-      await loadAccounts();
-      showToast('success', 'Conta removida', 'A conta foi excluída com sucesso.');
-    } catch { showToast('error', 'Erro', 'Não foi possível excluir a conta.'); }
+    try { await api.delete(`/accounts/${accountToDelete}`); await loadAccounts(); showToast('success', 'Conta removida', 'A conta foi excluída com sucesso.'); }
+    catch { showToast('error', 'Erro', 'Não foi possível excluir a conta.'); }
     setDeleteModal(false); setAccountToDelete(null);
   }
 
-  const safeAccounts = Array.isArray(accounts) ? accounts : [];
-  const totalFollowers = safeAccounts.reduce((s, a) => s + Number(a.followers || 0), 0);
-  const totalPosts = safeAccounts.reduce((s, a) => s + Number(a.postsCount || 0), 0);
-  const activeAccounts = safeAccounts.filter(a => !a.healthStatus || a.healthStatus === 'ativa').length;
-
-  const filteredAccounts = safeAccounts.filter(acc => {
-    const match = acc.username?.toLowerCase().includes(search.toLowerCase()) || acc.name?.toLowerCase().includes(search.toLowerCase());
-    if (!match) return false;
-    if (filter === 'active')    return !acc.healthStatus || acc.healthStatus === 'ativa';
-    if (filter === 'restricted') return acc.healthStatus === 'restrita';
-    if (filter === 'token')     return acc.healthStatus === 'token_invalido';
-    if (filter === 'banned')    return acc.healthStatus === 'banida';
-    if (filter === 'error')     return acc.healthStatus === 'erro_login' || acc.healthStatus === 'sessao_expirada';
-    return true;
-  });
+  const safeAccounts    = Array.isArray(accounts) ? accounts : [];
+  const totalFollowers  = safeAccounts.reduce((s, a) => s + Number(a.followers  || 0), 0);
+  const totalPosts      = safeAccounts.reduce((s, a) => s + Number(a.postsCount || 0), 0);
+  const activeAccounts  = safeAccounts.filter(a => !a.healthStatus || a.healthStatus === 'ativa').length;
+  const errorAccounts   = safeAccounts.filter(a => ['restrita','banida','token_invalido','sessao_expirada','erro_login'].includes(a.healthStatus)).length;
 
   const countBy = s => safeAccounts.filter(a => a.healthStatus === s).length;
   const FILTERS = [
-    { key: 'all',        label: 'Todas',          count: safeAccounts.length },
-    { key: 'active',     label: 'Ativas',          count: activeAccounts },
-    { key: 'restricted', label: 'Restritas',       count: countBy('restrita') },
-    { key: 'token',      label: 'Token expirado',  count: countBy('token_invalido') },
-    { key: 'banned',     label: 'Banidas',         count: countBy('banida') },
-    { key: 'error',      label: 'Com erro',        count: safeAccounts.filter(a => a.healthStatus === 'erro_login' || a.healthStatus === 'sessao_expirada').length },
+    { key: 'all',         label: 'Todas',          count: safeAccounts.length },
+    { key: 'active',      label: 'Ativas',          count: activeAccounts },
+    { key: 'restricted',  label: 'Restritas',       count: countBy('restrita') },
+    { key: 'token',       label: 'Token expirado',  count: countBy('token_invalido') },
+    { key: 'banned',      label: 'Banidas',         count: countBy('banida') },
+    { key: 'error',       label: 'Com erro',        count: safeAccounts.filter(a => a.healthStatus === 'erro_login' || a.healthStatus === 'sessao_expirada').length },
+    { key: 'offline',     label: 'Desconectadas',   count: countBy('desconectada') },
   ];
 
-  function fmt(v) { return Number(v || 0).toLocaleString('pt-BR'); }
-  function fmtDate(d) { if (!d) return 'Nunca'; return new Date(d).toLocaleString('pt-BR'); }
+  const filteredAccounts = safeAccounts.filter(acc => {
+    const q = search.toLowerCase();
+    const match = acc.username?.toLowerCase().includes(q) || acc.name?.toLowerCase().includes(q);
+    if (!match) return false;
+    if (filter === 'active')     return !acc.healthStatus || acc.healthStatus === 'ativa';
+    if (filter === 'restricted') return acc.healthStatus === 'restrita';
+    if (filter === 'token')      return acc.healthStatus === 'token_invalido';
+    if (filter === 'banned')     return acc.healthStatus === 'banida';
+    if (filter === 'error')      return acc.healthStatus === 'erro_login' || acc.healthStatus === 'sessao_expirada';
+    if (filter === 'offline')    return acc.healthStatus === 'desconectada';
+    return true;
+  });
 
+  function fmt(v) { return Number(v || 0).toLocaleString('pt-BR'); }
+  function fmtDateCompact(d) {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ', ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
   function healthLabel(s) {
     if (s === 'restrita')        return 'Restrita';
     if (s === 'banida')          return 'Banida';
     if (s === 'token_invalido')  return 'Token expirado';
     if (s === 'sessao_expirada') return 'Sessão expirada';
     if (s === 'erro_login')      return 'Erro de login';
+    if (s === 'desconectada')    return 'Desconectada';
     return 'Saudável';
   }
   function healthColor(s) {
@@ -180,8 +198,18 @@ export default function Accounts() {
     if (s === 'token_invalido')  return '#ef4444';
     if (s === 'sessao_expirada') return '#f59e0b';
     if (s === 'erro_login')      return '#ef4444';
+    if (s === 'desconectada')    return '#64748b';
     return '#10b981';
   }
+
+  /* ── stat cards config ────────────────────────────────────────────── */
+  const STATS = [
+    { label: 'CONECTADAS',  value: fmt(safeAccounts.length), color: '#6366f1', Icon: IcoUsers,  numColor: '#f1f5f9' },
+    { label: 'SAUDÁVEIS',   value: fmt(activeAccounts),      color: '#06b6d4', Icon: IcoShield, numColor: '#f1f5f9' },
+    { label: 'COM ERRO',    value: fmt(errorAccounts),       color: '#ef4444', Icon: IcoWarn,   numColor: '#f1f5f9' },
+    { label: 'SEGUIDORES',  value: fmt(totalFollowers),      color: '#f59e0b', Icon: IcoTrend,  numColor: '#f59e0b' },
+    { label: 'PUBLICAÇÕES', value: fmt(totalPosts),          color: '#f97316', Icon: IcoGrid,   numColor: '#f59e0b' },
+  ];
 
   return (
     <div>
@@ -194,240 +222,317 @@ export default function Accounts() {
         onCancel={() => { setDeleteModal(false); setAccountToDelete(null); }}
       />
 
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Gerenciamento</div>
-          <h1>Contas Instagram</h1>
-          <p>Conecte contas via Meta API e monitore saúde em tempo real.</p>
+      {/* ── Page header ──────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#f1f5f9', letterSpacing: -0.5 }}>Contas Instagram</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>Monitore perfis, sessões, saúde da conta e automações em tempo real.</p>
         </div>
-        <div className="page-header-right">
-          <button className="btn btn-ghost btn-sm" onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }}>🌐 Proxies em massa</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
-            className="btn btn-primary btn-sm"
-            disabled={!!connecting['new']}
-            onClick={() => openOAuthConnect(null)}
+            onClick={syncAll}
+            disabled={syncing}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: '1px solid rgba(51,65,85,.55)', background: 'rgba(30,41,59,.6)', color: '#94a3b8', cursor: 'pointer' }}
           >
-            {connecting['new'] ? 'Aguarde...' : '➕ Adicionar conta'}
+            <IcoSync /> {syncing ? 'Sincronizando...' : 'Sincronizar tudo'}
           </button>
+          <button
+            onClick={() => openOAuthConnect(null)}
+            disabled={!!connecting['new']}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#06b6d4,#3b82f6)', color: '#fff', cursor: 'pointer', boxShadow: '0 0 18px rgba(6,182,212,.25)' }}
+          >
+            <IcoLink /> {connecting['new'] ? 'Aguarde...' : 'Conectar via API'}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }} title="Proxies em massa">🌐</button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="accounts-stats-grid">
-        {[
-          { label: 'Conectadas', value: safeAccounts.length, color: '#6366f1', icon: '🔗', sub: 'Total de contas' },
-          { label: 'Ativas',     value: activeAccounts,       color: '#10b981', icon: '✅', sub: 'Status saudável' },
-          { label: 'Seguidores', value: totalFollowers,       color: '#06b6d4', icon: '👥', sub: 'Total acumulado' },
-          { label: 'Postagens',  value: totalPosts,           color: '#f59e0b', icon: '📸', sub: 'Posts realizados' },
-        ].map(s => (
+      {/* ── 5 Stats ──────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        {STATS.map(s => (
           <div key={s.label} style={{
-            background: 'rgba(15,23,42,0.8)',
+            flex: '1 1 160px',
+            background: 'rgba(15,22,36,.75)',
             border: `1px solid ${s.color}22`,
-            borderRadius: 14,
+            borderRadius: 13,
             padding: '16px 18px',
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
-            boxShadow: `0 0 0 1px ${s.color}11, 0 4px 24px ${s.color}0d`,
+            justifyContent: 'space-between',
+            boxShadow: `0 0 0 1px ${s.color}0d, 0 4px 20px ${s.color}0a`,
           }}>
-            <div style={{
-              width: 46, height: 46, borderRadius: 12,
-              background: `radial-gradient(135deg, ${s.color}33 0%, ${s.color}0a 100%)`,
-              border: `1px solid ${s.color}33`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 20, flexShrink: 0,
-            }}>{s.icon}</div>
             <div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#f1f5f9', letterSpacing: -1, lineHeight: 1 }}>{fmt(s.value)}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: s.color, marginTop: 2 }}>{s.label}</div>
-              <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{s.sub}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: '.8px', marginBottom: 6, textTransform: 'uppercase' }}>{s.label}</div>
+              <div style={{ fontSize: 30, fontWeight: 800, color: s.numColor, letterSpacing: -1, lineHeight: 1, fontFamily: 'var(--font-display,inherit)' }}>{s.value}</div>
+            </div>
+            <div style={{
+              width: 42, height: 42, borderRadius: 11, flexShrink: 0,
+              background: `color-mix(in srgb,${s.color} 14%,transparent)`,
+              border: `1px solid color-mix(in srgb,${s.color} 28%,transparent)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: s.color,
+            }}>
+              <s.Icon />
             </div>
           </div>
         ))}
       </div>
 
-      {/* Table */}
-      <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(51,65,85,.5)', borderRadius: 16, overflow: 'hidden' }}>
-
-        {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid rgba(51,65,85,.4)', flexWrap: 'wrap', gap: 10 }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>Contas conectadas</div>
-            <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>Mostrando {filteredAccounts.length} de {safeAccounts.length} conta(s)</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: 2 }}>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#475569' }}>🔍</span>
-              <input
-                style={{ background: 'rgba(30,41,59,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '7px 12px 7px 30px', fontSize: 13, color: '#e2e8f0', outline: 'none', width: 160 }}
-                placeholder="Buscar conta..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            {FILTERS.map(f => (
+      {/* ── Filter tabs + search ──────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {FILTERS.map(f => {
+            const active = filter === f.key;
+            return (
               <button key={f.key} onClick={() => setFilter(f.key)} style={{
-                fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600,
-                background: filter === f.key ? '#6366f1' : 'rgba(51,65,85,.4)',
-                color: filter === f.key ? '#fff' : '#94a3b8',
-                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
+                fontSize: 12, fontWeight: 600,
+                padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
+                background: active ? 'rgba(6,182,212,.15)' : 'rgba(30,41,59,.6)',
+                color: active ? '#06b6d4' : '#64748b',
+                outline: active ? '1px solid rgba(6,182,212,.4)' : '1px solid rgba(51,65,85,.4)',
+                display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
               }}>
                 {f.label}
-                {f.count > 0 && (
-                  <span style={{ fontSize: 10, fontWeight: 800, background: filter === f.key ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.1)', borderRadius: 10, padding: '1px 6px' }}>{f.count}</span>
-                )}
+                <span style={{
+                  fontSize: 10, fontWeight: 800, minWidth: 16, textAlign: 'center',
+                  background: active ? 'rgba(6,182,212,.25)' : 'rgba(255,255,255,.08)',
+                  color: active ? '#06b6d4' : '#475569',
+                  borderRadius: 20, padding: '1px 5px',
+                }}>{f.count}</span>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
+        <div style={{ position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569', fontSize: 13 }}>🔍</span>
+          <input
+            style={{ background: 'rgba(20,30,50,.7)', border: '1px solid rgba(51,65,85,.5)', borderRadius: 9, padding: '7px 13px 7px 30px', fontSize: 13, color: '#e2e8f0', outline: 'none', width: 210 }}
+            placeholder="Buscar por @user ou nome..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
 
-        <div className="tbl-scroll-wrap">
-          <div className="tbl-scroll-inner">
+      {/* ── Cards grid ───────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14 }}>
+        {filteredAccounts.map(account => {
+          const hc          = healthColor(account.healthStatus);
+          const hl          = healthLabel(account.healthStatus || 'ativa');
+          const isConnecting = !!connecting[account._id];
+          const needsRecon  = account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
+          const isHealthy   = !account.healthStatus || account.healthStatus === 'ativa';
+          const compact     = fmtDateCompact(account.lastSync);
+          const accType     = account.accountType?.toUpperCase() || 'CREATOR';
 
-            {/* Table header */}
-            <div className="acc-tbl-hd" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.4fr 1.8fr', gap: 0, padding: '10px 20px', borderBottom: '1px solid rgba(51,65,85,.35)', background: 'rgba(15,23,42,.5)' }}>
-              {['Conta', 'Seguidores', 'Seguindo', 'Posts', 'Status', 'Última sync', 'Ações'].map((h, i) => (
-                <div key={i} style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: .6 }}>{h}</div>
-              ))}
-            </div>
-
-            {/* Rows */}
-            {filteredAccounts.map((account, ri) => {
-              const hc = healthColor(account.healthStatus);
-              const hl = healthLabel(account.healthStatus || 'ativa');
-              const needsReconnect = account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
-              return (
-                <div key={account._id}
-                  className="acc-tbl-row"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1.4fr 1.8fr',
-                    gap: 0,
-                    padding: '13px 20px',
-                    borderBottom: ri < filteredAccounts.length - 1 ? '1px solid rgba(51,65,85,.25)' : 'none',
-                    alignItems: 'center',
-                    transition: 'background .15s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,.04)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  {/* Conta */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <div style={{ flexShrink: 0, position: 'relative' }}>
-                      {account.avatar ? (
-                        <img
-                          src={avatarUrl(account.avatar)}
-                          alt=""
-                          onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                          style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', border: `2px solid ${hc}44` }}
-                        />
-                      ) : null}
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg, #6366f133, #8b5cf633)', border: '2px solid #6366f133', display: account.avatar ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#818cf8' }}>
-                        {account.username?.charAt(0)?.toUpperCase() || 'I'}
-                      </div>
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name || account.username}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>@{account.username}</div>
-                    </div>
-                  </div>
-
-                  {/* Seguidores */}
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>{fmt(account.followers)}</div>
-
-                  {/* Seguindo */}
-                  <div style={{ fontSize: 13, color: '#64748b' }}>{fmt(account.following)}</div>
-
-                  {/* Posts */}
-                  <div style={{ fontSize: 13, color: '#64748b' }}>{fmt(account.postsCount)}</div>
-
-                  {/* Status */}
-                  <div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-                      background: `${hc}18`, color: hc, border: `1px solid ${hc}33`,
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
+          return (
+            <div key={account._id} style={{
+              background: 'rgba(13,18,30,.9)',
+              border: '1px solid rgba(51,65,85,.45)',
+              borderRadius: 13,
+              overflow: 'hidden',
+              display: 'flex', flexDirection: 'column',
+              transition: 'border-color .2s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(51,65,85,.8)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(51,65,85,.45)'}
+            >
+              {/* ── Card body ── */}
+              <div style={{ padding: '16px 18px 14px' }}>
+                {/* Avatar + name row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  {/* Avatar */}
+                  <div style={{ flexShrink: 0, position: 'relative' }}>
+                    {account.avatar ? (
+                      <img
+                        src={avatarUrl(account.avatar)}
+                        alt=""
+                        onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                        style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${hc}55`, display: 'block' }}
+                      />
+                    ) : null}
+                    <div style={{
+                      width: 52, height: 52, borderRadius: '50%',
+                      background: 'linear-gradient(135deg,#6366f133,#8b5cf633)',
+                      border: '2px solid #6366f133',
+                      display: account.avatar ? 'none' : 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      fontSize: 20, fontWeight: 800, color: '#818cf8',
                     }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: hc, display: 'inline-block' }} />
-                      {hl}
-                    </span>
+                      {account.username?.charAt(0)?.toUpperCase() || 'I'}
+                    </div>
                   </div>
 
-                  {/* Última sync */}
-                  <div style={{ fontSize: 11, color: '#475569' }}>{fmtDate(account.lastSync)}</div>
-
-                  {/* Ações */}
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn-sm"
-                      disabled={!!connecting[account._id]}
-                      onClick={() => openOAuthConnect(account)}
-                      title={needsReconnect ? 'Reconectar via Meta API' : 'Conectar via Meta API'}
-                      style={{
-                        background: needsReconnect ? 'rgba(239,68,68,.12)' : 'rgba(99,102,241,.15)',
-                        color: needsReconnect ? '#f87171' : '#818cf8',
-                        border: `1px solid ${needsReconnect ? 'rgba(239,68,68,.3)' : 'rgba(99,102,241,.3)'}`,
-                        fontSize: 11, whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {connecting[account._id] ? '...' : needsReconnect ? '🔗 Reconectar' : '🔗 Conectar'}
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      onClick={() => openProxyModal(account)}
-                      title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
-                      style={{
-                        background: account.proxy ? 'rgba(16,185,129,.12)' : 'rgba(51,65,85,.3)',
-                        color: account.proxy ? '#34d399' : '#64748b',
-                        border: `1px solid ${account.proxy ? 'rgba(16,185,129,.3)' : 'rgba(51,65,85,.4)'}`,
-                        fontSize: 11,
-                      }}
-                    >
-                      🌐
-                    </button>
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => deleteAccount(account._id)}
-                    >
-                      Excluir
-                    </button>
+                  {/* Name / username / badges */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                        {account.name || account.username}
+                      </span>
+                      <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" style={{ color: '#475569', fontSize: 12, textDecoration: 'none', lineHeight: 1, flexShrink: 0 }}>↗</a>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>@{account.username}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: '2px 8px 2px 6px', borderRadius: 20,
+                        background: `${hc}18`, color: hc, border: `1px solid ${hc}30`,
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: hc, boxShadow: `0 0 5px ${hc}` }} />
+                        {hl}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                        background: 'rgba(51,65,85,.5)', color: '#64748b', letterSpacing: '.4px',
+                      }}>
+                        {accType}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
 
-            {!filteredAccounts.length && (
-              <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>👤</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Nenhuma conta encontrada</div>
-                <div style={{ fontSize: 12, marginTop: 4 }}>
-                  {safeAccounts.length === 0
-                    ? 'Clique em "Adicionar conta" para conectar sua primeira conta via Meta API.'
-                    : 'Tente ajustar o filtro ou a busca.'}
+                {/* Stats row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', paddingTop: 10, borderTop: '1px solid rgba(51,65,85,.3)' }}>
+                  {[
+                    { label: 'SEGUIDORES',  value: fmt(account.followers)  },
+                    { label: 'SEGUINDO',    value: fmt(account.following)  },
+                    { label: 'PUBLICAÇÕES', value: fmt(account.postsCount) },
+                  ].map((s, i) => (
+                    <div key={s.label} style={{
+                      textAlign: 'center', padding: '10px 4px',
+                      borderRight: i < 2 ? '1px solid rgba(51,65,85,.3)' : 'none',
+                    }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#3d4f6a', letterSpacing: '.7px', marginBottom: 5, textTransform: 'uppercase' }}>{s.label}</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: '#e2e8f0', letterSpacing: -0.5 }}>{s.value}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
 
-          </div>
-        </div>
+              {/* ── Meta row ── */}
+              <div style={{ height: 1, background: 'rgba(51,65,85,.3)' }} />
+              <div style={{ padding: '9px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: isHealthy ? '#10b981' : '#f87171', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <IcoWifi />
+                  {isHealthy ? 'API conectada' : 'API desconectada'}
+                </span>
+                <span style={{ fontSize: 11, color: '#3d4f6a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <IcoWave />
+                  {compact}
+                </span>
+              </div>
 
-        {pagination && pagination.pages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid rgba(51,65,85,.35)' }}>
-            <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? .4 : 1 }} disabled={page <= 1} onClick={() => goToPage(page - 1)}>← Anterior</button>
-            <span style={{ fontSize: 12, color: '#64748b' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
-            <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page >= pagination.pages ? 'default' : 'pointer', opacity: page >= pagination.pages ? .4 : 1 }} disabled={page >= pagination.pages} onClick={() => goToPage(page + 1)}>Próxima →</button>
+              {/* ── Actions ── */}
+              <div style={{ height: 1, background: 'rgba(51,65,85,.3)' }} />
+              <div style={{ padding: '10px 14px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                {/* Ver */}
+                <a
+                  href={`https://instagram.com/${account.username}`}
+                  target="_blank" rel="noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8,
+                    border: '1px solid rgba(51,65,85,.5)', color: '#64748b',
+                    background: 'transparent', textDecoration: 'none', whiteSpace: 'nowrap',
+                  }}
+                >
+                  <IcoEye /> Ver
+                </a>
+
+                {/* Editar perfil */}
+                <button
+                  onClick={() => openOAuthConnect(account)}
+                  disabled={isConnecting}
+                  style={{
+                    flex: 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    fontSize: 12, fontWeight: 700, padding: '6px 10px', borderRadius: 8,
+                    background: 'linear-gradient(135deg,rgba(6,182,212,.18),rgba(59,130,246,.18))',
+                    color: '#06b6d4', border: '1px solid rgba(6,182,212,.35)',
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  <IcoPerson /> {isConnecting ? '...' : 'Editar perfil'}
+                </button>
+
+                {/* HQ / Proxy */}
+                <button
+                  onClick={() => openProxyModal(account)}
+                  title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8,
+                    background: account.proxy ? 'rgba(99,102,241,.12)' : 'rgba(30,41,59,.6)',
+                    color: account.proxy ? '#818cf8' : '#475569',
+                    border: `1px solid ${account.proxy ? 'rgba(99,102,241,.35)' : 'rgba(51,65,85,.4)'}`,
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  <IcoSignal /> HQ ?
+                </button>
+
+                {/* API status */}
+                <button
+                  onClick={() => openOAuthConnect(account)}
+                  disabled={isConnecting}
+                  title={needsRecon ? 'Reconectar' : 'API conectada'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    fontSize: 12, fontWeight: 700, padding: '6px 10px', borderRadius: 8,
+                    background: needsRecon ? 'rgba(239,68,68,.12)' : 'rgba(16,185,129,.12)',
+                    color: needsRecon ? '#f87171' : '#10b981',
+                    border: `1px solid ${needsRecon ? 'rgba(239,68,68,.3)' : 'rgba(16,185,129,.3)'}`,
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  <IcoCheck /> API
+                </button>
+
+                {/* Delete */}
+                <button
+                  onClick={() => deleteAccount(account._id)}
+                  title="Excluir conta"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '6px 10px', borderRadius: 8, flexShrink: 0,
+                    background: 'rgba(239,68,68,.1)', color: '#f87171',
+                    border: '1px solid rgba(239,68,68,.25)', cursor: 'pointer',
+                  }}
+                >
+                  <IcoTrash />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {!filteredAccounts.length && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: '#475569' }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>👤</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Nenhuma conta encontrada</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>
+              {safeAccounts.length === 0
+                ? 'Clique em "Conectar via API" para adicionar sua primeira conta.'
+                : 'Tente ajustar o filtro ou a busca.'}
+            </div>
           </div>
         )}
       </div>
 
-      {/* OAuth Connect Modal */}
+      {/* Pagination */}
+      {pagination && pagination.pages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginTop: 6 }}>
+          <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? .4 : 1 }} disabled={page <= 1} onClick={() => goToPage(page - 1)}>← Anterior</button>
+          <span style={{ fontSize: 12, color: '#64748b' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
+          <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page >= pagination.pages ? 'default' : 'pointer', opacity: page >= pagination.pages ? .4 : 1 }} disabled={page >= pagination.pages} onClick={() => goToPage(page + 1)}>Próxima →</button>
+        </div>
+      )}
+
+      {/* ── OAuth Modal ──────────────────────────────────────────── */}
       {oauthModal && (
         <div className="modal-overlay">
           <style>{`@keyframes mf-spin{to{transform:rotate(360deg)}}`}</style>
           <div className="modal" style={{ width: 'min(480px,100%)' }}>
-
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div>
                 <h3 style={{ margin: 0 }}>🔗 Conectar via Meta API</h3>
@@ -437,73 +542,38 @@ export default function Accounts() {
               </div>
               <button onClick={() => { setOauthModal(null); setOauthWaiting(false); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
-
             {!oauthWaiting ? (
               <>
-                {/* Link + Copy */}
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>
-                    1. Copie o link ou escaneie o QR com o emulador
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>1. Copie o link ou escaneie o QR com o emulador</div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                    <div style={{ flex: 1, background: 'rgba(15,23,42,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {oauthModal.url}
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(oauthModal.url);
-                        setOauthWaiting(true);
-                      }}
-                      style={{ padding: '0 16px', borderRadius: 8, border: '1px solid rgba(99,102,241,.4)', background: 'rgba(99,102,241,.15)', color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      📋 Copiar
-                    </button>
+                    <div style={{ flex: 1, background: 'rgba(15,23,42,.8)', border: '1px solid rgba(51,65,85,.6)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{oauthModal.url}</div>
+                    <button onClick={() => { navigator.clipboard.writeText(oauthModal.url); setOauthWaiting(true); }} style={{ padding: '0 16px', borderRadius: 8, border: '1px solid rgba(99,102,241,.4)', background: 'rgba(99,102,241,.15)', color: '#818cf8', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>📋 Copiar</button>
                   </div>
                 </div>
-
-                {/* QR Code */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 0' }}>
                   <div style={{ fontSize: 12, color: '#64748b' }}>📱 Ou escaneie com o emulador</div>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 12, display: 'inline-flex' }}>
                     <QRCodeSVG value={oauthModal.url} size={190} />
                   </div>
-                  <button
-                    onClick={() => setOauthWaiting(true)}
-                    style={{ fontSize: 11, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginTop: 4 }}
-                  >
-                    Já abri o link no emulador →
-                  </button>
+                  <button onClick={() => setOauthWaiting(true)} style={{ fontSize: 11, color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', marginTop: 4 }}>Já abri o link no emulador →</button>
                 </div>
               </>
             ) : (
-              /* Waiting state */
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '28px 0' }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: '50%',
-                  border: '3px solid rgba(99,102,241,.2)',
-                  borderTopColor: '#6366f1',
-                  animation: 'mf-spin 0.9s linear infinite',
-                }} />
+                <div style={{ width: 52, height: 52, borderRadius: '50%', border: '3px solid rgba(99,102,241,.2)', borderTopColor: '#6366f1', animation: 'mf-spin 0.9s linear infinite' }} />
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>Aguardando autorização...</div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, lineHeight: 1.5 }}>
-                    Autorize o app no emulador.<br />
-                    A conta será conectada automaticamente.
-                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 6, lineHeight: 1.5 }}>Autorize o app no emulador.<br />A conta será conectada automaticamente.</div>
                 </div>
-                <button
-                  onClick={() => setOauthWaiting(false)}
-                  style={{ fontSize: 12, color: '#64748b', background: 'none', border: '1px solid rgba(51,65,85,.4)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}
-                >
-                  ← Voltar ao link
-                </button>
+                <button onClick={() => setOauthWaiting(false)} style={{ fontSize: 12, color: '#64748b', background: 'none', border: '1px solid rgba(51,65,85,.4)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>← Voltar ao link</button>
               </div>
             )}
-
           </div>
         </div>
       )}
-      {/* Proxy por conta */}
+
+      {/* ── Proxy Modal ──────────────────────────────────────────── */}
       {proxyModal && (
         <div className="modal-overlay">
           <div className="modal" style={{ width: 'min(460px,100%)' }}>
@@ -514,33 +584,19 @@ export default function Accounts() {
               </div>
               <button onClick={() => setProxyModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-              As chamadas de API desta conta (health check, sync) sairão por este proxy — IP diferente por conta.
-            </div>
-            <input
-              className="input"
-              style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }}
-              placeholder="http://usuario:senha@host:porta"
-              value={proxyValue}
-              onChange={e => setProxyValue(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && saveProxy()}
-              autoFocus
-            />
-            {proxyModal.proxy && (
-              <div style={{ fontSize: 11, color: '#34d399', marginTop: 6 }}>✅ Proxy atual: {proxyModal.proxy}</div>
-            )}
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>As chamadas de API desta conta sairão por este proxy — IP diferente por conta.</div>
+            <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => setProxyValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveProxy()} autoFocus />
+            {proxyModal.proxy && <div style={{ fontSize: 11, color: '#34d399', marginTop: 6 }}>✅ Proxy atual: {proxyModal.proxy}</div>}
             <div className="modal-actions" style={{ marginTop: 14 }}>
               <button className="btn btn-ghost" onClick={() => { setProxyValue(''); saveProxy(); }} disabled={savingProxy}>Remover proxy</button>
               <button className="btn btn-ghost" onClick={() => setProxyModal(null)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={saveProxy} disabled={savingProxy}>
-                {savingProxy ? 'Salvando...' : 'Salvar'}
-              </button>
+              <button className="btn btn-primary" onClick={saveProxy} disabled={savingProxy}>{savingProxy ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Proxies em massa */}
+      {/* ── Bulk Proxy Modal ─────────────────────────────────────── */}
       {bulkProxyOpen && (
         <div className="modal-overlay">
           <div className="modal" style={{ width: 'min(520px,100%)' }}>
@@ -551,34 +607,15 @@ export default function Accounts() {
               </div>
               <button onClick={() => setBulkProxyOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
-
             <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>Formato — um proxy por linha:</div>
-              <pre style={{ margin: 0, fontSize: 12, color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`http://user1:pass1@host1:porta\nhttp://user2:pass2@host2:porta\nhttp://user3:pass3@host3:porta`}</pre>
-              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 6 }}>
-                Se tiver menos proxies que contas, eles são rotacionados. Se tiver o mesmo número, cada conta fica com o seu proxy exclusivo.
-              </div>
+              <pre style={{ margin: 0, fontSize: 12, color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`http://user1:pass1@host1:porta\nhttp://user2:pass2@host2:porta`}</pre>
             </div>
-
-            <textarea
-              className="txta"
-              rows={8}
-              style={{ fontFamily: 'monospace', fontSize: 13, marginTop: 0 }}
-              placeholder={'http://user1:pass1@host1:3128\nhttp://user2:pass2@host2:3128\n...'}
-              value={bulkProxyText}
-              onChange={e => setBulkProxyText(e.target.value)}
-            />
-            <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6 }}>
-              {bulkProxyText.trim()
-                ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)`
-                : 'Cole os proxies acima.'}
-            </div>
-
+            <textarea className="txta" rows={8} style={{ fontFamily: 'monospace', fontSize: 13, marginTop: 0 }} placeholder={'http://user1:pass1@host1:3128\n...'} value={bulkProxyText} onChange={e => setBulkProxyText(e.target.value)} />
+            <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6 }}>{bulkProxyText.trim() ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)` : 'Cole os proxies acima.'}</div>
             <div className="modal-actions" style={{ marginTop: 12 }}>
               <button className="btn btn-ghost" onClick={() => setBulkProxyOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>
-                {savingBulkProxy ? 'Aplicando...' : '✅ Aplicar proxies'}
-              </button>
+              <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>{savingBulkProxy ? 'Aplicando...' : '✅ Aplicar proxies'}</button>
             </div>
           </div>
         </div>
