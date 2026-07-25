@@ -100,37 +100,57 @@ export default function Warmup() {
   }
 
   const activeCount = accounts.filter(a => a.warmupActive).length;
+  const fmtNum = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
+  function healthLabel(s) {
+    if (s === 'restrita')        return { label:'Restrita',       color:'#f59e0b' };
+    if (s === 'banida')          return { label:'Banida',         color:'#ef4444' };
+    if (s === 'token_invalido')  return { label:'Token expirado', color:'#ef4444' };
+    if (s === 'sessao_expirada') return { label:'Sessão expirada',color:'#f59e0b' };
+    if (s === 'desconectada')    return { label:'Desconectada',   color:'#64748b' };
+    return { label:'Saudável', color:'#22c55e' };
+  }
 
   if (loading) return (
-    <div className="page-container">
-      <p style={{ color: 'var(--text3)' }}>Carregando...</p>
+    <div className="page-container" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{ fontSize:32, marginBottom:12 }}>🔥</div>
+        <p style={{ color:'var(--text3)', fontSize:13 }}>Carregando contas...</p>
+      </div>
     </div>
   );
 
   return (
     <div className="page-container">
-      {/* Header */}
-      <div className="page-header" style={{ marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 4 }}>Viralizar</div>
-          <h1 className="page-title">Aquecimento de Contas</h1>
-          <p style={{ color: 'var(--text2)', fontSize: 13, marginTop: 4 }}>
-            Simula curtidas, comentários e follows para esquentar contas antes de postar
-          </p>
+      {/* ── Page header ── */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 6 }}>Viralizar</div>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+          <div>
+            <h1 style={{ margin:0, fontSize:28, fontWeight:800, color:'var(--text)', letterSpacing:-0.5 }}>Aquecimento de Contas</h1>
+            <p style={{ margin:'6px 0 0', color:'var(--text2)', fontSize:13, lineHeight:1.5 }}>
+              Simula curtidas, comentários e follows para esquentar contas antes de postar — evita shadowban e melhora o alcance
+            </p>
+          </div>
+          <button onClick={load} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg2)', color:'var(--text2)', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+            ↺ Atualizar
+          </button>
         </div>
       </div>
 
       {/* Stats bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginBottom: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: 10, marginBottom: 24 }}>
         {[
-          { label: 'TOTAL DE CONTAS', value: accounts.length,              color: 'var(--cyan)',  icon: '👤' },
-          { label: 'AQUECENDO AGORA', value: activeCount,                   color: '#22c55e',      icon: '🔥' },
-          { label: 'CONTAS INATIVAS', value: accounts.length - activeCount, color: 'var(--text3)', icon: '⚪' },
+          { label: 'TOTAL DE CONTAS', value: accounts.length, color: 'var(--text)', icon: '👤', bg: 'var(--bg2)' },
+          { label: 'AQUECENDO AGORA', value: activeCount, color: '#22c55e', icon: '🔥', bg: 'rgba(34,197,94,.06)' },
+          { label: 'CONTAS SAUDÁVEIS', value: accounts.filter(a => !a.healthStatus || a.healthStatus === 'ok' || a.healthStatus === 'saudavel').length, color: 'var(--cyan)', icon: '✅', bg: 'var(--bg2)' },
+          { label: 'INATIVAS', value: accounts.length - activeCount, color: 'var(--text3)', icon: '⚪', bg: 'var(--bg2)' },
         ].map(s => (
-          <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
-            <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
-            <div style={{ fontWeight: 800, fontSize: 22, color: s.color, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: '.05em', marginTop: 4 }}>{s.label}</div>
+          <div key={s.label} style={{ background: s.bg, border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>{s.icon}</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 22, color: s.color, lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: '.05em', marginTop: 3 }}>{s.label}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -142,133 +162,164 @@ export default function Warmup() {
       )}
 
       {/* Cards grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {accounts.map(account => {
           const cfg        = configs[account._id] || defaultCfg();
           const isActive   = account.warmupActive;
           const isExpanded = expanded === account._id;
           const intCfg     = INTENSITY.find(i => i.v === cfg.intensity) || INTENSITY[0];
           const src        = avatarSrc(account.avatar);
+          const hlth       = healthLabel(account.healthStatus);
+
+          const tokenExpiry = account.tokenExpiresAt
+            ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+            : null;
+          const tokenDaysLeft = account.tokenExpiresAt
+            ? Math.ceil((new Date(account.tokenExpiresAt) - Date.now()) / 86400000)
+            : null;
 
           return (
             <div key={account._id} style={{
               background: 'var(--bg2)',
-              border: `1px solid ${isActive ? 'rgba(34,197,94,.35)' : 'var(--border)'}`,
-              borderRadius: 14, overflow: 'hidden',
-              boxShadow: isActive ? '0 0 0 1px rgba(34,197,94,.12), 0 4px 20px rgba(34,197,94,.07)' : 'none',
-              transition: 'border-color .2s, box-shadow .2s',
+              border: `1px solid ${isActive ? 'rgba(34,197,94,.4)' : 'var(--border)'}`,
+              borderRadius: 16, overflow: 'hidden',
+              boxShadow: isActive
+                ? '0 0 0 1px rgba(34,197,94,.1), 0 6px 28px rgba(34,197,94,.09)'
+                : '0 2px 8px rgba(0,0,0,.04)',
+              transition: 'border-color .25s, box-shadow .25s',
             }}>
-              {/* Active bar */}
+              {/* Active gradient bar */}
               {isActive && (
-                <div style={{ height: 3, background: 'linear-gradient(90deg,#22c55e,#16a34a)' }} />
+                <div style={{ height: 3, background: 'linear-gradient(90deg,#22c55e 0%,#16a34a 50%,#22c55e 100%)' }} />
               )}
 
-              {/* Card header */}
-              <div style={{ padding: '18px 18px 14px', display: 'flex', gap: 14 }}>
-                {/* Profile photo */}
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div style={{
-                    width: 60, height: 60, borderRadius: '50%', overflow: 'hidden',
-                    border: isActive ? '3px solid #22c55e' : '3px solid var(--border)',
-                    boxShadow: isActive ? '0 0 16px rgba(34,197,94,.4)' : 'none',
-                    background: 'var(--bg3)', transition: 'border-color .2s, box-shadow .2s',
-                  }}>
-                    {src
-                      ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={e => { e.target.style.display = 'none'; }} />
-                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 22, color: 'var(--cyan)' }}>
-                          {account.username?.[0]?.toUpperCase()}
-                        </div>
-                    }
-                  </div>
-                  <div style={{
-                    position: 'absolute', bottom: 2, right: 2, width: 14, height: 14, borderRadius: '50%',
-                    background: isActive ? '#22c55e' : '#4b5563',
-                    border: '2px solid var(--bg2)',
-                    boxShadow: isActive ? '0 0 8px #22c55e' : 'none',
-                  }} />
-                </div>
+              {/* Card body */}
+              <div style={{ padding: '20px 20px 16px' }}>
+                <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
 
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    @{account.username}
-                  </div>
-                  {account.accountType && (
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.06em', marginTop: 2 }}>
-                      {account.accountType}
+                  {/* Avatar */}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div style={{
+                      width: 84, height: 84, borderRadius: '50%', overflow: 'hidden',
+                      border: isActive ? '3px solid #22c55e' : '3px solid var(--border)',
+                      boxShadow: isActive ? '0 0 22px rgba(34,197,94,.35)' : 'none',
+                      background: 'var(--bg3)', transition: 'all .25s',
+                    }}>
+                      {src
+                        ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={e => { e.target.style.display = 'none'; }} />
+                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 30, color: 'var(--cyan)' }}>
+                            {account.username?.[0]?.toUpperCase()}
+                          </div>
+                      }
                     </div>
-                  )}
-                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {isActive ? (
-                      <>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-                        <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 700 }}>Aquecendo — {intCfg.label}</span>
-                        <span style={{ fontSize: 10, color: 'var(--text3)' }}>· {cfg.intervalMinutes}min/ciclo</span>
-                      </>
-                    ) : (
-                      <>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text3)' }} />
-                        <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>Inativo</span>
-                      </>
+                    <div style={{
+                      position: 'absolute', bottom: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
+                      background: isActive ? '#22c55e' : '#4b5563',
+                      border: '3px solid var(--bg2)',
+                      boxShadow: isActive ? '0 0 10px #22c55e' : 'none',
+                      transition: 'all .25s',
+                    }} />
+                  </div>
+
+                  {/* Info column */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Username + name */}
+                    <div style={{ fontWeight: 800, fontSize: 17, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: -.3 }}>
+                      @{account.username}
+                    </div>
+                    {account.name && account.name !== account.username && (
+                      <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, marginTop: 1, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {account.name}
+                      </div>
+                    )}
+
+                    {/* Badges */}
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: account.name ? 0 : 8, marginBottom: 10 }}>
+                      {account.accountType && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'rgba(99,102,241,.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,.25)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                          {account.accountType}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: `${hlth.color}18`, color: hlth.color, border: `1px solid ${hlth.color}30` }}>
+                        ● {hlth.label}
+                      </span>
+                      {isActive && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'rgba(34,197,94,.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,.3)' }}>
+                          🔥 {intCfg.label}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Stats row */}
+                    <div style={{ display: 'flex', borderRadius: 9, overflow: 'hidden', background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+                      {[
+                        { label: 'Seguidores', value: account.followers },
+                        { label: 'Seguindo',   value: account.following },
+                        { label: 'Posts',      value: account.postsCount },
+                      ].map((s, i) => (
+                        <div key={s.label} style={{ flex: 1, padding: '8px 4px', textAlign: 'center', borderRight: i < 2 ? '1px solid var(--border)' : 'none' }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{fmtNum(s.value)}</div>
+                          <div style={{ fontSize: 9, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginTop: 1 }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Active actions + cycle */}
+                    {isActive && cfg.actions?.length > 0 && (
+                      <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>AÇÕES:</span>
+                        {cfg.actions.map(a => {
+                          const ac = ACTIONS.find(x => x.value === a);
+                          return ac ? (
+                            <span key={a} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: `${ac.color}15`, color: ac.color, border: `1px solid ${ac.color}28` }}>
+                              {ac.icon} {ac.label}
+                            </span>
+                          ) : null;
+                        })}
+                        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text3)' }}>⏱ {cfg.intervalMinutes}min/ciclo</span>
+                      </div>
+                    )}
+
+                    {/* Token expiry */}
+                    {tokenExpiry && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 9, fontSize: 11, color: tokenDaysLeft != null && tokenDaysLeft < 7 ? '#f59e0b' : 'var(--text3)' }}>
+                        <span>🔑</span>
+                        <span>Token expira {tokenExpiry}</span>
+                        {tokenDaysLeft != null && tokenDaysLeft < 30 && (
+                          <span style={{ fontWeight: 700, color: tokenDaysLeft < 7 ? '#ef4444' : '#f59e0b' }}>
+                            · {tokenDaysLeft < 0 ? 'EXPIRADO' : `${tokenDaysLeft}d`}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {isActive && cfg.actions?.length > 0 && (
-                    <div style={{ display: 'flex', gap: 4, marginTop: 7, flexWrap: 'wrap' }}>
-                      {cfg.actions.map(a => {
-                        const ac = ACTIONS.find(x => x.value === a);
-                        return ac ? (
-                          <span key={a} style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
-                            background: `${ac.color}18`, color: ac.color, border: `1px solid ${ac.color}33` }}>
-                            {ac.icon} {ac.label}
-                          </span>
-                        ) : null;
-                      })}
-                    </div>
-                  )}
-                </div>
 
-                {/* Controls */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-                  {isActive ? (
-                    <button onClick={() => stopWarmup(account._id)} style={{
-                      padding: '6px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
-                      background: 'rgba(239,68,68,.12)', color: '#ef4444', fontWeight: 700, fontSize: 12,
-                      border: '1px solid rgba(239,68,68,.3)',
-                    }}>⏹ Parar</button>
-                  ) : (
-                    <button onClick={() => startWarmup(account._id)} style={{
-                      padding: '6px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
-                      background: 'rgba(34,197,94,.12)', color: '#22c55e', fontWeight: 700, fontSize: 12,
-                      border: '1px solid rgba(34,197,94,.3)',
-                    }}>🔥 Iniciar</button>
-                  )}
-                  <button onClick={() => setExpanded(isExpanded ? null : account._id)} style={{
-                    padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)',
-                    background: 'transparent', color: 'var(--text3)', cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                  }}>
-                    {isExpanded ? '▲ Fechar' : '⚙ Config'}
-                  </button>
+                  {/* Controls */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flexShrink: 0, minWidth: 96 }}>
+                    {isActive ? (
+                      <button onClick={() => stopWarmup(account._id)} style={{
+                        padding: '9px 12px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap',
+                        background: 'rgba(239,68,68,.12)', color: '#ef4444', fontWeight: 700, fontSize: 12,
+                        border: '1px solid rgba(239,68,68,.3)',
+                      }}>⏹ Parar</button>
+                    ) : (
+                      <button onClick={() => startWarmup(account._id)} style={{
+                        padding: '9px 12px', borderRadius: 9, cursor: 'pointer', whiteSpace: 'nowrap',
+                        background: 'linear-gradient(135deg,rgba(34,197,94,.15),rgba(22,163,74,.08))',
+                        color: '#22c55e', fontWeight: 700, fontSize: 12,
+                        border: '1px solid rgba(34,197,94,.4)',
+                      }}>🔥 Iniciar</button>
+                    )}
+                    <button onClick={() => setExpanded(isExpanded ? null : account._id)} style={{
+                      padding: '7px 10px', borderRadius: 9, border: '1px solid var(--border)',
+                      background: 'var(--bg3)', color: 'var(--text3)', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                    }}>
+                      {isExpanded ? '▲ Fechar' : '⚙ Config'}
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Mini stats */}
-              {(account.followers || account.following || account.postsCount) && (
-                <div style={{ padding: '0 18px 12px', display: 'flex', gap: 16 }}>
-                  {[
-                    { label: 'Seguidores', value: account.followers },
-                    { label: 'Seguindo',   value: account.following },
-                    { label: 'Posts',      value: account.postsCount },
-                  ].filter(s => s.value != null).map(s => (
-                    <div key={s.label}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
-                        {s.value >= 1000 ? `${(s.value/1000).toFixed(1)}K` : s.value}
-                      </div>
-                      <div style={{ fontSize: 9, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               <div style={{ borderTop: '1px solid var(--border)' }} />
 
