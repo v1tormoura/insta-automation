@@ -1,8 +1,9 @@
 'use strict';
 
-const express = require('express');
-const router = express.Router();
-const Account = require('../models/Account');
+const express   = require('express');
+const router    = express.Router();
+const Account   = require('../models/Account');
+const WarmupLog = require('../models/WarmupLog');
 const { startWarmup, stopWarmupAndSave, getActiveJobs } = require('../jobs/warmupJob');
 
 // GET /warmup — lista status de todas as contas
@@ -42,6 +43,22 @@ router.post('/:id/stop', async (req, res) => {
   try {
     const result = await stopWarmupAndSave(req.params.id);
     res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /warmup/logs?accountId=&limit=50
+router.get('/logs', async (req, res) => {
+  try {
+    const { accountId, limit = 60 } = req.query;
+    const filter = accountId ? { accountId } : {};
+    const logs = await WarmupLog.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(Math.min(200, Number(limit)))
+      .select('accountId username action detail targetUser status errorMsg createdAt')
+      .lean();
+    res.json(logs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

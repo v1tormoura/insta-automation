@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
 
 const DEFAULT_COMMENTS = [
@@ -36,11 +36,32 @@ function defaultCfg() {
   };
 }
 
+const LOG_ICON = { like: '❤️', comment: '💬', follow: '➕', cycle_start: '🔥', cycle_done: '✅', error: '❌' };
+const LOG_COLOR = { like: '#f43f5e', comment: '#3b82f6', follow: '#10b981', cycle_start: '#f59e0b', cycle_done: '#22c55e', error: '#ef4444' };
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return `${m}min atrás`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h atrás`;
+  return `${Math.floor(h / 24)}d atrás`;
+}
+
 export default function Warmup() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [configs, setConfigs]   = useState({});
   const [expanded, setExpanded] = useState(null);
+  const [logs,     setLogs]     = useState([]);
+
+  const loadLogs = useCallback(async () => {
+    try {
+      const r = await api.get('/warmup/logs', { params: { limit: 60 } });
+      setLogs(r.data || []);
+    } catch {}
+  }, []);
 
   async function load() {
     try {
@@ -67,7 +88,13 @@ export default function Warmup() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    loadLogs();
+    // auto-refresh logs every 30s when page is open
+    const t = setInterval(loadLogs, 30000);
+    return () => clearInterval(t);
+  }, [loadLogs]);
 
   function updateCfg(id, key, value) {
     setConfigs(prev => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
@@ -502,6 +529,74 @@ export default function Warmup() {
           </div>
         </div>
       )}
+
+      {/* ── Activity log ── */}
+      <div style={{ marginTop: 24, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
+        {/* Log header */}
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>📋</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Histórico de Ações</span>
+            {logs.length > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'var(--bg3)', color: 'var(--text3)' }}>
+                {logs.length} entradas
+              </span>
+            )}
+          </div>
+          <button onClick={loadLogs} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
+            ↺ Atualizar
+          </button>
+        </div>
+
+        {/* Log entries */}
+        {logs.length === 0 ? (
+          <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🔥</div>
+            Nenhuma ação registrada ainda. Inicie o aquecimento para ver o histórico aqui.
+          </div>
+        ) : (
+          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+            {logs.map((entry, i) => (
+              <div key={entry._id || i} style={{
+                padding: '10px 20px',
+                borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none',
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+                background: entry.status === 'error' ? 'rgba(239,68,68,.04)' : 'transparent',
+              }}>
+                {/* Icon */}
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: `${LOG_COLOR[entry.action] || '#64748b'}15`,
+                  fontSize: 14,
+                }}>
+                  {LOG_ICON[entry.action] || '•'}
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)' }}>@{entry.username}</span>
+                    <span style={{ fontSize: 12, color: entry.status === 'error' ? '#f87171' : 'var(--text)', lineHeight: 1.4 }}>
+                      {entry.detail}
+                    </span>
+                  </div>
+                  {entry.targetUser && (
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                      → @{entry.targetUser}
+                    </div>
+                  )}
+                </div>
+
+                {/* Time */}
+                <div style={{ flexShrink: 0, fontSize: 10, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+                  {timeAgo(entry.createdAt)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

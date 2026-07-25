@@ -5,8 +5,27 @@
  * Intensidades: leve (5-10 ações), medio (15-25), agressivo (30-50)
  */
 
-const Account = require('../models/Account');
+const Account   = require('../models/Account');
+const WarmupLog = require('../models/WarmupLog');
 const { broadcast } = require('../events/broadcaster');
+
+async function log(accountId, username, action, detail = '', opts = {}) {
+  try {
+    await WarmupLog.create({
+      accountId, username, action, detail,
+      targetUser:   opts.targetUser   || '',
+      targetPostId: opts.targetPostId || '',
+      status:       opts.status       || 'success',
+      errorMsg:     opts.error        || '',
+    });
+    // keep only last 500 per account
+    const count = await WarmupLog.countDocuments({ accountId });
+    if (count > 500) {
+      const oldest = await WarmupLog.find({ accountId }).sort({ createdAt: 1 }).limit(count - 500).select('_id');
+      await WarmupLog.deleteMany({ _id: { $in: oldest.map(d => d._id) } });
+    }
+  } catch {}
+}
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -70,12 +89,15 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'c
 
   const results = { likes: 0, comments: 0, follows: 0, errors: [] };
 
+  await log(account._id, account.username, 'cycle_start', `Iniciando ciclo ${intensity}`, { status: 'info' });
+
   try {
     // Busca timeline feed para interagir
     const feed = ig.feed.timeline();
     const posts = await feed.items();
 
     if (!posts || posts.length === 0) {
+      await log(account._id, account.username, 'error', 'Feed vazio — sem posts para interagir', { status: 'error' });
       return { status: 'sem_feed', ...results };
     }
 
@@ -88,11 +110,16 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'c
           if (!post.has_liked) {
             await ig.media.like({ mediaId: post.id, moduleInfo: { module_name: 'feed_timeline' }, d: 1 });
             results.likes++;
+            const owner = post.user?.username || '';
             console.log(`❤️ [Warmup] ${label} — curtiu post ${post.id}`);
+            await log(account._id, account.username, 'like',
+              `Curtiu post de @${owner}`,
+              { targetUser: owner, targetPostId: post.id });
           }
           await delay(rand(cfg.delayMin, cfg.delayMax));
         } catch (err) {
           results.errors.push(`like: ${err.message}`);
+          await log(account._id, account.username, 'error', `Erro ao curtir: ${err.message}`, { status: 'error', error: err.message });
         }
       }
     }
@@ -106,10 +133,15 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'c
           const text = commentTemplates[Math.floor(Math.random() * commentTemplates.length)];
           await ig.media.comment({ mediaId: post.id, text });
           results.comments++;
+          const owner = post.user?.username || '';
           console.log(`💬 [Warmup] ${label} — comentou "${text}" em ${post.id}`);
+          await log(account._id, account.username, 'comment',
+            `Comentou "${text}" no post de @${owner}`,
+            { targetUser: owner, targetPostId: post.id });
           await delay(rand(cfg.delayMin * 2, cfg.delayMax * 2));
         } catch (err) {
           results.errors.push(`comment: ${err.message}`);
+          await log(account._id, account.username, 'error', `Erro ao comentar: ${err.message}`, { status: 'error', error: err.message });
         }
       }
     }
@@ -124,11 +156,16 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'c
           if (userId) {
             await ig.friendship.create(userId);
             results.follows++;
-            console.log(`➕ [Warmup] ${label} — seguiu @${post.user.username}`);
+            const owner = post.user?.username || '';
+            console.log(`➕ [Warmup] ${label} — seguiu @${owner}`);
+            await log(account._id, account.username, 'follow',
+              `Seguiu @${owner}`,
+              { targetUser: owner });
             await delay(rand(cfg.delayMin, cfg.delayMax));
           }
         } catch (err) {
           results.errors.push(`follow: ${err.message}`);
+          await log(account._id, account.username, 'error', `Erro ao seguir: ${err.message}`, { status: 'error', error: err.message });
         }
       }
     }
@@ -145,7 +182,11 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'c
     results.errors.push(err.message);
   }
 
+  await log(account._id, account.username, 'cycle_done',
+    `Ciclo concluído — ${results.likes} curtidas, ${results.comments} comentários, ${results.follows} follows`,
+    { status: 'success' });
   console.log(`✅ [Warmup] ${label} — likes:${results.likes} comentários:${results.comments} follows:${results.follows}`);
+  broadcast('warmup', { action: 'cycle_done', username: account.username, ...results });
   return { status: 'ok', ...results };
 }
 
