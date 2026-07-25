@@ -8,9 +8,8 @@ const DEFAULT_COMMENTS = [
 ];
 
 const ACTIONS = [
-  { value: 'likes',    label: 'Curtidas',    icon: '❤️', color: '#f43f5e' },
-  { value: 'comments', label: 'Comentários', icon: '💬', color: '#3b82f6' },
-  { value: 'follows',  label: 'Follows',     icon: '➕', color: '#10b981' },
+  { value: 'likes',    label: 'Curtir comentários',    icon: '❤️', color: '#f43f5e', desc: 'Curte comentários nos seus posts' },
+  { value: 'comments', label: 'Responder comentários', icon: '💬', color: '#3b82f6', desc: 'Responde comentários automaticamente' },
 ];
 
 const INTENSITY = [
@@ -50,13 +49,11 @@ function timeAgo(dateStr) {
 }
 
 export default function Warmup() {
-  const [accounts,       setAccounts]       = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [configs,        setConfigs]        = useState({});
-  const [expanded,       setExpanded]       = useState(null);
-  const [logs,           setLogs]           = useState([]);
-  const [passwords,      setPasswords]      = useState({});
-  const [sessionLoading, setSessionLoading] = useState({});
+  const [accounts, setAccounts] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [configs,  setConfigs]  = useState({});
+  const [expanded, setExpanded] = useState(null);
+  const [logs,     setLogs]     = useState([]);
 
   const loadLogs = useCallback(async () => {
     try {
@@ -128,28 +125,6 @@ export default function Warmup() {
     }
   }
 
-  async function handleLogin(id) {
-    const pw = passwords[id]?.trim();
-    if (!pw) return alert('Digite a senha da conta.');
-    setSessionLoading(prev => ({ ...prev, [id]: true }));
-    try {
-      await api.post(`/warmup/${id}/login`, { password: pw });
-      setPasswords(prev => ({ ...prev, [id]: '' }));
-      await load();
-    } catch (err) {
-      alert(err.response?.data?.error || err.message);
-    } finally {
-      setSessionLoading(prev => ({ ...prev, [id]: false }));
-    }
-  }
-
-  async function handleLogout(id) {
-    if (!confirm('Remover sessão Private API desta conta?')) return;
-    try {
-      await api.post(`/warmup/${id}/logout`);
-      await load();
-    } catch {}
-  }
 
   const activeCount = accounts.filter(a => a.warmupActive).length;
   const fmtNum = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
@@ -379,55 +354,20 @@ export default function Warmup() {
               {isExpanded && (
                 <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                  {/* ── Sessão Private API ── */}
+                  {/* ── Modo API Oficial ── */}
                   <div style={{
-                    borderRadius: 11, overflow: 'hidden',
-                    border: `1px solid ${account.hasSession ? 'rgba(34,197,94,.3)' : 'rgba(245,158,11,.35)'}`,
-                    background: account.hasSession ? 'rgba(34,197,94,.05)' : 'rgba(245,158,11,.04)',
+                    borderRadius: 10, padding: '9px 13px',
+                    border: '1px solid rgba(99,102,241,.25)',
+                    background: 'rgba(99,102,241,.06)',
+                    display: 'flex', alignItems: 'center', gap: 9,
                   }}>
-                    <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 16 }}>{account.hasSession ? '🔐' : '⚠️'}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: account.hasSession ? '#22c55e' : '#f59e0b' }}>
-                          {account.hasSession ? 'Sessão conectada' : 'Sessão não conectada'}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
-                          {account.hasSession
-                            ? 'Private API ativa — aquecimento pode executar ações reais'
-                            : 'Sem sessão o aquecimento roda mas não executa nenhuma ação'}
-                        </div>
+                    <span style={{ fontSize: 15 }}>🔗</span>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#818cf8' }}>API Oficial Instagram</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1 }}>
+                        Curte e responde comentários dos seus posts · não precisa de senha adicional
                       </div>
-                      {account.hasSession && (
-                        <button onClick={() => handleLogout(account._id)} style={{
-                          fontSize: 10, fontWeight: 600, padding: '4px 9px', borderRadius: 7,
-                          background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)',
-                          color: '#f87171', cursor: 'pointer', whiteSpace: 'nowrap',
-                        }}>Desconectar</button>
-                      )}
                     </div>
-                    {!account.hasSession && (
-                      <div style={{ padding: '0 14px 12px', display: 'flex', gap: 8 }}>
-                        <input
-                          type="password"
-                          placeholder={`Senha do @${account.username}`}
-                          value={passwords[account._id] || ''}
-                          onChange={e => setPasswords(prev => ({ ...prev, [account._id]: e.target.value }))}
-                          onKeyDown={e => e.key === 'Enter' && handleLogin(account._id)}
-                          style={{ ...inputStyle, flex: 1, fontSize: 12 }}
-                        />
-                        <button
-                          onClick={() => handleLogin(account._id)}
-                          disabled={sessionLoading[account._id]}
-                          style={{
-                            padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                            background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff',
-                            fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0,
-                            opacity: sessionLoading[account._id] ? .6 : 1,
-                          }}>
-                          {sessionLoading[account._id] ? '...' : '🔑 Conectar'}
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   {/* Intensity */}

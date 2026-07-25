@@ -1,13 +1,35 @@
 'use strict';
 
 /**
- * Aquecimento de contas — simula comportamento humano via Private API
- * Intensidades: leve (5-10 ações), medio (15-25), agressivo (30-50)
+ * Aquecimento de contas via Instagram Graph API (oficial)
+ * Ações disponíveis: responder comentários, curtir comentários,
+ * publicar respostas automáticas, monitorar posts.
  */
 
 const Account   = require('../models/Account');
 const WarmupLog = require('../models/WarmupLog');
 const { broadcast } = require('../events/broadcaster');
+
+const IG_API = 'https://graph.instagram.com/v21.0';
+
+async function igGet(path, token) {
+  const sep = path.includes('?') ? '&' : '?';
+  const res = await fetch(`${IG_API}${path}${sep}access_token=${token}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data;
+}
+
+async function igPost(path, token, body = {}) {
+  const res = await fetch(`${IG_API}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, access_token: token }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data;
+}
 
 async function log(accountId, username, action, detail = '', opts = {}) {
   try {
@@ -18,7 +40,6 @@ async function log(accountId, username, action, detail = '', opts = {}) {
       status:       opts.status       || 'success',
       errorMsg:     opts.error        || '',
     });
-    // keep only last 500 per account
     const count = await WarmupLog.countDocuments({ accountId });
     if (count > 500) {
       const oldest = await WarmupLog.find({ accountId }).sort({ createdAt: 1 }).limit(count - 500).select('_id');
@@ -28,12 +49,12 @@ async function log(accountId, username, action, detail = '', opts = {}) {
 }
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const rand  = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-const INTENSITY = {
-  leve:      { likes: [3, 6],   comments: [1, 2],  follows: [2, 4],  delayMin: 15000, delayMax: 45000 },
-  medio:     { likes: [8, 15],  comments: [3, 5],  follows: [5, 10], delayMin: 8000,  delayMax: 25000 },
-  agressivo: { likes: [20, 35], comments: [6, 12], follows: [10, 20],delayMin: 3000,  delayMax: 12000 },
+const INTENSITY_LIMITS = {
+  leve:      { maxReplies: 3,  maxLikes: 5,  delayMin: 8000,  delayMax: 20000 },
+  medio:     { maxReplies: 8,  maxLikes: 15, delayMin: 4000,  delayMax: 10000 },
+  agressivo: { maxReplies: 15, maxLikes: 30, delayMin: 2000,  delayMax: 6000  },
 };
 
 const COMMENT_TEMPLATES = [
@@ -42,162 +63,125 @@ const COMMENT_TEMPLATES = [
   'Sensacional!', '🙌', 'Maravilhoso!', 'Show!', '💪', 'Que demais!',
 ];
 
-function randomComment() {
-  return COMMENT_TEMPLATES[Math.floor(Math.random() * COMMENT_TEMPLATES.length)];
+function pickComment(templates) {
+  const list = (templates?.length) ? templates : COMMENT_TEMPLATES;
+  return list[Math.floor(Math.random() * list.length)];
 }
 
-function getIgClient() {
-  const { IgApiClient } = require('instagram-private-api');
-  return IgApiClient;
-}
+/* ──────────────────── Warmup via API Oficial ──────────────────── */
+async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'comments']) {
+  const label  = `@${account.username}`;
+  const token  = account.accessToken;
+  const userId = account.igUserId;
+  const limits = INTENSITY_LIMITS[intensity] || INTENSITY_LIMITS.leve;
+  const commentTemplates = account.warmupComments?.length ? account.warmupComments : COMMENT_TEMPLATES;
 
-async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'comments', 'follows']) {
-  const label = `@${account.username}`;
-  const baseCfg = INTENSITY[intensity] || INTENSITY.leve;
-  const maxLikes = account.warmupMaxLikes || baseCfg.likes[1];
-  const maxComments = account.warmupMaxComments || baseCfg.comments[1];
-  const maxFollows = account.warmupMaxFollows || baseCfg.follows[1];
-  const commentTemplates = (account.warmupComments?.length ? account.warmupComments : COMMENT_TEMPLATES);
-  const cfg = {
-    ...baseCfg,
-    likes: [1, maxLikes],
-    comments: [1, maxComments],
-    follows: [1, maxFollows],
-  };
-
-  let ig;
-  try {
-    const IgApiClient = getIgClient();
-    ig = new IgApiClient();
-
-    // Carrega sessão salva
-    if (account.igSession && account.igSession !== 'use_cookies') {
-      try {
-        const state = JSON.parse(account.igSession);
-        ig.state.generateDevice(state._deviceSeed || account.username);
-        await ig.state.deserialize(state);
-      } catch {
-        ig.state.generateDevice(account.username);
-      }
-    } else {
-      ig.state.generateDevice(account.username);
-    }
-  } catch (err) {
-    console.log(`⚠️ [Warmup] ${label} — Private API indisponível: ${err.message}`);
-    return { status: 'erro', error: err.message };
+  if (!token) {
+    await log(account._id, account.username, 'error', 'Conta sem token OAuth — reconecte a conta', { status: 'error' });
+    return { status: 'sem_token', likes: 0, comments: 0, follows: 0, errors: ['sem token'] };
   }
 
   const results = { likes: 0, comments: 0, follows: 0, errors: [] };
 
-  await log(account._id, account.username, 'cycle_start', `Iniciando ciclo ${intensity}`, { status: 'info' });
+  await log(account._id, account.username, 'cycle_start',
+    `Iniciando ciclo ${intensity} via API Oficial`, { status: 'info' });
 
   try {
-    // Busca timeline feed para interagir
-    const feed = ig.feed.timeline();
-    const posts = await feed.items();
+    // ── Busca posts recentes ────────────────────────────────────────────
+    const mediaData = await igGet(`/${userId}/media?fields=id,timestamp,comments_count&limit=8`, token);
+    const posts = mediaData.data || [];
 
-    if (!posts || posts.length === 0) {
-      await log(account._id, account.username, 'error', 'Feed vazio — sem posts para interagir', { status: 'error' });
-      return { status: 'sem_feed', ...results };
+    if (posts.length === 0) {
+      await log(account._id, account.username, 'cycle_done',
+        'Nenhum post encontrado na conta — publique conteúdo para ativar o aquecimento',
+        { status: 'info' });
+      return { status: 'sem_posts', ...results };
     }
 
-    // ── CURTIDAS ─────────────────────────────────────────────────────
-    if (actions.includes('likes')) {
-      const count = rand(...cfg.likes);
-      const targets = posts.slice(0, Math.min(count, posts.length));
-      for (const post of targets) {
+    // ── Responder comentários não respondidos ───────────────────────────
+    if (actions.includes('comments') || actions.includes('likes')) {
+      let repliesDone = 0;
+      let likesDone   = 0;
+
+      for (const post of posts) {
+        if (repliesDone >= limits.maxReplies && likesDone >= limits.maxLikes) break;
+
+        let commentsData;
         try {
-          if (!post.has_liked) {
-            await ig.media.like({ mediaId: post.id, moduleInfo: { module_name: 'feed_timeline' }, d: 1 });
-            results.likes++;
-            const owner = post.user?.username || '';
-            console.log(`❤️ [Warmup] ${label} — curtiu post ${post.id}`);
-            await log(account._id, account.username, 'like',
-              `Curtiu post de @${owner}`,
-              { targetUser: owner, targetPostId: post.id });
+          commentsData = await igGet(`/${post.id}/comments?fields=id,text,username,replies{id}&limit=20`, token);
+        } catch {
+          continue;
+        }
+
+        const comments = commentsData.data || [];
+
+        for (const comment of comments) {
+          // ── Curtir comentário ──
+          if (actions.includes('likes') && likesDone < limits.maxLikes) {
+            try {
+              await igPost(`/${comment.id}/likes`, token);
+              likesDone++;
+              results.likes++;
+              await log(account._id, account.username, 'like',
+                `Curtiu comentário de @${comment.username}`,
+                { targetUser: comment.username, targetPostId: post.id });
+              await delay(rand(limits.delayMin, limits.delayMax));
+            } catch (e) {
+              // like de comentário pode não estar disponível em todos os planos — ignora silenciosamente
+            }
           }
-          await delay(rand(cfg.delayMin, cfg.delayMax));
-        } catch (err) {
-          results.errors.push(`like: ${err.message}`);
-          await log(account._id, account.username, 'error', `Erro ao curtir: ${err.message}`, { status: 'error', error: err.message });
-        }
-      }
-    }
 
-    // ── COMENTÁRIOS ───────────────────────────────────────────────────
-    if (actions.includes('comments')) {
-      const count = rand(...cfg.comments);
-      const targets = posts.slice(0, Math.min(count, posts.length));
-      for (const post of targets) {
-        try {
-          const text = commentTemplates[Math.floor(Math.random() * commentTemplates.length)];
-          await ig.media.comment({ mediaId: post.id, text });
-          results.comments++;
-          const owner = post.user?.username || '';
-          console.log(`💬 [Warmup] ${label} — comentou "${text}" em ${post.id}`);
-          await log(account._id, account.username, 'comment',
-            `Comentou "${text}" no post de @${owner}`,
-            { targetUser: owner, targetPostId: post.id });
-          await delay(rand(cfg.delayMin * 2, cfg.delayMax * 2));
-        } catch (err) {
-          results.errors.push(`comment: ${err.message}`);
-          await log(account._id, account.username, 'error', `Erro ao comentar: ${err.message}`, { status: 'error', error: err.message });
-        }
-      }
-    }
-
-    // ── SEGUIR ────────────────────────────────────────────────────────
-    if (actions.includes('follows')) {
-      const count = rand(...cfg.follows);
-      const targets = posts.slice(0, Math.min(count, posts.length));
-      for (const post of targets) {
-        try {
-          const userId = post.user?.pk;
-          if (userId) {
-            await ig.friendship.create(userId);
-            results.follows++;
-            const owner = post.user?.username || '';
-            console.log(`➕ [Warmup] ${label} — seguiu @${owner}`);
-            await log(account._id, account.username, 'follow',
-              `Seguiu @${owner}`,
-              { targetUser: owner });
-            await delay(rand(cfg.delayMin, cfg.delayMax));
+          // ── Responder comentário (apenas se ainda não tem resposta) ──
+          const alreadyReplied = (comment.replies?.data?.length || 0) > 0;
+          if (actions.includes('comments') && !alreadyReplied && repliesDone < limits.maxReplies) {
+            try {
+              const text = pickComment(commentTemplates);
+              await igPost(`/${comment.id}/replies`, token, { message: text });
+              repliesDone++;
+              results.comments++;
+              await log(account._id, account.username, 'comment',
+                `Respondeu comentário de @${comment.username}: "${text}"`,
+                { targetUser: comment.username, targetPostId: post.id });
+              await delay(rand(limits.delayMin * 2, limits.delayMax * 2));
+            } catch (e) {
+              results.errors.push(`reply: ${e.message}`);
+              await log(account._id, account.username, 'error',
+                `Erro ao responder comentário: ${e.message}`,
+                { status: 'error', error: e.message });
+            }
           }
-        } catch (err) {
-          results.errors.push(`follow: ${err.message}`);
-          await log(account._id, account.username, 'error', `Erro ao seguir: ${err.message}`, { status: 'error', error: err.message });
         }
       }
-    }
 
-    // Salva sessão atualizada
-    try {
-      const state = await ig.state.serialize();
-      delete state.constants;
-      await Account.findByIdAndUpdate(account._id, { igSession: JSON.stringify(state) });
-    } catch {}
+      if (repliesDone === 0 && likesDone === 0) {
+        await log(account._id, account.username, 'cycle_done',
+          `${posts.length} post(s) monitorado(s) — sem novos comentários para responder`,
+          { status: 'info' });
+        broadcast('warmup', { action: 'cycle_done', username: account.username, ...results });
+        return { status: 'ok', ...results };
+      }
+    }
 
   } catch (err) {
-    console.log(`💥 [Warmup] ${label} — erro geral: ${err.message}`);
+    console.log(`💥 [Warmup] ${label} — erro: ${err.message}`);
+    await log(account._id, account.username, 'error', err.message, { status: 'error', error: err.message });
     results.errors.push(err.message);
   }
 
-  await log(account._id, account.username, 'cycle_done',
-    `Ciclo concluído — ${results.likes} curtidas, ${results.comments} comentários, ${results.follows} follows`,
-    { status: 'success' });
-  console.log(`✅ [Warmup] ${label} — likes:${results.likes} comentários:${results.comments} follows:${results.follows}`);
+  const summary = `Ciclo concluído — ${results.likes} curtidas, ${results.comments} respostas`;
+  await log(account._id, account.username, 'cycle_done', summary, { status: 'success' });
+  console.log(`✅ [Warmup] ${label} — ${summary}`);
   broadcast('warmup', { action: 'cycle_done', username: account.username, ...results });
   return { status: 'ok', ...results };
 }
 
-// Mapa de jobs ativos: accountId → { timer, running }
+/* ──────────────────── Job scheduler ──────────────────── */
 const _activeJobs = new Map();
 
 async function startWarmup(accountId, { intensity, actions, intervalMinutes, maxLikes, maxComments, maxFollows, commentList }) {
   const account = await Account.findById(accountId);
   if (!account) throw new Error('Conta não encontrada');
 
-  // Para job anterior se existir
   stopWarmup(accountId);
 
   const interval = (intervalMinutes || 30) * 60 * 1000;
@@ -213,10 +197,8 @@ async function startWarmup(accountId, { intensity, actions, intervalMinutes, max
     broadcast('accounts', { action: 'synced' });
   }
 
-  // Executa imediatamente
   run();
 
-  // Agenda próximas execuções
   const timer = setInterval(run, interval);
   _activeJobs.set(String(accountId), { timer });
 
@@ -225,9 +207,9 @@ async function startWarmup(accountId, { intensity, actions, intervalMinutes, max
     warmupIntensity: intensity,
     warmupActions: actions,
     warmupInterval: intervalMinutes || 30,
-    warmupMaxLikes: maxLikes || 6,
+    warmupMaxLikes:    maxLikes    || 6,
     warmupMaxComments: maxComments || 2,
-    warmupMaxFollows: maxFollows || 4,
+    warmupMaxFollows:  maxFollows  || 4,
     warmupComments: Array.isArray(commentList) ? commentList : [],
   });
 
