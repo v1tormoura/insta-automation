@@ -12,6 +12,7 @@ const { startHealthCheck } = require('./jobs/healthCheck');
 const { startLoopJob }    = require('./jobs/loopJob');
 const { startInsightAutoSync } = require('./services/insightSyncService');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
+const { startRepostJob }      = require('./jobs/repostJob');
 const auth = require('./middleware/auth');
 const app = express();
 
@@ -70,6 +71,10 @@ app.use('/warmup',       auth, require('./routes/warmupRoutes'));
 app.use('/loops',        auth, require('./routes/loopRoutes'));
 app.use('/profile-edit', auth, require('./routes/profileEditRoutes'));
 app.use('/insights',     auth, require('./routes/insightRoutes'));
+app.use('/analytics',    auth, require('./routes/analyticsRoutes'));
+app.use('/abtests',      auth, require('./routes/abtestRoutes'));
+app.use('/repost',       auth, require('./routes/repostRoutes'));
+app.use('/viral',        auth, require('./routes/viralRoutes'));
 
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);
@@ -141,6 +146,7 @@ startHealthCheck();
 startLoopJob();
 startInsightAutoSync();
 startTokenRefreshJob();
+startRepostJob();
 
 // Limpa vídeos processados antigos a cada 6 horas
 setInterval(() => cleanProcessedFiles(24), 6 * 60 * 60 * 1000);
