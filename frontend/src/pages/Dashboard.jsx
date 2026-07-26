@@ -857,31 +857,109 @@ export default function Dashboard() {
         {/* ── Engajamento + Erros 7d ── */}
         <section className="operations-grid" style={{ gridTemplateColumns:'1fr 1fr' }}>
 
-          {/* Engajamento médio por conta */}
-          <div className="panel">
-            <PanelHeader title="ENGAJAMENTO MÉDIO POR CONTA" icon={TrendingUp}
-              right={<span style={{ fontSize:10, color:'#5a7a99' }}>últimos 30 dias</span>} />
+          {/* Top Contas · Views */}
+          <div className="panel" style={{ padding:0, overflow:'hidden' }}>
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px 10px', borderBottom:'1px solid rgba(34,215,255,.07)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <TrendingUp size={14} style={{ color:'#22d7ff', flexShrink:0 }} />
+                <span style={{ fontSize:11, fontWeight:700, letterSpacing:'.07em', color:'#7eaec8' }}>TOP CONTAS · VISUALIZAÇÕES</span>
+              </div>
+              <span style={{ fontSize:10, fontWeight:600, color:'#1e3a52', background:'rgba(34,215,255,.06)', border:'1px solid rgba(34,215,255,.12)', borderRadius:20, padding:'2px 8px' }}>30 dias</span>
+            </div>
+
             {(!d.avgEngagementByAccount || d.avgEngagementByAccount.length === 0) ? (
-              <div style={{ padding:'20px 0', textAlign:'center', fontSize:12, color:'#334155' }}>
-                Nenhum dado de insight disponível. Faça um Sync em Top Posts.
+              <div style={{ padding:'28px 16px', textAlign:'center', fontSize:12, color:'#334155' }}>
+                Nenhum dado. Faça Sync em Top Posts.
               </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-                {(d.avgEngagementByAccount || []).slice(0, 6).map((acc, i) => (
-                  <div key={acc.accountId || i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid rgba(51,65,85,.12)' }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:'#334155', width:18, flexShrink:0 }}>{i+1}</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:'#d9f4ff' }}>@{acc.username}</div>
-                      <div style={{ fontSize:10, color:'#5a7a99', marginTop:1 }}>{acc.totalPosts} posts · {fmtK(acc.avgLikes)} likes médios</div>
-                    </div>
-                    <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontSize:14, fontWeight:800, color:'#22d7ff', fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.avgViews)}</div>
-                      <div style={{ fontSize:10, color:'#5a7a99' }}>views/post</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            ) : (() => {
+              const list = (d.avgEngagementByAccount || []).slice(0, 6);
+              const maxViews = Math.max(...list.map(a => a.totalViews || a.avgViews || 0), 1);
+              return (
+                <div style={{ padding:'4px 0 2px' }}>
+                  {list.map((acc, i) => {
+                    const isTop   = i === 0;
+                    const views   = acc.totalViews || 0;
+                    const pct     = Math.round((views / maxViews) * 100);
+                    const rankColors = ['#fbbf24','#94a3b8','#cd7c3a'];
+                    const rankColor  = rankColors[i] || '#334155';
+                    const avatarUrl  = acc.avatar
+                      ? (acc.avatar.startsWith('/uploads') ? `${API_BASE}${acc.avatar}` : proxyImg(acc.avatar))
+                      : null;
+
+                    return (
+                      <div key={acc.accountId || i} style={{
+                        padding:'10px 16px 8px',
+                        borderBottom: i < list.length - 1 ? '1px solid rgba(51,65,85,.13)' : 'none',
+                        background: isTop ? 'rgba(251,191,36,.03)' : 'transparent',
+                        borderLeft: isTop ? '2px solid rgba(251,191,36,.35)' : '2px solid transparent',
+                      }}>
+                        {/* Row: rank + avatar + name + views */}
+                        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                          {/* Rank */}
+                          <span style={{
+                            fontSize:11, fontWeight:800, width:18, flexShrink:0, textAlign:'center',
+                            color: rankColor,
+                            textShadow: isTop ? '0 0 8px rgba(251,191,36,.5)' : 'none',
+                          }}>{i+1}</span>
+
+                          {/* Avatar */}
+                          <div style={{
+                            width:28, height:28, borderRadius:'50%', flexShrink:0, overflow:'hidden',
+                            border: `1.5px solid ${isTop ? 'rgba(251,191,36,.5)' : 'rgba(34,215,255,.2)'}`,
+                            background:'rgba(14,26,40,1)',
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                          }}>
+                            {avatarUrl ? (
+                              <img src={avatarUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                                onError={e => { e.target.style.display='none'; }} />
+                            ) : (
+                              <span style={{ fontSize:11, fontWeight:700, color: isTop ? '#fbbf24' : '#22d7ff' }}>
+                                {(acc.username||'?')[0].toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Name + stats */}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{
+                              fontSize:12, fontWeight:700, color: isTop ? '#ffe9a0' : '#d9f4ff',
+                              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                            }}>@{acc.username}</div>
+                            <div style={{ fontSize:10, color:'#415e76', marginTop:1 }}>
+                              {acc.totalPosts} posts · {fmtK(acc.avgLikes)} likes médios
+                            </div>
+                          </div>
+
+                          {/* Total views */}
+                          <div style={{ textAlign:'right', flexShrink:0 }}>
+                            <div style={{
+                              fontSize:15, fontWeight:800, color:'#22d7ff',
+                              fontVariantNumeric:'tabular-nums', letterSpacing:'-0.5px',
+                              textShadow: isTop ? '0 0 12px rgba(34,215,255,.4)' : 'none',
+                            }}>{fmtK(views)}</div>
+                            <div style={{ fontSize:9, color:'#415e76', marginTop:1 }}>
+                              views · {fmtK(acc.avgViews)}/post
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div style={{ marginTop:7, height:3, borderRadius:2, background:'rgba(51,65,85,.25)', overflow:'hidden', marginLeft:28+10+18 }}>
+                          <div style={{
+                            width:`${pct}%`, height:'100%', borderRadius:2,
+                            background: isTop
+                              ? 'linear-gradient(90deg, #fbbf24, #22d7ff)'
+                              : 'rgba(34,215,255,.45)',
+                            transition:'width .5s ease',
+                          }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Erros por dia — 7 dias */}

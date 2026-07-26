@@ -267,22 +267,31 @@ exports.getDashboard = async (req, res) => {
           { $match: { postedAt: { $gte: thirtyDaysAgo } } },
           { $group: {
             _id: '$accountId',
-            avgViews: { $avg: '$videoViews' },
-            avgLikes: { $avg: '$likeCount' },
+            avgViews:    { $avg: '$videoViews' },
+            avgLikes:    { $avg: '$likeCount' },
             avgComments: { $avg: '$commentsCount' },
-            totalPosts: { $sum: 1 },
+            totalViews:  { $sum: '$videoViews' },
+            totalLikes:  { $sum: '$likeCount' },
+            totalPosts:  { $sum: 1 },
             username: { $first: '$username' },
           }},
-          { $sort: { avgViews: -1 } },
+          { $sort: { totalViews: -1 } },
           { $limit: 10 },
         ]);
+        const accIds   = engRaw.map(r => r._id).filter(Boolean);
+        const accDocs  = await Account.find({ _id: { $in: accIds } }).select('avatar');
+        const avatarMap = {};
+        accDocs.forEach(a => { avatarMap[String(a._id)] = a.avatar || null; });
         avgEngagementByAccount = engRaw.map(r => ({
-          accountId: r._id,
-          username:  r.username || String(r._id),
-          avgViews:  Math.round(r.avgViews   || 0),
-          avgLikes:  Math.round(r.avgLikes   || 0),
+          accountId:   r._id,
+          username:    r.username || String(r._id),
+          avgViews:    Math.round(r.avgViews    || 0),
+          avgLikes:    Math.round(r.avgLikes    || 0),
           avgComments: Math.round(r.avgComments || 0),
-          totalPosts: r.totalPosts,
+          totalViews:  Math.round(r.totalViews  || 0),
+          totalLikes:  Math.round(r.totalLikes  || 0),
+          totalPosts:  r.totalPosts,
+          avatar:      avatarMap[String(r._id)] || null,
         }));
       } catch {}
     }
