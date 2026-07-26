@@ -648,7 +648,8 @@ export default function TopPosts() {
   const [insights, setInsights]   = useState([]);
   const [totals, setTotals]       = useState({});
   const [lastSync, setLastSync]   = useState(null);
-  const [accounts, setAccounts]   = useState([]);
+  const [accounts, setAccounts]         = useState([]);
+  const [loopAccountIds, setLoopAccountIds] = useState([]); // IDs das contas em loops ativos
 
   const [metric, setMetric]       = useState('Views');
   const [period, setPeriod]       = useState('30d');
@@ -668,23 +669,43 @@ export default function TopPosts() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.get('/insights', { params: {
+      const params = {
         metric:    metricKey(metric),
         period,
         mediaType: type === 'Tudo' ? 'all' : type.toLowerCase(),
-        accountId: accountId || undefined,
         limit:     50,
-      }});
+      };
+      if (accountId) {
+        params.accountId = accountId;
+      } else if (loopAccountIds.length) {
+        params.accountIds = loopAccountIds.join(',');
+      }
+      const res = await api.get('/insights', { params });
       setInsights(res.data.insights || []);
       setTotals(res.data.totals     || {});
       setLastSync(res.data.lastSync);
     } catch {}
-  }, [metric, period, type, accountId]);
+  }, [metric, period, type, accountId, loopAccountIds]);
 
   loadRef.current = load;
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api.get('/accounts?limit=200').then(r => setAccounts(r.data.accounts || [])).catch(() => {}); }, []);
+  useEffect(() => {
+    // Busca loops para saber quais contas estão na automação
+    Promise.all([
+      api.get('/accounts?limit=200'),
+      api.get('/loops?limit=200'),
+    ]).then(([accRes, loopRes]) => {
+      const allAccounts = accRes.data.accounts || [];
+      const loops = Array.isArray(loopRes.data) ? loopRes.data : (loopRes.data.loops || []);
+      const activeIds = new Set(loops.flatMap(l => (l.accounts || []).map(a => String(a._id || a))));
+      const activeAccounts = allAccounts.filter(a => activeIds.has(String(a._id)));
+      setAccounts(activeAccounts);
+      setLoopAccountIds([...activeIds]);
+    }).catch(() => {
+      api.get('/accounts?limit=200').then(r => setAccounts(r.data.accounts || [])).catch(() => {});
+    });
+  }, []);
   // Reload from DB every 15 s
   useEffect(() => {
     const id = setInterval(() => loadRef.current?.(), 15_000);

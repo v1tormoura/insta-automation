@@ -27,13 +27,18 @@ exports.syncAccount = async (req, res) => {
 // GET /insights?metric=views&period=30d&mediaType=all&accountId=&limit=50
 exports.getInsights = async (req, res) => {
   try {
-    const { metric = 'engagementScore', period = '30d', mediaType, accountId, limit = 50 } = req.query;
+    const { metric = 'engagementScore', period = '30d', mediaType, accountId, accountIds, limit = 50 } = req.query;
 
     const days = { '7d': 7, '30d': 30, '90d': 90, '1a': 365 }[period] || 30;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const filter = { postedAt: { $gte: since } };
-    if (accountId) filter.accountId = accountId;
+    if (accountId) {
+      filter.accountId = accountId;
+    } else if (accountIds) {
+      const ids = accountIds.split(',').filter(Boolean);
+      if (ids.length) filter.accountId = { $in: ids };
+    }
     if (mediaType && mediaType !== 'all' && mediaType !== 'tudo') {
       if      (mediaType === 'reel')      filter.mediaType = 'VIDEO';
       else if (mediaType === 'foto')      filter.mediaType = 'IMAGE';
