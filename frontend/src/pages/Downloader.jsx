@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-function tok() { return localStorage.getItem('token') || ''; }
+function tok() { return localStorage.getItem('instaflow_token') || ''; }
 function auth() { return { headers: { Authorization: `Bearer ${tok()}` } }; }
 function proxyImg(url) { return url ? `${API}/image-proxy?url=${encodeURIComponent(url)}` : ''; }
 
