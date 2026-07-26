@@ -655,7 +655,16 @@ async function postReel(account, post) {
   if (!coverBuffer) { try { coverBuffer = await extractCoverFrame(videoPath); } catch {} }
 
   const location = post.location ? await searchLocation(ig, post.location) : null;
-  const caption  = post.caption || '';
+
+  // Resolve variáveis dinâmicas na legenda no momento da publicação
+  const now = new Date();
+  const rawCaption = post.caption || '';
+  const caption = rawCaption
+    .replace(/\{data\}/gi,     now.toLocaleDateString('pt-BR'))
+    .replace(/\{hora\}/gi,     now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
+    .replace(/\{username\}/gi, `@${account.username}`)
+    .replace(/\{nome\}/gi,     account.name || account.username || '')
+    .replace(/\{cidade\}/gi,   post.location || account.location || '');
 
   try {
     return await postReelViaClips(ig, videoBuffer, videoPath, { caption, coverBuffer });

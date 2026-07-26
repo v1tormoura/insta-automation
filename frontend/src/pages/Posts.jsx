@@ -26,7 +26,8 @@ export default function Posts() {
   const [postPage, setPostPage] = useState(1);
   const [postPagination, setPostPagination] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [ctaComment, setCtaComment] = useState('');
+  const [ctaComment, setCtaComment]       = useState('');
+  const [engageComment, setEngageComment] = useState('');
 
   // Library picker
   const [mediaSource, setMediaSource]     = useState('upload'); // 'upload' | 'library'
@@ -147,13 +148,14 @@ export default function Posts() {
     form.append('intervalMinutes', intervalMins);
     form.append('simultaneousLimit', simultaneousLimit);
     form.append('processMode', processMode);
-    if (ctaComment.trim()) form.append('ctaComment', ctaComment);
+    if (ctaComment.trim())    form.append('ctaComment', ctaComment);
+    if (engageComment.trim()) form.append('engageComment', engageComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     try {
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null); setLibSelected({});
       setLocation(''); setSelectedAccounts({}); setScheduledAt('');
-      setIntervalMins(0); setSelectedLegend(''); setCtaComment('');
+      setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
       showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
       load();
     } catch (err) {
@@ -333,6 +335,9 @@ export default function Posts() {
               <textarea className="txta"
                 placeholder="Escreva a legenda do seu post. Use #hashtags e {variáveis}."
                 value={caption} maxLength={2200} onChange={e => setCaption(e.target.value)} rows={4} />
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
+              </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>🎲 Aleatória</button>
               </div>
@@ -349,6 +354,32 @@ export default function Posts() {
                 </datalist>
               </div>
             </div>
+          </div>
+
+          {/* Engage Comment */}
+          <div className="card">
+            <div className="card-header">
+              <h3>🔥 Pergunta de engajamento</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text2)' }}>
+                <input
+                  type="checkbox"
+                  checked={!!engageComment}
+                  onChange={e => setEngageComment(e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '')}
+                />
+                {engageComment ? 'Ativo' : 'Inativo'}
+              </label>
+            </div>
+            {!!engageComment && (
+              <div className="card-body">
+                <textarea className="txta" rows={2}
+                  placeholder="Ex: Gostaram? Comenta aí! 👇"
+                  value={engageComment}
+                  onChange={e => setEngageComment(e.target.value)} />
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                  Postado ~60 min após publicar · estimula comentários pro algoritmo
+                </div>
+              </div>
+            )}
           </div>
 
           {/* CTA Comment */}

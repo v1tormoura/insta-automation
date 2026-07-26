@@ -4,6 +4,8 @@ const Growth = require('../models/Growth');
 const Account = require('../models/Account');
 const Post = require('../models/Post');
 const mongoose = require('mongoose');
+let Insight;
+try { Insight = require('../models/Insight'); } catch {}
 
 function startOfDay() {
   const d = new Date();
@@ -257,6 +259,53 @@ exports.getDashboard = async (req, res) => {
       .sort((a, b) => b.gained - a.gained)
       .slice(0, 10);
 
+    // Engajamento médio por conta (views + likes) — últimos 30 dias
+    let avgEngagementByAccount = [];
+    if (Insight) {
+      try {
+        const engRaw = await Insight.aggregate([
+          { $match: { postedAt: { $gte: thirtyDaysAgo } } },
+          { $group: {
+            _id: '$accountId',
+            avgViews: { $avg: '$videoViews' },
+            avgLikes: { $avg: '$likeCount' },
+            avgComments: { $avg: '$commentsCount' },
+            totalPosts: { $sum: 1 },
+            username: { $first: '$username' },
+          }},
+          { $sort: { avgViews: -1 } },
+          { $limit: 10 },
+        ]);
+        avgEngagementByAccount = engRaw.map(r => ({
+          accountId: r._id,
+          username:  r.username || String(r._id),
+          avgViews:  Math.round(r.avgViews   || 0),
+          avgLikes:  Math.round(r.avgLikes   || 0),
+          avgComments: Math.round(r.avgComments || 0),
+          totalPosts: r.totalPosts,
+        }));
+      } catch {}
+    }
+
+    // Erros por dia — últimos 7 dias
+    const dailyErrorsRaw = await Post.aggregate([
+      { $match: { status: 'erro', updatedAt: { $gte: sevenDaysAgo } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
+        count: { $sum: 1 },
+      }},
+    ]);
+    const errMap = {};
+    dailyErrorsRaw.forEach(d => { errMap[d._id] = d.count; });
+    const dailyErrors7d = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setHours(12, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      dailyErrors7d.push({ date: key, label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }), errors: errMap[key] || 0 });
+    }
+
     res.json({
       totalAccounts,
       activeAccounts,
@@ -315,6 +364,9 @@ exports.getDashboard = async (req, res) => {
       problemsToday,
       problems7d,
       problems30d,
+
+      avgEngagementByAccount,
+      dailyErrors7d,
 
       system: {
         backend: true,

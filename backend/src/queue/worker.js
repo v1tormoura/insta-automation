@@ -10,7 +10,7 @@ const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
 const traduzirErro        = require('../utils/traduzirErro');
-const { runPromoAfterPost, postCTACommentForPost } = require('../jobs/promoJob');
+const { runPromoAfterPost, postCTACommentForPost, postEngageCommentForPost } = require('../jobs/promoJob');
 
 connectDB();
 
@@ -142,6 +142,12 @@ const worker = new Worker(
         if (post.ctaComment?.trim()) {
           postCTACommentForPost(account._id, post.ctaComment)
             .catch(e => console.log('[CTA] erro:', e.message));
+        }
+
+        // Comentário de engajamento (pergunta) ~60min após publicar
+        if (post.engageComment?.trim()) {
+          postEngageCommentForPost(account._id, post.engageComment)
+            .catch(e => console.log('[Engage] erro:', e.message));
         }
 
       } catch (err) {

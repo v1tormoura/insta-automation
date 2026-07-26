@@ -76,7 +76,7 @@ function LoopModal({ onClose, onCreated }) {
 
   const [form, setForm] = useState({
     name: '', accounts: [], folder: 'default', mediaFiles: [],
-    type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '',
+    type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '', engageComment: '',
   });
 
   const loadMedias = useCallback(async () => {
@@ -268,6 +268,32 @@ function LoopModal({ onClose, onCreated }) {
               )}
             </div>
 
+            {/* Engage Comment */}
+            <div className="lm-row">
+              <div className="lm-row-hd">
+                <label className="lm-label">🔥 Pergunta de engajamento</label>
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'var(--text2)' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.engageComment}
+                    onChange={e => setForm(f => ({ ...f, engageComment: e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '' }))}
+                  />
+                  {form.engageComment ? 'Ativo' : 'Inativo'}
+                </label>
+              </div>
+              {!!form.engageComment && (
+                <>
+                  <textarea className="lm-input" rows={2}
+                    placeholder="Ex: Gostaram? Comenta aí! 👇"
+                    value={form.engageComment}
+                    onChange={e => setForm(f => ({ ...f, engageComment: e.target.value }))} />
+                  <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
+                    Postado ~60 min após publicar · estimula comentários e sinaliza engajamento pro algoritmo
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Legenda */}
             <div className="lm-row">
               <div className="lm-row-hd">
@@ -282,9 +308,14 @@ function LoopModal({ onClose, onCreated }) {
                 </div>
               </div>
               {capMode === 'manual' ? (
+                <>
                 <textarea className="lm-input" rows={3} placeholder="Deixe em branco para postar sem legenda..."
                   value={form.caption}
                   onChange={e => setForm(f => ({ ...f, caption: e.target.value }))} />
+                <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
+                  Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
+                </div>
+                </>
               ) : (
                 <div className="lm-leg-list">
                   <div className={`lm-leg-item ${form.caption === '' ? 'sel' : ''}`}

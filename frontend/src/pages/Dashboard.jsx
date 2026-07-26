@@ -854,6 +854,61 @@ export default function Dashboard() {
           <PerformanceTable stats={accountStats} />
         </section>
 
+        {/* ── Engajamento + Erros 7d ── */}
+        <section className="operations-grid" style={{ gridTemplateColumns:'1fr 1fr' }}>
+
+          {/* Engajamento médio por conta */}
+          <div className="panel">
+            <PanelHeader title="ENGAJAMENTO MÉDIO POR CONTA" icon={TrendingUp}
+              right={<span style={{ fontSize:10, color:'#5a7a99' }}>últimos 30 dias</span>} />
+            {(!d.avgEngagementByAccount || d.avgEngagementByAccount.length === 0) ? (
+              <div style={{ padding:'20px 0', textAlign:'center', fontSize:12, color:'#334155' }}>
+                Nenhum dado de insight disponível. Faça um Sync em Top Posts.
+              </div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {(d.avgEngagementByAccount || []).slice(0, 6).map((acc, i) => (
+                  <div key={acc.accountId || i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid rgba(51,65,85,.12)' }}>
+                    <span style={{ fontSize:11, fontWeight:700, color:'#334155', width:18, flexShrink:0 }}>{i+1}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color:'#d9f4ff' }}>@{acc.username}</div>
+                      <div style={{ fontSize:10, color:'#5a7a99', marginTop:1 }}>{acc.totalPosts} posts · {fmtK(acc.avgLikes)} likes médios</div>
+                    </div>
+                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:'#22d7ff', fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.avgViews)}</div>
+                      <div style={{ fontSize:10, color:'#5a7a99' }}>views/post</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Erros por dia — 7 dias */}
+          <div className="panel">
+            <PanelHeader title="ERROS POR DIA (7D)" icon={AlertTriangle}
+              right={<span style={{ fontSize:10, color: (d.dailyErrors7d||[]).reduce((s,x)=>s+x.errors,0)>0?'#ff5f5f':'#2bdc94' }}>
+                {(d.dailyErrors7d||[]).reduce((s,x)=>s+x.errors,0)} total
+              </span>} />
+            <div style={{ padding:'8px 0' }}>
+              {(d.dailyErrors7d || []).map((day, i) => {
+                const max = Math.max(...(d.dailyErrors7d||[]).map(x=>x.errors), 1);
+                const pct = Math.round((day.errors / max) * 100);
+                return (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                    <span style={{ fontSize:10, color:'#5a7a99', width:52, flexShrink:0, textAlign:'right' }}>{day.label}</span>
+                    <div style={{ flex:1, height:8, borderRadius:4, background:'rgba(51,65,85,.25)', overflow:'hidden' }}>
+                      <div style={{ width:`${pct}%`, height:'100%', borderRadius:4, background: day.errors > 0 ? '#f87171' : '#2bdc94', transition:'width .4s ease' }} />
+                    </div>
+                    <span style={{ fontSize:11, fontWeight:700, color: day.errors > 0 ? '#f87171' : '#334155', width:20, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{day.errors}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </section>
+
         {/* ── 4 Intelligent Insights ── */}
         <SmartInsights accountStats={accountStats} data={d} />
 

@@ -12,6 +12,7 @@ const loopSchema = new mongoose.Schema({
   caption:         { type: String, default: '' },
   coverFile:       { type: String, default: '' },
   ctaComment:      { type: String, default: '' }, // comentário auto-postado ~2min após publicar
+  engageComment:   { type: String, default: '' }, // pergunta de engajamento postada ~60min após publicar
 
   // estado
   status:       { type: String, enum: ['ativo', 'pausado', 'erro'], default: 'ativo' },

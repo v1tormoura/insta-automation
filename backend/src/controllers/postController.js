@@ -106,7 +106,8 @@ exports.createPost = async (req, res) => {
           processMode,
           accounts,
           scheduledAt,
-          ctaComment: req.body.ctaComment || '',
+          ctaComment:    req.body.ctaComment    || '',
+          engageComment: req.body.engageComment || '',
           status: isFirst ? 'pendente' : 'agendado',
         });
 

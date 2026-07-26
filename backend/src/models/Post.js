@@ -51,8 +51,13 @@ const postSchema = new mongoose.Schema(
 
     processMode: {
       type: String,
-      enum: ['sem_limpeza', 'limpeza_leve', 'ultra_clean'],
+      enum: ['sem_limpeza', 'limpeza_leve', 'ultra_clean', 'humanizador'],
       default: 'limpeza_leve',
+    },
+
+    engageComment: {
+      type: String,
+      default: '',
     },
 
     accounts: [

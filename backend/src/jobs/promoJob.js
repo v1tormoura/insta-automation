@@ -28,10 +28,14 @@ async function igPost(path, token, body = {}) {
 }
 
 function buildMessage(template, vars = {}) {
+  const now = new Date();
   return template
     .replace(/\{link\}/gi,     vars.link     || '')
     .replace(/\{username\}/gi, vars.username  || '')
-    .replace(/\{nome\}/gi,     vars.name      || vars.username || '');
+    .replace(/\{nome\}/gi,     vars.name      || vars.username || '')
+    .replace(/\{data\}/gi,     now.toLocaleDateString('pt-BR'))
+    .replace(/\{hora\}/gi,     now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
+    .replace(/\{cidade\}/gi,   vars.cidade   || '');
 }
 
 async function runPromoAfterPost(accountId) {
@@ -215,4 +219,79 @@ async function postCTACommentForPost(accountId, ctaComment) {
   }
 }
 
-module.exports = { runPromoAfterPost, testPromoNow, postCTACommentForPost };
+// Posta comentário de engajamento (pergunta) ~60min após publicar para estimular replies
+async function postEngageCommentForPost(accountId, engageComment) {
+  try {
+    const account = await Account.findById(accountId);
+    if (!account?.accessToken || !account?.igUserId) return;
+
+    const token  = account.accessToken;
+    const userId = account.igUserId;
+
+    console.log(`⏳ [Engage] @${account.username} — aguardando 60min para comentário de engajamento...`);
+    await delay(60 * 60_000);
+
+    const md = await igGet(`/${userId}/media?fields=id,media_type,timestamp&limit=10`, token);
+    const latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
+    if (!latestMedia) return;
+
+    const vars = {
+      link:     account.promoLink  || '',
+      username: `@${account.username}`,
+      nome:     account.name       || account.username,
+      cidade:   account.location   || '',
+    };
+    const message = buildMessage(engageComment, vars);
+    await igPost(`/${latestMedia.id}/comments`, token, { message });
+    console.log(`✅ [Engage] @${account.username} — pergunta postada: "${message.slice(0, 60)}"`);
+  } catch (err) {
+    console.log(`⚠️ [Engage] erro: ${err.message}`);
+  }
+}
+
+// Responde automaticamente os comentários mais recentes do último reel (via Graph API)
+async function autoReplyComments(accountId, replyTemplate) {
+  try {
+    const account = await Account.findById(accountId);
+    if (!account?.accessToken || !account?.igUserId) return;
+
+    const token  = account.accessToken;
+    const userId = account.igUserId;
+
+    const md = await igGet(`/${userId}/media?fields=id,media_type,timestamp&limit=10`, token);
+    const latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
+    if (!latestMedia) return;
+
+    const commentsRes = await igGet(`/${latestMedia.id}/comments?fields=id,text,username,timestamp&limit=20`, token);
+    const comments = commentsRes.data || [];
+
+    // Ignora comentários próprios e já respondidos (identificados pelo prefixo da reply)
+    const botMarker = `@${account.username}`;
+    const repliedTo = new Set();
+
+    for (const c of comments.slice(0, 5)) {
+      if (c.username === account.username) continue; // pula comentários da própria conta
+      if (repliedTo.has(c.id)) continue;
+
+      const vars = {
+        link:     account.promoLink  || '',
+        username: `@${c.username}`,
+        nome:     c.username,
+        cidade:   account.location   || '',
+      };
+      const reply = buildMessage(replyTemplate || `Obrigado pelo comentário, @{username}! 🙏`, vars);
+      try {
+        await igPost(`/${c.id}/replies`, token, { message: reply });
+        repliedTo.add(c.id);
+        console.log(`✅ [AutoReply] @${account.username} → @${c.username}: "${reply.slice(0, 50)}"`);
+        await delay(8_000); // pausa entre replies para evitar spam detection
+      } catch (e) {
+        console.log(`⚠️ [AutoReply] falha ao responder @${c.username}: ${e.message}`);
+      }
+    }
+  } catch (err) {
+    console.log(`⚠️ [AutoReply] erro: ${err.message}`);
+  }
+}
+
+module.exports = { runPromoAfterPost, testPromoNow, postCTACommentForPost, postEngageCommentForPost, autoReplyComments };
