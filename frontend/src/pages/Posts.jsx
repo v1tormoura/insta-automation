@@ -171,9 +171,10 @@ export default function Posts() {
   }
 
   const processModes = [
-    { id: 'sem_limpeza', label: 'Sem Limpeza', tag: 'SAFE', desc: 'Posta o vídeo original, sem alterar nada', color: '#10b981' },
-    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'RECOM', desc: 'Remove metadados e gera hash diferente', color: '#3b82f6' },
-    { id: 'ultra_clean', label: 'Ultra Clean', tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo', color: '#8b5cf6' },
+    { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'SAFE',  desc: 'Posta o vídeo original, sem alterar nada',                          color: '#10b981' },
+    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'RECOM', desc: 'Remove metadados e gera hash diferente',                            color: '#3b82f6' },
+    { id: 'ultra_clean',  label: 'Ultra Clean',  tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo',                        color: '#8b5cf6' },
+    { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + pitch áudio + CRF aleatório — fingerprint único', color: '#f59e0b' },
   ];
 
   return (
@@ -441,7 +442,7 @@ export default function Posts() {
                 <div key={m.id} onClick={() => setProcessMode(m.id)}
                   style={{
                     padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: '1px solid',
-                    background: processMode === m.id ? `rgba(${m.id === 'sem_limpeza' ? '16,185,129' : m.id === 'limpeza_leve' ? '59,130,246' : '139,92,246'},.08)` : 'transparent',
+                    background: processMode === m.id ? `${m.color}14` : 'transparent',
                     borderColor: processMode === m.id ? `${m.color}44` : 'var(--border)',
                     transition: 'all .15s',
                   }}>

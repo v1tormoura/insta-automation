@@ -21,6 +21,7 @@ const TYPES    = ['Tudo','Reels','Carrossel','Foto'];
 const CLEAN_MODES = [
   { value: 'limpeza_leve', label: 'Light (recomenda)' },
   { value: 'ultra_clean',  label: 'Ultra Clean' },
+  { value: 'humanizador',  label: 'Humanizador (MAX)' },
   { value: 'sem_limpeza',  label: 'Sem limpeza' },
 ];
 

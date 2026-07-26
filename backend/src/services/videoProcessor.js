@@ -54,14 +54,16 @@ function convertToReelFormat(inputPath, options = {}) {
 
     const filename = path.basename(inputPath, path.extname(inputPath));
     const quality = options.quality || 'high'; // 'high' | 'max' | 'fast'
-    const processMode = options.processMode || 'sem_limpeza'; // 'sem_limpeza' | 'limpeza_leve' | 'ultra_clean'
+    const processMode = options.processMode || 'sem_limpeza'; // 'sem_limpeza' | 'limpeza_leve' | 'ultra_clean' | 'humanizador'
 
-    // limpeza/ultra geram arquivo único por publicação (sem cache) para garantir hash diferente
+    // limpeza/ultra/humanizador geram arquivo único por publicação (sem cache)
     let suffix;
     if (processMode === 'limpeza_leve') {
       suffix = `-reel-clean-${Date.now().toString(36).slice(-5)}`;
     } else if (processMode === 'ultra_clean') {
       suffix = `-reel-ultra-${Date.now().toString(36).slice(-5)}`;
+    } else if (processMode === 'humanizador') {
+      suffix = `-reel-human-${Date.now().toString(36).slice(-6)}`;
     } else {
       suffix = quality === 'max' ? '-reel-max' : quality === 'fast' ? '-reel-fast' : '-reel-hq';
     }
@@ -123,17 +125,43 @@ function convertToReelFormat(inputPath, options = {}) {
       scaleFilter += `,eq=brightness=${micro}`;
     }
 
+    // Humanizador: transformações invisíveis que tornam o vídeo único em múltiplas dimensões
+    let humanAudioFilter = null;
+    if (processMode === 'humanizador') {
+      // Micro-crop aleatório (2-5px) + resize de volta — desloca todos os pixels
+      const cropPx = Math.floor(Math.random() * 4) + 2;
+      const cropX  = Math.floor(Math.random() * (cropPx + 1));
+      const cropY  = Math.floor(Math.random() * (cropPx + 1));
+      // Micro-ajuste de cor imperceptível
+      const microBright = ((Math.random() - 0.5) * 0.006).toFixed(5);
+      const microSat    = (1 + (Math.random() - 0.5) * 0.04).toFixed(4);
+      const microContr  = (1 + (Math.random() - 0.5) * 0.02).toFixed(4);
+      scaleFilter += `,crop=iw-${cropPx}:ih-${cropPx}:${cropX}:${cropY},scale=1080:1920,eq=brightness=${microBright}:saturation=${microSat}:contrast=${microContr}`;
+      // Pitch de áudio micro-shift (±0.5%) — muda fingerprint de áudio sem ser audível
+      const pitchFactor = (1 + (Math.random() - 0.5) * 0.01).toFixed(5);
+      const newRate     = Math.round(44100 * Number(pitchFactor));
+      humanAudioFilter  = `asetrate=${newRate},aresample=44100`;
+    }
+
     const modeLabel = processMode === 'limpeza_leve' ? ' [Limpeza Leve]'
                     : processMode === 'ultra_clean'  ? ' [Ultra Clean]'
+                    : processMode === 'humanizador'  ? ' [Humanizador]'
                     : '';
     console.log(`🎬 Convertendo vídeo [${cfg.description}]${modeLabel}...`);
     console.log(`   Entrada: ${path.basename(inputPath)} (${w}×${h})`);
     console.log(`   Saída: ${path.basename(outputPath)}`);
 
-    // limpeza_leve e ultra_clean removem todos os metadados do container
-    const metadataOpts = (processMode === 'limpeza_leve' || processMode === 'ultra_clean')
+    // limpeza_leve, ultra_clean e humanizador removem todos os metadados do container
+    const metadataOpts = (processMode === 'limpeza_leve' || processMode === 'ultra_clean' || processMode === 'humanizador')
       ? ['-map_metadata', '-1']
       : [];
+
+    // Humanizador: CRF aleatório (17–20) para encoding ligeiramente diferente a cada vez
+    const finalCrf = processMode === 'humanizador'
+      ? String(17 + Math.floor(Math.random() * 4))
+      : cfg.crf;
+
+    const audioFilterOpts = humanAudioFilter ? ['-af', humanAudioFilter] : [];
 
     ffmpeg(inputPath)
       .outputOptions([
@@ -142,7 +170,7 @@ function convertToReelFormat(inputPath, options = {}) {
         '-profile:v', 'high',           // H.264 High Profile
         '-level', '4.1',                // Nível compatível com Instagram
         '-preset', cfg.preset,
-        '-crf', cfg.crf,                // Qualidade constante
+        '-crf', finalCrf,
         '-c:a', 'aac',
         '-b:a', cfg.audioBitrate,
         '-ar', '44100',
@@ -152,6 +180,7 @@ function convertToReelFormat(inputPath, options = {}) {
         '-metadata:s:v:0', 'rotate=0', // Força orientação correta
         '-avoid_negative_ts', 'make_zero',
         '-max_muxing_queue_size', '9999',
+        ...audioFilterOpts,
         ...metadataOpts,
       ])
       .on('start', cmd => console.log(`   FFmpeg: ${cmd.slice(0, 120)}...`))
