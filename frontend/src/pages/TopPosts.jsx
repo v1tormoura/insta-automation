@@ -704,10 +704,15 @@ export default function TopPosts() {
         activeIds.has(String(a._id)) && a.healthStatus !== 'banida'
       );
       const activeNonBannedIds = activeAccounts.map(a => String(a._id));
-      setAccounts(activeAccounts);
-      setLoopAccountIds(activeNonBannedIds);
+      const allNonBannedIds = allAccounts.filter(a => a.healthStatus !== 'banida').map(a => String(a._id));
+      setAccounts(activeAccounts.length ? activeAccounts : allAccounts.filter(a => a.healthStatus !== 'banida'));
+      setLoopAccountIds(activeNonBannedIds.length ? activeNonBannedIds : allNonBannedIds);
     }).catch(() => {
-      api.get('/accounts?limit=200').then(r => setAccounts(r.data.accounts || [])).catch(() => {});
+      api.get('/accounts?limit=200').then(r => {
+        const all = r.data.accounts || [];
+        setAccounts(all.filter(a => a.healthStatus !== 'banida'));
+        setLoopAccountIds(all.filter(a => a.healthStatus !== 'banida').map(a => String(a._id)));
+      }).catch(() => {});
     });
   }, []);
   // Reload from DB every 15 s

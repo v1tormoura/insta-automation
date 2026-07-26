@@ -8,8 +8,10 @@ const DEFAULT_COMMENTS = [
 ];
 
 const ACTIONS = [
-  { value: 'likes',    label: 'Curtir comentários',    icon: '❤️', color: '#f43f5e', desc: 'Curte comentários nos seus posts' },
-  { value: 'comments', label: 'Responder comentários', icon: '💬', color: '#3b82f6', desc: 'Responde comentários automaticamente' },
+  { value: 'likes',        label: 'Curtir comentários',  icon: '❤️', color: '#f43f5e', desc: 'Curte comentários nos seus posts (API Oficial)' },
+  { value: 'comments',     label: 'Responder posts',     icon: '💬', color: '#3b82f6', desc: 'Responde comentários automaticamente (API Oficial)' },
+  { value: 'scroll_reels', label: 'Rolar Reels',         icon: '🎬', color: '#8b5cf6', desc: 'Assiste e curte reels no feed (API Privada)' },
+  { value: 'like_posts',   label: 'Curtir no Explorar',  icon: '🔍', color: '#10b981', desc: 'Curte posts no Explorar (API Privada)' },
 ];
 
 const INTENSITY = [
@@ -28,6 +30,7 @@ function defaultCfg() {
     intensity: 'leve',
     actions: ['likes'],
     intervalMinutes: 30,
+    maxDurationHours: 2,
     maxLikes: 6,
     maxComments: 2,
     maxFollows: 4,
@@ -35,8 +38,8 @@ function defaultCfg() {
   };
 }
 
-const LOG_ICON = { like: '❤️', comment: '💬', follow: '➕', cycle_start: '🔥', cycle_done: '✅', error: '❌' };
-const LOG_COLOR = { like: '#f43f5e', comment: '#3b82f6', follow: '#10b981', cycle_start: '#f59e0b', cycle_done: '#22c55e', error: '#ef4444' };
+const LOG_ICON = { like: '❤️', comment: '💬', follow: '➕', scroll: '🎬', cycle_start: '🔥', cycle_done: '✅', error: '❌' };
+const LOG_COLOR = { like: '#f43f5e', comment: '#3b82f6', follow: '#10b981', scroll: '#8b5cf6', cycle_start: '#f59e0b', cycle_done: '#22c55e', error: '#ef4444' };
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -73,6 +76,7 @@ export default function Warmup() {
           intensity: a.warmupIntensity || 'leve',
           actions: a.warmupActions?.length ? a.warmupActions : ['likes'],
           intervalMinutes: a.warmupInterval || 30,
+          maxDurationHours: a.warmupMaxDuration ?? 2,
           maxLikes: a.warmupMaxLikes || 6,
           maxComments: a.warmupMaxComments || 2,
           maxFollows: a.warmupMaxFollows || 4,
@@ -109,7 +113,7 @@ export default function Warmup() {
     if (!cfg?.actions?.length) return alert('Selecione ao menos uma ação.');
     const comments = cfg.commentList.split('\n').map(s => s.trim()).filter(Boolean);
     try {
-      await api.post(`/warmup/${id}/start`, { ...cfg, commentList: comments });
+      await api.post(`/warmup/${id}/start`, { ...cfg, commentList: comments, maxDurationHours: cfg.maxDurationHours || 0 });
       load();
     } catch (err) {
       alert(err.response?.data?.error || err.message);
@@ -304,7 +308,10 @@ export default function Warmup() {
                             </span>
                           ) : null;
                         })}
-                        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text3)' }}>⏱ {cfg.intervalMinutes}min/ciclo</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text3)' }}>
+                          ⏱ {cfg.intervalMinutes}min/ciclo
+                          {cfg.maxDurationHours > 0 && ` · para em ${cfg.maxDurationHours}h`}
+                        </span>
                       </div>
                     )}
 
@@ -474,6 +481,29 @@ export default function Warmup() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
                       <span>10 min</span><span>120 min</span>
                     </div>
+                  </div>
+
+                  {/* Max duration */}
+                  <div>
+                    <div style={{ ...labelStyle, marginBottom: 8 }}>
+                      Duração máxima:&nbsp;
+                      <span style={{ color: cfg.maxDurationHours === 0 ? '#f59e0b' : 'var(--cyan)', fontWeight: 800 }}>
+                        {cfg.maxDurationHours === 0 ? 'Sem limite' : `${cfg.maxDurationHours}h`}
+                      </span>
+                    </div>
+                    <input type="range" min={0} max={12} step={1}
+                      value={cfg.maxDurationHours}
+                      onChange={e => updateCfg(account._id, 'maxDurationHours', Number(e.target.value))}
+                      style={{ width: '100%', accentColor: cfg.maxDurationHours === 0 ? '#f59e0b' : 'var(--cyan)' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                      <span>Sem limite</span><span>12h</span>
+                    </div>
+                    {cfg.maxDurationHours > 0 && (
+                      <div style={{ marginTop: 5, fontSize: 10, color: '#22c55e' }}>
+                        ⏱ Para automaticamente após {cfg.maxDurationHours}h
+                      </div>
+                    )}
                   </div>
 
                   {/* CTA */}

@@ -1,11 +1,5 @@
 'use strict';
 
-/**
- * Aquecimento de contas via Instagram Graph API (oficial)
- * Ações disponíveis: responder comentários, curtir comentários,
- * publicar respostas automáticas, monitorar posts.
- */
-
 const Account   = require('../models/Account');
 const WarmupLog = require('../models/WarmupLog');
 const { broadcast } = require('../events/broadcaster');
@@ -52,9 +46,9 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 const rand  = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const INTENSITY_LIMITS = {
-  leve:      { maxReplies: 3,  maxLikes: 5,  delayMin: 8000,  delayMax: 20000 },
-  medio:     { maxReplies: 8,  maxLikes: 15, delayMin: 4000,  delayMax: 10000 },
-  agressivo: { maxReplies: 15, maxLikes: 30, delayMin: 2000,  delayMax: 6000  },
+  leve:      { maxReplies: 3,  maxLikes: 5,  maxScrollReels: 5,  maxPostLikes: 3,  delayMin: 8000,  delayMax: 20000 },
+  medio:     { maxReplies: 8,  maxLikes: 15, maxScrollReels: 12, maxPostLikes: 8,  delayMin: 4000,  delayMax: 10000 },
+  agressivo: { maxReplies: 15, maxLikes: 30, maxScrollReels: 20, maxPostLikes: 15, delayMin: 2000,  delayMax: 6000  },
 };
 
 const COMMENT_TEMPLATES = [
@@ -68,109 +62,173 @@ function pickComment(templates) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+/* ──────────────────── Ação: Rolar Reels (Private API) ──────────────────── */
+async function scrollReels(account, limits, results) {
+  let ig;
+  try {
+    const { createClient } = require('../services/instagramPrivateService');
+    ig = await createClient(account);
+  } catch {
+    await log(account._id, account.username, 'error', 'Rolar Reels requer sessão privada — reconecte a conta', { status: 'error' });
+    return;
+  }
+
+  try {
+    const feed = ig.feed.timeline();
+    const items = await feed.items();
+    const reels = items.filter(i => i.media_type === 2 || i.product_type === 'clips').slice(0, limits.maxScrollReels);
+
+    let watched = 0;
+    for (const item of reels) {
+      try {
+        // simula tempo assistindo
+        const watchSecs = rand(4, 18);
+        await delay(watchSecs * 1000);
+        watched++;
+
+        // curte ~40% dos reels assistidos
+        if (Math.random() < 0.4) {
+          await ig.media.like({ mediaId: item.pk, moduleInfo: { module_name: 'feed_timeline' }, d: 0 });
+          results.likes++;
+          await log(account._id, account.username, 'like',
+            `Curtiu reel no feed (${watchSecs}s assistidos)`,
+            { targetPostId: String(item.pk) });
+        } else {
+          await log(account._id, account.username, 'scroll',
+            `Rolou reel — assistiu ${watchSecs}s`,
+            { targetPostId: String(item.pk) });
+        }
+
+        await delay(rand(1000, 3000));
+      } catch {}
+    }
+
+    if (watched > 0) {
+      await log(account._id, account.username, 'cycle_done',
+        `Rolou ${watched} reel(s) no feed`, { status: 'info' });
+    }
+  } catch (e) {
+    await log(account._id, account.username, 'error', `Erro ao rolar reels: ${e.message}`, { status: 'error', error: e.message });
+  }
+}
+
+/* ──────────────────── Ação: Curtir posts (Private API) ──────────────────── */
+async function likeExplorePosts(account, limits, results) {
+  let ig;
+  try {
+    const { createClient } = require('../services/instagramPrivateService');
+    ig = await createClient(account);
+  } catch {
+    await log(account._id, account.username, 'error', 'Curtir posts requer sessão privada — reconecte a conta', { status: 'error' });
+    return;
+  }
+
+  try {
+    const feed = ig.feed.discover();
+    const items = (await feed.items()).slice(0, limits.maxPostLikes * 3);
+    let liked = 0;
+
+    for (const item of items) {
+      if (liked >= limits.maxPostLikes) break;
+      try {
+        await ig.media.like({ mediaId: item.pk, moduleInfo: { module_name: 'feed_contextual_self_profile' }, d: 0 });
+        liked++;
+        results.likes++;
+        await log(account._id, account.username, 'like',
+          `Curtiu post no Explorar`,
+          { targetPostId: String(item.pk) });
+        await delay(rand(5000, 15000));
+      } catch {}
+    }
+  } catch (e) {
+    await log(account._id, account.username, 'error', `Erro ao curtir posts: ${e.message}`, { status: 'error', error: e.message });
+  }
+}
+
 /* ──────────────────── Warmup via API Oficial ──────────────────── */
-async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'comments']) {
-  const label  = `@${account.username}`;
+async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
   const token  = account.accessToken;
   const userId = account.igUserId;
   const limits = INTENSITY_LIMITS[intensity] || INTENSITY_LIMITS.leve;
   const commentTemplates = account.warmupComments?.length ? account.warmupComments : COMMENT_TEMPLATES;
 
-  if (!token) {
-    await log(account._id, account.username, 'error', 'Conta sem token OAuth — reconecte a conta', { status: 'error' });
-    return { status: 'sem_token', likes: 0, comments: 0, follows: 0, errors: ['sem token'] };
-  }
-
   const results = { likes: 0, comments: 0, follows: 0, errors: [] };
 
   await log(account._id, account.username, 'cycle_start',
-    `Iniciando ciclo ${intensity} via API Oficial`, { status: 'info' });
+    `Iniciando ciclo ${intensity}`, { status: 'info' });
 
-  try {
-    // ── Busca posts recentes ────────────────────────────────────────────
-    const mediaData = await igGet(`/${userId}/media?fields=id,timestamp,comments_count&limit=8`, token);
-    const posts = mediaData.data || [];
+  // ── Rolar Reels (Private API) ──
+  if (actions.includes('scroll_reels')) {
+    await scrollReels(account, limits, results);
+  }
 
-    if (posts.length === 0) {
-      await log(account._id, account.username, 'cycle_done',
-        'Nenhum post encontrado na conta — publique conteúdo para ativar o aquecimento',
-        { status: 'info' });
-      return { status: 'sem_posts', ...results };
-    }
+  // ── Curtir posts do Explorar (Private API) ──
+  if (actions.includes('like_posts')) {
+    await likeExplorePosts(account, limits, results);
+  }
 
-    // ── Responder comentários não respondidos ───────────────────────────
-    if (actions.includes('comments') || actions.includes('likes')) {
-      let repliesDone = 0;
-      let likesDone   = 0;
+  // ── Ações via API Oficial ──
+  if ((actions.includes('likes') || actions.includes('comments')) && token && userId) {
+    try {
+      const mediaData = await igGet(`/${userId}/media?fields=id,timestamp,comments_count&limit=8`, token);
+      const posts = mediaData.data || [];
 
-      for (const post of posts) {
-        if (repliesDone >= limits.maxReplies && likesDone >= limits.maxLikes) break;
+      if (posts.length > 0) {
+        let repliesDone = 0;
+        let likesDone   = 0;
 
-        let commentsData;
-        try {
-          commentsData = await igGet(`/${post.id}/comments?fields=id,text,username,replies{id}&limit=20`, token);
-        } catch {
-          continue;
-        }
+        for (const post of posts) {
+          if (repliesDone >= limits.maxReplies && likesDone >= limits.maxLikes) break;
 
-        const comments = commentsData.data || [];
+          let commentsData;
+          try {
+            commentsData = await igGet(`/${post.id}/comments?fields=id,text,username,replies{id}&limit=20`, token);
+          } catch { continue; }
 
-        for (const comment of comments) {
-          // ── Curtir comentário ──
-          if (actions.includes('likes') && likesDone < limits.maxLikes) {
-            try {
-              await igPost(`/${comment.id}/likes`, token);
-              likesDone++;
-              results.likes++;
-              await log(account._id, account.username, 'like',
-                `Curtiu comentário de @${comment.username}`,
-                { targetUser: comment.username, targetPostId: post.id });
-              await delay(rand(limits.delayMin, limits.delayMax));
-            } catch (e) {
-              // like de comentário pode não estar disponível em todos os planos — ignora silenciosamente
+          const comments = commentsData.data || [];
+
+          for (const comment of comments) {
+            if (actions.includes('likes') && likesDone < limits.maxLikes) {
+              try {
+                await igPost(`/${comment.id}/likes`, token);
+                likesDone++;
+                results.likes++;
+                await log(account._id, account.username, 'like',
+                  `Curtiu comentário de @${comment.username}`,
+                  { targetUser: comment.username, targetPostId: post.id });
+                await delay(rand(limits.delayMin, limits.delayMax));
+              } catch {}
             }
-          }
 
-          // ── Responder comentário (apenas se ainda não tem resposta) ──
-          const alreadyReplied = (comment.replies?.data?.length || 0) > 0;
-          if (actions.includes('comments') && !alreadyReplied && repliesDone < limits.maxReplies) {
-            try {
-              const text = pickComment(commentTemplates);
-              await igPost(`/${comment.id}/replies`, token, { message: text });
-              repliesDone++;
-              results.comments++;
-              await log(account._id, account.username, 'comment',
-                `Respondeu comentário de @${comment.username}: "${text}"`,
-                { targetUser: comment.username, targetPostId: post.id });
-              await delay(rand(limits.delayMin * 2, limits.delayMax * 2));
-            } catch (e) {
-              results.errors.push(`reply: ${e.message}`);
-              await log(account._id, account.username, 'error',
-                `Erro ao responder comentário: ${e.message}`,
-                { status: 'error', error: e.message });
+            const alreadyReplied = (comment.replies?.data?.length || 0) > 0;
+            if (actions.includes('comments') && !alreadyReplied && repliesDone < limits.maxReplies) {
+              try {
+                const text = pickComment(commentTemplates);
+                await igPost(`/${comment.id}/replies`, token, { message: text });
+                repliesDone++;
+                results.comments++;
+                await log(account._id, account.username, 'comment',
+                  `Respondeu comentário de @${comment.username}: "${text}"`,
+                  { targetUser: comment.username, targetPostId: post.id });
+                await delay(rand(limits.delayMin * 2, limits.delayMax * 2));
+              } catch (e) {
+                results.errors.push(`reply: ${e.message}`);
+                await log(account._id, account.username, 'error',
+                  `Erro ao responder comentário: ${e.message}`,
+                  { status: 'error', error: e.message });
+              }
             }
           }
         }
       }
-
-      if (repliesDone === 0 && likesDone === 0) {
-        await log(account._id, account.username, 'cycle_done',
-          `${posts.length} post(s) monitorado(s) — sem novos comentários para responder`,
-          { status: 'info' });
-        broadcast('warmup', { action: 'cycle_done', username: account.username, ...results });
-        return { status: 'ok', ...results };
-      }
+    } catch (err) {
+      await log(account._id, account.username, 'error', err.message, { status: 'error', error: err.message });
+      results.errors.push(err.message);
     }
-
-  } catch (err) {
-    console.log(`💥 [Warmup] ${label} — erro: ${err.message}`);
-    await log(account._id, account.username, 'error', err.message, { status: 'error', error: err.message });
-    results.errors.push(err.message);
   }
 
   const summary = `Ciclo concluído — ${results.likes} curtidas, ${results.comments} respostas`;
   await log(account._id, account.username, 'cycle_done', summary, { status: 'success' });
-  console.log(`✅ [Warmup] ${label} — ${summary}`);
   broadcast('warmup', { action: 'cycle_done', username: account.username, ...results });
   return { status: 'ok', ...results };
 }
@@ -178,13 +236,15 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes', 'c
 /* ──────────────────── Job scheduler ──────────────────── */
 const _activeJobs = new Map();
 
-async function startWarmup(accountId, { intensity, actions, intervalMinutes, maxLikes, maxComments, maxFollows, commentList }) {
+async function startWarmup(accountId, { intensity, actions, intervalMinutes, maxLikes, maxComments, maxFollows, commentList, maxDurationHours }) {
   const account = await Account.findById(accountId);
   if (!account) throw new Error('Conta não encontrada');
 
   stopWarmup(accountId);
 
-  const interval = (intervalMinutes || 30) * 60 * 1000;
+  const interval       = (intervalMinutes || 30) * 60 * 1000;
+  const maxDurationMs  = (maxDurationHours || 0) * 3600 * 1000;
+  const startedAt      = Date.now();
 
   async function run() {
     const fresh = await Account.findById(accountId);
@@ -192,7 +252,17 @@ async function startWarmup(accountId, { intensity, actions, intervalMinutes, max
       stopWarmup(accountId);
       return;
     }
-    console.log(`🔥 [Warmup] Iniciando ciclo para @${fresh.username} (${intensity})`);
+
+    // Auto-stop por duração
+    if (maxDurationMs > 0 && Date.now() - startedAt >= maxDurationMs) {
+      const hrs = maxDurationHours;
+      await log(accountId, fresh.username, 'cycle_done',
+        `⏱ Duração máxima de ${hrs}h atingida — aquecimento encerrado automaticamente`,
+        { status: 'info' });
+      await stopWarmupAndSave(accountId);
+      return;
+    }
+
     await warmupAccount(fresh, intensity, actions);
     broadcast('accounts', { action: 'synced' });
   }
@@ -200,17 +270,19 @@ async function startWarmup(accountId, { intensity, actions, intervalMinutes, max
   run();
 
   const timer = setInterval(run, interval);
-  _activeJobs.set(String(accountId), { timer });
+  _activeJobs.set(String(accountId), { timer, startedAt, maxDurationMs });
 
   await Account.findByIdAndUpdate(accountId, {
-    warmupActive: true,
-    warmupIntensity: intensity,
-    warmupActions: actions,
-    warmupInterval: intervalMinutes || 30,
-    warmupMaxLikes:    maxLikes    || 6,
-    warmupMaxComments: maxComments || 2,
-    warmupMaxFollows:  maxFollows  || 4,
-    warmupComments: Array.isArray(commentList) ? commentList : [],
+    warmupActive:        true,
+    warmupIntensity:     intensity,
+    warmupActions:       actions,
+    warmupInterval:      intervalMinutes || 30,
+    warmupMaxLikes:      maxLikes    || 6,
+    warmupMaxComments:   maxComments || 2,
+    warmupMaxFollows:    maxFollows  || 4,
+    warmupComments:      Array.isArray(commentList) ? commentList : [],
+    warmupMaxDuration:   maxDurationHours || 0,
+    warmupStartedAt:     new Date(),
   });
 
   broadcast('accounts', { action: 'synced' });
