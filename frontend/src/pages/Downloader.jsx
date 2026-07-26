@@ -56,8 +56,7 @@ export default function Downloader() {
   useEffect(() => {
     axios.get(`${API}/accounts`, auth())
       .then(r => {
-        const list = (r.data?.accounts || r.data || [])
-          .filter(a => a.healthStatus !== 'banida');
+        const list = r.data?.accounts || r.data || [];
         setAccounts(list);
         if (list.length) setAccountId(String(list[0]._id));
       })
@@ -170,20 +169,26 @@ export default function Downloader() {
 
       {/* Search */}
       <div style={S.card}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <select value={accountId} onChange={e => setAccountId(e.target.value)} style={S.select}>
-            {accounts.length === 0
-              ? <option>Nenhuma conta ativa</option>
-              : accounts.map(a => <option key={a._id} value={a._id}>@{a.username}</option>)
-            }
-          </select>
-          <input
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="@username ou username"
-            style={S.input}
-          />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, letterSpacing: .4 }}>SESSÃO (sua conta)</span>
+            <select value={accountId} onChange={e => setAccountId(e.target.value)} style={S.select}>
+              {accounts.length === 0
+                ? <option>Nenhuma conta cadastrada</option>
+                : accounts.map(a => <option key={a._id} value={a._id}>@{a.username}</option>)
+              }
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 200 }}>
+            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, letterSpacing: .4 }}>PERFIL PARA BAIXAR (qualquer conta)</span>
+            <input
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="@qualquer_perfil_publico"
+              style={{ ...S.input, minWidth: 'unset' }}
+            />
+          </div>
           <button
             onClick={handleSearch}
             disabled={loading || !username.trim() || !accountId}
