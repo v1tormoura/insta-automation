@@ -22,6 +22,7 @@ import BestTimes from './pages/BestTimes';
 import SmartRepost from './pages/SmartRepost';
 import ViralHunter from './pages/ViralHunter';
 import Promo from './pages/Promo';
+import Downloader from './pages/Downloader';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="/smart-repost"   element={<SmartRepost />} />
               <Route path="/viral-hunter"   element={<ViralHunter />} />
               <Route path="/promo"          element={<Promo />} />
+              <Route path="/downloader"     element={<Downloader />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>

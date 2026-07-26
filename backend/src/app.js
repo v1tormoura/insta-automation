@@ -76,6 +76,7 @@ app.use('/abtests',      auth, require('./routes/abtestRoutes'));
 app.use('/repost',       auth, require('./routes/repostRoutes'));
 app.use('/viral',        auth, require('./routes/viralRoutes'));
 app.use('/promo',        auth, require('./routes/promoRoutes'));
+app.use('/downloader',   auth, require('./routes/downloaderRoutes'));
 
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);
