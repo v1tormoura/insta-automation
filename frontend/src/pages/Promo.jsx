@@ -197,7 +197,7 @@ export default function Promo() {
                       <div className="promo-feat-actions">
                         <button
                           className="promo-test-btn"
-                          disabled={!ok || !cfg.promoEnabled || testing[`${acc._id}:comment`]}
+                          disabled={!ok || testing[`${acc._id}:comment`]}
                           onClick={() => test(acc._id, 'comment')}
                           title="Testar agora no post mais recente"
                         >
@@ -239,7 +239,7 @@ export default function Promo() {
                       <div className="promo-feat-actions">
                         <button
                           className="promo-test-btn"
-                          disabled={!ok || !cfg.promoEnabled || testing[`${acc._id}:story`]}
+                          disabled={!ok || testing[`${acc._id}:story`]}
                           onClick={() => test(acc._id, 'story')}
                           title="Testar agora"
                         >
@@ -271,7 +271,7 @@ export default function Promo() {
                       <div className="promo-feat-actions">
                         <button
                           className="promo-test-btn"
-                          disabled={!ok || !cfg.promoEnabled || testing[`${acc._id}:bio`]}
+                          disabled={!ok || testing[`${acc._id}:bio`]}
                           onClick={() => test(acc._id, 'bio')}
                           title="Testar agora"
                         >
