@@ -29,17 +29,8 @@ export default function Posts() {
   const [ctaComment, setCtaComment]       = useState('');
   const [engageComment, setEngageComment] = useState('');
 
-  // Library picker
-  const [mediaSource, setMediaSource]     = useState('upload'); // 'upload' | 'library'
-  const [libOpen, setLibOpen]             = useState(false);
-  const [libFiles, setLibFiles]           = useState([]);
-  const [libFolders, setLibFolders]       = useState(['default']);
-  const [libFolder, setLibFolder]         = useState('default');
-  const [libSelected, setLibSelected]     = useState({}); // { id: mediaObj }
-
-  const selectedCount = Object.values(selectedAccounts).filter(Boolean).length;
-  const totalMedia    = media.length + Object.keys(libSelected).length;
-  const totalEstimated = totalMedia * selectedCount;
+  const selectedCount  = Object.values(selectedAccounts).filter(Boolean).length;
+  const totalEstimated = media.length * selectedCount;
 
   function showToast(type, title, message) {
     setToast({ type, title, message });
@@ -111,35 +102,12 @@ export default function Posts() {
     if (files.length) setMedia(prev => [...prev, ...files]);
   }
 
-  async function openLibrary() {
-    try {
-      const res = await api.get('/media');
-      const d = res.data;
-      const allFiles = d.files || d || [];
-      const allFolders = d.folders || [...new Set(allFiles.map(f => f.folder || 'default'))].sort();
-      setLibFiles(allFiles.filter(f => !f.filename?.startsWith('__folder_')));
-      setLibFolders(['default', ...allFolders.filter(f => f !== 'default')]);
-      setLibOpen(true);
-    } catch { showToast('error', 'Erro', 'Não foi possível carregar a biblioteca.'); }
-  }
-
-  function toggleLib(item) {
-    setLibSelected(s => {
-      const n = { ...s };
-      if (n[item._id]) delete n[item._id];
-      else n[item._id] = item;
-      return n;
-    });
-  }
-
   async function createPost(e) {
     e.preventDefault();
-    const libItems = Object.values(libSelected);
-    if (!media.length && !libItems.length) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
+    if (!media.length) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
     if (!selectedAccountsList().length) return showToast('warning', 'Atenção', 'Selecione uma conta');
     const form = new FormData();
     media.forEach(file => form.append('media', file));
-    if (libItems.length) form.append('mediaIds', JSON.stringify(libItems.map(i => i._id)));
     if (cover) form.append('cover', cover);
     form.append('caption', caption);
     if (location) form.append('location', location);
@@ -153,7 +121,7 @@ export default function Posts() {
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     try {
       await api.post('/posts', form);
-      setCaption(''); setMedia([]); setCover(null); setLibSelected({});
+      setCaption(''); setMedia([]); setCover(null);
       setLocation(''); setSelectedAccounts({}); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
       showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
@@ -208,7 +176,7 @@ export default function Posts() {
           <div className="card">
             <div className="card-header">
               <h3>Mídia</h3>
-              <span className="badge badge-cyan">{media.length + Object.keys(libSelected).length} arquivo(s)</span>
+              <span className="badge badge-cyan">{media.length} arquivo(s)</span>
             </div>
             <div className="card-body">
             {/* Type tabs */}
@@ -228,69 +196,30 @@ export default function Posts() {
               ))}
             </div>
 
-            {/* Source toggle */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-              {[['upload','⬆️ Upload'], ['library','📁 Da Biblioteca']].map(([v,l]) => (
-                <button key={v} type="button" onClick={() => setMediaSource(v)} style={{
-                  padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid',
-                  background: mediaSource === v ? 'rgba(99,102,241,.15)' : 'transparent',
-                  borderColor: mediaSource === v ? 'rgba(99,102,241,.4)' : 'var(--border)',
-                  color: mediaSource === v ? '#a5b4fc' : 'var(--text2)',
-                }}>{l}</button>
-              ))}
-            </div>
-
-            {mediaSource === 'upload' ? (
-              <>
-                <label
-                  className={`upload-zone${dragOver ? ' drag-over' : ''}`}
-                  style={{ cursor: 'pointer' }}
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                >
-                  <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
-                    onChange={e => setMedia(Array.from(e.target.files || []))} />
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>⬆️</div>
-                  <strong>Arraste ou envie seus vídeos</strong>
-                  <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
-                </label>
-                {media.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8, marginTop: 12 }}>
-                    {media.map((file, i) => (
-                      <div key={i} style={{ background: 'var(--card2)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid var(--border)', position: 'relative' }}>
-                        <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
-                          style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                        <div style={{ fontSize: 22, marginBottom: 4 }}>{file.type?.includes('video') ? '🎬' : '🖼️'}</div>
-                        <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
-                      </div>
-                    ))}
+            <label
+              className={`upload-zone${dragOver ? ' drag-over' : ''}`}
+              style={{ cursor: 'pointer' }}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                onChange={e => setMedia(Array.from(e.target.files || []))} />
+              <div style={{ fontSize: 28, marginBottom: 6 }}>⬆️</div>
+              <strong>Arraste ou envie seus vídeos</strong>
+              <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
+            </label>
+            {media.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8, marginTop: 12 }}>
+                {media.map((file, i) => (
+                  <div key={i} style={{ background: 'var(--card2)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid var(--border)', position: 'relative' }}>
+                    <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
+                      style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    <div style={{ fontSize: 22, marginBottom: 4 }}>{file.type?.includes('video') ? '🎬' : '🖼️'}</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
                   </div>
-                )}
-              </>
-            ) : (
-              /* Library mode */
-              <div>
-                <button type="button" onClick={openLibrary} className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}>
-                  📂 Abrir biblioteca {Object.keys(libSelected).length > 0 && `(${Object.keys(libSelected).length} selecionado(s))`}
-                </button>
-                {Object.keys(libSelected).length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8 }}>
-                    {Object.values(libSelected).map(item => (
-                      <div key={item._id} style={{ background: 'var(--card2)', borderRadius: 9, border: '1px solid rgba(99,102,241,.35)', position: 'relative', overflow: 'hidden' }}>
-                        <button type="button" onClick={() => toggleLib(item)}
-                          style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, background: 'rgba(239,68,68,.5)', border: 'none', color: '#fff', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                        <div style={{ aspectRatio: '1', overflow: 'hidden' }}>
-                          {item.type === 'video'
-                            ? <video src={`${API}${item.url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : <img src={`${API}${item.url}`} alt={item.originalName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                        </div>
-                        <div style={{ padding: '4px 6px', fontSize: 10, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.originalName}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
             )}
             </div>{/* /card-body */}
@@ -429,16 +358,16 @@ export default function Posts() {
                 <span style={{ fontSize: 22, fontWeight: 900, color: '#60a5fa', letterSpacing: -1 }}>{simultaneousLimit}</span>
                 <span style={{ fontSize: 14, color: 'var(--text3)' }}>/{Math.max(totalMedia, 1)} reels</span>
               </div>
-              <input type="range" min="1" max={Math.max(totalMedia, 1)} value={Math.min(simultaneousLimit, Math.max(totalMedia, 1))}
+              <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
                 onChange={e => setSimultaneousLimit(Number(e.target.value))}
                 style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 4 }}>
-                <span>1</span><span>{Math.max(totalMedia, 1)}</span>
+                <span>1</span><span>{Math.max(media.length, 1)}</span>
               </div>
               <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.15)', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
                 {simultaneousLimit === 1
                   ? 'Sequencial — 1 reel por vez. Todas as contas recebem cada reel em paralelo, depois aguarda o intervalo.'
-                  : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} vão juntos para todas as contas em paralelo, depois aguarda o intervalo, depois reels ${simultaneousLimit + 1}–${simultaneousLimit * 2}, e assim por diante.`
+                  : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} vão juntos para todas as contas em paralelo, depois aguarda o intervalo.`
                 }
               </div>
             </div>
@@ -582,75 +511,6 @@ export default function Posts() {
               <button className="btn btn-ghost btn-sm" disabled={postPage >= postPagination.pages} onClick={() => goToPostPage(postPage + 1)}>Próxima →</button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Library picker modal ── */}
-      {libOpen && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setLibOpen(false)}>
-          <div className="modal" style={{ width: 'min(760px,95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h3 style={{ margin: 0 }}>📁 Escolher da Biblioteca</h3>
-              <button onClick={() => setLibOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
-            </div>
-
-            {/* Folder tabs */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-              {libFolders.map(f => (
-                <button key={f} type="button" onClick={() => setLibFolder(f)} style={{
-                  padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid',
-                  background: libFolder === f ? 'rgba(99,102,241,.18)' : 'transparent',
-                  borderColor: libFolder === f ? 'rgba(99,102,241,.4)' : 'var(--border2)',
-                  color: libFolder === f ? '#a5b4fc' : 'var(--text2)',
-                }}>📁 {f}</button>
-              ))}
-            </div>
-
-            {/* Grid */}
-            <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-              {(() => {
-                const shown = libFiles.filter(f => (f.folder || 'default') === libFolder);
-                if (!shown.length) return (
-                  <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text2)' }}>
-                    <div style={{ fontSize: 32 }}>📂</div>
-                    <div style={{ marginTop: 8 }}>Pasta vazia</div>
-                  </div>
-                );
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 8 }}>
-                    {shown.map(item => {
-                      const sel = !!libSelected[item._id];
-                      return (
-                        <div key={item._id} onClick={() => toggleLib(item)} style={{
-                          borderRadius: 10, overflow: 'hidden', cursor: 'pointer', position: 'relative',
-                          border: `2px solid ${sel ? '#6366f1' : 'rgba(51,65,85,.4)'}`,
-                          transition: 'border-color .15s',
-                        }}>
-                          <div style={{ aspectRatio: '1', background: '#0d1520', overflow: 'hidden' }}>
-                            {item.type === 'video'
-                              ? <video src={`${API}${item.url}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              : <img src={`${API}${item.url}`} alt={item.originalName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                          </div>
-                          {sel && (
-                            <div style={{ position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700 }}>✓</div>
-                          )}
-                          <div style={{ padding: '4px 6px', fontSize: 10, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', background: 'rgba(15,23,42,.9)' }}>{item.originalName}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 13, color: 'var(--text2)' }}>{Object.keys(libSelected).length} arquivo(s) selecionado(s)</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setLibSelected({})}>Limpar</button>
-                <button type="button" className="btn btn-primary" onClick={() => setLibOpen(false)}>Confirmar</button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
