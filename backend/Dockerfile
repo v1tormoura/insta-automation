@@ -7,6 +7,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 RUN apt-get update && apt-get install -y \
     chromium \
     ca-certificates \
+    curl \
+    ffmpeg \
+    python3 \
     fonts-noto \
     fonts-liberation \
     libasound2 \
@@ -25,6 +28,8 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxss1 \
     --no-install-recommends \
+    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

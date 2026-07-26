@@ -39,8 +39,6 @@ const IC_DOWNLOAD = (
 );
 
 export default function Downloader() {
-  const [accounts,     setAccounts]     = useState([]);
-  const [accountId,    setAccountId]    = useState('');
   const [username,     setUsername]     = useState('');
   const [profile,      setProfile]      = useState(null);
   const [media,        setMedia]        = useState([]);
@@ -53,18 +51,9 @@ export default function Downloader() {
   const [downloading,  setDownloading]  = useState(false);
   const [dlProg,       setDlProg]       = useState({ done: 0, total: 0 });
 
-  useEffect(() => {
-    axios.get(`${API}/accounts`, auth())
-      .then(r => {
-        const list = r.data?.accounts || r.data || [];
-        setAccounts(list);
-        if (list.length) setAccountId(String(list[0]._id));
-      })
-      .catch(() => {});
-  }, []);
 
   async function handleSearch() {
-    if (!username.trim() || !accountId) return;
+    if (!username.trim()) return;
     setLoading(true);
     setError('');
     setProfile(null);
@@ -75,7 +64,7 @@ export default function Downloader() {
     try {
       const clean = username.replace('@', '').trim();
       const r = await axios.get(`${API}/downloader/profile`, {
-        ...auth(), params: { username: clean, accountId },
+        ...auth(), params: { username: clean },
       });
       setProfile(r.data.profile);
       setMedia(r.data.media || []);
@@ -94,7 +83,7 @@ export default function Downloader() {
     try {
       const clean = username.replace('@', '').trim();
       const r = await axios.get(`${API}/downloader/profile`, {
-        ...auth(), params: { username: clean, accountId, cursor },
+        ...auth(), params: { username: clean, cursor },
       });
       setMedia(p => [...p, ...(r.data.media || [])]);
       setHasMore(r.data.has_more || false);
@@ -169,30 +158,18 @@ export default function Downloader() {
 
       {/* Search */}
       <div style={S.card}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, letterSpacing: .4 }}>SESSÃO (sua conta)</span>
-            <select value={accountId} onChange={e => setAccountId(e.target.value)} style={S.select}>
-              {accounts.length === 0
-                ? <option>Nenhuma conta cadastrada</option>
-                : accounts.map(a => <option key={a._id} value={a._id}>@{a.username}</option>)
-              }
-            </select>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 200 }}>
-            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, letterSpacing: .4 }}>PERFIL PARA BAIXAR (qualquer conta)</span>
-            <input
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="@qualquer_perfil_publico"
-              style={{ ...S.input, minWidth: 'unset' }}
-            />
-          </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <input
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            placeholder="@username ou username"
+            style={S.input}
+          />
           <button
             onClick={handleSearch}
-            disabled={loading || !username.trim() || !accountId}
-            style={{ ...S.btn, opacity: (loading || !username.trim() || !accountId) ? .5 : 1 }}
+            disabled={loading || !username.trim()}
+            style={{ ...S.btn, opacity: (loading || !username.trim()) ? .5 : 1 }}
           >
             {loading ? 'Buscando…' : 'Buscar'}
           </button>
