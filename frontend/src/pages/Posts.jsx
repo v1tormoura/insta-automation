@@ -26,6 +26,7 @@ export default function Posts() {
   const [postPage, setPostPage] = useState(1);
   const [postPagination, setPostPagination] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [ctaComment, setCtaComment] = useState('');
 
   // Library picker
   const [mediaSource, setMediaSource]     = useState('upload'); // 'upload' | 'library'
@@ -146,12 +147,13 @@ export default function Posts() {
     form.append('intervalMinutes', intervalMins);
     form.append('simultaneousLimit', simultaneousLimit);
     form.append('processMode', processMode);
+    if (ctaComment.trim()) form.append('ctaComment', ctaComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     try {
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null); setLibSelected({});
       setLocation(''); setSelectedAccounts({}); setScheduledAt('');
-      setIntervalMins(0); setSelectedLegend('');
+      setIntervalMins(0); setSelectedLegend(''); setCtaComment('');
       showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
       load();
     } catch (err) {
@@ -346,6 +348,32 @@ export default function Posts() {
                 </datalist>
               </div>
             </div>
+          </div>
+
+          {/* CTA Comment */}
+          <div className="card">
+            <div className="card-header">
+              <h3>💬 Comentário fixado automático</h3>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text2)' }}>
+                <input
+                  type="checkbox"
+                  checked={!!ctaComment}
+                  onChange={e => setCtaComment(e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '')}
+                />
+                {ctaComment ? 'Ativo' : 'Inativo'}
+              </label>
+            </div>
+            {!!ctaComment && (
+              <div className="card-body">
+                <textarea className="txta" rows={3}
+                  placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
+                  value={ctaComment}
+                  onChange={e => setCtaComment(e.target.value)} />
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                  Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
