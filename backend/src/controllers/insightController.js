@@ -38,6 +38,11 @@ exports.getInsights = async (req, res) => {
     } else if (accountIds) {
       const ids = accountIds.split(',').filter(Boolean);
       if (ids.length) filter.accountId = { $in: ids };
+    } else {
+      // Sem filtro explícito: exclui automaticamente contas banidas
+      const bannedAccs = await Account.find({ healthStatus: { $in: ['banida', 'banido'] } }).select('_id');
+      const bannedIds  = bannedAccs.map(a => a._id);
+      if (bannedIds.length) filter.accountId = { $nin: bannedIds };
     }
     if (mediaType && mediaType !== 'all' && mediaType !== 'tudo') {
       if      (mediaType === 'reel')      filter.mediaType = 'VIDEO';
