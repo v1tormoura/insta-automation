@@ -29,6 +29,11 @@ const postSchema = new mongoose.Schema(
       default: '',
     },
 
+    ctaComment: {
+      type: String,
+      default: '',
+    },
+
     storyLink: {
       type: String,
       default: '',

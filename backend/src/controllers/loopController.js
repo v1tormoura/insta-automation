@@ -17,7 +17,7 @@ exports.list = async (req, res) => {
 /* ── Criar loop ── */
 exports.create = async (req, res) => {
   try {
-    const { name, accounts, folder, mediaFiles, type, intervalMinutes, caption } = req.body;
+    const { name, accounts, folder, mediaFiles, type, intervalMinutes, caption, ctaComment } = req.body;
 
     if (!accounts?.length)  return res.status(400).json({ error: 'Selecione ao menos uma conta' });
     if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
@@ -33,6 +33,7 @@ exports.create = async (req, res) => {
       type:            type || 'reel',
       intervalMinutes: Number(intervalMinutes),
       caption:         caption || '',
+      ctaComment:      ctaComment || '',
       status:          'ativo',
       currentIndex:    0,
       postsCount:      0,
@@ -80,11 +81,12 @@ exports.remove = async (req, res) => {
 /* ── Atualizar ── */
 exports.update = async (req, res) => {
   try {
-    const { name, intervalMinutes, caption, mediaFiles, folder } = req.body;
+    const { name, intervalMinutes, caption, ctaComment, mediaFiles, folder } = req.body;
     const update = {};
     if (name !== undefined)            update.name = name;
     if (intervalMinutes !== undefined) update.intervalMinutes = Number(intervalMinutes);
     if (caption !== undefined)         update.caption = caption;
+    if (ctaComment !== undefined)      update.ctaComment = ctaComment;
     if (mediaFiles !== undefined)      update.mediaFiles = mediaFiles;
     if (folder !== undefined)          update.folder = folder;
 

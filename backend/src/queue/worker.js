@@ -10,7 +10,7 @@ const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
 const traduzirErro        = require('../utils/traduzirErro');
-const { runPromoAfterPost } = require('../jobs/promoJob');
+const { runPromoAfterPost, postCTACommentForPost } = require('../jobs/promoJob');
 
 connectDB();
 
@@ -135,8 +135,14 @@ const worker = new Worker(
         broadcast('accounts', { action: 'synced' });
         successCount++;
 
-        // Dispara promo assincronamente (sem bloquear o worker)
+        // Dispara promo global assincronamente
         runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
+
+        // Comentário CTA específico do post/loop (independente do promo global)
+        if (post.ctaComment?.trim()) {
+          postCTACommentForPost(account._id, post.ctaComment)
+            .catch(e => console.log('[CTA] erro:', e.message));
+        }
 
       } catch (err) {
         errorCount++;

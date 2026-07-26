@@ -444,6 +444,60 @@ select.lm-input { cursor:pointer; }
   box-shadow:0 0 10px rgba(245,158,11,.25) !important;
 }
 
+/* ── CTA Comment ── */
+.lm-cta-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.lm-cta-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.lm-cta-toggle input { display: none; }
+.lm-cta-knob {
+  position: absolute;
+  inset: 0;
+  background: var(--bg4, var(--bg3));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.lm-cta-knob::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  background: var(--text3);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+}
+.lm-cta-toggle input:checked + .lm-cta-knob {
+  background: rgba(99,102,241,.25);
+  border-color: #6366f1;
+}
+.lm-cta-toggle input:checked + .lm-cta-knob::before {
+  background: #818cf8;
+  transform: translateX(16px);
+}
+.lm-cta-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 6px;
+}
+.lm-cta-hint code {
+  background: var(--bg3);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #a5b4fc;
+}
+
 /* error */
 .lm-err {
   display:flex; align-items:center; gap:8px;

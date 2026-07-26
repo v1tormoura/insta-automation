@@ -186,4 +186,33 @@ async function testPromoNow(accountId, feature) {
   throw new Error('Feature inválida');
 }
 
-module.exports = { runPromoAfterPost, testPromoNow };
+// Posta comentário CTA específico de um post (independente das config de promo global)
+async function postCTACommentForPost(accountId, ctaComment) {
+  try {
+    const account = await Account.findById(accountId);
+    if (!account?.accessToken || !account?.igUserId) return;
+
+    const token  = account.accessToken;
+    const userId = account.igUserId;
+
+    console.log(`⏳ [CTA] @${account.username} — aguardando 2min para indexação...`);
+    await delay(120_000);
+
+    const md = await igGet(`/${userId}/media?fields=id,media_type,timestamp&limit=10`, token);
+    const latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
+    if (!latestMedia) { console.log(`[CTA] @${account.username} — nenhum reel encontrado`); return; }
+
+    const vars = {
+      link:     account.promoLink   || '',
+      username: `@${account.username}`,
+      nome:     account.name        || account.username,
+    };
+    const message = buildMessage(ctaComment, vars);
+    await igPost(`/${latestMedia.id}/comments`, token, { message });
+    console.log(`✅ [CTA] @${account.username} — comentário postado: "${message.slice(0, 60)}"`);
+  } catch (err) {
+    console.log(`⚠️ [CTA] erro: ${err.message}`);
+  }
+}
+
+module.exports = { runPromoAfterPost, testPromoNow, postCTACommentForPost };

@@ -68,12 +68,13 @@ async function runLoops() {
 
         // Cria o post para todas as contas válidas
         const post = await Post.create({
-          media:    mediaFile,
+          media:      mediaFile,
           mediaType,
           postType,
-          caption:  loop.caption || '',
-          accounts: validAccounts.map(a => a._id),
-          status:   'pendente',
+          caption:    loop.caption    || '',
+          ctaComment: loop.ctaComment || '',
+          accounts:   validAccounts.map(a => a._id),
+          status:     'pendente',
           scheduledAt: new Date(),
         });
 
