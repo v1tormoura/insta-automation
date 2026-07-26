@@ -263,8 +263,10 @@ exports.getDashboard = async (req, res) => {
     let avgEngagementByAccount = [];
     if (Insight) {
       try {
+        const activeAccounts = await Account.find({ healthStatus: { $nin: ['banida', 'banido'] } }).select('_id');
+        const activeIds = activeAccounts.map(a => a._id);
         const engRaw = await Insight.aggregate([
-          { $match: { postedAt: { $gte: thirtyDaysAgo } } },
+          { $match: { postedAt: { $gte: thirtyDaysAgo }, accountId: { $in: activeIds } } },
           { $group: {
             _id: '$accountId',
             avgViews:    { $avg: '$videoViews' },
