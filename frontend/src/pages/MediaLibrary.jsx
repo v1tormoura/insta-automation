@@ -13,8 +13,8 @@ function fmt(v) {
 
 export default function MediaLibrary() {
   const [files, setFiles]         = useState([]);
-  const [folders, setFolders]     = useState(['default']);
-  const [activeFolder, setActive] = useState('default');
+  const [folders, setFolders]     = useState([]);
+  const [activeFolder, setActive] = useState(null);
   const [toast, setToast]         = useState(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver]   = useState(false);
@@ -43,10 +43,11 @@ export default function MediaLibrary() {
       const res = await api.get('/media');
       const data = res.data;
       const allFiles = data.files || data || [];
-      const allFolders = data.folders || [...new Set(allFiles.map(f => f.folder || 'default'))].sort();
+      const allFolders = data.folders || [...new Set(allFiles.map(f => f.folder).filter(f => f && f !== 'default'))].sort();
       setFiles(allFiles);
-      const merged = [...new Set(['default', ...allFolders])];
+      const merged = [...new Set(allFolders)].sort();
       setFolders(merged);
+      setActive(prev => merged.includes(prev) ? prev : (merged[0] || null));
     } catch { toast_('error', 'Erro', 'Erro ao carregar biblioteca.'); }
   }
 
@@ -58,10 +59,10 @@ export default function MediaLibrary() {
     try {
       const form = new FormData();
       Array.from(rawFiles).forEach(f => form.append('media', f));
-      form.append('folder', activeFolder);
+      form.append('folder', activeFolder || 'default');
       await api.post('/media/upload', form);
       await load();
-      toast_('success', 'Upload concluído', `${rawFiles.length} arquivo(s) adicionado(s) à pasta "${activeFolder}".`);
+      toast_('success', 'Upload concluído', `${rawFiles.length} arquivo(s) adicionado(s)${activeFolder ? ` à pasta "${activeFolder}"` : ''}.`);
     } catch { toast_('error', 'Erro', 'Falha no upload.'); }
     finally { setUploading(false); }
   }
@@ -103,7 +104,6 @@ export default function MediaLibrary() {
   }
 
   async function deleteFolder(name) {
-    if (name === 'default') return;
     setConfirmModal({ type: 'folder', name });
   }
 
@@ -111,17 +111,16 @@ export default function MediaLibrary() {
     try {
       await api.delete(`/media/folder/${name}`);
       await load();
-      setActive('default');
-      toast_('success', 'Pasta excluída', `Mídias movidas para "default".`);
+      toast_('success', 'Pasta excluída', 'Pasta excluída com sucesso.');
     } catch { toast_('error', 'Erro', 'Falha ao excluir pasta.'); }
     setConfirmModal(null);
   }
 
-  const shown = files.filter(f => !f.filename?.startsWith('__folder_') && (f.folder || 'default') === activeFolder);
+  const shown = files.filter(f => !f.filename?.startsWith('__folder_') && (!activeFolder || (f.folder || 'default') === activeFolder));
   const folderCounts = {};
   files.filter(f => !f.filename?.startsWith('__folder_')).forEach(f => {
-    const k = f.folder || 'default';
-    folderCounts[k] = (folderCounts[k] || 0) + 1;
+    const k = f.folder;
+    if (k && k !== 'default') folderCounts[k] = (folderCounts[k] || 0) + 1;
   });
 
   return (
@@ -155,6 +154,11 @@ export default function MediaLibrary() {
           </div>
 
           <div style={{ padding: '8px 8px' }}>
+            {folders.length === 0 && (
+              <div style={{ padding: '12px 10px', fontSize: 12, color: '#475569', textAlign: 'center' }}>
+                Clique em "+" para criar uma pasta.
+              </div>
+            )}
             {folders.map(f => (
               <div key={f}
                 onClick={() => setActive(f)}
@@ -174,11 +178,9 @@ export default function MediaLibrary() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                   <span style={{ fontSize: 11, color: '#475569', background: 'rgba(51,65,85,.4)', borderRadius: 10, padding: '1px 7px' }}>{folderCounts[f] || 0}</span>
-                  {f !== 'default' && (
-                    <button onClick={e => { e.stopPropagation(); deleteFolder(f); }}
-                      title="Excluir pasta"
-                      style={{ width: 18, height: 18, borderRadius: 4, background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: .6 }}>✕</button>
-                  )}
+                  <button onClick={e => { e.stopPropagation(); deleteFolder(f); }}
+                    title="Excluir pasta"
+                    style={{ width: 18, height: 18, borderRadius: 4, background: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: .6 }}>✕</button>
                 </div>
               </div>
             ))}
@@ -206,7 +208,7 @@ export default function MediaLibrary() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>📁</span>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{activeFolder}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>{activeFolder || 'Todos os arquivos'}</div>
                 <div style={{ fontSize: 12, color: '#475569' }}>{shown.length} arquivo(s)</div>
               </div>
             </div>
@@ -223,7 +225,7 @@ export default function MediaLibrary() {
             <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
               onChange={e => upload(Array.from(e.target.files || []))} />
             <div style={{ fontSize: 24, marginBottom: 6 }}>⬆️</div>
-            <strong>{uploading ? 'Enviando...' : `Arraste para "${activeFolder}" ou clique`}</strong>
+            <strong>{uploading ? 'Enviando...' : activeFolder ? `Arraste para "${activeFolder}" ou clique` : 'Arraste arquivos ou clique'}</strong>
             <span style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>MP4, MOV, JPG, PNG · Múltiplos arquivos</span>
           </label>
 
@@ -259,7 +261,7 @@ export default function MediaLibrary() {
 
                   {/* actions */}
                   <div style={{ display: 'flex', gap: 6, padding: '0 10px 10px' }}>
-                    <button onClick={() => { setMoveItem(item); setMoveTarget(folders.find(f => f !== (item.folder || 'default')) || 'default'); }}
+                    <button onClick={() => { setMoveItem(item); setMoveTarget(folders.find(f => f !== item.folder) || folders[0] || ''); }}
                       style={{ flex: 1, fontSize: 11, padding: '5px 0', borderRadius: 7, border: '1px solid rgba(51,65,85,.5)', background: 'rgba(30,41,59,.6)', color: '#94a3b8', cursor: 'pointer' }}>
                       Mover
                     </button>
@@ -315,7 +317,7 @@ export default function MediaLibrary() {
               Mover <strong style={{ color: 'var(--text1)' }}>{moveItem.originalName}</strong> para:
             </p>
             <select className="sel" value={moveTarget} onChange={e => setMoveTarget(e.target.value)}>
-              {folders.filter(f => f !== (moveItem.folder || 'default')).map(f => (
+              {folders.filter(f => f !== moveItem.folder).map(f => (
                 <option key={f} value={f}>{f}</option>
               ))}
             </select>
@@ -384,7 +386,7 @@ export default function MediaLibrary() {
                   📁 {confirmModal.name}
                 </div>
                 <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
-                  Todas as mídias serão movidas para <strong style={{ color: '#94a3b8' }}>default</strong>.
+                  As mídias desta pasta não serão excluídas.
                 </p>
               </div>
             ) : (
