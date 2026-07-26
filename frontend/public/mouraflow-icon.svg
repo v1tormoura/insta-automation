@@ -1,9 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="230" fill="#0F172A"/>
-  <text x="512" y="620"
-    font-family="'Arial Black', Arial, Helvetica, sans-serif"
-    font-size="440" font-weight="900"
-    fill="#E2E8F0" text-anchor="middle"
-    letter-spacing="8">MF</text>
-  <path d="M200 760 Q512 650 824 760" stroke="#F59E0B" stroke-width="30" fill="none" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 116">
+  <defs>
+    <linearGradient id="s" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="52%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="t" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#bfdbfe"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+  <polygon points="92,34 50,10 8,34 8,82 50,106 92,82"
+    fill="rgba(59,130,246,0.10)"
+    stroke="url(#s)"
+    stroke-width="4"
+    stroke-linejoin="round"/>
+  <text x="50" y="74"
+    text-anchor="middle"
+    font-family="'Arial Black',Arial,Helvetica,sans-serif"
+    font-size="44"
+    font-weight="900"
+    fill="url(#t)"
+    letter-spacing="-3">MF</text>
 </svg>
