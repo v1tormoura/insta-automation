@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
@@ -356,7 +356,7 @@ export default function Posts() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                 <span style={{ fontSize: 11, color: 'var(--text3)' }}>LOTE</span>
                 <span style={{ fontSize: 22, fontWeight: 900, color: '#60a5fa', letterSpacing: -1 }}>{simultaneousLimit}</span>
-                <span style={{ fontSize: 14, color: 'var(--text3)' }}>/{Math.max(totalMedia, 1)} reels</span>
+                <span style={{ fontSize: 14, color: 'var(--text3)' }}>/{Math.max(media.length, 1)} reels</span>
               </div>
               <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
                 onChange={e => setSimultaneousLimit(Number(e.target.value))}
