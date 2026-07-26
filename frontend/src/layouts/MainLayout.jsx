@@ -73,11 +73,9 @@ const NAV_GROUPS = [
     items: [
       { to: '/warmup',         label: 'Aquecimento',       icon: ICONS.warmup    },
       { to: '/best-times',     label: 'Melhores Horários', icon: ICONS.besttimes },
-      { to: '/trending-audio', label: 'Áudio Trending',    icon: ICONS.audio     },
-      { to: '/ab-test',        label: 'A/B Teste',         icon: ICONS.abtest    },
       { to: '/smart-repost',   label: 'Repost',            icon: ICONS.repost    },
       { to: '/viral-hunter',   label: 'Caçador de Virais', icon: ICONS.hunter    },
-      { to: '/promo',           label: 'Divulgação',        icon: ICONS.promo     },
+      { to: '/promo',          label: 'Divulgação',        icon: ICONS.promo     },
     ],
   },
   {
