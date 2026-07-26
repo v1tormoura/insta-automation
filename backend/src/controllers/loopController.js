@@ -4,6 +4,20 @@ const Loop    = require('../models/Loop');
 const Account = require('../models/Account');
 const { broadcast } = require('../events/broadcaster');
 
+/* ── Upload de mídias para loop (sem salvar na biblioteca) ── */
+exports.uploadMedia = async (req, res) => {
+  try {
+    if (!req.files?.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    const files = req.files.map(f => ({
+      filename: f.filename,
+      type: /\.(mp4|mov|webm|avi|mkv)$/i.test(f.filename) ? 'video' : 'image',
+    }));
+    res.json({ files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 /* ── Listar loops ── */
 exports.list = async (req, res) => {
   try {

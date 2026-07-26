@@ -12,7 +12,6 @@ import Legends from './pages/Legends';
 import Sessions from './pages/Sessions';
 import Health from './pages/Health';
 import Proxies from './pages/Proxies';
-import MediaLibrary from './pages/MediaLibrary';
 import Stories from './pages/Stories';
 import Warmup from './pages/Warmup';
 import Loop from './pages/Loop';
@@ -20,9 +19,7 @@ import OAuthCallback from './pages/OAuthCallback';
 import TopPosts from './pages/TopPosts';
 import BestTimes from './pages/BestTimes';
 import SmartRepost from './pages/SmartRepost';
-import ViralHunter from './pages/ViralHunter';
 import Promo from './pages/Promo';
-import Downloader from './pages/Downloader';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -54,16 +51,13 @@ export default function App() {
               <Route path="/sessions"     element={<Sessions />} />
               <Route path="/health"       element={<Health />} />
               <Route path="/proxies"      element={<Proxies />} />
-              <Route path="/media-library" element={<MediaLibrary />} />
               <Route path="/stories"      element={<Stories />} />
               <Route path="/warmup"       element={<Warmup />} />
               <Route path="/loop"         element={<Loop />} />
               <Route path="/top-posts"      element={<TopPosts />} />
               <Route path="/best-times"     element={<BestTimes />} />
               <Route path="/smart-repost"   element={<SmartRepost />} />
-              <Route path="/viral-hunter"   element={<ViralHunter />} />
               <Route path="/promo"          element={<Promo />} />
-              <Route path="/downloader"     element={<Downloader />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>

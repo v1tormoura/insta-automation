@@ -56,10 +56,8 @@ const NAV_GROUPS = [
   {
     title: 'CONTEÚDO',
     items: [
-      { to: '/media-library', label: 'Biblioteca',    icon: ICONS.media },
-      { to: '/legends',       label: 'Legendas',     icon: ICONS.legends },
-      { to: '/top-posts',     label: 'Top Posts',    icon: ICONS.topposts },
-      { to: '/downloader',    label: 'Baixar Perfil', icon: ICONS.downloader },
+      { to: '/legends',       label: 'Legendas',  icon: ICONS.legends },
+      { to: '/top-posts',     label: 'Top Posts', icon: ICONS.topposts },
     ],
   },
   {
@@ -76,7 +74,6 @@ const NAV_GROUPS = [
       { to: '/warmup',         label: 'Aquecimento',       icon: ICONS.warmup    },
       { to: '/best-times',     label: 'Melhores Horários', icon: ICONS.besttimes },
       { to: '/smart-repost',   label: 'Repost',            icon: ICONS.repost    },
-      { to: '/viral-hunter',   label: 'Caçador de Virais', icon: ICONS.hunter    },
       { to: '/promo',          label: 'Divulgação',        icon: ICONS.promo     },
     ],
   },

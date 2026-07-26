@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
   History, AlertTriangle, CheckCircle, X, ChevronRight,
-  Edit3, BookOpen, Upload, Folder, Crown, Image,
+  Edit3, BookOpen, Upload, Crown,
 } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
@@ -44,7 +44,7 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
         </div>
       </div>
 
-      <p className="lc-sub">{loop.folder || 'default'} · {loop.type} · {loop.mediaFiles?.length || 0} mídias</p>
+      <p className="lc-sub">{loop.type} · {loop.mediaFiles?.length || 0} mídias</p>
 
       <div className="lc-stats">
         <div><span>INTERVALO</span><b>{loop.intervalMinutes}m</b></div>
@@ -62,39 +62,26 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
 
 /* ──────────────────── Modal ──────────────────── */
 function LoopModal({ onClose, onCreated }) {
-  const [accounts,  setAccounts]  = useState([]);
-  const [medias,    setMedias]    = useState([]);
-  const [folders,   setFolders]   = useState(['default']);
-  const [legends,   setLegends]   = useState([]);
-  const [capMode,   setCapMode]   = useState('manual');
-  const [step,      setStep]      = useState(1);
-  const [uploading, setUploading] = useState(false);
-  const [dragOver,  setDragOver]  = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [err,       setErr]       = useState('');
+  const [accounts,      setAccounts]      = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [legends,       setLegends]       = useState([]);
+  const [capMode,       setCapMode]       = useState('manual');
+  const [step,          setStep]          = useState(1);
+  const [uploading,     setUploading]     = useState(false);
+  const [dragOver,      setDragOver]      = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const [err,           setErr]           = useState('');
   const fileInputRef = useRef();
 
   const [form, setForm] = useState({
-    name: '', accounts: [], folder: 'default', mediaFiles: [],
+    name: '', accounts: [], mediaFiles: [],
     type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '', engageComment: '',
   });
 
-  const loadMedias = useCallback(async () => {
-    const r = await api.get('/media');
-    const files = r.data?.files || r.data || [];
-    setMedias(files);
-    const folds = [...new Set(files.map(f => f.folder || 'default'))];
-    setFolders(folds.length ? folds : ['default']);
-  }, []);
-
   useEffect(() => {
     api.get('/accounts').then(r => setAccounts(r.data?.accounts || r.data || [])).catch(() => {});
-    loadMedias().catch(() => {});
     api.get('/legends').then(r => setLegends(r.data || [])).catch(() => {});
-  }, [loadMedias]);
-
-  const isUploadTab   = form.folder === '__upload__';
-  const folderMedias  = isUploadTab ? [] : medias.filter(m => (m.folder || 'default') === form.folder);
+  }, []);
 
   const tog = (key, val) => setForm(f => ({
     ...f,
@@ -107,10 +94,13 @@ function LoopModal({ onClose, onCreated }) {
     try {
       const fd = new FormData();
       for (const file of files) fd.append('files', file);
-      fd.append('folder', 'default');
-      await api.post('/media/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      await loadMedias();
-      setForm(f => ({ ...f, folder: 'default' }));
+      const res = await api.post('/loops/upload-media', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const newFiles = res.data.files || [];
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      setForm(f => ({
+        ...f,
+        mediaFiles: [...new Set([...f.mediaFiles, ...newFiles.map(x => x.filename)])],
+      }));
     } catch (ex) {
       setErr(ex.response?.data?.error || 'Erro ao fazer upload');
     } finally {
@@ -354,141 +344,69 @@ function LoopModal({ onClose, onCreated }) {
         {step === 2 && (
           <form onSubmit={submit} className="lm-body">
 
-            {/* Folder tabs */}
-            <div className="lm-row">
-              <label className="lm-label">Origem das mídias</label>
-              <div className="lm-folders">
-                {folders.map(f => (
-                  <button key={f} type="button"
-                    className={`lm-ftab ${form.folder === f ? 'active' : ''}`}
-                    onClick={() => setForm(p => ({ ...p, folder: f, mediaFiles: [], coverFile: '' }))}>
-                    <Folder size={11} /> {f}
-                  </button>
-                ))}
-                <button type="button"
-                  className={`lm-ftab lm-ftab--upload ${isUploadTab ? 'active' : ''}`}
-                  onClick={() => setForm(p => ({ ...p, folder: '__upload__', mediaFiles: [], coverFile: '' }))}>
-                  <Upload size={11} /> Upload
-                </button>
+            {/* Upload zone */}
+            <div
+              className={`lm-dropzone ${dragOver ? 'drag' : ''}`}
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              <input ref={fileInputRef} type="file" multiple accept="video/*,image/*" hidden
+                onChange={e => handleUpload(e.target.files)} />
+              <div className="lm-dz-inner">
+                {uploading
+                  ? <><RefreshCw size={28} className="spin lm-dz-ic" /><span className="lm-dz-title">Fazendo upload...</span></>
+                  : <>
+                      <Upload size={28} className="lm-dz-ic" />
+                      <span className="lm-dz-title">Arraste vídeos ou imagens aqui</span>
+                      <span className="lm-dz-sub">ou clique para selecionar do dispositivo</span>
+                      <span className="lm-dz-formats">MP4 · MOV · JPG · PNG · WEBM</span>
+                    </>
+                }
               </div>
             </div>
 
-            {/* Upload zone */}
-            {isUploadTab ? (
-              <div
-                className={`lm-dropzone ${dragOver ? 'drag' : ''}`}
-                onClick={() => !uploading && fileInputRef.current?.click()}
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-              >
-                <input ref={fileInputRef} type="file" multiple accept="video/*,image/*" hidden
-                  onChange={e => handleUpload(e.target.files)} />
-                <div className="lm-dz-inner">
-                  {uploading
-                    ? <><RefreshCw size={28} className="spin lm-dz-ic" /><span className="lm-dz-title">Fazendo upload...</span></>
-                    : <>
-                        <Upload size={28} className="lm-dz-ic" />
-                        <span className="lm-dz-title">Arraste vídeos ou imagens aqui</span>
-                        <span className="lm-dz-sub">ou clique para selecionar do dispositivo</span>
-                        <span className="lm-dz-formats">MP4 · MOV · JPG · PNG · WEBM</span>
-                      </>
-                  }
+            {/* Grid de mídias enviadas */}
+            {uploadedFiles.length > 0 && (
+              <div className="lm-row">
+                <div className="lm-row-hd">
+                  <label className="lm-label">
+                    Mídias&nbsp;<span className="lm-count">{form.mediaFiles.length}/{uploadedFiles.length}</span>
+                  </label>
+                  <button type="button" className="lm-tiny"
+                    onClick={() => setForm(f => ({
+                      ...f,
+                      mediaFiles: f.mediaFiles.length === uploadedFiles.length
+                        ? [] : uploadedFiles.map(m => m.filename),
+                      coverFile: f.mediaFiles.length === uploadedFiles.length ? '' : f.coverFile,
+                    }))}>
+                    {form.mediaFiles.length === uploadedFiles.length ? 'Desmarcar' : 'Selecionar todas'}
+                  </button>
+                </div>
+                <div className="lm-grid">
+                  {uploadedFiles.map((m, i) => {
+                    const sel     = form.mediaFiles.includes(m.filename);
+                    const isCover = form.coverFile === m.filename;
+                    const vid     = m.type === 'video';
+                    return (
+                      <button key={m.filename} type="button"
+                        className={`lm-thumb ${sel ? 'sel' : ''} ${isCover ? 'lm-thumb--cover' : ''}`}
+                        onClick={() => {
+                          tog('mediaFiles', m.filename);
+                          if (isCover) setForm(f => ({ ...f, coverFile: '' }));
+                        }}>
+                        {vid
+                          ? <video src={`${API_URL}/uploads/${m.filename}`} muted playsInline />
+                          : <img src={`${API_URL}/uploads/${m.filename}`} alt="" />}
+                        <span className="lm-num">#{i + 1}</span>
+                        {isCover && <div className="lm-crown"><Crown size={9} /></div>}
+                        {sel && !isCover && <div className="lm-chk2"><CheckCircle size={12} /></div>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            ) : (
-              <>
-                {/* Media grid */}
-                <div className="lm-row">
-                  <div className="lm-row-hd">
-                    <label className="lm-label">
-                      Mídias&nbsp;<span className="lm-count">{form.mediaFiles.length}/{folderMedias.length}</span>
-                    </label>
-                    <button type="button" className="lm-tiny"
-                      onClick={() => setForm(f => ({
-                        ...f,
-                        mediaFiles: f.mediaFiles.length === folderMedias.length
-                          ? [] : folderMedias.map(m => m.filename),
-                        coverFile: f.mediaFiles.length === folderMedias.length ? '' : f.coverFile,
-                      }))}>
-                      {form.mediaFiles.length === folderMedias.length ? 'Desmarcar' : 'Selecionar todas'}
-                    </button>
-                  </div>
-                  <div className="lm-grid">
-                    {folderMedias.map((m, i) => {
-                      const sel     = form.mediaFiles.includes(m.filename);
-                      const isCover = form.coverFile === m.filename;
-                      const vid     = /\.(mp4|mov|webm)$/i.test(m.filename);
-                      return (
-                        <button key={m.filename} type="button"
-                          className={`lm-thumb ${sel ? 'sel' : ''} ${isCover ? 'lm-thumb--cover' : ''}`}
-                          onClick={() => {
-                            tog('mediaFiles', m.filename);
-                            if (isCover) setForm(f => ({ ...f, coverFile: '' }));
-                          }}>
-                          {vid
-                            ? <video src={`${API_URL}/uploads/${m.filename}`} muted playsInline />
-                            : <img src={`${API_URL}/uploads/${m.filename}`} alt="" />}
-                          <span className="lm-num">#{i + 1}</span>
-                          {isCover && (
-                            <div className="lm-crown"><Crown size={9} /></div>
-                          )}
-                          {sel && !isCover && (
-                            <div className="lm-chk2"><CheckCircle size={12} /></div>
-                          )}
-                        </button>
-                      );
-                    })}
-                    {folderMedias.length === 0 && (
-                      <p className="lm-no-media">
-                        <Image size={20} style={{opacity:.4, display:'block', margin:'0 auto 8px'}} />
-                        Nenhuma mídia na pasta "{form.folder}"
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Capa do post */}
-                {form.mediaFiles.length > 0 && (
-                  <div className="lm-row">
-                    <div className="lm-row-hd">
-                      <label className="lm-label">
-                        <Crown size={11} style={{marginRight:4, color:'#f59e0b'}} />
-                        Capa do post
-                      </label>
-                      {form.coverFile && (
-                        <button type="button" className="lm-tiny"
-                          onClick={() => setForm(f => ({ ...f, coverFile: '' }))}>
-                          Remover capa
-                        </button>
-                      )}
-                    </div>
-                    <p className="lm-cover-hint">
-                      {form.coverFile ? 'Capa definida — clique em outra mídia para trocar' : 'Clique em uma mídia para definir como capa do post'}
-                    </p>
-                    <div className="lm-cover-strip">
-                      {folderMedias
-                        .filter(m => form.mediaFiles.includes(m.filename))
-                        .map(m => {
-                          const isCover = form.coverFile === m.filename;
-                          const vid     = /\.(mp4|mov|webm)$/i.test(m.filename);
-                          return (
-                            <button key={m.filename} type="button"
-                              className={`lm-cover-thumb ${isCover ? 'sel' : ''}`}
-                              onClick={() => setForm(f => ({ ...f, coverFile: isCover ? '' : m.filename }))}>
-                              {vid
-                                ? <video src={`${API_URL}/uploads/${m.filename}`} muted playsInline />
-                                : <img src={`${API_URL}/uploads/${m.filename}`} alt="" />}
-                              {isCover && (
-                                <div className="lm-cover-ic"><Crown size={12} /></div>
-                              )}
-                            </button>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-              </>
             )}
 
             {err && <div className="lm-err"><AlertTriangle size={13} />{err}</div>}

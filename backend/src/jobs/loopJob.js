@@ -81,13 +81,23 @@ async function runLoops() {
 
         await postQueue.add('newPost', { postId: post._id }, { delay: 0 });
 
-        // Avança índice
-        loop.currentIndex = (idx + 1) % loop.mediaFiles.length;
-        loop.postsCount   = (loop.postsCount || 0) + 1;
-        loop.lastRunAt    = now;
-        loop.nextRunAt    = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
-        loop.lastError    = errNote;
-        loop.status       = 'ativo';
+        // Avança índice — para ao terminar todas as mídias
+        const nextIndex = idx + 1;
+        loop.postsCount = (loop.postsCount || 0) + 1;
+        loop.lastRunAt  = now;
+        loop.lastError  = errNote;
+
+        if (nextIndex >= loop.mediaFiles.length) {
+          loop.status       = 'inativo';
+          loop.currentIndex = 0;
+          loop.nextRunAt    = null;
+          console.log(`✅ [Loop] "${loop.name}" → todas as mídias publicadas, loop encerrado`);
+          broadcast('posts', { action: 'loop_stopped', loopId: loop._id });
+        } else {
+          loop.currentIndex = nextIndex;
+          loop.nextRunAt    = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+          loop.status       = 'ativo';
+        }
 
         await loop.save();
 
