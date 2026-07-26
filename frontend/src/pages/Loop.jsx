@@ -242,6 +242,35 @@ function LoopModal({ onClose, onCreated }) {
               </div>
             </div>
 
+            {/* CTA Comment */}
+            <div className="lm-row">
+              <div className="lm-cta-head">
+                <label className="lm-label">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                  Comentário fixado automático
+                </label>
+                <label className="lm-cta-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!!form.ctaComment}
+                    onChange={e => setForm(f => ({ ...f, ctaComment: e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '' }))}
+                  />
+                  <span className="lm-cta-knob" />
+                </label>
+              </div>
+              {form.ctaComment !== '' && (
+                <>
+                  <textarea className="lm-input" rows={3}
+                    placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
+                    value={form.ctaComment}
+                    onChange={e => setForm(f => ({ ...f, ctaComment: e.target.value }))} />
+                  <div className="lm-cta-hint">
+                    Postado ~2 min após publicar · Variáveis: <code>{'{link}'}</code> <code>{'{username}'}</code> <code>{'{nome}'}</code>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Legenda */}
             <div className="lm-row">
               <div className="lm-row-hd">
@@ -279,35 +308,6 @@ function LoopModal({ onClose, onCreated }) {
                         );
                       })}
                 </div>
-              )}
-            </div>
-
-            {/* CTA Comment */}
-            <div className="lm-row">
-              <div className="lm-cta-head">
-                <label className="lm-label">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                  Comentário fixado automático
-                </label>
-                <label className="lm-cta-toggle">
-                  <input
-                    type="checkbox"
-                    checked={!!form.ctaComment}
-                    onChange={e => setForm(f => ({ ...f, ctaComment: e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '' }))}
-                  />
-                  <span className="lm-cta-knob" />
-                </label>
-              </div>
-              {form.ctaComment !== '' && (
-                <>
-                  <textarea className="lm-input" rows={3}
-                    placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
-                    value={form.ctaComment}
-                    onChange={e => setForm(f => ({ ...f, ctaComment: e.target.value }))} />
-                  <div className="lm-cta-hint">
-                    Postado ~2 min após publicar · Variáveis: <code>{'{link}'}</code> <code>{'{username}'}</code> <code>{'{nome}'}</code>
-                  </div>
-                </>
               )}
             </div>
 
