@@ -700,9 +700,12 @@ export default function TopPosts() {
       const allAccounts = accRes.data.accounts || [];
       const loops = Array.isArray(loopRes.data) ? loopRes.data : (loopRes.data.loops || []);
       const activeIds = new Set(loops.flatMap(l => (l.accounts || []).map(a => String(a._id || a))));
-      const activeAccounts = allAccounts.filter(a => activeIds.has(String(a._id)));
+      const activeAccounts = allAccounts.filter(a =>
+        activeIds.has(String(a._id)) && a.healthStatus !== 'banida'
+      );
+      const activeNonBannedIds = activeAccounts.map(a => String(a._id));
       setAccounts(activeAccounts);
-      setLoopAccountIds([...activeIds]);
+      setLoopAccountIds(activeNonBannedIds);
     }).catch(() => {
       api.get('/accounts?limit=200').then(r => setAccounts(r.data.accounts || [])).catch(() => {});
     });
