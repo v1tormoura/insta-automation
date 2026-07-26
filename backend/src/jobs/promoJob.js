@@ -1,13 +1,9 @@
 'use strict';
 
-/**
- * Promo Job — dispara após cada publicação bem-sucedida.
- * 1. Auto comentário com template editável
- * 2. Auto Story com link sticker para o Telegram
- * 3. Auto atualização da bio
- */
-
 const Account = require('../models/Account');
+const path    = require('path');
+const fs      = require('fs');
+const { generateStoryCard } = require('../services/storyCardGenerator');
 
 const IG_API = 'https://graph.instagram.com/v21.0';
 const delay  = ms => new Promise(r => setTimeout(r, ms));
@@ -54,11 +50,11 @@ async function runPromoAfterPost(accountId) {
     console.log(`⏳ [Promo] @${account.username} — aguardando 2min para post ser indexado...`);
     await delay(120_000);
 
-    // Busca o post mais recente
+    // Busca o reel mais recente (media_type VIDEO = Reel)
     let latestMedia;
     try {
-      const md = await igGet(`/${userId}/media?fields=id,thumbnail_url,media_url,timestamp&limit=1`, token);
-      latestMedia = md.data?.[0];
+      const md = await igGet(`/${userId}/media?fields=id,media_type,thumbnail_url,media_url,timestamp&limit=10`, token);
+      latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
     } catch (e) {
       console.log(`[Promo] @${account.username} — erro ao buscar mídia: ${e.message}`);
       return;
@@ -87,23 +83,37 @@ async function runPromoAfterPost(accountId) {
       await delay(3000);
     }
 
-    // ── 2. Auto Story com link ──────────────────────────────────────────
+    // ── 2. Auto Story com imagem customizada ───────────────────────────
     if (account.autoStory && account.promoLink) {
       try {
-        const thumbUrl = latestMedia.thumbnail_url || latestMedia.media_url;
-        if (!thumbUrl) throw new Error('Sem thumbnail disponível');
+        const BACKEND_URL = process.env.BACKEND_URL || process.env.API_URL || 'http://localhost:3000';
+
+        const { filename } = await generateStoryCard({
+          username: account.username,
+          botLink:  account.promoLink,
+          botName:  account.name || account.username,
+        });
+        const imageUrl = `${BACKEND_URL}/uploads/stories/${filename}`;
+
+        // Aguarda 2s para o arquivo estar disponível via HTTP
+        await delay(2000);
 
         const container = await igPost(`/${userId}/media`, token, {
           media_type: 'STORIES',
-          image_url:  thumbUrl,
-          link:       account.promoLink,
+          image_url:  imageUrl,
         });
 
         if (container.id) {
           await delay(4000);
           await igPost(`/${userId}/media_publish`, token, { creation_id: container.id });
-          console.log(`✅ [Promo] @${account.username} — story publicado`);
+          console.log(`✅ [Promo] @${account.username} — story publicado com imagem customizada`);
         }
+
+        // Remove imagem temporária após publicar
+        setTimeout(() => {
+          try { fs.unlinkSync(path.resolve(__dirname, '../../uploads/stories', filename)); } catch {}
+        }, 60_000);
+
       } catch (e) {
         console.log(`⚠️ [Promo] @${account.username} — erro story: ${e.message}`);
       }
@@ -134,8 +144,8 @@ async function testPromoNow(accountId, feature) {
   const token  = account.accessToken;
   const userId = account.igUserId;
 
-  const md = await igGet(`/${userId}/media?fields=id,thumbnail_url,media_url,timestamp&limit=1`, token);
-  const latestMedia = md.data?.[0];
+  const md = await igGet(`/${userId}/media?fields=id,media_type,thumbnail_url,media_url,timestamp&limit=10`, token);
+  const latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
   if (!latestMedia) throw new Error('Nenhum post encontrado — publique um reel primeiro');
 
   const vars = {
@@ -151,16 +161,21 @@ async function testPromoNow(accountId, feature) {
   }
 
   if (feature === 'story') {
-    const thumbUrl = latestMedia.thumbnail_url || latestMedia.media_url;
-    if (!thumbUrl) throw new Error('Sem thumbnail no último post');
-    const container = await igPost(`/${userId}/media`, token, {
-      media_type: 'STORIES',
-      image_url:  thumbUrl,
-      link:       account.promoLink,
+    const BACKEND_URL = process.env.BACKEND_URL || process.env.API_URL || 'http://localhost:3000';
+    const { filename } = await generateStoryCard({
+      username: account.username,
+      botLink:  account.promoLink,
+      botName:  account.name || account.username,
     });
+    const imageUrl = `${BACKEND_URL}/uploads/stories/${filename}`;
+    await delay(2000);
+    const container = await igPost(`/${userId}/media`, token, { media_type: 'STORIES', image_url: imageUrl });
     await delay(3000);
     await igPost(`/${userId}/media_publish`, token, { creation_id: container.id });
-    return { ok: true, message: 'Story publicado com o link do Telegram!' };
+    setTimeout(() => {
+      try { fs.unlinkSync(path.resolve(__dirname, '../../uploads/stories', filename)); } catch {}
+    }, 60_000);
+    return { ok: true, message: 'Story publicado com imagem customizada!' };
   }
 
   if (feature === 'bio') {
