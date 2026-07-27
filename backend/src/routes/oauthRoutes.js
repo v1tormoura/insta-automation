@@ -63,8 +63,6 @@ const SCOPES = [
   'instagram_business_manage_comments',
   'instagram_business_content_publish',
   'instagram_business_manage_insights',
-  'pages_show_list',
-  'pages_read_engagement',
 ].join(',');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
