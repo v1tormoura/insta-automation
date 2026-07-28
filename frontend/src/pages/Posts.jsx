@@ -1,11 +1,83 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 
+/* ── Custom legend dropdown — matches dark theme ── */
+function LegendDropdown({ legends, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  const selected = legends.find(l => l._id === value);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', marginBottom: 10 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'rgba(255,255,255,.04)',
+          border: `1px solid ${open ? 'var(--border2)' : 'var(--border)'}`,
+          borderRadius: open ? '9px 9px 0 0' : 9,
+          padding: '9px 12px', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+          color: selected ? 'var(--text)' : 'var(--text3)',
+          transition: 'border-color .15s',
+          boxShadow: open ? 'var(--glow-sm)' : 'none',
+        }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {selected ? selected.title : 'Selecione uma legenda salva...'}
+        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ flexShrink: 0, marginLeft: 8, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none', color: 'var(--text3)' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+          background: 'var(--bg2)', border: '1px solid var(--border2)', borderTop: 'none',
+          borderRadius: '0 0 10px 10px', boxShadow: '0 16px 40px rgba(0,0,0,.55)',
+          maxHeight: 220, overflowY: 'auto',
+        }}>
+          {[{ _id: '', title: 'Selecione uma legenda salva...' }, ...legends].map((l, i) => (
+            <div
+              key={l._id || 'empty'}
+              onClick={() => { onChange(l._id); setOpen(false); }}
+              style={{
+                padding: '9px 12px', fontSize: 13, cursor: 'pointer',
+                color: l._id === '' ? 'var(--text3)' : l._id === value ? 'var(--cyan)' : 'var(--text)',
+                background: l._id !== '' && l._id === value ? 'rgba(0,212,255,.06)' : 'transparent',
+                borderBottom: i < legends.length ? '1px solid var(--border)' : 'none',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                transition: 'background .1s',
+                fontStyle: l._id === '' ? 'italic' : 'normal',
+              }}
+              onMouseEnter={e => { if (l._id !== value) e.currentTarget.style.background = 'rgba(0,180,255,.07)'; }}
+              onMouseLeave={e => { if (l._id !== value) e.currentTarget.style.background = l._id === value ? 'rgba(0,212,255,.06)' : 'transparent'; }}
+            >
+              {l.title}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export default function Posts() {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [postType, setPostType] = useState('reel');
   const [accounts, setAccounts] = useState([]);
@@ -205,7 +277,11 @@ export default function Posts() {
             >
               <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
                 onChange={e => setMedia(Array.from(e.target.files || []))} />
-              <div style={{ fontSize: 28, marginBottom: 6 }}>⬆️</div>
+              <div style={{ marginBottom: 8 }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}>
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
               <strong>Arraste ou envie seus vídeos</strong>
               <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
               <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
@@ -216,7 +292,12 @@ export default function Posts() {
                   <div key={i} style={{ background: 'var(--card2)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid var(--border)', position: 'relative' }}>
                     <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
                       style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                    <div style={{ fontSize: 22, marginBottom: 4 }}>{file.type?.includes('video') ? '🎬' : '🖼️'}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: file.type?.includes('video') ? '#818cf8' : '#60a5fa' }}>
+                      {file.type?.includes('video')
+                        ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                        : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                      }
+                    </div>
                     <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
                   </div>
                 ))}
@@ -229,10 +310,12 @@ export default function Posts() {
           <div className="card">
             <div className="card-header"><h3>Capa do Reel</h3><span>Opcional — aplica a todos os vídeos da fila</span></div>
             <div className="card-body">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px', background: 'var(--card2)', borderRadius: 10, border: '1px dashed var(--border)', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px', background: 'var(--card2)', borderRadius: 10, border: '1px dashed var(--border)', cursor: 'pointer', flexWrap: 'wrap' }}>
                 <input type="file" accept="image/*" style={{ display: 'none' }}
                   onChange={e => setCover(e.target.files?.[0] || null)} />
-                <div style={{ fontSize: 24 }}>🖼️</div>
+                <div style={{ color: cover ? '#60a5fa' : 'var(--text3)' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: cover ? '#60a5fa' : 'var(--text2)' }}>{cover ? cover.name : 'Nenhuma capa salva. Faça upload de uma imagem 1080×1920.'}</div>
                   {cover && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Clique para trocar</div>}
@@ -246,20 +329,22 @@ export default function Posts() {
             <div className="card-header">
               <h3>Legenda</h3>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => {}}>Gerenciar →</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/legends')}>Gerenciar →</button>
                 <span style={{ fontSize: 11, color: 'var(--text3)' }}>{caption.length}/2200</span>
               </div>
             </div>
             <div className="card-body">
               {legends.length > 0 && (
-                <select className="sel" style={{ marginBottom: 10 }} value={selectedLegend} onChange={e => {
-                  setSelectedLegend(e.target.value);
-                  const l = legends.find(l => l._id === e.target.value);
-                  if (l) setCaption(l.text);
-                }}>
-                  <option value="">Selecione uma legenda salva...</option>
-                  {legends.map(l => <option key={l._id} value={l._id}>{l.title}</option>)}
-                </select>
+                <LegendDropdown
+                  legends={legends}
+                  value={selectedLegend}
+                  onChange={id => {
+                    setSelectedLegend(id);
+                    const l = legends.find(l => l._id === id);
+                    if (l) setCaption(l.text);
+                    else if (!id) setCaption('');
+                  }}
+                />
               )}
               <textarea className="txta"
                 placeholder="Escreva a legenda do seu post. Use #hashtags e {variáveis}."
@@ -268,12 +353,13 @@ export default function Posts() {
                 Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>🎲 Aleatória</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>Aleatória</button>
               </div>
               {/* Location */}
               <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span>📍</span> Localização (opcional)
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Localização (opcional)
                 </div>
                 <input className="inp" type="text" placeholder="Belo Horizonte, Brasil" value={location} onChange={e => setLocation(e.target.value)} list="brazil-cities" />
                 <datalist id="brazil-cities">
