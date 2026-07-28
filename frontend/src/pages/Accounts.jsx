@@ -41,6 +41,7 @@ export default function Accounts() {
   const [callbackUrl,    setCallbackUrl]    = useState('');
   const [oauthConnecting, setOauthConnecting] = useState(false);
   const [oauthError,     setOauthError]     = useState('');
+  const [urlCopied,      setUrlCopied]      = useState(false);
   const [connecting,     setConnecting]     = useState({});
   const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
@@ -563,7 +564,7 @@ export default function Accounts() {
                   {oauthModal.account ? `Reconectar @${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
                 </div>
               </div>
-              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
 
             {/* Step 1 */}
@@ -577,10 +578,21 @@ export default function Accounts() {
                   {oauthModal.url}
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(oauthModal.url); }}
-                  style={{ padding: '0 16px', borderRadius: 9, border: '1px solid rgba(0,212,255,.35)', background: 'rgba(0,212,255,.1)', color: 'var(--cyan)', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(oauthModal.url);
+                    setUrlCopied(true);
+                    setTimeout(() => setUrlCopied(false), 2500);
+                  }}
+                  style={{
+                    padding: '0 16px', borderRadius: 9, border: `1px solid ${urlCopied ? 'rgba(52,211,153,.5)' : 'rgba(0,212,255,.35)'}`,
+                    background: urlCopied ? 'rgba(52,211,153,.15)' : 'rgba(0,212,255,.1)',
+                    color: urlCopied ? '#34d399' : 'var(--cyan)',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    transition: 'all .2s',
+                  }}
                 >
-                  📋 Copiar
+                  {urlCopied ? '✓ Copiado!' : '📋 Copiar'}
                 </button>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8, lineHeight: 1.6 }}>
@@ -620,7 +632,7 @@ export default function Accounts() {
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button
-                onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); }}
+                onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); }}
                 style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancelar
