@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
-  History, AlertTriangle, CheckCircle, X, ChevronRight,
-  Edit3, BookOpen, Upload, Crown,
+  History, AlertTriangle, CheckCircle, X,
+  Upload,
 } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
@@ -65,13 +65,16 @@ function LoopModal({ onClose, onCreated }) {
   const [accounts,      setAccounts]      = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [legends,       setLegends]       = useState([]);
-  const [capMode,       setCapMode]       = useState('manual');
-  const [step,          setStep]          = useState(1);
   const [uploading,     setUploading]     = useState(false);
+  const [uploadingCover,setUploadingCover]= useState(false);
   const [dragOver,      setDragOver]      = useState(false);
+  const [dragOverCover, setDragOverCover] = useState(false);
+  const [legendOpen,    setLegendOpen]    = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [err,           setErr]           = useState('');
-  const fileInputRef = useRef();
+  const fileInputRef  = useRef();
+  const coverInputRef = useRef();
+  const legendRef     = useRef();
 
   const [form, setForm] = useState({
     name: '', accounts: [], mediaFiles: [],
@@ -83,45 +86,44 @@ function LoopModal({ onClose, onCreated }) {
     api.get('/legends').then(r => setLegends(r.data || [])).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!legendOpen) return;
+    const close = e => { if (legendRef.current && !legendRef.current.contains(e.target)) setLegendOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [legendOpen]);
+
   const tog = (key, val) => setForm(f => ({
     ...f,
     [key]: f[key].includes(val) ? f[key].filter(x => x !== val) : [...f[key], val],
   }));
 
-  async function handleUpload(files) {
+  async function handleUpload(files, isCover = false) {
     if (!files?.length) return;
-    setUploading(true); setErr('');
+    if (isCover) setUploadingCover(true); else setUploading(true);
+    setErr('');
     try {
       const fd = new FormData();
       for (const file of files) fd.append('files', file);
       const res = await api.post('/loops/upload-media', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       const newFiles = res.data.files || [];
-      setUploadedFiles(prev => [...prev, ...newFiles]);
-      setForm(f => ({
-        ...f,
-        mediaFiles: [...new Set([...f.mediaFiles, ...newFiles.map(x => x.filename)])],
-      }));
+      if (isCover) {
+        if (newFiles.length > 0) setForm(f => ({ ...f, coverFile: newFiles[newFiles.length - 1].filename }));
+      } else {
+        setUploadedFiles(prev => [...prev, ...newFiles]);
+        setForm(f => ({ ...f, mediaFiles: [...new Set([...f.mediaFiles, ...newFiles.map(x => x.filename)])] }));
+      }
     } catch (ex) {
-      setErr(ex.response?.data?.error || 'Erro ao fazer upload');
+      setErr(ex.response?.data?.error || 'Erro ao fazer upload. Verifique a conexão e tente novamente.');
     } finally {
-      setUploading(false);
+      if (isCover) setUploadingCover(false); else setUploading(false);
     }
-  }
-
-  function handleDrop(e) {
-    e.preventDefault(); setDragOver(false);
-    handleUpload(e.dataTransfer.files);
-  }
-
-  function goNext(e) {
-    e.preventDefault();
-    if (!form.accounts.length) return setErr('Selecione ao menos uma conta.');
-    setErr(''); setStep(2);
   }
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.mediaFiles.length) return setErr('Selecione ao menos uma mídia.');
+    if (!form.accounts.length) return setErr('Selecione ao menos uma conta.');
+    if (!form.mediaFiles.length) return setErr('Envie ao menos um reel para o loop.');
     const intervalVal = Number(String(form.intervalMinutes).trim());
     if (!intervalVal || intervalVal < 1) return setErr('Informe um intervalo válido (mínimo 1 minuto).');
     setSaving(true);
@@ -133,296 +135,293 @@ function LoopModal({ onClose, onCreated }) {
     } finally { setSaving(false); }
   }
 
+  const selectedLegendLabel = () => {
+    if (!form.caption) return 'Sem legenda';
+    const found = legends.find(l => (l.text || l.content || '') === form.caption);
+    return found ? (found.title || form.caption.slice(0, 40)) : form.caption.slice(0, 40) + (form.caption.length > 40 ? '…' : '');
+  };
+
   return (
     <div className="lm-bg" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="lm">
 
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="lm-hd">
           <div className="lm-hd-l">
             <div className="lm-ico"><RefreshCw size={16} /></div>
             <div>
               <h2>Novo loop contínuo</h2>
-              <p>
-                {step === 1
-                  ? 'Configure as opções do loop'
-                  : `${form.mediaFiles.length} mídia(s)${form.coverFile ? ' · capa definida' : ''}`}
-              </p>
+              <p>{form.mediaFiles.length > 0
+                ? `${form.mediaFiles.length} mídia(s)${form.coverFile ? ' · capa definida' : ''}`
+                : 'Configure as opções do loop'}</p>
             </div>
           </div>
-          <div className="lm-hd-r">
-            <div className="lm-steps">
-              <span className={step === 1 ? 'cur' : 'done'}>
-                {step > 1 ? <CheckCircle size={11} /> : '1'}
-              </span>
-              <div className={`lm-line ${step > 1 ? 'done' : ''}`} />
-              <span className={step === 2 ? 'cur' : ''}>2</span>
-            </div>
-            <button className="lm-x" onClick={onClose}><X size={15} /></button>
-          </div>
+          <button className="lm-x" onClick={onClose}><X size={15} /></button>
         </div>
 
-        {/* ══════════ STEP 1 ══════════ */}
-        {step === 1 && (
-          <form onSubmit={goNext} className="lm-body">
+        {/* Single-page form */}
+        <form onSubmit={submit} className="lm-body">
 
-            {/* Nome */}
-            <div className="lm-row">
-              <label className="lm-label">Nome do loop</label>
-              <input className="lm-input" placeholder="Ex.: Ciclo motivacional"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            </div>
+          {/* Nome */}
+          <div className="lm-row">
+            <label className="lm-label">Nome</label>
+            <input className="lm-input" placeholder="Ex.: Ciclo motivacional"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
 
-            {/* Tipo + Intervalo (2 col) */}
-            <div className="lm-2col">
-              <div className="lm-row">
-                <label className="lm-label">Tipo de post</label>
-                <div className="lm-tabs">
-                  {[['reel','Reels'],['post','Feed'],['story','Stories']].map(([v,l]) => (
-                    <button key={v} type="button"
-                      className={form.type === v ? 'a' : ''}
-                      onClick={() => setForm(f => ({ ...f, type: v }))}>{l}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="lm-row">
-                <label className="lm-label">Intervalo entre posts</label>
-                <div className="lm-int">
-                  <input type="text" inputMode="numeric" placeholder="Ex: 60"
-                    value={form.intervalMinutes}
-                    onChange={e => setForm(f => ({ ...f, intervalMinutes: e.target.value }))} />
-                  <span>min</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Contas */}
-            <div className="lm-row">
-              <div className="lm-row-hd">
-                <label className="lm-label">
-                  Contas&nbsp;<span className="lm-count">{form.accounts.length}/{accounts.length}</span>
-                </label>
-                <button type="button" className="lm-tiny"
-                  onClick={() => setForm(f => ({
-                    ...f,
-                    accounts: f.accounts.length === accounts.length ? [] : accounts.map(a => a._id),
-                  }))}>
-                  {form.accounts.length === accounts.length ? 'Desmarcar todas' : 'Selecionar todas'}
-                </button>
-              </div>
-              <div className="lm-acc-list">
-                {accounts.map(a => {
-                  const sel = form.accounts.includes(a._id);
-                  const bad = a.healthStatus && a.healthStatus !== 'ativa';
-                  return (
-                    <label key={a._id} className={`lm-acc ${sel ? 'sel' : ''}`}>
-                      <input type="checkbox" hidden checked={sel} onChange={() => tog('accounts', a._id)} />
-                      <div className="lm-av">
-                        {a.avatar
-                          ? <img src={`${API_URL}${a.avatar}`} alt="" />
-                          : <span>{(a.username || '?')[0].toUpperCase()}</span>}
-                      </div>
-                      <span className="lm-uname">@{a.username}</span>
-                      {bad && <span className="lm-badge-err">{a.healthStatus}</span>}
-                      {sel && <CheckCircle size={13} className="lm-chk" />}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* CTA Comment */}
-            <div className="lm-row">
-              <div className="lm-row-hd">
-                <label className="lm-label">Comentário fixado automático</label>
-                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'var(--text2)' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!form.ctaComment}
-                    onChange={e => setForm(f => ({ ...f, ctaComment: e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '' }))}
-                  />
-                  {form.ctaComment ? 'Ativo' : 'Inativo'}
-                </label>
-              </div>
-              {!!form.ctaComment && (
-                <>
-                  <textarea className="lm-input" rows={3}
-                    placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
-                    value={form.ctaComment}
-                    onChange={e => setForm(f => ({ ...f, ctaComment: e.target.value }))} />
-                  <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
-                    Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Engage Comment */}
-            <div className="lm-row">
-              <div className="lm-row-hd">
-                <label className="lm-label">Pergunta de engajamento</label>
-                <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'var(--text2)' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!form.engageComment}
-                    onChange={e => setForm(f => ({ ...f, engageComment: e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '' }))}
-                  />
-                  {form.engageComment ? 'Ativo' : 'Inativo'}
-                </label>
-              </div>
-              {!!form.engageComment && (
-                <>
-                  <textarea className="lm-input" rows={2}
-                    placeholder="Ex: Gostaram? Comenta aí! 👇"
-                    value={form.engageComment}
-                    onChange={e => setForm(f => ({ ...f, engageComment: e.target.value }))} />
-                  <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
-                    Postado ~60 min após publicar · estimula comentários e sinaliza engajamento pro algoritmo
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Legenda */}
-            <div className="lm-row">
-              <div className="lm-row-hd">
-                <label className="lm-label">Legenda</label>
-                <div className="lm-cap-sw">
-                  <button type="button" className={capMode === 'manual' ? 'a' : ''} onClick={() => setCapMode('manual')}>
-                    <Edit3 size={11} /> Manual
-                  </button>
-                  <button type="button" className={capMode === 'saved' ? 'a' : ''} onClick={() => setCapMode('saved')}>
-                    <BookOpen size={11} /> Salvas {legends.length > 0 && `(${legends.length})`}
-                  </button>
-                </div>
-              </div>
-              {capMode === 'manual' ? (
-                <>
-                <textarea className="lm-input" rows={3} placeholder="Deixe em branco para postar sem legenda..."
-                  value={form.caption}
-                  onChange={e => setForm(f => ({ ...f, caption: e.target.value }))} />
-                <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>
-                  Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
-                </div>
-                </>
-              ) : (
-                <div className="lm-leg-list">
-                  <div className={`lm-leg-item ${form.caption === '' ? 'sel' : ''}`}
-                    onClick={() => setForm(f => ({ ...f, caption: '' }))}>
-                    <span className="lm-leg-dot" /> Sem legenda
-                  </div>
-                  {legends.length === 0
-                    ? <div className="lm-leg-empty">Nenhuma legenda salva ainda.</div>
-                    : legends.map(leg => {
-                        const txt = leg.text || leg.content || String(leg);
-                        return (
-                          <div key={leg._id || txt}
-                            className={`lm-leg-item ${form.caption === txt ? 'sel' : ''}`}
-                            onClick={() => setForm(f => ({ ...f, caption: txt }))}>
-                            <span className="lm-leg-dot" />
-                            <span>{leg.title || txt.slice(0, 70)}</span>
-                          </div>
-                        );
-                      })}
-                </div>
-              )}
-            </div>
-
-            {err && <div className="lm-err"><AlertTriangle size={13} />{err}</div>}
-
-            <div className="lm-ft">
-              <button type="button" className="lm-cancel" onClick={onClose}>Cancelar</button>
-              <button type="submit" className="lm-next">
-                Próximo <ChevronRight size={14} />
+          {/* Contas */}
+          <div className="lm-row">
+            <div className="lm-row-hd">
+              <label className="lm-label">
+                Contas&nbsp;<span className="lm-count">({form.accounts.length} selecionada{form.accounts.length !== 1 ? 's' : ''})</span>
+              </label>
+              <button type="button" className="lm-tiny"
+                onClick={() => setForm(f => ({
+                  ...f,
+                  accounts: f.accounts.length === accounts.length ? [] : accounts.map(a => a._id),
+                }))}>
+                {form.accounts.length === accounts.length ? 'Desmarcar todas' : 'Selecionar todas'}
               </button>
             </div>
-          </form>
-        )}
+            <div className="lm-acc-list">
+              {accounts.map(a => {
+                const sel = form.accounts.includes(a._id);
+                const ok  = !a.healthStatus || a.healthStatus === 'ativa';
+                return (
+                  <label key={a._id} className={`lm-acc ${sel ? 'sel' : ''}`}>
+                    <input type="checkbox" hidden checked={sel} onChange={() => tog('accounts', a._id)} />
+                    <div className="lm-av">
+                      {a.avatar
+                        ? <img src={`${API_URL}${a.avatar}`} alt="" />
+                        : <span>{(a.username || '?')[0].toUpperCase()}</span>}
+                    </div>
+                    <span className="lm-uname">@{a.username}</span>
+                    <span className={`lm-acc-dot ${ok ? 'ok' : 'err'}`} />
+                    {sel && <CheckCircle size={13} className="lm-chk" />}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
 
-        {/* ══════════ STEP 2 ══════════ */}
-        {step === 2 && (
-          <form onSubmit={submit} className="lm-body">
+          {/* Tipo + Intervalo */}
+          <div className="lm-2col">
+            <div className="lm-row">
+              <label className="lm-label">Tipo</label>
+              <div className="lm-tabs">
+                {[['reel','Reels'],['post','Feed'],['story','Stories']].map(([v,l]) => (
+                  <button key={v} type="button"
+                    className={form.type === v ? 'a' : ''}
+                    onClick={() => setForm(f => ({ ...f, type: v }))}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div className="lm-row">
+              <label className="lm-label">Intervalo entre posts</label>
+              <div className="lm-int">
+                <input type="text" inputMode="numeric" placeholder="minutos"
+                  value={form.intervalMinutes}
+                  onChange={e => setForm(f => ({ ...f, intervalMinutes: e.target.value }))} />
+                <span>min</span>
+              </div>
+              <span className="lm-hint">Mínimo 5 min</span>
+            </div>
+          </div>
 
-            {/* Upload zone */}
+          {/* Reels do loop */}
+          <div className="lm-section">
+            <div className="lm-section-hd">
+              <div className="lm-section-hd-l">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+                <span className="lm-label">Reels do loop</span>
+                {form.mediaFiles.length === 0
+                  ? <span className="lm-section-note">Nenhum reel — envie agora</span>
+                  : <span className="lm-section-count">{form.mediaFiles.length}</span>}
+              </div>
+              <button type="button" className="lm-upload-btn" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={11} /> Enviar reels
+              </button>
+              <input ref={fileInputRef} type="file" multiple accept="video/*,image/*" hidden
+                onChange={e => handleUpload(e.target.files)} />
+            </div>
+
             <div
-              className={`lm-dropzone ${dragOver ? 'drag' : ''}`}
+              className={`lm-dropzone lm-dropzone--sm ${dragOver ? 'drag' : ''}`}
               onClick={() => !uploading && fileInputRef.current?.click()}
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
+              onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files); }}
             >
-              <input ref={fileInputRef} type="file" multiple accept="video/*,image/*" hidden
-                onChange={e => handleUpload(e.target.files)} />
               <div className="lm-dz-inner">
                 {uploading
-                  ? <><RefreshCw size={28} className="spin lm-dz-ic" /><span className="lm-dz-title">Fazendo upload...</span></>
-                  : <>
-                      <Upload size={28} className="lm-dz-ic" />
-                      <span className="lm-dz-title">Arraste vídeos ou imagens aqui</span>
-                      <span className="lm-dz-sub">ou clique para selecionar do dispositivo</span>
-                      <span className="lm-dz-formats">MP4 · MOV · JPG · PNG · WEBM</span>
-                    </>
-                }
+                  ? <><RefreshCw size={20} className="spin lm-dz-ic" /><span className="lm-dz-sub">Fazendo upload...</span></>
+                  : <><Upload size={20} className="lm-dz-ic" />
+                      <span className="lm-dz-sub">Arraste ou envie seus reels</span>
+                      <span className="lm-dz-formats">MP4, MOV — envio em paralelo</span></>}
               </div>
             </div>
 
-            {/* Grid de mídias enviadas */}
             {uploadedFiles.length > 0 && (
-              <div className="lm-row">
-                <div className="lm-row-hd">
-                  <label className="lm-label">
-                    Mídias&nbsp;<span className="lm-count">{form.mediaFiles.length}/{uploadedFiles.length}</span>
-                  </label>
-                  <button type="button" className="lm-tiny"
-                    onClick={() => setForm(f => ({
-                      ...f,
-                      mediaFiles: f.mediaFiles.length === uploadedFiles.length
-                        ? [] : uploadedFiles.map(m => m.filename),
-                      coverFile: f.mediaFiles.length === uploadedFiles.length ? '' : f.coverFile,
-                    }))}>
-                    {form.mediaFiles.length === uploadedFiles.length ? 'Desmarcar' : 'Selecionar todas'}
-                  </button>
-                </div>
-                <div className="lm-grid">
-                  {uploadedFiles.map((m, i) => {
-                    const sel     = form.mediaFiles.includes(m.filename);
-                    const isCover = form.coverFile === m.filename;
-                    const vid     = m.type === 'video';
-                    return (
-                      <button key={m.filename} type="button"
-                        className={`lm-thumb ${sel ? 'sel' : ''} ${isCover ? 'lm-thumb--cover' : ''}`}
-                        onClick={() => {
-                          tog('mediaFiles', m.filename);
-                          if (isCover) setForm(f => ({ ...f, coverFile: '' }));
-                        }}>
-                        {vid
-                          ? <video src={`${API_URL}/uploads/${m.filename}`} muted playsInline />
-                          : <img src={`${API_URL}/uploads/${m.filename}`} alt="" />}
-                        <span className="lm-num">#{i + 1}</span>
-                        {isCover && <div className="lm-crown"><Crown size={9} /></div>}
-                        {sel && !isCover && <div className="lm-chk2"><CheckCircle size={12} /></div>}
-                      </button>
-                    );
-                  })}
+              <div className="lm-grid" style={{ marginTop: 8 }}>
+                {uploadedFiles.map((m, i) => {
+                  const sel = form.mediaFiles.includes(m.filename);
+                  const vid = m.type === 'video';
+                  return (
+                    <button key={m.filename} type="button"
+                      className={`lm-thumb ${sel ? 'sel' : ''}`}
+                      onClick={() => tog('mediaFiles', m.filename)}>
+                      {vid
+                        ? <video src={`${API_URL}/uploads/${m.filename}`} muted playsInline />
+                        : <img src={`${API_URL}/uploads/${m.filename}`} alt="" />}
+                      <span className="lm-num">#{i + 1}</span>
+                      {sel && <div className="lm-chk2"><CheckCircle size={12} /></div>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="lm-section-footer">
+              Reels enviados aqui rodam somente neste loop e são apagados automaticamente após publicar — não ficam salvos no sistema.
+            </p>
+          </div>
+
+          {/* Capa dos Reels */}
+          <div className="lm-section">
+            <div className="lm-section-hd">
+              <div className="lm-section-hd-l">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span className="lm-label">Capa dos Reels (opcional)</span>
+              </div>
+              <button type="button" className="lm-upload-btn" onClick={() => coverInputRef.current?.click()}>
+                <Upload size={11} /> Enviar capa
+              </button>
+              <input ref={coverInputRef} type="file" accept="image/*" hidden
+                onChange={e => handleUpload(e.target.files, true)} />
+            </div>
+
+            {form.coverFile ? (
+              <div className="lm-cover-preview">
+                <img src={`${API_URL}/uploads/${form.coverFile}`} alt="Capa" />
+                <button type="button" className="lm-cover-remove" onClick={() => setForm(f => ({ ...f, coverFile: '' }))}>
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`lm-dropzone lm-dropzone--sm ${dragOverCover ? 'drag' : ''}`}
+                onClick={() => !uploadingCover && coverInputRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); setDragOverCover(true); }}
+                onDragLeave={() => setDragOverCover(false)}
+                onDrop={e => { e.preventDefault(); setDragOverCover(false); handleUpload(e.dataTransfer.files, true); }}
+              >
+                <div className="lm-dz-inner">
+                  {uploadingCover
+                    ? <><RefreshCw size={20} className="spin lm-dz-ic" /><span className="lm-dz-sub">Enviando capa...</span></>
+                    : <><svg width="20" height="20" className="lm-dz-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <span className="lm-dz-sub">Arraste ou envie uma imagem 1080×1920</span></>}
                 </div>
               </div>
             )}
 
-            {err && <div className="lm-err"><AlertTriangle size={13} />{err}</div>}
+            <p className="lm-section-footer">Sem capa selecionada — usa o primeiro frame do vídeo.</p>
+          </div>
 
-            <div className="lm-ft">
-              <button type="button" className="lm-cancel"
-                onClick={() => { setStep(1); setErr(''); }}>
-                ← Voltar
+          {/* Legenda */}
+          <div className="lm-row">
+            <label className="lm-label">Legenda</label>
+            <div ref={legendRef} className="lm-legend-wrap">
+              <button type="button" className="lm-legend-trigger" onClick={() => setLegendOpen(o => !o)}>
+                <span>{selectedLegendLabel()}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  style={{ transform: legendOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
               </button>
-              <button type="submit" className="lm-next" disabled={saving || uploading}>
-                {saving ? <RefreshCw size={14} className="spin" /> : <Plus size={14} />}
-                {saving ? 'Criando...' : 'Criar loop'}
-              </button>
+              {legendOpen && (
+                <div className="lm-legend-panel">
+                  <div className={`lm-legend-opt ${!form.caption ? 'sel' : ''}`}
+                    onClick={() => { setForm(f => ({ ...f, caption: '' })); setLegendOpen(false); }}>
+                    <span className="lm-leg-dot" /> Sem legenda
+                  </div>
+                  {legends.length > 0 && <div className="lm-legend-divider" />}
+                  {legends.map(leg => {
+                    const txt = leg.text || leg.content || '';
+                    const sel = form.caption === txt;
+                    return (
+                      <div key={leg._id || txt} className={`lm-legend-opt ${sel ? 'sel' : ''}`}
+                        onClick={() => { setForm(f => ({ ...f, caption: txt })); setLegendOpen(false); }}>
+                        <span className="lm-leg-dot" />
+                        <span className="lm-legend-opt-text">{leg.title || txt.slice(0, 60)}</span>
+                      </div>
+                    );
+                  })}
+                  {legends.length === 0 && (
+                    <div className="lm-legend-empty">Nenhuma legenda salva ainda.</div>
+                  )}
+                </div>
+              )}
             </div>
-          </form>
-        )}
+          </div>
+
+          {/* Comentário CTA */}
+          <div className="lm-row">
+            <div className="lm-row-hd">
+              <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                Comentário CTA (auto-postado)
+              </label>
+              <label className="lm-cta-toggle">
+                <input type="checkbox"
+                  checked={!!form.ctaComment}
+                  onChange={e => setForm(f => ({ ...f, ctaComment: e.target.checked ? '👇 Acesse meu bot no Telegram!\n🤖 {link}' : '' }))}
+                />
+                <span className="lm-cta-knob" />
+              </label>
+            </div>
+            {!!form.ctaComment && (
+              <>
+                <textarea className="lm-input" rows={2}
+                  value={form.ctaComment}
+                  onChange={e => setForm(f => ({ ...f, ctaComment: e.target.value }))} />
+                <div className="lm-cta-hint">Postado ~2 min após publicar · Use <code>{'{link}'}</code> <code>{'{username}'}</code></div>
+              </>
+            )}
+          </div>
+
+          {/* Pergunta de engajamento */}
+          <div className="lm-row">
+            <div className="lm-row-hd">
+              <label className="lm-label">Pergunta de engajamento</label>
+              <label className="lm-cta-toggle">
+                <input type="checkbox"
+                  checked={!!form.engageComment}
+                  onChange={e => setForm(f => ({ ...f, engageComment: e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '' }))}
+                />
+                <span className="lm-cta-knob" />
+              </label>
+            </div>
+            {!!form.engageComment && (
+              <>
+                <textarea className="lm-input" rows={2}
+                  value={form.engageComment}
+                  onChange={e => setForm(f => ({ ...f, engageComment: e.target.value }))} />
+                <div className="lm-cta-hint">Postado ~60 min após publicar</div>
+              </>
+            )}
+          </div>
+
+          {err && <div className="lm-err"><AlertTriangle size={13} />{err}</div>}
+
+          <div className="lm-ft">
+            <button type="button" className="lm-cancel" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="lm-next" disabled={saving || uploading}>
+              {saving ? <RefreshCw size={14} className="spin" /> : <Plus size={14} />}
+              {saving ? 'Criando...' : 'Criar loop'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

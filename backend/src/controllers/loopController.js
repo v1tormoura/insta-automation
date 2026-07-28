@@ -31,7 +31,7 @@ exports.list = async (req, res) => {
 /* ── Criar loop ── */
 exports.create = async (req, res) => {
   try {
-    const { name, accounts, folder, mediaFiles, type, intervalMinutes, caption, ctaComment, engageComment } = req.body;
+    const { name, accounts, folder, mediaFiles, type, intervalMinutes, caption, coverFile, ctaComment, engageComment } = req.body;
 
     if (!accounts?.length)  return res.status(400).json({ error: 'Selecione ao menos uma conta' });
     if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
@@ -47,6 +47,7 @@ exports.create = async (req, res) => {
       type:            type || 'reel',
       intervalMinutes: Number(intervalMinutes),
       caption:         caption || '',
+      coverFile:       coverFile || '',
       ctaComment:      ctaComment    || '',
       engageComment:   engageComment || '',
       status:          'ativo',
