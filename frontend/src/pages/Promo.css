@@ -337,9 +337,9 @@
   flex-shrink: 0;
 }
 
-.promo-feat-icon--comment { background: rgba(59,130,246,.12); }
-.promo-feat-icon--story   { background: rgba(236,72,153,.12); }
-.promo-feat-icon--bio     { background: rgba(16,185,129,.12); }
+.promo-feat-icon--comment { background: rgba(59,130,246,.12);  color: #3b82f6; }
+.promo-feat-icon--story   { background: rgba(236,72,153,.12);  color: #ec4899; }
+.promo-feat-icon--bio     { background: rgba(16,185,129,.12);  color: #10b981; }
 
 .promo-feat-name {
   font-size: 13px;

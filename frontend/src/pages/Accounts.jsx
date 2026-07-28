@@ -558,7 +558,7 @@ export default function Accounts() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
               <div>
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 18 }}>🔗</span> Conectar via Meta API
+                  Conectar via Meta API
                 </h3>
                 <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 3 }}>
                   {oauthModal.account ? `Reconectar @${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
@@ -592,7 +592,10 @@ export default function Accounts() {
                     transition: 'all .2s',
                   }}
                 >
-                  {urlCopied ? '✓ Copiado!' : '📋 Copiar'}
+                  {urlCopied
+                    ? '✓ Copiado!'
+                    : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copiar</>
+                  }
                 </button>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8, lineHeight: 1.6 }}>
@@ -626,7 +629,7 @@ export default function Accounts() {
                   fontFamily: 'monospace', resize: 'none', lineHeight: 1.5, outline: 'none',
                 }}
               />
-              {oauthError && <div style={{ fontSize: 12, color: '#f87171', marginTop: 6 }}>⚠️ {oauthError}</div>}
+              {oauthError && <div style={{ fontSize: 12, color: '#f87171', marginTop: 6 }}>{oauthError}</div>}
             </div>
 
             {/* Actions */}
@@ -664,7 +667,7 @@ export default function Accounts() {
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>As chamadas de API desta conta sairão por este proxy — IP diferente por conta.</div>
             <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => setProxyValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveProxy()} autoFocus />
-            {proxyModal.proxy && <div style={{ fontSize: 11, color: '#34d399', marginTop: 6 }}>✅ Proxy atual: {proxyModal.proxy}</div>}
+            {proxyModal.proxy && <div style={{ fontSize: 11, color: '#34d399', marginTop: 6 }}>Proxy atual: {proxyModal.proxy}</div>}
             <div className="modal-actions" style={{ marginTop: 14 }}>
               <button className="btn btn-ghost" onClick={() => { setProxyValue(''); saveProxy(); }} disabled={savingProxy}>Remover proxy</button>
               <button className="btn btn-ghost" onClick={() => setProxyModal(null)}>Cancelar</button>
@@ -693,7 +696,7 @@ export default function Accounts() {
             <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6 }}>{bulkProxyText.trim() ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)` : 'Cole os proxies acima.'}</div>
             <div className="modal-actions" style={{ marginTop: 12 }}>
               <button className="btn btn-ghost" onClick={() => setBulkProxyOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>{savingBulkProxy ? 'Aplicando...' : '✅ Aplicar proxies'}</button>
+              <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>{savingBulkProxy ? 'Aplicando...' : 'Aplicar proxies'}</button>
             </div>
           </div>
         </div>

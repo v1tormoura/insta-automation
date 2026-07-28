@@ -48,20 +48,20 @@ export default function BestTimes() {
 
       {loading && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+          <div style={{ marginBottom: 12 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
           <p style={{ fontSize: 13 }}>Calculando melhores horários...</p>
         </div>
       )}
 
       {error && (
         <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 12, padding: '14px 18px', color: '#f87171', fontSize: 13 }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
       {!loading && !error && accounts.length === 0 && (
         <div className="empty-state">
-          <div className="empty-icon">📊</div>
+          <div className="empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
           <div className="empty-title">Sem dados suficientes</div>
           <div className="empty-sub">Sincronize insights das contas para ver os melhores horários.</div>
         </div>
@@ -72,13 +72,12 @@ export default function BestTimes() {
           {/* KPI bar */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, marginBottom: 24 }}>
             {[
-              { label: 'Pico global',        value: globalPeak !== null ? `${String(globalPeak).padStart(2,'0')}h` : '—', color: 'var(--cyan)',  icon: '⏰' },
-              { label: 'Contas analisadas',  value: String(accounts.length),   color: 'var(--indigo)', icon: '👤' },
-              { label: 'Período',            value: period,                     color: 'var(--text2)',  icon: '📅' },
-              { label: 'Fonte dos dados',    value: 'API oficial',              color: '#22c55e',       icon: '✅' },
+              { label: 'Pico global',        value: globalPeak !== null ? `${String(globalPeak).padStart(2,'0')}h` : '—', color: 'var(--cyan)',  icon: null },
+              { label: 'Contas analisadas',  value: String(accounts.length),   color: 'var(--indigo)', icon: null },
+              { label: 'Período',            value: period,                     color: 'var(--text2)',  icon: null },
+              { label: 'Fonte dos dados',    value: 'API oficial',              color: '#22c55e',       icon: null },
             ].map(s => (
-              <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 22, flexShrink: 0 }}>{s.icon}</span>
+              <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: 20, color: s.color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: '.05em', marginTop: 3, textTransform: 'uppercase' }}>{s.label}</div>

@@ -172,7 +172,9 @@ export default function SmartRepost() {
               ? <div className="empty-state" style={{ padding:'20px 0' }}><div className="empty-title">Fila vazia</div></div>
               : queue.map((item, i) => (
                 <div key={i} className="queue-item">
-                  <div className="queue-thumb" style={{ background:'rgba(30,111,255,.12)', fontSize:16 }}>🎬</div>
+                  <div className="queue-thumb" style={{ background:'rgba(30,111,255,.12)', color:'var(--indigo)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                  </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div className="queue-name">@{item.username}</div>
                     <div className="queue-meta">{item.ruleName} · {fmtK(item.views)} views</div>
@@ -191,19 +193,19 @@ export default function SmartRepost() {
           <div className="sec-header" style={{ marginBottom:14 }}><div className="sec-title">Visão geral</div></div>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {[
-              { label:'Regras no total',  value: stats.totalRules  ?? '—', icon:'📋', color:'var(--cyan)'   },
-              { label:'Regras ativas',    value: stats.activeRules ?? '—', icon:'✅', color:'var(--green)'  },
-              { label:'Na fila agora',    value: queue.length,              icon:'🔁', color:'var(--indigo)' },
+              { label:'Regras no total',  value: stats.totalRules  ?? '—', color:'var(--cyan)'   },
+              { label:'Regras ativas',    value: stats.activeRules ?? '—', color:'var(--green)'  },
+              { label:'Na fila agora',    value: queue.length,              color:'var(--indigo)' },
             ].map(s => (
               <div key={s.label} style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ width:38, height:38, borderRadius:10, background:`color-mix(in srgb,${s.color} 12%,transparent)`, border:`1px solid color-mix(in srgb,${s.color} 28%,transparent)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>{s.icon}</div>
+                <div style={{ width:10, height:10, borderRadius:'50%', background:s.color, flexShrink:0, boxShadow:`0 0 6px ${s.color}` }} />
                 <div style={{ flex:1 }}><div style={{ fontSize:12, color:'var(--text2)' }}>{s.label}</div></div>
                 <div style={{ fontWeight:800, fontSize:20, color:s.color, fontFamily:'var(--font-display)' }}>{s.value}</div>
               </div>
             ))}
           </div>
           <div style={{ marginTop:20, padding:'12px 14px', background:'rgba(0,212,255,.05)', border:'1px solid rgba(0,212,255,.15)', borderRadius:10, fontSize:12, color:'var(--text2)', lineHeight:1.6 }}>
-            ℹ️ O job de repost roda automaticamente a cada hora e verifica quais posts atingiram as condições das regras ativas.
+            O job de repost roda automaticamente a cada hora e verifica quais posts atingiram as condições das regras ativas.
           </div>
         </div>
       </div>

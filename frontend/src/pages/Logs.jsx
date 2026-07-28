@@ -14,12 +14,15 @@ const STATUS_META = {
   error:            { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
 };
 
+const svgIcon = (d, w = 16) => (
+  <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+);
 const TYPE_ICON = {
-  post:         { icon: '🖼️', label: 'Post'           },
-  reel:         { icon: '🎬', label: 'Reel'           },
-  story:        { icon: '⭕', label: 'Story'          },
-  profile_edit: { icon: '✏️', label: 'Edição de perfil' },
-  account:      { icon: '👤', label: 'Conta'          },
+  post:         { icon: svgIcon(<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>), label: 'Post' },
+  reel:         { icon: svgIcon(<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>), label: 'Reel' },
+  story:        { icon: svgIcon(<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>), label: 'Story' },
+  profile_edit: { icon: svgIcon(<><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></>), label: 'Edição de perfil' },
+  account:      { icon: svgIcon(<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></>), label: 'Conta' },
 };
 
 function StatusBadge({ status }) {
@@ -145,7 +148,7 @@ export default function Logs() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 16 }}>{tm.icon}</span>
+                  <span style={{ color: 'var(--text2)', display: 'flex', alignItems: 'center' }}>{tm.icon}</span>
                   <div>
                     <strong style={{ fontSize: 13, color: 'var(--text)' }}>{tm.label}</strong>
                     <span style={{ fontSize: 11, color: 'var(--text2)', display: 'block' }}>
@@ -184,7 +187,7 @@ export default function Logs() {
             textAlign: 'center', padding: '48px 20px',
             background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
           }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+            <div style={{ marginBottom: 12 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
             <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 6 }}>Nenhum registro ainda</div>
             <div style={{ fontSize: 13, color: 'var(--text2)' }}>
               Os logs aparecem aqui assim que você publicar posts, editar perfis ou executar automações.

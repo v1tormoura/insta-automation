@@ -235,7 +235,7 @@ function LoopModal({ onClose, onCreated }) {
             {/* CTA Comment */}
             <div className="lm-row">
               <div className="lm-row-hd">
-                <label className="lm-label">💬 Comentário fixado automático</label>
+                <label className="lm-label">Comentário fixado automático</label>
                 <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'var(--text2)' }}>
                   <input
                     type="checkbox"
@@ -261,7 +261,7 @@ function LoopModal({ onClose, onCreated }) {
             {/* Engage Comment */}
             <div className="lm-row">
               <div className="lm-row-hd">
-                <label className="lm-label">🔥 Pergunta de engajamento</label>
+                <label className="lm-label">Pergunta de engajamento</label>
                 <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:'var(--text2)' }}>
                   <input
                     type="checkbox"

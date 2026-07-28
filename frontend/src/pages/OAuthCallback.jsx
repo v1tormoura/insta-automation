@@ -46,7 +46,7 @@ export default function OAuthCallback() {
     }}>
       {error ? (
         <>
-          <div style={{ fontSize: 36 }}>❌</div>
+          <div><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
           <strong style={{ color: '#f87171' }}>Erro na autenticação</strong>
           <p style={{ color: 'var(--text-secondary)', maxWidth: 400, textAlign: 'center' }}>{error}</p>
           <p style={{ color: 'var(--text-secondary)', fontSize: '.8rem' }}>Redirecionando...</p>

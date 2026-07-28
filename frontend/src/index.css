@@ -263,6 +263,38 @@ a { text-decoration: none; color: inherit; }
 /* Keep legacy sb-* classes for any pages that still reference them */
 .sb-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 5px var(--green); flex-shrink: 0; display: inline-block; }
 
+/* SIDEBAR COLLAPSE TOGGLE — desktop only */
+.drawer-collapse-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  transition: color .15s, background .15s;
+}
+.drawer-collapse-btn:hover { color: var(--text); background: rgba(255,255,255,.06); }
+
+/* COLLAPSED SIDEBAR (desktop only — smooth width transition) */
+.drawer { transition: width .22s cubic-bezier(.4,0,.2,1); }
+
+@media (min-width: 769px) {
+  .drawer-collapse-btn { display: flex; }
+
+  .drawer.collapsed { width: var(--sidebar-collapsed); }
+
+  /* Hide text labels and group titles */
+  .drawer.collapsed .logo-text { display: none; }
+  .drawer.collapsed .drawer-group-label { display: none; }
+  .drawer.collapsed .drawer-item span { display: none; }
+  .drawer.collapsed .drawer-user-info { display: none; }
+
+  /* Center the icons */
+  .drawer.collapsed .drawer-nav { padding: 12px 8px; }
+  .drawer.collapsed .drawer-item { justify-content: center; padding: 9px 0; gap: 0; }
+  .drawer.collapsed .drawer-footer { padding: 10px 8px; }
+  .drawer.collapsed .drawer-user { justify-content: space-around; padding: 8px 6px; gap: 0; flex-wrap: wrap; }
+  .drawer.collapsed .drawer-header { justify-content: center; gap: 0; padding: 14px 10px; }
+}
+
 /* MAIN CONTENT */
 .mainContent { flex: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; position: relative; z-index: 1; }
 

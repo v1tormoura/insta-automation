@@ -395,7 +395,7 @@ export default function MediaLibrary() {
                   Tem certeza que deseja excluir:
                 </p>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9', background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.15)', borderRadius: 8, padding: '8px 12px', margin: '6px 0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={confirmModal.name}>
-                  🎬 {confirmModal.name}
+                  {confirmModal.name}
                 </div>
                 <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Esta ação não pode ser desfeita.</p>
               </div>

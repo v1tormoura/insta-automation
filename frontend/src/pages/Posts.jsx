@@ -161,7 +161,7 @@ export default function Posts() {
             ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
           </button>
           <button className="btn btn-primary btn-sm" type="button" onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
-            🚀 Agendar nova postagem
+            Agendar nova postagem
           </button>
         </div>
       </div>
@@ -191,7 +191,7 @@ export default function Posts() {
                     color: postType === t ? '#60a5fa' : 'var(--text2)',
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}>
-                  {t === 'reel' ? '🎬' : t === 'post' ? '📸' : '📖'} {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
@@ -288,7 +288,7 @@ export default function Posts() {
           {/* Engage Comment */}
           <div className="card">
             <div className="card-header">
-              <h3>🔥 Pergunta de engajamento</h3>
+              <h3>Pergunta de engajamento</h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text2)' }}>
                 <input
                   type="checkbox"
@@ -314,7 +314,7 @@ export default function Posts() {
           {/* CTA Comment */}
           <div className="card">
             <div className="card-header">
-              <h3>💬 Comentário fixado automático</h3>
+              <h3>Comentário fixado automático</h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text2)' }}>
                 <input
                   type="checkbox"
@@ -465,7 +465,7 @@ export default function Posts() {
             </div>
 
             <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12, fontSize: 14 }}>
-              🚀 {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
+              {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
             </button>
             </div>{/* /card-body */}
           </div>
@@ -483,7 +483,12 @@ export default function Posts() {
             {posts.map(post => (
               <div className="queue-row" key={post._id}>
                 <div className="queue-icon" style={{ background: post.postType === 'reel' ? 'var(--indigo-dim)' : 'var(--cyan-dim)' }}>
-                  {post.postType === 'reel' ? '🎬' : '📸'}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    {post.postType === 'reel'
+                      ? <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>
+                      : <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>
+                    }
+                  </svg>
                 </div>
                 <div className="queue-info">
                   <strong>{post.postType === 'reel' ? 'Reel' : 'Post'}</strong>

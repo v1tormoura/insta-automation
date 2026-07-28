@@ -496,7 +496,7 @@ function InsightCard({ icon, title, value, sub, detail, color, action }) {
     <div style={{ background:'rgba(255,255,255,.025)', border:`1px solid ${color}28`, borderRadius:14, padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}>
       <div style={{ position:'absolute', top:-20, right:-14, width:80, height:80, borderRadius:'50%', background:`${color}09`, pointerEvents:'none' }} />
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <span style={{ width:34, height:34, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>{icon}</span>
+        <span style={{ width:34, height:34, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0, color }}>{icon}</span>
         <div>
           <div style={{ fontSize:10, fontWeight:700, color:'#5a7a99', letterSpacing:'.07em', textTransform:'uppercase' }}>{title}</div>
           <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1.1, marginTop:2 }}>{value}</div>
@@ -535,49 +535,49 @@ function SmartInsights({ accountStats, data: d }) {
 
   const insights = [
     {
-      icon:   '📈',
+      icon:   <TrendingUp size={17} />,
       title:  'CRESCIMENTO 30 DIAS',
       value:  growth30d >= 0 ? `+${fmtK(growth30d)}` : fmtK(growth30d),
       sub:    `${totalAccounts} conta(s) geraram ${growth30d >= 0 ? '+' : ''}${growthPct}% de crescimento no total de seguidores nos últimos 30 dias.`,
       detail: growth30d > 0
-        ? `🏆 Melhor conta: @${bestAccount?.username || '—'} com ${fmtK(bestAccount?.followers)} seguidores`
+        ? `Melhor conta: @${bestAccount?.username || '—'} com ${fmtK(bestAccount?.followers)} seguidores`
         : totalAccounts === 0 ? 'Adicione contas para ver o crescimento.' : 'Nenhum crescimento registrado ainda.',
       color:  growth30d >= 0 ? '#22d7ff' : '#f87171',
     },
     {
-      icon:   '🏥',
+      icon:   <HeartPulse size={17} />,
       title:  'SAÚDE DAS CONTAS',
       value:  `${successRate}%`,
       sub:    `${healthy} de ${totalAccounts} conta(s) estão saudáveis. ${banned > 0 ? `${banned} banida(s)` : 'Nenhuma banida'}. ${tokenFailed > 0 ? `${tokenFailed} com token expirado.` : ''}`.trim(),
       detail: banned > 0
-        ? `⚠️ Conta banida detectada — verifique @${worstAccount?.username || '—'}`
+        ? `Conta banida detectada — verifique @${worstAccount?.username || '—'}`
         : tokenFailed > 0
-          ? `🔑 ${tokenFailed} token(s) precisam ser renovados`
-          : '✅ Todas as contas em perfeita saúde',
+          ? `${tokenFailed} token(s) precisam ser renovados`
+          : 'Todas as contas em perfeita saúde',
       color:  successRate >= 80 ? '#22c55e' : successRate >= 60 ? '#f59e0b' : '#ef4444',
     },
     {
-      icon:   '🚀',
+      icon:   <Zap size={17} />,
       title:  'TAXA DE PUBLICAÇÃO',
       value:  `${postSuccessRate}%`,
       sub:    `${posts30d} postagens concluídas e ${failures30d} falhas nos últimos 30 dias. ${posts30d === 0 ? 'Comece a postar para ver estatísticas.' : `Média de ${totalAccounts > 0 ? Math.round(posts30d / Math.max(totalAccounts,1)) : 0} posts/conta.`}`,
       detail: postSuccessRate < 80
-        ? `💡 Taxa abaixo do ideal — verifique os logs de erros`
+        ? 'Taxa abaixo do ideal — verifique os logs de erros'
         : failures30d > 0
-          ? `⚡ ${failures30d} falha(s) detectada(s) — nada crítico`
-          : '🎯 Publicações perfeitas sem falhas',
+          ? `${failures30d} falha(s) detectada(s) — nada crítico`
+          : 'Publicações perfeitas sem falhas',
       color:  postSuccessRate >= 90 ? '#22c55e' : postSuccessRate >= 70 ? '#f59e0b' : '#ef4444',
     },
     {
-      icon:   '📊',
+      icon:   <Layers3 size={17} />,
       title:  'FILA E AGENDAMENTOS',
       value:  fmtK((d.pendingPosts || 0) + (d.scheduledPosts || 0)),
       sub:    `${d.pendingPosts || 0} postagens na fila + ${d.scheduledPosts || 0} agendadas. ${d.processingPosts > 0 ? `${d.processingPosts} publicando agora.` : ''} ${(d.pendingPosts || 0) === 0 && (d.scheduledPosts || 0) === 0 ? 'Adicione posts à fila para manter o ritmo.' : ''}`.trim(),
       detail: (d.pendingPosts || 0) + (d.scheduledPosts || 0) === 0
-        ? '💡 Fila vazia — adicione conteúdo para manter engajamento'
+        ? 'Fila vazia — adicione conteúdo para manter engajamento'
         : (d.pendingPosts || 0) > 10
-          ? `🔥 Ótima fila — ${d.pendingPosts} posts prontos para publicar`
-          : '✅ Fila ativa com posts programados',
+          ? `Ótima fila — ${d.pendingPosts} posts prontos para publicar`
+          : 'Fila ativa com posts programados',
       color:  '#a78bfa',
     },
   ];

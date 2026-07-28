@@ -269,7 +269,7 @@ export default function Stories() {
               <div style={{ padding: '8px 19px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {(results.results || []).map((r, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid rgba(37,49,66,.4)', fontSize: 12 }}>
-                    <span style={{ fontSize: 14 }}>{r.status === 'success' ? '✅' : '❌'}</span>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.status === 'success' ? '#22c55e' : '#f87171', flexShrink: 0, display: 'inline-block' }} />
                     <strong>@{r.username}</strong>
                     <span style={{ color: r.status === 'success' ? '#22c55e' : '#f87171', flex: 1 }}>
                       {r.status === 'success' ? (r.method === 'graph' ? 'Graph API' : 'API Privada') + (r.withLink ? ' + link' : '') : r.error}

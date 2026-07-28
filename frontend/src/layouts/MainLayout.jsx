@@ -90,34 +90,34 @@ function buildNotif(data, event) {
   const a = data?.action || '';
   if (event === 'posts') {
     if (a === 'post_completed' || data?.status === 'concluido')
-      return { type: 'success', msg: `✅ Post publicado${data.username ? ` @${data.username}` : ''}${data.caption ? ` — "${String(data.caption).slice(0,40)}"` : ''}` };
+      return { type: 'success', msg: `Post publicado${data.username ? ` @${data.username}` : ''}${data.caption ? ` — "${String(data.caption).slice(0,40)}"` : ''}` };
     if (a === 'post_failed' || data?.status === 'erro')
-      return { type: 'error', msg: `❌ Falha ao publicar${data.username ? ` @${data.username}` : ''}${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
+      return { type: 'error', msg: `Falha ao publicar${data.username ? ` @${data.username}` : ''}${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
     if (a === 'post_started')
-      return { type: 'info', msg: `🚀 Publicação iniciada${data.username ? ` @${data.username}` : ''}` };
+      return { type: 'info', msg: `Publicação iniciada${data.username ? ` @${data.username}` : ''}` };
     if (data?.status) return null;
   }
   if (event === 'accounts') {
-    if (a === 'oauth_connected')   return { type: 'success', msg: `🔗 ${data.username || 'Conta'} conectada via OAuth` };
-    if (a === 'token_recovered')   return { type: 'success', msg: `🔑 Token renovado: @${data.username || ''}` };
+    if (a === 'oauth_connected')   return { type: 'success', msg: `${data.username || 'Conta'} conectada via OAuth` };
+    if (a === 'token_recovered')   return { type: 'success', msg: `Token renovado: @${data.username || ''}` };
     if (a === 'tokens_refreshed' && (data.refreshed || 0) > 0)
-      return { type: 'success', msg: `🔑 ${data.refreshed} token(s) renovado(s)` };
+      return { type: 'success', msg: `${data.refreshed} token(s) renovado(s)` };
     if (a === 'health_update' && data.healthStatus && data.healthStatus !== 'ativa')
-      return { type: data.healthStatus === 'banida' ? 'error' : 'warn', msg: `⚠️ @${data.username || ''}: ${data.error || data.healthStatus}` };
-    if (a === 'sync_done') return { type: 'info', msg: `🔄 Sincronização concluída${data.count ? ` — ${data.count} contas` : ''}` };
+      return { type: data.healthStatus === 'banida' ? 'error' : 'warn', msg: `Atenção @${data.username || ''}: ${data.error || data.healthStatus}` };
+    if (a === 'sync_done') return { type: 'info', msg: `Sincronização concluída${data.count ? ` — ${data.count} contas` : ''}` };
   }
   if (event === 'loop') {
-    if (a === 'loop_started') return { type: 'info',    msg: '🔄 Loop de postagens iniciado' };
-    if (a === 'loop_stopped') return { type: 'info',    msg: '⏹ Loop pausado' };
-    if (a === 'loop_error')   return { type: 'error',   msg: `❌ Erro no loop${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
-    if (a === 'post_sent')    return { type: 'success', msg: `✅ Loop publicou${data.username ? ` @${data.username}` : ''}` };
+    if (a === 'loop_started') return { type: 'info',    msg: 'Loop de postagens iniciado' };
+    if (a === 'loop_stopped') return { type: 'info',    msg: 'Loop pausado' };
+    if (a === 'loop_error')   return { type: 'error',   msg: `Erro no loop${data.error ? `: ${String(data.error).slice(0,60)}` : ''}` };
+    if (a === 'post_sent')    return { type: 'success', msg: `Loop publicou${data.username ? ` @${data.username}` : ''}` };
   }
   if (event === 'insights' && a === 'sync_done')
-    return { type: 'info', msg: `📊 Insights sincronizados${data.count ? ` (${data.count} posts)` : ''}` };
+    return { type: 'info', msg: `Insights sincronizados${data.count ? ` (${data.count} posts)` : ''}` };
   if (event === 'warmup') {
-    if (a === 'warmup_started') return { type: 'info',    msg: `🔥 Aquecimento iniciado${data.username ? ` — @${data.username}` : ''}` };
-    if (a === 'warmup_stopped') return { type: 'info',    msg: `⏹ Aquecimento parado${data.username ? ` — @${data.username}` : ''}` };
-    if (a === 'warmup_action')  return { type: 'success', msg: `💪 Ação de aquecimento: ${data.actionType || ''}${data.username ? ` @${data.username}` : ''}` };
+    if (a === 'warmup_started') return { type: 'info',    msg: `Aquecimento iniciado${data.username ? ` — @${data.username}` : ''}` };
+    if (a === 'warmup_stopped') return { type: 'info',    msg: `Aquecimento parado${data.username ? ` — @${data.username}` : ''}` };
+    if (a === 'warmup_action')  return { type: 'success', msg: `Ação de aquecimento: ${data.actionType || ''}${data.username ? ` @${data.username}` : ''}` };
   }
   return null;
 }
@@ -209,9 +209,16 @@ function NotificationBell() {
 }
 
 export default function MainLayout({ children }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen,  setDrawerOpen]  = useState(false);
+  const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
   const location  = useLocation();
   const navigate  = useNavigate();
+
+  const toggleCollapse = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('sidebar_collapsed', next);
+  };
 
   useEffect(() => { setDrawerOpen(false); }, [location]);
 
@@ -238,16 +245,31 @@ export default function MainLayout({ children }) {
       )}
 
       {/* Drawer sidebar */}
-      <aside className={`drawer${drawerOpen ? ' drawer-open' : ''}`}>
+      <aside className={`drawer${drawerOpen ? ' drawer-open' : ''}${collapsed ? ' collapsed' : ''}`}>
         {/* Header inside drawer */}
         <div className="drawer-header">
           <button
             onClick={() => navigate('/')}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0 }}
           >
-            <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain' }} />
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>MouraFlow</span>
+            <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} />
+            <span className="logo-text" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)', whiteSpace: 'nowrap' }}>MouraFlow</span>
           </button>
+          {/* Desktop collapse toggle */}
+          <button
+            className="drawer-collapse-btn"
+            onClick={toggleCollapse}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              {collapsed
+                ? <><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></>
+                : <><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></>
+              }
+            </svg>
+          </button>
+          {/* Mobile close button */}
           <button
             className="drawer-close-btn"
             onClick={() => setDrawerOpen(false)}
@@ -283,7 +305,7 @@ export default function MainLayout({ children }) {
         <div className="drawer-footer">
           <div className="drawer-user">
             <div className="drawer-avatar">VM</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="drawer-user-info" style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Vitor Marcelo Moura</div>
               <div style={{ fontSize: 11, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', boxShadow: '0 0 5px var(--green)' }} />

@@ -104,9 +104,9 @@ export default function Scheduler() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
                     <div style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', gap: 12 }}>
-                      <span>{post.postType === 'reel' ? '🎬 Reel' : '📸 Post'}</span>
-                      {post.scheduledAt && <span>📅 {fmtDate(post.scheduledAt)}</span>}
-                      {post.accounts?.length && <span>👤 {post.accounts.map(a => `@${a.username}`).join(', ')}</span>}
+                      <span>{post.postType === 'reel' ? 'Reel' : 'Post'}</span>
+                      {post.scheduledAt && <span>{fmtDate(post.scheduledAt)}</span>}
+                      {post.accounts?.length && <span>{post.accounts.map(a => `@${a.username}`).join(', ')}</span>}
                     </div>
                   </div>
                   <span style={{

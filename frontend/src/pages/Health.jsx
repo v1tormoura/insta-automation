@@ -118,8 +118,8 @@ function AccountCard({ account }) {
                   </div>
                   <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>
                     {account.hasApiToken
-                      ? 'Vá em Contas → 🔄 Reconectar para obter novo token'
-                      : 'Conecte via 🔗 Contas → Conectar via API'}
+                      ? 'Vá em Contas → Reconectar para obter novo token'
+                      : 'Conecte via Contas → Conectar via API'}
                   </div>
                 </div>
               </div>

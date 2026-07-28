@@ -112,7 +112,7 @@ export default function ABTest() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => endTest(test._id)}>⏹ Encerrar</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => endTest(test._id)}>Encerrar</button>
                   <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => deleteTest(test._id)}>🗑</button>
                 </div>
               </div>
@@ -185,7 +185,7 @@ export default function ABTest() {
             </div>
 
             <div style={{ background: 'rgba(6,182,212,.06)', border: '1px solid rgba(6,182,212,.18)', borderRadius: 9, padding: '10px 12px', fontSize: 11, color: 'var(--text2)', lineHeight: 1.7 }}>
-              💡 Publique os dois Reels no Instagram, depois cole o <strong>Media ID</strong> de cada um.<br />
+              Publique os dois Reels no Instagram, depois cole o <strong>Media ID</strong> de cada um.<br />
               O ID fica na URL do post: instagram.com/reel/<strong>ABC123xyz</strong>/
             </div>
 

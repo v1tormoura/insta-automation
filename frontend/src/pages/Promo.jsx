@@ -188,7 +188,7 @@ export default function Promo() {
                   <div className={`promo-feat${cfg.autoComment ? ' promo-feat--on' : ''}`}>
                     <div className="promo-feat-head">
                       <div className="promo-feat-left">
-                        <span className="promo-feat-icon promo-feat-icon--comment">💬</span>
+                        <span className="promo-feat-icon promo-feat-icon--comment"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
                         <div>
                           <div className="promo-feat-name">Comentário Fixado</div>
                           <div className="promo-feat-desc">Posta automaticamente no primeiro comentário</div>
@@ -230,7 +230,7 @@ export default function Promo() {
                   <div className={`promo-feat${cfg.autoStory ? ' promo-feat--on' : ''}`}>
                     <div className="promo-feat-head">
                       <div className="promo-feat-left">
-                        <span className="promo-feat-icon promo-feat-icon--story">📸</span>
+                        <span className="promo-feat-icon promo-feat-icon--story"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
                         <div>
                           <div className="promo-feat-name">Story Automático</div>
                           <div className="promo-feat-desc">Publica story com link apontando para seu Telegram</div>
@@ -262,7 +262,7 @@ export default function Promo() {
                   <div className={`promo-feat${cfg.autoBio ? ' promo-feat--on' : ''}`}>
                     <div className="promo-feat-head">
                       <div className="promo-feat-left">
-                        <span className="promo-feat-icon promo-feat-icon--bio">🔗</span>
+                        <span className="promo-feat-icon promo-feat-icon--bio"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></span>
                         <div>
                           <div className="promo-feat-name">Bio Atualizada</div>
                           <div className="promo-feat-desc">Mantém o link da bio sempre apontando para seu bot</div>
