@@ -84,7 +84,6 @@ export default function Stories() {
         accountIds: selected,
         imageUrl: selectedMedia[0].url,
         linkUrl: linkOn && linkUrl.trim() ? linkUrl.trim() : null,
-        linkText: 'Ver mais',
         mediaUrls: selectedMedia.map(m => m.url),
         intervalMinutes: interval,
       });
@@ -180,12 +179,12 @@ export default function Stories() {
               onDragLeave={() => setDragOver(false)}
               onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
               style={{
-                margin: '0 19px', height: 112, border: `1.5px dashed ${dragOver ? '#4993ff' : '#285bff'}`,
-                borderRadius: 9, background: dragOver ? 'linear-gradient(105deg,rgba(30,73,148,.45),rgba(13,21,33,.3))' : 'linear-gradient(105deg,rgba(22,51,96,.25),rgba(15,22,33,.15))',
+                margin: '0 19px', height: 112, border: `1.5px dashed ${dragOver ? 'var(--cyan)' : 'rgba(0,212,255,.35)'}`,
+                borderRadius: 9, background: dragOver ? 'linear-gradient(105deg,rgba(0,212,255,.1),rgba(13,21,33,.3))' : 'linear-gradient(105deg,rgba(0,212,255,.04),rgba(15,22,33,.15))',
                 display: 'grid', justifyItems: 'center', alignContent: 'center', gap: 7, cursor: 'pointer', transition: '.2s',
               }}>
               <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
-              <div style={{ width: 34, height: 34, borderRadius: 12, background: 'radial-gradient(circle at 45% 35%,rgba(62,153,255,.18),rgba(53,93,255,.13))', display: 'grid', placeItems: 'center', color: '#2d84ff' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 12, background: 'rgba(0,212,255,.08)', display: 'grid', placeItems: 'center', color: 'var(--cyan)' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
               </div>
               <strong style={{ fontSize: 12 }}>Arraste fotos ou vídeos para enviar</strong>
@@ -204,7 +203,7 @@ export default function Stories() {
                 {medias.map(m => gridMode ? (
                   // Card mode
                   <div key={m.id} onClick={() => toggleMedia(m.id)} style={{
-                    position: 'relative', height: 165, border: `1px solid ${m.selected ? '#2967ff' : '#263447'}`,
+                    position: 'relative', height: 165, border: `1px solid ${m.selected ? 'var(--cyan)' : '#263447'}`,
                     background: '#111a26', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', transition: '.18s',
                     boxShadow: m.selected ? '0 0 0 1px rgba(52,107,255,.18)' : 'none',
                   }}>
@@ -215,7 +214,7 @@ export default function Stories() {
                         : <img src={m.url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       }
                       {/* checkbox */}
-                      <div style={{ position: 'absolute', left: 8, top: 8, width: 18, height: 18, borderRadius: '50%', display: 'grid', placeItems: 'center', background: m.selected ? '#2167ff' : '#172331', border: `1px solid ${m.selected ? 'rgba(255,255,255,.35)' : '#536175'}`, boxShadow: '0 3px 9px rgba(0,0,0,.2)', color: '#fff', zIndex: 1 }}>
+                      <div style={{ position: 'absolute', left: 8, top: 8, width: 18, height: 18, borderRadius: '50%', display: 'grid', placeItems: 'center', background: m.selected ? 'var(--cyan)' : '#172331', border: `1px solid ${m.selected ? 'rgba(255,255,255,.35)' : '#536175'}`, boxShadow: '0 3px 9px rgba(0,0,0,.2)', color: '#040e1c', zIndex: 1 }}>
                         {m.selected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                       </div>
                     </div>
@@ -228,7 +227,7 @@ export default function Stories() {
                   // List mode
                   <div key={m.id} onClick={() => toggleMedia(m.id)} style={{
                     display: 'grid', gridTemplateColumns: '60px 1fr auto', alignItems: 'center', gap: 10,
-                    height: 52, border: `1px solid ${m.selected ? '#2967ff' : '#263447'}`,
+                    height: 52, border: `1px solid ${m.selected ? 'var(--cyan)' : '#263447'}`,
                     background: '#111a26', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', padding: '0 12px 0 0',
                   }}>
                     <div style={{ height: '100%', overflow: 'hidden', background: '#152235' }}>
@@ -240,7 +239,7 @@ export default function Stories() {
                     <span style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#dce5f6' }}>{m.name}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 10, color: '#7e8a9b' }}>{fmt(m.size)}</span>
-                      <div style={{ width: 17, height: 17, borderRadius: 4, display: 'grid', placeItems: 'center', border: `1px solid ${m.selected ? '#2673ff' : '#3f4b5e'}`, background: m.selected ? '#2673ff' : 'transparent', color: '#fff' }}>
+                      <div style={{ width: 17, height: 17, borderRadius: 4, display: 'grid', placeItems: 'center', border: `1px solid ${m.selected ? 'var(--cyan)' : '#3f4b5e'}`, background: m.selected ? 'var(--cyan)' : 'transparent', color: '#040e1c' }}>
                         {m.selected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                       </div>
                     </div>
@@ -251,10 +250,10 @@ export default function Stories() {
 
             {/* Footer */}
             <div style={{ height: 54, borderTop: '1px solid rgba(37,49,66,.5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 19px', marginTop: medias.length > 0 ? 0 : 4 }}>
-              <span style={{ fontSize: 11, color: '#2d83ff' }}>{selectedMedia.length} selecionadas</span>
+              <span style={{ fontSize: 11, color: 'var(--cyan)' }}>{selectedMedia.length} selecionadas</span>
               <div style={{ display: 'flex', gap: 20 }}>
                 <button onClick={clearSelection} style={{ background: 'transparent', border: 'none', color: '#ff6377', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Limpar seleção</button>
-                <button onClick={selectAllMedia} style={{ background: 'transparent', border: 'none', color: '#2790ff', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Selecionar todas</button>
+                <button onClick={selectAllMedia} style={{ background: 'transparent', border: 'none', color: 'var(--cyan)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Selecionar todas</button>
               </div>
             </div>
           </div>
@@ -293,7 +292,7 @@ export default function Stories() {
                   <strong style={{ color: '#fff' }}>{selected.length}</strong> selecionadas
                 </span>
               </div>
-              <button onClick={toggleAll} style={{ fontSize: 11, fontWeight: 600, color: '#2485ff', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <button onClick={toggleAll} style={{ fontSize: 11, fontWeight: 600, color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer' }}>
                 {selected.length === eligibleAccounts.length && eligibleAccounts.length > 0 ? 'Desmarcar todas' : 'Selecionar todas'}
               </button>
             </div>
@@ -347,7 +346,7 @@ export default function Stories() {
                       <div style={{ fontSize: 9, color: '#8e9aac' }}>{acc.accessToken ? 'OAuth' : acc.igSession ? 'Sessão' : 'Sem credencial'}</div>
                     </div>
                     {/* checkbox */}
-                    <div style={{ width: 16, height: 16, borderRadius: 4, display: 'grid', placeItems: 'center', border: `1px solid ${isSel ? '#2673ff' : '#3f4b5e'}`, background: isSel ? '#2673ff' : 'transparent', color: '#fff', justifySelf: 'end' }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, display: 'grid', placeItems: 'center', border: `1px solid ${isSel ? 'var(--cyan)' : '#3f4b5e'}`, background: isSel ? 'var(--cyan)' : 'transparent', color: '#040e1c', justifySelf: 'end' }}>
                       {isSel && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
                   </div>
@@ -370,7 +369,7 @@ export default function Stories() {
                 <strong style={{ fontSize: 11, color: '#e9f1ff' }}>{interval} {interval === 1 ? 'minuto' : 'minutos'}</strong>
               </div>
               <input type="range" min={1} max={15} value={interval} onChange={e => setIntervalMin(Number(e.target.value))}
-                style={{ width: '100%', accentColor: '#2888ff', margin: '0 0 4px' }} />
+                style={{ width: '100%', accentColor: 'var(--cyan)', margin: '0 0 4px' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#768398', fontSize: 10 }}>
                 <span>1 min</span><span>15 min</span>
               </div>
@@ -381,38 +380,41 @@ export default function Stories() {
             </div>
           </div>
 
-          {/* Link na bio + Publicar */}
+          {/* Link sticker + Publicar */}
           <div style={{ ...PANEL, padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ ...PANEL_TITLE, margin: 0 }}>Link para a bio (lembrete)</h3>
+              <div>
+                <h3 style={{ ...PANEL_TITLE, margin: 0 }}>Link sticker no story</h3>
+                <p style={{ margin: '3px 0 0', fontSize: 10, color: '#8c98aa' }}>Figurinha clicável — só funciona em contas OAuth (Graph API)</p>
+              </div>
               {/* Toggle */}
               <button onClick={() => setLinkOn(p => !p)} style={{
                 width: 31, height: 19, borderRadius: 999, padding: 2,
-                background: linkOn ? '#2775ff' : '#253044', border: 'none', cursor: 'pointer',
-                display: 'flex', justifyContent: linkOn ? 'flex-end' : 'flex-start', transition: '.2s',
+                background: linkOn ? 'var(--cyan)' : '#253044', border: 'none', cursor: 'pointer',
+                display: 'flex', justifyContent: linkOn ? 'flex-end' : 'flex-start', transition: '.2s', flexShrink: 0,
               }}>
-                <span style={{ width: 15, height: 15, borderRadius: '50%', background: linkOn ? '#fff' : '#c6d1e1', transition: '.2s', display: 'block' }} />
+                <span style={{ width: 15, height: 15, borderRadius: '50%', background: linkOn ? '#040e1c' : '#c6d1e1', transition: '.2s', display: 'block' }} />
               </button>
             </div>
 
             {linkOn && (
-              <div style={{ height: 35, marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: '#0f1722', border: '1px solid #263448', borderRadius: 7 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#76849a" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              <div style={{ height: 35, marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: '#0f1722', border: '1px solid rgba(0,212,255,.25)', borderRadius: 7 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                 <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
                   style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: '#e8effe', fontSize: 11 }} />
               </div>
             )}
 
-            <p style={{ margin: linkOn ? '7px 0 0' : '10px 0 0', color: '#8c98aa', fontSize: 10 }}>
-              {linkOn ? 'Um lembrete será exibido no final da sequência de stories.' : 'Ative para adicionar um link de redirecionamento.'}
+            <p style={{ margin: linkOn ? '7px 0 0' : '14px 0 0', color: '#8c98aa', fontSize: 10 }}>
+              {linkOn ? 'A figurinha de link será adicionada automaticamente a cada story publicado.' : 'Ative para adicionar uma figurinha de link clicável em cada story.'}
             </p>
 
             <button onClick={publish} disabled={loading || !selected.length || !selectedMedia.length} style={{
               marginTop: 16, width: '100%', height: 48, borderRadius: 7, border: 'none', cursor: loading || !selected.length || !selectedMedia.length ? 'not-allowed' : 'pointer',
-              background: loading || !selected.length || !selectedMedia.length ? 'rgba(26,87,255,.35)' : 'linear-gradient(100deg,#1277ff,#2c46f6)',
-              color: '#fff', fontSize: 13, fontWeight: 750, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              boxShadow: '0 11px 26px rgba(26,87,255,.22)', transition: 'opacity .2s',
-              opacity: loading || !selected.length || !selectedMedia.length ? 0.65 : 1,
+              background: loading || !selected.length || !selectedMedia.length ? 'rgba(0,212,255,.18)' : 'linear-gradient(100deg,var(--cyan),#00b8d9)',
+              color: loading || !selected.length || !selectedMedia.length ? 'rgba(0,212,255,.5)' : '#040e1c',
+              fontSize: 13, fontWeight: 750, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              boxShadow: loading || !selected.length || !selectedMedia.length ? 'none' : '0 8px 22px rgba(0,212,255,.22)', transition: 'opacity .2s',
             }}>
               {loading ? (
                 <>
