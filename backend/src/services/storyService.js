@@ -79,7 +79,8 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
     throw new Error(published.error.message || 'Erro ao publicar Story');
   }
 
-  console.log(`✅ [Story Graph] @${account.username} — id ${published.id}${linkUrl ? ' (com link sticker)' : ''}`);
+  console.log(`✅ [Story Graph] @${account.username} — id ${published.id}${linkUrl ? ' (link_sticker_url enviado)' : ''}`);
+  console.log(`[Story Graph] container response:`, JSON.stringify(container).slice(0, 200));
   return { id: published.id, method: 'graph', withLink: !!linkUrl };
 }
 
