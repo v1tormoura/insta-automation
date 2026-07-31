@@ -33,14 +33,7 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
   }
 
   if (linkUrl) {
-    if (linkText) {
-      params.set('link_sticker', JSON.stringify({
-        link_url: linkUrl,
-        custom_link_label: linkText,
-      }));
-    } else {
-      params.set('link_sticker_url', linkUrl);
-    }
+    params.set('link_sticker_url', linkUrl);
   }
 
   // Passo 1: Criar container
