@@ -19,6 +19,7 @@ export default function Stories() {
   const [gridMode, setGridMode]       = useState(true);
   const [linkOn, setLinkOn]           = useState(false);
   const [linkUrl, setLinkUrl]         = useState('');
+  const [linkLabel, setLinkLabel]     = useState('');
   const [interval, setIntervalMin]    = useState(3);
   const [loading, setLoading]         = useState(false);
   const [results, setResults]         = useState(null);
@@ -84,6 +85,7 @@ export default function Stories() {
         accountIds: selected,
         imageUrl: selectedMedia[0].url,
         linkUrl: linkOn && linkUrl.trim() ? linkUrl.trim() : null,
+        linkText: linkOn && linkLabel.trim() ? linkLabel.trim() : null,
         mediaUrls: selectedMedia.map(m => m.url),
         intervalMinutes: interval,
       });
@@ -398,10 +400,19 @@ export default function Stories() {
             </div>
 
             {linkOn && (
-              <div style={{ height: 35, marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: '#0f1722', border: '1px solid rgba(0,212,255,.25)', borderRadius: 7 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
-                  style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: '#e8effe', fontSize: 11 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+                <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: '#0f1722', border: '1px solid rgba(0,212,255,.25)', borderRadius: 7 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                  <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
+                    style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: '#e8effe', fontSize: 11 }} />
+                </div>
+                <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: '#0f1722', border: '1px solid rgba(255,255,255,.07)', borderRadius: 7 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#76849a" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker (ex: Ver oferta)"
+                    maxLength={35}
+                    style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: '#e8effe', fontSize: 11 }} />
+                  <span style={{ fontSize: 10, color: '#4a5568', flexShrink: 0 }}>{linkLabel.length}/35</span>
+                </div>
               </div>
             )}
 
