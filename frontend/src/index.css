@@ -233,6 +233,18 @@ a { text-decoration: none; color: inherit; }
 }
 .drawer-item.active svg { color: var(--cyan); }
 
+.drawer-item span { display: flex; flex-direction: column; line-height: 1.2; }
+.drawer-item-sub {
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text3);
+  margin-top: 1px;
+  line-height: 1.1;
+}
+.drawer-item.active .drawer-item-sub { color: rgba(0,212,255,.65); }
+.drawer.collapsed .drawer-item-sub { display: none; }
+
 .drawer-footer {
   padding: 14px;
   border-top: 1px solid var(--border);

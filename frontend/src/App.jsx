@@ -20,6 +20,10 @@ import TopPosts from './pages/TopPosts';
 import BestTimes from './pages/BestTimes';
 import SmartRepost from './pages/SmartRepost';
 import Promo from './pages/Promo';
+import Ranking from './pages/Ranking';
+import Faturamento from './pages/Faturamento';
+import Performance from './pages/Performance';
+import Limpador from './pages/Limpador';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -58,6 +62,10 @@ export default function App() {
               <Route path="/best-times"     element={<BestTimes />} />
               <Route path="/smart-repost"   element={<SmartRepost />} />
               <Route path="/promo"          element={<Promo />} />
+              <Route path="/ranking"        element={<Ranking />} />
+              <Route path="/faturamento"    element={<Faturamento />} />
+              <Route path="/performance"    element={<Performance />} />
+              <Route path="/limpador"       element={<Limpador />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>

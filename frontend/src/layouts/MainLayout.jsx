@@ -33,54 +33,57 @@ const ICONS = {
   repost:    ic(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
   hunter:    ic(<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>),
   promo:      ic(<><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></>),
-  downloader: ic(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>),
-  bell:      ic(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>),
+  downloader:  ic(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>),
+  bell:        ic(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>),
+  ranking:     ic(<><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></>),
+  faturamento: ic(<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>),
+  limpador:    ic(<><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/><path d="M10 11v6M14 11v6"/></>),
+  performance: ic(<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>),
 };
 
 const NAV_GROUPS = [
   {
     title: 'VISÃO GERAL',
     items: [
-      { to: '/', label: 'Dashboard', icon: ICONS.dashboard },
+      { to: '/',            label: 'Dashboard',   sub: 'Visão geral',          icon: ICONS.dashboard   },
+      { to: '/ranking',     label: 'Ranking',     sub: 'Posts do mês',         icon: ICONS.ranking     },
+      { to: '/faturamento', label: 'Faturamento', sub: 'Meta de vendas',       icon: ICONS.faturamento },
     ],
   },
   {
     title: 'PUBLICAÇÃO',
     items: [
-      { to: '/posts',     label: 'Postar',       icon: ICONS.posts },
-      { to: '/loop',      label: 'Loop',         icon: ICONS.loop },
-      { to: '/stories',   label: 'Stories',      icon: ICONS.stories },
-      { to: '/scheduler', label: 'Agendamentos', icon: ICONS.scheduler },
+      { to: '/posts',        label: 'Postar',       sub: 'Criar e agendar',    icon: ICONS.posts     },
+      { to: '/loop',         label: 'Loop',         sub: 'Ciclos contínuos',   icon: ICONS.loop      },
+      { to: '/stories',      label: 'Stories',      sub: 'Publicar em massa',  icon: ICONS.stories   },
+      { to: '/scheduler',    label: 'Agendamentos', sub: 'Fila e calendário',  icon: ICONS.scheduler },
+      { to: '/smart-repost', label: 'Automatizar',  sub: 'Regras automáticas', icon: ICONS.repost    },
     ],
   },
   {
     title: 'CONTEÚDO',
     items: [
-      { to: '/legends',       label: 'Legendas',  icon: ICONS.legends },
-      { to: '/top-posts',     label: 'Top Posts', icon: ICONS.topposts },
+      { to: '/legends',     label: 'Legendas',    sub: 'Textos salvos',         icon: ICONS.legends     },
+      { to: '/limpador',    label: 'Limpador',    sub: 'Remover metadados',     icon: ICONS.limpador    },
+      { to: '/performance', label: 'Performance', sub: 'Insights gerais',       icon: ICONS.performance },
+      { to: '/warmup',      label: 'Engajamento', sub: 'Interações por conta',  icon: ICONS.warmup      },
+      { to: '/top-posts',   label: 'Top Posts',   sub: 'Republique os melhores',icon: ICONS.topposts    },
     ],
   },
   {
     title: 'CONFIGURAÇÃO',
     items: [
-      { to: '/accounts', label: 'Contas',        icon: ICONS.accounts },
-      { to: '/health',   label: 'Saúde',         icon: ICONS.health },
-      { to: '/proxies',  label: 'Proxies',        icon: ICONS.proxies },
+      { to: '/accounts', label: 'Contas',  sub: 'Gerenciar contas',  icon: ICONS.accounts },
+      { to: '/health',   label: 'Saúde',   sub: 'Status das contas', icon: ICONS.health   },
+      { to: '/proxies',  label: 'Proxies', sub: 'Gerenciar proxies', icon: ICONS.proxies  },
     ],
   },
   {
-    title: 'VIRALIZAR',
+    title: 'MAIS',
     items: [
-      { to: '/warmup',         label: 'Aquecimento',       icon: ICONS.warmup    },
-      { to: '/best-times',     label: 'Melhores Horários', icon: ICONS.besttimes },
-      { to: '/smart-repost',   label: 'Repost',            icon: ICONS.repost    },
-      { to: '/promo',          label: 'Divulgação',        icon: ICONS.promo     },
-    ],
-  },
-  {
-    title: 'ADMIN',
-    items: [
-      { to: '/logs', label: 'Histórico', icon: ICONS.logs },
+      { to: '/best-times', label: 'Melhores Horários', sub: 'Quando postar',        icon: ICONS.besttimes },
+      { to: '/promo',      label: 'Divulgação',        sub: 'Captação de clientes', icon: ICONS.promo     },
+      { to: '/logs',       label: 'Histórico',         sub: 'Logs de atividade',    icon: ICONS.logs      },
     ],
   },
 ];
@@ -294,7 +297,10 @@ export default function MainLayout({ children }) {
                   className={({ isActive }) => `drawer-item${isActive ? ' active' : ''}`}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  <span>
+                    {item.label}
+                    {item.sub && <em className="drawer-item-sub">{item.sub}</em>}
+                  </span>
                 </NavLink>
               ))}
             </div>
