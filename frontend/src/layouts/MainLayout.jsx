@@ -213,15 +213,18 @@ function NotificationBell() {
 }
 
 export default function MainLayout({ children }) {
-  const [drawerOpen,  setDrawerOpen]  = useState(false);
-  const [collapsed,   setCollapsed]   = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
-  const location  = useLocation();
-  const navigate  = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [hoverOpen,  setHoverOpen]  = useState(false);
+  const hoverTimer = useRef(null);
+  const location   = useLocation();
+  const navigate   = useNavigate();
 
-  const toggleCollapse = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem('sidebar_collapsed', next);
+  const handleSidebarEnter = () => {
+    clearTimeout(hoverTimer.current);
+    setHoverOpen(true);
+  };
+  const handleSidebarLeave = () => {
+    hoverTimer.current = setTimeout(() => setHoverOpen(false), 120);
   };
 
   useEffect(() => { setDrawerOpen(false); }, [location]);
@@ -256,7 +259,11 @@ export default function MainLayout({ children }) {
       </AnimatePresence>
 
       {/* Drawer sidebar */}
-      <aside className={`drawer${drawerOpen ? ' drawer-open' : ''}${collapsed ? ' collapsed' : ''}`}>
+      <aside
+        className={`drawer${drawerOpen ? ' drawer-open' : ''}${!hoverOpen ? ' collapsed' : ''}`}
+        onMouseEnter={handleSidebarEnter}
+        onMouseLeave={handleSidebarLeave}
+      >
         {/* Header inside drawer */}
         <div className="drawer-header">
           <button
@@ -265,20 +272,6 @@ export default function MainLayout({ children }) {
           >
             <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} />
             <span className="logo-text" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)', whiteSpace: 'nowrap' }}>MouraFlow</span>
-          </button>
-          {/* Desktop collapse toggle */}
-          <button
-            className="drawer-collapse-btn"
-            onClick={toggleCollapse}
-            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-            style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', flexShrink: 0 }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              {collapsed
-                ? <><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></>
-                : <><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></>
-              }
-            </svg>
           </button>
           {/* Mobile close button */}
           <button

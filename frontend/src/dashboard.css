@@ -64,23 +64,23 @@
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
 
 .metric-card, .wide-metric, .panel, .quick-action {
-  background: rgba(10,20,38,.88);
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 20px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.025);
+  background: oklch(0.13 0.03 240 / 0.88);
+  border: 1px solid oklch(1 0 0 / 0.07);
+  box-shadow: 0 4px 20px rgba(0,0,0,.4), inset 0 1px 0 oklch(1 0 0 / 0.025);
   overflow: hidden; position: relative;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .metric-card {
-  min-height: 168px; border-radius: 14px; padding: 0;
+  min-height: 168px; border-radius: 18px; padding: 0;
   display: flex; flex-direction: column;
   transition: border-color .25s, box-shadow .25s, transform .25s;
 }
 .metric-card:hover {
-  border-color: rgba(0,212,255,.25);
-  box-shadow: 0 0 0 1px rgba(0,180,255,.1), 0 16px 48px rgba(0,0,0,.5);
-  transform: translateY(-1px);
+  border-color: oklch(0.82 0.19 196 / 0.25);
+  box-shadow: 0 0 0 1px oklch(0.82 0.19 196 / 0.10), 0 0 28px oklch(0.82 0.19 196 / 0.12), 0 16px 48px rgba(0,0,0,.5);
+  transform: translateY(-2px);
 }
 .wide-metric:hover, .panel:hover {
   border-color: rgba(0,212,255,.18);
@@ -95,7 +95,7 @@
 }
 .card-top-line {
   position: absolute; top: 0; left: 20px; right: 20px; height: 1px; pointer-events: none; z-index: 3;
-  background: linear-gradient(90deg, transparent, rgba(0,212,255,.38), transparent);
+  background: linear-gradient(90deg, transparent, oklch(0.82 0.19 196 / 0.38), transparent);
 }
 .metric-content {
   position: relative; z-index: 2; flex: 1;
@@ -105,7 +105,7 @@
 .metric-head { display: flex; justify-content: space-between; position: relative; z-index: 2; }
 .metric-head button { padding: 1px; border: 0; background: transparent; color: var(--text2); cursor: pointer; }
 .metric-label {
-  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
   font-size: 10px; font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.22em;
@@ -171,7 +171,7 @@
 
 /* ── Wide metrics ────────────────────────────────────── */
 .wide-metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-.wide-metric { min-height: 104px; padding: 14px 16px; border-radius: 13px; }
+.wide-metric { min-height: 104px; padding: 14px 16px; border-radius: 18px; }
 .wide-top { position: relative; z-index: 2; display: flex; justify-content: space-between; gap: 12px; }
 .wide-value { font-size: 28px; font-weight: 750; letter-spacing: -.04em; margin-top: 9px; }
 .wide-metric small { color: var(--text2); font-size: 10px; }
@@ -189,7 +189,7 @@
 
 /* ── Quick actions ───────────────────────────────────── */
 .quick-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 12px; }
-.quick-action { min-height: 70px; padding: 12px 14px; border-radius: 13px; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; transition: all .18s; }
+.quick-action { min-height: 70px; padding: 12px 14px; border-radius: 18px; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; transition: all .18s; }
 .quick-action:hover { border-color: rgba(0,212,255,.2); transform: translateY(-1px); box-shadow: 0 8px 28px rgba(0,0,0,.4); }
 .quick-icon {
   display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px;
@@ -204,7 +204,7 @@
 
 /* ── Panels ──────────────────────────────────────────── */
 .operations-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 12px; margin-top: 12px; }
-.panel { border-radius: 13px; min-width: 0; }
+.panel { border-radius: 18px; min-width: 0; }
 .panel-header {
   min-height: 42px; padding: 0 14px;
   display: flex; align-items: center; justify-content: space-between;
