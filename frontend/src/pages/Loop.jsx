@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
   History, AlertTriangle, CheckCircle, X,
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
+import PageShell from '../components/PageShell';
 import './Loop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -31,7 +33,15 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
   const running = loop.status === 'ativo';
 
   return (
-    <div className={`lc ${running ? 'lc--on' : 'lc--off'}`}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.2 }}
+      className={`lc ${running ? 'lc--on' : 'lc--off'}`}
+    >
       <div className="lc-head">
         <span className={`lc-dot ${running ? 'on' : 'off'}`} />
         <span className="lc-name">{loop.name || `Loop #${loop._id?.slice(-4)}`}</span>
@@ -56,7 +66,7 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
         <div className="lc-err"><AlertTriangle size={11} />{loop.lastError}</div>
       )}
       <div className="lc-foot"><Clock size={11} /> {timeAgo(loop.lastRunAt)}</div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -142,8 +152,20 @@ function LoopModal({ onClose, onCreated }) {
   };
 
   return (
-    <div className="lm-bg" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="lm">
+    <motion.div
+      className="lm-bg"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        className="lm"
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.97 }}
+        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      >
 
         {/* Header */}
         <div className="lm-hd">
@@ -422,8 +444,8 @@ function LoopModal({ onClose, onCreated }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -473,82 +495,132 @@ export default function LoopPage() {
   const activeCount = loops.filter(l => l.status === 'ativo').length;
   const totalPosts  = loops.reduce((s, l) => s + (l.postsCount || 0), 0);
 
+  const pageActions = (
+    <>
+      <div className="lp-chip"><RefreshCw size={12} /> {activeCount} ativos</div>
+      <div className="lp-chip"><Film size={12} /> {totalPosts} publicados</div>
+      <button className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 16px', fontSize:'.83rem', fontWeight:700, borderRadius:9 }} onClick={() => setShowModal(true)}>
+        <Plus size={14} /> Novo loop
+      </button>
+    </>
+  );
+
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+  );
+
   return (
-    <div className="lp-page">
-      <div className="lp-hd">
-        <div>
-          <h1>Loop</h1>
-          <p>Ciclos contínuos de postagem automática</p>
-        </div>
-        <div className="lp-hd-r">
-          <span className="lp-chip"><RefreshCw size={12} /> {activeCount} ativos</span>
-          <span className="lp-chip"><Film size={12} /> {totalPosts} publicados</span>
-          <button className="lp-new" onClick={() => setShowModal(true)}>
-            <Plus size={14} /> Novo loop
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="lp-load"><RefreshCw size={18} className="spin" /> Carregando...</div>
-      ) : loops.length === 0 ? (
-        <div className="lp-empty">
-          <div className="lp-empty-ic"><RefreshCw size={24} /></div>
-          <strong>Nenhum loop criado</strong>
-          <span>Crie um loop para postar em ciclo contínuo em todas as suas contas.</span>
-          <button className="lp-new" onClick={() => setShowModal(true)}><Plus size={13} /> Criar loop</button>
-        </div>
-      ) : (
-        Object.values(byAccount).map(({ account, loops: al }) => (
-          <div key={account._id || account} className="lp-group">
-            <div className="lp-group-hd">
-              <div className="lp-av">
-                {account.avatar
-                  ? <img src={`${API_URL}${account.avatar}`} alt="" />
-                  : <span>{(account.username || '?')[0].toUpperCase()}</span>}
-                <i />
-              </div>
-              <div>
-                <strong>@{account.username}</strong>
-                <span>{al.length} loop(s) · {al.filter(l => l.status==='ativo').length} ativo(s) · {al.reduce((s,l)=>s+(l.postsCount||0),0)} publicados</span>
-              </div>
-            </div>
-            <div className="lp-grid">
-              {al.map(loop => (
-                <LoopCard key={loop._id} loop={loop}
-                  onToggle={handleToggle} onDelete={handleDelete} onHistory={handleHistory} />
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-
-      {showModal && <LoopModal onClose={() => setShowModal(false)} onCreated={l => setLoops(ls => [l, ...ls])} />}
-
-      {histLoop && (
-        <div className="lm-bg" onClick={() => setHistLoop(null)}>
-          <div className="lm lm--sm" onClick={e => e.stopPropagation()}>
-            <div className="lm-hd">
-              <div className="lm-hd-l">
-                <div className="lm-ico"><History size={14} /></div>
-                <div><h2>Histórico</h2><p>{histLoop.name}</p></div>
-              </div>
-              <button className="lm-x" onClick={() => setHistLoop(null)}><X size={15} /></button>
-            </div>
-            <div className="lm-hist">
-              {histPosts.length === 0
-                ? <p className="lm-hist-empty">Nenhum post registrado ainda.</p>
-                : histPosts.map(p => (
-                  <div key={p._id} className="lm-hist-row">
-                    <span className={`lm-hist-tag ${p.status}`}>{p.status}</span>
-                    <span className="lm-hist-f">{p.media}</span>
-                    <span className="lm-hist-d">{new Date(p.createdAt).toLocaleString('pt-BR')}</span>
+    <>
+      <PageShell
+        icon={pageIcon}
+        title="Loop Contínuo"
+        subtitle="Ciclos automáticos de postagem em escala"
+        accent="cyan"
+        actions={pageActions}
+      >
+        {loading ? (
+          <div className="lp-load"><RefreshCw size={18} className="spin" /> Carregando...</div>
+        ) : loops.length === 0 ? (
+          <motion.div
+            className="lp-empty"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="lp-empty-ic"><RefreshCw size={24} /></div>
+            <strong>Nenhum loop criado</strong>
+            <span>Crie um loop para postar em ciclo contínuo em todas as suas contas.</span>
+            <button
+              className="btn-primary"
+              style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:4 }}
+              onClick={() => setShowModal(true)}
+            >
+              <Plus size={13} /> Criar loop
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            style={{ display:'flex', flexDirection:'column', gap:20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
+          >
+            {Object.values(byAccount).map(({ account, loops: al }) => (
+              <div key={account._id || account} className="lp-group">
+                <div className="lp-group-hd">
+                  <div className="lp-av">
+                    {account.avatar
+                      ? <img src={`${API_URL}${account.avatar}`} alt="" />
+                      : <span>{(account.username || '?')[0].toUpperCase()}</span>}
+                    <i />
                   </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                  <div>
+                    <strong>@{account.username}</strong>
+                    <span>{al.length} loop(s) · {al.filter(l => l.status==='ativo').length} ativo(s) · {al.reduce((s,l)=>s+(l.postsCount||0),0)} publicados</span>
+                  </div>
+                </div>
+                <div className="lp-grid">
+                  <AnimatePresence>
+                    {al.map(loop => (
+                      <LoopCard key={loop._id} loop={loop}
+                        onToggle={handleToggle} onDelete={handleDelete} onHistory={handleHistory} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </PageShell>
+
+      <AnimatePresence>
+        {showModal && (
+          <LoopModal onClose={() => setShowModal(false)} onCreated={l => setLoops(ls => [l, ...ls])} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {histLoop && (
+          <motion.div
+            className="lm-bg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setHistLoop(null)}
+          >
+            <motion.div
+              className="lm lm--sm"
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.22 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="lm-hd">
+                <div className="lm-hd-l">
+                  <div className="lm-ico"><History size={14} /></div>
+                  <div><h2>Histórico</h2><p>{histLoop.name}</p></div>
+                </div>
+                <button className="lm-x" onClick={() => setHistLoop(null)}><X size={15} /></button>
+              </div>
+              <div className="lm-hist">
+                {histPosts.length === 0
+                  ? <p className="lm-hist-empty">Nenhum post registrado ainda.</p>
+                  : histPosts.map(p => (
+                    <div key={p._id} className="lm-hist-row">
+                      <span className={`lm-hist-tag ${p.status}`}>{p.status}</span>
+                      <span className="lm-hist-f">{p.media}</span>
+                      <span className="lm-hist-d">{new Date(p.createdAt).toLocaleString('pt-BR')}</span>
+                    </div>
+                  ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

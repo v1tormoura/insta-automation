@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
+import PageShell from '../components/PageShell';
 
 export default function Legends() {
   const [legends, setLegends]   = useState([]);
@@ -8,7 +10,7 @@ export default function Legends() {
   const [category, setCategory] = useState('Geral');
   const [text, setText]         = useState('');
   const [toast, setToast]       = useState(null);
-  const [editId, setEditId]     = useState(null); // id sendo editado
+  const [editId, setEditId]     = useState(null);
   const [search, setSearch]     = useState('');
 
   function showToast(type, t, message) { setToast({ type, title: t, message }); setTimeout(() => setToast(null), 3500); }
@@ -60,113 +62,151 @@ export default function Legends() {
       )
     : legends;
 
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+    </svg>
+  );
+
+  const pageActions = (
+    <span style={{ fontSize: '.78rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 8, padding: '4px 10px' }}>
+      {legends.length} legendas
+    </span>
+  );
+
+  const cardStyle = {
+    background: 'oklch(0.16 0.05 235 / 0.85)',
+    border: '1px solid oklch(1 0 0 / 0.07)',
+    borderRadius: 14,
+    backdropFilter: 'blur(12px)',
+    overflow: 'hidden',
+  };
+
   return (
-    <div>
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Conteúdo</div>
-          <h1>Banco de Legendas</h1>
-          <p>Salve legendas prontas e use nas publicações automaticamente.</p>
-        </div>
-        <div className="page-header-right">
-          <span className="badge badge-indigo">{legends.length} legendas</span>
-        </div>
-      </div>
-
-      <div className="layout-legends">
-
-        {/* ── Form criar / editar ── */}
-        <form className="legends-form card" onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16, alignSelf: 'start' }}>
-          <div className="card-header">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {editId ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Editando legenda
-                </>
-              ) : 'Nova legenda'}
-            </h3>
-            <span style={{ fontSize: 12, color: text.length > 2000 ? '#f87171' : '#475569' }}>{text.length} chars</span>
-          </div>
-
-          {editId && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)', fontSize: 12, color: '#a5b4fc' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Modo edição ativo
-              <button type="button" onClick={cancelEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#818cf8', cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: 0 }}>Cancelar</button>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label>Título</label>
-            <input className="inp" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Curiosidade viral 01" />
-          </div>
-          <div className="form-group">
-            <label>Categoria</label>
-            <input className="inp" value={category} onChange={e => setCategory(e.target.value)} placeholder="Ex: Hot, Curiosidades, Viral..." />
-          </div>
-          <div className="form-group">
-            <label>Legenda</label>
-            <textarea className="txta" rows={8} value={text} onChange={e => setText(e.target.value)} placeholder="Digite sua legenda pronta..." />
-          </div>
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            {editId && (
-              <button type="button" className="btn btn-ghost" onClick={cancelEdit} style={{ flex: 1, justifyContent: 'center' }}>
-                Cancelar
-              </button>
-            )}
-            <button className="btn btn-primary" type="submit" style={{ flex: 1, justifyContent: 'center' }}>
-              {editId ? 'Salvar alterações' : 'Salvar legenda'}
-            </button>
-          </div>
-        </form>
-
-        {/* ── Lista ── */}
-        <div className="card">
-          <div className="card-header" style={{ flexWrap: 'wrap', gap: 8 }}>
-            <h3>Legendas salvas</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-              {/* Busca */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(15,23,42,.6)', border: '1px solid rgba(51,65,85,.5)', borderRadius: 8, padding: '5px 10px', width: 200 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: '#e2e8f0', fontSize: 12, width: '100%' }} />
-              </div>
-              <span style={{ fontSize: 12, color: '#475569' }}>{filtered.length} total</span>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10, padding: '4px 0' }}>
-            {filtered.map(legend => (
-              <div key={legend._id} className="legend-card" style={{ outline: editId === legend._id ? '2px solid rgba(99,102,241,.5)' : 'none', outlineOffset: 2 }}>
-                <div className="legend-card-top">
-                  <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{legend.title}</strong>
-                  <span className="legend-cat">{legend.category}</span>
-                </div>
-                <p className="legend-text">{legend.text}</p>
-                <div className="legend-footer">
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => startEdit(legend)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Editar
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => deleteLegend(legend._id)}>Excluir</button>
-                </div>
-              </div>
-            ))}
-            {!filtered.length && (
-              <div className="empty-state" style={{ gridColumn: '1/-1' }}>
-                {search ? 'Nenhuma legenda encontrada.' : 'Nenhuma legenda salva ainda.'}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <>
       <Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
+
+      <PageShell
+        icon={pageIcon}
+        title="Banco de Legendas"
+        subtitle="Salve legendas prontas e use nas publicações automaticamente"
+        accent="purple"
+        actions={pageActions}
+      >
+        <div className="layout-legends">
+
+          {/* ── Form criar / editar ── */}
+          <form
+            onSubmit={submit}
+            style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 0, position: 'sticky', top: 16, alignSelf: 'start' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
+              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {editId ? (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Editando legenda
+                  </>
+                ) : 'Nova legenda'}
+              </h3>
+              <span style={{ fontSize: 11, color: text.length > 2000 ? '#f87171' : 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{text.length} chars</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
+              {editId && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)', fontSize: 12, color: '#a5b4fc' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Modo edição ativo
+                  <button type="button" onClick={cancelEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#818cf8', cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: 0 }}>Cancelar</button>
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Título</label>
+                <input className="inp" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Curiosidade viral 01" />
+              </div>
+              <div className="form-group">
+                <label>Categoria</label>
+                <input className="inp" value={category} onChange={e => setCategory(e.target.value)} placeholder="Ex: Hot, Curiosidades, Viral..." />
+              </div>
+              <div className="form-group">
+                <label>Legenda</label>
+                <textarea className="txta" rows={8} value={text} onChange={e => setText(e.target.value)} placeholder="Digite sua legenda pronta..." />
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                {editId && (
+                  <button type="button" className="btn-ghost" onClick={cancelEdit} style={{ flex: 1, padding: '9px', borderRadius: 9, fontSize: '.83rem' }}>
+                    Cancelar
+                  </button>
+                )}
+                <button className="btn-primary" type="submit" style={{ flex: 1, padding: '9px', borderRadius: 9, fontSize: '.83rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {editId ? 'Salvar alterações' : 'Salvar legenda'}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* ── Lista ── */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', flexWrap: 'wrap', gap: 8 }}>
+              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Legendas salvas</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.09)', borderRadius: 8, padding: '5px 10px', width: 200, transition: 'border-color .15s' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, width: '100%' }} />
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{filtered.length} total</span>
+              </div>
+            </div>
+
+            <div style={{ padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
+              {filtered.map((legend, i) => (
+                <motion.div
+                  key={legend._id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
+                  style={{
+                    background: 'oklch(0.12 0.04 235 / 0.7)',
+                    border: `1px solid ${editId === legend._id ? 'rgba(99,102,241,.5)' : 'oklch(1 0 0 / 0.07)'}`,
+                    borderRadius: 11, overflow: 'hidden',
+                    boxShadow: editId === legend._id ? '0 0 0 2px rgba(99,102,241,.2)' : 'none',
+                  }}
+                >
+                  <div className="legend-card-top" style={{ padding: '10px 12px', borderBottom: '1px solid oklch(1 0 0 / 0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '.83rem', color: 'var(--text)' }}>{legend.title}</strong>
+                    <span style={{ fontSize: '.65rem', fontFamily: 'var(--font-mono)', background: 'rgba(139,92,246,.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,.2)', borderRadius: 100, padding: '1px 7px', flexShrink: 0 }}>{legend.category}</span>
+                  </div>
+                  <p style={{ margin: 0, padding: '8px 12px', fontSize: '.78rem', color: 'var(--text3)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{legend.text}</p>
+                  <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid oklch(1 0 0 / 0.06)' }}>
+                    <button
+                      className="btn-ghost"
+                      onClick={() => startEdit(legend)}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '5px', borderRadius: 7, fontSize: '.75rem' }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Editar
+                    </button>
+                    <button
+                      className="btn-danger"
+                      onClick={() => deleteLegend(legend._id)}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px', borderRadius: 7, fontSize: '.75rem' }}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+              {!filtered.length && (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--text3)', fontSize: '.85rem' }}>
+                  {search ? 'Nenhuma legenda encontrada.' : 'Nenhuma legenda salva ainda.'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </PageShell>
+    </>
   );
 }

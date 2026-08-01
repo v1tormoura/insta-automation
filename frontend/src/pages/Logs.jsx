@@ -1,17 +1,19 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
+import PageShell from '../components/PageShell';
 
 const STATUS_META = {
-  concluido:        { label: 'Concluído',   color: '#22c55e', bg: 'rgba(34,197,94,.12)'  },
-  erro:             { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
-  processando:      { label: 'Processando', color: '#818cf8', bg: 'rgba(129,140,248,.12)' },
-  agendado:         { label: 'Agendado',    color: '#f59e0b', bg: 'rgba(245,158,11,.12)'  },
-  pendente:         { label: 'Pendente',    color: '#94a3b8', bg: 'rgba(148,163,184,.12)' },
-  done:             { label: 'Concluído',   color: '#22c55e', bg: 'rgba(34,197,94,.12)'  },
-  done_with_errors: { label: 'Com erros',   color: '#f59e0b', bg: 'rgba(245,158,11,.12)' },
-  running:          { label: 'Executando',  color: '#818cf8', bg: 'rgba(129,140,248,.12)' },
-  error:            { label: 'Erro',        color: '#f87171', bg: 'rgba(248,113,113,.12)' },
+  concluido:        { label: 'Concluído',   color: '#22c55e', bg: 'oklch(0.22 0.06 150 / 0.5)' },
+  erro:             { label: 'Erro',        color: '#f87171', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
+  processando:      { label: 'Processando', color: '#818cf8', bg: 'oklch(0.22 0.06 270 / 0.5)' },
+  agendado:         { label: 'Agendado',    color: '#f59e0b', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
+  pendente:         { label: 'Pendente',    color: '#94a3b8', bg: 'oklch(0.18 0.02 240 / 0.5)' },
+  done:             { label: 'Concluído',   color: '#22c55e', bg: 'oklch(0.22 0.06 150 / 0.5)' },
+  done_with_errors: { label: 'Com erros',   color: '#f59e0b', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
+  running:          { label: 'Executando',  color: '#818cf8', bg: 'oklch(0.22 0.06 270 / 0.5)' },
+  error:            { label: 'Erro',        color: '#f87171', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
 };
 
 const svgIcon = (d, w = 16) => (
@@ -25,21 +27,9 @@ const TYPE_ICON = {
   account:      { icon: svgIcon(<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></>), label: 'Conta' },
 };
 
-function StatusBadge({ status }) {
-  const m = STATUS_META[status] || STATUS_META.pendente;
-  return (
-    <span style={{
-      fontSize: 11, fontWeight: 700, color: m.color,
-      background: m.bg, padding: '3px 10px', borderRadius: 999,
-    }}>
-      {m.label}
-    </span>
-  );
-}
-
-function borderColor(status) {
-  return STATUS_META[status]?.color || 'var(--border)';
-}
+const FILTERS = ['all', 'concluido', 'erro', 'processando', 'agendado', 'pendente'];
+const FILTER_LABELS = { all:'Todos', concluido:'Concluído', erro:'Erro', processando:'Processando', agendado:'Agendado', pendente:'Pendente' };
+const statusMap = { concluido:['concluido','done'], erro:['erro','error','done_with_errors'], processando:['processando','running'] };
 
 export default function Logs() {
   const [posts,       setPosts]       = useState([]);
@@ -66,18 +56,10 @@ export default function Logs() {
 
   const loadRef = useRef(load);
   useEffect(() => { loadRef.current = load; }, [load]);
-
   useEffect(() => { load(); }, [load]);
-
-  // Poll every 10 s as fallback when SSE is idle
-  useEffect(() => {
-    const id = setInterval(() => loadRef.current?.(), 10_000);
-    return () => clearInterval(id);
-  }, []);
-
+  useEffect(() => { const id = setInterval(() => loadRef.current?.(), 10_000); return () => clearInterval(id); }, []);
   useServerEvents(['posts', 'profile_edit', 'accounts'], load);
 
-  // Montar timeline unificada
   const timeline = [
     ...posts.map(p => ({
       _id:      p._id,
@@ -103,98 +85,113 @@ export default function Logs() {
     }),
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  const FILTERS = ['all', 'concluido', 'erro', 'processando', 'agendado', 'pendente'];
-  const statusMap = { concluido: ['concluido','done'], erro: ['erro','error','done_with_errors'], processando: ['processando','running'] };
   const filtered = filter === 'all'
     ? timeline
     : timeline.filter(e => (statusMap[filter] || [filter]).includes(e.status));
 
-  return (
-    <div>
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Monitoramento</div>
-          <h1>Logs do Sistema</h1>
-          <p>Histórico completo de publicações e automações.</p>
-        </div>
-        <div className="page-header-right">
-          <span className="badge badge-green"><span className="dot" />Tempo real</span>
-        </div>
-      </div>
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+    </svg>
+  );
 
-      <div className="filter-tabs" style={{ marginBottom: 16 }}>
+  const pageActions = (
+    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'#4ade80', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+      <span style={{ width:6, height:6, borderRadius:'50%', background:'#4ade80', display:'inline-block', boxShadow:'0 0 6px #4ade80' }} />
+      Tempo real
+    </div>
+  );
+
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+
+  return (
+    <PageShell icon={pageIcon} title="Logs do Sistema" subtitle="Histórico completo de publicações e automações." accent="cyan" actions={pageActions}>
+
+      {/* Filter tabs */}
+      <div style={{ ...cardStyle, padding:'10px 12px', marginBottom:14, display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
         {FILTERS.map(f => (
-          <button key={f} className={`filter-tab${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
-            {f === 'all' ? 'Todos' : f}
-          </button>
+          <button key={f} onClick={() => setFilter(f)} style={{
+            height:28, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
+            border:'none', cursor:'pointer', transition:'.15s',
+            background: filter === f ? 'var(--cyan)' : 'transparent',
+            color: filter === f ? '#040e1c' : 'var(--text3)',
+          }}>{FILTER_LABELS[f]}</button>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text2)', lineHeight: '30px' }}>
-          {filtered.length} registro(s)
+        <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
+          {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', color: 'var(--text2)', padding: 40, fontSize: 13 }}>Carregando…</div>
+        <div style={{ textAlign:'center', color:'var(--text3)', padding:40, fontSize:13 }}>Carregando…</div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {filtered.map(entry => {
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {filtered.map((entry, i) => {
           const tm = TYPE_ICON[entry.type] || TYPE_ICON.post;
+          const m  = STATUS_META[entry.status] || STATUS_META.pendente;
           return (
-            <div key={entry._id} style={{
-              background: 'var(--card)', border: `1px solid var(--border)`,
-              borderLeft: `3px solid ${borderColor(entry.status)}`,
-              borderRadius: 10, padding: '12px 16px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ color: 'var(--text2)', display: 'flex', alignItems: 'center' }}>{tm.icon}</span>
+            <motion.div
+              key={entry._id}
+              initial={{ opacity:0, y:6 }}
+              animate={{ opacity:1, y:0 }}
+              transition={{ delay: Math.min(i * 0.02, .3), duration:.2 }}
+              style={{
+                background:'oklch(0.16 0.05 235 / 0.85)',
+                border:'1px solid oklch(1 0 0 / 0.07)',
+                borderLeft:`3px solid ${m.color}`,
+                borderRadius:12, padding:'12px 16px',
+                backdropFilter:'blur(12px)',
+              }}
+            >
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ color:'var(--text3)', display:'flex', alignItems:'center' }}>{tm.icon}</span>
                   <div>
-                    <strong style={{ fontSize: 13, color: 'var(--text)' }}>{tm.label}</strong>
-                    <span style={{ fontSize: 11, color: 'var(--text2)', display: 'block' }}>
+                    <strong style={{ fontSize:13, color:'var(--text)' }}>{tm.label}</strong>
+                    <span style={{ fontSize:11, color:'var(--text3)', display:'block', fontFamily:'var(--font-mono)' }}>
                       {entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'}
                     </span>
                   </div>
                 </div>
-                <StatusBadge status={entry.status} />
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:m.bg, color:m.color, border:`1px solid ${m.color}22`, flexShrink:0 }}>
+                  {m.label}
+                </span>
               </div>
 
-              <div style={{ fontFamily: "'Courier New',monospace", fontSize: 11, display: 'flex', flexDirection: 'column', gap: 3, color: 'var(--text2)' }}>
-                <span><span style={{ color: 'var(--text3)' }}>conta: </span>{entry.accounts}</span>
-                {entry.media    && <span><span style={{ color: 'var(--text3)' }}>mídia: </span>{entry.media}</span>}
-                {entry.caption  && <span><span style={{ color: 'var(--text3)' }}>legenda: </span>{entry.caption.slice(0, 80)}{entry.caption.length > 80 ? '…' : ''}</span>}
-                {entry.error    && <span style={{ color: '#f87171' }}><span style={{ color: 'var(--text3)' }}>erro: </span>{entry.error}</span>}
-                {entry.results?.length > 0 && entry.results.map((r, i) => {
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--text3)' }}>
+                <span><span style={{ color:'var(--text3)' }}>conta: </span><span style={{ color:'var(--text2)' }}>{entry.accounts}</span></span>
+                {entry.media    && <span><span>mídia: </span><span style={{ color:'var(--text2)' }}>{entry.media}</span></span>}
+                {entry.caption  && <span><span>legenda: </span><span style={{ color:'var(--text2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
+                {entry.error    && <span style={{ color:'#f87171' }}><span style={{ color:'var(--text3)' }}>erro: </span>{entry.error}</span>}
+                {entry.results?.length > 0 && entry.results.map((r, j) => {
                   const ok = r.status === 'ok';
                   let errorMsg = r.error || 'falhou';
                   if (!ok && /challenge|checkpoint/i.test(errorMsg)) {
                     errorMsg = 'Challenge Instagram — use Reconectar para resolver';
                   }
                   return (
-                    <span key={i} style={{ color: ok ? '#22c55e' : '#f87171' }}>
-                      <span style={{ color: 'var(--text3)' }}>resultado [{r.username}]: </span>
+                    <span key={j} style={{ color: ok ? '#22c55e' : '#f87171' }}>
+                      <span style={{ color:'var(--text3)' }}>resultado [{r.username}]: </span>
                       {ok ? '✓ ' + (r.message || 'ok') : '✗ ' + errorMsg}
                     </span>
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           );
         })}
 
         {!loading && !filtered.length && (
-          <div style={{
-            textAlign: 'center', padding: '48px 20px',
-            background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
-          }}>
-            <div style={{ marginBottom: 12 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 6 }}>Nenhum registro ainda</div>
-            <div style={{ fontSize: 13, color: 'var(--text2)' }}>
-              Os logs aparecem aqui assim que você publicar posts, editar perfis ou executar automações.
+          <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
+            <div style={{ marginBottom:12, color:'var(--text3)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             </div>
+            <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Nenhum registro ainda</div>
+            <div style={{ fontSize:13, color:'var(--text3)' }}>Os logs aparecem aqui assim que você publicar posts ou executar automações.</div>
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

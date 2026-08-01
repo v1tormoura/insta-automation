@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
+import PageShell from '../components/PageShell';
 
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
 const EMPTY_FORM = { name: '', accountId: '', igMediaIdA: '', igMediaIdB: '', durationHours: '48' };
+
+const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--text)', fontSize:13, boxSizing:'border-box', outline:'none', fontFamily:'var(--font)' };
+const labelStyle = { fontSize:11, color:'var(--text3)', display:'block', marginBottom:5, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.05em' };
 
 export default function ABTest() {
   const [tests,    setTests]    = useState([]);
@@ -51,157 +57,158 @@ export default function ABTest() {
   const pending  = tests.filter(t => t.status === 'pendente');
   const finished = tests.filter(t => t.status === 'concluido');
 
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 20V10M12 20V4M6 20v-6"/>
+    </svg>
+  );
+
   return (
-    <>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 4 }}>Viralizar</div>
-        <h1>A/B Teste de Capa</h1>
-        <p style={{ color: 'var(--text2)', fontSize: 13, marginTop: 4 }}>
-          Compare dois Reels já publicados para descobrir qual capa converte mais
-        </p>
-      </div>
+    <PageShell icon={pageIcon} title="A/B Teste de Capa" subtitle="Compare dois Reels publicados para descobrir qual capa converte mais" accent="purple">
 
       {error && (
-        <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 10, padding: '10px 14px', color: '#f87171', fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius:10, padding:'10px 14px', color:'#f87171', fontSize:13, marginBottom:14 }}>
           {error}
         </div>
       )}
 
-      <div className="layout-2col">
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:14, alignItems:'start' }}>
         {/* Left — tests list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {loading && <div style={{ ...cardStyle, padding:20, textAlign:'center', color:'var(--text3)', fontSize:13 }}>Carregando...</div>}
 
-          {loading && <div className="card card-p" style={{ textAlign: 'center', color: 'var(--text2)' }}>Carregando...</div>}
-
-          {/* Active */}
-          {active.map(test => {
+          {/* Active tests */}
+          {active.map((test, i) => {
             const a = test.variantA || {};
             const b = test.variantB || {};
             const maxV = Math.max(a.views || 0, b.views || 0, 1);
             const pct  = v => Math.round(((v||0) / maxV) * 100);
             return (
-              <div key={test._id} className="card card-p">
-                <div className="sec-header">
+              <motion.div key={test._id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.04 }} style={cardStyle}>
+                <div style={{ padding:'14px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <div>
-                    <div className="sec-title">{test.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>@{test.accountId?.username} · {test.durationHours}h</div>
+                    <div style={{ fontWeight:700, fontSize:'.88rem', color:'var(--text)' }}>{test.name}</div>
+                    <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>@{test.accountId?.username} · {test.durationHours}h</div>
                   </div>
-                  <span className="badge badge-green" style={{ alignSelf: 'flex-start' }}>● Em andamento</span>
+                  <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.5)', color:'#4ade80', border:'1px solid oklch(0.38 0.12 150 / 0.3)', flexShrink:0 }}>● Em andamento</span>
                 </div>
 
-                <div className="g2" style={{ gap: 10, marginTop: 12, marginBottom: 14 }}>
+                <div style={{ padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
-                    { v: a, label: 'Variante A', color: 'var(--cyan)',   id: a.igMediaId },
-                    { v: b, label: 'Variante B', color: 'var(--indigo)', id: b.igMediaId },
+                    { v:a, label:'Variante A', color:'var(--cyan)',   id:a.igMediaId },
+                    { v:b, label:'Variante B', color:'var(--purple)', id:b.igMediaId },
                   ].map(({ v, label, color, id }) => (
-                    <div key={label} style={{ background: 'rgba(255,255,255,.025)', border: `1px solid color-mix(in srgb,${color} 28%,transparent)`, borderRadius: 11, padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <div style={{ fontWeight: 700, color, fontSize: 13 }}>{label}</div>
-                        {id && <span style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'monospace' }}>{id.slice(0,14)}…</span>}
+                    <div key={label} style={{ background:`oklch(0.12 0.04 235 / 0.5)`, border:`1px solid oklch(1 0 0 / 0.08)`, borderRadius:10, padding:'12px 14px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                        <div style={{ fontWeight:700, color, fontSize:13 }}>{label}</div>
+                        {id && <span style={{ fontSize:9, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>{id.slice(0,10)}…</span>}
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, textAlign: 'center', marginBottom: 10 }}>
-                        <div><div style={{ fontWeight: 700, fontSize: 14 }}>{fmtK(v.views)}</div><div style={{ fontSize: 9, color: 'var(--text3)' }}>Views</div></div>
-                        <div><div style={{ fontWeight: 700, fontSize: 14 }}>{fmtK(v.likes)}</div><div style={{ fontSize: 9, color: 'var(--text3)' }}>Likes</div></div>
-                        <div><div style={{ fontWeight: 700, fontSize: 14, color: 'var(--green)' }}>{fmtK(v.saves)}</div><div style={{ fontSize: 9, color: 'var(--text3)' }}>Saves</div></div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:4, textAlign:'center', marginBottom:10 }}>
+                        <div><div style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtK(v.views)}</div><div style={{ fontSize:9, color:'var(--text3)' }}>Views</div></div>
+                        <div><div style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>{fmtK(v.likes)}</div><div style={{ fontSize:9, color:'var(--text3)' }}>Likes</div></div>
+                        <div><div style={{ fontWeight:700, fontSize:14, color:'var(--green)' }}>{fmtK(v.saves)}</div><div style={{ fontSize:9, color:'var(--text3)' }}>Saves</div></div>
                       </div>
-                      <div style={{ height: 5, background: 'rgba(255,255,255,.06)', borderRadius: 3 }}>
-                        <div style={{ height: '100%', borderRadius: 3, background: color, width: `${pct(v.views)}%`, transition: 'width .4s' }} />
+                      <div style={{ height:5, background:'oklch(0.10 0.03 235 / 0.6)', borderRadius:3 }}>
+                        <div style={{ height:'100%', borderRadius:3, background:color, width:`${pct(v.views)}%`, transition:'width .4s' }} />
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => endTest(test._id)}>Encerrar</button>
-                  <button className="btn btn-danger btn-sm" style={{ marginLeft: 'auto' }} onClick={() => deleteTest(test._id)}>🗑</button>
+                <div style={{ padding:'10px 16px', borderTop:'1px solid oklch(1 0 0 / 0.07)', display:'flex', gap:8 }}>
+                  <button className="btn-ghost" style={{ fontSize:12, padding:'5px 12px', borderRadius:7 }} onClick={() => endTest(test._id)}>Encerrar</button>
+                  <button className="btn-danger" style={{ fontSize:12, padding:'5px 10px', borderRadius:7, marginLeft:'auto' }} onClick={() => deleteTest(test._id)}>🗑</button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
 
           {/* Pending */}
           {pending.length > 0 && (
-            <div className="card card-p">
-              <div className="sec-header"><div className="sec-title">Pendentes</div></div>
-              {pending.map(test => (
-                <div key={test._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{test.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)' }}>@{test.accountId?.username} · {test.durationHours}h</div>
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} style={cardStyle}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Pendentes</h3>
+              </div>
+              {pending.map((test, i) => (
+                <div key={test._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom: i < pending.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none' }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:'var(--text)' }}>{test.name}</div>
+                    <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>@{test.accountId?.username} · {test.durationHours}h</div>
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => startTest(test._id)}>▶ Iniciar</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => deleteTest(test._id)}>✕</button>
+                  <button className="btn-primary" style={{ fontSize:11, padding:'5px 12px', borderRadius:7 }} onClick={() => startTest(test._id)}>▶ Iniciar</button>
+                  <button className="btn-ghost" style={{ fontSize:11, padding:'5px 8px', borderRadius:7 }} onClick={() => deleteTest(test._id)}>✕</button>
                 </div>
               ))}
-            </div>
+            </motion.div>
           )}
 
           {/* Finished */}
           {finished.length > 0 && (
-            <div className="card card-p">
-              <div className="sec-header"><div className="sec-title">Concluídos</div></div>
-              {finished.map(test => (
-                <div key={test._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} style={cardStyle}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Concluídos</h3>
+              </div>
+              {finished.map((test, i) => (
+                <div key={test._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom: i < finished.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none' }}>
+                  <div style={{ width:32, height:32, borderRadius:8, background:'oklch(0.72 0.18 150 / 0.1)', border:'1px solid oklch(0.72 0.18 150 / 0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>
                     {test.winner === 'A' ? '🅰' : '🅱'}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{test.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Variante <strong style={{ color: 'var(--green)' }}>{test.winner}</strong> venceu</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:'var(--text)' }}>{test.name}</div>
+                    <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>Variante <strong style={{ color:'var(--green)' }}>{test.winner}</strong> venceu</div>
                   </div>
-                  <button className="btn btn-ghost btn-sm" onClick={() => deleteTest(test._id)}>✕</button>
+                  <button className="btn-ghost" style={{ fontSize:11, padding:'5px 8px', borderRadius:7 }} onClick={() => deleteTest(test._id)}>✕</button>
                 </div>
               ))}
-            </div>
+            </motion.div>
           )}
 
           {!loading && tests.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-icon">🧪</div>
-              <div className="empty-title">Nenhum teste ainda</div>
-              <div className="empty-sub">Crie o primeiro A/B teste usando o formulário ao lado.</div>
+            <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
+              <div style={{ fontSize:32, marginBottom:10 }}>🧪</div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Nenhum teste ainda</div>
+              <div style={{ fontSize:13, color:'var(--text3)' }}>Crie o primeiro A/B teste usando o formulário ao lado.</div>
             </div>
           )}
         </div>
 
         {/* Right — create form */}
-        <form onSubmit={submit} className="card card-p" style={{ alignSelf: 'start' }}>
-          <div className="sec-header" style={{ marginBottom: 16 }}>
-            <div className="sec-title">Novo teste</div>
+        <form onSubmit={submit} style={cardStyle}>
+          <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Novo teste</h3>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="input-wrap">
-              <label className="input-label">Nome do teste</label>
-              <input className="input" required placeholder="Ex: Capa Quente A vs B" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:12 }}>
+            <div>
+              <label style={labelStyle}>Nome do teste</label>
+              <input style={inputStyle} required placeholder="Ex: Capa Quente A vs B" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
 
-            <div className="input-wrap">
-              <label className="input-label">Conta</label>
-              <select className="input" required value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))}>
+            <div>
+              <label style={labelStyle}>Conta</label>
+              <select style={{ ...inputStyle, appearance:'none' }} required value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))}>
                 <option value="">Selecionar...</option>
                 {accounts.map(a => <option key={a._id} value={a._id}>@{a.username}</option>)}
               </select>
             </div>
 
-            <div style={{ background: 'rgba(6,182,212,.06)', border: '1px solid rgba(6,182,212,.18)', borderRadius: 9, padding: '10px 12px', fontSize: 11, color: 'var(--text2)', lineHeight: 1.7 }}>
+            <div style={{ background:'oklch(0.72 0.19 196 / 0.07)', border:'1px solid oklch(0.72 0.19 196 / 0.18)', borderRadius:9, padding:'10px 12px', fontSize:11, color:'var(--text2)', lineHeight:1.7 }}>
               Publique os dois Reels no Instagram, depois cole o <strong>Media ID</strong> de cada um.<br />
               O ID fica na URL do post: instagram.com/reel/<strong>ABC123xyz</strong>/
             </div>
 
-            <div className="input-wrap">
-              <label className="input-label">Media ID — Variante A</label>
-              <input className="input" required placeholder="Ex: 3456789012345678901" value={form.igMediaIdA} onChange={e => setForm(f => ({ ...f, igMediaIdA: e.target.value }))} style={{ fontFamily: 'monospace' }} />
+            <div>
+              <label style={labelStyle}>Media ID — Variante A</label>
+              <input style={{ ...inputStyle, fontFamily:'var(--font-mono)' }} required placeholder="Ex: 3456789012345678901" value={form.igMediaIdA} onChange={e => setForm(f => ({ ...f, igMediaIdA: e.target.value }))} />
             </div>
 
-            <div className="input-wrap">
-              <label className="input-label">Media ID — Variante B</label>
-              <input className="input" required placeholder="Ex: 3456789098765432109" value={form.igMediaIdB} onChange={e => setForm(f => ({ ...f, igMediaIdB: e.target.value }))} style={{ fontFamily: 'monospace' }} />
+            <div>
+              <label style={labelStyle}>Media ID — Variante B</label>
+              <input style={{ ...inputStyle, fontFamily:'var(--font-mono)' }} required placeholder="Ex: 3456789098765432109" value={form.igMediaIdB} onChange={e => setForm(f => ({ ...f, igMediaIdB: e.target.value }))} />
             </div>
 
-            <div className="input-wrap">
-              <label className="input-label">Duração do teste</label>
-              <select className="input" value={form.durationHours} onChange={e => setForm(f => ({ ...f, durationHours: e.target.value }))}>
+            <div>
+              <label style={labelStyle}>Duração do teste</label>
+              <select style={{ ...inputStyle, appearance:'none' }} value={form.durationHours} onChange={e => setForm(f => ({ ...f, durationHours: e.target.value }))}>
                 <option value="24">24 horas</option>
                 <option value="48">48 horas</option>
                 <option value="72">72 horas</option>
@@ -209,12 +216,12 @@ export default function ABTest() {
               </select>
             </div>
 
-            <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={saving}>
+            <button className="btn-primary" style={{ width:'100%', height:42, borderRadius:8, fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', gap:6, opacity: saving ? .6 : 1 }} disabled={saving}>
               {saving ? 'Criando...' : '🧪 Criar A/B Teste'}
             </button>
           </div>
         </form>
       </div>
-    </>
+    </PageShell>
   );
 }

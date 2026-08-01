@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
+import PageShell from '../components/PageShell';
+
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const avatarUrl = av => av ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`) : null;
@@ -233,8 +236,27 @@ export default function Accounts() {
     { label: 'PUBLICAÇÕES', value: fmt(totalPosts),          color: '#f97316', Icon: IcoGrid,   numColor: '#f59e0b' },
   ];
 
+  /* ── health helpers ── */
+  const hBg    = s => ({ ativa:'rgba(16,185,129,.09)', restrita:'rgba(245,158,11,.09)', banida:'rgba(244,63,94,.09)', token_invalido:'rgba(244,63,94,.09)', sessao_expirada:'rgba(245,158,11,.09)', erro_login:'rgba(244,63,94,.09)', desconectada:'rgba(100,116,139,.09)' }[s] || 'rgba(16,185,129,.09)');
+  const hBorder= s => ({ ativa:'rgba(16,185,129,.25)', restrita:'rgba(245,158,11,.25)', banida:'rgba(244,63,94,.25)', token_invalido:'rgba(244,63,94,.25)', sessao_expirada:'rgba(245,158,11,.25)', erro_login:'rgba(244,63,94,.25)', desconectada:'rgba(100,116,139,.2)' }[s] || 'rgba(16,185,129,.25)');
+
+  const STAT_DEFS = [
+    { label:'CONECTADAS',  value:fmt(safeAccounts.length), color:'var(--purple)',  bg:'rgba(139,92,246,.09)',  border:'rgba(139,92,246,.18)',  Icon:IcoUsers  },
+    { label:'SAUDÁVEIS',   value:fmt(activeAccounts),      color:'var(--cyan)',    bg:'rgba(0,212,255,.09)',   border:'rgba(0,212,255,.18)',   Icon:IcoShield },
+    { label:'COM ERRO',    value:fmt(errorAccounts),       color:'var(--red)',     bg:'rgba(244,63,94,.09)',   border:'rgba(244,63,94,.18)',   Icon:IcoWarn   },
+    { label:'SEGUIDORES',  value:fmt(totalFollowers),      color:'var(--amber)',   bg:'rgba(245,158,11,.09)',  border:'rgba(245,158,11,.18)',  Icon:IcoTrend  },
+    { label:'PUBLICAÇÕES', value:fmt(totalPosts),          color:'var(--orange)',  bg:'rgba(249,115,22,.09)',  border:'rgba(249,115,22,.18)',  Icon:IcoGrid   },
+  ];
+
+  const PageIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
+
   return (
-    <div>
+    <>
       {toast && <Toast type={toast.type} title={toast.title} message={toast.message} />}
       <ConfirmModal
         open={deleteModal}
@@ -244,311 +266,237 @@ export default function Accounts() {
         onCancel={() => { setDeleteModal(false); setAccountToDelete(null); }}
       />
 
-      {/* ── Page header ──────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#f1f5f9', letterSpacing: -0.5 }}>Contas Instagram</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>Monitore perfis, sessões, saúde da conta e automações em tempo real.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            onClick={syncAll}
-            disabled={syncing}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: '1px solid rgba(51,65,85,.55)', background: 'rgba(30,41,59,.6)', color: '#94a3b8', cursor: 'pointer' }}
-          >
-            <IcoSync /> {syncing ? 'Sincronizando...' : 'Sincronizar tudo'}
-          </button>
-          <button
-            onClick={() => openOAuthConnect(null)}
-            disabled={!!connecting['new']}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#06b6d4,#3b82f6)', color: '#fff', cursor: 'pointer', boxShadow: '0 0 18px rgba(6,182,212,.25)' }}
-          >
-            <IcoLink /> {connecting['new'] ? 'Aguarde...' : 'Conectar via API'}
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }} title="Proxies em massa">🌐</button>
-        </div>
-      </div>
-
-      {/* ── 5 Stats ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {STATS.map(s => (
-          <div key={s.label} style={{
-            flex: '1 1 160px',
-            background: 'rgba(15,22,36,.75)',
-            border: `1px solid ${s.color}22`,
-            borderRadius: 13,
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: `0 0 0 1px ${s.color}0d, 0 4px 20px ${s.color}0a`,
-          }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: '.8px', marginBottom: 6, textTransform: 'uppercase' }}>{s.label}</div>
-              <div style={{ fontSize: 30, fontWeight: 800, color: s.numColor, letterSpacing: -1, lineHeight: 1, fontFamily: 'var(--font-display,inherit)' }}>{s.value}</div>
-            </div>
-            <div style={{
-              width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-              background: `color-mix(in srgb,${s.color} 14%,transparent)`,
-              border: `1px solid color-mix(in srgb,${s.color} 28%,transparent)`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: s.color,
-            }}>
+      <PageShell
+        icon={<PageIcon />}
+        title="Contas Instagram"
+        subtitle="Monitore perfis, sessões, saúde e automações em tempo real"
+        accent="cyan"
+        actions={
+          <>
+            <button onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }} className="btn-ghost" style={{ padding:'7px 12px', fontSize:12 }}>
+              <IcoSignal /> Proxies em massa
+            </button>
+            <button onClick={syncAll} disabled={syncing} className="btn-ghost" style={{ padding:'7px 14px', fontSize:12 }}>
+              <IcoSync /> {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </button>
+            <button onClick={() => openOAuthConnect(null)} disabled={!!connecting['new']} className="btn-primary" style={{ fontSize:13 }}>
+              <IcoLink /> {connecting['new'] ? 'Aguarde...' : 'Conectar via API'}
+            </button>
+          </>
+        }
+      >
+        {/* ── 5 stat cards ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10 }}>
+          {STAT_DEFS.map((s, i) => (
+            <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.05, duration:.28 }}
+              style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:'14px 16px', position:'relative', overflow:'hidden' }}
+            >
+              <div style={{ position:'absolute', bottom:-12, right:-8, width:52, height:52, borderRadius:'50%', background:`${s.bg}`, boxShadow:`0 0 24px ${s.border}` }} />
               <s.Icon />
-            </div>
-          </div>
-        ))}
-      </div>
+              <div style={{ fontSize:28, fontWeight:800, color:s.color, lineHeight:1, letterSpacing:'-1.5px', fontVariantNumeric:'tabular-nums', marginTop:10 }}>{s.value}</div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:`${s.color}`, opacity:.65, marginTop:5, letterSpacing:'.07em', textTransform:'uppercase' }}>{s.label}</div>
+            </motion.div>
+          ))}
+        </div>
 
-      {/* ── Filter tabs + search ──────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {FILTERS.map(f => {
-            const active = filter === f.key;
+        {/* ── Filters + search ── */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+            {FILTERS.map(f => {
+              const active = filter === f.key;
+              return (
+                <button key={f.key} onClick={() => setFilter(f.key)} style={{
+                  fontSize:12, fontWeight:600, padding:'6px 13px', borderRadius:20, cursor:'pointer', whiteSpace:'nowrap',
+                  display:'flex', alignItems:'center', gap:6, transition:'all .15s',
+                  background: active ? 'rgba(0,212,255,.12)' : 'oklch(1 0 0 / 0.04)',
+                  color:       active ? 'var(--cyan)'        : 'var(--text3)',
+                  border:      active ? '1px solid rgba(0,212,255,.3)' : '1px solid oklch(1 0 0 / 0.08)',
+                }}>
+                  {f.label}
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:20,
+                    background: active ? 'rgba(0,212,255,.2)' : 'oklch(1 0 0 / 0.06)',
+                    color: active ? 'var(--cyan)' : 'var(--text3)',
+                  }}>{f.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position:'absolute', left:10, color:'var(--text3)', pointerEvents:'none' }}>
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input
+              style={{ background:'oklch(1 0 0 / 0.04)', border:'1px solid oklch(1 0 0 / 0.09)', borderRadius:9, padding:'7px 13px 7px 30px', fontSize:13, color:'var(--text)', outline:'none', width:220, transition:'border-color .18s', fontFamily:'var(--font)' }}
+              placeholder="Buscar conta..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onFocus={e => e.target.style.borderColor='rgba(0,212,255,.35)'}
+              onBlur={e => e.target.style.borderColor='oklch(1 0 0 / 0.09)'}
+            />
+          </div>
+        </div>
+
+        {/* ── Account cards grid ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))', gap:12 }}>
+          {filteredAccounts.map((account, idx) => {
+            const hc          = healthColor(account.healthStatus);
+            const hl          = healthLabel(account.healthStatus || 'ativa');
+            const isConnecting = !!connecting[account._id];
+            const needsRecon  = account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
+            const isHealthy   = !account.healthStatus || account.healthStatus === 'ativa';
+            const compact     = fmtDateCompact(account.lastSync);
+            const accType     = account.accountType?.toUpperCase() || 'CREATOR';
+            const cardBg      = hBg(account.healthStatus);
+            const cardBorder  = hBorder(account.healthStatus);
+
             return (
-              <button key={f.key} onClick={() => setFilter(f.key)} style={{
-                fontSize: 12, fontWeight: 600,
-                padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                background: active ? 'rgba(6,182,212,.15)' : 'rgba(30,41,59,.6)',
-                color: active ? '#06b6d4' : '#64748b',
-                outline: active ? '1px solid rgba(6,182,212,.4)' : '1px solid rgba(51,65,85,.4)',
-                display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
-              }}>
-                {f.label}
-                <span style={{
-                  fontSize: 10, fontWeight: 800, minWidth: 16, textAlign: 'center',
-                  background: active ? 'rgba(6,182,212,.25)' : 'rgba(255,255,255,.08)',
-                  color: active ? '#06b6d4' : '#475569',
-                  borderRadius: 20, padding: '1px 5px',
-                }}>{f.count}</span>
-              </button>
+              <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
+                style={{
+                  background:`oklch(0.16 0.05 235 / 0.92)`,
+                  border:`1px solid oklch(1 0 0 / 0.09)`,
+                  borderLeft:`3px solid ${hc}`,
+                  borderRadius:14, overflow:'hidden',
+                  display:'flex', flexDirection:'column',
+                  transition:'transform .2s, box-shadow .2s, border-color .2s',
+                }}
+                whileHover={{ y:-2, boxShadow:`0 8px 32px rgba(0,0,0,.4), 0 0 0 1px ${hc}22` }}
+              >
+                {/* top line */}
+                <div style={{ position:'absolute', top:0, left:16, right:16, height:1, background:`linear-gradient(90deg,transparent,${hc}30,transparent)` }} />
+
+                {/* body */}
+                <div style={{ padding:'13px 14px 11px' }}>
+                  {/* avatar + name */}
+                  <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:11 }}>
+                    <div style={{ flexShrink:0, position:'relative' }}>
+                      {account.avatar
+                        ? <img src={avatarUrl(account.avatar)} alt="" onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+                            style={{ width:44, height:44, borderRadius:'50%', objectFit:'cover', border:`2px solid ${hc}55`, display:'block' }} />
+                        : null}
+                      <div style={{ width:44, height:44, borderRadius:'50%', background:`linear-gradient(135deg,${hc}22,${hc}11)`, border:`2px solid ${hc}33`,
+                        display:account.avatar?'none':'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:800, color:hc }}>
+                        {account.username?.charAt(0)?.toUpperCase() || 'I'}
+                      </div>
+                      {/* status dot */}
+                      <span style={{ position:'absolute', bottom:1, right:1, width:9, height:9, borderRadius:'50%', background:hc, border:'2px solid oklch(0.16 0.05 235)', boxShadow:`0 0 6px ${hc}` }} />
+                    </div>
+
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        <span style={{ fontWeight:700, fontSize:13, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{account.name || account.username}</span>
+                        <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" style={{ color:'var(--text3)', fontSize:10, textDecoration:'none', flexShrink:0, lineHeight:1 }}>↗</a>
+                      </div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginTop:1 }}>@{account.username}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:5 }}>
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px 2px 5px', borderRadius:20,
+                          background:`${hc}15`, color:hc, border:`1px solid ${hc}28`,
+                          display:'inline-flex', alignItems:'center', gap:4 }}>
+                          <span style={{ width:5, height:5, borderRadius:'50%', background:hc, boxShadow:`0 0 5px ${hc}` }} />
+                          {hl}
+                        </span>
+                        <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'oklch(1 0 0 / 0.05)', color:'var(--text3)', letterSpacing:'.5px' }}>{accType}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* mini stats */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', borderTop:'1px solid oklch(1 0 0 / 0.06)', paddingTop:9 }}>
+                    {[
+                      { label:'SEGUIDORES',  value:fmt(account.followers)  },
+                      { label:'SEGUINDO',    value:fmt(account.following)  },
+                      { label:'POSTS',       value:fmt(account.postsCount) },
+                    ].map((s, i) => (
+                      <div key={s.label} style={{ textAlign:'center', padding:'6px 4px', borderRight:i<2?'1px solid oklch(1 0 0 / 0.06)':'none' }}>
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:8, fontWeight:700, color:'var(--text3)', letterSpacing:'.8px', marginBottom:3, textTransform:'uppercase' }}>{s.label}</div>
+                        <div style={{ fontSize:16, fontWeight:800, color:'var(--text)', letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* meta row */}
+                <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
+                <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:isHealthy?'var(--green)':'#f87171', display:'flex', alignItems:'center', gap:5 }}>
+                    <IcoWifi /> {isHealthy ? 'API conectada' : 'API desconectada'}
+                  </span>
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', display:'flex', alignItems:'center', gap:4 }}>
+                    <IcoWave /> {compact}
+                  </span>
+                </div>
+
+                {/* actions */}
+                <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
+                <div style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center' }}>
+                  <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer"
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', color:'var(--text3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.color='var(--text)'; e.currentTarget.style.borderColor='oklch(1 0 0 / 0.16)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color='var(--text3)'; e.currentTarget.style.borderColor='oklch(1 0 0 / 0.09)'; }}
+                  ><IcoEye /> Ver</a>
+
+                  <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
+                    style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
+                      background:'rgba(0,212,255,.1)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.25)', cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.16)'}
+                    onMouseLeave={e => e.currentTarget.style.background='rgba(0,212,255,.1)'}
+                  ><IcoPerson /> {isConnecting ? '...' : 'Editar perfil'}</button>
+
+                  <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s',
+                      background: account.proxy ? 'rgba(139,92,246,.12)' : 'oklch(1 0 0 / 0.04)',
+                      color:      account.proxy ? 'var(--purple)'         : 'var(--text3)',
+                      border:     account.proxy ? '1px solid rgba(139,92,246,.28)' : '1px solid oklch(1 0 0 / 0.08)',
+                    }}
+                  ><IcoSignal /> Proxy</button>
+
+                  <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
+                    title={needsRecon ? 'Reconectar' : 'API ok'}
+                    style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s',
+                      background: needsRecon ? 'rgba(244,63,94,.12)' : 'rgba(16,185,129,.1)',
+                      color:      needsRecon ? 'var(--red)'           : 'var(--green)',
+                      border:     needsRecon ? '1px solid rgba(244,63,94,.28)' : '1px solid rgba(16,185,129,.25)',
+                    }}
+                  ><IcoCheck /> API</button>
+
+                  <button onClick={() => deleteAccount(account._id)} title="Excluir conta"
+                    style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'6px 10px', borderRadius:8, flexShrink:0,
+                      background:'rgba(244,63,94,.08)', color:'var(--red)', border:'1px solid rgba(244,63,94,.2)', cursor:'pointer', transition:'all .15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(244,63,94,.16)'}
+                    onMouseLeave={e => e.currentTarget.style.background='rgba(244,63,94,.08)'}
+                  ><IcoTrash /></button>
+                </div>
+              </motion.div>
             );
           })}
-        </div>
-        <div style={{ position: 'relative' }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569', fontSize: 13 }}>🔍</span>
-          <input
-            style={{ background: 'rgba(20,30,50,.7)', border: '1px solid rgba(51,65,85,.5)', borderRadius: 9, padding: '7px 13px 7px 30px', fontSize: 13, color: '#e2e8f0', outline: 'none', width: 210 }}
-            placeholder="Buscar por @user ou nome..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
 
-      {/* ── Cards grid ───────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
-        {filteredAccounts.map(account => {
-          const hc          = healthColor(account.healthStatus);
-          const hl          = healthLabel(account.healthStatus || 'ativa');
-          const isConnecting = !!connecting[account._id];
-          const needsRecon  = account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
-          const isHealthy   = !account.healthStatus || account.healthStatus === 'ativa';
-          const compact     = fmtDateCompact(account.lastSync);
-          const accType     = account.accountType?.toUpperCase() || 'CREATOR';
-
-          return (
-            <div key={account._id} style={{
-              background: 'rgba(13,18,30,.9)',
-              border: '1px solid rgba(51,65,85,.45)',
-              borderRadius: 13,
-              overflow: 'hidden',
-              display: 'flex', flexDirection: 'column',
-              transition: 'border-color .2s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(51,65,85,.8)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(51,65,85,.45)'}
-            >
-              {/* ── Card body ── */}
-              <div style={{ padding: '13px 15px 11px' }}>
-                {/* Avatar + name row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  {/* Avatar */}
-                  <div style={{ flexShrink: 0, position: 'relative' }}>
-                    {account.avatar ? (
-                      <img
-                        src={avatarUrl(account.avatar)}
-                        alt=""
-                        onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                        style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${hc}55`, display: 'block' }}
-                      />
-                    ) : null}
-                    <div style={{
-                      width: 44, height: 44, borderRadius: '50%',
-                      background: 'linear-gradient(135deg,#6366f133,#8b5cf633)',
-                      border: '2px solid #6366f133',
-                      display: account.avatar ? 'none' : 'flex',
-                      alignItems: 'center', justifyContent: 'center',
-                      fontSize: 17, fontWeight: 800, color: '#818cf8',
-                    }}>
-                      {account.username?.charAt(0)?.toUpperCase() || 'I'}
-                    </div>
-                  </div>
-
-                  {/* Name / username / badges */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }}>
-                        {account.name || account.username}
-                      </span>
-                      <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" style={{ color: '#475569', fontSize: 11, textDecoration: 'none', lineHeight: 1, flexShrink: 0 }}>↗</a>
-                    </div>
-                    <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>@{account.username}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600, padding: '2px 7px 2px 5px', borderRadius: 20,
-                        background: `${hc}18`, color: hc, border: `1px solid ${hc}30`,
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: hc, boxShadow: `0 0 4px ${hc}` }} />
-                        {hl}
-                      </span>
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20,
-                        background: 'rgba(51,65,85,.5)', color: '#64748b', letterSpacing: '.4px',
-                      }}>
-                        {accType}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', paddingTop: 8, borderTop: '1px solid rgba(51,65,85,.3)' }}>
-                  {[
-                    { label: 'SEGUIDORES',  value: fmt(account.followers)  },
-                    { label: 'SEGUINDO',    value: fmt(account.following)  },
-                    { label: 'PUBLICAÇÕES', value: fmt(account.postsCount) },
-                  ].map((s, i) => (
-                    <div key={s.label} style={{
-                      textAlign: 'center', padding: '8px 4px',
-                      borderRight: i < 2 ? '1px solid rgba(51,65,85,.3)' : 'none',
-                    }}>
-                      <div style={{ fontSize: 8, fontWeight: 700, color: '#3d4f6a', letterSpacing: '.7px', marginBottom: 4, textTransform: 'uppercase' }}>{s.label}</div>
-                      <div style={{ fontSize: 17, fontWeight: 800, color: '#e2e8f0', letterSpacing: -0.5 }}>{s.value}</div>
-                    </div>
-                  ))}
-                </div>
+          {!filteredAccounts.length && (
+            <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', color:'var(--text3)', gap:12 }}>
+              <div style={{ width:56, height:56, borderRadius:16, background:'oklch(1 0 0 / 0.04)', border:'1px solid oklch(1 0 0 / 0.08)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <IcoUsers />
               </div>
-
-              {/* ── Meta row ── */}
-              <div style={{ height: 1, background: 'rgba(51,65,85,.3)' }} />
-              <div style={{ padding: '7px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: isHealthy ? '#10b981' : '#f87171', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IcoWifi />
-                  {isHealthy ? 'API conectada' : 'API desconectada'}
-                </span>
-                <span style={{ fontSize: 11, color: '#3d4f6a', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IcoWave />
-                  {compact}
-                </span>
+              <div style={{ fontSize:14, fontWeight:600, color:'var(--text2)' }}>Nenhuma conta encontrada</div>
+              <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text3)', textAlign:'center' }}>
+                {safeAccounts.length === 0 ? 'Clique em "Conectar via API" para adicionar sua primeira conta.' : 'Ajuste o filtro ou a busca.'}
               </div>
-
-              {/* ── Actions ── */}
-              <div style={{ height: 1, background: 'rgba(51,65,85,.3)' }} />
-              <div style={{ padding: '8px 12px', display: 'flex', gap: 5, alignItems: 'center' }}>
-                {/* Ver */}
-                <a
-                  href={`https://instagram.com/${account.username}`}
-                  target="_blank" rel="noreferrer"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8,
-                    border: '1px solid rgba(51,65,85,.5)', color: '#64748b',
-                    background: 'transparent', textDecoration: 'none', whiteSpace: 'nowrap',
-                  }}
-                >
-                  <IcoEye /> Ver
-                </a>
-
-                {/* Editar perfil */}
-                <button
-                  onClick={() => openOAuthConnect(account)}
-                  disabled={isConnecting}
-                  style={{
-                    flex: 1,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    fontSize: 12, fontWeight: 700, padding: '6px 10px', borderRadius: 8,
-                    background: 'linear-gradient(135deg,rgba(6,182,212,.18),rgba(59,130,246,.18))',
-                    color: '#06b6d4', border: '1px solid rgba(6,182,212,.35)',
-                    cursor: 'pointer', whiteSpace: 'nowrap',
-                  }}
-                >
-                  <IcoPerson /> {isConnecting ? '...' : 'Editar perfil'}
+              {safeAccounts.length === 0 && (
+                <button onClick={() => openOAuthConnect(null)} className="btn-primary" style={{ marginTop:4 }}>
+                  <IcoLink /> Conectar primeira conta
                 </button>
-
-                {/* HQ / Proxy */}
-                <button
-                  onClick={() => openProxyModal(account)}
-                  title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    fontSize: 12, fontWeight: 600, padding: '6px 10px', borderRadius: 8,
-                    background: account.proxy ? 'rgba(99,102,241,.12)' : 'rgba(30,41,59,.6)',
-                    color: account.proxy ? '#818cf8' : '#475569',
-                    border: `1px solid ${account.proxy ? 'rgba(99,102,241,.35)' : 'rgba(51,65,85,.4)'}`,
-                    cursor: 'pointer', whiteSpace: 'nowrap',
-                  }}
-                >
-                  <IcoSignal /> HQ ?
-                </button>
-
-                {/* API status */}
-                <button
-                  onClick={() => openOAuthConnect(account)}
-                  disabled={isConnecting}
-                  title={needsRecon ? 'Reconectar' : 'API conectada'}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    fontSize: 12, fontWeight: 700, padding: '6px 10px', borderRadius: 8,
-                    background: needsRecon ? 'rgba(239,68,68,.12)' : 'rgba(16,185,129,.12)',
-                    color: needsRecon ? '#f87171' : '#10b981',
-                    border: `1px solid ${needsRecon ? 'rgba(239,68,68,.3)' : 'rgba(16,185,129,.3)'}`,
-                    cursor: 'pointer', whiteSpace: 'nowrap',
-                  }}
-                >
-                  <IcoCheck /> API
-                </button>
-
-                {/* Delete */}
-                <button
-                  onClick={() => deleteAccount(account._id)}
-                  title="Excluir conta"
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '6px 10px', borderRadius: 8, flexShrink: 0,
-                    background: 'rgba(239,68,68,.1)', color: '#f87171',
-                    border: '1px solid rgba(239,68,68,.25)', cursor: 'pointer',
-                  }}
-                >
-                  <IcoTrash />
-                </button>
-              </div>
+              )}
             </div>
-          );
-        })}
+          )}
+        </div>
 
-        {!filteredAccounts.length && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: '#475569' }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>👤</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Nenhuma conta encontrada</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>
-              {safeAccounts.length === 0
-                ? 'Clique em "Conectar via API" para adicionar sua primeira conta.'
-                : 'Tente ajustar o filtro ou a busca.'}
-            </div>
+        {/* Pagination */}
+        {pagination && pagination.pages > 1 && (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 0' }}>
+            <button className="btn-ghost" style={{ fontSize:12, padding:'6px 14px', opacity:page<=1?.4:1 }} disabled={page<=1} onClick={() => goToPage(page-1)}>← Anterior</button>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text3)' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
+            <button className="btn-ghost" style={{ fontSize:12, padding:'6px 14px', opacity:page>=pagination.pages?.4:1 }} disabled={page>=pagination.pages} onClick={() => goToPage(page+1)}>Próxima →</button>
           </div>
         )}
-      </div>
 
-      {/* Pagination */}
-      {pagination && pagination.pages > 1 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', marginTop: 6 }}>
-          <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? .4 : 1 }} disabled={page <= 1} onClick={() => goToPage(page - 1)}>← Anterior</button>
-          <span style={{ fontSize: 12, color: '#64748b' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
-          <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(51,65,85,.5)', background: 'transparent', color: '#94a3b8', cursor: page >= pagination.pages ? 'default' : 'pointer', opacity: page >= pagination.pages ? .4 : 1 }} disabled={page >= pagination.pages} onClick={() => goToPage(page + 1)}>Próxima →</button>
-        </div>
-      )}
+      </PageShell>
 
       {/* ── OAuth Modal ──────────────────────────────────────────── */}
       {oauthModal && (
@@ -701,6 +649,6 @@ export default function Accounts() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

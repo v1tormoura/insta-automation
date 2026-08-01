@@ -64,7 +64,7 @@
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
 
 .metric-card, .wide-metric, .panel, .quick-action {
-  background: oklch(0.13 0.03 240 / 0.88);
+  background: oklch(0.16 0.05 235 / 0.92);
   border: 1px solid oklch(1 0 0 / 0.07);
   box-shadow: 0 4px 20px rgba(0,0,0,.4), inset 0 1px 0 oklch(1 0 0 / 0.025);
   overflow: hidden; position: relative;

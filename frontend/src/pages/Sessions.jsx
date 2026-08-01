@@ -1,13 +1,28 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
+import PageShell from '../components/PageShell';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const STATUS_MAP = {
+  ok:        { bg:'oklch(0.22 0.06 150 / 0.6)', color:'#4ade80', border:'oklch(0.38 0.12 150 / 0.35)', label:'Sessão OK'  },
+  em_uso:    { bg:'oklch(0.22 0.06 270 / 0.6)', color:'#a78bfa', border:'oklch(0.38 0.12 270 / 0.35)', label:'Em uso'     },
+  expirada:  { bg:'oklch(0.22 0.06 60 / 0.6)',  color:'#fbbf24', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Expirada'   },
+  sem_sessao:{ bg:'oklch(0.22 0.06 60 / 0.6)',  color:'#fbbf24', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Sem sessão' },
+  erro_login:{ bg:'oklch(0.22 0.06 15 / 0.6)',  color:'#f87171', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Erro login' },
+};
+
+function StatusBadge({ status }) {
+  const s = STATUS_MAP[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'#94a3b8', border:'oklch(0.28 0.04 240 / 0.35)', label:'Sessão OK' };
+  return <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:s.bg, color:s.color, border:`1px solid ${s.border}`, whiteSpace:'nowrap' }}>{s.label}</span>;
+}
+
 export default function Sessions() {
-  const [sessions, setSessions] = useState([]);
-  const [toast, setToast] = useState(null);
+  const [sessions, setSessions]   = useState([]);
+  const [toast, setToast]         = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
@@ -28,108 +43,113 @@ export default function Sessions() {
   useServerEvents(['accounts'], loadSessions);
   useEffect(() => { loadSessions(); const t = setInterval(loadSessions, 30000); return () => clearInterval(t); }, []);
 
-  function statusLabel(s) {
-    if (s === 'ok') return 'Sessão OK';
-    if (s === 'sem_sessao') return 'Sem sessão';
-    if (s === 'expirada') return 'Expirada';
-    if (s === 'erro_login') return 'Erro login';
-    if (s === 'em_uso') return 'Em uso';
-    return 'Sessão OK';
-  }
-  function statusBadge(s) {
-    if (s === 'ok') return 'badge-green';
-    if (s === 'em_uso') return 'badge-purple';
-    if (s === 'expirada') return 'badge-amber';
-    if (s === 'sem_sessao') return 'badge-amber';
-    if (s === 'erro_login') return 'badge-red';
-    return 'badge-gray';
-  }
+  const ok       = sessions.filter(s => s.sessionStatus === 'ok').length;
+  const expired  = sessions.filter(s => s.sessionStatus === 'expirada').length;
+  const noSess   = sessions.filter(s => s.sessionStatus === 'sem_sessao').length;
+  const busy     = sessions.filter(s => s.sessionStatus === 'em_uso').length;
 
-  const ok = sessions.filter(s => s.sessionStatus === 'ok').length;
-  const expired = sessions.filter(s => s.sessionStatus === 'expirada').length;
-  const noSession = sessions.filter(s => s.sessionStatus === 'sem_sessao').length;
-  const busy = sessions.filter(s => s.sessionStatus === 'em_uso').length;
+  const STATS = [
+    { label:'Total',       value:sessions.length, color:'oklch(0.68 0.18 270)' },
+    { label:'Sessões OK',  value:ok,              color:'oklch(0.72 0.18 150)' },
+    { label:'Expiradas',   value:expired,         color:'oklch(0.78 0.17 60)'  },
+    { label:'Sem sessão',  value:noSess,          color:'oklch(0.78 0.17 60)'  },
+    { label:'Em uso',      value:busy,            color:'oklch(0.72 0.2 270)'  },
+  ];
+
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+  );
+
+  const pageActions = (
+    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'#4ade80', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+        <span style={{ width:6, height:6, borderRadius:'50%', background:'#4ade80', display:'inline-block', boxShadow:'0 0 6px #4ade80' }} />
+        Monitoramento ativo
+      </div>
+    </div>
+  );
+
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const thStyle   = { padding:'10px 14px', fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--font-mono)', borderBottom:'1px solid oklch(1 0 0 / 0.07)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
+  const tdStyle   = { padding:'11px 14px', fontSize:12, color:'var(--text2)', borderBottom:'1px solid oklch(1 0 0 / 0.05)', verticalAlign:'middle' };
 
   return (
-    <div>
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Central</div>
-          <h1>Sessões</h1>
-          <p>Monitore sessões salvas, expiradas e contas que precisam de login.</p>
-        </div>
-        <div className="page-header-right">
-          <span className="badge badge-green"><span className="dot"></span>Monitoramento ativo</span>
-        </div>
-      </div>
-
-      <div className="resp-grid-5" style={{ marginBottom: 20 }}>
-        {[
-          { label: 'Total', value: sessions.length, color: '#6366f1' },
-          { label: 'Sessões OK', value: ok, color: '#10b981' },
-          { label: 'Expiradas', value: expired, color: '#f59e0b' },
-          { label: 'Sem sessão', value: noSession, color: '#f59e0b' },
-          { label: 'Em uso', value: busy, color: '#8b5cf6' },
-        ].map(s => (
-          <div key={s.label} className="card" style={{ textAlign: 'center', padding: '14px 10px' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: s.color, letterSpacing: -1 }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 3 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <h3>Contas conectadas</h3>
-          <span>Atualiza a cada 30s</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Conta</th>
-                <th>Status</th>
-                <th>Última sync</th>
-                <th>Info</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map(session => (
-                <tr key={session._id}>
-                  <td>
-                    <div className="td-account">
-                      {session.avatar ? (
-                        <img src={`${API_BASE}${session.avatar}`} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }} />
-                      ) : (
-                        <div className="td-avatar">{session.username?.charAt(0)?.toUpperCase() || 'I'}</div>
-                      )}
-                      <div className="td-name">
-                        <strong>@{session.username}</strong>
-                        <span>{session.name || 'Sem nome'}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td><span className={`badge ${statusBadge(session.sessionStatus)}`}>{statusLabel(session.sessionStatus)}</span></td>
-                  <td style={{ fontSize: 12, color: 'var(--text2)' }}>{session.lastSync ? new Date(session.lastSync).toLocaleString('pt-BR') : 'Nunca'}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text2)' }}>{session.lastError || session.busyReason || '—'}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openSession(session._id)}>Abrir</button>
-                      <button className="btn btn-green btn-sm" onClick={() => testSession(session._id)} disabled={loadingId === session._id}>
-                        {loadingId === session._id ? 'Testando...' : 'Testar'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!sessions.length && <div className="empty-state" style={{ marginTop: 12 }}>Nenhuma conta encontrada.</div>}
-        </div>
-      </div>
-
+    <>
       <Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
+      <PageShell icon={pageIcon} title="Sessões" subtitle="Monitore sessões salvas, expiradas e contas que precisam de login." accent="purple" actions={pageActions}>
+
+        {/* Stats */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:14 }}>
+          {STATS.map((s, i) => (
+            <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
+              style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
+              <div style={{ fontSize:24, fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+              <div style={{ fontSize:10, color:'var(--text3)', marginTop:3, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Table card */}
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Contas conectadas</h3>
+            <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>Atualiza a cada 30s</span>
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Conta</th>
+                  <th style={thStyle}>Status</th>
+                  <th style={thStyle}>Última sync</th>
+                  <th style={thStyle}>Info</th>
+                  <th style={thStyle}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((session, i) => (
+                  <tr key={session._id} style={{ background: i % 2 === 0 ? 'transparent' : 'oklch(0.12 0.04 235 / 0.2)' }}>
+                    <td style={tdStyle}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        {session.avatar
+                          ? <img src={`${API_BASE}${session.avatar}`} alt="" style={{ width:32, height:32, borderRadius:8, objectFit:'cover' }} />
+                          : <div style={{ width:32, height:32, borderRadius:8, background:'oklch(0.72 0.2 270 / 0.15)', border:'1px solid oklch(0.72 0.2 270 / 0.25)', display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'oklch(0.72 0.2 270)' }}>{session.username?.charAt(0)?.toUpperCase() || 'I'}</div>
+                        }
+                        <div>
+                          <div style={{ fontWeight:700, color:'var(--text)', fontSize:12 }}>@{session.username}</div>
+                          <div style={{ fontSize:10, color:'var(--text3)' }}>{session.name || 'Sem nome'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={tdStyle}><StatusBadge status={session.sessionStatus} /></td>
+                    <td style={{ ...tdStyle, fontFamily:'var(--font-mono)', fontSize:11 }}>
+                      {session.lastSync ? new Date(session.lastSync).toLocaleString('pt-BR') : 'Nunca'}
+                    </td>
+                    <td style={{ ...tdStyle, maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {session.lastError || session.busyReason || '—'}
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <button className="btn-ghost" style={{ fontSize:11, padding:'4px 10px', borderRadius:6 }} onClick={() => openSession(session._id)}>Abrir</button>
+                        <button className="btn-primary" style={{ fontSize:11, padding:'4px 10px', borderRadius:6, opacity: loadingId === session._id ? .5 : 1 }}
+                          onClick={() => testSession(session._id)} disabled={loadingId === session._id}>
+                          {loadingId === session._id ? 'Testando...' : 'Testar'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!sessions.length && (
+              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--text3)', fontSize:13 }}>Nenhuma conta encontrada.</div>
+            )}
+          </div>
+        </motion.div>
+
+      </PageShell>
+    </>
   );
 }

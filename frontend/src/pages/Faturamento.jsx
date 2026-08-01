@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import PageShell from '../components/PageShell';
 
 const KEY_GOAL    = 'fat_goal';
 const KEY_ENTRIES = 'fat_entries';
@@ -48,63 +50,69 @@ export default function Faturamento() {
 
   function removeEntry(id) { setEntries(p => p.filter(e => e.id !== id)); }
 
-  return (
-    <div>
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Visão Geral</div>
-          <h1>Faturamento</h1>
-          <p>Acompanhe sua meta de vendas mensal e registre suas receitas.</p>
-        </div>
-      </div>
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+    </svg>
+  );
 
-      {/* Card de progresso */}
-      <div className="card" style={{ marginBottom: 14 }}>
-        <div className="card-header">
-          <span>{MONTHS[now.getMonth()]} {now.getFullYear()}</span>
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+
+  return (
+    <PageShell
+      icon={pageIcon}
+      title="Faturamento"
+      subtitle="Acompanhe sua meta de vendas mensal e registre suas receitas"
+      accent="gold"
+    >
+      {/* Progress card */}
+      <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={{ ...cardStyle, marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+          <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>{MONTHS[now.getMonth()]} {now.getFullYear()}</h3>
           <button onClick={() => { setGoalInput(goal ? goal.toFixed(2) : ''); setEditGoal(true); }}
-            style={{ fontSize: 11, color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+            style={{ fontSize:11, color:'var(--cyan)', background:'none', border:'none', cursor:'pointer', fontWeight:700 }}>
             {goal ? 'Editar meta' : 'Definir meta'}
           </button>
         </div>
-        <div className="card-body">
+        <div style={{ padding:'16px 18px' }}>
           {editGoal && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            <div style={{ display:'flex', gap:8, marginBottom:20 }}>
               <input
                 value={goalInput}
                 onChange={e => setGoalInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && saveGoal()}
                 placeholder="Ex: 5000,00"
                 autoFocus
-                style={{ flex: 1, height: 38, padding: '0 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 14 }}
+                style={{ flex:1, height:38, padding:'0 12px', borderRadius:8, border:'1px solid oklch(0.72 0.19 196 / 0.3)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--text)', fontSize:14, outline:'none' }}
               />
-              <button onClick={saveGoal} style={{ height: 38, padding: '0 16px', borderRadius: 8, background: 'var(--cyan)', color: '#040e1c', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Salvar</button>
-              <button onClick={() => setEditGoal(false)} style={{ height: 38, padding: '0 12px', borderRadius: 8, background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={saveGoal} style={{ height:38, padding:'0 16px', borderRadius:8, background:'var(--cyan)', color:'#040e1c', border:'none', fontWeight:700, cursor:'pointer' }}>Salvar</button>
+              <button onClick={() => setEditGoal(false)} className="btn-ghost" style={{ height:38, padding:'0 12px', borderRadius:8 }}>Cancelar</button>
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:16 }}>
             <div>
-              <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--cyan)', letterSpacing: '-1px' }}>{fmtBRL(total)}</div>
-              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-                de {goal > 0 ? fmtBRL(goal) : <span style={{ color: 'var(--cyan)', cursor: 'pointer' }} onClick={() => setEditGoal(true)}>definir meta</span>}
+              <div style={{ fontSize:32, fontWeight:900, color:'var(--cyan)', letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{fmtBRL(total)}</div>
+              <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
+                de {goal > 0 ? fmtBRL(goal) : <span style={{ color:'var(--cyan)', cursor:'pointer' }} onClick={() => setEditGoal(true)}>definir meta</span>}
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 32, fontWeight: 900, color: reached ? '#22c55e' : 'var(--text)', letterSpacing: '-1px' }}>{pct.toFixed(0)}%</div>
-              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</div>
+            <div style={{ textAlign:'right' }}>
+              <div style={{ fontSize:32, fontWeight:900, color: reached ? '#22c55e' : 'var(--text)', letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{pct.toFixed(0)}%</div>
+              <div style={{ fontSize:12, color:'var(--text3)', marginTop:2, fontFamily:'var(--font-mono)' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</div>
             </div>
           </div>
 
-          <div style={{ height: 10, borderRadius: 99, background: 'var(--bg3)', overflow: 'hidden', marginBottom: 8 }}>
-            <div style={{
-              height: '100%', borderRadius: 99, transition: 'width .6s cubic-bezier(.4,0,.2,1)',
-              background: reached ? '#22c55e' : 'linear-gradient(90deg, var(--cyan), #00b8d9)',
-              width: `${pct}%`,
-            }} />
+          <div style={{ height:10, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', marginBottom:8 }}>
+            <motion.div
+              initial={{ width:0 }}
+              animate={{ width:`${pct}%` }}
+              transition={{ duration:.7, ease:'easeOut' }}
+              style={{ height:'100%', borderRadius:99, background: reached ? '#22c55e' : 'linear-gradient(90deg, var(--cyan), #00b8d9)' }}
+            />
           </div>
 
-          <div style={{ fontSize: 11, color: reached ? '#22c55e' : 'var(--text3)' }}>
+          <div style={{ fontSize:11, color: reached ? '#22c55e' : 'var(--text3)' }}>
             {reached
               ? '✅ Meta atingida! Parabéns!'
               : goal > 0
@@ -112,79 +120,77 @@ export default function Faturamento() {
                 : 'Defina uma meta para acompanhar o progresso'}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
         {/* Registrar venda */}
-        <div className="card">
-          <div className="card-header"><span>Registrar venda</span></div>
-          <div className="card-body">
-            <form onSubmit={addEntry} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
+          <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Registrar venda</h3>
+          </div>
+          <div style={{ padding:'14px 16px' }}>
+            <form onSubmit={addEntry} style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>Valor (R$) *</label>
+                <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:5, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Valor (R$) *</label>
                 <input
                   type="text" value={amount} onChange={e => setAmount(e.target.value)}
                   placeholder="0,00" required
-                  style={{ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}
+                  style={{ width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--text)', fontSize:14, boxSizing:'border-box', outline:'none' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>Descrição</label>
+                <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:5, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Descrição</label>
                 <input
                   type="text" value={desc} onChange={e => setDesc(e.target.value)}
                   placeholder="Ex: Produto X, Serviço Y"
-                  style={{ width: '100%', height: 40, padding: '0 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 14, boxSizing: 'border-box' }}
+                  style={{ width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--text)', fontSize:14, boxSizing:'border-box', outline:'none' }}
                 />
               </div>
-              <button type="submit" style={{
-                height: 42, borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
-                background: 'linear-gradient(100deg, var(--cyan), #00b8d9)', color: '#040e1c',
-                boxShadow: '0 6px 18px rgba(0,212,255,.2)',
-              }}>
+              <button type="submit" className="btn-primary" style={{ height:42, borderRadius:8, fontSize:13, display:'flex', alignItems:'center', justifyContent:'center' }}>
                 + Registrar venda
               </button>
             </form>
           </div>
-        </div>
+        </motion.div>
 
         {/* Histórico */}
-        <div className="card">
-          <div className="card-header">
-            <span>Histórico do mês</span>
-            <span style={{ fontSize: 11, color: 'var(--text3)' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</span>
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} style={cardStyle}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Histórico do mês</h3>
+            <span style={{ fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)', background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:100, padding:'2px 8px' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</span>
           </div>
-          <div className="card-body" style={{ maxHeight: 300, overflowY: 'auto', padding: 0 }}>
+          <div style={{ maxHeight:300, overflowY:'auto' }}>
             {thisMonth.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text3)', fontSize: 12 }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>💰</div>
+              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--text3)', fontSize:12 }}>
+                <div style={{ fontSize:28, marginBottom:8 }}>💰</div>
                 Nenhuma venda registrada este mês.
               </div>
             ) : (
               [...thisMonth].reverse().map((e, i) => (
                 <div key={e.id} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 18px',
-                  borderBottom: i < thisMonth.length - 1 ? '1px solid var(--border)' : 'none',
+                  display:'flex', justifyContent:'space-between', alignItems:'center',
+                  padding:'10px 16px',
+                  borderBottom: i < thisMonth.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none',
                 }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{e.desc}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 1 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'var(--text)' }}>{e.desc}</div>
+                    <div style={{ fontSize:10, color:'var(--text3)', marginTop:1, fontFamily:'var(--font-mono)' }}>
                       {new Date(e.date).toLocaleDateString('pt-BR')}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--cyan)' }}>{fmtBRL(e.amount)}</span>
-                    <button onClick={() => removeEntry(e.id)} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2, borderRadius: 4 }}
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:14, fontWeight:800, color:'var(--cyan)', fontVariantNumeric:'tabular-nums' }}>{fmtBRL(e.amount)}</span>
+                    <button onClick={() => removeEntry(e.id)} className="btn-ghost" style={{ padding:'2px 7px', borderRadius:6, fontSize:14, lineHeight:1 }}
                       onMouseEnter={ev => ev.currentTarget.style.color = '#f87171'}
-                      onMouseLeave={ev => ev.currentTarget.style.color = 'var(--text3)'}
+                      onMouseLeave={ev => ev.currentTarget.style.color = ''}
                     >×</button>
                   </div>
                 </div>
               ))
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </PageShell>
   );
 }

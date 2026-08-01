@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
+import PageShell from '../components/PageShell';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -273,77 +275,89 @@ export default function Health() {
     { label: 'Restritas',    value: data.accounts.filter(a => a.healthStatus === 'restrita').length, color: '#f59e0b' },
   ];
 
-  return (
-    <div>
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Saúde</div>
-          <h1>Saúde das contas</h1>
-          <p>Sinais oficiais da API: validade do token, erros recentes, tipo de conta. Sem 'shadowban detector' — a Meta não expõe isso.</p>
-        </div>
-        <div className="page-header-right">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#22c55e', background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.2)', padding: '6px 12px', borderRadius: 20 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px #22c55e' }} />
-            Automação ativa
-          </span>
-          <button onClick={checkNow} disabled={checking} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={checking ? { animation: 'spin 1s linear infinite' } : {}}>
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
-            </svg>
-            {checking ? 'Verificando...' : 'Verificar agora'}
-          </button>
-        </div>
-      </div>
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    </svg>
+  );
 
+  const pageActions = (
+    <>
+      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:8, background:'rgba(34,197,94,.08)', border:'1px solid rgba(34,197,94,.2)', fontSize:11, color:'#22c55e', fontWeight:700 }}>
+        <span style={{ width:6, height:6, borderRadius:'50%', background:'#22c55e', display:'inline-block', boxShadow:'0 0 6px #22c55e' }} />
+        Automação ativa
+      </span>
+      <button onClick={checkNow} disabled={checking} className="btn-primary" style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, fontSize:'.83rem' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={checking ? { animation:'spin 1s linear infinite' } : {}}>
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
+        </svg>
+        {checking ? 'Verificando...' : 'Verificar agora'}
+      </button>
+    </>
+  );
+
+  return (
+    <PageShell
+      icon={pageIcon}
+      title="Saúde das Contas"
+      subtitle="Sinais oficiais da API: validade do token, erros recentes, tipo de conta"
+      accent="green"
+      actions={pageActions}
+    >
       {/* Stats */}
       <div className="resp-grid-6" style={{ marginBottom: 20 }}>
-        {summaryItems.map(s => (
-          <div key={s.label} style={{
-            background: 'rgba(15,23,42,.8)', border: `1px solid ${s.color}22`,
-            borderRadius: 12, padding: '14px 12px', textAlign: 'center',
-            boxShadow: `0 0 0 1px ${s.color}11`,
-          }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: s.color, letterSpacing: -1, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>{s.label}</div>
-          </div>
+        {summaryItems.map((s, i) => (
+          <motion.div
+            key={s.label}
+            initial={{ opacity:0, y:8 }}
+            animate={{ opacity:1, y:0 }}
+            transition={{ delay: i * 0.04, duration: 0.22 }}
+            style={{
+              background:`${s.color}0d`, border:`1px solid ${s.color}2a`,
+              borderRadius:12, padding:'14px 12px', textAlign:'center',
+              backdropFilter:'blur(12px)',
+            }}
+          >
+            <div style={{ fontSize:24, fontWeight:800, color:s.color, letterSpacing:-1, lineHeight:1, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+            <div style={{ fontSize:11, color:'var(--text3)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
+          </motion.div>
         ))}
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: '#475569', marginRight: 4 }}>Filtrar:</span>
-        {[
-          { v: 'all',      l: 'Todas' },
-          { v: 'saudavel', l: 'Saudáveis' },
-          { v: 'atencao',  l: 'Atenção' },
-          { v: 'risco',    l: 'Risco' },
-          { v: 'banida',   l: 'Banidas' },
-        ].map(f => (
-          <button key={f.v} onClick={() => setFilter(f.v)} style={{
-            fontSize: 12, padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 600,
-            background: filter === f.v ? '#6366f1' : 'rgba(51,65,85,.4)',
-            color:      filter === f.v ? '#fff'    : '#94a3b8',
-            transition: 'all .15s',
-          }}>{f.l}</button>
-        ))}
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: '#475569' }}>
-          {filtered.length} de {data.accounts.length} conta(s) · atualiza a cada 10s
+      <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:18, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', gap:4, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
+          {[
+            { v:'all',      l:'Todas' },
+            { v:'saudavel', l:'Saudáveis' },
+            { v:'atencao',  l:'Atenção' },
+            { v:'risco',    l:'Risco' },
+            { v:'banida',   l:'Banidas' },
+          ].map(f => (
+            <button key={f.v} onClick={() => setFilter(f.v)} style={{
+              height:28, padding:'0 12px', borderRadius:7, border:'none', cursor:'pointer', fontWeight:600, fontSize:'.78rem',
+              background: filter === f.v ? '#6366f1' : 'transparent',
+              color:      filter === f.v ? '#fff'    : 'var(--text3)',
+              transition: 'all .15s',
+            }}>{f.l}</button>
+          ))}
+        </div>
+        <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
+          {filtered.length}/{data.accounts.length} · 10s
         </span>
       </div>
 
       {/* Cards grid */}
       {filtered.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(440px,100%),1fr))', gap: 14 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(440px,100%),1fr))', gap:14 }}>
           {filtered.map(acc => <AccountCard key={acc._id} account={acc} />)}
         </div>
       ) : (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: '#475569', background: 'rgba(15,23,42,.5)', borderRadius: 14, border: '1px dashed rgba(51,65,85,.5)' }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>🩺</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Nenhuma conta nesse filtro</div>
+        <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--text3)', background:'oklch(0.16 0.05 235 / 0.5)', borderRadius:14, border:'1px dashed oklch(1 0 0 / 0.08)' }}>
+          <div style={{ fontSize:36, marginBottom:10 }}>🩺</div>
+          <div style={{ fontSize:14, fontWeight:600, color:'var(--text3)' }}>Nenhuma conta nesse filtro</div>
         </div>
       )}
-
-    </div>
+    </PageShell>
   );
 }

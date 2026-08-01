@@ -297,11 +297,22 @@ export default function MainLayout({ children }) {
                   end={item.to === '/'}
                   className={({ isActive }) => `drawer-item${isActive ? ' active' : ''}`}
                 >
-                  {item.icon}
-                  <span>
-                    {item.label}
-                    {item.sub && <em className="drawer-item-sub">{item.sub}</em>}
-                  </span>
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <motion.span
+                          layoutId="nav-pill"
+                          className="nav-pill-bg"
+                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        />
+                      )}
+                      {item.icon}
+                      <span>
+                        {item.label}
+                        {item.sub && <em className="drawer-item-sub">{item.sub}</em>}
+                      </span>
+                    </>
+                  )}
                 </NavLink>
               ))}
             </div>

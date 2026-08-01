@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
+import PageShell from '../components/PageShell';
 
 const DEFAULT_COMMENTS = [
   '🔥🔥🔥', '❤️', 'Incrível!', 'Muito bom!', '👏👏', 'Perfeito!',
@@ -141,48 +143,55 @@ export default function Warmup() {
     return { label:'Saudável', color:'#22c55e' };
   }
 
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/>
+    </svg>
+  );
+
+  const pageActions = (
+    <>
+      {activeCount > 0 && (
+        <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:8, background:'rgba(34,197,94,.08)', border:'1px solid rgba(34,197,94,.2)', fontSize:11, color:'#22c55e', fontWeight:700, fontFamily:'var(--font-mono)' }}>
+          <span style={{ width:6, height:6, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'sched-pulse 1.5s infinite' }} />
+          {activeCount} aquecendo
+        </span>
+      )}
+      <button onClick={load} className="btn-ghost" style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:8, fontSize:'.83rem' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+        Atualizar
+      </button>
+    </>
+  );
+
   if (loading) return (
-    <div className="page-container" style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:300 }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:32, marginBottom:12 }}>🔥</div>
+    <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Simula ações orgânicas para evitar shadowban" accent="green">
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:200, flexDirection:'column', gap:12 }}>
+        <div style={{ fontSize:32 }}>🔥</div>
         <p style={{ color:'var(--text3)', fontSize:13 }}>Carregando contas...</p>
       </div>
-    </div>
+    </PageShell>
   );
 
   return (
-    <div className="page-container">
-      {/* ── Page header ── */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 6 }}>Viralizar</div>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-          <div>
-            <h1 style={{ margin:0, fontSize:28, fontWeight:800, color:'var(--text)', letterSpacing:-0.5 }}>Aquecimento de Contas</h1>
-            <p style={{ margin:'6px 0 0', color:'var(--text2)', fontSize:13, lineHeight:1.5 }}>
-              Simula curtidas, comentários e follows para esquentar contas antes de postar — evita shadowban e melhora o alcance
-            </p>
-          </div>
-          <button onClick={load} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg2)', color:'var(--text2)', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-            ↺ Atualizar
-          </button>
-        </div>
-      </div>
+    <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Simula curtidas, comentários e follows para evitar shadowban" accent="green" actions={pageActions}>
+      <style>{`@keyframes sched-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }`}</style>
 
       {/* Stats bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(155px,1fr))', gap: 10, marginBottom: 24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(155px,1fr))', gap:10, marginBottom:20 }}>
         {[
-          { label: 'TOTAL DE CONTAS', value: accounts.length, color: 'var(--text)', icon: '👤', bg: 'var(--bg2)' },
-          { label: 'AQUECENDO AGORA', value: activeCount, color: '#22c55e', icon: '🔥', bg: 'rgba(34,197,94,.06)' },
-          { label: 'CONTAS SAUDÁVEIS', value: accounts.filter(a => !a.healthStatus || a.healthStatus === 'ok' || a.healthStatus === 'saudavel').length, color: 'var(--cyan)', icon: '✅', bg: 'var(--bg2)' },
-          { label: 'INATIVAS', value: accounts.length - activeCount, color: 'var(--text3)', icon: '⚪', bg: 'var(--bg2)' },
-        ].map(s => (
-          <div key={s.label} style={{ background: s.bg, border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 22, flexShrink: 0 }}>{s.icon}</span>
+          { label:'Total de contas',  value:accounts.length,         color:'var(--text)',  border:'rgba(0,212,255,.15)',   bg:'oklch(0.14 0.04 235 / 0.5)' },
+          { label:'Aquecendo agora',  value:activeCount,              color:'#22c55e',      border:'rgba(34,197,94,.2)',    bg:'rgba(34,197,94,.06)' },
+          { label:'Contas saudáveis', value:accounts.filter(a => !a.healthStatus || a.healthStatus === 'ok' || a.healthStatus === 'saudavel').length, color:'var(--cyan)', border:'rgba(0,212,255,.2)', bg:'oklch(0.14 0.04 235 / 0.5)' },
+          { label:'Inativas',         value:accounts.length - activeCount, color:'var(--text3)', border:'oklch(1 0 0 / 0.08)', bg:'oklch(0.14 0.04 235 / 0.5)' },
+        ].map((s, i) => (
+          <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.05, duration: 0.22 }}
+            style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:12, padding:'14px 16px', display:'flex', alignItems:'center', gap:12, backdropFilter:'blur(12px)' }}>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 22, color: s.color, lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', letterSpacing: '.05em', marginTop: 3 }}>{s.label}</div>
+              <div style={{ fontWeight:800, fontSize:22, color:s.color, lineHeight:1, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--text3)', letterSpacing:'.05em', marginTop:3, fontFamily:'var(--font-mono)', textTransform:'uppercase' }}>{s.label}</div>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
@@ -529,16 +538,17 @@ export default function Warmup() {
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Live status card */}
           <div style={{
-            background: activeCount > 0 ? 'rgba(34,197,94,.06)' : 'var(--bg2)',
-            border: `1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'var(--border)'}`,
+            background: activeCount > 0 ? 'rgba(34,197,94,.06)' : 'oklch(0.16 0.05 235 / 0.85)',
+            border: `1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'oklch(1 0 0 / 0.07)'}`,
             borderRadius: 14, padding: '16px 20px',
             display: 'flex', alignItems: 'center', gap: 16,
+            backdropFilter: 'blur(12px)',
           }}>
             <div style={{
               width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: activeCount > 0 ? 'rgba(34,197,94,.15)' : 'var(--bg3)',
-              border: `1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'var(--border)'}`,
+              background: activeCount > 0 ? 'rgba(34,197,94,.15)' : 'oklch(0.10 0.03 235 / 0.5)',
+              border: `1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'oklch(1 0 0 / 0.07)'}`,
               fontSize: 20,
             }}>
               {activeCount > 0 ? '🔥' : '💤'}
@@ -564,7 +574,7 @@ export default function Warmup() {
           </div>
 
           {/* Tips card */}
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 14, padding: '14px 20px', display: 'flex', gap: 14, alignItems: 'flex-start', backdropFilter: 'blur(12px)' }}>
             <div style={{ fontSize: 20, flexShrink: 0 }}>💡</div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4, color: 'var(--text)' }}>Boas práticas de aquecimento</div>
@@ -578,39 +588,35 @@ export default function Warmup() {
       )}
 
       {/* ── Activity log ── */}
-      <div style={{ marginTop: 24, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-        {/* Log header */}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ marginTop: 24, background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 16, overflow: 'hidden', backdropFilter: 'blur(12px)' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>📋</span>
-            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Histórico de Ações</span>
+            <span style={{ fontWeight: 700, fontSize: '.88rem', color: 'var(--text)' }}>Histórico de Ações</span>
             {logs.length > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'var(--bg3)', color: 'var(--text3)' }}>
-                {logs.length} entradas
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'oklch(0.10 0.03 235 / 0.6)', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
+                {logs.length}
               </span>
             )}
           </div>
-          <button onClick={loadLogs} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>
+          <button onClick={loadLogs} className="btn-ghost" style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7 }}>
             ↺ Atualizar
           </button>
         </div>
 
-        {/* Log entries */}
         {logs.length === 0 ? (
           <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔥</div>
-            Nenhuma ação registrada ainda. Inicie o aquecimento para ver o histórico aqui.
+            Nenhuma ação registrada ainda.
           </div>
         ) : (
           <div style={{ maxHeight: 420, overflowY: 'auto' }}>
             {logs.map((entry, i) => (
               <div key={entry._id || i} style={{
                 padding: '10px 20px',
-                borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none',
+                borderBottom: i < logs.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none',
                 display: 'flex', alignItems: 'flex-start', gap: 12,
                 background: entry.status === 'error' ? 'rgba(239,68,68,.04)' : 'transparent',
               }}>
-                {/* Icon */}
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -619,8 +625,6 @@ export default function Warmup() {
                 }}>
                   {LOG_ICON[entry.action] || '•'}
                 </div>
-
-                {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)' }}>@{entry.username}</span>
@@ -629,14 +633,10 @@ export default function Warmup() {
                     </span>
                   </div>
                   {entry.targetUser && (
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                      → @{entry.targetUser}
-                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>→ @{entry.targetUser}</div>
                   )}
                 </div>
-
-                {/* Time */}
-                <div style={{ flexShrink: 0, fontSize: 10, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+                <div style={{ flexShrink: 0, fontSize: 10, color: 'var(--text3)', fontVariantNumeric: 'tabular-nums', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
                   {timeAgo(entry.createdAt)}
                 </div>
               </div>
@@ -644,7 +644,7 @@ export default function Warmup() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
 

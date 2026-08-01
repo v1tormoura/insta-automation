@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
+import PageShell from '../components/PageShell';
 
-/* ── Custom legend dropdown — matches dark theme ── */
+/* ── Custom legend dropdown ── */
 function LegendDropdown({ legends, value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -25,29 +27,30 @@ function LegendDropdown({ legends, value, onChange }) {
         onClick={() => setOpen(v => !v)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'rgba(255,255,255,.04)',
-          border: `1px solid ${open ? 'var(--border2)' : 'var(--border)'}`,
+          background: 'oklch(0.10 0.03 235 / 0.8)',
+          border: `1px solid ${open ? 'var(--cyan)' : 'oklch(1 0 0 / 0.09)'}`,
           borderRadius: open ? '9px 9px 0 0' : 9,
           padding: '9px 12px', fontSize: 13, cursor: 'pointer', textAlign: 'left',
           color: selected ? 'var(--text)' : 'var(--text3)',
           transition: 'border-color .15s',
-          boxShadow: open ? 'var(--glow-sm)' : 'none',
+          boxShadow: open ? '0 0 0 3px oklch(0.82 0.19 196 / 0.08)' : 'none',
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {selected ? selected.title : 'Selecione uma legenda salva...'}
         </span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ flexShrink: 0, marginLeft: 8, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none', color: 'var(--text3)' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+          style={{ flexShrink: 0, marginLeft: 8, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none', color: 'var(--text3)' }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-
       {open && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-          background: 'var(--bg2)', border: '1px solid var(--border2)', borderTop: 'none',
-          borderRadius: '0 0 10px 10px', boxShadow: '0 16px 40px rgba(0,0,0,.55)',
-          maxHeight: 220, overflowY: 'auto',
+          background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid oklch(1 0 0 / 0.1)',
+          borderTop: 'none', borderRadius: '0 0 10px 10px',
+          boxShadow: '0 16px 40px oklch(0 0 0 / 0.55)', maxHeight: 220, overflowY: 'auto',
+          backdropFilter: 'blur(16px)',
         }}>
           {[{ _id: '', title: 'Selecione uma legenda salva...' }, ...legends].map((l, i) => (
             <div
@@ -56,14 +59,14 @@ function LegendDropdown({ legends, value, onChange }) {
               style={{
                 padding: '9px 12px', fontSize: 13, cursor: 'pointer',
                 color: l._id === '' ? 'var(--text3)' : l._id === value ? 'var(--cyan)' : 'var(--text)',
-                background: l._id !== '' && l._id === value ? 'rgba(0,212,255,.06)' : 'transparent',
-                borderBottom: i < legends.length ? '1px solid var(--border)' : 'none',
+                background: l._id !== '' && l._id === value ? 'oklch(0.82 0.19 196 / 0.08)' : 'transparent',
+                borderBottom: i < legends.length ? '1px solid oklch(1 0 0 / 0.05)' : 'none',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 transition: 'background .1s',
                 fontStyle: l._id === '' ? 'italic' : 'normal',
               }}
-              onMouseEnter={e => { if (l._id !== value) e.currentTarget.style.background = 'rgba(0,180,255,.07)'; }}
-              onMouseLeave={e => { if (l._id !== value) e.currentTarget.style.background = l._id === value ? 'rgba(0,212,255,.06)' : 'transparent'; }}
+              onMouseEnter={e => { if (l._id !== value) e.currentTarget.style.background = 'oklch(1 0 0 / 0.05)'; }}
+              onMouseLeave={e => { if (l._id !== value) e.currentTarget.style.background = l._id === value ? 'oklch(0.82 0.19 196 / 0.08)' : 'transparent'; }}
             >
               {l.title}
             </div>
@@ -219,393 +222,438 @@ export default function Posts() {
     { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + pitch áudio + CRF aleatório — fingerprint único', color: '#f59e0b' },
   ];
 
+  /* ── Icon ── */
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+    </svg>
+  );
+
+  /* ── Header actions ── */
+  const pageActions = (
+    <>
+      <button className="btn-ghost" style={{ fontSize: '.8rem', padding: '7px 14px', borderRadius: 8 }} type="button" onClick={retryAllErrors} disabled={retryingAll}>
+        ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
+      </button>
+      <button className="btn-primary" style={{ fontSize: '.83rem', padding: '7px 16px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }} type="button"
+        onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
+        {scheduledAt ? 'Agendar' : 'Publicar agora'}
+      </button>
+    </>
+  );
+
+  /* ── Premium card style ── */
+  const cardStyle = {
+    background: 'oklch(0.16 0.05 235 / 0.85)',
+    border: '1px solid oklch(1 0 0 / 0.07)',
+    borderRadius: 14,
+    backdropFilter: 'blur(12px)',
+    overflow: 'hidden',
+  };
+  const cardHdStyle = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)',
+  };
+  const cardH3Style = { fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 };
+  const cardBodyStyle = { padding: '14px 16px' };
+
   return (
-    <div>
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <div className="eyebrow">Publicação</div>
-          <h1>Painel de Automação</h1>
-          <p>Postagens em andamento em tempo real</p>
-        </div>
-        <div className="page-header-right">
-          <button className="btn btn-ghost btn-sm" type="button" onClick={retryAllErrors} disabled={retryingAll}>
-            ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
-          </button>
-          <button className="btn btn-primary btn-sm" type="button" onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
-            Agendar nova postagem
-          </button>
-        </div>
-      </div>
+    <>
+      <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* Form grid */}
-      <form id="postform" onSubmit={createPost} className="layout-form-2col" style={{ marginBottom: 20 }}>
+      <PageShell
+        icon={pageIcon}
+        title="Painel de Publicação"
+        subtitle="Publicações em tempo real · múltiplas contas"
+        accent="purple"
+        actions={pageActions}
+      >
+        {/* Form grid */}
+        <form id="postform" onSubmit={createPost} className="layout-form-2col" style={{ marginBottom: 20 }}>
 
-        {/* ── LEFT COLUMN ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* ── LEFT COLUMN ── */}
+          <motion.div
+            style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
 
-          {/* Upload */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Mídia</h3>
-              <span className="badge badge-cyan">{media.length} arquivo(s)</span>
-            </div>
-            <div className="card-body">
-            {/* Type tabs */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              {['reel', 'post', 'story'].map(t => (
-                <button key={t} type="button"
-                  onClick={() => setPostType(t)}
-                  style={{
-                    padding: '7px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid',
-                    background: postType === t ? 'rgba(37,99,235,0.18)' : 'transparent',
-                    borderColor: postType === t ? 'rgba(37,99,235,0.5)' : 'var(--border)',
-                    color: postType === t ? '#60a5fa' : 'var(--text2)',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            <label
-              className={`upload-zone${dragOver ? ' drag-over' : ''}`}
-              style={{ cursor: 'pointer' }}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-            >
-              <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
-                onChange={e => setMedia(Array.from(e.target.files || []))} />
-              <div style={{ marginBottom: 8 }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}>
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
+            {/* Upload */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Mídia</h3>
+                <span style={{ fontSize: '.72rem', fontFamily: 'var(--font-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--cyan)', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 100, padding: '2px 10px' }}>
+                  {media.length} arquivo(s)
+                </span>
               </div>
-              <strong>Arraste ou envie seus vídeos</strong>
-              <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
-              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
-            </label>
-            {media.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8, marginTop: 12 }}>
-                {media.map((file, i) => (
-                  <div key={i} style={{ background: 'var(--card2)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid var(--border)', position: 'relative' }}>
-                    <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
-                      style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: file.type?.includes('video') ? '#818cf8' : '#60a5fa' }}>
-                      {file.type?.includes('video')
-                        ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                        : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                      }
-                    </div>
-                    <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            </div>{/* /card-body */}
-          </div>
-
-          {/* Cover */}
-          <div className="card">
-            <div className="card-header"><h3>Capa do Reel</h3><span>Opcional — aplica a todos os vídeos da fila</span></div>
-            <div className="card-body">
-              <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px', background: 'var(--card2)', borderRadius: 10, border: '1px dashed var(--border)', cursor: 'pointer', flexWrap: 'wrap' }}>
-                <input type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={e => setCover(e.target.files?.[0] || null)} />
-                <div style={{ color: cover ? '#60a5fa' : 'var(--text3)' }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: cover ? '#60a5fa' : 'var(--text2)' }}>{cover ? cover.name : 'Nenhuma capa salva. Faça upload de uma imagem 1080×1920.'}</div>
-                  {cover && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Clique para trocar</div>}
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Caption */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Legenda</h3>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/legends')}>Gerenciar →</button>
-                <span style={{ fontSize: 11, color: 'var(--text3)' }}>{caption.length}/2200</span>
-              </div>
-            </div>
-            <div className="card-body">
-              {legends.length > 0 && (
-                <LegendDropdown
-                  legends={legends}
-                  value={selectedLegend}
-                  onChange={id => {
-                    setSelectedLegend(id);
-                    const l = legends.find(l => l._id === id);
-                    if (l) setCaption(l.text);
-                    else if (!id) setCaption('');
-                  }}
-                />
-              )}
-              <textarea className="txta"
-                placeholder="Escreva a legenda do seu post. Use #hashtags e {variáveis}."
-                value={caption} maxLength={2200} onChange={e => setCaption(e.target.value)} rows={4} />
-              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>Aleatória</button>
-              </div>
-              {/* Location */}
-              <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  Localização (opcional)
-                </div>
-                <input className="inp" type="text" placeholder="Belo Horizonte, Brasil" value={location} onChange={e => setLocation(e.target.value)} list="brazil-cities" />
-                <datalist id="brazil-cities">
-                  {['São Paulo','Rio de Janeiro','Belo Horizonte','Brasília','Salvador','Fortaleza','Curitiba','Manaus','Recife','Porto Alegre'].map(c => (
-                    <option key={c} value={`${c}, Brasil`} />
+              <div style={cardBodyStyle}>
+                {/* Type tabs */}
+                <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 9, padding: 3 }}>
+                  {['reel', 'post', 'story'].map(t => (
+                    <button key={t} type="button"
+                      onClick={() => setPostType(t)}
+                      style={{
+                        flex: 1, padding: '7px 4px', borderRadius: 7, fontSize: '.78rem', fontWeight: postType === t ? 700 : 500,
+                        cursor: 'pointer', border: 'none', transition: '.15s',
+                        background: postType === t ? 'oklch(0.60 0.22 295)' : 'transparent',
+                        color: postType === t ? '#fff' : 'var(--text3)',
+                        boxShadow: postType === t ? '0 2px 8px oklch(0.60 0.22 295 / 0.3)' : 'none',
+                      }}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
                   ))}
-                </datalist>
-              </div>
-            </div>
-          </div>
-
-          {/* Engage Comment */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Pergunta de engajamento</h3>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text2)' }}>
-                <input
-                  type="checkbox"
-                  checked={!!engageComment}
-                  onChange={e => setEngageComment(e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '')}
-                />
-                {engageComment ? 'Ativo' : 'Inativo'}
-              </label>
-            </div>
-            {!!engageComment && (
-              <div className="card-body">
-                <textarea className="txta" rows={2}
-                  placeholder="Ex: Gostaram? Comenta aí! 👇"
-                  value={engageComment}
-                  onChange={e => setEngageComment(e.target.value)} />
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                  Postado ~60 min após publicar · estimula comentários pro algoritmo
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* CTA Comment */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Comentário fixado automático</h3>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text2)' }}>
-                <input
-                  type="checkbox"
-                  checked={!!ctaComment}
-                  onChange={e => setCtaComment(e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '')}
-                />
-                {ctaComment ? 'Ativo' : 'Inativo'}
-              </label>
-            </div>
-            {!!ctaComment && (
-              <div className="card-body">
-                <textarea className="txta" rows={3}
-                  placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
-                  value={ctaComment}
-                  onChange={e => setCtaComment(e.target.value)} />
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                  Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── RIGHT COLUMN ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-          {/* Simultaneous publications */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Publicações simultâneas</h3>
-              <span className="badge badge-cyan">
-                {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
-              </span>
-            </div>
-            <div className="card-body">
-              <p style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12 }}>
-                Quantos reels são enviados juntos em cada lote para todas as contas
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: 'var(--text3)' }}>LOTE</span>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#60a5fa', letterSpacing: -1 }}>{simultaneousLimit}</span>
-                <span style={{ fontSize: 14, color: 'var(--text3)' }}>/{Math.max(media.length, 1)} reels</span>
-              </div>
-              <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
-                onChange={e => setSimultaneousLimit(Number(e.target.value))}
-                style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 4 }}>
-                <span>1</span><span>{Math.max(media.length, 1)}</span>
-              </div>
-              <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.15)', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
-                {simultaneousLimit === 1
-                  ? 'Sequencial — 1 reel por vez. Todas as contas recebem cada reel em paralelo, depois aguarda o intervalo.'
-                  : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} vão juntos para todas as contas em paralelo, depois aguarda o intervalo.`
-                }
-              </div>
-            </div>
-          </div>
-
-          {/* Interval */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Intervalo entre posts</h3>
-              <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 700 }}>{intervalMins} min</span>
-            </div>
-            <div className="card-body">
-              <input type="range" min="0" max="120" step="1" value={intervalMins}
-                onChange={e => setIntervalMins(Number(e.target.value))}
-                style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer', marginBottom: 6 }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)' }}>
-                <span>Sem intervalo</span><span>120 min</span>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <label style={{ fontSize: 12, color: 'var(--text2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>
-                <input className="inp" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          {/* Processing mode */}
-          <div className="card">
-            <div className="card-header"><h3>Modo de processamento</h3><span>Limpeza aplicada</span></div>
-            <div className="card-body">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {processModes.map(m => (
-                <div key={m.id} onClick={() => setProcessMode(m.id)}
-                  style={{
-                    padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: '1px solid',
-                    background: processMode === m.id ? `${m.color}14` : 'transparent',
-                    borderColor: processMode === m.id ? `${m.color}44` : 'var(--border)',
-                    transition: 'all .15s',
-                  }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: processMode === m.id ? m.color : 'var(--text)' }}>{m.label}</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color }}>{m.tag}</span>
+                <label
+                  className={`upload-zone${dragOver ? ' drag-over' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                >
+                  <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                    onChange={e => setMedia(Array.from(e.target.files || []))} />
+                  <div style={{ marginBottom: 8 }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}>
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{m.desc}</div>
-                </div>
-              ))}
-            </div>
-            </div>{/* /card-body */}
-          </div>
+                  <strong>Arraste ou envie seus vídeos</strong>
+                  <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
+                </label>
 
-          {/* Accounts */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Contas</h3>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAllAccounts}>
-                {selectedCount === accounts.length && accounts.length > 0 ? 'Desmarcar todas' : 'Selecionar todas'}
-              </button>
-            </div>
-            <div className="card-body">
-            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 10 }}>
-              Selecione onde publicar — cada conta posta 1 vez por mídia
-            </div>
-            <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {accounts.length === 0 && (
-                <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 12, padding: 20 }}>Nenhuma conta cadastrada</div>
-              )}
-              {accounts.map(acc => (
-                <button type="button" key={acc._id} onClick={() => toggleAccount(acc._id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px',
-                    borderRadius: 9, border: `1px solid ${isAccountSelected(acc._id) ? 'rgba(59,130,246,.4)' : 'var(--border)'}`,
-                    background: isAccountSelected(acc._id) ? 'rgba(59,130,246,.08)' : 'var(--card2)',
-                    cursor: 'pointer', transition: '.15s', textAlign: 'left', color: 'var(--text)', width: '100%',
-                  }}>
-                  {avatarSrc(acc)
-                    ? <img src={avatarSrc(acc)} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                    : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--indigo-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0, color: '#a5b4fc' }}>{acc.username?.[0]?.toUpperCase()}</div>
-                  }
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{acc.username}</div>
-                    <div style={{ fontSize: 10, color: acc.healthStatus === 'ativa' ? '#34d399' : 'var(--text3)' }}>{acc.healthStatus || 'ativa'}</div>
+                {media.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8, marginTop: 12 }}>
+                    {media.map((file, i) => (
+                      <div key={i} style={{ background: 'oklch(0.12 0.04 235)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid oklch(1 0 0 / 0.08)', position: 'relative' }}>
+                        <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
+                          style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: file.type?.includes('video') ? '#818cf8' : '#60a5fa' }}>
+                          {file.type?.includes('video')
+                            ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                            : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                          }
+                        </div>
+                        <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'var(--font-mono)' }}>{file.name}</div>
+                      </div>
+                    ))}
                   </div>
-                  {isAccountSelected(acc._id) && <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>✓</span>}
-                </button>
-              ))}
-            </div>
-
-            {/* Summary */}
-            <div className="g3" style={{ gap: 6, marginTop: 12 }}>
-              {[['Mídias', media.length], ['Contas', selectedCount], ['Total', totalEstimated]].map(([l, v]) => (
-                <div key={l} style={{ textAlign: 'center', background: 'var(--card2)', borderRadius: 8, padding: '8px 4px', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: -1 }}>{v}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2 }}>{l}</div>
-                </div>
-              ))}
-            </div>
-
-            <button className="btn btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12, fontSize: 14 }}>
-              {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
-            </button>
-            </div>{/* /card-body */}
-          </div>
-        </div>
-      </form>
-
-      {/* Posts list */}
-      {posts.length > 0 && (
-        <div className="card">
-          <div className="card-header">
-            <h3>Posts registrados</h3>
-            <span>{postPagination?.total || posts.length} no total</span>
-          </div>
-          <div className="queue-list">
-            {posts.map(post => (
-              <div className="queue-row" key={post._id}>
-                <div className="queue-icon" style={{ background: post.postType === 'reel' ? 'var(--indigo-dim)' : 'var(--cyan-dim)' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    {post.postType === 'reel'
-                      ? <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>
-                      : <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>
-                    }
-                  </svg>
-                </div>
-                <div className="queue-info">
-                  <strong>{post.postType === 'reel' ? 'Reel' : 'Post'}</strong>
-                  <span>{post.accounts?.map(a => `@${a.username}`).join(', ') || 'Sem conta'}</span>
-                  {post.error && <em style={{ fontSize: 11, color: '#f87171', display: 'block', marginTop: 1 }}>{post.error}</em>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <span className={`badge ${statusBadgeClass(post.status)}`}>{post.status}</span>
-                  <span style={{ fontSize: 10, color: 'var(--text3)' }}>
-                    {post.scheduledAt ? new Date(post.scheduledAt).toLocaleString('pt-BR') : new Date(post.createdAt).toLocaleString('pt-BR')}
-                  </span>
-                </div>
-                {['erro', 'parcial', 'cancelado'].includes(post.status) && (
-                  <button className="btn btn-ghost btn-sm" type="button" onClick={() => retryPost(post._id)} disabled={retryingId === post._id}>
-                    {retryingId === post._id ? '...' : '↺ Retry'}
-                  </button>
                 )}
               </div>
-            ))}
-          </div>
-          {postPagination && postPagination.pages > 1 && (
-            <div className="pagination">
-              <button className="btn btn-ghost btn-sm" disabled={postPage <= 1} onClick={() => goToPostPage(postPage - 1)}>← Anterior</button>
-              <span>Página {postPagination.page} de {postPagination.pages} · {postPagination.total} posts</span>
-              <button className="btn btn-ghost btn-sm" disabled={postPage >= postPagination.pages} onClick={() => goToPostPage(postPage + 1)}>Próxima →</button>
             </div>
-          )}
-        </div>
-      )}
 
-      <Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
+            {/* Cover */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Capa do Reel</h3>
+                <span style={{ fontSize: '.73rem', color: 'var(--text3)' }}>Opcional — aplica a todos</span>
+              </div>
+              <div style={cardBodyStyle}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px', background: 'oklch(0.10 0.03 235 / 0.6)', borderRadius: 10, border: '1px dashed oklch(1 0 0 / 0.1)', cursor: 'pointer', flexWrap: 'wrap' }}>
+                  <input type="file" accept="image/*" style={{ display: 'none' }}
+                    onChange={e => setCover(e.target.files?.[0] || null)} />
+                  <div style={{ color: cover ? '#60a5fa' : 'var(--text3)' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: cover ? '#60a5fa' : 'var(--text2)' }}>{cover ? cover.name : 'Faça upload de uma imagem 1080×1920'}</div>
+                    {cover && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Clique para trocar</div>}
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Caption */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Legenda</h3>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/legends')}>Gerenciar →</button>
+                  <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{caption.length}/2200</span>
+                </div>
+              </div>
+              <div style={cardBodyStyle}>
+                {legends.length > 0 && (
+                  <LegendDropdown
+                    legends={legends}
+                    value={selectedLegend}
+                    onChange={id => {
+                      setSelectedLegend(id);
+                      const l = legends.find(l => l._id === id);
+                      if (l) setCaption(l.text);
+                      else if (!id) setCaption('');
+                    }}
+                  />
+                )}
+                <textarea className="txta"
+                  placeholder="Escreva a legenda do seu post. Use #hashtags e {variáveis}."
+                  value={caption} maxLength={2200} onChange={e => setCaption(e.target.value)} rows={4} />
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+                  Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>Aleatória</button>
+                </div>
+                <div style={{ marginTop: 12, borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Localização (opcional)
+                  </div>
+                  <input className="inp" type="text" placeholder="Belo Horizonte, Brasil" value={location} onChange={e => setLocation(e.target.value)} list="brazil-cities" />
+                  <datalist id="brazil-cities">
+                    {['São Paulo','Rio de Janeiro','Belo Horizonte','Brasília','Salvador','Fortaleza','Curitiba','Manaus','Recife','Porto Alegre'].map(c => (
+                      <option key={c} value={`${c}, Brasil`} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+            </div>
+
+            {/* Engage Comment */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Pergunta de engajamento</h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: engageComment ? 'var(--cyan)' : 'var(--text3)' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!engageComment}
+                    onChange={e => setEngageComment(e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '')}
+                  />
+                  {engageComment ? 'Ativo' : 'Inativo'}
+                </label>
+              </div>
+              {!!engageComment && (
+                <div style={cardBodyStyle}>
+                  <textarea className="txta" rows={2}
+                    placeholder="Ex: Gostaram? Comenta aí! 👇"
+                    value={engageComment}
+                    onChange={e => setEngageComment(e.target.value)} />
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                    Postado ~60 min após publicar · estimula comentários pro algoritmo
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CTA Comment */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Comentário fixado automático</h3>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: ctaComment ? 'var(--cyan)' : 'var(--text3)' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!ctaComment}
+                    onChange={e => setCtaComment(e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '')}
+                  />
+                  {ctaComment ? 'Ativo' : 'Inativo'}
+                </label>
+              </div>
+              {!!ctaComment && (
+                <div style={cardBodyStyle}>
+                  <textarea className="txta" rows={3}
+                    placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
+                    value={ctaComment}
+                    onChange={e => setCtaComment(e.target.value)} />
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                    Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* ── RIGHT COLUMN ── */}
+          <motion.div
+            style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.06 }}
+          >
+
+            {/* Simultaneous publications */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Publicações simultâneas</h3>
+                <span style={{ fontSize: '.72rem', fontFamily: 'var(--font-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--cyan)', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 100, padding: '2px 10px' }}>
+                  {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
+                </span>
+              </div>
+              <div style={cardBodyStyle}>
+                <p style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12 }}>
+                  Quantos reels são enviados juntos em cada lote para todas as contas
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>LOTE</span>
+                  <span style={{ fontSize: 22, fontWeight: 900, color: '#60a5fa', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
+                  <span style={{ fontSize: 14, color: 'var(--text3)' }}>/{Math.max(media.length, 1)} reels</span>
+                </div>
+                <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
+                  onChange={e => setSimultaneousLimit(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+                  <span>1</span><span>{Math.max(media.length, 1)}</span>
+                </div>
+                <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.15)', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
+                  {simultaneousLimit === 1
+                    ? 'Sequencial — 1 reel por vez. Todas as contas recebem cada reel em paralelo, depois aguarda o intervalo.'
+                    : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} vão juntos para todas as contas em paralelo, depois aguarda o intervalo.`
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* Interval */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Intervalo entre posts</h3>
+                <span style={{ fontSize: '.83rem', color: '#60a5fa', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{intervalMins} min</span>
+              </div>
+              <div style={cardBodyStyle}>
+                <input type="range" min="0" max="120" step="1" value={intervalMins}
+                  onChange={e => setIntervalMins(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer', marginBottom: 6 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
+                  <span>Sem intervalo</span><span>120 min</span>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 12, color: 'var(--text2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>
+                  <input className="inp" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Processing mode */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Modo de processamento</h3>
+                <span style={{ fontSize: '.73rem', color: 'var(--text3)' }}>Limpeza aplicada</span>
+              </div>
+              <div style={cardBodyStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {processModes.map(m => (
+                    <div key={m.id} onClick={() => setProcessMode(m.id)}
+                      style={{
+                        padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: '1px solid',
+                        background: processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
+                        borderColor: processMode === m.id ? `${m.color}44` : 'oklch(1 0 0 / 0.07)',
+                        transition: 'all .15s',
+                      }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: processMode === m.id ? m.color : 'var(--text)' }}>{m.label}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color, fontFamily: 'var(--font-mono)' }}>{m.tag}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>{m.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Accounts */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Contas</h3>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAllAccounts}>
+                  {selectedCount === accounts.length && accounts.length > 0 ? 'Desmarcar todas' : 'Selecionar todas'}
+                </button>
+              </div>
+              <div style={cardBodyStyle}>
+                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 10 }}>
+                  Selecione onde publicar — cada conta posta 1 vez por mídia
+                </div>
+                <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {accounts.length === 0 && (
+                    <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 12, padding: 20 }}>Nenhuma conta cadastrada</div>
+                  )}
+                  {accounts.map(acc => (
+                    <button type="button" key={acc._id} onClick={() => toggleAccount(acc._id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px',
+                        borderRadius: 9,
+                        border: `1px solid ${isAccountSelected(acc._id) ? 'rgba(59,130,246,.4)' : 'oklch(1 0 0 / 0.07)'}`,
+                        background: isAccountSelected(acc._id) ? 'rgba(59,130,246,.08)' : 'oklch(0.10 0.03 235 / 0.6)',
+                        cursor: 'pointer', transition: '.15s', textAlign: 'left', color: 'var(--text)', width: '100%',
+                      }}>
+                      {avatarSrc(acc)
+                        ? <img src={avatarSrc(acc)} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'oklch(0.45 0.22 295)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0, color: '#fff' }}>{acc.username?.[0]?.toUpperCase()}</div>
+                      }
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{acc.username}</div>
+                        <div style={{ fontSize: 10, color: acc.healthStatus === 'ativa' ? '#34d399' : 'var(--text3)' }}>{acc.healthStatus || 'ativa'}</div>
+                      </div>
+                      {isAccountSelected(acc._id) && <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Summary */}
+                <div className="g3" style={{ gap: 6, marginTop: 12 }}>
+                  {[['Mídias', media.length, '#60a5fa'], ['Contas', selectedCount, '#a78bfa'], ['Total', totalEstimated, 'var(--cyan)']].map(([l, v, c]) => (
+                    <div key={l} style={{ textAlign: 'center', background: 'oklch(0.10 0.03 235 / 0.8)', borderRadius: 8, padding: '8px 4px', border: '1px solid oklch(1 0 0 / 0.07)' }}>
+                      <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: -1, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <button className="btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 10 }}>
+                  {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </form>
+
+        {/* Posts list */}
+        {posts.length > 0 && (
+          <div style={{ ...cardStyle, marginTop: 4 }}>
+            <div style={cardHdStyle}>
+              <h3 style={cardH3Style}>Posts registrados</h3>
+              <span style={{ fontSize: '.73rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{postPagination?.total || posts.length} no total</span>
+            </div>
+            <div className="queue-list">
+              {posts.map(post => (
+                <div className="queue-row" key={post._id}>
+                  <div className="queue-icon" style={{ background: post.postType === 'reel' ? 'var(--indigo-dim)' : 'var(--cyan-dim)' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      {post.postType === 'reel'
+                        ? <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>
+                        : <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>
+                      }
+                    </svg>
+                  </div>
+                  <div className="queue-info">
+                    <strong>{post.postType === 'reel' ? 'Reel' : 'Post'}</strong>
+                    <span>{post.accounts?.map(a => `@${a.username}`).join(', ') || 'Sem conta'}</span>
+                    {post.error && <em style={{ fontSize: 11, color: '#f87171', display: 'block', marginTop: 1 }}>{post.error}</em>}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <span className={`badge ${statusBadgeClass(post.status)}`}>{post.status}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
+                      {post.scheduledAt ? new Date(post.scheduledAt).toLocaleString('pt-BR') : new Date(post.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  {['erro', 'parcial', 'cancelado'].includes(post.status) && (
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => retryPost(post._id)} disabled={retryingId === post._id}>
+                      {retryingId === post._id ? '...' : '↺ Retry'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {postPagination && postPagination.pages > 1 && (
+              <div className="pagination">
+                <button className="btn btn-ghost btn-sm" disabled={postPage <= 1} onClick={() => goToPostPage(postPage - 1)}>← Anterior</button>
+                <span>Página {postPagination.page} de {postPagination.pages} · {postPagination.total} posts</span>
+                <button className="btn btn-ghost btn-sm" disabled={postPage >= postPagination.pages} onClick={() => goToPostPage(postPage + 1)}>Próxima →</button>
+              </div>
+            )}
+          </div>
+        )}
+      </PageShell>
+    </>
   );
 }

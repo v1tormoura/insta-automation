@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
+import PageShell from '../components/PageShell';
 
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
@@ -54,45 +56,49 @@ export default function ViralHunter() {
     }
   }
 
-  return (
-    <>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--cyan)', textTransform: 'uppercase', letterSpacing: '.8px', marginBottom: 4 }}>Viralizar</div>
-        <h1>Caçador de Virais</h1>
-        <p style={{ color: 'var(--text2)', fontSize: 13, marginTop: 4 }}>
-          Mine os vídeos mais virais do seu nicho direto da API do Instagram — download em qualidade original
-        </p>
-      </div>
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  );
 
-      {/* Search bar */}
-      <form onSubmit={search} className="card card-p" style={{ marginBottom: 18 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Hashtag input */}
-          <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--cyan)', fontSize: 16, fontWeight: 700, pointerEvents: 'none' }}>#</span>
+  const pageActions = (
+    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
+      {[['top','🔥 Top'], ['recent','🕐 Recentes']].map(([v, l]) => (
+        <button key={v} onClick={() => setType(v)} style={{
+          height:26, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
+          border:'none', cursor:'pointer', transition:'.15s',
+          background: type === v ? 'var(--cyan)' : 'transparent',
+          color: type === v ? '#040e1c' : 'var(--text3)',
+        }}>{l}</button>
+      ))}
+    </div>
+  );
+
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const inputStyle = { flex:1, minWidth:200, padding:'9px 9px 9px 30px', background:'oklch(0.10 0.03 235 / 0.8)', border:'1px solid oklch(1 0 0 / 0.09)', borderRadius:8, color:'var(--text)', fontSize:13, outline:'none' };
+
+  return (
+    <PageShell icon={pageIcon} title="Caçador de Virais" subtitle="Mine os vídeos mais virais do seu nicho direto da API do Instagram" accent="cyan" actions={pageActions}>
+
+      {/* Search form */}
+      <form onSubmit={search} style={{ ...cardStyle, padding:'16px', marginBottom:14 }}>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+          <div style={{ flex:1, minWidth:200, position:'relative' }}>
+            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--cyan)', fontSize:16, fontWeight:700, pointerEvents:'none' }}>#</span>
             <input
-              className="input"
-              style={{ paddingLeft: 28, fontWeight: 600 }}
+              style={inputStyle}
               placeholder="hot"
               value={hashtag}
               onChange={e => setHashtag(e.target.value.replace(/^#/, ''))}
             />
           </div>
 
-          {/* Top / Recent toggle */}
-          <div className="tabs" style={{ flexShrink: 0 }}>
-            {[['top', '🔥 Top'], ['recent', '🕐 Recentes']].map(([v, l]) => (
-              <button key={v} type="button" className={`tab${type === v ? ' active' : ''}`} onClick={() => setType(v)}>{l}</button>
-            ))}
-          </div>
-
-          <button type="submit" className="btn btn-cyan" style={{ flexShrink: 0 }} disabled={loading || !hashtag.trim()}>
+          <button type="submit" className="btn-primary" style={{ flexShrink:0, height:38, padding:'0 18px', borderRadius:8, opacity:(loading || !hashtag.trim()) ? .5 : 1 }} disabled={loading || !hashtag.trim()}>
             {loading ? '⏳ Minerando...' : '⚡ Minerar virais'}
           </button>
         </div>
-
-        {/* Info */}
-        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ marginTop:10, fontSize:11, color:'var(--text3)', display:'flex', alignItems:'center', gap:6 }}>
           <span>📡</span>
           Busca via Instagram Graph API · apenas vídeos · download com qualidade 100% original · requer conta com API conectada
         </div>
@@ -103,58 +109,54 @@ export default function ViralHunter() {
         const isTokenErr = /oauth|cannot parse|invalid.*token/i.test(error);
         const isNoAcct   = /nenhuma conta/i.test(error);
         return (
-          <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 12, padding: '14px 18px', marginBottom: 14 }}>
-            <div style={{ color: '#f87171', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-              ⚠️ {error}
-            </div>
+          <div style={{ background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius:12, padding:'14px 18px', marginBottom:14 }}>
+            <div style={{ color:'#f87171', fontSize:13, fontWeight:700, marginBottom:8 }}>⚠️ {error}</div>
             {isTokenErr && (
-              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
-                A busca por hashtags usa o endpoint <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 4 }}>ig_hashtag_search</code> da Meta,
-                que exige permissões adicionais de Facebook Login (<code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 4 }}>instagram_basic</code> + <code style={{ background: 'var(--bg3)', padding: '1px 5px', borderRadius: 4 }}>pages_read_engagement</code>).
-                Acesse <a href="/accounts" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>Contas</a> e reconecte sua conta — o app solicitará as permissões corretas automaticamente.
+              <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.7 }}>
+                A busca por hashtags usa o endpoint <code style={{ background:'oklch(0.12 0.04 235)', padding:'1px 5px', borderRadius:4 }}>ig_hashtag_search</code> da Meta.
+                Acesse <a href="/accounts" style={{ color:'var(--cyan)' }}>Contas</a> e reconecte sua conta.
               </div>
             )}
             {isNoAcct && (
-              <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
-                Nenhuma conta está conectada via Instagram Graph API. Acesse{' '}
-                <a href="/accounts" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>Contas</a> e conecte uma conta Business/Creator.
+              <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.6 }}>
+                Nenhuma conta conectada via Instagram Graph API. Acesse <a href="/accounts" style={{ color:'var(--cyan)' }}>Contas</a> e conecte uma conta Business/Creator.
               </div>
             )}
           </div>
         );
       })()}
 
-      {/* Empty state */}
+      {/* Empty states */}
       {!searched && !error && (
-        <div className="empty-state">
-          <div className="empty-icon">⚡</div>
-          <div className="empty-title">Pronto para minerar</div>
-          <div className="empty-sub">Digite uma hashtag do seu nicho e clique em Minerar para encontrar os vídeos mais virais via Graph API.</div>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>⚡</div>
+          <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Pronto para minerar</div>
+          <div style={{ fontSize:13, color:'var(--text3)' }}>Digite uma hashtag do seu nicho e clique em Minerar para encontrar os vídeos mais virais.</div>
         </div>
       )}
 
       {searched && !loading && !error && items.length === 0 && (
-        <div className="empty-state">
-          <div className="empty-icon">🎬</div>
-          <div className="empty-title">Nenhum vídeo encontrado</div>
-          <div className="empty-sub">Sem vídeos nessa hashtag ou a conta não tem permissão para buscar este conteúdo.</div>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>🎬</div>
+          <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Nenhum vídeo encontrado</div>
+          <div style={{ fontSize:13, color:'var(--text3)' }}>Sem vídeos nessa hashtag ou a conta não tem permissão para buscar este conteúdo.</div>
         </div>
       )}
 
-      {/* Results meta */}
+      {/* Meta info */}
       {meta && items.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, fontSize: 12, color: 'var(--text2)' }}>
-          <span style={{ fontWeight: 700, color: 'var(--cyan)', fontSize: 14 }}>#{meta.hashtag}</span>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, fontSize:12, color:'var(--text2)' }}>
+          <span style={{ fontWeight:700, color:'var(--cyan)', fontSize:14 }}>#{meta.hashtag}</span>
           <span>·</span>
           <span>{meta.videos} vídeos encontrados de {meta.total} posts</span>
           <span>·</span>
-          <span style={{ color: 'var(--green)' }}>● API Graph</span>
+          <span style={{ color:'var(--green)' }}>● API Graph</span>
         </div>
       )}
 
       {/* Cards grid */}
       {items.length > 0 && (
-        <div className="g4" style={{ gap: 12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))', gap:10 }}>
           {items.map((v, idx) => {
             const isLoading = downloading === v.igMediaId;
             const isDone    = !!done[v.igMediaId];
@@ -162,89 +164,71 @@ export default function ViralHunter() {
             const age       = v.postedAt ? Math.round((Date.now() - new Date(v.postedAt)) / 86400000) : null;
 
             return (
-              <div key={v.igMediaId} className="card" style={{ overflow: 'hidden' }}>
-                {/* Rank stripe */}
-                <div style={{ height: 3, background: idx < 3 ? 'linear-gradient(90deg,var(--cyan),var(--indigo))' : 'rgba(255,255,255,.06)' }} />
+              <motion.div
+                key={v.igMediaId}
+                initial={{ opacity:0, y:6 }}
+                animate={{ opacity:1, y:0 }}
+                transition={{ delay:idx*.03, duration:.18 }}
+                style={{ ...cardStyle, borderRadius:12 }}
+              >
+                <div style={{ height:3, background: idx < 3 ? 'linear-gradient(90deg,var(--cyan),oklch(0.68 0.18 270))' : 'oklch(1 0 0 / 0.06)' }} />
 
-                {/* Thumbnail */}
-                <div style={{ height: 130, background: 'linear-gradient(135deg,var(--bg3),var(--bg4))', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ height:130, background:'linear-gradient(135deg,oklch(0.12 0.04 235),oklch(0.16 0.05 235))', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}>
                   {thumb
-                    ? <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
-                    : <span style={{ fontSize: 40 }}>🎬</span>
+                    ? <img src={thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
+                    : <span style={{ fontSize:40 }}>🎬</span>
                   }
-                  {/* Rank badge */}
-                  <div style={{ position: 'absolute', top: 8, left: 8 }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 10,
-                      background: idx < 3 ? 'rgba(0,212,255,.85)' : 'rgba(0,0,0,.6)',
-                      color: idx < 3 ? '#000' : '#aaa',
-                    }}>#{idx + 1}</span>
+                  <div style={{ position:'absolute', top:8, left:8 }}>
+                    <span style={{ fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:10, background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.9)' : 'oklch(0 0 0 / 0.6)', color: idx < 3 ? '#040e1c' : '#aaa' }}>#{idx + 1}</span>
                   </div>
-                  {/* Done overlay */}
                   {isDone && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(16,185,129,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(16,185,129,.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✓</div>
+                    <div style={{ position:'absolute', inset:0, background:'oklch(0.72 0.18 150 / 0.25)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <div style={{ width:44, height:44, borderRadius:'50%', background:'oklch(0.72 0.18 150 / 0.9)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>✓</div>
                     </div>
                   )}
                 </div>
 
-                {/* Info */}
-                <div style={{ padding: '10px 12px 12px' }}>
-                  {age !== null && (
-                    <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 6 }}>Postado há {age}d</div>
-                  )}
-
+                <div style={{ padding:'10px 12px 12px' }}>
+                  {age !== null && <div style={{ fontSize:10, color:'var(--text3)', marginBottom:6 }}>Postado há {age}d</div>}
                   {v.caption && (
-                    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <div style={{ fontSize:11, color:'var(--text2)', marginBottom:8, lineHeight:1.4, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
                       {v.caption}
                     </div>
                   )}
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: 10, fontSize: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ color: 'var(--text3)', fontSize: 11 }}>❤️</span>
-                      <strong>{fmtK(v.likeCount)}</strong>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ color: 'var(--text3)', fontSize: 11 }}>💬</span>
-                      <strong>{fmtK(v.commentsCount)}</strong>
-                    </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 8px', marginBottom:10, fontSize:12 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ fontSize:11 }}>❤️</span><strong>{fmtK(v.likeCount)}</strong></div>
+                    <div style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ fontSize:11 }}>💬</span><strong>{fmtK(v.commentsCount)}</strong></div>
                   </div>
-
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button
-                      className={`btn btn-sm ${isDone ? 'btn-ghost' : 'btn-primary'}`}
-                      style={{ flex: 1, justifyContent: 'center' }}
-                      onClick={() => handleDownload(v)}
-                      disabled={isLoading || isDone}
-                    >
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button className={isDone ? 'btn-ghost' : 'btn-primary'} style={{ flex:1, height:32, borderRadius:7, fontSize:11 }} onClick={() => handleDownload(v)} disabled={isLoading || isDone}>
                       {isLoading ? '⏳ Baixando...' : isDone ? '✓ Baixado' : '⬇ Baixar HD'}
                     </button>
                     {v.permalink && (
-                      <a href={v.permalink} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" title="Ver no Instagram">↗</a>
+                      <a href={v.permalink} target="_blank" rel="noreferrer" className="btn-ghost" style={{ height:32, width:32, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>↗</a>
                     )}
                     {isDone && done[v.igMediaId] && (
-                      <a href={`${API_BASE}${done[v.igMediaId]}`} download className="btn btn-ghost btn-sm" title="Salvar arquivo">💾</a>
+                      <a href={`${API_BASE}${done[v.igMediaId]}`} download className="btn-ghost" style={{ height:32, width:32, borderRadius:7, display:'flex', alignItems:'center', justifyContent:'center' }}>💾</a>
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* Footer */}
-      <div className="card card-p" style={{ marginTop: 16, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-        <div style={{ fontSize: 22, flexShrink: 0 }}>🔒</div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}>Download via CDN oficial — qualidade 100% original</div>
-          <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
-            Os vídeos são encontrados via <strong>Instagram Graph API</strong> usando a hashtag do nicho e baixados diretamente do CDN oficial do Meta — sem perda de qualidade.
-            As URLs do CDN expiram em alguns minutos, então baixe logo após a busca.
+      {/* Footer info */}
+      {(items.length > 0 || searched) && (
+        <div style={{ marginTop:14, ...cardStyle, padding:'14px 18px', display:'flex', alignItems:'flex-start', gap:14 }}>
+          <div style={{ fontSize:22, flexShrink:0 }}>🔒</div>
+          <div>
+            <div style={{ fontWeight:600, fontSize:13, marginBottom:3 }}>Download via CDN oficial — qualidade 100% original</div>
+            <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.6 }}>
+              Os vídeos são encontrados via <strong>Instagram Graph API</strong> e baixados diretamente do CDN oficial do Meta. As URLs expiram em minutos — baixe logo após a busca.
+            </div>
           </div>
         </div>
-      </div>
-    </>
+      )}
+    </PageShell>
   );
 }
