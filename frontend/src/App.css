@@ -1,11 +1,9 @@
 /* App.css — legacy page-specific classes (resets/vars now in index.css) */
 
 /* ── TABLE SCROLL (accounts & other pages) ── */
-.tbl-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tbl-scroll-wrap::-webkit-scrollbar { height: 4px; }
 .tbl-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
 .tbl-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(99,102,241,.35); border-radius: 4px; }
-.tbl-scroll-inner { min-width: 700px; }
 
 /* ── PAGE HEADER (used by old pages) ── */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
@@ -50,7 +48,7 @@
 /* ── STATS GRID ── */
 .stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 20px; }
 
-/* ── GRIDS ── */
+/* ── GRIDS (page-specific) ── */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 

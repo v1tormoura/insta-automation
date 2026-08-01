@@ -1,6 +1,7 @@
 import './App.css';
 
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
@@ -35,6 +36,21 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   return (
+    <>
+    <Toaster
+      position="bottom-right"
+      theme="dark"
+      richColors
+      toastOptions={{
+        style: {
+          background: 'rgba(10,20,38,.96)',
+          border: '1px solid rgba(0,212,255,.2)',
+          color: '#e2edfd',
+          backdropFilter: 'blur(16px)',
+          fontSize: '13px',
+        },
+      }}
+    />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/termos" element={<Termos />} />
@@ -71,5 +87,6 @@ export default function App() {
         </PrivateRoute>
       } />
     </Routes>
+    </>
   );
 }

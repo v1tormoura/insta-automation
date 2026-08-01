@@ -1,5 +1,6 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { removeToken } from '../services/auth';
 import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification, clearNotifications, markRead, useNotifications } from '../services/useNotifications';
@@ -240,12 +241,19 @@ export default function MainLayout({ children }) {
   return (
     <div className="appShell">
       {/* Drawer overlay */}
-      {drawerOpen && (
-        <div
-          onClick={() => setDrawerOpen(false)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 99, backdropFilter: 'blur(4px)' }}
-        />
-      )}
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.div
+            key="overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: .2 }}
+            onClick={() => setDrawerOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 99, backdropFilter: 'blur(4px)' }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Drawer sidebar */}
       <aside className={`drawer${drawerOpen ? ' drawer-open' : ''}${collapsed ? ' collapsed' : ''}`}>
