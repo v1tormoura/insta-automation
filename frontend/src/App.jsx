@@ -28,6 +28,7 @@ import Limpador from './pages/Limpador';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
+import ApiMeta from './pages/ApiMeta';
 import { isAuthenticated } from './services/auth';
 
 function PrivateRoute({ children }) {
@@ -82,6 +83,7 @@ export default function App() {
               <Route path="/faturamento"    element={<Faturamento />} />
               <Route path="/performance"    element={<Performance />} />
               <Route path="/limpador"       element={<Limpador />} />
+              <Route path="/api-meta"       element={<ApiMeta />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>

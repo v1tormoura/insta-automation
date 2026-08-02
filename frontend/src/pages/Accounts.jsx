@@ -48,6 +48,8 @@ export default function Accounts() {
   const [tokenValue,     setTokenValue]     = useState('');
   const [tokenConnecting,setTokenConnecting]= useState(false);
   const [tokenError,     setTokenError]     = useState('');
+  const [metaApps,       setMetaApps]       = useState([]);
+  const [selectedAppId,  setSelectedAppId]  = useState('');
   const [connecting,     setConnecting]     = useState({});
   const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
@@ -70,6 +72,15 @@ export default function Accounts() {
       setAccounts(list); setPagination(res.data.pagination || null);
       localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(list));
     } catch (err) { console.log('Erro ao carregar contas:', err.message); }
+  }
+
+  async function loadMetaApps() {
+    try {
+      const res = await api.get('/meta-apps');
+      setMetaApps(res.data || []);
+      const def = res.data?.find(a => a.isDefault);
+      if (def) setSelectedAppId(def._id);
+    } catch { /* silencioso — apps opcionais */ }
   }
 
   async function syncAll() {
@@ -99,6 +110,7 @@ export default function Accounts() {
   });
   useEffect(() => {
     loadRef.current?.();
+    loadMetaApps();
     const t = setInterval(() => loadRef.current?.(), 3000);
     return () => clearInterval(t);
   }, []);
@@ -116,7 +128,7 @@ export default function Accounts() {
     const key = account?._id || 'new';
     setConnecting(p => ({ ...p, [key]: true }));
     try {
-      const params = account?._id ? { accountId: account._id } : {};
+      const params = { ...(account?._id ? { accountId: account._id } : {}), ...(selectedAppId ? { metaAppId: selectedAppId } : {}) };
       const res = await api.get('/oauth/url', { params });
       const url = res.data?.url;
       if (!url) throw new Error('URL não retornada');
@@ -537,6 +549,23 @@ export default function Accounts() {
               </div>
               <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); setTokenValue(''); setTokenError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
+
+            {/* ── Seletor de App Meta (só aparece se há >1 app) ── */}
+            {metaApps.length > 1 && (
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: .5, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>App Meta a usar</label>
+                <select
+                  value={selectedAppId}
+                  onChange={e => setSelectedAppId(e.target.value)}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 13, outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value="">— Padrão do servidor (env vars) —</option>
+                  {metaApps.map(a => (
+                    <option key={a._id} value={a._id}>{a.name}{a.isDefault ? ' ★' : ''} — {a.appId}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* ── Conexão rápida por token ── */}
             <div style={{ background:'rgba(0,212,255,.05)', border:'1px solid rgba(0,212,255,.18)', borderRadius:12, padding:'16px 18px', marginBottom:20 }}>

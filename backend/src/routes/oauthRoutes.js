@@ -9,6 +9,7 @@ const https   = require('https');
 const { URL } = require('url');
 const { broadcast }       = require('../events/broadcaster');
 const { runHealthCheck }  = require('../jobs/healthCheck');
+const MetaApp             = require('../models/MetaApp');
 
 // Reliable HTTPS POST using core Node.js https module.
 // Avoids undici / native fetch SSL issues on Windows.
@@ -54,6 +55,23 @@ const IG_GRAPH = 'https://graph.instagram.com/v21.0';
 function getAppId()     { return process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID; }
 function getAppSecret() { return process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET; }
 
+// Retorna credenciais de um MetaApp do banco (por _id) ou do app padrão.
+// Retorna null se não há nenhum app cadastrado — cai no fallback de env vars.
+async function resolveMetaApp(metaAppId) {
+  try {
+    const doc = metaAppId
+      ? await MetaApp.findById(metaAppId).lean()
+      : await MetaApp.findOne({ isDefault: true }).lean();
+    if (!doc) return null;
+    return {
+      appId:     doc.instagramAppId  || doc.appId,
+      appSecret: doc.instagramAppSecret || doc.appSecret,
+      loginConfigId: doc.loginConfigId || '',
+      _id: String(doc._id),
+    };
+  } catch { return null; }
+}
+
 const REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'http://localhost:5200/oauth-callback';
 const FRONTEND     = process.env.FRONTEND_URL || 'http://localhost:5200';
 
@@ -67,16 +85,18 @@ const SCOPES = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function exchangeCodeForToken(code) {
+async function exchangeCodeForToken(code, creds) {
+  const appId     = creds?.appId     || getAppId();
+  const appSecret = creds?.appSecret || getAppSecret();
   const params = new URLSearchParams({
-    client_id:     getAppId(),
-    client_secret: getAppSecret(),
+    client_id:     appId,
+    client_secret: appSecret,
     grant_type:    'authorization_code',
     redirect_uri:  REDIRECT_URI,
     code,
   });
 
-  console.log('📤 [OAuth] Trocando código por token...', { redirect_uri: REDIRECT_URI, appId: getAppId() });
+  console.log('📤 [OAuth] Trocando código por token...', { redirect_uri: REDIRECT_URI, appId });
 
   let text, data, lastErr;
   for (const endpoint of IG_TOKEN_ENDPOINTS) {
@@ -139,8 +159,8 @@ async function exchangeCodeForToken(code) {
   return { shortToken, userId: userIdStr };
 }
 
-async function getLongLivedToken(shortToken) {
-  const secret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
+async function getLongLivedToken(shortToken, creds) {
+  const secret = creds?.appSecret || process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
   if (!secret) throw new Error('META_APP_SECRET não configurado');
 
   // Passo 1: ig_exchange_token — troca curto por longo (60 dias).
@@ -252,22 +272,29 @@ async function getIgProfile(userId, accessToken) {
 // ── GET /oauth/url ─────────────────────────────────────────────────────────────
 // Gera a URL de autorização do Instagram (não Facebook).
 
-router.get('/url', (req, res) => {
-  // instagram.com/oauth/authorize requer INSTAGRAM_APP_ID (sub-app automação-IG: 790847580661717)
-  const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
-  if (!appId) return res.status(500).json({ error: 'INSTAGRAM_APP_ID não configurado no .env' });
+router.get('/url', async (req, res) => {
+  // Usa MetaApp do banco se disponível, senão cai nas env vars
+  const metaAppId  = req.query.metaAppId || null;
+  const dbApp      = await resolveMetaApp(metaAppId);
+  const appId      = dbApp?.appId || process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
+  if (!appId) return res.status(500).json({ error: 'INSTAGRAM_APP_ID não configurado' });
+
+  // Encoda o metaAppId no state para o callback saber qual app usar
+  const accountId = req.query.accountId || 'new';
+  const state     = dbApp ? `${accountId}__mapp_${dbApp._id}` : accountId;
 
   const params = new URLSearchParams({
     client_id:     appId,
     redirect_uri:  REDIRECT_URI,
     scope:         SCOPES,
     response_type: 'code',
-    state:         req.query.accountId || 'new',
+    state,
   });
+  if (dbApp?.loginConfigId) params.set('config_id', dbApp.loginConfigId);
 
   const url = `${IG_AUTH}?${params.toString()}`;
-  console.log(`🔗 [OAuth] App ID: ${appId} | redirect_uri: ${REDIRECT_URI}`);
-  res.json({ url });
+  console.log(`🔗 [OAuth] App ID: ${appId} | metaApp: ${dbApp?._id || 'env'} | redirect_uri: ${REDIRECT_URI}`);
+  res.json({ url, metaAppId: dbApp?._id || null });
 });
 
 // ── POST /oauth/connect-by-token ─────────────────────────────────────────────
@@ -350,8 +377,17 @@ router.post('/connect-by-token', async (req, res) => {
 // accountId = _id da conta existente  OU  'new' (cria nova conta a partir do perfil)
 
 router.post('/connect/:accountId', async (req, res) => {
-  const { accountId } = req.params;
+  let { accountId } = req.params;
   const { pastedUrl }  = req.body;
+
+  // Extrai metaAppId do state se presente (formato: "accountId__mapp_<docId>")
+  let metaAppDocId = null;
+  if (accountId.includes('__mapp_')) {
+    const parts  = accountId.split('__mapp_');
+    accountId    = parts[0];
+    metaAppDocId = parts[1];
+  }
+  const dbApp = await resolveMetaApp(metaAppDocId);
 
   if (!pastedUrl) return res.status(400).json({ error: 'Nenhuma URL fornecida.' });
 
@@ -370,15 +406,15 @@ router.post('/connect/:accountId', async (req, res) => {
   }
 
   try {
-    // 1. Código → short token
-    const { shortToken, userId: userIdStr } = await exchangeCodeForToken(code);
+    // 1. Código → short token (usa credenciais do app selecionado)
+    const { shortToken, userId: userIdStr } = await exchangeCodeForToken(code, dbApp);
 
     // 2. Troca short → long-lived (60 dias)
     let accessToken    = shortToken;
     let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback: 1h (token curto)
 
     try {
-      const ll = await getLongLivedToken(shortToken);
+      const ll = await getLongLivedToken(shortToken, dbApp);
       accessToken    = ll.accessToken;
       tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
       console.log(`✅ [OAuth Connect] Long-lived token obtido (expira em ${Math.round(ll.expiresIn / 86400)} dias)`);
