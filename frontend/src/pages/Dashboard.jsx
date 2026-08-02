@@ -254,10 +254,13 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
    ── FILA DE POSTAGENS
    ══════════════════════════════════════════════════════ */
 function QueuePanel({ d, accountStats }) {
-  const naFila      = d.pendingPosts    || 0;
-  const processando = d.processingPosts || 0;
-  const proximas24h = d.scheduledPosts  || 0;
-  const emCooldown  = d.cooldownPosts   || 0;
+  const naFila      = (d.pendingPosts || 0) + (d.scheduledPosts || 0);
+  const processando = d.processingPosts  || 0;
+  const cutoff24h   = Date.now() + 24 * 60 * 60 * 1000;
+  const proximas24h = (d.upcomingPosts || []).filter(p =>
+    !p.scheduledAt || new Date(p.scheduledAt) <= cutoff24h
+  ).length;
+  const emCooldown  = d.cooldownAccounts || 0;
   const postsHoje   = d.postsToday      || 0;
   const metaHoje    = d.dailyPostLimit  || 0;
   const progresso   = metaHoje > 0 ? Math.min(100, Math.round(postsHoje / metaHoje * 100)) : 0;
@@ -345,7 +348,7 @@ function QueuePanel({ d, accountStats }) {
         <div style={{ margin:'0 14px 10px', padding:'8px 12px', background:'linear-gradient(90deg,rgba(0,212,255,.05),rgba(0,212,255,.02))', border:'1px solid rgba(0,212,255,.14)', borderRadius:10, display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
           <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)', boxShadow:'0 0 8px var(--green)', flexShrink:0, animation:'blink 1.8s infinite' }} />
           <span style={{ fontSize:11, color:'var(--text2)' }}>Próximo</span>
-          <span style={{ fontSize:11, fontWeight:700, color:'var(--cyan)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{proximoItem.accounts?.[0]?.username || proximoItem.accounts?.[0]?.name || '—'}</span>
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--cyan)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{(() => { const a = (proximoItem.accounts||[]).find(x => x && typeof x === 'object' && x.username); return a?.username || '—'; })()}</span>
           <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginLeft:'auto', flexShrink:0 }}>{fmtTime(proximoItem.scheduledAt)}</span>
         </div>
       )}
@@ -359,15 +362,17 @@ function QueuePanel({ d, accountStats }) {
           </div>
         ) : (
           <div>
-            {queueItems.map((item, i) => (
+            {queueItems.map((item, i) => {
+              const acc = (item.accounts||[]).find(a => a && typeof a === 'object' && a.username);
+              return (
               <motion.div key={item._id || i} initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*.04 }}
                 style={{ display:'flex', alignItems:'center', gap:9, padding:'7px 6px', borderRadius:8, borderBottom:'1px solid rgba(255,255,255,.03)', transition:'background .15s' }}
                 onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.03)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
-                <AvatarChip username={item.accounts?.[0]?.username} avatar={item.accounts?.[0]?.avatar} size={26} />
+                <AvatarChip username={acc?.username} avatar={acc?.avatar} size={26} />
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{item.accounts?.[0]?.username || '—'}</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{acc?.username || '—'}</div>
                   <div style={{ fontSize:10, color:'var(--text3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{item.postType || 'Reels'}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
@@ -377,7 +382,8 @@ function QueuePanel({ d, accountStats }) {
                   </div>
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -903,13 +909,19 @@ export default function Dashboard() {
   const sparkDaily   = useMemo(() => (d.dailyPosts||[]).slice(-period).map(x => x.posts||0), [d.dailyPosts, period]);
   const forecastData = useMemo(() => {
     const past = (d.dailyPosts||[]).slice(-period).map(x => ({ day:x.label||x.date||'', value:x.posts||0 }));
+    const todayKey = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
     const futureMap = {};
     (d.upcomingPosts||[]).forEach(post => {
-      if (!post.scheduledAt) return;
-      const key = new Date(post.scheduledAt).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+      const key = post.scheduledAt
+        ? new Date(post.scheduledAt).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })
+        : todayKey;
       futureMap[key] = (futureMap[key]||0)+1;
     });
-    Object.entries(futureMap).forEach(([day,value]) => past.push({ day, value, forecast:true }));
+    Object.entries(futureMap).forEach(([day, value]) => {
+      const existing = past.find(p => p.day === day);
+      if (existing) existing.value += value;
+      else past.push({ day, value, forecast:true });
+    });
     return past;
   }, [d.dailyPosts, d.upcomingPosts, period]);
 
@@ -984,7 +996,7 @@ export default function Dashboard() {
           <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={sparkDaily} delay={0}    />
           <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit||'—'}`}                          orbType="warm"   spark={sparkDaily} delay={.06}  />
           <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="violet" spark={sparkDaily} delay={.12}  />
-          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={sparkDaily} delay={.18} />
+          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={sparkDaily} delay={.18} />
         </motion.section>
 
         {/* ── FILA · LOOPS · TOP CONTAS ── */}

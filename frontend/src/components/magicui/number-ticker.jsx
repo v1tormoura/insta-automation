@@ -31,6 +31,6 @@ export function NumberTicker({ value, direction = 'up', delay = 0, className, de
     <span
       className={cn('inline-block tabular-nums tracking-tighter', className)}
       ref={ref}
-    />
+    >0</span>
   );
 }

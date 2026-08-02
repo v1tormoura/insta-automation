@@ -57,6 +57,7 @@ exports.getDashboard = async (req, res) => {
     const expiredSessions       = accounts.filter((a) => a.healthStatus === 'sessao_expirada').length;
     const loginErrorAccounts    = accounts.filter((a) => a.healthStatus === 'erro_login').length;
     const busyAccounts          = accounts.filter((a) => a.isBusy).length;
+    const cooldownAccounts      = accounts.filter((a) => a.dailyPostLimit > 0 && (a.postsToday || 0) >= a.dailyPostLimit).length;
 
     const sessionsOk = accounts.filter((a) => hasSession(a.username)).length;
     const sessionsMissing = totalAccounts - sessionsOk;
@@ -148,7 +149,7 @@ exports.getDashboard = async (req, res) => {
     })
       .populate('accounts')
       .sort({ scheduledAt: 1 })
-      .limit(10);
+      .limit(200);
 
     const latestPosts = await Post.find().populate('accounts').sort({ updatedAt: -1 }).limit(10);
 
@@ -325,6 +326,7 @@ exports.getDashboard = async (req, res) => {
       bannedAccounts,
       loginErrorAccounts,
       busyAccounts,
+      cooldownAccounts,
       topGrowth,
       sessionsOk,
       sessionsMissing,
