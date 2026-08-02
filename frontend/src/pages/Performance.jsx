@@ -53,10 +53,12 @@ export default function Performance() {
 
       const insights = d.insights || [];
 
+      const BAD = ['banida','banido','restrita','token_invalido','sessao_expirada','desconectada'];
       const byAccount = {};
       insights.forEach(p => {
         const key = p.username || String(p.accountId);
         const acct = aMap[key];
+        if (acct && BAD.includes(acct.healthStatus)) return; // skip contas fora de serviço
         if (!byAccount[key]) byAccount[key] = {
           username: key,
           views: 0, likes: 0, saves: 0, posts: 0,
