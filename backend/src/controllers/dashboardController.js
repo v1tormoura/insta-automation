@@ -144,10 +144,7 @@ exports.getDashboard = async (req, res) => {
     const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;
 
     const upcomingPosts = await Post.find({
-      $or: [
-        { status: 'agendado', scheduledAt: { $gte: new Date() } },
-        { status: { $in: ['pendente', 'processando'] } },
-      ],
+      status: { $in: ['agendado', 'pendente', 'processando'] },
     })
       .populate('accounts')
       .sort({ scheduledAt: 1 })
