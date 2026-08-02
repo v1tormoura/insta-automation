@@ -1,25 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
-    <linearGradient id="s" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#93c5fd"/>
-      <stop offset="55%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#1d4ed8"/>
+    <linearGradient id="ln" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#00d4ff"/>
     </linearGradient>
-    <linearGradient id="t" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#bfdbfe"/>
-      <stop offset="100%" stop-color="#60a5fa"/>
-    </linearGradient>
+    <radialGradient id="nd" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </radialGradient>
   </defs>
-  <polygon points="28,9 16,2 4,9 4,23 16,30 28,23"
-    fill="rgba(59,130,246,0.12)"
-    stroke="url(#s)"
-    stroke-width="1.5"
-    stroke-linejoin="round"/>
-  <text x="16" y="20"
-    text-anchor="middle"
-    font-family="'Arial Black',Arial,Helvetica,sans-serif"
-    font-size="12"
-    font-weight="900"
-    fill="url(#t)"
-    letter-spacing="-0.5">MF</text>
+  <line x1="5" y1="27" x2="5"  y2="5"  stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
+  <line x1="5" y1="5"  x2="16" y2="15" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
+  <line x1="16" y1="15" x2="27" y2="5" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
+  <line x1="27" y1="5"  x2="27" y2="27" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
+  <line x1="5"  y1="27" x2="27" y2="27" stroke="url(#ln)" stroke-width="1"   stroke-linecap="round" opacity="0.2"/>
+  <circle cx="5"  cy="27" r="3"   fill="url(#nd)"/>
+  <circle cx="5"  cy="5"  r="3"   fill="url(#nd)"/>
+  <circle cx="27" cy="5"  r="3"   fill="url(#nd)"/>
+  <circle cx="27" cy="27" r="3"   fill="url(#nd)"/>
+  <circle cx="16" cy="15" r="4.2" fill="url(#nd)"/>
 </svg>
