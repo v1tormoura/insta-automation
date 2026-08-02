@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 
-const PERIODS = ['7d', '30d', '90d'];
+const PERIODS = [['7d','7 dias'], ['30d','30 dias'], ['90d','90 dias']];
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const fmtK = v => { const n = Number(v || 0); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); };
 const avatarSrc = av => av
@@ -11,19 +11,22 @@ const avatarSrc = av => av
   : null;
 
 export default function BestTimes() {
-  const [data,    setData]    = useState(null);
-  const [period,  setPeriod]  = useState('30d');
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
+  const [data,       setData]       = useState(null);
+  const [period,     setPeriod]     = useState('30d');
+  const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error,      setError]      = useState('');
 
-  useEffect(() => {
-    setLoading(true);
+  function fetchData(isRefresh = false) {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     setError('');
     api.get(`/analytics/best-times?period=${period}`)
       .then(r => setData(r.data))
       .catch(e => setError(e.response?.data?.error || e.message))
-      .finally(() => setLoading(false));
-  }, [period]);
+      .finally(() => { setLoading(false); setRefreshing(false); });
+  }
+
+  useEffect(() => { fetchData(); }, [period]);
 
   const globalPeak = data?.globalPeak ?? null;
   const accounts   = data?.accounts || [];
@@ -35,15 +38,23 @@ export default function BestTimes() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
-      {PERIODS.map(p => (
-        <button key={p} onClick={() => setPeriod(p)} style={{
-          height:26, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
-          border:'none', cursor:'pointer', transition:'.15s',
-          background: period === p ? 'var(--cyan)' : 'transparent',
-          color: period === p ? '#040e1c' : 'var(--text3)',
-        }}>{p}</button>
-      ))}
+    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+      <button onClick={() => fetchData(true)} className="btn-ghost" disabled={refreshing || loading} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:8, fontSize:'.83rem' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
+        </svg>
+        Atualizar
+      </button>
+      <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
+        {PERIODS.map(([p, l]) => (
+          <button key={p} onClick={() => setPeriod(p)} style={{
+            height:26, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
+            border:'none', cursor:'pointer', transition:'.15s',
+            background: period === p ? 'var(--cyan)' : 'transparent',
+            color: period === p ? '#040e1c' : 'var(--text3)',
+          }}>{l}</button>
+        ))}
+      </div>
     </div>
   );
 
@@ -84,7 +95,7 @@ export default function BestTimes() {
             {[
               { label:'Pico global',       value: globalPeak !== null ? `${String(globalPeak).padStart(2,'0')}h` : '—', color:'var(--cyan)' },
               { label:'Contas analisadas', value: String(accounts.length), color:'oklch(0.68 0.18 270)' },
-              { label:'Período',           value: period, color:'var(--text2)' },
+              { label:'Período',           value: PERIODS.find(([p]) => p === period)?.[1] ?? period, color:'var(--text2)' },
               { label:'Fonte dos dados',   value: 'API oficial', color:'#22c55e' },
             ].map((s, i) => (
               <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.04 }}
