@@ -270,6 +270,80 @@ router.get('/url', (req, res) => {
   res.json({ url });
 });
 
+// ── POST /oauth/connect-by-token ─────────────────────────────────────────────
+// Conecta conta nova ou existente diretamente via token IGAA — sem fluxo OAuth.
+// Body: { token: string, accountId?: string }
+router.post('/connect-by-token', async (req, res) => {
+  const { token, accountId } = req.body;
+  if (!token?.trim()) return res.status(400).json({ error: 'Token obrigatório' });
+
+  try {
+    let accessToken    = token.trim();
+    let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback 1h
+
+    try {
+      const ll = await getLongLivedToken(accessToken);
+      accessToken    = ll.accessToken;
+      tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
+      console.log(`✅ [Token Connect] Long-lived token obtido (${Math.round(ll.expiresIn / 86400)} dias)`);
+    } catch (e) {
+      console.log(`ℹ️ [Token Connect] Usando token como fornecido: ${e.message}`);
+    }
+
+    // Busca perfil via Graph API
+    const meRes = await fetch(
+      `https://graph.instagram.com/me?fields=id,username,name,account_type,followers_count,follows_count,media_count,profile_picture_url&access_token=${accessToken}`,
+      { signal: AbortSignal.timeout(12_000) }
+    );
+    const me = await meRes.json();
+    if (me.error) throw new Error(me.error.message || 'Token inválido ou sem permissão');
+
+    const userIdStr = String(me.id);
+    const username  = me.username || userIdStr;
+
+    const profileFields = {
+      accessToken, igUserId: userIdStr, tokenExpiresAt, healthStatus: 'ativa', lastError: '',
+      name:       me.name                || username,
+      followers:  me.followers_count     || 0,
+      following:  me.follows_count       || 0,
+      postsCount: me.media_count         || 0,
+      avatar:     me.profile_picture_url || '',
+    };
+
+    // Conta existente informada → só atualiza token
+    if (accountId && accountId !== 'new') {
+      await Account.findByIdAndUpdate(accountId, profileFields);
+      broadcast('accounts', { action: 'oauth_connected', username, accountId });
+      setImmediate(() => runHealthCheck().catch(() => {}));
+      return res.json({ success: true, username, message: `@${username} reconectada via token!` });
+    }
+
+    // Nova conta → cria ou atualiza por igUserId / username
+    const existing = await Account.findOne({ $or: [{ igUserId: userIdStr }, { username }] });
+    if (existing) {
+      Object.assign(existing, profileFields);
+      await existing.save();
+    } else {
+      await Account.create({ username, ...profileFields });
+    }
+
+    broadcast('accounts', { action: 'oauth_connected', username });
+    setImmediate(() => runHealthCheck().catch(() => {}));
+
+    try {
+      const syncViaAPI = require('../services/syncAccountAPI');
+      const savedAcc   = await Account.findOne({ username }).lean();
+      if (savedAcc) setImmediate(() => syncViaAPI(savedAcc).catch(() => {}));
+    } catch {}
+
+    return res.json({ success: true, username, message: `@${username} conectada via token!` });
+
+  } catch (err) {
+    console.error('[Token Connect]', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ── POST /oauth/connect/:accountId ────────────────────────────────────────────
 // Recebe a URL colada pelo usuário (barra de endereços do navegador isolado).
 // Extrai o 'code', troca por token e salva na conta.

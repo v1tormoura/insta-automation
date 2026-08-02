@@ -45,6 +45,9 @@ export default function Accounts() {
   const [oauthConnecting, setOauthConnecting] = useState(false);
   const [oauthError,     setOauthError]     = useState('');
   const [urlCopied,      setUrlCopied]      = useState(false);
+  const [tokenValue,     setTokenValue]     = useState('');
+  const [tokenConnecting,setTokenConnecting]= useState(false);
+  const [tokenError,     setTokenError]     = useState('');
   const [connecting,     setConnecting]     = useState({});
   const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
@@ -139,6 +142,26 @@ export default function Accounts() {
       setOauthError(err.response?.data?.error || err.message || 'Falha ao conectar');
     } finally {
       setOauthConnecting(false);
+    }
+  }
+
+  async function handleTokenConnect() {
+    if (!tokenValue.trim()) return;
+    setTokenConnecting(true);
+    setTokenError('');
+    try {
+      const res = await api.post('/oauth/connect-by-token', {
+        token: tokenValue.trim(),
+        accountId: oauthModal?.account?._id || 'new',
+      });
+      const username = res.data?.username || '';
+      setOauthModal(null); setTokenValue(''); setCallbackUrl(''); setOauthWaiting(false);
+      showToast('success', 'Conta conectada!', `@${username} conectada via token`);
+      loadAccounts();
+    } catch (err) {
+      setTokenError(err.response?.data?.error || err.message || 'Token inválido');
+    } finally {
+      setTokenConnecting(false);
     }
   }
 
@@ -512,7 +535,56 @@ export default function Accounts() {
                   {oauthModal.account ? `Reconectar @${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
                 </div>
               </div>
-              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); setTokenValue(''); setTokenError(''); }} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* ── Conexão rápida por token ── */}
+            <div style={{ background:'rgba(0,212,255,.05)', border:'1px solid rgba(0,212,255,.18)', borderRadius:12, padding:'16px 18px', marginBottom:20 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>Conexão rápida por token</span>
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'rgba(0,212,255,.12)', color:'var(--cyan)', letterSpacing:.5 }}>RECOMENDADO</span>
+              </div>
+              <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10, lineHeight:1.6 }}>
+                Cole seu token <strong style={{ color:'var(--text2)' }}>IGAA</strong> abaixo. Obtenha-o em{' '}
+                <strong style={{ color:'var(--text2)' }}>Meta → Instagram → Gerar tokens de acesso</strong>.
+              </div>
+              <textarea
+                value={tokenValue}
+                onChange={e => { setTokenValue(e.target.value); setTokenError(''); }}
+                placeholder="IGAA_xxx..."
+                rows={2}
+                style={{
+                  width:'100%', boxSizing:'border-box', padding:'10px 12px',
+                  borderRadius:9, border:`1px solid ${tokenError ? 'rgba(239,68,68,.5)' : 'rgba(0,212,255,.2)'}`,
+                  background:'var(--bg3)', color:'var(--text)', fontSize:12,
+                  fontFamily:'monospace', resize:'none', lineHeight:1.5, outline:'none',
+                }}
+              />
+              {tokenError && <div style={{ fontSize:12, color:'#f87171', marginTop:6 }}>{tokenError}</div>}
+              <button
+                onClick={handleTokenConnect}
+                disabled={!tokenValue.trim() || tokenConnecting}
+                style={{
+                  marginTop:10, width:'100%', padding:'10px', borderRadius:9, border:'none',
+                  background: tokenValue.trim() ? 'var(--cyan)' : 'var(--bg3)',
+                  color: tokenValue.trim() ? '#000' : 'var(--text3)',
+                  fontSize:13, fontWeight:700, cursor: tokenValue.trim() ? 'pointer' : 'not-allowed',
+                  display:'flex', alignItems:'center', justifyContent:'center', gap:7,
+                  transition:'all .2s',
+                }}
+              >
+                {tokenConnecting
+                  ? <><span style={{ width:14, height:14, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Verificando token...</>
+                  : '⚡ Conectar com token'}
+              </button>
+            </div>
+
+            {/* OU VIA LINK OAUTH */}
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+              <div style={{ flex:1, height:1, background:'var(--border)' }} />
+              <span style={{ fontSize:11, fontWeight:700, color:'var(--text3)', letterSpacing:1 }}>OU VIA LINK OAUTH</span>
+              <div style={{ flex:1, height:1, background:'var(--border)' }} />
             </div>
 
             {/* Step 1 */}
@@ -583,7 +655,7 @@ export default function Accounts() {
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button
-                onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); }}
+                onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); setTokenValue(''); setTokenError(''); }}
                 style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancelar
