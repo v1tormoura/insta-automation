@@ -4,819 +4,708 @@ import { toast } from 'sonner';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 
+/* ─── constants ─────────────────────────────────── */
 const DEFAULT_COMMENTS = [
-  '🔥🔥🔥', '❤️', 'Incrível!', 'Muito bom!', '👏👏', 'Perfeito!',
-  'Que lindo!', '😍', 'Top demais!', '💯', 'Amei!', '👌',
-  'Sensacional!', '🙌', 'Maravilhoso!', 'Show!', '💪', 'Que demais!',
+  '🔥🔥🔥','❤️','Incrível!','Muito bom!','👏👏','Perfeito!',
+  'Que lindo!','😍','Top demais!','💯','Amei!','👌',
+  'Sensacional!','🙌','Maravilhoso!','Show!','💪','Que demais!',
 ];
 
 const ACTIONS = [
-  { value:'likes',        label:'Curtir comentários', icon:'❤️', color:'#f43f5e', desc:'Curte comentários nos seus posts',    api:'oficial' },
-  { value:'comments',     label:'Responder posts',    icon:'💬', color:'#3b82f6', desc:'Responde comentários automaticamente',api:'oficial' },
-  { value:'scroll_reels', label:'Rolar Reels',        icon:'🎬', color:'#8b5cf6', desc:'Assiste e curte reels no feed',       api:'privada' },
-  { value:'like_posts',   label:'Curtir Explorar',    icon:'🔍', color:'#10b981', desc:'Curte posts no Explorar',             api:'privada' },
+  { value:'likes',        label:'Curtir comentários', icon:'❤️', color:'#f43f5e', api:'oficial' },
+  { value:'comments',     label:'Responder posts',    icon:'💬', color:'#3b82f6', api:'oficial' },
+  { value:'scroll_reels', label:'Rolar Reels',        icon:'🎬', color:'#8b5cf6', api:'privada' },
+  { value:'like_posts',   label:'Curtir Explorar',    icon:'🔍', color:'#10b981', api:'privada' },
 ];
 
 const INTENSITY = [
-  { v:'leve',      label:'Leve',      color:'#22c55e', desc:'1-3 ações/ciclo' },
-  { v:'medio',     label:'Médio',     color:'#f59e0b', desc:'3-6 ações/ciclo' },
-  { v:'agressivo', label:'Agressivo', color:'#ef4444', desc:'6-10 ações/ciclo' },
+  { v:'leve',      label:'Leve',      color:'#22c55e', desc:'1–3 ações/ciclo' },
+  { v:'medio',     label:'Médio',     color:'#f59e0b', desc:'3–6 ações/ciclo' },
+  { v:'agressivo', label:'Agressivo', color:'#ef4444', desc:'6–10 ações/ciclo' },
 ];
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const avatarSrc = av => av
-  ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`)
-  : null;
-
+const avatarSrc = av => av ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`) : null;
 const BAD_HEALTH = ['restrita','banida','token_invalido','sessao_expirada','desconectada'];
+const LOG_COLOR  = { like:'#f43f5e',comment:'#3b82f6',follow:'#10b981',scroll:'#8b5cf6',cycle_start:'#f59e0b',cycle_done:'#22c55e',error:'#ef4444' };
+const LOG_ICON   = { like:'❤️',comment:'💬',follow:'➕',scroll:'🎬',cycle_start:'🔥',cycle_done:'✅',error:'❌' };
 
 function defaultCfg() {
-  return {
-    intensity: 'leve',
-    actions: ['likes'],
-    intervalMinutes: 30,
-    maxDurationHours: 2,
-    maxLikes: 6,
-    maxComments: 2,
-    commentList: DEFAULT_COMMENTS.join('\n'),
-  };
+  return { intensity:'leve', actions:['likes'], intervalMinutes:30, maxDurationHours:2, maxLikes:6, maxComments:2, commentList:DEFAULT_COMMENTS.join('\n') };
 }
 
-const LOG_ICON  = { like:'❤️', comment:'💬', follow:'➕', scroll:'🎬', cycle_start:'🔥', cycle_done:'✅', error:'❌' };
-const LOG_COLOR = { like:'#f43f5e', comment:'#3b82f6', follow:'#10b981', scroll:'#8b5cf6', cycle_start:'#f59e0b', cycle_done:'#22c55e', error:'#ef4444' };
+function fmtNum(v) { const n=Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); }
 
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m    = Math.floor(diff / 60000);
-  if (m < 1) return 'agora';
-  if (m < 60) return `${m}min atrás`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h atrás`;
-  return `${Math.floor(h / 24)}d atrás`;
+function timeAgo(d) {
+  const m=Math.floor((Date.now()-new Date(d).getTime())/60000);
+  if(m<1) return 'agora'; if(m<60) return `${m}min`; const h=Math.floor(m/60);
+  if(h<24) return `${h}h`; return `${Math.floor(h/24)}d`;
 }
 
-function fmtTime(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+function healthMeta(s) {
+  if(s==='restrita')        return {label:'Restrita',       color:'#f59e0b',bg:'rgba(245,158,11,.1)'};
+  if(s==='banida')          return {label:'Banida',         color:'#ef4444',bg:'rgba(239,68,68,.1)'};
+  if(s==='token_invalido')  return {label:'Token expirado', color:'#ef4444',bg:'rgba(239,68,68,.1)'};
+  if(s==='sessao_expirada') return {label:'Sessão expirada',color:'#f59e0b',bg:'rgba(245,158,11,.1)'};
+  if(s==='desconectada')    return {label:'Desconectada',   color:'#64748b',bg:'rgba(100,116,139,.1)'};
+  return {label:'Saudável',color:'#22c55e',bg:'rgba(34,197,94,.1)'};
 }
 
+/* ─── AnimCounter ─────────────────────────────────── */
+function useAnimCounter(target, delay=0) {
+  const [v,setV]=useState(0);
+  useEffect(()=>{
+    setV(0);
+    const t0=setTimeout(()=>{
+      const s0=performance.now(),dur=900;
+      const tick=now=>{
+        const p=Math.min((now-s0)/dur,1);
+        setV(Math.round((1-(1-p)**3)*target));
+        if(p<1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    },delay);
+    return()=>clearTimeout(t0);
+  },[target]);
+  return v;
+}
+
+/* ─── KpiTile ─────────────────────────────────────── */
+function KpiTile({label,value,sub,color,bg,border,delay=0,icon}) {
+  return (
+    <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay,duration:.3,ease:[.22,1,.36,1]}}
+      style={{background:bg,border:`1px solid ${border}`,borderRadius:14,padding:'16px 18px',backdropFilter:'blur(12px)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+        <div style={{fontSize:24,fontWeight:800,color,lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{value}</div>
+        {icon&&<span style={{fontSize:18,opacity:.8}}>{icon}</span>}
+      </div>
+      <div style={{fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}}>{label}</div>
+      {sub&&<div style={{fontSize:10,color:'var(--text3)',marginTop:3,opacity:.7}}>{sub}</div>}
+    </motion.div>
+  );
+}
+
+/* ─── AccountCard ────────────────────────────────── */
+function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpenLogin, onLogout, updateCfg, toggleAction }) {
+  const isActive=account.warmupActive;
+  const src=avatarSrc(account.avatar);
+  const hlth=healthMeta(account.healthStatus);
+  const intCfg=INTENSITY.find(i=>i.v===cfg.intensity)||INTENSITY[0];
+  const needsPrivate=cfg.actions?.some(a=>['scroll_reels','like_posts'].includes(a));
+  const tokenDaysLeft=account.tokenExpiresAt?Math.ceil((new Date(account.tokenExpiresAt)-Date.now())/86400000):null;
+  const tokenExpiry=account.tokenExpiresAt?new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):null;
+
+  const labelStyle={fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em',marginBottom:5};
+  const inputStyle={width:'100%',boxSizing:'border-box',padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',fontSize:12};
+
+  return (
+    <motion.div
+      initial={{opacity:0,y:12}} animate={{opacity:1,y:0}}
+      transition={{duration:.3,ease:[.22,1,.36,1]}}
+      style={{
+        borderRadius:18,overflow:'hidden',
+        border:`1px solid ${isActive?'rgba(34,197,94,.35)':'oklch(1 0 0/0.08)'}`,
+        background:'var(--bg2)',
+        boxShadow: isActive
+          ? '0 0 0 1px rgba(34,197,94,.08),0 8px 40px rgba(34,197,94,.1)'
+          : '0 2px 12px rgba(0,0,0,.06)',
+        transition:'border-color .3s,box-shadow .3s',
+      }}
+    >
+      {/* Active top bar */}
+      {isActive&&(
+        <div style={{height:3,background:'linear-gradient(90deg,#22c55e,#16a34a,#22c55e)',backgroundSize:'200% 100%',animation:'wm-slide 2.5s linear infinite'}}/>
+      )}
+
+      {/* ── Main row ── */}
+      <div style={{padding:'18px 20px 14px'}}>
+        <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+
+          {/* Avatar */}
+          <div style={{position:'relative',flexShrink:0}}>
+            <div style={{
+              width:80,height:80,borderRadius:'50%',overflow:'hidden',
+              border:`2.5px solid ${isActive?'#22c55e':'oklch(1 0 0/0.1)'}`,
+              background:'var(--bg3)',
+              boxShadow: isActive?'0 0 0 5px rgba(34,197,94,.08),0 0 20px rgba(34,197,94,.2)':'none',
+              transition:'all .3s',
+            }}>
+              {src
+                ?<img src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
+                :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:28,color:'var(--cyan)'}}>{account.username?.[0]?.toUpperCase()}</div>
+              }
+            </div>
+            {/* Online dot */}
+            <div style={{
+              position:'absolute',bottom:4,right:4,width:16,height:16,borderRadius:'50%',
+              background:isActive?'#22c55e':'#374151',
+              border:'2.5px solid var(--bg2)',
+              boxShadow:isActive?'0 0 0 3px rgba(34,197,94,.12),0 0 8px rgba(34,197,94,.4)':'none',
+              transition:'all .25s',
+            }}/>
+          </div>
+
+          {/* Info */}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:6}}>
+              <span style={{fontWeight:800,fontSize:16,color:'var(--text)',letterSpacing:-.3}}>@{account.username}</span>
+              {isActive&&(
+                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 9px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.25)',fontSize:10,color:'#22c55e',fontWeight:700}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'wm-pulse 1.4s infinite'}}/>
+                  🔥 {intCfg.label}
+                </span>
+              )}
+              <span style={{padding:'2px 9px',borderRadius:20,fontSize:10,fontWeight:700,color:hlth.color,background:hlth.bg,border:`1px solid ${hlth.color}30`}}>
+                ● {hlth.label}
+              </span>
+              {account.hasSession&&(
+                <span style={{padding:'2px 9px',borderRadius:20,fontSize:10,fontWeight:700,color:'#8b5cf6',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.25)'}}>
+                  🔐 API Privada
+                </span>
+              )}
+            </div>
+            {account.name&&account.name!==account.username&&(
+              <div style={{fontSize:12,color:'var(--text3)',marginBottom:8}}>{account.name}</div>
+            )}
+
+            {/* Stats */}
+            <div style={{display:'inline-flex',borderRadius:9,overflow:'hidden',background:'var(--bg3)',border:'1px solid var(--border)',marginBottom:10}}>
+              {[
+                {label:'Seguid.',value:account.followers},
+                {label:'Seguindo',value:account.following},
+                {label:'Posts',value:account.postsCount},
+              ].map((s,i)=>(
+                <div key={s.label} style={{padding:'7px 12px',textAlign:'center',borderRight:i<2?'1px solid var(--border)':'none'}}>
+                  <div style={{fontWeight:700,fontSize:13,color:'var(--text)',fontVariantNumeric:'tabular-nums'}}>{fmtNum(s.value)}</div>
+                  <div style={{fontSize:9,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',marginTop:1}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Active actions row */}
+            {isActive&&cfg.actions?.length>0&&(
+              <div style={{display:'flex',gap:5,flexWrap:'wrap',alignItems:'center'}}>
+                {cfg.actions.map(a=>{
+                  const ac=ACTIONS.find(x=>x.value===a);
+                  return ac?(
+                    <span key={a} style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,background:`${ac.color}14`,color:ac.color,border:`1px solid ${ac.color}25`}}>
+                      {ac.icon} {ac.label}
+                    </span>
+                  ):null;
+                })}
+                <span style={{fontSize:10,color:'var(--text3)',marginLeft:4}}>⏱ {cfg.intervalMinutes}min</span>
+              </div>
+            )}
+
+            {/* Token expiry */}
+            {tokenExpiry&&(
+              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:8,fontSize:11,color:tokenDaysLeft<7?'#f59e0b':'var(--text3)'}}>
+                🔑 Token {tokenExpiry}
+                {tokenDaysLeft<30&&<span style={{fontWeight:700,color:tokenDaysLeft<7?'#ef4444':'#f59e0b'}}>{tokenDaysLeft<0?'· EXPIRADO':`· ${tokenDaysLeft}d`}</span>}
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div style={{display:'flex',flexDirection:'column',gap:7,flexShrink:0}}>
+            {isActive?(
+              <motion.button whileHover={{scale:1.03}} whileTap={{scale:.97}} onClick={()=>onStop(account._id)} style={{
+                padding:'9px 14px',borderRadius:10,cursor:'pointer',whiteSpace:'nowrap',
+                background:'rgba(239,68,68,.1)',color:'#ef4444',fontWeight:700,fontSize:12,
+                border:'1px solid rgba(239,68,68,.3)',
+                transition:'box-shadow .15s',
+              }}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 14px rgba(239,68,68,.2)'}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}
+              >⏹ Parar</motion.button>
+            ):(
+              <motion.button whileHover={{scale:1.03}} whileTap={{scale:.97}} onClick={()=>onStart(account._id)} style={{
+                padding:'9px 14px',borderRadius:10,cursor:'pointer',whiteSpace:'nowrap',
+                background:'linear-gradient(135deg,rgba(34,197,94,.15),rgba(22,163,74,.08))',
+                color:'#22c55e',fontWeight:700,fontSize:12,
+                border:'1px solid rgba(34,197,94,.4)',
+                transition:'box-shadow .15s',
+              }}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 16px rgba(34,197,94,.2)'}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}
+              >🔥 Iniciar</motion.button>
+            )}
+            <motion.button whileHover={{scale:1.03}} whileTap={{scale:.97}} onClick={()=>onExpand()} style={{
+              padding:'7px 12px',borderRadius:10,border:'1px solid var(--border)',
+              background:'var(--bg3)',color:'var(--text3)',cursor:'pointer',fontSize:11,fontWeight:600,
+              transition:'all .15s',
+            }}>
+              {expanded?'▲ Fechar':'⚙ Config'}
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Config panel ── */}
+      <AnimatePresence>
+        {expanded&&(
+          <motion.div
+            initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
+            transition={{duration:.22,ease:[.22,1,.36,1]}}
+            style={{overflow:'hidden'}}
+          >
+            <div style={{borderTop:'1px solid oklch(1 0 0/0.07)',padding:'16px 20px',display:'flex',flexDirection:'column',gap:14}}>
+
+              {/* API badges */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <div style={{borderRadius:10,padding:'9px 13px',border:'1px solid rgba(99,102,241,.2)',background:'rgba(99,102,241,.05)',display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:14}}>🔗</span>
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,color:'#818cf8'}}>API Oficial</div>
+                    <div style={{fontSize:10,color:'var(--text3)',marginTop:1}}>Sem senha adicional</div>
+                  </div>
+                </div>
+                <div style={{borderRadius:10,padding:'9px 13px',border:`1px solid ${account.hasSession?'rgba(34,197,94,.2)':'rgba(139,92,246,.2)'}`,background:account.hasSession?'rgba(34,197,94,.05)':'rgba(139,92,246,.05)',display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:14}}>{account.hasSession?'✅':'🔐'}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:700,color:account.hasSession?'#22c55e':'#a78bfa'}}>{account.hasSession?'Sessão ativa':'API Privada'}</div>
+                    <div style={{fontSize:10,color:'var(--text3)',marginTop:1}}>Reels e Explorar</div>
+                  </div>
+                  {account.hasSession?(
+                    <button onClick={()=>onLogout(account._id)} style={{fontSize:9,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(239,68,68,.25)',background:'rgba(239,68,68,.07)',color:'#f87171',cursor:'pointer',flexShrink:0}}>Sair</button>
+                  ):(
+                    <button onClick={()=>onOpenLogin({accountId:account._id,username:account.username})} style={{fontSize:9,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(139,92,246,.25)',background:'rgba(139,92,246,.1)',color:'#a78bfa',cursor:'pointer',flexShrink:0}}>Login</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Intensity */}
+              <div>
+                <div style={labelStyle}>Intensidade</div>
+                <div style={{display:'flex',gap:6}}>
+                  {INTENSITY.map(({v,label,color,desc})=>(
+                    <button key={v} onClick={()=>updateCfg(account._id,'intensity',v)} title={desc} style={{
+                      flex:1,padding:'8px 0',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:11,
+                      border:`1px solid ${cfg.intensity===v?color:'var(--border)'}`,
+                      background:cfg.intensity===v?`${color}18`:'var(--bg3)',
+                      color:cfg.intensity===v?color:'var(--text3)',
+                      transition:'all .15s',
+                    }}>{label}</button>
+                  ))}
+                </div>
+                <div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>{INTENSITY.find(i=>i.v===cfg.intensity)?.desc}</div>
+              </div>
+
+              {/* Actions */}
+              <div>
+                <div style={labelStyle}>Ações</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  {ACTIONS.map(a=>{
+                    const on=cfg.actions?.includes(a.value);
+                    const noSession=a.api==='privada'&&!account.hasSession;
+                    return (
+                      <button key={a.value} onClick={()=>toggleAction(account._id,a.value)} style={{
+                        padding:'9px 10px',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:11,
+                        background:on?`${a.color}18`:'var(--bg3)',
+                        color:on?a.color:'var(--text3)',
+                        border:`1px solid ${on?a.color:'var(--border)'}`,
+                        transition:'all .15s',textAlign:'left',
+                        display:'flex',alignItems:'center',gap:7,
+                      }}>
+                        <span style={{fontSize:13}}>{a.icon}</span>
+                        <div>
+                          <div>{a.label}</div>
+                          <div style={{fontSize:9,fontWeight:400,color:noSession&&on?'#f59e0b':'var(--text3)',opacity:.8}}>
+                            {a.api==='privada'?(noSession?'⚠ requer sessão':'✓ sessão ativa'):'API Oficial'}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {needsPrivate&&!account.hasSession&&(
+                  <div style={{marginTop:8,padding:'8px 12px',borderRadius:8,background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.22)',fontSize:10,color:'#f59e0b'}}>
+                    ⚠ Clique em <strong>Login</strong> acima para ativar as ações de API Privada.
+                  </div>
+                )}
+              </div>
+
+              {/* Limits */}
+              <div style={{display:'flex',gap:10}}>
+                {cfg.actions?.includes('likes')&&(
+                  <div style={{flex:1}}>
+                    <div style={labelStyle}>Max curtidas</div>
+                    <input type="number" min={1} max={100} value={cfg.maxLikes} onChange={e=>updateCfg(account._id,'maxLikes',Number(e.target.value))} style={inputStyle}/>
+                  </div>
+                )}
+                {cfg.actions?.includes('comments')&&(
+                  <div style={{flex:1}}>
+                    <div style={labelStyle}>Max comentários</div>
+                    <input type="number" min={1} max={50} value={cfg.maxComments} onChange={e=>updateCfg(account._id,'maxComments',Number(e.target.value))} style={inputStyle}/>
+                  </div>
+                )}
+              </div>
+
+              {/* Comment list */}
+              {cfg.actions?.includes('comments')&&(
+                <div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
+                    <div style={labelStyle}>Comentários (um por linha)</div>
+                    <span style={{fontSize:10,color:'var(--cyan)',fontWeight:600}}>{cfg.commentList.split('\n').filter(s=>s.trim()).length} cadastrados</span>
+                  </div>
+                  <textarea value={cfg.commentList} onChange={e=>updateCfg(account._id,'commentList',e.target.value)} rows={5}
+                    style={{...inputStyle,resize:'vertical',fontFamily:'inherit',lineHeight:1.5,fontSize:12}}/>
+                </div>
+              )}
+
+              {/* Interval */}
+              <div>
+                <div style={{...labelStyle,marginBottom:8}}>
+                  Intervalo: <span style={{color:'var(--cyan)',fontWeight:800}}>{cfg.intervalMinutes} min</span>
+                </div>
+                <input type="range" min={10} max={120} step={5} value={cfg.intervalMinutes}
+                  onChange={e=>updateCfg(account._id,'intervalMinutes',Number(e.target.value))}
+                  style={{width:'100%',accentColor:'var(--cyan)'}}/>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:2}}>
+                  <span>10 min</span><span>120 min</span>
+                </div>
+              </div>
+
+              {/* Duration */}
+              <div>
+                <div style={{...labelStyle,marginBottom:8}}>
+                  Duração máxima: <span style={{color:cfg.maxDurationHours===0?'#f59e0b':'var(--cyan)',fontWeight:800}}>
+                    {cfg.maxDurationHours===0?'Sem limite':`${cfg.maxDurationHours}h`}
+                  </span>
+                </div>
+                <input type="range" min={0} max={12} step={1} value={cfg.maxDurationHours}
+                  onChange={e=>updateCfg(account._id,'maxDurationHours',Number(e.target.value))}
+                  style={{width:'100%',accentColor:cfg.maxDurationHours===0?'#f59e0b':'var(--cyan)'}}/>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:2}}>
+                  <span>Sem limite</span><span>12h</span>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <motion.button whileHover={{scale:1.01}} whileTap={{scale:.99}} onClick={()=>onStart(account._id)} style={{
+                width:'100%',padding:'12px 0',borderRadius:10,border:'none',cursor:'pointer',
+                background:account.warmupActive?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#22c55e,#16a34a)',
+                color:'#fff',fontWeight:700,fontSize:13,
+                boxShadow:account.warmupActive?'0 4px 18px rgba(245,158,11,.25)':'0 4px 18px rgba(34,197,94,.25)',
+              }}>
+                {account.warmupActive?'🔄 Atualizar configuração':'🔥 Iniciar aquecimento'}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+/* ─── Login Modal ─────────────────────────────────── */
+function LoginModal({ loginModal, loginPwd, setLoginPwd, loginBusy, onSubmit, onClose }) {
+  return (
+    <motion.div
+      initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}
+      style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,.65)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
+    >
+      <motion.div
+        initial={{scale:.93,y:20,opacity:0}} animate={{scale:1,y:0,opacity:1}} exit={{scale:.93,y:20,opacity:0}}
+        transition={{type:'spring',damping:22,stiffness:280}}
+        style={{background:'oklch(0.15 0.05 235/0.98)',border:'1px solid oklch(0.65 0.18 280/0.3)',borderRadius:20,width:'100%',maxWidth:400,overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5)'}}
+      >
+        <div style={{padding:'20px 22px 16px',borderBottom:'1px solid oklch(1 0 0/0.07)',display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:42,height:42,borderRadius:12,background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🔐</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:14,color:'var(--text)'}}>Login API Privada</div>
+            <div style={{fontSize:12,color:'var(--text3)',marginTop:1}}>@{loginModal.username}</div>
+          </div>
+          <button onClick={onClose} style={{marginLeft:'auto',background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:20,lineHeight:1,flexShrink:0}}>×</button>
+        </div>
+        <div style={{padding:'16px 22px 20px'}}>
+          <div style={{padding:'10px 14px',borderRadius:10,background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.2)',fontSize:11,color:'#f59e0b',lineHeight:1.6,marginBottom:16}}>
+            ⚠ A senha ativa o scroll de reels e curtidas no feed. Recomendado usar 2FA no Instagram.
+          </div>
+          <label style={{display:'block',fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Senha do Instagram</label>
+          <input type="password" value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onSubmit()} placeholder="Digite a senha..." autoFocus
+            style={{width:'100%',boxSizing:'border-box',padding:'11px 14px',borderRadius:9,border:'1px solid oklch(0.65 0.18 280/0.3)',background:'oklch(0.11 0.04 235)',color:'var(--text)',fontSize:13,outline:'none'}}/>
+          <div style={{display:'flex',gap:8,marginTop:14}}>
+            <button onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius:9,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text3)',cursor:'pointer',fontWeight:600,fontSize:13}}>Cancelar</button>
+            <motion.button whileHover={{scale:1.02}} whileTap={{scale:.98}} onClick={onSubmit} disabled={loginBusy||!loginPwd.trim()} style={{
+              flex:2,padding:'10px 0',borderRadius:9,border:'none',
+              background:loginBusy||!loginPwd.trim()?'rgba(139,92,246,.15)':'linear-gradient(135deg,#7c3aed,#a78bfa)',
+              color:loginBusy||!loginPwd.trim()?'rgba(167,139,250,.4)':'#fff',
+              cursor:loginBusy||!loginPwd.trim()?'not-allowed':'pointer',
+              fontWeight:700,fontSize:13,
+              display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+            }}>
+              {loginBusy?(
+                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{animation:'wm-spin 1s linear infinite'}}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Conectando...</>
+              ):'🔐 Conectar sessão'}
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── Main ───────────────────────────────────────── */
 export default function Warmup() {
-  const [accounts,    setAccounts]    = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [configs,     setConfigs]     = useState({});
-  const [expanded,    setExpanded]    = useState(null);
-  const [logs,        setLogs]        = useState([]);
-  const [loginModal,  setLoginModal]  = useState(null); // { accountId, username }
-  const [loginPwd,    setLoginPwd]    = useState('');
-  const [loginBusy,   setLoginBusy]   = useState(false);
+  const [accounts,   setAccounts]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [configs,    setConfigs]    = useState({});
+  const [expanded,   setExpanded]   = useState(null);
+  const [logs,       setLogs]       = useState([]);
+  const [loginModal, setLoginModal] = useState(null);
+  const [loginPwd,   setLoginPwd]   = useState('');
+  const [loginBusy,  setLoginBusy]  = useState(false);
 
-  const loadLogs = useCallback(async () => {
-    try {
-      const r = await api.get('/warmup/logs', { params: { limit: 80 } });
-      setLogs(r.data || []);
-    } catch {}
-  }, []);
+  const loadLogs = useCallback(async()=>{
+    try { const r=await api.get('/warmup/logs',{params:{limit:80}}); setLogs(r.data||[]); } catch {}
+  },[]);
 
   async function load() {
     try {
-      const res  = await api.get('/warmup');
-      const data = res.data;
+      const res=await api.get('/warmup');
+      const data=res.data;
       setAccounts(data);
-      const cfgs = {};
-      data.forEach(a => {
-        cfgs[a._id] = {
-          intensity:        a.warmupIntensity || 'leve',
-          actions:          a.warmupActions?.length ? a.warmupActions : ['likes'],
-          intervalMinutes:  a.warmupInterval || 30,
-          maxDurationHours: a.warmupMaxDuration ?? 2,
-          maxLikes:         a.warmupMaxLikes    || 6,
-          maxComments:      a.warmupMaxComments || 2,
-          commentList:      (a.warmupComments?.length ? a.warmupComments : DEFAULT_COMMENTS).join('\n'),
+      const cfgs={};
+      data.forEach(a=>{
+        cfgs[a._id]={
+          intensity:a.warmupIntensity||'leve',
+          actions:a.warmupActions?.length?a.warmupActions:['likes'],
+          intervalMinutes:a.warmupInterval||30,
+          maxDurationHours:a.warmupMaxDuration??2,
+          maxLikes:a.warmupMaxLikes||6,
+          maxComments:a.warmupMaxComments||2,
+          commentList:(a.warmupComments?.length?a.warmupComments:DEFAULT_COMMENTS).join('\n'),
         };
       });
       setConfigs(cfgs);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch(err){console.error(err);}
+    finally{setLoading(false);}
   }
 
-  useEffect(() => {
-    load();
-    loadLogs();
-    const t = setInterval(loadLogs, 10000);
-    return () => clearInterval(t);
-  }, [loadLogs]);
+  useEffect(()=>{
+    load(); loadLogs();
+    const t=setInterval(loadLogs,10000);
+    return()=>clearInterval(t);
+  },[loadLogs]);
 
-  function updateCfg(id, key, value) {
-    setConfigs(prev => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
+  function updateCfg(id,key,value){ setConfigs(prev=>({...prev,[id]:{...prev[id],[key]:value}})); }
+  function toggleAction(id,action){
+    const cur=configs[id]?.actions||[];
+    updateCfg(id,'actions',cur.includes(action)?cur.filter(a=>a!==action):[...cur,action]);
   }
 
-  function toggleAction(id, action) {
-    const cur = configs[id]?.actions || [];
-    updateCfg(id, 'actions', cur.includes(action) ? cur.filter(a => a !== action) : [...cur, action]);
+  async function startWarmup(id){
+    const cfg=configs[id]; if(!cfg?.actions?.length) return toast.warning('Selecione ao menos uma ação.');
+    const comments=cfg.commentList.split('\n').map(s=>s.trim()).filter(Boolean);
+    try{ await api.post(`/warmup/${id}/start`,{...cfg,commentList:comments,maxDurationHours:cfg.maxDurationHours||0}); toast.success('Aquecimento iniciado!'); load(); loadLogs(); }
+    catch(err){ toast.error(err.response?.data?.error||err.message); }
   }
 
-  async function startWarmup(id) {
-    const cfg = configs[id];
-    if (!cfg?.actions?.length) return toast.warning('Selecione ao menos uma ação.');
-    const comments = cfg.commentList.split('\n').map(s => s.trim()).filter(Boolean);
-    try {
-      await api.post(`/warmup/${id}/start`, { ...cfg, commentList: comments, maxDurationHours: cfg.maxDurationHours || 0 });
-      toast.success('Aquecimento iniciado!');
-      load();
-      loadLogs();
-    } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Erro ao iniciar aquecimento.');
-    }
+  async function stopWarmup(id){
+    try{ await api.post(`/warmup/${id}/stop`); toast.success('Aquecimento pausado.'); load(); }
+    catch(err){ toast.error(err.response?.data?.error||err.message); }
   }
 
-  async function stopWarmup(id) {
-    try {
-      await api.post(`/warmup/${id}/stop`);
-      toast.success('Aquecimento pausado.');
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.error || err.message || 'Erro ao parar aquecimento.');
-    }
-  }
-
-  async function handlePrivateLogin() {
-    if (!loginPwd.trim()) return toast.warning('Digite a senha do Instagram.');
+  async function handlePrivateLogin(){
+    if(!loginPwd.trim()) return toast.warning('Digite a senha.');
     setLoginBusy(true);
-    try {
-      await api.post(`/warmup/${loginModal.accountId}/login`, { password: loginPwd });
-      toast.success(`Sessão conectada para @${loginModal.username}!`);
-      setLoginModal(null);
-      setLoginPwd('');
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Falha ao conectar. Verifique a senha.');
-    } finally {
-      setLoginBusy(false);
-    }
+    try{
+      await api.post(`/warmup/${loginModal.accountId}/login`,{password:loginPwd});
+      toast.success(`Sessão ativa para @${loginModal.username}!`);
+      setLoginModal(null); setLoginPwd(''); load();
+    }catch(err){ toast.error(err.response?.data?.error||'Falha ao conectar.'); }
+    finally{ setLoginBusy(false); }
   }
 
-  async function handlePrivateLogout(id) {
-    try {
-      await api.post(`/warmup/${id}/logout`);
-      toast.success('Sessão privada desconectada.');
-      load();
-    } catch {}
+  async function handleLogout(id){
+    try{ await api.post(`/warmup/${id}/logout`); toast.success('Sessão desconectada.'); load(); }catch{}
   }
 
-  const activeCount   = accounts.filter(a => a.warmupActive).length;
-  const healthyCount  = accounts.filter(a => !BAD_HEALTH.includes(a.healthStatus)).length;
-  const fmtNum = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
+  const activeCount  = accounts.filter(a=>a.warmupActive).length;
+  const healthyCount = accounts.filter(a=>!BAD_HEALTH.includes(a.healthStatus)).length;
+  const totalLogs    = logs.length;
 
-  function healthLabel(s) {
-    if (s === 'restrita')        return { label:'Restrita',        color:'#f59e0b' };
-    if (s === 'banida')          return { label:'Banida',          color:'#ef4444' };
-    if (s === 'token_invalido')  return { label:'Token expirado',  color:'#ef4444' };
-    if (s === 'sessao_expirada') return { label:'Sessão expirada', color:'#f59e0b' };
-    if (s === 'desconectada')    return { label:'Desconectada',    color:'#64748b' };
-    return { label:'Saudável', color:'#22c55e' };
-  }
+  const n0=useAnimCounter(accounts.length,0);
+  const n1=useAnimCounter(activeCount,60);
+  const n2=useAnimCounter(healthyCount,120);
+  const n3=useAnimCounter(totalLogs,80);
 
-  const pageIcon = (
+  const pageIcon=(
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/>
     </svg>
   );
 
-  const pageActions = (
+  const pageActions=(
     <>
-      {activeCount > 0 && (
-        <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:8, background:'rgba(34,197,94,.08)', border:'1px solid rgba(34,197,94,.2)', fontSize:11, color:'#22c55e', fontWeight:700, fontFamily:'var(--font-mono)' }}>
-          <span style={{ width:6, height:6, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'wm-pulse 1.5s infinite' }} />
+      {activeCount>0&&(
+        <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:8,background:'rgba(34,197,94,.08)',border:'1px solid rgba(34,197,94,.2)',fontSize:11,color:'#22c55e',fontWeight:700,fontFamily:'var(--font-mono)'}}>
+          <span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
           {activeCount} aquecendo
         </span>
       )}
-      <button onClick={load} className="btn-ghost" style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:8, fontSize:'.83rem' }}>
+      <button onClick={()=>{load();loadLogs();}} className="btn-ghost" style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:8,fontSize:'.83rem'}}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
         Atualizar
       </button>
     </>
   );
 
-  if (loading) return (
-    <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Simula ações orgânicas para evitar shadowban" accent="green">
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:200, flexDirection:'column', gap:12 }}>
-        <div style={{ fontSize:32 }}>🔥</div>
-        <p style={{ color:'var(--text3)', fontSize:13 }}>Carregando contas...</p>
+  if(loading) return (
+    <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Centro de controle de aquecimento orgânico" accent="green">
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        {[1,2,3].map(i=><div key={i} style={{height:140,borderRadius:18,background:'oklch(0.14 0.04 235/0.5)',animation:'wm-pulse-bg 1.6s ease-in-out infinite'}}/>)}
       </div>
     </PageShell>
   );
 
-  const labelStyle = {
-    fontSize:10, color:'var(--text3)', fontWeight:700,
-    textTransform:'uppercase', letterSpacing:'.05em', marginBottom:6,
-  };
-
-  const inputStyle = {
-    width:'100%', boxSizing:'border-box', padding:'7px 10px',
-    borderRadius:8, border:'1px solid var(--border)',
-    background:'var(--bg3)', color:'var(--text)', fontSize:12,
-  };
-
   return (
-    <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Simula curtidas, comentários e ações orgânicas para evitar shadowban" accent="green" actions={pageActions}>
+    <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Centro de controle de aquecimento orgânico para evitar shadowban" accent="green" actions={pageActions}>
       <style>{`
-        @keyframes wm-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
-        @keyframes wm-spin { to { transform: rotate(360deg); } }
+        @keyframes wm-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+        @keyframes wm-pulse-bg{0%,100%{opacity:.5}50%{opacity:.25}}
+        @keyframes wm-spin{to{transform:rotate(360deg)}}
+        @keyframes wm-slide{0%{background-position:0% 0}100%{background-position:200% 0}}
       `}</style>
 
-      {/* ── Stats bar ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(155px,1fr))', gap:10, marginBottom:20 }}>
-        {[
-          { label:'Total de contas',  value:accounts.length, color:'var(--text)',  border:'rgba(0,212,255,.15)',  bg:'oklch(0.14 0.04 235 / 0.5)' },
-          { label:'Aquecendo agora',  value:activeCount,     color:'#22c55e',      border:'rgba(34,197,94,.2)',   bg:'rgba(34,197,94,.06)' },
-          { label:'Contas saudáveis', value:healthyCount,    color:'var(--cyan)',  border:'rgba(0,212,255,.2)',   bg:'oklch(0.14 0.04 235 / 0.5)' },
-          { label:'Inativas',         value:accounts.length - activeCount, color:'var(--text3)', border:'oklch(1 0 0 / 0.08)', bg:'oklch(0.14 0.04 235 / 0.5)' },
-        ].map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.05, duration:.22 }}
-            style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:12, padding:'14px 16px', backdropFilter:'blur(12px)' }}>
-            <div style={{ fontWeight:800, fontSize:22, color:s.color, lineHeight:1, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-            <div style={{ fontSize:10, fontWeight:700, color:'var(--text3)', letterSpacing:'.05em', marginTop:3, fontFamily:'var(--font-mono)', textTransform:'uppercase' }}>{s.label}</div>
-          </motion.div>
-        ))}
-      </div>
-
-      {accounts.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 0', color:'var(--text3)' }}>
-          Nenhuma conta encontrada. Adicione contas primeiro.
-        </div>
-      )}
-
-      {/* ── Account cards ── */}
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-        {accounts.map(account => {
-          const cfg      = configs[account._id] || defaultCfg();
-          const isActive = account.warmupActive;
-          const isExpanded = expanded === account._id;
-          const intCfg   = INTENSITY.find(i => i.v === cfg.intensity) || INTENSITY[0];
-          const src      = avatarSrc(account.avatar);
-          const hlth     = healthLabel(account.healthStatus);
-          const needsPrivateAPI = cfg.actions?.some(a => ['scroll_reels','like_posts'].includes(a));
-
-          const tokenExpiry = account.tokenExpiresAt
-            ? new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' })
-            : null;
-          const tokenDaysLeft = account.tokenExpiresAt
-            ? Math.ceil((new Date(account.tokenExpiresAt) - Date.now()) / 86400000)
-            : null;
-
-          return (
-            <div key={account._id} style={{
-              background:'var(--bg2)',
-              border:`1px solid ${isActive ? 'rgba(34,197,94,.4)' : 'var(--border)'}`,
-              borderRadius:16, overflow:'hidden',
-              boxShadow: isActive ? '0 0 0 1px rgba(34,197,94,.1), 0 6px 28px rgba(34,197,94,.09)' : '0 2px 8px rgba(0,0,0,.04)',
-              transition:'border-color .25s, box-shadow .25s',
-            }}>
-              {isActive && (
-                <div style={{ height:3, background:'linear-gradient(90deg,#22c55e 0%,#16a34a 50%,#22c55e 100%)' }} />
-              )}
-
-              {/* Card body */}
-              <div style={{ padding:'20px 20px 16px' }}>
-                <div style={{ display:'flex', gap:18, alignItems:'flex-start' }}>
-
-                  {/* Avatar */}
-                  <div style={{ position:'relative', flexShrink:0 }}>
-                    <div style={{
-                      width:84, height:84, borderRadius:'50%', overflow:'hidden',
-                      border: isActive ? '3px solid #22c55e' : '3px solid var(--border)',
-                      boxShadow: isActive ? '0 0 22px rgba(34,197,94,.35)' : 'none',
-                      background:'var(--bg3)', transition:'all .25s',
-                    }}>
-                      {src
-                        ? <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
-                        : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:30, color:'var(--cyan)' }}>
-                            {account.username?.[0]?.toUpperCase()}
-                          </div>
-                      }
-                    </div>
-                    <div style={{
-                      position:'absolute', bottom:4, right:4, width:18, height:18, borderRadius:'50%',
-                      background: isActive ? '#22c55e' : '#4b5563',
-                      border:'3px solid var(--bg2)',
-                      boxShadow: isActive ? '0 0 10px #22c55e' : 'none',
-                      transition:'all .25s',
-                    }} />
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:800, fontSize:17, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', letterSpacing:-.3 }}>
-                      @{account.username}
-                    </div>
-                    {account.name && account.name !== account.username && (
-                      <div style={{ fontSize:12, color:'var(--text2)', fontWeight:500, marginTop:1, marginBottom:8, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {account.name}
-                      </div>
-                    )}
-
-                    {/* Badges */}
-                    <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginTop: account.name ? 0 : 8, marginBottom:10 }}>
-                      {account.accountType && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:20, background:'rgba(99,102,241,.15)', color:'#818cf8', border:'1px solid rgba(99,102,241,.25)', textTransform:'uppercase', letterSpacing:'.04em' }}>
-                          {account.accountType}
-                        </span>
-                      )}
-                      <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:20, background:`${hlth.color}18`, color:hlth.color, border:`1px solid ${hlth.color}30` }}>
-                        ● {hlth.label}
-                      </span>
-                      {account.hasSession && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:20, background:'rgba(139,92,246,.12)', color:'#8b5cf6', border:'1px solid rgba(139,92,246,.3)' }}>
-                          🔐 API Privada ativa
-                        </span>
-                      )}
-                      {isActive && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:20, background:'rgba(34,197,94,.12)', color:'#22c55e', border:'1px solid rgba(34,197,94,.3)' }}>
-                          🔥 {intCfg.label}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div style={{ display:'flex', borderRadius:9, overflow:'hidden', background:'var(--bg3)', border:'1px solid var(--border)' }}>
-                      {[
-                        { label:'Seguidores', value:account.followers },
-                        { label:'Seguindo',   value:account.following },
-                        { label:'Posts',      value:account.postsCount },
-                      ].map((s, i) => (
-                        <div key={s.label} style={{ flex:1, padding:'8px 4px', textAlign:'center', borderRight: i < 2 ? '1px solid var(--border)' : 'none' }}>
-                          <div style={{ fontWeight:700, fontSize:13, color:'var(--text)', fontVariantNumeric:'tabular-nums' }}>{fmtNum(s.value)}</div>
-                          <div style={{ fontSize:9, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.04em', marginTop:1 }}>{s.label}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Active actions */}
-                    {isActive && cfg.actions?.length > 0 && (
-                      <div style={{ display:'flex', gap:5, alignItems:'center', marginTop:10, flexWrap:'wrap' }}>
-                        <span style={{ fontSize:10, color:'var(--text3)', fontWeight:600 }}>AÇÕES:</span>
-                        {cfg.actions.map(a => {
-                          const ac = ACTIONS.find(x => x.value === a);
-                          return ac ? (
-                            <span key={a} style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20, background:`${ac.color}15`, color:ac.color, border:`1px solid ${ac.color}28` }}>
-                              {ac.icon} {ac.label}
-                            </span>
-                          ) : null;
-                        })}
-                        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--text3)' }}>
-                          ⏱ {cfg.intervalMinutes}min/ciclo
-                          {cfg.maxDurationHours > 0 && ` · para em ${cfg.maxDurationHours}h`}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Token expiry */}
-                    {tokenExpiry && (
-                      <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:9, fontSize:11, color: tokenDaysLeft != null && tokenDaysLeft < 7 ? '#f59e0b' : 'var(--text3)' }}>
-                        <span>🔑</span>
-                        <span>Token expira {tokenExpiry}</span>
-                        {tokenDaysLeft != null && tokenDaysLeft < 30 && (
-                          <span style={{ fontWeight:700, color: tokenDaysLeft < 7 ? '#ef4444' : '#f59e0b' }}>
-                            · {tokenDaysLeft < 0 ? 'EXPIRADO' : `${tokenDaysLeft}d`}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Controls */}
-                  <div style={{ display:'flex', flexDirection:'column', gap:7, flexShrink:0, minWidth:96 }}>
-                    {isActive ? (
-                      <button onClick={() => stopWarmup(account._id)} style={{
-                        padding:'9px 12px', borderRadius:9, cursor:'pointer', whiteSpace:'nowrap',
-                        background:'rgba(239,68,68,.12)', color:'#ef4444', fontWeight:700, fontSize:12,
-                        border:'1px solid rgba(239,68,68,.3)',
-                      }}>⏹ Parar</button>
-                    ) : (
-                      <button onClick={() => startWarmup(account._id)} style={{
-                        padding:'9px 12px', borderRadius:9, cursor:'pointer', whiteSpace:'nowrap',
-                        background:'linear-gradient(135deg,rgba(34,197,94,.15),rgba(22,163,74,.08))',
-                        color:'#22c55e', fontWeight:700, fontSize:12,
-                        border:'1px solid rgba(34,197,94,.4)',
-                      }}>🔥 Iniciar</button>
-                    )}
-                    <button onClick={() => setExpanded(isExpanded ? null : account._id)} style={{
-                      padding:'7px 10px', borderRadius:9, border:'1px solid var(--border)',
-                      background:'var(--bg3)', color:'var(--text3)', cursor:'pointer', fontSize:11, fontWeight:600,
-                    }}>
-                      {isExpanded ? '▲ Fechar' : '⚙ Config'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ borderTop:'1px solid var(--border)' }} />
-
-              {/* ── Config panel ── */}
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }} exit={{ height:0, opacity:0 }}
-                    transition={{ duration:.2 }}
-                    style={{ overflow:'hidden' }}
-                  >
-                    <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:16 }}>
-
-                      {/* API notice */}
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <div style={{ flex:1, minWidth:200, borderRadius:10, padding:'9px 13px', border:'1px solid rgba(99,102,241,.25)', background:'rgba(99,102,241,.06)', display:'flex', alignItems:'center', gap:9 }}>
-                          <span style={{ fontSize:15 }}>🔗</span>
-                          <div>
-                            <div style={{ fontSize:11, fontWeight:700, color:'#818cf8' }}>API Oficial</div>
-                            <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Curtidas e comentários · não precisa de senha</div>
-                          </div>
-                        </div>
-                        <div style={{ flex:1, minWidth:200, borderRadius:10, padding:'9px 13px', border:`1px solid ${account.hasSession ? 'rgba(34,197,94,.25)' : 'rgba(139,92,246,.25)'}`, background: account.hasSession ? 'rgba(34,197,94,.06)' : 'rgba(139,92,246,.06)', display:'flex', alignItems:'center', gap:9 }}>
-                          <span style={{ fontSize:15 }}>{account.hasSession ? '✅' : '🔐'}</span>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:11, fontWeight:700, color: account.hasSession ? '#22c55e' : '#a78bfa' }}>
-                              API Privada · {account.hasSession ? 'Sessão ativa' : 'Requer login'}
-                            </div>
-                            <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>Rolar reels e curtir no feed</div>
-                          </div>
-                          {account.hasSession ? (
-                            <button onClick={() => handlePrivateLogout(account._id)} style={{ fontSize:10, padding:'3px 8px', borderRadius:6, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.08)', color:'#f87171', cursor:'pointer', flexShrink:0 }}>
-                              Desconectar
-                            </button>
-                          ) : (
-                            <button onClick={() => { setLoginModal({ accountId:account._id, username:account.username }); setLoginPwd(''); }} style={{ fontSize:10, padding:'3px 8px', borderRadius:6, border:'1px solid rgba(139,92,246,.3)', background:'rgba(139,92,246,.1)', color:'#a78bfa', cursor:'pointer', flexShrink:0 }}>
-                              Conectar
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Intensity */}
-                      <div>
-                        <div style={labelStyle}>Intensidade</div>
-                        <div style={{ display:'flex', gap:6 }}>
-                          {INTENSITY.map(({ v, label, color, desc }) => (
-                            <button key={v} onClick={() => updateCfg(account._id, 'intensity', v)} title={desc} style={{
-                              flex:1, padding:'8px 0', borderRadius:8,
-                              border:`1px solid ${cfg.intensity === v ? color : 'var(--border)'}`,
-                              cursor:'pointer', fontWeight:700, fontSize:11,
-                              background: cfg.intensity === v ? `${color}20` : 'var(--bg3)',
-                              color: cfg.intensity === v ? color : 'var(--text3)',
-                              transition:'all .15s',
-                            }}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <div style={{ fontSize:10, color:'var(--text3)', marginTop:4 }}>{INTENSITY.find(i => i.v === cfg.intensity)?.desc}</div>
-                      </div>
-
-                      {/* Actions */}
-                      <div>
-                        <div style={labelStyle}>Ações a executar</div>
-                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-                          {ACTIONS.map(a => {
-                            const on = cfg.actions?.includes(a.value);
-                            const needsSession = a.api === 'privada' && !account.hasSession;
-                            return (
-                              <button key={a.value} onClick={() => toggleAction(account._id, a.value)} style={{
-                                padding:'9px 10px', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:11,
-                                background: on ? `${a.color}20` : 'var(--bg3)',
-                                color: on ? a.color : 'var(--text3)',
-                                border:`1px solid ${on ? a.color : 'var(--border)'}`,
-                                transition:'all .15s', textAlign:'left',
-                                display:'flex', alignItems:'center', gap:7,
-                              }}>
-                                <span style={{ fontSize:13 }}>{a.icon}</span>
-                                <div>
-                                  <div>{a.label}</div>
-                                  <div style={{ fontSize:9, fontWeight:400, color: needsSession && on ? '#f59e0b' : 'var(--text3)', opacity:.8 }}>
-                                    {a.api === 'privada' ? (needsSession ? '⚠ requer sessão' : '✓ API Privada') : 'API Oficial'}
-                                  </div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {needsPrivateAPI && !account.hasSession && (
-                          <div style={{ marginTop:8, padding:'8px 12px', borderRadius:8, background:'rgba(245,158,11,.07)', border:'1px solid rgba(245,158,11,.25)', fontSize:10, color:'#f59e0b' }}>
-                            ⚠ As ações de API Privada precisam de uma sessão ativa. Clique em <strong>Conectar</strong> acima para fazer login.
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Limits */}
-                      <div style={{ display:'flex', gap:10 }}>
-                        {cfg.actions?.includes('likes') && (
-                          <div style={{ flex:1 }}>
-                            <div style={labelStyle}>Max. Curtidas</div>
-                            <input type="number" min={1} max={100} value={cfg.maxLikes}
-                              onChange={e => updateCfg(account._id, 'maxLikes', Number(e.target.value))}
-                              style={inputStyle} />
-                          </div>
-                        )}
-                        {cfg.actions?.includes('comments') && (
-                          <div style={{ flex:1 }}>
-                            <div style={labelStyle}>Max. Comentários</div>
-                            <input type="number" min={1} max={50} value={cfg.maxComments}
-                              onChange={e => updateCfg(account._id, 'maxComments', Number(e.target.value))}
-                              style={inputStyle} />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Comment list */}
-                      {cfg.actions?.includes('comments') && (
-                        <div>
-                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                            <div style={labelStyle}>Comentários (um por linha)</div>
-                            <span style={{ fontSize:10, color:'var(--cyan)', fontWeight:600 }}>
-                              {cfg.commentList.split('\n').filter(s => s.trim()).length} cadastrados
-                            </span>
-                          </div>
-                          <textarea
-                            value={cfg.commentList}
-                            onChange={e => updateCfg(account._id, 'commentList', e.target.value)}
-                            rows={5}
-                            placeholder={'🔥🔥🔥\nIncrível!\nAmei!\n💯'}
-                            style={{
-                              width:'100%', boxSizing:'border-box', padding:'8px 12px',
-                              borderRadius:8, border:'1px solid var(--border)',
-                              background:'var(--bg3)', color:'var(--text)',
-                              fontSize:12, resize:'vertical', fontFamily:'inherit', lineHeight:1.5,
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      {/* Interval */}
-                      <div>
-                        <div style={{ ...labelStyle, marginBottom:8 }}>
-                          Intervalo entre ciclos:&nbsp;
-                          <span style={{ color:'var(--cyan)', fontWeight:800 }}>{cfg.intervalMinutes} min</span>
-                        </div>
-                        <input type="range" min={10} max={120} step={5}
-                          value={cfg.intervalMinutes}
-                          onChange={e => updateCfg(account._id, 'intervalMinutes', Number(e.target.value))}
-                          style={{ width:'100%', accentColor:'var(--cyan)' }}
-                        />
-                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text3)', marginTop:2 }}>
-                          <span>10 min</span><span>120 min</span>
-                        </div>
-                      </div>
-
-                      {/* Max duration */}
-                      <div>
-                        <div style={{ ...labelStyle, marginBottom:8 }}>
-                          Duração máxima:&nbsp;
-                          <span style={{ color: cfg.maxDurationHours === 0 ? '#f59e0b' : 'var(--cyan)', fontWeight:800 }}>
-                            {cfg.maxDurationHours === 0 ? 'Sem limite' : `${cfg.maxDurationHours}h`}
-                          </span>
-                        </div>
-                        <input type="range" min={0} max={12} step={1}
-                          value={cfg.maxDurationHours}
-                          onChange={e => updateCfg(account._id, 'maxDurationHours', Number(e.target.value))}
-                          style={{ width:'100%', accentColor: cfg.maxDurationHours === 0 ? '#f59e0b' : 'var(--cyan)' }}
-                        />
-                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text3)', marginTop:2 }}>
-                          <span>Sem limite</span><span>12h</span>
-                        </div>
-                      </div>
-
-                      {/* CTA */}
-                      <button onClick={() => startWarmup(account._id)} style={{
-                        width:'100%', padding:'11px 0', borderRadius:9, border:'none', cursor:'pointer',
-                        background: isActive ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#22c55e,#16a34a)',
-                        color:'#fff', fontWeight:700, fontSize:13,
-                        boxShadow: isActive ? '0 4px 16px rgba(245,158,11,.3)' : '0 4px 16px rgba(34,197,94,.3)',
-                      }}>
-                        {isActive ? '🔄 Atualizar configuração' : '🔥 Iniciar aquecimento'}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        })}
+      {/* ── KPI row ── */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:20}}>
+        <KpiTile label="Total contas"    value={n0} color="var(--text)"  bg="oklch(0.14 0.04 235/0.5)" border="oklch(1 0 0/0.08)" delay={0}    icon="📱"/>
+        <KpiTile label="Aquecendo"       value={n1} color="#22c55e"      bg="rgba(34,197,94,.06)"       border="rgba(34,197,94,.2)" delay={.05}  icon="🔥" sub={activeCount>0?accounts.filter(a=>a.warmupActive).map(a=>`@${a.username}`).join(', '):undefined}/>
+        <KpiTile label="Contas saudáveis"value={n2} color="var(--cyan)"  bg="oklch(0.14 0.04 235/0.5)" border="rgba(0,212,255,.15)" delay={.1}  icon="✅"/>
+        <KpiTile label="Ações no log"    value={n3} color="#a78bfa"      bg="rgba(167,139,250,.06)"     border="rgba(167,139,250,.15)" delay={.15} icon="📋"/>
       </div>
 
       {/* ── Status banner ── */}
-      {accounts.length > 0 && (
-        <div style={{ marginTop:20, display:'flex', flexDirection:'column', gap:10 }}>
-          <div style={{
-            background: activeCount > 0 ? 'rgba(34,197,94,.06)' : 'oklch(0.16 0.05 235 / 0.85)',
-            border:`1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'oklch(1 0 0 / 0.07)'}`,
-            borderRadius:14, padding:'16px 20px',
-            display:'flex', alignItems:'center', gap:16,
-            backdropFilter:'blur(12px)',
-          }}>
-            <div style={{
-              width:44, height:44, borderRadius:'50%', flexShrink:0,
-              display:'flex', alignItems:'center', justifyContent:'center',
-              background: activeCount > 0 ? 'rgba(34,197,94,.15)' : 'oklch(0.10 0.03 235 / 0.5)',
-              border:`1px solid ${activeCount > 0 ? 'rgba(34,197,94,.3)' : 'oklch(1 0 0 / 0.07)'}`,
-              fontSize:20,
-            }}>
-              {activeCount > 0 ? '🔥' : '💤'}
+      {accounts.length>0&&(
+        <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{delay:.2,duration:.3}}
+          style={{
+            marginBottom:20,padding:'14px 20px',borderRadius:14,
+            background:activeCount>0?'rgba(34,197,94,.06)':'oklch(0.15 0.05 235/0.6)',
+            border:`1px solid ${activeCount>0?'rgba(34,197,94,.25)':'oklch(1 0 0/0.07)'}`,
+            display:'flex',alignItems:'center',gap:14,backdropFilter:'blur(12px)',
+          }}
+        >
+          <div style={{fontSize:24,flexShrink:0}}>{activeCount>0?'🔥':'💤'}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:14,color:activeCount>0?'#22c55e':'var(--text)',marginBottom:2}}>
+              {activeCount>0?`${activeCount} conta${activeCount>1?'s':''} aquecendo agora`:'Nenhuma conta em aquecimento'}
             </div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, fontSize:14, color: activeCount > 0 ? '#22c55e' : 'var(--text)', marginBottom:3 }}>
-                {activeCount > 0
-                  ? `${activeCount} conta${activeCount > 1 ? 's' : ''} aquecendo agora`
-                  : 'Nenhuma conta em aquecimento'}
-              </div>
-              <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.5 }}>
-                {activeCount > 0
-                  ? accounts.filter(a => a.warmupActive).map(a => `@${a.username}`).join(', ')
-                  : 'Inicie o aquecimento em uma ou mais contas para evitar shadowban.'}
-              </div>
+            <div style={{fontSize:12,color:'var(--text3)'}}>
+              {activeCount>0
+                ?`Ações orgânicas ativas · logs atualizando a cada 10s`
+                :'Inicie o aquecimento para evitar shadowban e melhorar o alcance'}
             </div>
-            {activeCount > 0 && (
-              <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:6 }}>
-                <span style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 8px #22c55e', display:'inline-block', animation:'wm-pulse 1.5s infinite' }} />
-                <span style={{ fontSize:11, color:'#22c55e', fontWeight:700 }}>ATIVO</span>
-              </div>
-            )}
           </div>
+          {activeCount>0&&<span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,color:'#22c55e',fontWeight:700}}><span style={{width:7,height:7,borderRadius:'50%',background:'#22c55e',boxShadow:'0 0 8px #22c55e',display:'inline-block',animation:'wm-pulse 1.4s infinite'}}/>ATIVO</span>}
+        </motion.div>
+      )}
 
-          <div style={{ background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, padding:'14px 20px', display:'flex', gap:14, alignItems:'flex-start', backdropFilter:'blur(12px)' }}>
-            <span style={{ fontSize:20, flexShrink:0 }}>💡</span>
-            <div>
-              <div style={{ fontWeight:700, fontSize:12, marginBottom:4, color:'var(--text)' }}>Boas práticas</div>
-              <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.7 }}>
-                Use <strong>Leve</strong> para contas novas · <strong>Médio</strong> para contas estabelecidas · <strong>Agressivo</strong> apenas para contas experientes.
-                API Privada (Reels/Explorar) requer login com senha do Instagram e simula uso orgânico no app.
-              </div>
-            </div>
-          </div>
+      {/* ── Account cards ── */}
+      {accounts.length===0?(
+        <div style={{textAlign:'center',padding:'60px 0',color:'var(--text3)'}}>Nenhuma conta. Adicione contas primeiro.</div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {accounts.map(account=>(
+            <AccountCard
+              key={account._id}
+              account={account}
+              cfg={configs[account._id]||defaultCfg()}
+              expanded={expanded===account._id}
+              onExpand={()=>setExpanded(expanded===account._id?null:account._id)}
+              onStart={startWarmup}
+              onStop={stopWarmup}
+              onOpenLogin={m=>{setLoginModal(m);setLoginPwd('');}}
+              onLogout={handleLogout}
+              updateCfg={updateCfg}
+              toggleAction={toggleAction}
+            />
+          ))}
         </div>
       )}
 
+      {/* ── Tips ── */}
+      {accounts.length>0&&(
+        <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.4}}
+          style={{marginTop:16,padding:'14px 20px',borderRadius:14,background:'oklch(0.15 0.05 235/0.6)',border:'1px solid oklch(1 0 0/0.07)',display:'flex',gap:12,backdropFilter:'blur(12px)'}}>
+          <span style={{fontSize:18,flexShrink:0}}>💡</span>
+          <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.7}}>
+            <strong>Leve</strong> para contas novas · <strong>Médio</strong> para contas estabelecidas · <strong>Agressivo</strong> apenas para contas experientes.
+            API Privada (Reels e Explorar) requer login com senha e simula navegação orgânica no app.
+          </div>
+        </motion.div>
+      )}
+
       {/* ── Activity log ── */}
-      <div style={{ marginTop:24, background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:16, overflow:'hidden', backdropFilter:'blur(12px)' }}>
-        <div style={{ padding:'14px 20px', borderBottom:'1px solid oklch(1 0 0 / 0.07)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontWeight:700, fontSize:'.88rem', color:'var(--text)' }}>Log de Atividade</span>
-            {logs.length > 0 && (
-              <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'oklch(0.10 0.03 235 / 0.6)', color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
-                {logs.length}
-              </span>
-            )}
-            {activeCount > 0 && (
-              <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:10, color:'#22c55e', fontWeight:700 }}>
-                <span style={{ width:5, height:5, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'wm-pulse 1.5s infinite' }} />
-                atualizando a cada 10s
+      <div style={{marginTop:20,background:'oklch(0.15 0.05 235/0.9)',border:'1px solid oklch(1 0 0/0.08)',borderRadius:18,overflow:'hidden',backdropFilter:'blur(20px)'}}>
+        <div style={{padding:'14px 20px',borderBottom:'1px solid oklch(1 0 0/0.07)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:9}}>
+            <span style={{fontWeight:700,fontSize:'.88rem',color:'var(--text)'}}>Log de Atividade</span>
+            {logs.length>0&&<span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:20,background:'oklch(0.10 0.03 235/0.6)',color:'var(--text3)',fontFamily:'var(--font-mono)'}}>{logs.length}</span>}
+            {activeCount>0&&(
+              <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,color:'#22c55e',fontWeight:700}}>
+                <span style={{width:5,height:5,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
+                10s
               </span>
             )}
           </div>
-          <button onClick={loadLogs} className="btn-ghost" style={{ fontSize:11, padding:'4px 10px', borderRadius:7 }}>
-            ↺ Atualizar
-          </button>
+          <button onClick={loadLogs} className="btn-ghost" style={{fontSize:11,padding:'4px 10px',borderRadius:7}}>↺</button>
         </div>
 
-        {logs.length === 0 ? (
-          <div style={{ padding:'32px 20px', textAlign:'center', color:'var(--text3)', fontSize:13 }}>
-            <div style={{ fontSize:28, marginBottom:8 }}>🔥</div>
-            Nenhuma ação registrada ainda. Inicie o aquecimento para ver os logs aqui.
+        {logs.length===0?(
+          <div style={{padding:'36px 20px',textAlign:'center',color:'var(--text3)',fontSize:13}}>
+            <div style={{fontSize:32,marginBottom:10,opacity:.5}}>🔥</div>
+            Nenhuma ação registrada. Inicie o aquecimento para ver os logs.
           </div>
-        ) : (
-          <div style={{ maxHeight:480, overflowY:'auto' }}>
-            {logs.map((entry, i) => (
-              <div key={entry._id || i} style={{
-                padding:'10px 20px',
-                borderBottom: i < logs.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none',
-                display:'flex', alignItems:'flex-start', gap:12,
-                background: entry.status === 'error' ? 'rgba(239,68,68,.04)' : 'transparent',
-              }}>
-                {/* Action icon */}
-                <div style={{
-                  width:32, height:32, borderRadius:'50%', flexShrink:0,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  background:`${LOG_COLOR[entry.action] || '#64748b'}15`,
-                  fontSize:14,
-                }}>
-                  {LOG_ICON[entry.action] || '•'}
+        ):(
+          <div style={{maxHeight:500,overflowY:'auto'}}>
+            {logs.map((entry,i)=>(
+              <motion.div key={entry._id||i}
+                initial={{opacity:0,x:-6}} animate={{opacity:1,x:0}}
+                transition={{delay:Math.min(i*0.02,0.3),duration:.2}}
+                style={{
+                  padding:'10px 20px',
+                  borderBottom:i<logs.length-1?'1px solid oklch(1 0 0/0.05)':'none',
+                  display:'flex',alignItems:'flex-start',gap:12,
+                  background:entry.status==='error'?'rgba(239,68,68,.03)':'transparent',
+                  transition:'background .15s',
+                }}
+                onMouseEnter={e=>e.currentTarget.style.background=entry.status==='error'?'rgba(239,68,68,.06)':'oklch(0.12 0.04 235/0.3)'}
+                onMouseLeave={e=>e.currentTarget.style.background=entry.status==='error'?'rgba(239,68,68,.03)':'transparent'}
+              >
+                {/* Icon */}
+                <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:`${LOG_COLOR[entry.action]||'#64748b'}14`,fontSize:13}}>
+                  {LOG_ICON[entry.action]||'•'}
                 </div>
-
                 {/* Content */}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:'var(--cyan)', flexShrink:0 }}>@{entry.username}</span>
-                    <span style={{ fontSize:12, color: entry.status === 'error' ? '#f87171' : 'var(--text)', lineHeight:1.4 }}>
-                      {entry.detail}
-                    </span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--cyan)',flexShrink:0}}>@{entry.username}</span>
+                    <span style={{fontSize:12,color:entry.status==='error'?'#f87171':'var(--text)',lineHeight:1.4}}>{entry.detail}</span>
                   </div>
-                  {entry.targetUser && (
-                    <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>→ @{entry.targetUser}</div>
-                  )}
+                  {entry.targetUser&&<div style={{fontSize:10,color:'var(--text3)',marginTop:2}}>→ @{entry.targetUser}</div>}
                 </div>
-
                 {/* Time */}
-                <div style={{ flexShrink:0, textAlign:'right' }}>
-                  <div style={{ fontSize:10, color:'var(--text3)', fontVariantNumeric:'tabular-nums', fontFamily:'var(--font-mono)' }}>
-                    {timeAgo(entry.createdAt)}
-                  </div>
-                  <div style={{ fontSize:9, color:'oklch(1 0 0 / 0.2)', marginTop:2, fontFamily:'var(--font-mono)' }}>
-                    {fmtTime(entry.createdAt)}
-                  </div>
-                </div>
-              </div>
+                <div style={{flexShrink:0,fontSize:10,color:'var(--text3)',fontFamily:'var(--font-mono)',whiteSpace:'nowrap'}}>{timeAgo(entry.createdAt)}</div>
+              </motion.div>
             ))}
           </div>
         )}
       </div>
 
-      {/* ── Private API Login Modal ── */}
+      {/* ── Login Modal ── */}
       <AnimatePresence>
-        {loginModal && (
-          <motion.div
-            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-            onClick={e => { if (e.target === e.currentTarget) { setLoginModal(null); setLoginPwd(''); } }}
-            style={{
-              position:'fixed', inset:0, zIndex:1000,
-              background:'rgba(0,0,0,.6)', backdropFilter:'blur(8px)',
-              display:'flex', alignItems:'center', justifyContent:'center', padding:20,
-            }}
-          >
-            <motion.div
-              initial={{ scale:.94, y:16, opacity:0 }} animate={{ scale:1, y:0, opacity:1 }} exit={{ scale:.94, y:16, opacity:0 }}
-              transition={{ type:'spring', damping:20, stiffness:300 }}
-              style={{
-                background:'oklch(0.16 0.05 235 / 0.98)', border:'1px solid oklch(0.72 0.18 280 / 0.3)',
-                borderRadius:18, width:'100%', maxWidth:420,
-                boxShadow:'0 24px 80px rgba(0,0,0,.5)',
-              }}
-            >
-              {/* Modal header */}
-              <div style={{ padding:'18px 20px 14px', borderBottom:'1px solid oklch(1 0 0 / 0.07)', display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ width:40, height:40, borderRadius:12, background:'rgba(139,92,246,.15)', border:'1px solid rgba(139,92,246,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                  🔐
-                </div>
-                <div>
-                  <div style={{ fontWeight:800, fontSize:14, color:'var(--text)' }}>Login API Privada</div>
-                  <div style={{ fontSize:12, color:'var(--text3)', marginTop:1 }}>@{loginModal.username}</div>
-                </div>
-                <button onClick={() => { setLoginModal(null); setLoginPwd(''); }} style={{ marginLeft:'auto', background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:18, flexShrink:0 }}>
-                  ×
-                </button>
-              </div>
-
-              {/* Modal body */}
-              <div style={{ padding:'16px 20px' }}>
-                <div style={{ padding:'10px 14px', borderRadius:10, background:'rgba(245,158,11,.07)', border:'1px solid rgba(245,158,11,.2)', fontSize:11, color:'#f59e0b', lineHeight:1.6, marginBottom:16 }}>
-                  ⚠ A senha é usada apenas para criar uma sessão local. Ative Autenticação de 2 Fatores no Instagram para maior segurança.
-                </div>
-
-                <label style={{ display:'block', fontSize:10, color:'var(--text3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:6 }}>
-                  Senha do Instagram
-                </label>
-                <input
-                  type="password"
-                  value={loginPwd}
-                  onChange={e => setLoginPwd(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handlePrivateLogin()}
-                  placeholder="Digite a senha..."
-                  autoFocus
-                  style={{
-                    width:'100%', boxSizing:'border-box', padding:'10px 14px',
-                    borderRadius:9, border:'1px solid oklch(0.72 0.18 280 / 0.3)',
-                    background:'oklch(0.12 0.04 235)', color:'var(--text)', fontSize:13,
-                  }}
-                />
-
-                <div style={{ display:'flex', gap:8, marginTop:14 }}>
-                  <button onClick={() => { setLoginModal(null); setLoginPwd(''); }} style={{
-                    flex:1, padding:'10px 0', borderRadius:9, border:'1px solid var(--border)',
-                    background:'var(--bg3)', color:'var(--text3)', cursor:'pointer', fontWeight:600, fontSize:13,
-                  }}>
-                    Cancelar
-                  </button>
-                  <button onClick={handlePrivateLogin} disabled={loginBusy || !loginPwd.trim()} style={{
-                    flex:2, padding:'10px 0', borderRadius:9, border:'none',
-                    background: loginBusy || !loginPwd.trim() ? 'rgba(139,92,246,.2)' : 'linear-gradient(135deg,#7c3aed,#a78bfa)',
-                    color: loginBusy || !loginPwd.trim() ? 'rgba(167,139,250,.4)' : '#fff',
-                    cursor: loginBusy || !loginPwd.trim() ? 'not-allowed' : 'pointer',
-                    fontWeight:700, fontSize:13,
-                    display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-                  }}>
-                    {loginBusy ? (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation:'wm-spin 1s linear infinite' }}>
-                          <path d="M21 12a9 9 0 11-6.219-8.56"/>
-                        </svg>
-                        Conectando...
-                      </>
-                    ) : '🔐 Conectar sessão'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+        {loginModal&&(
+          <LoginModal
+            loginModal={loginModal}
+            loginPwd={loginPwd}
+            setLoginPwd={setLoginPwd}
+            loginBusy={loginBusy}
+            onSubmit={handlePrivateLogin}
+            onClose={()=>{setLoginModal(null);setLoginPwd('');}}
+          />
         )}
       </AnimatePresence>
     </PageShell>

@@ -9,14 +9,15 @@
       <stop offset="100%" stop-color="#818cf8"/>
     </radialGradient>
   </defs>
-  <line x1="5" y1="27" x2="5"  y2="5"  stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
-  <line x1="5" y1="5"  x2="16" y2="15" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
-  <line x1="16" y1="15" x2="27" y2="5" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
-  <line x1="27" y1="5"  x2="27" y2="27" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.65"/>
-  <line x1="5"  y1="27" x2="27" y2="27" stroke="url(#ln)" stroke-width="1"   stroke-linecap="round" opacity="0.2"/>
+  <rect width="32" height="32" rx="8" fill="#0a1628"/>
+  <line x1="5" y1="27" x2="5"  y2="5"  stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.72"/>
+  <line x1="5" y1="5"  x2="16" y2="15" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.72"/>
+  <line x1="16" y1="15" x2="27" y2="5" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.72"/>
+  <line x1="27" y1="5"  x2="27" y2="27" stroke="url(#ln)" stroke-width="1.6" stroke-linecap="round" opacity="0.72"/>
+  <line x1="5"  y1="27" x2="27" y2="27" stroke="url(#ln)" stroke-width="1"   stroke-linecap="round" opacity="0.25"/>
   <circle cx="5"  cy="27" r="3"   fill="url(#nd)"/>
   <circle cx="5"  cy="5"  r="3"   fill="url(#nd)"/>
   <circle cx="27" cy="5"  r="3"   fill="url(#nd)"/>
   <circle cx="27" cy="27" r="3"   fill="url(#nd)"/>
-  <circle cx="16" cy="15" r="4.2" fill="url(#nd)"/>
+  <circle cx="16" cy="15" r="4.5" fill="url(#nd)"/>
 </svg>
