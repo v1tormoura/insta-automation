@@ -1001,7 +1001,7 @@ export default function Dashboard() {
 
         {/* ── FILA · LOOPS · TOP CONTAS ── */}
         <BlurFade delay={0.1} inView>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1.1fr', gap:12, alignItems:'start' }}>
+          <div className="dash-main-panels">
             <QueuePanel d={d} accountStats={accountStats} />
             <LoopsPanel loops={loops} />
             <TopViewsRanking d={d} />

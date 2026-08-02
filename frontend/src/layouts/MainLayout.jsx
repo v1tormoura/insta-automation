@@ -169,7 +169,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div style={{
+        <div className="notif-panel" style={{
           position: 'absolute', top: 'calc(100% + 10px)', right: 0, zIndex: 9999,
           width: 340, maxHeight: 440, overflowY: 'auto',
           background: 'var(--bg2)', border: '1px solid var(--border)',
