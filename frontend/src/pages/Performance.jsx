@@ -45,7 +45,8 @@ export default function Performance() {
 
       if (needAccounts) {
         const aMap = {};
-        (results[1].data || []).forEach(a => { aMap[a.username] = a; });
+        const accs = results[1].data?.accounts || (Array.isArray(results[1].data) ? results[1].data : []);
+        accs.forEach(a => { aMap[a.username] = a; });
         accCacheRef.current = aMap;
       }
       const aMap = accCacheRef.current;
