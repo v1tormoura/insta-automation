@@ -26,6 +26,7 @@ export default function Performance() {
   const [period,  setPeriod]  = useState('30d');
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errMsg,  setErrMsg]  = useState('');
   const navigate = useNavigate();
   const accCacheRef = useRef({});
 
@@ -83,6 +84,7 @@ export default function Performance() {
       });
     } catch (e) {
       console.error(e);
+      setErrMsg(e?.response?.data?.error || e?.message || 'Erro desconhecido');
     } finally {
       setLoading(false);
     }
@@ -148,7 +150,12 @@ export default function Performance() {
           Carregando insights...
         </div>
       ) : !data ? (
-        <div style={{ textAlign:'center', padding:60, color:'var(--text3)' }}>Erro ao carregar dados.</div>
+        <div style={{ textAlign:'center', padding:60, color:'var(--text3)' }}>
+          <div style={{ fontSize:28, marginBottom:10 }}>⚠️</div>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--text2)', marginBottom:8 }}>Erro ao carregar dados</div>
+          {errMsg && <div style={{ fontSize:11, color:'#f87171', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.18)', borderRadius:8, padding:'8px 14px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
+          <button onClick={load} style={{ padding:'8px 20px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--text2)', cursor:'pointer', fontSize:13, fontWeight:600 }}>↺ Tentar novamente</button>
+        </div>
       ) : (
         <>
           {/* KPI grid */}
@@ -178,7 +185,13 @@ export default function Performance() {
               </div>
 
               {data.byAccount.length === 0 ? (
-                <div style={{ padding:24, textAlign:'center', fontSize:12, color:'var(--text3)' }}>Sem dados de conta.</div>
+                <div style={{ padding:'28px 20px', textAlign:'center' }}>
+                  <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text2)', marginBottom:6 }}>Nenhum insight sincronizado</div>
+                  <div style={{ fontSize:12, color:'var(--text3)', lineHeight:1.6 }}>
+                    Vá no <strong>Dashboard</strong> e clique em <strong>SYNC</strong> para importar as métricas dos seus posts via Meta Graph API.
+                  </div>
+                </div>
               ) : (
                 <div>
                   {data.byAccount.map((acc, i) => {
