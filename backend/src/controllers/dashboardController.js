@@ -83,6 +83,7 @@ exports.getDashboard = async (req, res) => {
     const errorPosts = await Post.countDocuments({ status: 'erro' });
 
     const postsToday = await Post.countDocuments({
+      status: 'concluido',
       updatedAt: { $gte: today },
     });
 
@@ -110,7 +111,7 @@ exports.getDashboard = async (req, res) => {
     // Usa updatedAt para capturar quando o post foi de fato publicado, não quando foi criado/agendado
     const ninetyDaysAgo = daysAgo(90);
     const dailyPostsRaw = await Post.aggregate([
-      { $match: { updatedAt: { $gte: ninetyDaysAgo } } },
+      { $match: { status: 'concluido', updatedAt: { $gte: ninetyDaysAgo } } },
       { $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
         count: { $sum: 1 },
@@ -143,8 +144,10 @@ exports.getDashboard = async (req, res) => {
     const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;
 
     const upcomingPosts = await Post.find({
-      status: 'agendado',
-      scheduledAt: { $gte: new Date() },
+      $or: [
+        { status: 'agendado', scheduledAt: { $gte: new Date() } },
+        { status: { $in: ['pendente', 'processando'] } },
+      ],
     })
       .populate('accounts')
       .sort({ scheduledAt: 1 })

@@ -5,7 +5,8 @@ const connection   = require('./connection');
 const connectDB    = require('../config/db');
 const Post         = require('../models/Post');
 const Account      = require('../models/Account');
-const { postReel } = require('../services/instagramPrivateService');
+const { postReel: postReelPrivate } = require('../services/instagramPrivateService');
+const { postReel: postReelGraph, prepareVideo } = require('../services/instagramAPI');
 const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
@@ -58,8 +59,22 @@ async function registerError(account, error) {
   await Account.findByIdAndUpdate(account._id, { lastError: traduzirErro(error), healthStatus });
 }
 
-// ── Publicação via Private API (mobile endpoints, sem browser, sem Graph API) ──
-async function publishWithRetry(post, account) {
+// ── Publicação: Graph API (IGAA token) ou Private API (cookies/session) ──
+async function publishWithRetry(post, account, preProcessedVideoUrl) {
+  // Graph API — preferida quando a conta tem token IGAA conectado
+  if (account.accessToken && account.igUserId) {
+    writeAccountLog(account.username, 'Publicando via Graph API (Meta)...');
+    try {
+      await postReelGraph(account, post, preProcessedVideoUrl || null);
+      writeAccountLog(account.username, 'Publicado com sucesso via Graph API');
+      return true;
+    } catch (err) {
+      writeAccountLog(account.username, `Graph API: ${err.message}`);
+      throw err;
+    }
+  }
+
+  // Private API — fallback para contas sem token IGAA
   const fs   = require('fs');
   const path = require('path');
 
@@ -67,14 +82,14 @@ async function publishWithRetry(post, account) {
   const hasMethod  = hasCookies || !!(account.password) || !!(account.igSession);
 
   if (!hasMethod) {
-    const msg = 'Sem sessão ou senha — importe cookies (🍪) ou configure senha e reconecte via ⚡';
+    const msg = 'Sem sessão/senha e sem token de API — conecte via Meta API ou importe cookies (🍪)';
     writeAccountLog(account.username, msg);
     throw new Error(`@${account.username}: ${msg}`);
   }
 
   writeAccountLog(account.username, 'Publicando via Private API...');
   try {
-    await postReel(account, post);
+    await postReelPrivate(account, post);
     writeAccountLog(account.username, 'Publicado com sucesso via Private API');
     return true;
   } catch (err) {
@@ -129,7 +144,7 @@ const worker = new Worker(
           return;
         }
 
-        await publishWithRetry(post, account);
+        await publishWithRetry(post, account, preProcessedVideoUrl);
         await registerSuccess(account);
         await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
         broadcast('accounts', { action: 'synced' });
@@ -164,7 +179,19 @@ const worker = new Worker(
       }
     }
 
-    console.log(`Publicando para ${post.accounts.length} conta(s) via Private API...`);
+    // Pré-processa vídeo uma vez para contas Graph API (evita reconversão paralela)
+    let preProcessedVideoUrl = null;
+    const graphAccounts = post.accounts.filter(a => a.accessToken && a.igUserId);
+    if (graphAccounts.length > 0) {
+      try {
+        preProcessedVideoUrl = await prepareVideo(post);
+        console.log('Vídeo pré-processado para Graph API:', preProcessedVideoUrl);
+      } catch (e) {
+        console.log('Aviso: pré-processamento falhou, cada conta vai tentar individualmente:', e.message);
+      }
+    }
+
+    console.log(`Publicando para ${post.accounts.length} conta(s)...`);
     await Promise.allSettled(post.accounts.map(acc => publishOne(acc)));
 
     post.status = successCount > 0 && errorCount === 0 ? 'concluido'

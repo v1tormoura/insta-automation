@@ -345,7 +345,7 @@ function QueuePanel({ d, accountStats }) {
         <div style={{ margin:'0 14px 10px', padding:'8px 12px', background:'linear-gradient(90deg,rgba(0,212,255,.05),rgba(0,212,255,.02))', border:'1px solid rgba(0,212,255,.14)', borderRadius:10, display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
           <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)', boxShadow:'0 0 8px var(--green)', flexShrink:0, animation:'blink 1.8s infinite' }} />
           <span style={{ fontSize:11, color:'var(--text2)' }}>Próximo</span>
-          <span style={{ fontSize:11, fontWeight:700, color:'var(--cyan)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{proximoItem.username || proximoItem.account}</span>
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--cyan)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{proximoItem.accounts?.[0]?.username || proximoItem.accounts?.[0]?.name || '—'}</span>
           <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginLeft:'auto', flexShrink:0 }}>{fmtTime(proximoItem.scheduledAt)}</span>
         </div>
       )}
@@ -365,9 +365,9 @@ function QueuePanel({ d, accountStats }) {
                 onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.03)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
-                <AvatarChip username={item.username || item.account} avatar={item.avatar} size={26} />
+                <AvatarChip username={item.accounts?.[0]?.username} avatar={item.accounts?.[0]?.avatar} size={26} />
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{item.username || item.account}</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{item.accounts?.[0]?.username || '—'}</div>
                   <div style={{ fontSize:10, color:'var(--text3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{item.postType || 'Reels'}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
