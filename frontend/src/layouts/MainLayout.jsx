@@ -272,7 +272,7 @@ export default function MainLayout({ children }) {
             onClick={() => navigate('/')}
             style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0 }}
           >
-            <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/mouraflow-icon.svg?v=2" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} />
             <span className="logo-text" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)', whiteSpace: 'nowrap' }}>MouraFlow</span>
           </button>
           {/* Mobile close button */}
@@ -356,7 +356,7 @@ export default function MainLayout({ children }) {
           className="topbar-logo"
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+          <img src="/mouraflow-icon.svg?v=2" alt="MouraFlow" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           <span>MouraFlow</span>
         </button>
 
