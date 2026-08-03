@@ -134,11 +134,11 @@ exports.createPost = async (req, res) => {
 exports.getPosts = async (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
     const skip = (page - 1) * limit;
 
     const [posts, total] = await Promise.all([
-      Post.find().populate('accounts').sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Post.find().populate('accounts').sort({ updatedAt: -1 }).skip(skip).limit(limit),
       Post.countDocuments(),
     ]);
 

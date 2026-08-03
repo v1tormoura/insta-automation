@@ -62,14 +62,16 @@ export default function Logs() {
 
   const timeline = [
     ...posts.map(p => ({
-      _id:      p._id,
-      type:     p.postType || 'post',
-      status:   p.status,
-      date:     p.createdAt,
-      accounts: p.accounts?.map(a => a.username).join(', ') || '—',
-      media:    p.media || '—',
-      caption:  p.caption,
-      error:    p.error,
+      _id:       p._id,
+      type:      p.postType || 'post',
+      status:    p.status,
+      date:      p.updatedAt || p.createdAt,
+      createdAt: p.createdAt,
+      scheduledAt: p.scheduledAt,
+      accounts:  p.accounts?.map(a => a.username).join(', ') || '—',
+      media:     p.media || '—',
+      caption:   p.caption,
+      error:     p.error,
     })),
     ...profileJobs.map(j => {
       const hasErrors = j.results?.some(r => r.status === 'error');
@@ -150,7 +152,10 @@ export default function Logs() {
                   <div>
                     <strong style={{ fontSize:13, color:'var(--text)' }}>{tm.label}</strong>
                     <span style={{ fontSize:11, color:'var(--text3)', display:'block', fontFamily:'var(--font-mono)' }}>
-                      {entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'}
+                      {['agendado','pendente'].includes(entry.status) && entry.scheduledAt
+                        ? `Agendado: ${new Date(entry.scheduledAt).toLocaleString('pt-BR')}`
+                        : entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'
+                      }
                     </span>
                   </div>
                 </div>
