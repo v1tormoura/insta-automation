@@ -256,6 +256,18 @@ async function checkOneAccount(account) {
   // Só atualiza se houve mudança real de status
   if (!result.status) return; // erro transitório — mantém status atual
 
+  // Não sobrescreve 'restrita' causada por restrição de publicação da Meta (2207050)
+  // O token é válido para leitura mas bloqueado para publicação — health check não
+  // consegue detectar isso porque só chama /me (que funciona). A restrição é temporária
+  // e será resolvida quando o Instagram levantar a restrição da conta.
+  if (
+    result.status === 'ativa' &&
+    fresh.healthStatus === 'restrita' &&
+    /restringida pela Meta|2207050|restringida.*api/i.test(fresh.lastError || '')
+  ) {
+    return; // mantém 'restrita' — não deixa o health check apagar a restrição de publicação
+  }
+
   const currentStatus = fresh.healthStatus || 'ativa';
   if (result.status === currentStatus && !result.error) return;
 

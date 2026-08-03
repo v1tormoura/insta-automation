@@ -18,6 +18,8 @@ function traduzirErro(msg) {
     return 'Permissão revogada — reconecte via 🔗 API';
   if (/checkpoint|challenge.*required|IgCheckpoint/i.test(m))
     return 'Checkpoint pendente — verifique o app do Instagram';
+  if (/user access is restricted|conta.*restringida|usuário.*restringido|2207050|subcode.*2207/i.test(m))
+    return 'Conta restringida pela Meta — abra o app do Instagram para ver o aviso e recorrer';
   if (/feedback_required|action.*blocked|IgActionSpam/i.test(m))
     return 'Ação bloqueada pelo Instagram (possível spam)';
   if (/account.*disabled|disabled.*account|permanently disabled/i.test(m))
