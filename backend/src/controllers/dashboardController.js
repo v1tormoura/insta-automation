@@ -84,12 +84,12 @@ exports.getDashboard = async (req, res) => {
     const errorPosts = await Post.countDocuments({ status: 'erro' });
 
     const postsToday = await Post.countDocuments({
-      status: 'concluido',
+      status: { $in: ['concluido', 'parcial'] },
       updatedAt: { $gte: today },
     });
 
     const completedToday = await Post.countDocuments({
-      status: 'concluido',
+      status: { $in: ['concluido', 'parcial'] },
       updatedAt: { $gte: today },
     });
 
@@ -112,7 +112,7 @@ exports.getDashboard = async (req, res) => {
     // Usa updatedAt para capturar quando o post foi de fato publicado, não quando foi criado/agendado
     const ninetyDaysAgo = daysAgo(90);
     const dailyPostsRaw = await Post.aggregate([
-      { $match: { status: 'concluido', updatedAt: { $gte: ninetyDaysAgo } } },
+      { $match: { status: { $in: ['concluido', 'parcial'] }, updatedAt: { $gte: ninetyDaysAgo } } },
       { $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
         count: { $sum: 1 },

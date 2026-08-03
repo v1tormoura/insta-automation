@@ -908,19 +908,28 @@ export default function Dashboard() {
 
   const sparkDaily   = useMemo(() => (d.dailyPosts||[]).slice(-period).map(x => x.posts||0), [d.dailyPosts, period]);
   const forecastData = useMemo(() => {
-    const past = (d.dailyPosts||[]).slice(-period).map(x => ({ day:x.label||x.date||'', value:x.posts||0 }));
-    const todayKey = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+    // Keep ISO date alongside label for locale-independent matching
+    const past = (d.dailyPosts||[]).slice(-period).map(x => ({
+      day:  x.label || x.date || '',
+      iso:  (x.date || '').slice(0, 10),
+      value: x.posts || 0,
+      forecast: false,
+    }));
+    const todayISO = new Date().toISOString().slice(0, 10);
     const futureMap = {};
     (d.upcomingPosts||[]).forEach(post => {
-      const key = post.scheduledAt
-        ? new Date(post.scheduledAt).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })
-        : todayKey;
-      futureMap[key] = (futureMap[key]||0)+1;
+      let iso;
+      try { iso = post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 10) : todayISO; }
+      catch { iso = todayISO; }
+      futureMap[iso] = (futureMap[iso]||0) + 1;
     });
-    Object.entries(futureMap).forEach(([day, value]) => {
-      const existing = past.find(p => p.day === day);
-      if (existing) existing.value += value;
-      else past.push({ day, value, forecast:true });
+    Object.entries(futureMap).forEach(([iso, value]) => {
+      const existing = past.find(p => p.iso === iso);
+      if (existing) { existing.value += value; existing.forecast = true; }
+      else {
+        const dt = new Date(iso + 'T12:00:00Z');
+        past.push({ day: dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }), iso, value, forecast: true });
+      }
     });
     return past;
   }, [d.dailyPosts, d.upcomingPosts, period]);
