@@ -1039,6 +1039,10 @@ input[type=range]::-webkit-slider-thumb {
   .ps-header  { padding: 10px 14px; gap: 10px !important; }
   .ps-content { padding: 14px; }
 }
+@media (max-width: 640px) {
+  .ps-header  { flex-wrap: wrap; align-items: flex-start; }
+  .ps-actions { width: 100%; flex-shrink: 0; justify-content: flex-start; }
+}
 @media (max-width: 480px) {
   .ps-header  { padding: 8px 12px; }
   .ps-content { padding: 10px 12px; }

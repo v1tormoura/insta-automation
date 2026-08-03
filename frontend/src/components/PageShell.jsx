@@ -72,7 +72,7 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
 
         {/* actions slot */}
         {actions && (
-          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', minWidth:0, flexShrink:0 }}>
+          <div className="ps-actions" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', minWidth:0, flexShrink:0 }}>
             {actions}
           </div>
         )}
