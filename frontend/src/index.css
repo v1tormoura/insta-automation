@@ -443,7 +443,6 @@ a { text-decoration: none; color: inherit; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .drawer-item.active .drawer-item-sub { color: oklch(0.82 0.19 196 / 0.55); }
-.drawer.collapsed .drawer-item-sub   { display: none; }
 
 /* ── Footer / user ─────────────────────────────── */
 .drawer-footer { padding: 10px 10px 12px; border-top: 1px solid oklch(1 0 0 / 0.06); flex-shrink: 0; }

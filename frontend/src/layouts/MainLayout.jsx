@@ -262,7 +262,7 @@ export default function MainLayout({ children }) {
 
       {/* Drawer sidebar */}
       <aside
-        className={`drawer${drawerOpen ? ' drawer-open' : ''}${!hoverOpen ? ' collapsed' : ''}`}
+        className={`drawer${drawerOpen ? ' drawer-open' : ''}${(!hoverOpen && !drawerOpen) ? ' collapsed' : ''}`}
         onMouseEnter={handleSidebarEnter}
         onMouseLeave={handleSidebarLeave}
       >
