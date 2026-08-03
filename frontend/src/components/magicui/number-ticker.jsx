@@ -17,13 +17,17 @@ export function NumberTicker({ value, direction = 'up', delay = 0, className, de
   }, [motionValue, isInView, delay, value, direction]);
 
   useEffect(() => {
+    const fmt = (v) =>
+      Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: decimalPlaces,
+        maximumFractionDigits: decimalPlaces,
+      }).format(Number(v.toFixed(decimalPlaces)));
+
+    // Render the starting value immediately (critical for value=0: spring never fires)
+    if (ref.current) ref.current.textContent = fmt(springValue.get());
+
     return springValue.on('change', (latest) => {
-      if (ref.current) {
-        ref.current.textContent = Intl.NumberFormat('pt-BR', {
-          minimumFractionDigits: decimalPlaces,
-          maximumFractionDigits: decimalPlaces,
-        }).format(Number(latest.toFixed(decimalPlaces)));
-      }
+      if (ref.current) ref.current.textContent = fmt(latest);
     });
   }, [springValue, decimalPlaces]);
 
@@ -31,6 +35,6 @@ export function NumberTicker({ value, direction = 'up', delay = 0, className, de
     <span
       className={cn('inline-block tabular-nums tracking-tighter', className)}
       ref={ref}
-    >0</span>
+    />
   );
 }
