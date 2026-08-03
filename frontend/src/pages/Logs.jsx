@@ -127,7 +127,7 @@ export default function Logs() {
       date:      p.updatedAt || p.createdAt,
       createdAt: p.createdAt,
       scheduledAt: p.scheduledAt,
-      accounts:  p.accounts?.map(a => a.username).join(', ') || '—',
+      accounts:  p.accounts?.filter(Boolean).map(a => a.username).join(', ') || '—',
       media:     p.media || '—',
       caption:   p.caption,
       error:     p.error,
