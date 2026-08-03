@@ -1026,3 +1026,113 @@ input[type=range]::-webkit-slider-thumb {
 .tp-inner-pad { padding: 26px 26px 0; }
 .tp-hpad      { padding: 0 26px; }
 @media (max-width: 640px) { .tp-inner-pad { padding: 14px 12px 0; } .tp-hpad { padding: 0 12px; } }
+
+/* ════════════════════════════════════════════════════════
+   PAGE SHELL — responsive header + content
+   ════════════════════════════════════════════════════════ */
+.ps-header { padding: 14px 22px; }
+.ps-content { padding: 20px 22px; }
+
+@media (max-width: 768px) {
+  .ps-header  { padding: 10px 14px; gap: 10px !important; }
+  .ps-content { padding: 14px; }
+}
+@media (max-width: 480px) {
+  .ps-header  { padding: 8px 12px; }
+  .ps-content { padding: 10px 12px; }
+}
+@media (max-width: 380px) {
+  .ps-header  { padding: 8px 10px; }
+  .ps-content { padding: 8px 10px; }
+}
+
+/* ════════════════════════════════════════════════════════
+   SETTINGS — responsive 2-col grid
+   ════════════════════════════════════════════════════════ */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 640px) { .settings-grid { grid-template-columns: 1fr; } }
+
+/* ════════════════════════════════════════════════════════
+   SAFE AREA — iPhone notch / Dynamic Island / home bar
+   ════════════════════════════════════════════════════════ */
+@supports (padding: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    .topbar {
+      height: calc(52px + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left:  max(14px, env(safe-area-inset-left,  14px));
+      padding-right: max(14px, env(safe-area-inset-right, 14px));
+    }
+    .mainContent {
+      padding-top: calc(52px + env(safe-area-inset-top, 0px)) !important;
+    }
+    .drawer {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   TOUCH TARGETS — minimum 44px for interactive elements
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Ensure filter tabs are finger-friendly */
+  .filter-tab { min-height: 40px; display: flex; align-items: center; }
+  /* Buttons on mobile — generous tap area */
+  .btn-primary, .btn-ghost, .btn-danger, .btn-cyan { min-height: 40px; }
+}
+
+/* ════════════════════════════════════════════════════════
+   ACCOUNTS — extra small gap on tiny screens
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .accounts-stats-grid { gap: 8px !important; }
+}
+@media (max-width: 380px) {
+  .accounts-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ════════════════════════════════════════════════════════
+   TABLET (769px – 1024px) — sidebar collapsed, grid tighter
+   ════════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .g4 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(2, 1fr); }
+  .layout-form-2col { grid-template-columns: 1fr; }
+  .layout-legends   { grid-template-columns: 1fr; }
+  .layout-media-lib { grid-template-columns: 1fr; }
+  .layout-2col      { grid-template-columns: 1fr; }
+}
+
+/* ════════════════════════════════════════════════════════
+   ULTRA-WIDE (≥ 2560px) — cap max-width so lines don't
+   stretch across 4K monitors
+   ════════════════════════════════════════════════════════ */
+@media (min-width: 2560px) {
+  .padded-page { max-width: 2200px; margin-left: auto; margin-right: auto; }
+}
+
+/* ════════════════════════════════════════════════════════
+   OVERFLOW SAFETY — prevent horizontal scroll on any page
+   ════════════════════════════════════════════════════════ */
+.ps-content > * { min-width: 0; }
+.g4 > *, .g3 > *, .g2 > *, .g21 > *, .g32 > * { min-width: 0; }
+.layout-2col > *, .layout-form-2col > * { min-width: 0; }
+.settings-grid > * { min-width: 0; }
+.accounts-stats-grid > * { min-width: 0; }
+table { table-layout: auto; }
+
+/* ════════════════════════════════════════════════════════
+   REDUCED MOTION — respect prefers-reduced-motion
+   ════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

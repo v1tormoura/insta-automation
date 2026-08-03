@@ -14,7 +14,7 @@ function fmt(v) {
 }
 
 const modalOverlay = { position:'fixed', inset:0, background:'oklch(0.06 0.02 235 / 0.85)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
-const modalBox     = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid oklch(1 0 0 / 0.1)', borderRadius:16, padding:'20px 24px', minWidth:380, boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
+const modalBox     = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid oklch(1 0 0 / 0.1)', borderRadius:16, padding:'20px 24px', width:'min(460px,calc(100vw - 32px))', boxSizing:'border-box', boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
 const inp = { width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--text)', fontSize:13, boxSizing:'border-box', outline:'none' };
 const sel = { ...inp, appearance:'none' };
 

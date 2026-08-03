@@ -31,9 +31,9 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
         initial={{ opacity:0, y:-8 }}
         animate={{ opacity:1, y:0 }}
         transition={{ duration:.3, ease:[.4,0,.2,1] }}
+        className="ps-header"
         style={{
           display:'flex', alignItems:'center', gap:14,
-          padding:'14px 22px',
           borderBottom:'1px solid oklch(1 0 0 / 0.06)',
           background:'oklch(0.10 0.03 235 / 0.90)',
           backdropFilter:'blur(20px)',
@@ -72,14 +72,14 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
 
         {/* actions slot */}
         {actions && (
-          <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', minWidth:0, flexShrink:0 }}>
             {actions}
           </div>
         )}
       </motion.div>
 
       {/* ── Page content ── */}
-      <div style={{ flex:1, overflow:'auto', padding:'20px 22px', display:'flex', flexDirection:'column', gap:16 }}>
+      <div className="ps-content" style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column', gap:16 }}>
         {children}
       </div>
     </div>

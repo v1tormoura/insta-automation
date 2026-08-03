@@ -50,7 +50,7 @@ export default function Settings() {
     <>
       <Toast toast={toast} onClose={() => setToast(null)} />
       <PageShell icon={pageIcon} title="Configurações" subtitle="Controle o modo de execução da automação." accent="cyan" actions={pageActions}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+        <div className="settings-grid">
 
           {/* Headless toggle card */}
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={cardStyle}>
