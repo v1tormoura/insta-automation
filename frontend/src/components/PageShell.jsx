@@ -33,7 +33,7 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
         transition={{ duration:.3, ease:[.4,0,.2,1] }}
         className="ps-header"
         style={{
-          display:'flex', alignItems:'center', gap:14,
+          display:'flex', flexDirection:'column', gap:8,
           borderBottom:'1px solid oklch(1 0 0 / 0.06)',
           background:'oklch(0.10 0.03 235 / 0.90)',
           backdropFilter:'blur(20px)',
@@ -41,38 +41,40 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
           flexShrink:0, position:'sticky', top:0, zIndex:20,
         }}
       >
-        {/* icon badge */}
-        {icon && (
-          <div style={{
-            width:36, height:36, borderRadius:10, flexShrink:0,
-            background:a.bg, border:`1px solid ${a.border}`,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:`0 0 16px ${a.glow}`,
-          }}>
-            {/* clone icon with accent color */}
-            <span style={{ color:a.color, display:'flex' }}>{icon}</span>
-          </div>
-        )}
-
-        {/* title + subtitle */}
-        <div style={{ flex:1, minWidth:0 }}>
-          <h1 style={{
-            fontSize:16, fontWeight:700, color:'var(--text)',
-            letterSpacing:'-.3px', lineHeight:1.2,
-            whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-          }}>{title}</h1>
-          {subtitle && (
-            <p style={{
-              fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)',
-              marginTop:3, letterSpacing:'.04em',
-              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-            }}>{subtitle}</p>
+        {/* icon + title row */}
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {/* icon badge */}
+          {icon && (
+            <div style={{
+              width:36, height:36, borderRadius:10, flexShrink:0,
+              background:a.bg, border:`1px solid ${a.border}`,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              boxShadow:`0 0 16px ${a.glow}`,
+            }}>
+              <span style={{ color:a.color, display:'flex' }}>{icon}</span>
+            </div>
           )}
+
+          {/* title + subtitle */}
+          <div style={{ flex:1, minWidth:0 }}>
+            <h1 style={{
+              fontSize:16, fontWeight:700, color:'var(--text)',
+              letterSpacing:'-.3px', lineHeight:1.2,
+              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+            }}>{title}</h1>
+            {subtitle && (
+              <p style={{
+                fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)',
+                marginTop:3, letterSpacing:'.04em',
+                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+              }}>{subtitle}</p>
+            )}
+          </div>
         </div>
 
-        {/* actions slot */}
+        {/* actions row — full width, wraps naturally */}
         {actions && (
-          <div className="ps-actions" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', minWidth:0, flexShrink:0 }}>
+          <div className="ps-actions" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
             {actions}
           </div>
         )}
