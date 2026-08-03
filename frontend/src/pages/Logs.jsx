@@ -27,14 +27,73 @@ const TYPE_ICON = {
   account:      { icon: svgIcon(<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></>), label: 'Conta' },
 };
 
-const FILTERS = ['all', 'concluido', 'erro', 'processando', 'agendado', 'pendente'];
-const FILTER_LABELS = { all:'Todos', concluido:'Concluído', erro:'Erro', processando:'Processando', agendado:'Agendado', pendente:'Pendente' };
-const statusMap = { concluido:['concluido','done'], erro:['erro','error','done_with_errors'], processando:['processando','running'] };
+const FILTERS = ['atividade', 'all', 'concluido', 'erro', 'processando', 'agendado', 'pendente'];
+const FILTER_LABELS = { atividade:'Atividade', all:'Todos', concluido:'Concluído', erro:'Erro', processando:'Processando', agendado:'Agendado', pendente:'Pendente' };
+const statusMap = {
+  atividade:  ['concluido','done','erro','error','done_with_errors','processando','running','parcial'],
+  concluido:  ['concluido','done','parcial'],
+  erro:       ['erro','error','done_with_errors'],
+  processando:['processando','running'],
+};
+
+function EntryCard({ entry, i }) {
+  const tm = TYPE_ICON[entry.type] || TYPE_ICON.post;
+  const m  = STATUS_META[entry.status] || STATUS_META.pendente;
+  return (
+    <motion.div
+      initial={{ opacity:0, y:6 }}
+      animate={{ opacity:1, y:0 }}
+      transition={{ delay: Math.min(i * 0.02, .3), duration:.2 }}
+      style={{
+        background:'oklch(0.16 0.05 235 / 0.85)',
+        border:'1px solid oklch(1 0 0 / 0.07)',
+        borderLeft:`3px solid ${m.color}`,
+        borderRadius:12, padding:'12px 16px',
+        backdropFilter:'blur(12px)',
+      }}
+    >
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ color:'var(--text3)', display:'flex', alignItems:'center' }}>{tm.icon}</span>
+          <div>
+            <strong style={{ fontSize:13, color:'var(--text)' }}>{tm.label}</strong>
+            <span style={{ fontSize:11, color:'var(--text3)', display:'block', fontFamily:'var(--font-mono)' }}>
+              {['agendado','pendente'].includes(entry.status) && entry.scheduledAt
+                ? `Agendado: ${new Date(entry.scheduledAt).toLocaleString('pt-BR')}`
+                : entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'
+              }
+            </span>
+          </div>
+        </div>
+        <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:m.bg, color:m.color, border:`1px solid ${m.color}22`, flexShrink:0 }}>
+          {m.label}
+        </span>
+      </div>
+      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--text3)' }}>
+        <span><span>conta: </span><span style={{ color:'var(--text2)' }}>{entry.accounts}</span></span>
+        {entry.media   && <span><span>mídia: </span><span style={{ color:'var(--text2)' }}>{entry.media}</span></span>}
+        {entry.caption && <span><span>legenda: </span><span style={{ color:'var(--text2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
+        {entry.error   && <span style={{ color:'#f87171' }}><span style={{ color:'var(--text3)' }}>erro: </span>{entry.error}</span>}
+        {entry.results?.length > 0 && entry.results.map((r, j) => {
+          const ok = r.status === 'ok';
+          let errorMsg = r.error || 'falhou';
+          if (!ok && /challenge|checkpoint/i.test(errorMsg)) errorMsg = 'Challenge Instagram — use Reconectar para resolver';
+          return (
+            <span key={j} style={{ color: ok ? '#22c55e' : '#f87171' }}>
+              <span style={{ color:'var(--text3)' }}>resultado [{r.username}]: </span>
+              {ok ? '✓ ' + (r.message || 'ok') : '✗ ' + errorMsg}
+            </span>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
 
 export default function Logs() {
   const [posts,       setPosts]       = useState([]);
   const [profileJobs, setProfileJobs] = useState([]);
-  const [filter,      setFilter]      = useState('all');
+  const [filter,      setFilter]      = useState('atividade');
   const [loading,     setLoading]     = useState(true);
 
   const load = useCallback(async () => {
@@ -91,6 +150,17 @@ export default function Logs() {
     ? timeline
     : timeline.filter(e => (statusMap[filter] || [filter]).includes(e.status));
 
+  // Agrupa entries para renderização com cabeçalhos de seção
+  const isGrouped = filter === 'atividade';
+  const GROUPS = [
+    { key:'concluido',   label:'Concluídos',   color:'#22c55e', statuses:['concluido','done','parcial'] },
+    { key:'erro',        label:'Erros',        color:'#f87171', statuses:['erro','error','done_with_errors'] },
+    { key:'processando', label:'Processando',  color:'#818cf8', statuses:['processando','running'] },
+  ];
+  const grouped = isGrouped
+    ? GROUPS.map(g => ({ ...g, items: filtered.filter(e => g.statuses.includes(e.status)) })).filter(g => g.items.length > 0)
+    : null;
+
   const pageIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
@@ -129,63 +199,26 @@ export default function Logs() {
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-        {filtered.map((entry, i) => {
-          const tm = TYPE_ICON[entry.type] || TYPE_ICON.post;
-          const m  = STATUS_META[entry.status] || STATUS_META.pendente;
-          return (
-            <motion.div
-              key={entry._id}
-              initial={{ opacity:0, y:6 }}
-              animate={{ opacity:1, y:0 }}
-              transition={{ delay: Math.min(i * 0.02, .3), duration:.2 }}
-              style={{
-                background:'oklch(0.16 0.05 235 / 0.85)',
-                border:'1px solid oklch(1 0 0 / 0.07)',
-                borderLeft:`3px solid ${m.color}`,
-                borderRadius:12, padding:'12px 16px',
-                backdropFilter:'blur(12px)',
-              }}
-            >
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <span style={{ color:'var(--text3)', display:'flex', alignItems:'center' }}>{tm.icon}</span>
-                  <div>
-                    <strong style={{ fontSize:13, color:'var(--text)' }}>{tm.label}</strong>
-                    <span style={{ fontSize:11, color:'var(--text3)', display:'block', fontFamily:'var(--font-mono)' }}>
-                      {['agendado','pendente'].includes(entry.status) && entry.scheduledAt
-                        ? `Agendado: ${new Date(entry.scheduledAt).toLocaleString('pt-BR')}`
-                        : entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'
-                      }
-                    </span>
-                  </div>
-                </div>
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:m.bg, color:m.color, border:`1px solid ${m.color}22`, flexShrink:0 }}>
-                  {m.label}
+        {isGrouped && grouped ? (
+          grouped.map(group => (
+            <div key={group.key}>
+              {/* Group header */}
+              <div style={{ display:'flex', alignItems:'center', gap:8, margin:'8px 0 6px', paddingLeft:4 }}>
+                <span style={{ width:8, height:8, borderRadius:'50%', background:group.color, flexShrink:0, boxShadow:`0 0 6px ${group.color}` }} />
+                <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.1em', color:group.color, textTransform:'uppercase' }}>
+                  {group.label}
                 </span>
+                <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>({group.items.length})</span>
+                <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${group.color}30,transparent)` }} />
               </div>
-
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--text3)' }}>
-                <span><span style={{ color:'var(--text3)' }}>conta: </span><span style={{ color:'var(--text2)' }}>{entry.accounts}</span></span>
-                {entry.media    && <span><span>mídia: </span><span style={{ color:'var(--text2)' }}>{entry.media}</span></span>}
-                {entry.caption  && <span><span>legenda: </span><span style={{ color:'var(--text2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
-                {entry.error    && <span style={{ color:'#f87171' }}><span style={{ color:'var(--text3)' }}>erro: </span>{entry.error}</span>}
-                {entry.results?.length > 0 && entry.results.map((r, j) => {
-                  const ok = r.status === 'ok';
-                  let errorMsg = r.error || 'falhou';
-                  if (!ok && /challenge|checkpoint/i.test(errorMsg)) {
-                    errorMsg = 'Challenge Instagram — use Reconectar para resolver';
-                  }
-                  return (
-                    <span key={j} style={{ color: ok ? '#22c55e' : '#f87171' }}>
-                      <span style={{ color:'var(--text3)' }}>resultado [{r.username}]: </span>
-                      {ok ? '✓ ' + (r.message || 'ok') : '✗ ' + errorMsg}
-                    </span>
-                  );
-                })}
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {group.items.map((entry, i) => <EntryCard key={entry._id} entry={entry} i={i} />)}
               </div>
-            </motion.div>
-          );
-        })}
+            </div>
+          ))
+        ) : (
+          filtered.map((entry, i) => <EntryCard key={entry._id} entry={entry} i={i} />)
+        )}
 
         {!loading && !filtered.length && (
           <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
