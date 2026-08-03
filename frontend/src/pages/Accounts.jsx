@@ -372,7 +372,7 @@ export default function Accounts() {
         </div>
 
         {/* ── Account cards grid ── */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))', gap:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(290px,100%),1fr))', gap:12 }}>
           {filteredAccounts.map((account, idx) => {
             const hc          = healthColor(account.healthStatus);
             const hl          = healthLabel(account.healthStatus || 'ativa');
@@ -462,22 +462,22 @@ export default function Accounts() {
 
                 {/* actions */}
                 <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
-                <div style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center' }}>
+                <div style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
                   <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer"
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', color:'var(--text3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s' }}
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', color:'var(--text3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s', flexShrink:0 }}
                     onMouseEnter={e => { e.currentTarget.style.color='var(--text)'; e.currentTarget.style.borderColor='oklch(1 0 0 / 0.16)'; }}
                     onMouseLeave={e => { e.currentTarget.style.color='var(--text3)'; e.currentTarget.style.borderColor='oklch(1 0 0 / 0.09)'; }}
                   ><IcoEye /> Ver</a>
 
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
-                    style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
-                      background:'rgba(0,212,255,.1)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.25)', cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}
+                    style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
+                      background:'rgba(0,212,255,.1)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.25)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
                     onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.16)'}
                     onMouseLeave={e => e.currentTarget.style.background='rgba(0,212,255,.1)'}
-                  ><IcoPerson /> {isConnecting ? '...' : 'Editar perfil'}</button>
+                  ><IcoPerson /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{isConnecting ? '...' : 'Editar'}</span></button>
 
                   <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s',
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
                       background: account.proxy ? 'rgba(139,92,246,.12)' : 'oklch(1 0 0 / 0.04)',
                       color:      account.proxy ? 'var(--purple)'         : 'var(--text3)',
                       border:     account.proxy ? '1px solid rgba(139,92,246,.28)' : '1px solid oklch(1 0 0 / 0.08)',
@@ -486,7 +486,7 @@ export default function Accounts() {
 
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                     title={needsRecon ? 'Reconectar' : 'API ok'}
-                    style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s',
+                    style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
                       background: needsRecon ? 'rgba(244,63,94,.12)' : 'rgba(16,185,129,.1)',
                       color:      needsRecon ? 'var(--red)'           : 'var(--green)',
                       border:     needsRecon ? '1px solid rgba(244,63,94,.28)' : '1px solid rgba(16,185,129,.25)',
