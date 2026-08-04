@@ -432,14 +432,14 @@ select.lm-input   { cursor:pointer; }
 
 /* ── Media grid ── */
 .lm-grid {
-  display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:6px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(56px,1fr)); gap:4px;
   background:oklch(0.10 0.03 235 / 0.8); border:1px solid oklch(1 0 0 / 0.08);
-  border-radius:9px; padding:8px; max-height:280px; overflow-y:auto;
+  border-radius:9px; padding:6px; max-height:320px; overflow-y:auto;
   scrollbar-width:thin; scrollbar-color:oklch(1 0 0 / 0.08) transparent;
 }
 .lm-thumb {
-  position:relative; aspect-ratio:9/16;
-  border:2px solid transparent; border-radius:8px;
+  position:relative; aspect-ratio:1;
+  border:2px solid transparent; border-radius:6px;
   overflow:hidden; cursor:pointer; background:oklch(0.20 0.05 235);
   padding:0; transition:border-color .15s, transform .12s;
 }
