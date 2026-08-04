@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
@@ -8,7 +8,7 @@ const MODES = [
   {
     key: 'limpeza_leve',
     label: 'Limpeza Leve',
-    desc: 'Remove metadados básicos. Mais rápido, sem reencoding.',
+    desc: 'Remove metadados + reencoding em 1080×1920. Mais rápido.',
     badge: 'RÁPIDO',
     badgeColor: '#22c55e',
     badgeBg: 'rgba(34,197,94,.15)',
@@ -21,7 +21,7 @@ const MODES = [
   {
     key: 'ultra_clean',
     label: 'Ultra Clean',
-    desc: 'Limpeza profunda com reencoding completo do arquivo.',
+    desc: 'Reencoding + micro-variação de brilho por pixel. Hash único.',
     badge: 'ULTRA',
     badgeColor: 'var(--cyan)',
     badgeBg: 'rgba(0,212,255,.15)',
@@ -52,76 +52,96 @@ const TIPS = [
   { icon: '🔄', text: 'O modo Humanizador gera um arquivo tecnicamente único, ideal para múltiplas contas.' },
 ];
 
+function fmtSize(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+// estado por arquivo: 'waiting' | 'uploading' | 'processing' | 'done' | 'error'
+function makeItem(f) {
+  return { id: `${f.name}-${f.size}-${Date.now()}`, file: f, status: 'waiting', pct: 0, error: null };
+}
+
 export default function Limpador() {
-  const [file,      setFile]      = useState(null);
-  const [mode,      setMode]      = useState('limpeza_leve');
-  const [loading,   setLoading]   = useState(false);
-  const [uploadPct, setUploadPct] = useState(0);
-  const [phase,     setPhase]     = useState(''); // '' | 'upload' | 'processing'
-  const [dragOver,  setDragOver]  = useState(false);
+  const [items,    setItems]    = useState([]);   // [{ id, file, status, pct, error }]
+  const [mode,     setMode]     = useState('limpeza_leve');
+  const [running,  setRunning]  = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef();
 
-  function handleFiles(files) {
-    const f = files[0];
-    if (!f) return;
-    if (f.size > 500 * 1024 * 1024) return toast.error('Arquivo muito grande. Máximo: 500 MB.');
-    if (!f.type.startsWith('video/') && !f.type.startsWith('image/')) {
-      return toast.error('Tipo não suportado. Envie vídeos ou imagens.');
-    }
-    setFile(f);
+  function updateItem(id, patch) {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, ...patch } : it));
   }
 
-  async function process() {
-    if (!file) return toast.warning('Selecione um arquivo primeiro.');
-    setLoading(true);
-    setUploadPct(0);
-    setPhase('upload');
+  function addFiles(fileList) {
+    const list = Array.from(fileList);
+    const valid = [];
+    for (const f of list) {
+      if (f.size > 500 * 1024 * 1024) { toast.error(`${f.name}: máximo 500 MB.`); continue; }
+      if (!f.type.startsWith('video/') && !f.type.startsWith('image/')) {
+        toast.error(`${f.name}: tipo não suportado.`); continue;
+      }
+      valid.push(makeItem(f));
+    }
+    if (valid.length) setItems(prev => [...prev, ...valid]);
+  }
+
+  function removeItem(id) {
+    setItems(prev => prev.filter(it => it.id !== id));
+  }
+
+  function clearDone() {
+    setItems(prev => prev.filter(it => it.status !== 'done' && it.status !== 'error'));
+  }
+
+  async function processOne(item) {
+    updateItem(item.id, { status: 'uploading', pct: 0, error: null });
     try {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', item.file);
       form.append('mode', mode);
 
       const res = await api.post('/api/limpador/process', form, {
         responseType: 'blob',
         onUploadProgress: e => {
           const pct = e.total ? Math.round(e.loaded * 100 / e.total) : 0;
-          setUploadPct(pct);
-          if (pct >= 100) setPhase('processing');
+          updateItem(item.id, { pct, status: pct >= 100 ? 'processing' : 'uploading' });
         },
       });
 
-      const blob = res.data;
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `limpo_${file.name}`;
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `limpo_${item.file.name}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
 
-      toast.success('Arquivo processado e baixado com sucesso!');
-      setFile(null);
+      updateItem(item.id, { status: 'done', pct: 100 });
     } catch (e) {
-      let msg = e.message || 'Falha ao processar arquivo.';
+      let msg = e.message || 'Erro ao processar.';
       if (e.response?.data instanceof Blob) {
         try { const j = JSON.parse(await e.response.data.text()); msg = j.error || msg; } catch {}
       }
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-      setUploadPct(0);
-      setPhase('');
+      updateItem(item.id, { status: 'error', error: msg });
     }
   }
 
-  const selectedMode = MODES.find(m => m.key === mode);
+  async function processAll() {
+    const waiting = items.filter(it => it.status === 'waiting' || it.status === 'error');
+    if (!waiting.length) return toast.warning('Nenhum arquivo na fila.');
+    setRunning(true);
+    for (const item of waiting) {
+      await processOne(item);
+    }
+    setRunning(false);
+    toast.success('Fila concluída!');
+  }
 
-  const pageIcon = (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    </svg>
-  );
+  const selectedMode = MODES.find(m => m.key === mode);
+  const hasPending   = items.some(it => it.status === 'waiting' || it.status === 'error');
+  const hasDone      = items.some(it => it.status === 'done' || it.status === 'error');
 
   const cardStyle = {
     background: 'oklch(0.16 0.05 235 / 0.85)',
@@ -131,9 +151,11 @@ export default function Limpador() {
     backdropFilter: 'blur(12px)',
   };
 
-  const fileSize = file ? (file.size / 1024 / 1024).toFixed(1) : null;
-  const isVideo  = file?.type.startsWith('video/');
-  const isImage  = file?.type.startsWith('image/');
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  );
 
   return (
     <PageShell
@@ -143,89 +165,88 @@ export default function Limpador() {
       accent="purple"
     >
       <style>{`
-        @keyframes limpador-shimmer {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(300%); }
-        }
-        @keyframes limpador-spin { to { transform: rotate(360deg); } }
-        @keyframes limpador-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes limpador-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(300%)} }
+        @keyframes limpador-spin    { to{transform:rotate(360deg)} }
+        @keyframes limpador-pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
       `}</style>
 
       <div className="layout-2col">
-        {/* ── Coluna esquerda: upload + info ── */}
-        <motion.div
-          initial={{ opacity:0, y:10 }}
-          animate={{ opacity:1, y:0 }}
-          transition={{ duration:.25 }}
-          style={{ display:'flex', flexDirection:'column', gap:12 }}
-        >
+        {/* ── Coluna esquerda: upload + fila ── */}
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }}
+          style={{ display:'flex', flexDirection:'column', gap:12 }}>
+
           {/* Drop zone */}
           <div style={cardStyle}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
-              <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Arquivo de entrada</h3>
-              {file && (
-                <button onClick={() => setFile(null)} style={{ fontSize:11, color:'#f87171', background:'rgba(248,113,113,.08)', border:'1px solid rgba(248,113,113,.2)', borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
-                  Remover
+              <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>
+                Arquivos de entrada
+                {items.length > 0 && (
+                  <span style={{ marginLeft:8, fontSize:11, fontWeight:600, color:'var(--cyan)', background:'rgba(0,212,255,.1)', border:'1px solid rgba(0,212,255,.2)', borderRadius:6, padding:'1px 8px' }}>
+                    {items.length}
+                  </span>
+                )}
+              </h3>
+              {hasDone && !running && (
+                <button onClick={clearDone} style={{ fontSize:11, color:'var(--text3)', background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.08)', borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
+                  Limpar concluídos
                 </button>
               )}
             </div>
+
+            {/* Dropzone clickable */}
             <div style={{ padding:14 }}>
               <label
                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+                onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
                 style={{
-                  display:'block', padding: file ? '20px 16px' : '40px 16px',
-                  textAlign:'center',
-                  border:`1.5px dashed ${dragOver ? 'var(--cyan)' : file ? '#a78bfa44' : 'oklch(0.72 0.19 196 / 0.25)'}`,
+                  display:'block', padding:'28px 16px', textAlign:'center',
+                  border:`1.5px dashed ${dragOver ? 'var(--cyan)' : 'oklch(0.72 0.19 196 / 0.25)'}`,
                   borderRadius:10, cursor:'pointer', transition:'.2s',
-                  background: dragOver ? 'rgba(0,212,255,.06)' : file ? 'rgba(167,139,250,.04)' : 'rgba(0,212,255,.02)',
+                  background: dragOver ? 'rgba(0,212,255,.06)' : 'rgba(0,212,255,.02)',
                 }}
               >
-                <input ref={fileRef} type="file" accept="video/*,image/*" style={{ display:'none' }}
-                  onChange={e => handleFiles(e.target.files)} />
-
-                {file ? (
-                  <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                    {/* File type icon */}
-                    <div style={{ flexShrink:0, width:52, height:52, borderRadius:12, background: isVideo ? 'rgba(167,139,250,.12)' : 'rgba(0,212,255,.1)', display:'grid', placeItems:'center' }}>
-                      {isVideo ? (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
-                        </svg>
-                      ) : (
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                      )}
-                    </div>
-                    {/* File info */}
-                    <div style={{ flex:1, textAlign:'left', minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{file.name}</div>
-                      <div style={{ display:'flex', gap:10, marginTop:4 }}>
-                        <span style={{ fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>{fileSize} MB</span>
-                        <span style={{ fontSize:11, color: isVideo ? '#a78bfa' : 'var(--cyan)', fontWeight:600 }}>
-                          {isVideo ? 'VÍDEO' : 'IMAGEM'}
-                        </span>
-                      </div>
-                      <div style={{ marginTop:6, fontSize:10, color:'#22c55e', fontWeight:600 }}>✓ Pronto para limpar</div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ width:48, height:48, borderRadius:14, margin:'0 auto 14px', background:'rgba(0,212,255,.08)', display:'grid', placeItems:'center', border:'1px solid rgba(0,212,255,.15)' }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="1.8" strokeLinecap="round">
-                        <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
-                        <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
-                      </svg>
-                    </div>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:5 }}>Arraste ou clique para selecionar</div>
-                    <div style={{ fontSize:11, color:'var(--text3)' }}>MP4 · MOV · JPG · PNG · WebM — máx. 500 MB</div>
-                  </>
-                )}
+                <input ref={fileRef} type="file" accept="video/*,image/*" multiple style={{ display:'none' }}
+                  onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+                <div style={{ width:44, height:44, borderRadius:12, margin:'0 auto 12px', background:'rgba(0,212,255,.08)', display:'grid', placeItems:'center', border:'1px solid rgba(0,212,255,.15)' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="1.8" strokeLinecap="round">
+                    <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                    <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
+                  </svg>
+                </div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>
+                  Arraste ou clique para selecionar
+                </div>
+                <div style={{ fontSize:11, color:'var(--text3)' }}>
+                  Vários arquivos de uma vez — MP4 · MOV · JPG · PNG · WebM · máx. 500 MB cada
+                </div>
               </label>
             </div>
           </div>
+
+          {/* Lista de arquivos na fila */}
+          {items.length > 0 && (
+            <div style={cardStyle}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Fila de processamento</h3>
+                <span style={{ fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
+                  {items.filter(i => i.status === 'done').length}/{items.length} prontos
+                </span>
+              </div>
+              <div style={{ maxHeight:320, overflowY:'auto', padding:'8px 12px', display:'flex', flexDirection:'column', gap:6 }}>
+                <AnimatePresence initial={false}>
+                  {items.map(item => (
+                    <motion.div key={item.id}
+                      initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
+                      transition={{ duration:.15 }}
+                    >
+                      <FileRow item={item} running={running} onRemove={() => removeItem(item.id)} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
 
           {/* Tips */}
           <div style={{ ...cardStyle, padding:16 }}>
@@ -242,25 +263,23 @@ export default function Limpador() {
         </motion.div>
 
         {/* ── Coluna direita: modo + ação ── */}
-        <motion.div
-          initial={{ opacity:0, y:10 }}
-          animate={{ opacity:1, y:0 }}
-          transition={{ duration:.25, delay:.06 }}
-          style={{ display:'flex', flexDirection:'column', gap:12 }}
-        >
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }}
+          style={{ display:'flex', flexDirection:'column', gap:12 }}>
+
           {/* Mode selector */}
           <div style={cardStyle}>
-            <div style={{ display:'flex', alignItems:'center', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
               <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Modo de limpeza</h3>
             </div>
             <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
               {MODES.map(m => {
                 const sel = mode === m.key;
                 return (
-                  <div key={m.key} onClick={() => setMode(m.key)} style={{
-                    padding:'14px 16px', borderRadius:10, cursor:'pointer', transition:'.15s',
+                  <div key={m.key} onClick={() => !running && setMode(m.key)} style={{
+                    padding:'14px 16px', borderRadius:10, cursor: running ? 'default' : 'pointer', transition:'.15s',
                     border:`1.5px solid ${sel ? m.badgeColor + '66' : 'oklch(1 0 0 / 0.06)'}`,
                     background: sel ? m.badgeBg : 'oklch(0.12 0.04 235 / 0.4)',
+                    opacity: running && !sel ? 0.5 : 1,
                   }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -281,75 +300,153 @@ export default function Limpador() {
             </div>
           </div>
 
-          {/* Process button */}
+          {/* Botão processar */}
           <button
-            onClick={process}
-            disabled={loading || !file}
+            onClick={processAll}
+            disabled={running || !hasPending}
             style={{
               height:52, borderRadius:10, border:'none', fontWeight:750, fontSize:14,
-              cursor: loading || !file ? 'not-allowed' : 'pointer', transition:'.2s',
-              background: loading || !file
+              cursor: running || !hasPending ? 'not-allowed' : 'pointer', transition:'.2s',
+              background: running || !hasPending
                 ? 'rgba(167,139,250,.08)'
                 : 'linear-gradient(120deg, #7c3aed, #a78bfa)',
-              color: loading || !file ? 'rgba(167,139,250,.3)' : '#fff',
-              boxShadow: loading || !file ? 'none' : '0 8px 24px rgba(167,139,250,.3)',
+              color: running || !hasPending ? 'rgba(167,139,250,.3)' : '#fff',
+              boxShadow: running || !hasPending ? 'none' : '0 8px 24px rgba(167,139,250,.3)',
               display:'flex', alignItems:'center', justifyContent:'center', gap:8,
             }}
           >
-            {loading ? (
+            {running ? (
               <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation:'limpador-spin 1s linear infinite', flexShrink:0 }}>
                   <path d="M21 12a9 9 0 11-6.219-8.56"/>
                 </svg>
-                {phase === 'processing' ? 'Processando com FFmpeg...' : `Enviando... ${uploadPct}%`}
+                Processando fila...
               </>
             ) : (
               <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
-                Processar e baixar
+                {items.length > 1
+                  ? `Processar ${items.filter(i => i.status === 'waiting' || i.status === 'error').length} arquivo(s)`
+                  : 'Processar e baixar'}
               </>
             )}
           </button>
 
-          {/* Progress bar */}
-          {loading && (
-            <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:10, padding:'12px 14px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
-                <span style={{ fontSize:11, color:'var(--text3)', fontWeight:600 }}>
-                  {phase === 'processing' ? '⚙ FFmpeg processando...' : '↑ Enviando arquivo ao servidor'}
-                </span>
-                {phase === 'upload' && (
-                  <span style={{ fontSize:11, fontWeight:800, color:'#a78bfa', fontFamily:'var(--font-mono)' }}>{uploadPct}%</span>
-                )}
-              </div>
-              {/* Track */}
-              <div style={{ height:4, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', position:'relative' }}>
-                {phase === 'upload' ? (
-                  <div style={{ height:'100%', width:`${uploadPct}%`, background:'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius:99, transition:'width .3s ease' }} />
-                ) : (
-                  /* indeterminate shimmer */
-                  <div style={{ height:'100%', background:'linear-gradient(90deg, #7c3aed, #a78bfa, #7c3aed)', backgroundSize:'200% 100%', animation:'limpador-shimmer 1.4s linear infinite', borderRadius:99, position:'absolute', inset:0 }} />
-                )}
-              </div>
-              {phase === 'processing' && (
-                <div style={{ fontSize:10, color:'var(--text3)', marginTop:6, animation:'limpador-pulse 1.5s infinite' }}>
-                  Aguarde — arquivos grandes podem demorar alguns minutos...
-                </div>
-              )}
+          {/* Info modo */}
+          {!running && (
+            <div style={{ fontSize:11, color:'var(--text3)', textAlign:'center', lineHeight:1.7 }}>
+              Os arquivos são processados um a um e baixados automaticamente.<br />
+              Modo {selectedMode?.label}: {selectedMode?.desc}
             </div>
           )}
 
-          {/* Hint */}
-          {!loading && (
-            <div style={{ fontSize:11, color:'var(--text3)', textAlign:'center', lineHeight:1.7 }}>
-              O arquivo processado é baixado automaticamente.<br />
-              Modo {selectedMode?.label}: {selectedMode?.desc}
+          {/* Progresso geral enquanto processa */}
+          {running && (
+            <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:10, padding:'12px 14px' }}>
+              <div style={{ fontSize:11, color:'var(--text3)', marginBottom:6, fontWeight:600 }}>
+                ⚙ Processando — os downloads iniciam automaticamente
+              </div>
+              <div style={{ fontSize:10, color:'var(--text3)', animation:'limpador-pulse 1.5s infinite' }}>
+                Aguarde — cada arquivo é enviado, processado com FFmpeg e baixado em sequência.
+              </div>
             </div>
           )}
         </motion.div>
       </div>
     </PageShell>
+  );
+}
+
+/* ── Linha de arquivo na fila ── */
+function FileRow({ item, running, onRemove }) {
+  const { file, status, pct, error } = item;
+  const isVideo = file.type.startsWith('video/');
+
+  const statusColor = {
+    waiting:    'var(--text3)',
+    uploading:  'var(--cyan)',
+    processing: '#a78bfa',
+    done:       '#22c55e',
+    error:      '#f87171',
+  }[status];
+
+  const statusLabel = {
+    waiting:    'Aguardando',
+    uploading:  `Enviando ${pct}%`,
+    processing: 'Processando...',
+    done:       'Concluído ✓',
+    error:      'Erro',
+  }[status];
+
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap:10, padding:'9px 10px', borderRadius:9,
+      background:'oklch(0.12 0.04 235 / 0.5)',
+      border:`1px solid ${status === 'done' ? 'rgba(34,197,94,.2)' : status === 'error' ? 'rgba(248,113,113,.2)' : 'oklch(1 0 0 / 0.06)'}`,
+    }}>
+      {/* Type icon */}
+      <div style={{ width:30, height:30, borderRadius:8, flexShrink:0, display:'grid', placeItems:'center',
+        background: isVideo ? 'rgba(167,139,250,.12)' : 'rgba(0,212,255,.1)' }}>
+        {isVideo ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+        )}
+      </div>
+
+      {/* Info + progress */}
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
+          <span style={{ fontSize:12, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>
+            {file.name}
+          </span>
+          <span style={{ fontSize:10, fontWeight:700, color:statusColor, flexShrink:0, whiteSpace:'nowrap' }}>
+            {statusLabel}
+          </span>
+        </div>
+
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
+          <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)', flexShrink:0 }}>
+            {fmtSize(file.size)}
+          </span>
+
+          {/* Progress bar */}
+          {(status === 'uploading' || status === 'processing') && (
+            <div style={{ flex:1, height:3, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', position:'relative' }}>
+              {status === 'uploading' ? (
+                <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius:99, transition:'width .3s' }} />
+              ) : (
+                <div style={{ height:'100%', background:'linear-gradient(90deg,#7c3aed,#a78bfa,#7c3aed)', backgroundSize:'200% 100%', animation:'limpador-shimmer 1.2s linear infinite', position:'absolute', inset:0 }} />
+              )}
+            </div>
+          )}
+
+          {status === 'done' && (
+            <div style={{ flex:1, height:3, borderRadius:99, background:'rgba(34,197,94,.3)' }} />
+          )}
+
+          {status === 'error' && error && (
+            <span style={{ fontSize:10, color:'#f87171', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={error}>
+              {error}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Remove button */}
+      {!running && status !== 'uploading' && status !== 'processing' && (
+        <button onClick={onRemove} style={{ flexShrink:0, width:22, height:22, borderRadius:6, background:'transparent', border:'1px solid oklch(1 0 0 / 0.08)', cursor:'pointer', display:'grid', placeItems:'center', color:'var(--text3)' }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }
