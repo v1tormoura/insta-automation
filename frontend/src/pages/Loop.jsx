@@ -112,19 +112,32 @@ function LoopModal({ onClose, onCreated }) {
     if (!files?.length) return;
     if (isCover) setUploadingCover(true); else setUploading(true);
     setErr('');
+    const fileArr = Array.from(files);
     try {
-      const fd = new FormData();
-      for (const file of files) fd.append('files', file);
-      const res = await api.post('/loops/upload-media', fd);
-      const newFiles = res.data.files || [];
       if (isCover) {
+        // capa: envia arquivo único
+        const fd = new FormData();
+        fd.append('file', fileArr[0]);
+        const res = await api.post('/loops/upload-media', fd);
+        const newFiles = res.data.files || [];
         if (newFiles.length > 0) setForm(f => ({ ...f, coverFile: newFiles[newFiles.length - 1].filename }));
       } else {
-        setUploadedFiles(prev => [...prev, ...newFiles]);
-        setForm(f => ({ ...f, mediaFiles: [...new Set([...f.mediaFiles, ...newFiles.map(x => x.filename)])] }));
+        // reels: envia um por vez, adiciona na lista conforme vai subindo
+        for (const file of fileArr) {
+          try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await api.post('/loops/upload-media', fd);
+            const newFiles = res.data.files || [];
+            if (newFiles.length > 0) {
+              setUploadedFiles(prev => [...prev, ...newFiles]);
+              setForm(f => ({ ...f, mediaFiles: [...new Set([...f.mediaFiles, ...newFiles.map(x => x.filename)])] }));
+            }
+          } catch (ex) {
+            setErr(ex.response?.data?.error || `Erro ao enviar "${file.name}"`);
+          }
+        }
       }
-    } catch (ex) {
-      setErr(ex.response?.data?.error || 'Erro ao fazer upload. Verifique a conexão e tente novamente.');
     } finally {
       if (isCover) setUploadingCover(false); else setUploading(false);
     }
