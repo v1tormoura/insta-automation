@@ -24,7 +24,7 @@ exports.uploadMedia = async (req, res) => {
 /* ── Listar loops ── */
 exports.list = async (req, res) => {
   try {
-    const loops = await Loop.find().populate('accounts', 'username avatar healthStatus').sort({ createdAt: -1 });
+    const loops = await Loop.find().populate('accounts', 'username avatar name healthStatus accountType followers following postsCount accessToken igSession').sort({ createdAt: -1 });
     res.json(loops);
   } catch (err) {
     res.status(500).json({ error: err.message });

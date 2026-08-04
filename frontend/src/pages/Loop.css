@@ -56,11 +56,88 @@
   display:block;
 }
 
-.lp-group-hd strong { display:block; font-size:.87rem; color:var(--text); font-weight:600; }
-.lp-group-hd span   { font-size:.71rem; color:var(--text3); font-family:var(--font-mono); }
+/* ── Profile section inside header ── */
+.lp-profile { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+
+.lp-profile-top { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.lp-profile-top strong { font-size:.88rem; color:var(--text); font-weight:700; }
+
+.lp-type-badge {
+  font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
+  padding:1px 6px; border-radius:4px; flex-shrink:0;
+  background:oklch(0.82 0.19 196 / 0.1); border:1px solid oklch(0.82 0.19 196 / 0.25);
+  color:var(--cyan);
+}
+
+.lp-health { font-size:.72rem; font-weight:600; white-space:nowrap; }
+.lp-health--ok    { color:#22c55e; }
+.lp-health--warn  { color:#f59e0b; }
+.lp-health--err   { color:#f87171; }
+.lp-health--muted { color:var(--text3); }
+
+.lp-handle { font-size:.72rem; color:var(--text3); font-family:var(--font-mono); }
+
+.lp-profile-stats {
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:3px;
+}
+.lp-profile-stats span { font-size:.71rem; color:var(--text3); white-space:nowrap; }
+.lp-profile-stats span b { color:var(--text2); font-weight:600; }
+
+.lp-api-chip {
+  font-size:.67rem; color:var(--cyan);
+  background:oklch(0.82 0.19 196 / 0.08); border:1px solid oklch(0.82 0.19 196 / 0.2);
+  border-radius:5px; padding:1px 6px; white-space:nowrap;
+}
+
+/* ── Loop summary (right side of header) ── */
+.lp-loop-summary {
+  display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0;
+}
+.lp-loop-summary span { font-size:.70rem; color:var(--text3); white-space:nowrap; }
+.lp-loop-summary span b { color:var(--text2); font-weight:600; }
+
+/* Online dot colour variants */
+.lp-av i.ok    { background:#22c55e; }
+.lp-av i.warn  { background:#f59e0b; }
+.lp-av i.err   { background:#f87171; }
+.lp-av i.muted { background:oklch(1 0 0 / 0.3); }
 
 /* Loop list */
 .lp-loop-list { display:flex; flex-direction:column; }
+
+/* ── Responsive scaling ── */
+@media (min-width: 640px) {
+  .lp-group-hd { padding: 13px 20px; gap: 13px; }
+  .lp-av img, .lp-av > span { width: 38px; height: 38px; }
+  .lp-profile-top strong { font-size: .9rem; }
+  .lp-handle { font-size: .74rem; }
+  .lp-profile-stats span { font-size: .73rem; }
+  .lp-loop-summary span { font-size: .72rem; }
+  .lc { padding: 12px 20px 12px 17px; }
+  .lc-name { font-size: .88rem; }
+  .lc-sub  { font-size: .72rem; }
+  .lc-chip { font-size: .69rem; padding: 2px 7px; }
+}
+
+@media (min-width: 960px) {
+  .lp-group-hd { padding: 15px 24px; gap: 16px; }
+  .lp-av img, .lp-av > span { width: 44px; height: 44px; font-size: .88rem; }
+  .lp-av i { width: 10px; height: 10px; border-width: 2.5px; }
+  .lp-profile-top strong { font-size: .95rem; }
+  .lp-type-badge { font-size: .64rem; padding: 2px 8px; }
+  .lp-health { font-size: .76rem; }
+  .lp-handle { font-size: .77rem; }
+  .lp-profile-stats span { font-size: .77rem; }
+  .lp-loop-summary { gap: 4px; }
+  .lp-loop-summary span { font-size: .76rem; }
+  .lc { padding: 14px 24px 14px 21px; }
+  .lc-dot { width: 7px; height: 7px; margin-top: 6px; }
+  .lc-name { font-size: .92rem; }
+  .lc-sub  { font-size: .76rem; }
+  .lc-chip { font-size: .72rem; padding: 2px 8px; border-radius: 6px; }
+  .lc-btns button { width: 26px; height: 26px; border-radius: 7px; }
+  .lp-group { border-radius: 18px; }
+}
 
 /* ── Loop row ── */
 .lc {

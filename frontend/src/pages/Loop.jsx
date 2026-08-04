@@ -27,6 +27,24 @@ function timeUntil(date) {
   if (s < 3600) return `${Math.floor(s / 60)}min`;
   return `${Math.floor(s / 3600)}h`;
 }
+function formatNum(n) {
+  if (n == null || n === 0) return null;
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.0', '') + 'K';
+  return n.toString();
+}
+function healthLabel(s) {
+  const m = { ativa:'Saudável', restrita:'Restrita', erro_login:'Erro login',
+    sessao_expirada:'Sessão exp.', banida:'Banida',
+    token_invalido:'Token inv.', conta_pessoal:'Pessoal' };
+  return m[s] || 'Saudável';
+}
+function healthCls(s) {
+  if (!s || s === 'ativa') return 'ok';
+  if (s === 'restrita' || s === 'sessao_expirada') return 'warn';
+  if (s === 'conta_pessoal') return 'muted';
+  return 'err';
+}
 
 /* ──────────────────── Loop Card ──────────────────── */
 function LoopCard({ loop, onToggle, onDelete, onHistory }) {
@@ -575,11 +593,40 @@ export default function LoopPage() {
                     {account.avatar
                       ? <img src={`${API_URL}${account.avatar}`} alt="" />
                       : <span>{(account.username || '?')[0].toUpperCase()}</span>}
-                    <i />
+                    <i className={healthCls(account.healthStatus)} />
                   </div>
-                  <div>
-                    <strong>@{account.username}</strong>
-                    <span>{al.length} loop(s) · {al.filter(l => l.status==='ativo').length} ativo(s) · {al.reduce((s,l)=>s+(l.postsCount||0),0)} publicados</span>
+
+                  <div className="lp-profile">
+                    <div className="lp-profile-top">
+                      <strong>{account.name || account.username}</strong>
+                      {account.accountType && (
+                        <span className="lp-type-badge">{account.accountType}</span>
+                      )}
+                      <span className={`lp-health lp-health--${healthCls(account.healthStatus)}`}>
+                        ● {healthLabel(account.healthStatus)}
+                      </span>
+                    </div>
+                    <span className="lp-handle">@{account.username}</span>
+                    <div className="lp-profile-stats">
+                      {formatNum(account.followers) && (
+                        <span><b>{formatNum(account.followers)}</b> seg</span>
+                      )}
+                      {formatNum(account.following) && (
+                        <span><b>{formatNum(account.following)}</b> seg</span>
+                      )}
+                      {formatNum(account.postsCount) && (
+                        <span><b>{formatNum(account.postsCount)}</b> pub</span>
+                      )}
+                      {(account.accessToken || account.igSession) && (
+                        <span className="lp-api-chip">📶 API</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="lp-loop-summary">
+                    <span><b>{al.length}</b> loop{al.length !== 1 ? 's' : ''}</span>
+                    <span><b>{al.filter(l => l.status==='ativo').length}</b> ativo{al.filter(l => l.status==='ativo').length !== 1 ? 's' : ''}</span>
+                    <span><b>{al.reduce((s,l)=>s+(l.postsCount||0),0)}</b> posts</span>
                   </div>
                 </div>
                 <div className="lp-loop-list">
