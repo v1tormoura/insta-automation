@@ -35,37 +35,38 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      whileHover={{ y: -2 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
       className={`lc ${running ? 'lc--on' : 'lc--off'}`}
     >
-      <div className="lc-head">
-        <span className={`lc-dot ${running ? 'on' : 'off'}`} />
-        <span className="lc-name">{loop.name || `Loop #${loop._id?.slice(-4)}`}</span>
-        <div className="lc-btns">
-          <button onClick={() => onHistory(loop)}><History size={13} /></button>
-          <button onClick={() => onToggle(loop)} className={running ? 'warn' : 'ok'}>
-            {running ? <Pause size={13} /> : <Play size={13} />}
-          </button>
-          <button onClick={() => onDelete(loop)} className="del"><Trash2 size={13} /></button>
+      <span className={`lc-dot ${running ? 'on' : 'off'}`} />
+
+      <div className="lc-body">
+        <div className="lc-top">
+          <span className="lc-name">{loop.name || `Loop #${loop._id?.slice(-4)}`}</span>
+          <div className="lc-btns">
+            <button onClick={() => onHistory(loop)}><History size={12} /></button>
+            <button onClick={() => onToggle(loop)} className={running ? 'warn' : 'ok'}>
+              {running ? <Pause size={12} /> : <Play size={12} />}
+            </button>
+            <button onClick={() => onDelete(loop)} className="del"><Trash2 size={12} /></button>
+          </div>
         </div>
+        <div className="lc-meta">
+          <span className="lc-sub">{loop.type} · {loop.mediaFiles?.length || 0} mídias</span>
+          <div className="lc-chips">
+            <span className="lc-chip"><Clock size={9} /> {loop.intervalMinutes}m</span>
+            <span className="lc-chip">{loop.postsCount || 0} posts</span>
+            {running && <span className="lc-chip lc-chip--next">em {timeUntil(loop.nextRunAt)}</span>}
+            {loop.lastRunAt && <span className="lc-chip">{timeAgo(loop.lastRunAt)}</span>}
+          </div>
+        </div>
+        {loop.lastError && (
+          <div className="lc-err"><AlertTriangle size={10} />{loop.lastError}</div>
+        )}
       </div>
-
-      <p className="lc-sub">{loop.type} · {loop.mediaFiles?.length || 0} mídias</p>
-
-      <div className="lc-stats">
-        <div><span>INTERVALO</span><b>{loop.intervalMinutes}m</b></div>
-        <div><span>PUBLICADOS</span><b>{loop.postsCount || 0}</b></div>
-        <div><span>PRÓXIMO</span><b>{running ? timeUntil(loop.nextRunAt) : '—'}</b></div>
-      </div>
-
-      {loop.lastError && (
-        <div className="lc-err"><AlertTriangle size={11} />{loop.lastError}</div>
-      )}
-      <div className="lc-foot"><Clock size={11} /> {timeAgo(loop.lastRunAt)}</div>
     </motion.div>
   );
 }
@@ -581,7 +582,7 @@ export default function LoopPage() {
                     <span>{al.length} loop(s) · {al.filter(l => l.status==='ativo').length} ativo(s) · {al.reduce((s,l)=>s+(l.postsCount||0),0)} publicados</span>
                   </div>
                 </div>
-                <div className="lp-grid">
+                <div className="lp-loop-list">
                   <AnimatePresence>
                     {al.map(loop => (
                       <LoopCard key={loop._id} loop={loop}
