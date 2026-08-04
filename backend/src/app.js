@@ -84,6 +84,12 @@ app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);
 });
 
+// Global error handler — garante JSON em vez de HTML em erros inesperados
+app.use((err, req, res, next) => {
+  console.error('[Express] erro global:', err.message);
+  res.status(err.status || 500).json({ error: err.message || 'Erro interno do servidor' });
+});
+
 // Diagnostico do Multilogin -- GET /multilogin/status
 app.get('/multilogin/status', async (req, res) => {
   const ML6 = 'http://127.0.0.1:63332';

@@ -7,6 +7,8 @@ const { broadcast } = require('../events/broadcaster');
 /* ── Upload de mídias para loop (sem salvar na biblioteca) ── */
 exports.uploadMedia = async (req, res) => {
   try {
+    console.log('[upload-media] content-type:', req.headers['content-type']);
+    console.log('[upload-media] files recebidos:', req.files?.length ?? 'undefined');
     if (!req.files?.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
     const files = req.files.map(f => ({
       filename: f.filename,
@@ -14,6 +16,7 @@ exports.uploadMedia = async (req, res) => {
     }));
     res.json({ files });
   } catch (err) {
+    console.error('[upload-media] erro:', err);
     res.status(500).json({ error: err.message });
   }
 };
