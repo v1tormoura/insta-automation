@@ -58,13 +58,13 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
           {/* title + subtitle */}
           <div style={{ flex:1, minWidth:0 }}>
             <h1 style={{
-              fontSize:16, fontWeight:700, color:'var(--text)',
+              fontSize:'var(--fs-md)', fontWeight:700, color:'var(--text)',
               letterSpacing:'-.3px', lineHeight:1.2,
               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
             }}>{title}</h1>
             {subtitle && (
               <p style={{
-                fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)',
+                fontFamily:'var(--font-mono)', fontSize:'var(--fs-2xs)', color:'var(--text3)',
                 marginTop:3, letterSpacing:'.04em',
                 whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
               }}>{subtitle}</p>

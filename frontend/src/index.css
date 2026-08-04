@@ -128,6 +128,20 @@
   --radius-lg: 14px;
   --radius-xl: 18px;
 
+  /* ── Fluid type scale — escala automática entre 375px e 1920px ── */
+  --fs-2xs:  clamp(9px,  0.45vw + 7.3px, 11px);
+  --fs-xs:   clamp(10px, 0.45vw + 8.3px, 12px);
+  --fs-sm:   clamp(11px, 0.45vw + 9.3px, 13px);
+  --fs-base: clamp(13.5px, 0.12vw + 13.05px, 15px);
+  --fs-md:   clamp(14px,   0.13vw + 13.5px,  16px);
+  --fs-lg:   clamp(16px,   0.45vw + 14.3px,  22px);
+  --fs-xl:   clamp(20px,   0.9vw  + 16.5px,  30px);
+
+  /* ── Fluid spacing — page padding automático ── */
+  --page-pad-x: clamp(12px, 2.4vw, 36px);
+  --page-pad-y: clamp(10px, 1.2vw, 20px);
+  --card-pad:   clamp(10px, 1vw,   18px);
+
   /* ── Shadows ────────────────────────── */
   --shadow:    0 4px 20px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.03);
   --shadow-lg: 0 12px 48px rgba(0,0,0,.7),  0 0 0 1px rgba(255,255,255,.03);
@@ -162,7 +176,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   height: 100%;
   -webkit-font-smoothing: antialiased;
@@ -177,9 +191,9 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(0,180,255,.15); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,180,255,.28); }
 
-h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; line-height: 1.2; }
-h2 { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
-h3 { font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+h1 { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -.5px; line-height: 1.2; }
+h2 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -.3px; }
+h3 { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.2px; }
 ::selection { background: rgba(0,212,255,.22); }
 button  { cursor: pointer; font-family: var(--font); border: none; outline: none; }
 input, textarea, select { font-family: var(--font); outline: none; }
@@ -961,7 +975,7 @@ input[type=range]::-webkit-slider-thumb {
   .g3 { grid-template-columns: repeat(2, 1fr); }
   .g2 { grid-template-columns: 1fr 1fr; }
   .g21, .g32 { grid-template-columns: 1fr; }
-  .padded-page { padding: 12px; }
+  .padded-page { padding: clamp(8px, 3vw, 14px); }
 
   /* Page header bar */
   .ph-search { display: none; }
@@ -1000,7 +1014,6 @@ input[type=range]::-webkit-slider-thumb {
 @media (max-width: 560px) {
   .resp-grid-6 { grid-template-columns: repeat(2,1fr); }
   .resp-grid-5 { grid-template-columns: repeat(2,1fr); }
-  .padded-page { padding: 10px; }
   .page-header { flex-direction: column; }
   .page-header-right { justify-content: flex-start; flex-wrap: wrap; }
 }
@@ -1013,7 +1026,6 @@ input[type=range]::-webkit-slider-thumb {
 /* ── Very small ≤ 380px ─────────────────────────────── */
 @media (max-width: 380px) {
   .resp-grid-6, .resp-grid-5 { grid-template-columns: 1fr; }
-  .padded-page { padding: 8px; }
 }
 
 /* ── Modal split layouts ──────────────────────────── */
@@ -1032,21 +1044,8 @@ input[type=range]::-webkit-slider-thumb {
 /* ════════════════════════════════════════════════════════
    PAGE SHELL — responsive header + content
    ════════════════════════════════════════════════════════ */
-.ps-header { padding: 14px 22px; }
-.ps-content { padding: 20px 22px; }
-
-@media (max-width: 768px) {
-  .ps-header  { padding: 10px 14px; }
-  .ps-content { padding: 14px; }
-}
-@media (max-width: 480px) {
-  .ps-header  { padding: 8px 12px; }
-  .ps-content { padding: 10px 12px; }
-}
-@media (max-width: 380px) {
-  .ps-header  { padding: 8px 10px; }
-  .ps-content { padding: 8px 10px; }
-}
+.ps-header  { padding: var(--page-pad-y) var(--page-pad-x); }
+.ps-content { padding: calc(var(--page-pad-y) * 1.4) var(--page-pad-x); }
 
 /* ════════════════════════════════════════════════════════
    SETTINGS — responsive 2-col grid
@@ -1108,6 +1107,19 @@ input[type=range]::-webkit-slider-thumb {
   .layout-legends   { grid-template-columns: 1fr; }
   .layout-media-lib { grid-template-columns: 1fr; }
   .layout-2col      { grid-template-columns: 1fr; }
+}
+
+/* ════════════════════════════════════════════════════════
+   LARGE DESKTOP (≥ 1280px) — sidebar mais largo, fonte escalada
+   ════════════════════════════════════════════════════════ */
+@media (min-width: 1280px) {
+  :root { --sidebar-w: 240px; }
+  .drawer { width: 240px; }
+}
+@media (min-width: 1600px) {
+  :root { --sidebar-w: 256px; }
+  .drawer { width: 256px; }
+  .padded-page { max-width: 1600px; margin-left: auto; margin-right: auto; }
 }
 
 /* ════════════════════════════════════════════════════════
