@@ -115,7 +115,7 @@ function LoopModal({ onClose, onCreated }) {
     try {
       const fd = new FormData();
       for (const file of files) fd.append('files', file);
-      const res = await api.post('/loops/upload-media', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/loops/upload-media', fd);
       const newFiles = res.data.files || [];
       if (isCover) {
         if (newFiles.length > 0) setForm(f => ({ ...f, coverFile: newFiles[newFiles.length - 1].filename }));

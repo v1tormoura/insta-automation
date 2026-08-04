@@ -28,8 +28,10 @@ async function runLoops() {
     const loops = await Loop.find({
       status:    'ativo',
       nextRunAt: { $lte: now },
-      $expr:     { $gt: [{ $size: '$mediaFiles' }, 0] },
-      $expr:     { $gt: [{ $size: '$accounts'   }, 0] },
+      $and: [
+        { $expr: { $gt: [{ $size: '$mediaFiles' }, 0] } },
+        { $expr: { $gt: [{ $size: '$accounts'   }, 0] } },
+      ],
     }).populate('accounts', '_id username accessToken igSession healthStatus isBusy');
 
     for (const loop of loops) {
@@ -71,6 +73,7 @@ async function runLoops() {
           media:      mediaFile,
           mediaType,
           postType,
+          cover:         loop.coverFile     || '',
           caption:       loop.caption       || '',
           ctaComment:    loop.ctaComment    || '',
           engageComment: loop.engageComment || '',
