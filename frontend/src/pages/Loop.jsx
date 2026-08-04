@@ -134,7 +134,13 @@ function LoopModal({ onClose, onCreated }) {
               setForm(f => ({ ...f, mediaFiles: [...new Set([...f.mediaFiles, ...newFiles.map(x => x.filename)])] }));
             }
           } catch (ex) {
-            setErr(ex.response?.data?.error || `Erro ao enviar "${file.name}"`);
+            const status = ex.response?.status;
+            const data   = ex.response?.data;
+            const msg    = data?.error
+              || (typeof data === 'string' ? data.slice(0, 120) : null)
+              || ex.message
+              || 'sem resposta do servidor';
+            setErr(`[${status ?? 'network'}] ${msg}`);
           }
         }
       }

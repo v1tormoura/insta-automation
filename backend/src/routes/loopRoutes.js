@@ -4,15 +4,7 @@ const router = require('express').Router();
 const ctrl   = require('../controllers/loopController');
 const upload = require('../config/upload');
 
-router.post('/upload-media', (req, res, next) => {
-  upload.any()(req, res, (err) => {
-    if (err) {
-      console.error('[upload-media] multer erro:', err);
-      return res.status(400).json({ error: `Erro no upload: ${err.message}` });
-    }
-    next();
-  });
-}, ctrl.uploadMedia);
+router.post('/upload-media', upload.any(), ctrl.uploadMedia);
 router.get('/',           ctrl.list);
 router.post('/',          ctrl.create);
 router.patch('/:id',      ctrl.update);
