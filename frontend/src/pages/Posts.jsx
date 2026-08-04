@@ -101,6 +101,8 @@ export default function Posts() {
   const [postPage, setPostPage] = useState(1);
   const [postPagination, setPostPagination] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [posted, setPosted]   = useState(false);
   const [ctaComment, setCtaComment]       = useState('');
   const [engageComment, setEngageComment] = useState('');
 
@@ -194,15 +196,20 @@ export default function Posts() {
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (engageComment.trim()) form.append('engageComment', engageComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
+    setPosting(true);
     try {
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null);
       setLocation(''); setSelectedAccounts({}); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
       showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
+      setPosted(true);
+      setTimeout(() => setPosted(false), 2500);
       load();
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || 'Erro ao criar posts.');
+    } finally {
+      setPosting(false);
     }
   }
 
@@ -235,9 +242,16 @@ export default function Posts() {
       <button className="btn-ghost" style={{ fontSize: '.8rem', padding: '7px 14px', borderRadius: 8 }} type="button" onClick={retryAllErrors} disabled={retryingAll}>
         ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
       </button>
-      <button className="btn-primary" style={{ fontSize: '.83rem', padding: '7px 16px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }} type="button"
+      <button className="btn-primary" style={{ fontSize: '.83rem', padding: '7px 16px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, minWidth: 120, justifyContent: 'center', opacity: posting ? 0.8 : 1 }} type="button"
+        disabled={posting}
         onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
-        {scheduledAt ? 'Agendar' : 'Publicar agora'}
+        {posting ? (
+          <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Publicando...</>
+        ) : posted ? (
+          <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Publicado!</>
+        ) : (
+          scheduledAt ? 'Agendar' : 'Publicar agora'
+        )}
       </button>
     </>
   );
@@ -599,9 +613,31 @@ export default function Posts() {
                   ))}
                 </div>
 
-                <button className="btn-primary" type="submit" style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 10 }}>
-                  {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
+                <button className="btn-primary" type="submit" disabled={posting}
+                  style={{
+                    width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12,
+                    fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10,
+                    transition: 'all .2s',
+                    background: posted
+                      ? 'linear-gradient(135deg,#10b981,#059669)'
+                      : undefined,
+                    opacity: posting ? 0.85 : 1,
+                  }}>
+                  {posting ? (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+                      Publicando...
+                    </>
+                  ) : posted ? (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+                      Publicado!
+                    </>
+                  ) : (
+                    scheduledAt ? 'Agendar postagens' : 'Publicar agora'
+                  )}
                 </button>
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               </div>
             </div>
           </motion.div>
