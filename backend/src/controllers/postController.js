@@ -108,7 +108,7 @@ exports.createPost = async (req, res) => {
           scheduledAt,
           ctaComment:    req.body.ctaComment    || '',
           engageComment: req.body.engageComment || '',
-          status: isFirst ? 'pendente' : 'agendado',
+          status: (isFirst || intervalMs === 0) ? 'pendente' : 'agendado',
         });
 
         await postQueue.add('newPost', { postId: post._id }, { delay: jobDelay });

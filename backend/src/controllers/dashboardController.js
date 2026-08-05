@@ -89,7 +89,7 @@ exports.getDashboard = async (req, res) => {
     });
 
     const completedToday = await Post.countDocuments({
-      status: { $in: ['concluido', 'parcial'] },
+      status: 'concluido',
       updatedAt: { $gte: today },
     });
 
@@ -134,6 +134,7 @@ exports.getDashboard = async (req, res) => {
     }
 
     const queueTotal = scheduledPosts + processingPosts + pendingPosts;
+    const dailyPostLimit = accounts.reduce((sum, a) => sum + (a.dailyPostLimit || 0), 0);
 
     const accountsAddedToday = accounts.filter(a => new Date(a.createdAt) >= today).length;
     const accountsAdded7d    = accounts.filter(a => new Date(a.createdAt) >= sevenDaysAgo).length;
@@ -353,6 +354,7 @@ exports.getDashboard = async (req, res) => {
 
       postsToday,
       completedToday,
+      dailyPostLimit,
       errorsToday,
       posts7Days,
       posts30Days,

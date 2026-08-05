@@ -284,8 +284,8 @@ function QueuePanel({ d, accountStats }) {
     return d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
   };
 
-  const STATUS_LABEL = { pending:'PENDENTE', processing:'PROCESSANDO', completed:'CONCLUÍDO', error:'ERRO' };
-  const STATUS_COLOR = { pending:'var(--text3)', processing:'var(--cyan)', completed:'var(--green)', error:'var(--red)' };
+  const STATUS_LABEL = { pendente:'PENDENTE', processando:'PROCESSANDO', concluido:'CONCLUÍDO', agendado:'AGENDADO', parcial:'PARCIAL', erro:'ERRO' };
+  const STATUS_COLOR = { pendente:'var(--amber)', processando:'var(--cyan)', concluido:'var(--green)', agendado:'var(--text2)', parcial:'#f59e0b', erro:'var(--red)' };
 
   return (
     <div style={{ ...card, display:'flex', flexDirection:'column' }} className="lift">
@@ -378,7 +378,7 @@ function QueuePanel({ d, accountStats }) {
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)' }}>{fmtTime(item.scheduledAt)}</div>
                   <div style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, color: STATUS_COLOR[item.status] || 'var(--text3)', marginTop:2, letterSpacing:'.04em' }}>
-                    {(STATUS_LABEL[item.status] || String(item.status||'PENDENTE').toUpperCase()).slice(0,9)}
+                    {STATUS_LABEL[item.status] || String(item.status||'PENDENTE').toUpperCase()}
                   </div>
                 </div>
               </motion.div>

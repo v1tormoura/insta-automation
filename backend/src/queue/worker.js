@@ -25,7 +25,21 @@ async function unlockStuck() {
     { $set: { isBusy: false, busySince: null, busyReason: '' } }
   );
 }
+
+// Recupera posts travados em 'processando' após crash do worker (mais de 15 min)
+async function recoverStuckPosts() {
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000);
+  const result = await Post.updateMany(
+    { status: 'processando', updatedAt: { $lt: cutoff } },
+    { $set: { status: 'erro', error: 'Processamento interrompido — worker reiniciado' } }
+  );
+  if (result.modifiedCount > 0) {
+    console.log(`♻️  ${result.modifiedCount} post(s) travado(s) em 'processando' marcado(s) como erro`);
+  }
+}
+
 unlockStuck();
+recoverStuckPosts().catch(e => console.error('recoverStuckPosts:', e.message));
 setInterval(async () => {
   try { await unlockStuck(); } catch {}
 }, 60_000);
