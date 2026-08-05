@@ -7,15 +7,18 @@ const { convertToReelFormat } = require('../services/videoProcessor');
 exports.process = async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Arquivo não enviado' });
 
-  const mode      = req.body.mode || 'limpeza_leve';
-  const inputPath = req.file.path;
+  const mode     = req.body.mode || 'limpeza_leve';
+  const ext      = path.extname(req.file.originalname).toLowerCase() || '.mp4';
+  const tmpPath  = req.file.path;
+
+  // Multer gera nome sem extensão — renomeia para que isVideo() detecte corretamente
+  const inputPath = tmpPath + ext;
+  fs.renameSync(tmpPath, inputPath);
 
   try {
     const outputPath = await convertToReelFormat(inputPath, { processMode: mode });
 
-    const ext      = path.extname(req.file.originalname) || '.mp4';
     const filename = `limpo_${Date.now()}${ext}`;
-
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', req.file.mimetype || 'video/mp4');
 
