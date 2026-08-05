@@ -68,10 +68,6 @@ async function registerSuccess(account) {
   });
 }
 
-async function registerError(account, error) {
-  const healthStatus = /sessão|session|expired|401/i.test(error) ? 'sessao_expirada' : 'restrita';
-  await Account.findByIdAndUpdate(account._id, { lastError: traduzirErro(error), healthStatus });
-}
 
 // ── Publicação: Graph API (IGAA token) ou Private API (cookies/session) ──
 async function publishWithRetry(post, account, preProcessedVideoUrl) {
@@ -183,13 +179,15 @@ const worker = new Worker(
         errorCount++;
         errors.push(`@${acc.username}: ${err.message}`);
         writeAccountLog(acc.username, `Erro: ${err.message}`);
-        await registerError(acc, err.message);
 
-        const healthStatus = classifyError(err);
-        const healthUpdate = { isBusy: false, busySince: null, busyReason: '', lastError: traduzirErro(err.message) };
-        if (healthStatus) healthUpdate.healthStatus = healthStatus;
+        const classified = classifyError(err);
+        const healthUpdate = {
+          isBusy: false, busySince: null, busyReason: '',
+          lastError: traduzirErro(err.message),
+        };
+        if (classified) healthUpdate.healthStatus = classified;
         await Account.findByIdAndUpdate(acc._id, healthUpdate);
-        broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: healthStatus || acc.healthStatus });
+        broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: classified || acc.healthStatus });
       }
     }
 

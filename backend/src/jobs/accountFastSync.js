@@ -128,14 +128,20 @@ async function syncViaWebSession(account) {
     } catch {}
   }
 
+  // Só restaura para 'ativa' se o problema era de sessão/token — não sobrescreve
+  // restrições de publicação ('restrita') com uma simples leitura bem-sucedida
+  const SESSION_ISSUES = ['sessao_expirada', 'erro_login', 'token_invalido'];
+  const healthFields = SESSION_ISSUES.includes(account.healthStatus)
+    ? { healthStatus: 'ativa', lastError: '' }
+    : {};
+
   await Account.findByIdAndUpdate(account._id, {
     followers,
     following,
     postsCount,
-    name:        user.full_name || account.name || '',
-    healthStatus: 'ativa',
-    lastError:   '',
-    lastSync:    new Date(),
+    name:     user.full_name || account.name || '',
+    ...healthFields,
+    lastSync: new Date(),
   });
 }
 
@@ -213,16 +219,21 @@ async function syncOneAccountFast(account) {
   const cdnUrl = me.hd_profile_pic_url_info?.url || me.profile_pic_url || '';
   const localAvatar = cdnUrl ? await downloadAvatar(cdnUrl, account.username) : '';
 
+  // Só restaura para 'ativa' se o problema era de sessão — não sobrescreve 'restrita'
+  const SESSION_ISSUES = ['sessao_expirada', 'erro_login', 'token_invalido'];
+  const healthFields = SESSION_ISSUES.includes(account.healthStatus)
+    ? { healthStatus: 'ativa', lastError: '' }
+    : {};
+
   const updates = {
-    lastSync:    new Date(),
-    name:        me.full_name        || '',
-    bio:         me.biography        || '',
-    followers:   me.follower_count   || 0,
-    following:   me.following_count  || 0,
-    postsCount:  me.media_count      || 0,
-    avatar:      localAvatar         || account.avatar || '',
-    healthStatus: 'ativa',
-    lastError:   '',
+    lastSync:   new Date(),
+    name:       me.full_name        || '',
+    bio:        me.biography        || '',
+    followers:  me.follower_count   || 0,
+    following:  me.following_count  || 0,
+    postsCount: me.media_count      || 0,
+    avatar:     localAvatar         || account.avatar || '',
+    ...healthFields,
   };
 
   await Account.findByIdAndUpdate(account._id, updates);
@@ -239,7 +250,7 @@ async function runFastSync() {
     const accounts = await Account.find({
       status:  { $ne: 'banida' },
       isBusy:  { $ne: true },
-    }).select('username _id igSession rawWebSessionid avatar name bio followers following postsCount proxy');
+    }).select('username _id igSession rawWebSessionid avatar name bio followers following postsCount proxy healthStatus');
 
     for (const acc of accounts) {
       // rawWebSessionid tem prioridade: igSession pode ser um shell sem dados mobile reais
@@ -253,9 +264,14 @@ async function runFastSync() {
       try {
         if (await syncOneAccountFast(acc)) synced++;
       } catch (err) {
-        // Ignora erros de rate limit; loga o resto brevemente
         const msg = String(err.message || '');
-        if (!msg.includes('429') && !msg.includes('rate limit') && !msg.includes('login_required')) {
+        if (msg.includes('login_required') || /IgLoginRequiredError/i.test(msg)) {
+          // Sessão do igSession expirou — atualiza status para que o usuário saiba reimportar
+          await Account.findByIdAndUpdate(acc._id, {
+            healthStatus: 'sessao_expirada',
+            lastError:    'Sessão expirada — reimporte via 🍪',
+          }).catch(() => {});
+        } else if (!msg.includes('429') && !msg.includes('rate limit')) {
           console.log(`⚠️ [FastSync] @${acc.username}: ${msg.slice(0, 70)}`);
         }
       }

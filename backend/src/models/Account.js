@@ -64,6 +64,11 @@ const accountSchema = new mongoose.Schema(
       default: null,
     },
 
+    lastHealthCheck: {
+      type: Date,
+      default: null,
+    },
+
     // 🔥 CONTROLE DE POSTAGEM
 
     dailyPostLimit: {

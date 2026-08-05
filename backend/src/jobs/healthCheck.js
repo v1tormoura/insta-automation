@@ -56,11 +56,15 @@ function classifyError(err) {
   // ── SPAM / ação bloqueada ─────────────────────────────────────────────────
   if (
     /feedback_required|action_blocked|spam/i.test(msg) ||
-    /blocked.*action|rate.*limit/i.test(msg) ||
-    /please.*wait|try.*again.*later/i.test(msg) ||
+    /blocked.*action/i.test(msg) ||
     /IgActionSpamError/i.test(msg)
   ) {
     return 'restrita';
+  }
+
+  // Rate limit e "aguarde" são transitórios — não alteram o status permanentemente
+  if (/rate.*limit|please.*wait|try.*again.*later/i.test(msg)) {
+    return null;
   }
 
   // ── SESSÃO / TOKEN expirado ───────────────────────────────────────────────
@@ -233,11 +237,13 @@ async function checkViaWebSession(account) {
  */
 async function checkOneAccount(account) {
   const fresh = await Account.findById(account._id)
-    .select('username _id accessToken igSession rawWebSessionid healthStatus status lastError lastSync proxy');
+    .select('username _id accessToken igSession rawWebSessionid healthStatus status lastError lastSync lastHealthCheck proxy');
   if (!fresh) return;
 
-  const twoMinAgo = Date.now() - 2 * 60 * 1000;
-  if (fresh.lastSync && new Date(fresh.lastSync).getTime() > twoMinAgo) return;
+  // Guard contra execuções paralelas do próprio health check (não usa lastSync para
+  // evitar conflito com o FastSync que atualiza lastSync a cada 5 min)
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  if (fresh.lastHealthCheck && new Date(fresh.lastHealthCheck).getTime() > fiveMinAgo) return;
 
   let result = { status: null, error: '' };
 
@@ -269,12 +275,15 @@ async function checkOneAccount(account) {
   }
 
   const currentStatus = fresh.healthStatus || 'ativa';
-  if (result.status === currentStatus && !result.error) return;
+  if (result.status === currentStatus && !result.error) {
+    await Account.findByIdAndUpdate(fresh._id, { lastHealthCheck: new Date() });
+    return;
+  }
 
   const update = {
-    healthStatus: result.status,
-    lastError:    result.error || '',
-    lastSync:     new Date(),
+    healthStatus:    result.status,
+    lastError:       result.error || '',
+    lastHealthCheck: new Date(),
   };
 
   // Se banida, marca status principal também
@@ -363,11 +372,16 @@ async function refreshAllTokens() {
       const data = await res.json();
       if (data.access_token) {
         const expiresIn = data.expires_in ?? 5_184_000;
+        // Só marca 'ativa' se o problema era especificamente de token — não apaga
+        // restrições de publicação que existam independentemente do token estar válido
+        const TOKEN_ISSUES = ['token_invalido', 'sessao_expirada', 'erro_login'];
+        const healthFields = TOKEN_ISSUES.includes(account.healthStatus)
+          ? { healthStatus: 'ativa', lastError: '' }
+          : {};
         await Account.findByIdAndUpdate(account._id, {
           accessToken:    data.access_token,
           tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
-          healthStatus:   'ativa',
-          lastError:      '',
+          ...healthFields,
         });
         console.log(`🔄 [TokenRefresh] @${account.username} — renovado por ${Math.round(expiresIn / 86400)} dias`);
         renewed++;

@@ -452,8 +452,8 @@ export default function Accounts() {
                 {/* meta row */}
                 <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
                 <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:isHealthy?'var(--green)':'#f87171', display:'flex', alignItems:'center', gap:5 }}>
-                    <IcoWifi /> {isHealthy ? 'API conectada' : 'API desconectada'}
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:isHealthy?'var(--green)':account.healthStatus==='restrita'?'#f59e0b':'#f87171', display:'flex', alignItems:'center', gap:5 }}>
+                    <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Conta restrita' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
                   </span>
                   <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', display:'flex', alignItems:'center', gap:4 }}>
                     <IcoWave /> {compact}

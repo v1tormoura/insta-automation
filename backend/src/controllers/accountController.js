@@ -94,13 +94,20 @@ exports.deleteAccount = async (req, res) => {
 
 exports.syncAccount = async (req, res) => {
   try {
-    const account = await getSyncAccountInfo()(req.params.id);
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    const { syncOneAccountFast } = require('../jobs/accountFastSync');
+    const { quickCheckAndUpdate } = require('../services/quickCheckAccount');
+
+    await syncOneAccountFast(account).catch(() => {});
+    await quickCheckAndUpdate(account).catch(() => {});
+
+    const updated = await Account.findById(req.params.id);
     broadcast('accounts', { action: 'synced' });
-    res.json(account);
+    res.json(updated);
   } catch (err) {
-    res.status(500).json({
-      error: err.message || 'Erro ao sincronizar conta',
-    });
+    res.status(500).json({ error: err.message || 'Erro ao sincronizar conta' });
   }
 };
 
@@ -112,11 +119,11 @@ exports.syncAllAccounts = async (req, res) => {
     const syncViaAPI = require('../services/syncAccountAPI');
     const { syncOneAccountFast } = require('../jobs/accountFastSync');
 
-    let apiCount = 0, privateCount = 0, skipCount = 0;
+    let apiCount = 0, privateCount = 0, skipCount = 0; // eslint-disable-line no-unused-vars
 
     for (const account of accounts) {
       const hasApiToken = !!(account.accessToken && account.igUserId);
-      const hasSession  = !!(account.igSession);
+      const hasSession  = !!(account.igSession || account.rawWebSessionid);
 
       try {
         if (hasApiToken) {
@@ -151,7 +158,7 @@ exports.syncAllAccounts = async (req, res) => {
     }
 
     broadcast('accounts', { action: 'synced' });
-    console.log(`🎉 SyncAll concluído — API: ${apiCount}, Browser: ${browserCount}, Sem sessão: ${skipCount}`);
+    console.log(`🎉 SyncAll concluído — API: ${apiCount}, Private: ${privateCount}, Sem sessão: ${skipCount}`);
   } catch (err) {
     console.log('Erro syncAll:', err.message);
   }

@@ -449,14 +449,25 @@ async function syncAccountInfo(accountId) {
     return account;
   } catch (err) {
     account.status = 'erro';
-    account.healthStatus = 'restrita';
-    account.lastError = traduzirErro(err.message);
     account.isBusy = false;
     account.busyReason = '';
     account.busySince = null;
+    account.lastError = traduzirErro(err.message);
+
+    // Não sobrescreve status específico já definido no bloco try (ex: 'banida', 'sessao_expirada')
+    const wasSetInTry = ['banida', 'sessao_expirada'].includes(account.healthStatus);
+    if (!wasSetInTry) {
+      // Erros de rede/timeout são transitórios — não marca como 'restrita'
+      const isTransient = /timeout|ETIMEDOUT|ECONNRESET|ECONNREFUSED|net::ERR|Navigation timeout/i.test(err.message);
+      if (!isTransient) {
+        const { classifyError } = require('../jobs/healthCheck');
+        const classified = classifyError(err);
+        account.healthStatus = classified || 'restrita';
+      }
+      // Se transitório, mantém o healthStatus anterior (não altera)
+    }
 
     await account.save();
-
     throw err;
   } finally {
     if (browser) {
