@@ -957,7 +957,9 @@ export default function Dashboard() {
     tone:a.status==='concluido'?'cyan':a.status==='erro'?'danger':a.status==='ativa'?'cyan':'amber',
   })), [d.activities]);
 
-  const sysOk        = d.system?.backend && d.system?.mongo;
+  const sysLoaded    = data !== null;
+  const sysOk        = sysLoaded && d.system?.backend && d.system?.mongo;
+  const sysDotColor  = !sysLoaded ? 'var(--text3)' : sysOk ? 'var(--green)' : 'var(--red)';
   const bannedCount  = useMemo(() => accountStats.filter(a => a.healthStatus==='banida').length, [accountStats]);
   const fallenCount  = useMemo(() => accountStats.filter(a => ['token_invalido','sessao_expirada'].includes(a.healthStatus)).length, [accountStats]);
 
@@ -980,8 +982,8 @@ export default function Dashboard() {
                 <div className="title-line">
                   <h1>Visão geral, <span className="text-gradient-brand">Vitor Marcelo</span></h1>
                   <span className="live-status">
-                    <span style={{ background:sysOk?'var(--green)':'var(--red)', boxShadow:`0 0 10px ${sysOk?'var(--green)':'var(--red)'}` }} />
-                    {sysOk ? 'Todos os sistemas operacionais' : 'Verificar sistemas'}
+                    <span style={{ background:sysDotColor, boxShadow:`0 0 10px ${sysDotColor}` }} />
+                    {!sysLoaded ? 'Carregando...' : sysOk ? 'Todos os sistemas operacionais' : 'Verificar sistemas'}
                   </span>
                 </div>
                 <p>Contas, filas e atividade em tempo real.</p>
@@ -1226,8 +1228,8 @@ export default function Dashboard() {
             {/* SISTEMA */}
             <div style={{ ...card }} className="lift">
               <PanelHeader title="Sistema" icon={ShieldCheck} right={
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6, background:sysOk?'rgba(16,185,129,.1)':'rgba(244,63,94,.1)', color:sysOk?'var(--green)':'var(--red)', border:`1px solid ${sysOk?'rgba(16,185,129,.25)':'rgba(244,63,94,.25)'}` }}>
-                  {sysOk?'ONLINE':'ALERTA'}
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6, background:!sysLoaded?'rgba(255,255,255,.05)':sysOk?'rgba(16,185,129,.1)':'rgba(244,63,94,.1)', color:sysDotColor, border:`1px solid ${!sysLoaded?'rgba(255,255,255,.1)':sysOk?'rgba(16,185,129,.25)':'rgba(244,63,94,.25)'}` }}>
+                  {!sysLoaded?'...':sysOk?'ONLINE':'ALERTA'}
                 </span>
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
@@ -1284,8 +1286,8 @@ export default function Dashboard() {
 
         {/* ── Footer ── */}
         <footer className="system-footer">
-          <span><ShieldCheck size={13} />{sysOk?'Sistema operacional':'Verificar sistemas'}</span>
-          <span><i style={{ background:sysOk?'var(--green)':'var(--red)', boxShadow:`0 0 8px ${sysOk?'var(--green)':'var(--red)'}` }} />{sysOk?'Online':'Offline'}</span>
+          <span><ShieldCheck size={13} />{!sysLoaded?'Carregando...':sysOk?'Sistema operacional':'Verificar sistemas'}</span>
+          <span><i style={{ background:sysDotColor, boxShadow:`0 0 8px ${sysDotColor}` }} />{!sysLoaded?'–':sysOk?'Online':'Offline'}</span>
           <span>MongoDB <b style={{ color:d.system?.mongo?'var(--green)':'var(--red)' }}>{d.system?.mongo?'OK':'Erro'}</b></span>
           <span>Redis <b style={{ color:d.system?.redis?'var(--green)':'var(--red)' }}>{d.system?.redis?'OK':'Erro'}</b></span>
           <span>Worker <b style={{ color:d.system?.worker?'var(--green)':'var(--red)' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>

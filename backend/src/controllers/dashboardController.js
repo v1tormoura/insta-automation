@@ -6,6 +6,8 @@ const Post = require('../models/Post');
 const mongoose = require('mongoose');
 let Insight;
 try { Insight = require('../models/Insight'); } catch {}
+let redisClient;
+try { redisClient = require('../queue/connection'); } catch {}
 
 function startOfDay() {
   const d = new Date();
@@ -385,9 +387,11 @@ exports.getDashboard = async (req, res) => {
 
       system: {
         backend: true,
-        mongo: true,
-        redis: true,
-        worker: true,
+        mongo: mongoose.connection.readyState === 1,
+        redis: await (async () => {
+          try { await redisClient?.ping(); return true; } catch { return false; }
+        })(),
+        worker: await Post.countDocuments({ status: 'concluido', updatedAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) } }).then(n => n > 0).catch(() => false),
         headless: String(process.env.HEADLESS || 'false') === 'true',
       },
     });
