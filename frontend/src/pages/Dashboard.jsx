@@ -860,6 +860,138 @@ function SmartInsights({ accountStats, data: d }) {
 }
 
 /* ══════════════════════════════════════════════════════
+   ── PAINEL DE POSTAGENS EM TEMPO REAL
+   ══════════════════════════════════════════════════════ */
+const LIVE_TABS = [
+  { key:'processing', label:'Processando', color:'#00d4ff',  emptyText:'Nenhuma publicação em andamento.' },
+  { key:'queue',      label:'Fila',        color:'#a78bfa',  emptyText:'Fila vazia.' },
+  { key:'errors',     label:'Erros (1h)',  color:'#f43f5e',  emptyText:'Nenhum erro na última hora.' },
+  { key:'completed',  label:'Concluídos (1h)', color:'#10b981', emptyText:'Nenhuma publicação concluída na última hora.' },
+];
+
+const LIVE_STATUS_COLOR = {
+  processando:'#00d4ff', pendente:'#a78bfa', agendado:'#f59e0b',
+  concluido:'#10b981',   parcial:'#f59e0b',  erro:'#f43f5e',
+};
+const LIVE_STATUS_LABEL = {
+  processando:'PROCESSANDO', pendente:'NA FILA', agendado:'AGENDADO',
+  concluido:'CONCLUÍDO',     parcial:'PARCIAL',  erro:'ERRO',
+};
+
+function LivePostRow({ post, API_BASE }) {
+  const acc     = (post.accounts||[])[0];
+  const caption = (post.caption||'').slice(0, 55) + ((post.caption||'').length > 55 ? '…' : '');
+  const sc      = LIVE_STATUS_COLOR[post.status] || '#888';
+  const sl      = LIVE_STATUS_LABEL[post.status] || post.status?.toUpperCase();
+  const fmtAgo  = t => {
+    if (!t) return '';
+    const s = Math.round((Date.now() - new Date(t)) / 1000);
+    if (s < 60)  return `${s}s atrás`;
+    if (s < 3600) return `${Math.round(s/60)}m atrás`;
+    return `${Math.round(s/3600)}h atrás`;
+  };
+
+  return (
+    <motion.div initial={{ opacity:0, x:-4 }} animate={{ opacity:1, x:0 }}
+      style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,.04)', transition:'background .15s' }}
+      onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,.025)'}
+      onMouseLeave={e => e.currentTarget.style.background='transparent'}
+    >
+      {acc && <AvatarChip username={acc.username} avatar={acc.avatar} size={28} />}
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+          {acc ? `@${acc.username}` : '—'}
+          {(post.accounts||[]).length > 1 && (
+            <span style={{ marginLeft:5, fontSize:10, color:'var(--text3)' }}>+{post.accounts.length-1}</span>
+          )}
+        </div>
+        {caption && <div style={{ fontSize:10, color:'var(--text3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{caption}</div>}
+        {post.error && <div style={{ fontSize:10, color:'#f43f5e', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{post.error.slice(0,80)}</div>}
+      </div>
+      <div style={{ textAlign:'right', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
+        <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:800, color:sc, background:`${sc}14`, border:`1px solid ${sc}30`, padding:'2px 6px', borderRadius:5, letterSpacing:'.05em' }}>{sl}</span>
+        <span style={{ fontSize:9, color:'var(--text3)' }}>{fmtAgo(post.updatedAt)}</span>
+      </div>
+    </motion.div>
+  );
+}
+
+function LivePostsPanel() {
+  const [tab,  setTab]  = useState('processing');
+  const [data, setData] = useState({ processing:[], queue:[], errors:[], completed:[] });
+
+  const load = useCallback(async () => {
+    try { const r = await api.get('/dashboard/live-posts'); setData(r.data || {}); } catch {}
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { const id = setInterval(load, 5_000); return () => clearInterval(id); }, [load]);
+  useServerEvents(['posts'], load);
+
+  const active   = LIVE_TABS.find(t => t.key === tab);
+  const rows     = data[tab] || [];
+  const counts   = { processing: data.processing?.length||0, queue: data.queue?.length||0, errors: data.errors?.length||0, completed: data.completed?.length||0 };
+
+  return (
+    <div style={{ ...card, display:'flex', flexDirection:'column', minHeight:340 }} className="lift">
+      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,rgba(0,212,255,.32),transparent)' }} />
+
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.05)', flexWrap:'wrap', gap:8, flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ width:28, height:28, borderRadius:8, background:'rgba(0,212,255,.1)', border:'1px solid rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <ListVideo size={13} style={{ color:'var(--cyan)' }} />
+          </div>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--text2)', textTransform:'uppercase' }}>Postagens em tempo real</span>
+        </div>
+        {/* Dot pulse when processing */}
+        {counts.processing > 0 && (
+          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, color:'var(--cyan)', fontWeight:700 }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--cyan)', boxShadow:'0 0 8px var(--cyan)', animation:'blink 1.4s infinite', display:'inline-block' }} />
+            {counts.processing} publicando agora
+          </span>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, padding:'10px 14px 6px', flexShrink:0, overflowX:'auto' }}>
+        {LIVE_TABS.map(t => {
+          const isActive = tab === t.key;
+          const cnt = counts[t.key];
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              padding:'4px 12px', borderRadius:7, fontSize:10, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
+              background: isActive ? `${t.color}18` : 'rgba(255,255,255,.04)',
+              color:      isActive ? t.color : 'var(--text3)',
+              border:     `1px solid ${isActive ? `${t.color}35` : 'rgba(255,255,255,.07)'}`,
+              transition:'all .15s',
+            }}>
+              {t.label}
+              {cnt > 0 && (
+                <span style={{ marginLeft:5, background:isActive?`${t.color}28`:'rgba(255,255,255,.08)', color:isActive?t.color:'var(--text3)', borderRadius:10, padding:'1px 6px', fontSize:9, fontWeight:800 }}>{cnt}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Rows */}
+      <div style={{ flex:1, overflowY:'auto' }}>
+        {rows.length === 0 ? (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:120, color:'var(--text3)', fontSize:12, gap:8 }}>
+            <Eye size={18} opacity={.2} />{active?.emptyText}
+          </div>
+        ) : (
+          <AnimatePresence initial={false}>
+            {rows.map(p => <LivePostRow key={p._id} post={p} API_BASE={API_BASE} />)}
+          </AnimatePresence>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    ── DASHBOARD
    ══════════════════════════════════════════════════════ */
 export default function Dashboard() {
@@ -1010,6 +1142,11 @@ export default function Dashboard() {
           <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="violet" spark={sparkErrors} delay={.12}  />
           <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={[]}         delay={.18} />
         </motion.section>
+
+        {/* ── POSTAGENS EM TEMPO REAL ── */}
+        <BlurFade delay={0.08} inView>
+          <LivePostsPanel />
+        </BlurFade>
 
         {/* ── FILA · LOOPS · TOP CONTAS ── */}
         <BlurFade delay={0.1} inView>

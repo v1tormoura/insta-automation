@@ -17,6 +17,9 @@ connectDB();
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// Contador em memória de retenativas por post quando todas contas estão ocupadas
+const busyRetryMap = new Map();
+
 // Limpa locks de contas travadas há mais de 10 minutos
 async function unlockStuck() {
   const cutoff = new Date(Date.now() - 10 * 60 * 1000);
@@ -209,6 +212,23 @@ const worker = new Worker(
 
     console.log(`Publicando para ${post.accounts.length} conta(s)...`);
     await Promise.allSettled(post.accounts.map(acc => publishOne(acc)));
+
+    // Se TODAS as contas falharam por "conta em uso", reagenda em vez de marcar como erro
+    const postId      = String(post._id);
+    const allBusy     = successCount === 0 && errors.length > 0 && errors.every(e => /conta em uso/i.test(e));
+    const busyRetries = busyRetryMap.get(postId) || 0;
+
+    if (allBusy && busyRetries < 3) {
+      busyRetryMap.set(postId, busyRetries + 1);
+      post.status = 'pendente';
+      post.error  = '';
+      await post.save();
+      const postQueue = require('./postQueue');
+      await postQueue.add('post', { postId }, { delay: 30_000 });
+      console.log(`Post ${postId} reagendado em 30s (contas ocupadas — tentativa ${busyRetries + 1}/3)`);
+      return;
+    }
+    busyRetryMap.delete(postId);
 
     post.status = successCount > 0 && errorCount === 0 ? 'concluido'
                 : successCount > 0                     ? 'parcial'

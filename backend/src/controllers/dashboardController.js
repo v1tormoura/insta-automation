@@ -485,4 +485,26 @@ exports.getAccountStats = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+exports.getLivePosts = async (req, res) => {
+  try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const sel = 'username avatar';
+
+    const [processing, queue, errors, completed] = await Promise.all([
+      Post.find({ status: 'processando' })
+        .populate('accounts', sel).sort({ updatedAt: -1 }).limit(10).lean(),
+      Post.find({ status: { $in: ['pendente', 'agendado'] } })
+        .populate('accounts', sel).sort({ scheduledAt: 1, createdAt: 1 }).limit(30).lean(),
+      Post.find({ status: 'erro', updatedAt: { $gte: oneHourAgo } })
+        .populate('accounts', sel).sort({ updatedAt: -1 }).limit(15).lean(),
+      Post.find({ status: { $in: ['concluido', 'parcial'] }, updatedAt: { $gte: oneHourAgo } })
+        .populate('accounts', sel).sort({ updatedAt: -1 }).limit(15).lean(),
+    ]);
+
+    res.json({ processing, queue, errors, completed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
