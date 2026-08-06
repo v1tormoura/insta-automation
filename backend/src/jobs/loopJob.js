@@ -91,11 +91,12 @@ async function runLoops() {
         loop.lastError  = errNote;
 
         if (nextIndex >= loop.mediaFiles.length) {
-          loop.status       = 'inativo';
+          // Ciclo completo — reinicia do início (loop contínuo)
           loop.currentIndex = 0;
-          loop.nextRunAt    = null;
-          console.log(`✅ [Loop] "${loop.name}" → todas as mídias publicadas, loop encerrado`);
-          broadcast('posts', { action: 'loop_stopped', loopId: loop._id });
+          loop.nextRunAt    = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+          loop.status       = 'ativo';
+          console.log(`🔄 [Loop] "${loop.name}" → ciclo completo, reiniciando do início`);
+          broadcast('posts', { action: 'loop_cycled', loopId: loop._id });
         } else {
           loop.currentIndex = nextIndex;
           loop.nextRunAt    = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);

@@ -15,7 +15,7 @@ const loopSchema = new mongoose.Schema({
   engageComment:   { type: String, default: '' }, // pergunta de engajamento postada ~60min após publicar
 
   // estado
-  status:       { type: String, enum: ['ativo', 'pausado', 'erro'], default: 'ativo' },
+  status:       { type: String, enum: ['ativo', 'pausado', 'inativo', 'erro'], default: 'ativo' },
   currentIndex: { type: Number, default: 0 }, // próximo índice da fila de mídias
   postsCount:   { type: Number, default: 0 },  // total de posts gerados
   lastRunAt:    { type: Date, default: null },

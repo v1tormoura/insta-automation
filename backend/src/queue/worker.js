@@ -137,7 +137,7 @@ const worker = new Worker(
 
     async function publishOne(acc) {
       try {
-        const account = await Account.findById(acc._id);
+        let account = await Account.findById(acc._id);
         if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
 
         // Busy lock — se conta está em uso, aguarda ficar livre (até 5min)

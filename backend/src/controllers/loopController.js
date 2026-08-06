@@ -40,7 +40,7 @@ exports.create = async (req, res) => {
     if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
     if (!intervalMinutes || intervalMinutes < 1) return res.status(400).json({ error: 'Intervalo mínimo: 1 minuto' });
 
-    const nextRunAt = new Date(Date.now() + Number(intervalMinutes) * 60 * 1000);
+    const nextRunAt = new Date(); // primeira postagem em até 30s (loopJob verifica a cada 30s)
 
     const loop = await Loop.create({
       name:            name || `Loop ${new Date().toLocaleString('pt-BR')}`,
@@ -73,9 +73,9 @@ exports.togglePause = async (req, res) => {
     const loop = await Loop.findById(req.params.id);
     if (!loop) return res.status(404).json({ error: 'Loop não encontrado' });
 
-    loop.status = loop.status === 'pausado' ? 'ativo' : 'pausado';
+    loop.status = loop.status === 'ativo' ? 'pausado' : 'ativo';
     if (loop.status === 'ativo') {
-      loop.nextRunAt = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+      loop.nextRunAt = new Date(); // retoma postando imediatamente
       loop.lastError = '';
     }
     await loop.save();
