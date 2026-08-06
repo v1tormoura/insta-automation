@@ -236,21 +236,21 @@ const worker = new Worker(
     await Promise.allSettled(post.accounts.map(acc => publishOne(acc)));
 
     // Se TODAS as contas falharam por "conta em uso", reagenda em vez de marcar como erro
-    const postId      = String(post._id);
+    const pid         = String(post._id);
     const allBusy     = successCount === 0 && errors.length > 0 && errors.every(e => /conta em uso/i.test(e));
-    const busyRetries = busyRetryMap.get(postId) || 0;
+    const busyRetries = busyRetryMap.get(pid) || 0;
 
     if (allBusy && busyRetries < 3) {
-      busyRetryMap.set(postId, busyRetries + 1);
+      busyRetryMap.set(pid, busyRetries + 1);
       post.status = 'pendente';
       post.error  = '';
       await post.save();
       const postQueue = require('./postQueue');
-      await postQueue.add('post', { postId }, { delay: 30_000 });
-      console.log(`Post ${postId} reagendado em 30s (contas ocupadas — tentativa ${busyRetries + 1}/3)`);
+      await postQueue.add('post', { postId: pid }, { delay: 30_000 });
+      console.log(`Post ${pid} reagendado em 30s (contas ocupadas — tentativa ${busyRetries + 1}/3)`);
       return;
     }
-    busyRetryMap.delete(postId);
+    busyRetryMap.delete(pid);
 
     post.status = successCount > 0 && errorCount === 0 ? 'concluido'
                 : successCount > 0                     ? 'parcial'
