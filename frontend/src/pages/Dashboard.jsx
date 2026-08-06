@@ -1041,20 +1041,22 @@ export default function Dashboard() {
   const sparkDaily   = useMemo(() => (d.dailyPosts||[]).slice(-period).map(x => x.posts||0), [d.dailyPosts, period]);
   const sparkErrors  = useMemo(() => (d.dailyErrors7d||[]).map(x => x.errors||0), [d.dailyErrors7d]);
   const forecastData = useMemo(() => {
-    // Keep ISO date alongside label for locale-independent matching
     const past = (d.dailyPosts||[]).slice(-period).map(x => ({
       day:  x.label || x.date || '',
       iso:  (x.date || '').slice(0, 10),
       value: x.posts || 0,
       forecast: false,
     }));
-    const todayISO = new Date().toISOString().slice(0, 10);
+    // Use backend's "today" key to avoid timezone mismatch between client and server
+    const todayISO = past.length > 0 ? past[past.length - 1].iso : new Date().toISOString().slice(0, 10);
     const futureMap = {};
     (d.upcomingPosts||[]).forEach(post => {
       let iso;
       try { iso = post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 10) : todayISO; }
       catch { iso = todayISO; }
-      futureMap[iso] = (futureMap[iso]||0) + 1;
+      // Each account in the post = 1 publication on Instagram
+      const count = post.accounts?.length || 1;
+      futureMap[iso] = (futureMap[iso]||0) + count;
     });
     Object.entries(futureMap).forEach(([iso, value]) => {
       const existing = past.find(p => p.iso === iso);
@@ -1193,20 +1195,21 @@ export default function Dashboard() {
                   {[7,14,30].map(p => <SelectBtn key={p} active={period===p} onClick={() => setPeriod(p)}>{p}d</SelectBtn>)}
                 </div>
               } />
-              <div className="forecast-content">
+              <div style={{ minHeight:190, position:'relative', overflow:'hidden' }}>
                 {!forecastData.some(x => x.value>0) && (
                   <>
-                    <div className="forecast-graphic">
-                      <div className="folder-holo"><FolderOpen size={56} strokeWidth={1.1} /></div>
-                      <div className="holo-floor" />
+                    <div style={{ position:'absolute', inset:'5px 0 24px 0', display:'grid', placeItems:'center', pointerEvents:'none', zIndex:1 }}>
+                      <div style={{ color:'var(--cyan)', opacity:.65 }}>
+                        <FolderOpen size={56} strokeWidth={1.1} />
+                      </div>
                     </div>
-                    <div className="empty-copy">
-                      <h2>Nenhuma postagem no período.</h2>
-                      <p>Adicione publicações às filas para visualizar a previsão.</p>
+                    <div style={{ position:'absolute', zIndex:2, left:'50%', top:'62%', width:'100%', transform:'translate(-50%,-50%)', textAlign:'center', padding:'0 16px' }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text2)', margin:0 }}>Nenhuma postagem no período.</div>
+                      <div style={{ fontSize:11, color:'var(--text3)', marginTop:4, lineHeight:1.4 }}>Adicione publicações às filas para visualizar a previsão.</div>
                     </div>
                   </>
                 )}
-                <div className="forecast-chart" style={{ opacity:forecastData.some(x => x.value>0)?1:.3 }}>
+                <div style={{ padding:'8px 4px 4px', position:'relative', zIndex:0, minHeight:160, opacity:forecastData.some(x => x.value>0)?1:.3 }}>
                   <ResponsiveContainer width="100%" height={160}>
                     <AreaChart data={forecastData} margin={{ top:10, right:4, left:-28, bottom:0 }}>
                       <defs>
@@ -1214,14 +1217,28 @@ export default function Dashboard() {
                           <stop offset="0%"   stopColor="#26c7ff" stopOpacity={.3} />
                           <stop offset="100%" stopColor="#26c7ff" stopOpacity={0}  />
                         </linearGradient>
+                        <linearGradient id="fgAmber" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%"   stopColor="#f59e0b" stopOpacity={.35} />
+                          <stop offset="100%" stopColor="#f59e0b" stopOpacity={0}   />
+                        </linearGradient>
                       </defs>
                       <XAxis dataKey="day" tick={{ fontSize:10, fill:'var(--text3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                       <YAxis allowDecimals={false} tick={{ fontSize:10, fill:'var(--text3)' }} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--text)' }} formatter={v => [v, 'Postagens']} />
+                      <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--text)' }} formatter={(v, n, p) => [v, p.payload?.forecast ? 'Previsto' : 'Publicado']} />
                       <Area type="monotone" dataKey="value" stroke="var(--cyan)" strokeWidth={2} fill="url(#fg)" dot={false} activeDot={{ r:4, fill:'var(--cyan)' }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+                {forecastData.some(x => x.forecast) && (
+                  <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize:10, color:'var(--text3)' }}>
+                    <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <span style={{ width:8, height:8, borderRadius:2, background:'var(--cyan)', display:'inline-block' }} />Publicado
+                    </span>
+                    <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <span style={{ width:8, height:8, borderRadius:2, background:'#f59e0b', display:'inline-block' }} />Previsto
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
