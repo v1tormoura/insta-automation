@@ -17,6 +17,23 @@ connectDB();
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// ── Mutex por conta (em memória) ─────────────────────────────────────────────
+// Garante que cada conta só processa UMA publicação por vez,
+// independente de quantas filas/loops estejam rodando.
+const accountMutex = new Map(); // accountId → Promise (a última da cadeia)
+
+function withAccountLock(accountId, fn) {
+  const prev = accountMutex.get(accountId) || Promise.resolve();
+  const next = prev.then(() => fn()).catch(() => fn());
+  // Guarda apenas a cadeia atual; quando next terminar, libera o slot se ninguém mais espera
+  accountMutex.set(accountId, next.then(() => {
+    if (accountMutex.get(accountId) === next) accountMutex.delete(accountId);
+  }, () => {
+    if (accountMutex.get(accountId) === next) accountMutex.delete(accountId);
+  }));
+  return next;
+}
+
 // Limpa locks de contas travadas há mais de 10 minutos
 async function unlockStuck() {
   const cutoff = new Date(Date.now() - 10 * 60 * 1000);
@@ -133,77 +150,49 @@ const worker = new Worker(
     const errors     = [];
 
     async function publishOne(acc) {
-      try {
-        let account = await Account.findById(acc._id);
-        if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
-
-        // Busy lock — aguarda até 90s para a conta ficar livre antes de falhar
-        let busyWait = 0;
-        while (account.isBusy && busyWait < 9) {
-          const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
-          if (lockAge > 10 * 60 * 1000) {
-            await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-            break;
-          }
-          writeAccountLog(acc.username, `Conta em uso, aguardando... (${busyWait * 10 + 10}s)`);
-          await delay(10_000);
-          busyWait++;
-          account = await Account.findById(acc._id);
+      // Mutex por conta: garante que só UMA publicação roda por conta de cada vez.
+      // Outras filas/loops ficam em fila na memória sem gerar erro "conta em uso".
+      await withAccountLock(String(acc._id), async () => {
+        try {
+          const account = await Account.findById(acc._id);
           if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
-        }
-        if (account.isBusy) {
-          errors.push(`@${acc.username}: conta em uso após 90s — ignorado`);
-          errorCount++;
-          return;
-        }
-        await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
-        broadcast('accounts', { action: 'busy', accountId: account._id });
-        writeAccountLog(acc.username, 'Iniciando publicação');
 
-        if (!(await checkDailyLimit(account))) {
-          const msg = `Limite diário atingido: ${account.postsToday}/${account.dailyPostLimit}`;
-          writeAccountLog(acc.username, msg);
+          // Marca UI como ocupada
+          await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
+          broadcast('accounts', { action: 'busy', accountId: account._id });
+          writeAccountLog(acc.username, 'Iniciando publicação');
+
+          if (!(await checkDailyLimit(account))) {
+            const msg = `Limite diário atingido: ${account.postsToday}/${account.dailyPostLimit}`;
+            writeAccountLog(acc.username, msg);
+            await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
+            errors.push(`@${acc.username}: ${msg}`);
+            errorCount++;
+            return;
+          }
+
+          await publishWithRetry(post, account, preProcessedVideoUrl);
+          await registerSuccess(account);
           await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-          errors.push(`@${acc.username}: ${msg}`);
+          broadcast('accounts', { action: 'synced' });
+          successCount++;
+
+          runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
+          if (post.ctaComment?.trim())    postCTACommentForPost(account._id, post.ctaComment).catch(e => console.log('[CTA] erro:', e.message));
+          if (post.engageComment?.trim()) postEngageCommentForPost(account._id, post.engageComment).catch(e => console.log('[Engage] erro:', e.message));
+
+        } catch (err) {
           errorCount++;
-          return;
+          errors.push(`@${acc.username}: ${err.message}`);
+          writeAccountLog(acc.username, `Erro: ${err.message}`);
+
+          const classified = classifyError(err);
+          const healthUpdate = { isBusy: false, busySince: null, busyReason: '', lastError: traduzirErro(err.message) };
+          if (classified) healthUpdate.healthStatus = classified;
+          await Account.findByIdAndUpdate(acc._id, healthUpdate);
+          broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: classified || acc.healthStatus });
         }
-
-        await publishWithRetry(post, account, preProcessedVideoUrl);
-        await registerSuccess(account);
-        await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-        broadcast('accounts', { action: 'synced' });
-        successCount++;
-
-        // Dispara promo global assincronamente
-        runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
-
-        // Comentário CTA específico do post/loop (independente do promo global)
-        if (post.ctaComment?.trim()) {
-          postCTACommentForPost(account._id, post.ctaComment)
-            .catch(e => console.log('[CTA] erro:', e.message));
-        }
-
-        // Comentário de engajamento (pergunta) ~60min após publicar
-        if (post.engageComment?.trim()) {
-          postEngageCommentForPost(account._id, post.engageComment)
-            .catch(e => console.log('[Engage] erro:', e.message));
-        }
-
-      } catch (err) {
-        errorCount++;
-        errors.push(`@${acc.username}: ${err.message}`);
-        writeAccountLog(acc.username, `Erro: ${err.message}`);
-
-        const classified = classifyError(err);
-        const healthUpdate = {
-          isBusy: false, busySince: null, busyReason: '',
-          lastError: traduzirErro(err.message),
-        };
-        if (classified) healthUpdate.healthStatus = classified;
-        await Account.findByIdAndUpdate(acc._id, healthUpdate);
-        broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: classified || acc.healthStatus });
-      }
+      });
     }
 
     // Pré-processa vídeo uma vez para contas Graph API (evita reconversão paralela)
