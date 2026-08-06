@@ -3,15 +3,55 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 
+function jobsToSchedulerItems(jobs) {
+  const items = [];
+  const now = Date.now();
+  for (const job of jobs) {
+    if (!['queued', 'running', 'waiting_interval'].includes(job.status)) continue;
+    if (!job.mediaFiles?.length) continue;
+    const totalMedia  = job.mediaFiles.length;
+    const limit       = Math.max(1, job.simultaneousLimit || 1);
+    const totalRounds = Math.ceil(totalMedia / limit);
+    const intervalMs  = (job.intervalMinutes || 0) * 60 * 1000;
+    const baseTime = (job.status === 'waiting_interval' && job.nextRoundAt)
+      ? new Date(job.nextRoundAt).getTime()
+      : now;
+    const startRound = job.currentRound || 0;
+    const endRound   = job.type === 'loop' ? startRound + Math.min(5, totalRounds) : totalRounds;
+    for (let round = startRound; round < endRound; round++) {
+      const startIdx = (round % totalRounds) * limit;
+      if (startIdx >= totalMedia) break;
+      const scheduledAt = new Date(baseTime + (round - startRound) * intervalMs).toISOString();
+      const isCurrentRound = round === startRound;
+      const status = (isCurrentRound && ['queued','running'].includes(job.status)) ? 'pendente' : 'agendado';
+      items.push({
+        _id:      `job-${job._id}-r${round}`,
+        postType: job.postType || 'reel',
+        caption:  job.caption  || job.name || '',
+        accounts: job.accounts || [],
+        scheduledAt, status,
+        _isJob: true, _jobName: job.name || '',
+      });
+    }
+  }
+  return items;
+}
+
 export default function Scheduler() {
   const [posts, setPosts] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
 
   async function load() {
-    const res = await api.get('/posts');
-    const all = res.data.posts || res.data || [];
-    const scheduled = all.filter(p => p.status === 'agendado' || p.status === 'pendente');
-    setPosts(scheduled);
+    const [postsRes, jobsRes] = await Promise.all([
+      api.get('/posts'),
+      api.get('/jobs').catch(() => ({ data: [] })),
+    ]);
+    const legacyScheduled = (postsRes.data.posts || postsRes.data || [])
+      .filter(p => p.status === 'agendado' || p.status === 'pendente');
+    const jobItems = jobsToSchedulerItems(jobsRes.data || []);
+    const combined = [...legacyScheduled, ...jobItems]
+      .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
+    setPosts(combined);
   }
 
   useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, []);

@@ -3,11 +3,68 @@ const path = require('path');
 const Growth = require('../models/Growth');
 const Account = require('../models/Account');
 const Post = require('../models/Post');
+const Job  = require('../models/Job');
 const mongoose = require('mongoose');
 let Insight;
 try { Insight = require('../models/Insight'); } catch {}
 let redisClient;
 try { redisClient = require('../queue/connection'); } catch {}
+
+// Converte Jobs ativos em itens "upcoming" equivalentes a Posts agendados.
+// Para cada rodada restante do Job, gera um item por mídia com scheduledAt calculado.
+function jobsToUpcomingPosts(jobs) {
+  const items = [];
+  const now = Date.now();
+
+  for (const job of jobs) {
+    if (!job.mediaFiles?.length || !job.accounts?.length) continue;
+
+    const totalMedia  = job.mediaFiles.length;
+    const limit       = Math.max(1, job.simultaneousLimit || 1);
+    const totalRounds = Math.ceil(totalMedia / limit);
+    const intervalMs  = (job.intervalMinutes || 0) * 60 * 1000;
+
+    const baseTime = (job.status === 'waiting_interval' && job.nextRoundAt)
+      ? new Date(job.nextRoundAt).getTime()
+      : now;
+
+    const startRound = job.currentRound || 0;
+    // Para loops: projeta no máximo 5 rodadas à frente para não poluir o forecast
+    const endRound = job.type === 'loop'
+      ? startRound + Math.min(5, totalRounds)
+      : totalRounds;
+
+    for (let round = startRound; round < endRound; round++) {
+      const startIdx  = (round % totalRounds) * limit;
+      if (startIdx >= totalMedia) break;
+      const roundMedia  = job.mediaFiles.slice(startIdx, Math.min(startIdx + limit, totalMedia));
+      const scheduledAt = new Date(baseTime + (round - startRound) * intervalMs);
+
+      const isCurrentRound = round === startRound;
+      const status = (isCurrentRound && job.status === 'running') ? 'processando'
+                   : (isCurrentRound && job.status === 'queued')  ? 'pendente'
+                   : 'agendado';
+
+      for (const mediaFile of roundMedia) {
+        items.push({
+          _id:       `job-${job._id}-r${round}-${mediaFile}`,
+          media:     mediaFile,
+          postType:  job.postType || 'reel',
+          caption:   job.caption  || '',
+          accounts:  job.accounts,
+          scheduledAt,
+          status,
+          _isJob:    true,
+          _jobId:    String(job._id),
+          _jobName:  job.name || '',
+          _round:    round,
+        });
+      }
+    }
+  }
+
+  return items;
+}
 
 function startOfDay() {
   const d = new Date();
@@ -77,13 +134,26 @@ exports.getDashboard = async (req, res) => {
 
     const totalFollowers = accounts.reduce((sum, acc) => sum + (acc.followers || 0), 0);
 
-    const totalPosts = await Post.countDocuments();
-    const completedPosts = await Post.countDocuments({ status: 'concluido' });
-    const scheduledPosts = await Post.countDocuments({ status: 'agendado' });
-    const processingPosts = await Post.countDocuments({ status: 'processando' });
-    const pendingPosts = await Post.countDocuments({ status: 'pendente' });
-    const partialPosts = await Post.countDocuments({ status: 'parcial' });
-    const errorPosts = await Post.countDocuments({ status: 'erro' });
+    const [
+      totalPosts, completedPosts,
+      scheduledPostsLegacy, processingPostsLegacy, pendingPostsLegacy,
+      partialPosts, errorPosts,
+      jobsWaiting, jobsRunning, jobsQueued,
+    ] = await Promise.all([
+      Post.countDocuments(),
+      Post.countDocuments({ status: 'concluido' }),
+      Post.countDocuments({ status: 'agendado' }),
+      Post.countDocuments({ status: 'processando' }),
+      Post.countDocuments({ status: 'pendente' }),
+      Post.countDocuments({ status: 'parcial' }),
+      Post.countDocuments({ status: 'erro' }),
+      Job.countDocuments({ status: 'waiting_interval' }),
+      Job.countDocuments({ status: 'running' }),
+      Job.countDocuments({ status: 'queued' }),
+    ]);
+    const scheduledPosts  = scheduledPostsLegacy  + jobsWaiting;
+    const processingPosts = processingPostsLegacy + jobsRunning;
+    const pendingPosts    = pendingPostsLegacy    + jobsQueued;
 
     const postsToday = await Post.countDocuments({
       status: { $in: ['concluido', 'parcial'] },
@@ -148,12 +218,19 @@ exports.getDashboard = async (req, res) => {
     const problems7d    = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= sevenDaysAgo).length;
     const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;
 
-    const upcomingPosts = await Post.find({
-      status: { $in: ['agendado', 'pendente', 'processando'] },
-    })
-      .populate('accounts')
-      .sort({ scheduledAt: 1 })
-      .limit(200);
+    const [legacyUpcoming, activeJobs] = await Promise.all([
+      Post.find({ status: { $in: ['agendado', 'pendente', 'processando'] } })
+        .populate('accounts')
+        .sort({ scheduledAt: 1 })
+        .limit(200)
+        .lean(),
+      Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
+        .populate('accounts', 'username avatar')
+        .lean(),
+    ]);
+    const upcomingPosts = [...legacyUpcoming, ...jobsToUpcomingPosts(activeJobs)]
+      .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
+      .slice(0, 200);
 
     const latestPosts = await Post.find().populate('accounts').sort({ updatedAt: -1 }).limit(10);
 
@@ -492,7 +569,7 @@ exports.getLivePosts = async (req, res) => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const sel = 'username avatar';
 
-    const [processing, queue, errors, completed] = await Promise.all([
+    const [processing, legacyQueue, errors, completed, activeJobsLive] = await Promise.all([
       Post.find({ status: 'processando' })
         .populate('accounts', sel).sort({ updatedAt: -1 }).limit(10).lean(),
       Post.find({ status: { $in: ['pendente', 'agendado'] } })
@@ -501,7 +578,13 @@ exports.getLivePosts = async (req, res) => {
         .populate('accounts', sel).sort({ updatedAt: -1 }).limit(15).lean(),
       Post.find({ status: { $in: ['concluido', 'parcial'] }, updatedAt: { $gte: oneHourAgo } })
         .populate('accounts', sel).sort({ updatedAt: -1 }).limit(15).lean(),
+      Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
+        .populate('accounts', sel).lean(),
     ]);
+
+    const queue = [...legacyQueue, ...jobsToUpcomingPosts(activeJobsLive)]
+      .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
+      .slice(0, 30);
 
     res.json({ processing, queue, errors, completed });
   } catch (err) {
