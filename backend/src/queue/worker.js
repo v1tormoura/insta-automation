@@ -40,8 +40,27 @@ async function recoverStuckPosts() {
   }
 }
 
+// Jobs em 'running' ao reiniciar o worker indicam crash durante execução.
+// Re-enfileira a rodada atual para que BullMQ os retome automaticamente.
+async function recoverStuckJobs() {
+  const Job      = require('../models/Job');
+  const postQueue = require('./postQueue');
+  const cutoff   = new Date(Date.now() - 15 * 60 * 1000);
+  const stuck    = await Job.find({ status: 'running', updatedAt: { $lt: cutoff } });
+  for (const job of stuck) {
+    try {
+      const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
+      await Job.findByIdAndUpdate(job._id, { status: 'queued', bullMqJobId: String(bullJob.id) });
+      console.log(`♻️  [Job] "${job.name}" (${job._id}) re-enfileirado após restart`);
+    } catch (e) {
+      console.error(`[Job] Falha ao recuperar job ${job._id}:`, e.message);
+    }
+  }
+}
+
 unlockStuck();
 recoverStuckPosts().catch(e => console.error('recoverStuckPosts:', e.message));
+recoverStuckJobs().catch(e => console.error('recoverStuckJobs:', e.message));
 setInterval(async () => { try { await unlockStuck(); } catch {} }, 60_000);
 
 // ── Helpers de conta ────────────────────────────────────────────────────────
@@ -382,10 +401,18 @@ async function processJobRound(jobId) {
     return;
   }
 
+  // Re-lê o status atual do DB antes de agendar a próxima rodada.
+  // Garante que um Pause ou Cancel emitido durante a rodada seja respeitado.
+  const freshStatus = (await Job.findById(jobDoc._id).select('status').lean())?.status;
+  if (['paused', 'cancelled'].includes(freshStatus)) {
+    console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída mas job foi ${freshStatus}. Próxima rodada não agendada.`);
+    broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
+    return;
+  }
+
   // Agenda próxima rodada
-  const intervalMs     = (jobDoc.intervalMinutes || 0) * 60 * 1000;
-  const isLoopCycling  = jobDoc.type === 'loop' && nextStartIdx >= totalMedia;
-  const effectiveRound = isLoopCycling ? 0 : nextRound;
+  const intervalMs    = (jobDoc.intervalMinutes || 0) * 60 * 1000;
+  const isLoopCycling = jobDoc.type === 'loop' && nextStartIdx >= totalMedia;
 
   if (isLoopCycling) {
     console.log(`[Job] Loop "${jobDoc.name}" — ciclo completo, próximo em ${jobDoc.intervalMinutes}min`);

@@ -16,15 +16,6 @@ function getMediaType(filename) {
   return 'image';
 }
 
-function getIntervalMs(body) {
-  // Suporta novo campo intervalMinutes (slider) ou campos legados
-  const mins = Number(body.intervalMinutes || 0);
-  if (mins > 0) return mins * 60 * 1000;
-  const hours = Number(body.intervalHours || 0);
-  const minutes = Number(body.intervalMins || 0);
-  const seconds = Number(body.intervalSeconds || 0);
-  return hours * 60 * 60 * 1000 + minutes * 60 * 1000 + seconds * 1000;
-}
 
 exports.createPost = async (req, res) => {
   try {
