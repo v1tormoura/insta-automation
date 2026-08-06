@@ -69,8 +69,16 @@ async function registerSuccess(account) {
 }
 
 
+// Detecta se é limite de publicações da Graph API do Meta
+function isGraphApiPublishLimit(err) {
+  return /número máximo de posts|content_publish_rate_limit|application request limit|maximum number of posts|too many publishes/i.test(err.message || '');
+}
+
 // ── Publicação: Graph API (IGAA token) ou Private API (cookies/session) ──
 async function publishWithRetry(post, account, preProcessedVideoUrl) {
+  const fs   = require('fs');
+  const path = require('path');
+
   // Graph API — preferida quando a conta tem token IGAA conectado
   if (account.accessToken && account.igUserId) {
     writeAccountLog(account.username, 'Publicando via Graph API (Meta)...');
@@ -80,14 +88,13 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
       return true;
     } catch (err) {
       writeAccountLog(account.username, `Graph API: ${err.message}`);
-      throw err;
+      if (!isGraphApiPublishLimit(err)) throw err;
+      // Limite da Graph API atingido → cai para Private API automaticamente
+      writeAccountLog(account.username, 'Limite diário da Graph API atingido — usando Private API como fallback...');
     }
   }
 
-  // Private API — fallback para contas sem token IGAA
-  const fs   = require('fs');
-  const path = require('path');
-
+  // Private API — contas sem token ou fallback quando Graph API atinge o limite diário
   const hasCookies = fs.existsSync(path.join(__dirname, '../../sessions', account.username, 'cookies.json'));
   const hasMethod  = hasCookies || !!(account.password) || !!(account.igSession);
 
@@ -127,19 +134,27 @@ const worker = new Worker(
 
     async function publishOne(acc) {
       try {
-        const account = await Account.findById(acc._id);
+        let account = await Account.findById(acc._id);
         if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
 
-        // Busy lock — evita publicações simultâneas na mesma sessão
-        if (account.isBusy) {
+        // Busy lock — aguarda até 90s para a conta ficar livre antes de falhar
+        let busyWait = 0;
+        while (account.isBusy && busyWait < 9) {
           const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
           if (lockAge > 10 * 60 * 1000) {
             await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-          } else {
-            errors.push(`@${acc.username}: conta em uso — aguarde`);
-            errorCount++;
-            return;
+            break;
           }
+          writeAccountLog(acc.username, `Conta em uso, aguardando... (${busyWait * 10 + 10}s)`);
+          await delay(10_000);
+          busyWait++;
+          account = await Account.findById(acc._id);
+          if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
+        }
+        if (account.isBusy) {
+          errors.push(`@${acc.username}: conta em uso após 90s — ignorado`);
+          errorCount++;
+          return;
         }
         await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
         broadcast('accounts', { action: 'busy', accountId: account._id });
