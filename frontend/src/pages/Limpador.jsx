@@ -77,9 +77,22 @@ function makeItem(f) {
   return { id: `${f.name}-${f.size}-${Date.now()}`, file: f, status: 'waiting', pct: 0, error: null };
 }
 
+const WM_PRESETS = [
+  { key: 'auto',      label: 'Auto',      desc: 'Detecta automaticamente' },
+  { key: 'kwai',      label: 'Kwai',      desc: 'Username + logo (baixo)' },
+  { key: 'tiktok',    label: 'TikTok',    desc: 'Username + info (baixo-esq)' },
+  { key: 'instagram', label: 'Instagram', desc: 'Barra inferior' },
+  { key: 'youtube',   label: 'YouTube',   desc: 'Logo (topo-esq)' },
+  { key: 'corner_tl', label: '↖ Canto',  desc: 'Topo esquerda' },
+  { key: 'corner_tr', label: '↗ Canto',  desc: 'Topo direita' },
+  { key: 'corner_bl', label: '↙ Canto',  desc: 'Baixo esquerda' },
+  { key: 'corner_br', label: '↘ Canto',  desc: 'Baixo direita' },
+];
+
 export default function Limpador() {
   const [items,    setItems]    = useState([]);   // [{ id, file, status, pct, error }]
   const [mode,     setMode]     = useState('limpeza_leve');
+  const [wmPreset, setWmPreset] = useState('auto');
   const [running,  setRunning]  = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef();
@@ -115,6 +128,7 @@ export default function Limpador() {
       const form = new FormData();
       form.append('file', item.file);
       form.append('mode', mode);
+      if (mode === 'watermark') form.append('preset', wmPreset);
 
       const res = await api.post('/api/limpador/process', form, {
         responseType: 'blob',
@@ -350,19 +364,43 @@ export default function Limpador() {
             )}
           </button>
 
+          {/* Seletor de preset — aparece só no modo watermark */}
+          {mode === 'watermark' && (
+            <div style={{ background:'oklch(0.14 0.04 235 / 0.8)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:12, overflow:'hidden' }}>
+              <div style={{ padding:'10px 14px', borderBottom:'1px solid oklch(1 0 0 / 0.07)', fontSize:11, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
+                Plataforma / Posição
+              </div>
+              <div style={{ padding:'10px 12px', display:'flex', flexWrap:'wrap', gap:6 }}>
+                {WM_PRESETS.map(p => {
+                  const sel = wmPreset === p.key;
+                  return (
+                    <button key={p.key}
+                      onClick={() => !running && setWmPreset(p.key)}
+                      title={p.desc}
+                      style={{
+                        fontSize:11, fontWeight:700, padding:'5px 12px', borderRadius:7, cursor: running ? 'default' : 'pointer',
+                        border:`1.5px solid ${sel ? 'rgba(251,146,60,.6)' : 'oklch(1 0 0 / 0.08)'}`,
+                        background: sel ? 'rgba(251,146,60,.15)' : 'oklch(0.11 0.03 235 / 0.5)',
+                        color: sel ? '#fb923c' : 'var(--text3)',
+                        transition:'.15s',
+                      }}
+                    >{p.label}</button>
+                  );
+                })}
+              </div>
+              {wmPreset === 'auto' && (
+                <div style={{ padding:'8px 14px', borderTop:'1px solid oklch(1 0 0 / 0.06)', fontSize:10, color:'var(--text3)', lineHeight:1.5 }}>
+                  Auto analisa 3 frames e detecta a região mais estática. Falha em vídeos estáticos — selecione a plataforma acima.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Info modo */}
           {!running && mode !== 'watermark' && (
             <div style={{ fontSize:11, color:'var(--text3)', textAlign:'center', lineHeight:1.7 }}>
               Os arquivos são processados um a um e baixados automaticamente.<br />
               Modo {selectedMode?.label}: {selectedMode?.desc}
-            </div>
-          )}
-          {!running && mode === 'watermark' && (
-            <div style={{ fontSize:11, color:'rgba(251,146,60,.8)', background:'rgba(251,146,60,.06)', border:'1px solid rgba(251,146,60,.2)', borderRadius:8, padding:'10px 12px', lineHeight:1.6 }}>
-              <strong style={{ display:'block', marginBottom:4 }}>Como funciona a detecção automática:</strong>
-              Analisa 3 frames em pontos diferentes do vídeo e identifica a região estática (logo, canal, @usuário).
-              Funciona bem com logos no canto e watermarks do TikTok/Reels.
-              <strong style={{ display:'block', marginTop:4 }}>Não detecta:</strong> watermarks animados ou vídeos completamente estáticos.
             </div>
           )}
 

@@ -18,8 +18,9 @@ exports.process = async (req, res) => {
   try {
     if (mode === 'watermark') {
       const { detectAndRemove } = require('../services/watermarkRemover');
+      const preset = req.body.preset || 'auto';
       outputPath = inputPath.replace(ext, '_sem_marca' + ext);
-      await detectAndRemove(inputPath, outputPath);
+      await detectAndRemove(inputPath, outputPath, preset);
     } else {
       outputPath = await convertToReelFormat(inputPath, { processMode: mode });
     }

@@ -167,15 +167,80 @@ function applyDelogoAndConvert(inputPath, outputPath, region) {
   });
 }
 
+// ── Presets de plataforma ─────────────────────────────────────────────────────
+// Cada preset define regiões como fração da largura/altura do vídeo.
+// Múltiplas regiões = múltiplos delogo em cadeia.
+
+const PRESETS = {
+  kwai: [
+    { xPct: 0.00, yPct: 0.82, wPct: 0.50, hPct: 0.18 }, // username (baixo-esquerda)
+    { xPct: 0.62, yPct: 0.82, wPct: 0.38, hPct: 0.18 }, // logo Kwai (baixo-direita)
+  ],
+  tiktok: [
+    { xPct: 0.00, yPct: 0.76, wPct: 0.68, hPct: 0.24 }, // username + info (baixo-esquerda)
+  ],
+  youtube: [
+    { xPct: 0.00, yPct: 0.00, wPct: 0.28, hPct: 0.11 }, // logo (topo-esquerda)
+  ],
+  instagram: [
+    { xPct: 0.00, yPct: 0.84, wPct: 1.00, hPct: 0.16 }, // barra inferior
+  ],
+  corner_tl: [{ xPct: 0.00, yPct: 0.00,  wPct: 0.32, hPct: 0.22 }],
+  corner_tr: [{ xPct: 0.68, yPct: 0.00,  wPct: 0.32, hPct: 0.22 }],
+  corner_bl: [{ xPct: 0.00, yPct: 0.78,  wPct: 0.32, hPct: 0.22 }],
+  corner_br: [{ xPct: 0.68, yPct: 0.78,  wPct: 0.32, hPct: 0.22 }],
+};
+
+async function applyPreset(inputPath, outputPath, presetKey) {
+  const def = PRESETS[presetKey];
+  if (!def) throw new Error(`Preset desconhecido: ${presetKey}`);
+
+  const { width, height } = await getVideoInfo(inputPath);
+
+  const regions = def.map(r => ({
+    x: Math.round(r.xPct * width),
+    y: Math.round(r.yPct * height),
+    w: Math.round(r.wPct * width),
+    h: Math.round(r.hPct * height),
+  }));
+
+  console.log(`[WM] Preset ${presetKey}: ${regions.length} região(ões) definidas`);
+
+  return new Promise((resolve, reject) => {
+    // Encadeia um delogo por região + escala para 1080×1920
+    const delogos = regions.map(r =>
+      `delogo=x=${r.x}:y=${r.y}:w=${r.w}:h=${r.h}`
+    );
+    const vf = [
+      ...delogos,
+      'scale=1080:1920:force_original_aspect_ratio=decrease',
+      'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
+    ].join(',');
+
+    ffmpeg(inputPath)
+      .videoFilter(vf)
+      .videoCodec('libx264')
+      .audioCodec('aac')
+      .audioBitrate('192k')
+      .outputOptions(['-crf 20', '-preset fast', '-movflags +faststart', '-pix_fmt yuv420p'])
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .save(outputPath);
+  });
+}
+
 // ── API pública ───────────────────────────────────────────────────────────────
 
-async function detectAndRemove(inputPath, outputPath) {
+async function detectAndRemove(inputPath, outputPath, preset = 'auto') {
+  if (preset && preset !== 'auto') {
+    return applyPreset(inputPath, outputPath, preset);
+  }
+
   const region = await detectWatermarkRegion(inputPath);
   if (!region) {
     throw new Error(
       'Marca d\'água não detectada automaticamente. ' +
-      'Isso ocorre em vídeos com fundo estático ou watermark muito discreta. ' +
-      'Tente o modo Humanizador para limpar o arquivo sem detecção.'
+      'Selecione a plataforma (Kwai, TikTok…) ou o canto onde está o logo.'
     );
   }
   console.log(
@@ -186,4 +251,4 @@ async function detectAndRemove(inputPath, outputPath) {
   return { region, outputPath };
 }
 
-module.exports = { detectAndRemove, detectWatermarkRegion, applyDelogoAndConvert };
+module.exports = { detectAndRemove, detectWatermarkRegion, applyDelogoAndConvert, applyPreset, PRESETS };
