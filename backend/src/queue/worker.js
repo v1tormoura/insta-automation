@@ -140,15 +140,37 @@ const worker = new Worker(
         const account = await Account.findById(acc._id);
         if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
 
-        // Busy lock — evita publicações simultâneas na mesma sessão
+        // Busy lock — se conta está em uso, aguarda ficar livre (até 5min)
         if (account.isBusy) {
           const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
           if (lockAge > 10 * 60 * 1000) {
+            // Lock expirado — libera e continua
             await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
           } else {
-            errors.push(`@${acc.username}: conta em uso — aguarde`);
-            errorCount++;
-            return;
+            writeAccountLog(acc.username, 'Conta em uso por outro lote, aguardando ficar livre...');
+            const MAX_WAIT    = 5 * 60 * 1000;
+            const POLL        = 5_000;
+            const startWait   = Date.now();
+            let becameFree    = false;
+            while (Date.now() - startWait < MAX_WAIT) {
+              await delay(POLL);
+              const refreshed = await Account.findById(acc._id).lean();
+              if (!refreshed) break;
+              const age = Date.now() - (refreshed.busySince ? new Date(refreshed.busySince).getTime() : 0);
+              if (!refreshed.isBusy || age > 10 * 60 * 1000) {
+                if (age > 10 * 60 * 1000) {
+                  await Account.findByIdAndUpdate(acc._id, { isBusy: false, busySince: null, busyReason: '' });
+                }
+                account = Object.assign(account, refreshed, { isBusy: false });
+                becameFree = true;
+                break;
+              }
+            }
+            if (!becameFree) {
+              errors.push(`@${acc.username}: conta em uso — tempo de espera esgotado (5min)`);
+              errorCount++;
+              return;
+            }
           }
         }
         await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
