@@ -44,6 +44,21 @@ const MODES = [
       </svg>
     ),
   },
+  {
+    key: 'watermark',
+    label: 'Remover Marca D\'água',
+    desc: 'Detecta automaticamente e remove logo/watermark estático. Saída em 1080×1920.',
+    badge: 'AUTO',
+    badgeColor: '#fb923c',
+    badgeBg: 'rgba(251,146,60,.15)',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+        <line x1="1" y1="1" x2="23" y2="23"/>
+      </svg>
+    ),
+  },
 ];
 
 const TIPS = [
@@ -109,10 +124,11 @@ export default function Limpador() {
         },
       });
 
+      const prefix   = mode === 'watermark' ? 'sem_marca' : 'limpo';
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `limpo_${item.file.name}`;
+      a.download = `${prefix}_${item.file.name}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -240,7 +256,7 @@ export default function Limpador() {
                       initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
                       transition={{ duration:.15 }}
                     >
-                      <FileRow item={item} running={running} onRemove={() => removeItem(item.id)} />
+                      <FileRow item={item} running={running} mode={mode} onRemove={() => removeItem(item.id)} />
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -335,10 +351,18 @@ export default function Limpador() {
           </button>
 
           {/* Info modo */}
-          {!running && (
+          {!running && mode !== 'watermark' && (
             <div style={{ fontSize:11, color:'var(--text3)', textAlign:'center', lineHeight:1.7 }}>
               Os arquivos são processados um a um e baixados automaticamente.<br />
               Modo {selectedMode?.label}: {selectedMode?.desc}
+            </div>
+          )}
+          {!running && mode === 'watermark' && (
+            <div style={{ fontSize:11, color:'rgba(251,146,60,.8)', background:'rgba(251,146,60,.06)', border:'1px solid rgba(251,146,60,.2)', borderRadius:8, padding:'10px 12px', lineHeight:1.6 }}>
+              <strong style={{ display:'block', marginBottom:4 }}>Como funciona a detecção automática:</strong>
+              Analisa 3 frames em pontos diferentes do vídeo e identifica a região estática (logo, canal, @usuário).
+              Funciona bem com logos no canto e watermarks do TikTok/Reels.
+              <strong style={{ display:'block', marginTop:4 }}>Não detecta:</strong> watermarks animados ou vídeos completamente estáticos.
             </div>
           )}
 
@@ -360,22 +384,24 @@ export default function Limpador() {
 }
 
 /* ── Linha de arquivo na fila ── */
-function FileRow({ item, running, onRemove }) {
+function FileRow({ item, running, mode, onRemove }) {
   const { file, status, pct, error } = item;
   const isVideo = file.type.startsWith('video/');
 
   const statusColor = {
     waiting:    'var(--text3)',
     uploading:  'var(--cyan)',
-    processing: '#a78bfa',
+    processing: mode === 'watermark' ? '#fb923c' : '#a78bfa',
     done:       '#22c55e',
     error:      '#f87171',
   }[status];
 
+  const processingLabel = mode === 'watermark' ? 'Detectando e removendo...' : 'Processando...';
+
   const statusLabel = {
     waiting:    'Aguardando',
     uploading:  `Enviando ${pct}%`,
-    processing: 'Processando...',
+    processing: processingLabel,
     done:       'Concluído ✓',
     error:      'Erro',
   }[status];
