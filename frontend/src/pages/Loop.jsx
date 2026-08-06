@@ -8,6 +8,7 @@ import {
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
+import AccountPicker from '../components/AccountPicker';
 import './Loop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -236,33 +237,12 @@ function LoopModal({ onClose, onCreated }) {
               <label className="lm-label">
                 Contas&nbsp;<span className="lm-count">({form.accounts.length} selecionada{form.accounts.length !== 1 ? 's' : ''})</span>
               </label>
-              <button type="button" className="lm-tiny"
-                onClick={() => setForm(f => ({
-                  ...f,
-                  accounts: f.accounts.length === accounts.length ? [] : accounts.map(a => a._id),
-                }))}>
-                {form.accounts.length === accounts.length ? 'Desmarcar todas' : 'Selecionar todas'}
-              </button>
             </div>
-            <div className="lm-acc-list">
-              {accounts.map(a => {
-                const sel = form.accounts.includes(a._id);
-                const ok  = !a.healthStatus || a.healthStatus === 'ativa';
-                return (
-                  <label key={a._id} className={`lm-acc ${sel ? 'sel' : ''}`}>
-                    <input type="checkbox" hidden checked={sel} onChange={() => tog('accounts', a._id)} />
-                    <div className="lm-av">
-                      {a.avatar
-                        ? <img src={`${API_URL}${a.avatar}`} alt="" />
-                        : <span>{(a.username || '?')[0].toUpperCase()}</span>}
-                    </div>
-                    <span className="lm-uname">@{a.username}</span>
-                    <span className={`lm-acc-dot ${ok ? 'ok' : 'err'}`} />
-                    {sel && <CheckCircle size={13} className="lm-chk" />}
-                  </label>
-                );
-              })}
-            </div>
+            <AccountPicker
+              accounts={accounts}
+              selected={form.accounts}
+              onChange={ids => setForm(f => ({ ...f, accounts: ids }))}
+            />
           </div>
 
           {/* Tipo + Intervalo */}

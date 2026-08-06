@@ -5,6 +5,7 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import AccountPicker from '../components/AccountPicker';
 
 /* ── Custom legend dropdown ── */
 function LegendDropdown({ legends, value, onChange }) {
@@ -87,7 +88,7 @@ export default function Posts() {
   const [caption, setCaption] = useState('');
   const [media, setMedia] = useState([]);
   const [cover, setCover] = useState(null);
-  const [selectedAccounts, setSelectedAccounts] = useState({});
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [scheduledAt, setScheduledAt] = useState('');
   const [intervalMins, setIntervalMins] = useState(0);
   const [simultaneousLimit, setSimultaneousLimit] = useState(1);
@@ -106,7 +107,7 @@ export default function Posts() {
   const [ctaComment, setCtaComment]       = useState('');
   const [engageComment, setEngageComment] = useState('');
 
-  const selectedCount  = Object.values(selectedAccounts).filter(Boolean).length;
+  const selectedCount  = selectedAccounts.length;
   const totalEstimated = media.length * selectedCount;
 
   function showToast(type, title, message) {
@@ -152,27 +153,6 @@ export default function Posts() {
     catch { showToast('warning', 'Sem legendas', 'Nenhuma legenda encontrada.'); }
   }
 
-  function toggleAccount(id) {
-    setSelectedAccounts(prev => ({ ...prev, [String(id)]: !prev[String(id)] }));
-  }
-  function toggleAllAccounts() {
-    if (selectedCount === accounts.length) {
-      setSelectedAccounts({});
-    } else {
-      const all = {};
-      accounts.forEach(a => { all[String(a._id)] = true; });
-      setSelectedAccounts(all);
-    }
-  }
-
-  function selectedAccountsList() { return Object.keys(selectedAccounts).filter(id => selectedAccounts[id]); }
-  function isAccountSelected(id) { return !!selectedAccounts[String(id)]; }
-
-  function avatarSrc(acc) {
-    if (acc.avatar?.startsWith('/uploads')) return `${API}${acc.avatar}`;
-    return acc.avatar || null;
-  }
-
   function handleDrop(e) {
     e.preventDefault(); setDragOver(false);
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'));
@@ -182,14 +162,14 @@ export default function Posts() {
   async function createPost(e) {
     e.preventDefault();
     if (!media.length) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
-    if (!selectedAccountsList().length) return showToast('warning', 'Atenção', 'Selecione uma conta');
+    if (!selectedAccounts.length) return showToast('warning', 'Atenção', 'Selecione uma conta');
     const form = new FormData();
     media.forEach(file => form.append('media', file));
     if (cover) form.append('cover', cover);
     form.append('caption', caption);
     if (location) form.append('location', location);
     form.append('postType', postType);
-    form.append('accounts', JSON.stringify(selectedAccountsList()));
+    form.append('accounts', JSON.stringify(selectedAccounts));
     form.append('intervalMinutes', intervalMins);
     form.append('simultaneousLimit', simultaneousLimit);
     form.append('processMode', processMode);
@@ -569,39 +549,17 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Contas</h3>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAllAccounts}>
-                  {selectedCount === accounts.length && accounts.length > 0 ? 'Desmarcar todas' : 'Selecionar todas'}
-                </button>
               </div>
               <div style={cardBodyStyle}>
                 <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 10 }}>
                   Selecione onde publicar — cada conta posta 1 vez por mídia
                 </div>
-                <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {accounts.length === 0 && (
-                    <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 12, padding: 20 }}>Nenhuma conta cadastrada</div>
-                  )}
-                  {accounts.map(acc => (
-                    <button type="button" key={acc._id} onClick={() => toggleAccount(acc._id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px',
-                        borderRadius: 9,
-                        border: `1px solid ${isAccountSelected(acc._id) ? 'rgba(59,130,246,.4)' : 'oklch(1 0 0 / 0.07)'}`,
-                        background: isAccountSelected(acc._id) ? 'rgba(59,130,246,.08)' : 'oklch(0.10 0.03 235 / 0.6)',
-                        cursor: 'pointer', transition: '.15s', textAlign: 'left', color: 'var(--text)', width: '100%',
-                      }}>
-                      {avatarSrc(acc)
-                        ? <img src={avatarSrc(acc)} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                        : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'oklch(0.45 0.22 295)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0, color: '#fff' }}>{acc.username?.[0]?.toUpperCase()}</div>
-                      }
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{acc.username}</div>
-                        <div style={{ fontSize: 10, color: acc.healthStatus === 'ativa' ? '#34d399' : 'var(--text3)' }}>{acc.healthStatus || 'ativa'}</div>
-                      </div>
-                      {isAccountSelected(acc._id) && <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>✓</span>}
-                    </button>
-                  ))}
-                </div>
+
+                <AccountPicker
+                  accounts={accounts}
+                  selected={selectedAccounts}
+                  onChange={setSelectedAccounts}
+                />
 
                 {/* Summary */}
                 <div className="g3" style={{ gap: 6, marginTop: 12 }}>

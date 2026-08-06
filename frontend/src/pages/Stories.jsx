@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import AccountPicker from '../components/AccountPicker';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -37,14 +38,6 @@ export default function Stories() {
       setSelected(accs.filter(a => a.accessToken || a.igSession).map(a => a._id));
     }).catch(() => {});
   }, []);
-
-  function toggleAccount(id) {
-    setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  }
-  function toggleAll() {
-    const eligible = accounts.filter(a => a.accessToken || a.igSession).map(a => a._id);
-    setSelected(selected.length === eligible.length ? [] : eligible);
-  }
 
   async function addFiles(files) {
     const list = Array.from(files);
@@ -96,8 +89,6 @@ export default function Stories() {
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
     finally { setLoading(false); }
   }
-
-  const eligibleAccounts = accounts.filter(a => a.accessToken || a.igSession);
 
   const pageIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -302,70 +293,16 @@ export default function Stories() {
           >
 
             {/* Contas */}
-            <div style={{ ...PANEL, overflow: 'visible' }}>
-              <div style={{ ...PANEL_HEAD, borderRadius: '11px 11px 0 0', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                  <h3 style={PANEL_TITLE}>Contas</h3>
-                  <span style={{ fontSize: 11, color: 'var(--text3)', background: 'oklch(0.10 0.03 235)', borderRadius: 6, padding: '3px 8px', fontFamily: 'var(--font-mono)' }}>
-                    <strong style={{ color: 'var(--text)' }}>{selected.length}</strong> selecionadas
-                  </span>
-                </div>
-                <button onClick={toggleAll} style={{ fontSize: 11, fontWeight: 600, color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer' }}>
-                  {selected.length === eligibleAccounts.length && eligibleAccounts.length > 0 ? 'Desmarcar todas' : 'Selecionar todas'}
-                </button>
+            <div style={PANEL}>
+              <div style={{ ...PANEL_HEAD, borderRadius: '11px 11px 0 0' }}>
+                <h3 style={PANEL_TITLE}>Contas</h3>
               </div>
-
-              <div className="g2" style={{ padding: '10px 12px 14px', gap: 4, maxHeight: 290, overflowY: 'auto' }}>
-                {accounts.length === 0 && <span style={{ fontSize: 12, color: 'var(--text3)', gridColumn: '1/-1', padding: '8px 4px' }}>Carregando contas...</span>}
-                {accounts.map(acc => {
-                  const eligible = !!(acc.accessToken || acc.igSession);
-                  const isSel = selected.includes(acc._id);
-                  const initials = acc.username?.slice(0, 2).toUpperCase() || 'IG';
-                  return (
-                    <div key={acc._id} onClick={() => eligible && toggleAccount(acc._id)} style={{
-                      display: 'grid', gridTemplateColumns: '32px 1fr 18px', alignItems: 'center', gap: 9,
-                      minHeight: 44, padding: '0 9px', borderRadius: 9,
-                      cursor: eligible ? 'pointer' : 'default',
-                      opacity: eligible ? 1 : 0.4, transition: 'background .15s',
-                      background: 'transparent',
-                    }}
-                      onMouseEnter={e => { if (eligible) e.currentTarget.style.background = 'oklch(1 0 0 / 0.03)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0, overflow: 'visible' }}>
-                        {acc.avatar ? (
-                          <img
-                            src={acc.avatar.startsWith('http') ? `${API}/image-proxy?url=${encodeURIComponent(acc.avatar)}` : `${API}${acc.avatar}`}
-                            alt=""
-                            style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1.5px solid oklch(1 0 0 / 0.1)' }}
-                            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }}
-                          />
-                        ) : null}
-                        <div style={{
-                          width: 28, height: 28, borderRadius: '50%',
-                          background: 'oklch(0.45 0.22 295)',
-                          display: acc.avatar ? 'none' : 'grid',
-                          placeItems: 'center', fontSize: 10, fontWeight: 800, color: '#fff',
-                          border: '1.5px solid oklch(1 0 0 / 0.08)',
-                        }}>{initials}</div>
-                        <div style={{
-                          position: 'absolute', right: -2, bottom: -2, width: 11, height: 11,
-                          borderRadius: '50%',
-                          background: 'radial-gradient(circle at 70% 70%,#ffbb5a 0 18%,#d74883 19% 44%,#7a4fff 45% 73%,#fc5a50 74%)',
-                          border: '1.5px solid oklch(0.12 0.04 235)',
-                          zIndex: 1,
-                        }} />
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 650, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }}>@{acc.username}</div>
-                        <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{acc.accessToken ? 'OAuth' : acc.igSession ? 'Sessão' : 'Sem credencial'}</div>
-                      </div>
-                      <div style={{ width: 16, height: 16, borderRadius: 4, display: 'grid', placeItems: 'center', border: `1px solid ${isSel ? 'var(--cyan)' : 'oklch(1 0 0 / 0.15)'}`, background: isSel ? 'var(--cyan)' : 'transparent', color: '#040e1c', justifySelf: 'end' }}>
-                        {isSel && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div style={{ padding: '10px 14px 14px' }}>
+                <AccountPicker
+                  accounts={accounts}
+                  selected={selected}
+                  onChange={setSelected}
+                />
               </div>
             </div>
 
