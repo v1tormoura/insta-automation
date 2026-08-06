@@ -136,7 +136,8 @@ exports.getDashboard = async (req, res) => {
     }
 
     const queueTotal = scheduledPosts + processingPosts + pendingPosts;
-    const dailyPostLimit = accounts.reduce((sum, a) => sum + (a.dailyPostLimit || 0), 0);
+    const realLimitAccounts = accounts.filter(a => a.dailyPostLimit && a.dailyPostLimit < 999999);
+    const dailyPostLimit = realLimitAccounts.reduce((sum, a) => sum + a.dailyPostLimit, 0);
 
     const accountsAddedToday = accounts.filter(a => new Date(a.createdAt) >= today).length;
     const accountsAdded7d    = accounts.filter(a => new Date(a.createdAt) >= sevenDaysAgo).length;
@@ -391,7 +392,9 @@ exports.getDashboard = async (req, res) => {
         redis: await (async () => {
           try { await redisClient?.ping(); return true; } catch { return false; }
         })(),
-        worker: await Post.countDocuments({ status: 'concluido', updatedAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) } }).then(n => n > 0).catch(() => false),
+        worker: await (async () => {
+          try { await redisClient?.ping(); return true; } catch { return false; }
+        })(),
         headless: String(process.env.HEADLESS || 'false') === 'true',
       },
     });
@@ -463,6 +466,7 @@ exports.getAccountStats = async (req, res) => {
       if      (acc.healthStatus === 'banida')          status = 'banida';
       else if (acc.healthStatus === 'sessao_expirada') status = 'token_expired';
       else if (acc.healthStatus === 'erro_login')      status = 'token_expired';
+      else if (acc.healthStatus === 'token_invalido')  status = 'token_expired';
       else if (acc.healthStatus === 'restrita')        status = 'restrita';
       else if (acc.accessToken && acc.tokenExpiresAt && new Date(acc.tokenExpiresAt) < now) status = 'token_expired';
       else if (acc.accessToken && acc.igUserId)        status = 'connected';

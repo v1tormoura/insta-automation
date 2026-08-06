@@ -780,7 +780,7 @@ function PerformanceTable({ stats }) {
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:growth>0?'var(--green)':growth<0?'var(--red)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--cyan)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.failures30d>10?'var(--red)':acc.failures30d>0?'var(--amber)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.successRate>=80?'var(--green)':acc.successRate>=60?'var(--amber)':'var(--red)' }}>{acc.successRate}%</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.posts30d===0?'var(--text3)':acc.successRate>=80?'var(--green)':acc.successRate>=60?'var(--amber)':'var(--red)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontSize:11, color:'var(--text3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
                 </motion.tr>
@@ -907,6 +907,7 @@ export default function Dashboard() {
   const d = data || {};
 
   const sparkDaily   = useMemo(() => (d.dailyPosts||[]).slice(-period).map(x => x.posts||0), [d.dailyPosts, period]);
+  const sparkErrors  = useMemo(() => (d.dailyErrors7d||[]).map(x => x.errors||0), [d.dailyErrors7d]);
   const forecastData = useMemo(() => {
     // Keep ISO date alongside label for locale-independent matching
     const past = (d.dailyPosts||[]).slice(-period).map(x => ({
@@ -1004,10 +1005,10 @@ export default function Dashboard() {
 
         {/* ── KPI Cards ── */}
         <motion.section variants={stagger} initial="hidden" animate="show" className="metric-grid">
-          <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={sparkDaily} delay={0}    />
-          <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit||'—'}`}                          orbType="warm"   spark={sparkDaily} delay={.06}  />
-          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="violet" spark={sparkDaily} delay={.12}  />
-          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={sparkDaily} delay={.18} />
+          <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={[]}         delay={0}    />
+          <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit>0?fmt(d.dailyPostLimit):'—'}`}   orbType="warm"   spark={sparkDaily} delay={.06}  />
+          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="violet" spark={sparkErrors} delay={.12}  />
+          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={[]}         delay={.18} />
         </motion.section>
 
         {/* ── FILA · LOOPS · TOP CONTAS ── */}
