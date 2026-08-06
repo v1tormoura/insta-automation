@@ -1,8 +1,9 @@
-const Post = require('../models/Post');
-const Media = require('../models/Media');
+const Post    = require('../models/Post');
+const Job     = require('../models/Job');
+const Media   = require('../models/Media');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 
 function getMediaType(filename) {
@@ -27,104 +28,69 @@ function getIntervalMs(body) {
 
 exports.createPost = async (req, res) => {
   try {
-    const allFiles = req.files || [];
+    const allFiles  = req.files || [];
+    const mediaFiles = allFiles.filter(f => f.fieldname === 'media');
+    const coverFile  = allFiles.find(f => f.fieldname === 'cover') || null;
 
-    const mediaFiles = allFiles.filter((file) => file.fieldname === 'media');
-    const coverFile = allFiles.find((file) => file.fieldname === 'cover') || null;
-
-    // Suporte a mídias da biblioteca (já salvas no servidor)
+    // Suporte a mídias da biblioteca
     const mediaIds = JSON.parse(req.body.mediaIds || '[]');
     let libraryFiles = [];
     if (mediaIds.length) {
       const docs = await Media.find({ _id: { $in: mediaIds } });
-      libraryFiles = docs.map(d => ({
-        filename: d.filename,
-        fieldname: 'media',
-        path: d.path,
-        mimetype: d.mimeType,
-        size: d.size,
-        fromLibrary: true,
-      }));
+      libraryFiles = docs.map(d => ({ filename: d.filename, fieldname: 'media', fromLibrary: true }));
     }
 
     const allMedia = [...mediaFiles, ...libraryFiles];
-    if (!allMedia.length) {
-      return res.status(400).json({ error: 'Nenhuma mídia enviada' });
-    }
+    if (!allMedia.length) return res.status(400).json({ error: 'Nenhuma mídia enviada' });
 
     const accounts = JSON.parse(req.body.accounts || '[]');
-    if (!accounts.length) {
-      return res.status(400).json({ error: 'Nenhuma conta selecionada' });
+    if (!accounts.length) return res.status(400).json({ error: 'Nenhuma conta selecionada' });
+
+    const intervalMinutes    = Number(req.body.intervalMinutes || 0);
+    const simultaneousLimit  = Math.max(1, Number(req.body.simultaneousLimit) || 1);
+    const requestedPostType  = req.body.postType || 'reel';
+
+    // Normaliza tipo (auto → reel ou post dependendo da mídia do primeiro arquivo)
+    let postType = requestedPostType;
+    if (!postType || postType === 'auto') {
+      const firstIsVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(allMedia[0]?.filename || '');
+      postType = firstIsVideo ? 'reel' : 'post';
     }
+    if (!['post', 'reel', 'story'].includes(postType)) postType = 'reel';
 
-    const caption = req.body.caption || '';
-    const location = req.body.location || '';
-    const processMode = req.body.processMode || 'limpeza_leve';
-    const requestedPostType = req.body.postType || 'auto';
-    const intervalMs = getIntervalMs(req.body);
-    // simultaneousLimit: quantas contas publicam por lote (padrão = todas de uma vez)
-    const simultaneousLimit = Math.max(1, Number(req.body.simultaneousLimit) || accounts.length);
+    const mediaFilenames = allMedia.map(f => f.filename);
+    const totalRounds    = Math.ceil(mediaFilenames.length / simultaneousLimit);
 
-    const baseDate = req.body.scheduledAt ? new Date(req.body.scheduledAt) : new Date();
+    const job = await Job.create({
+      name:              req.body.name || `Post ${new Date().toLocaleString('pt-BR')}`,
+      type:              'post',
+      status:            'queued',
+      accounts,
+      mediaFiles:        mediaFilenames,
+      postType,
+      caption:           req.body.caption       || '',
+      cover:             coverFile ? coverFile.filename : '',
+      ctaComment:        req.body.ctaComment     || '',
+      engageComment:     req.body.engageComment  || '',
+      processMode:       req.body.processMode    || 'limpeza_leve',
+      location:          req.body.location       || '',
+      intervalMinutes,
+      simultaneousLimit,
+      currentRound:      0,
+      totalRounds,
+      postsTotal:        totalRounds * accounts.length,
+    });
 
-    const createdPosts = [];
-    let batchIndex = 0; // cada grupo de mídias = 1 lote com intervalo
+    // Enfileira primeira rodada imediatamente (ou no scheduledAt solicitado)
+    const scheduledDelay = req.body.scheduledAt
+      ? Math.max(new Date(req.body.scheduledAt).getTime() - Date.now(), 0)
+      : 0;
 
-    // Divide as MÍDIAS em grupos de simultaneousLimit.
-    // Cada grupo é postado ao mesmo tempo para TODAS as contas.
-    // O intervalo (intervalMs) separa um grupo do próximo.
-    //
-    // Exemplo: 6 mídias, simultaneousLimit=2, intervalo=7min, 20 contas
-    //   Lote 0 (T+0):   mídia 1 e 2 → todas as 20 contas ao mesmo tempo
-    //   Lote 1 (T+7min): mídia 3 e 4 → todas as 20 contas ao mesmo tempo
-    //   Lote 2 (T+14min): mídia 5 e 6 → todas as 20 contas ao mesmo tempo
-
-    for (let mi = 0; mi < allMedia.length; mi += simultaneousLimit) {
-      const batchMedia = allMedia.slice(mi, mi + simultaneousLimit);
-      const scheduledAt = new Date(baseDate.getTime() + batchIndex * intervalMs);
-      const isFirst = batchIndex === 0 && !req.body.scheduledAt;
-      const jobDelay = Math.max(scheduledAt.getTime() - Date.now(), 0);
-
-      // Cria um post por mídia do lote, todos com o mesmo scheduledAt
-      for (const mediaFile of batchMedia) {
-        const mediaType = getMediaType(mediaFile.filename);
-        let finalPostType = requestedPostType;
-        if (!finalPostType || finalPostType === 'auto') {
-          finalPostType = mediaType === 'video' ? 'reel' : 'post';
-        }
-        if (!['post', 'reel', 'story'].includes(finalPostType)) {
-          finalPostType = mediaType === 'video' ? 'reel' : 'post';
-        }
-
-        const post = await Post.create({
-          media:    mediaFile.filename,
-          cover:    coverFile ? coverFile.filename : '',
-          mediaType,
-          postType: finalPostType,
-          caption,
-          location,
-          processMode,
-          accounts,
-          scheduledAt,
-          ctaComment:    req.body.ctaComment    || '',
-          engageComment: req.body.engageComment || '',
-          status: (isFirst || intervalMs === 0) ? 'pendente' : 'agendado',
-        });
-
-        await postQueue.add('newPost', { postId: post._id }, { delay: jobDelay });
-        createdPosts.push(post);
-      }
-
-      batchIndex++;
-    }
+    const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: scheduledDelay });
+    await Job.findByIdAndUpdate(job._id, { bullMqJobId: String(bullJob.id) });
 
     broadcast('posts', { action: 'created' });
-
-    res.json({
-      success: true,
-      total: createdPosts.length,
-      posts: createdPosts,
-    });
+    res.json({ success: true, job });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

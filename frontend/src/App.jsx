@@ -16,6 +16,7 @@ import Proxies from './pages/Proxies';
 import Stories from './pages/Stories';
 import Warmup from './pages/Warmup';
 import Loop from './pages/Loop';
+import JobManager from './pages/JobManager';
 import OAuthCallback from './pages/OAuthCallback';
 import TopPosts from './pages/TopPosts';
 import BestTimes from './pages/BestTimes';
@@ -75,6 +76,7 @@ export default function App() {
               <Route path="/stories"      element={<Stories />} />
               <Route path="/warmup"       element={<Warmup />} />
               <Route path="/loop"         element={<Loop />} />
+              <Route path="/jobs"         element={<JobManager />} />
               <Route path="/top-posts"      element={<TopPosts />} />
               <Route path="/best-times"     element={<BestTimes />} />
               <Route path="/smart-repost"   element={<SmartRepost />} />

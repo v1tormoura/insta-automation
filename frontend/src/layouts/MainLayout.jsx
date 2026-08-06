@@ -24,6 +24,7 @@ const ICONS = {
   proxies:   ic(<><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></>),
   legends:   ic(<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>),
   loop:      ic(<><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
+  jobs:      ic(<><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-4a2 2 0 00-2 2v2h8V5a2 2 0 00-2-2z"/><path d="M12 12v4M10 14h4"/></>),
   topposts:  ic(<><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 3z"/></>),
   logs:      ic(<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></>),
   settings:  ic(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>),
@@ -57,6 +58,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/posts',        label: 'Postar',       sub: 'Criar e agendar',    icon: ICONS.posts     },
       { to: '/loop',         label: 'Loop',         sub: 'Ciclos contínuos',   icon: ICONS.loop      },
+      { to: '/jobs',         label: 'Jobs',         sub: 'Gerenciar execuções', icon: ICONS.jobs      },
       { to: '/stories',      label: 'Stories',      sub: 'Publicar em massa',  icon: ICONS.stories   },
       { to: '/scheduler',    label: 'Agendamentos', sub: 'Fila e calendário',  icon: ICONS.scheduler },
       { to: '/smart-repost', label: 'Automatizar',  sub: 'Regras automáticas', icon: ICONS.repost    },

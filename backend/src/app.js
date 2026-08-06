@@ -74,6 +74,7 @@ app.use('/insights',     auth, require('./routes/insightRoutes'));
 app.use('/analytics',    auth, require('./routes/analyticsRoutes'));
 app.use('/abtests',      auth, require('./routes/abtestRoutes'));
 app.use('/repost',       auth, require('./routes/repostRoutes'));
+app.use('/jobs',         auth, require('./routes/jobRoutes'));
 app.use('/viral',        auth, require('./routes/viralRoutes'));
 app.use('/promo',        auth, require('./routes/promoRoutes'));
 app.use('/downloader',   auth, require('./routes/downloaderRoutes'));

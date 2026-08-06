@@ -17,10 +17,10 @@ connectDB();
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
-// Contador em memória de retenativas por post quando todas contas estão ocupadas
-const busyRetryMap = new Map();
+const busyRetryMap = new Map(); // para legacy posts
 
-// Limpa locks de contas travadas há mais de 10 minutos
+// ── Manutenção de locks ──────────────────────────────────────────────────────
+
 async function unlockStuck() {
   const cutoff = new Date(Date.now() - 10 * 60 * 1000);
   await Account.updateMany(
@@ -29,7 +29,6 @@ async function unlockStuck() {
   );
 }
 
-// Recupera posts travados em 'processando' após crash do worker (mais de 15 min)
 async function recoverStuckPosts() {
   const cutoff = new Date(Date.now() - 15 * 60 * 1000);
   const result = await Post.updateMany(
@@ -43,9 +42,9 @@ async function recoverStuckPosts() {
 
 unlockStuck();
 recoverStuckPosts().catch(e => console.error('recoverStuckPosts:', e.message));
-setInterval(async () => {
-  try { await unlockStuck(); } catch {}
-}, 60_000);
+setInterval(async () => { try { await unlockStuck(); } catch {} }, 60_000);
+
+// ── Helpers de conta ────────────────────────────────────────────────────────
 
 function isSameDay(date) {
   if (!date) return false;
@@ -63,7 +62,7 @@ async function checkDailyLimit(account) {
 
 async function registerSuccess(account) {
   await Account.findByIdAndUpdate(account._id, {
-    postsToday:  (account.postsToday || 0) + 1,
+    postsToday:   (account.postsToday || 0) + 1,
     lastPostDate: new Date(),
     lastPostAt:   new Date(),
     healthStatus: 'ativa',
@@ -71,18 +70,16 @@ async function registerSuccess(account) {
   });
 }
 
-
-// Detecta se é limite de publicações da Graph API do Meta
 function isGraphApiPublishLimit(err) {
   return /número máximo de posts|content_publish_rate_limit|application request limit|maximum number of posts|too many publishes/i.test(err.message || '');
 }
 
-// ── Publicação: Graph API (IGAA token) ou Private API (cookies/session) ──
+// ── Publicação (Graph API → Private API fallback) ─────────────────────────
+
 async function publishWithRetry(post, account, preProcessedVideoUrl) {
   const fs   = require('fs');
   const path = require('path');
 
-  // Graph API — preferida quando a conta tem token IGAA conectado
   if (account.accessToken && account.igUserId) {
     writeAccountLog(account.username, 'Publicando via Graph API (Meta)...');
     try {
@@ -92,12 +89,10 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
     } catch (err) {
       writeAccountLog(account.username, `Graph API: ${err.message}`);
       if (!isGraphApiPublishLimit(err)) throw err;
-      // Limite da Graph API atingido → cai para Private API automaticamente
       writeAccountLog(account.username, 'Limite diário da Graph API atingido — usando Private API como fallback...');
     }
   }
 
-  // Private API — contas sem token ou fallback quando Graph API atinge o limite diário
   const hasCookies = fs.existsSync(path.join(__dirname, '../../sessions', account.username, 'cookies.json'));
   const hasMethod  = hasCookies || !!(account.password) || !!(account.igSession);
 
@@ -118,152 +113,321 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
   }
 }
 
-// ── Worker BullMQ ──────────────────────────────────────────────────────────────
+// ── Publicar para uma conta (helper compartilhado por legacy e Job) ─────────
+// Retorna true em sucesso, lança erro em falha.
+
+async function publishOneAccount(acc, post, preProcessedVideoUrl) {
+  let account = await Account.findById(acc._id);
+  if (!account) throw new Error(`Conta não encontrada`);
+
+  // Busy lock — aguarda até 5 minutos
+  if (account.isBusy) {
+    const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
+    if (lockAge > 10 * 60 * 1000) {
+      await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
+    } else {
+      writeAccountLog(acc.username, 'Conta em uso por outro lote, aguardando ficar livre...');
+      const MAX_WAIT  = 5 * 60 * 1000;
+      const POLL      = 5_000;
+      const startWait = Date.now();
+      let becameFree  = false;
+      while (Date.now() - startWait < MAX_WAIT) {
+        await delay(POLL);
+        const refreshed = await Account.findById(acc._id).lean();
+        if (!refreshed) break;
+        const age = Date.now() - (refreshed.busySince ? new Date(refreshed.busySince).getTime() : 0);
+        if (!refreshed.isBusy || age > 10 * 60 * 1000) {
+          if (age > 10 * 60 * 1000) {
+            await Account.findByIdAndUpdate(acc._id, { isBusy: false, busySince: null, busyReason: '' });
+          }
+          account = Object.assign(account, refreshed, { isBusy: false });
+          becameFree = true;
+          break;
+        }
+      }
+      if (!becameFree) throw new Error(`conta em uso — tempo de espera esgotado (5min)`);
+    }
+  }
+
+  await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
+  broadcast('accounts', { action: 'busy', accountId: account._id });
+  writeAccountLog(acc.username, 'Iniciando publicação');
+
+  if (!(await checkDailyLimit(account))) {
+    const msg = `Limite diário atingido: ${account.postsToday}/${account.dailyPostLimit}`;
+    writeAccountLog(acc.username, msg);
+    await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
+    throw new Error(msg);
+  }
+
+  try {
+    await publishWithRetry(post, account, preProcessedVideoUrl);
+    await registerSuccess(account);
+    await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
+    broadcast('accounts', { action: 'synced' });
+
+    runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
+    if (post.ctaComment?.trim())    postCTACommentForPost(account._id, post.ctaComment).catch(e => console.log('[CTA]:', e.message));
+    if (post.engageComment?.trim()) postEngageCommentForPost(account._id, post.engageComment).catch(e => console.log('[Engage]:', e.message));
+
+    return true;
+  } catch (err) {
+    writeAccountLog(acc.username, `Erro: ${err.message}`);
+    const classified  = classifyError(err);
+    const healthUpdate = {
+      isBusy: false, busySince: null, busyReason: '',
+      lastError: traduzirErro(err.message),
+    };
+    if (classified) healthUpdate.healthStatus = classified;
+    await Account.findByIdAndUpdate(acc._id, healthUpdate);
+    broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: classified || acc.healthStatus });
+    throw err;
+  }
+}
+
+// ── Processamento legado (postId) ─────────────────────────────────────────
+
+async function processLegacyPost(postId) {
+  const post = await Post.findById(postId).populate('accounts');
+  if (!post) { console.log('Post não encontrado:', postId); return; }
+
+  post.status = 'processando';
+  post.error  = '';
+  await post.save();
+
+  let successCount = 0;
+  let errorCount   = 0;
+  const errors     = [];
+
+  // Pré-processamento de vídeo para Graph API
+  let preProcessedVideoUrl = null;
+  const graphAccs = post.accounts.filter(a => a.accessToken && a.igUserId);
+  if (graphAccs.length > 0) {
+    try {
+      preProcessedVideoUrl = await prepareVideo(post);
+      console.log('Vídeo pré-processado:', preProcessedVideoUrl);
+    } catch (e) {
+      console.log('Aviso: pré-processamento falhou:', e.message);
+    }
+  }
+
+  console.log(`[Legacy] Publicando para ${post.accounts.length} conta(s)...`);
+  const results = await Promise.allSettled(
+    post.accounts.map(acc => publishOneAccount(acc, post, preProcessedVideoUrl))
+  );
+
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') successCount++;
+    else {
+      errorCount++;
+      errors.push(`@${post.accounts[i].username}: ${r.reason?.message || 'Erro'}`);
+    }
+  });
+
+  // Reagenda se todas as contas estavam ocupadas
+  const pid        = String(post._id);
+  const allBusy    = successCount === 0 && errors.length > 0 && errors.every(e => /conta em uso/i.test(e));
+  const busyRetries = busyRetryMap.get(pid) || 0;
+
+  if (allBusy && busyRetries < 3) {
+    busyRetryMap.set(pid, busyRetries + 1);
+    post.status = 'pendente';
+    post.error  = '';
+    await post.save();
+    const postQueue = require('./postQueue');
+    await postQueue.add('post', { postId: pid }, { delay: 30_000 });
+    console.log(`[Legacy] Post ${pid} reagendado em 30s (tentativa ${busyRetries + 1}/3)`);
+    return;
+  }
+  busyRetryMap.delete(pid);
+
+  post.status = successCount > 0 && errorCount === 0 ? 'concluido'
+              : successCount > 0                      ? 'parcial'
+              :                                         'erro';
+  post.error  = errors.join(' | ') || '';
+  await post.save();
+
+  broadcast('posts', { action: 'created' });
+  console.log(`[Legacy] Finalizado — sucesso: ${successCount}, erro: ${errorCount}`);
+}
+
+// ── Processamento por Job (nova arquitetura) ──────────────────────────────
+
+async function processJobRound(jobId) {
+  const Job    = require('../models/Job');
+  const postQueue = require('./postQueue');
+
+  const jobDoc = await Job.findById(jobId).populate('accounts');
+  if (!jobDoc) { console.log('[Job] não encontrado:', jobId); return; }
+
+  if (['cancelled', 'completed', 'paused'].includes(jobDoc.status)) {
+    console.log(`[Job] "${jobDoc.name}" está ${jobDoc.status} — rodada ignorada`);
+    return;
+  }
+
+  // Se loop chegou ao final das mídias, reinicia do índice 0
+  const totalMedia   = jobDoc.mediaFiles.length;
+  let round          = jobDoc.currentRound;
+  let startIdx       = round * jobDoc.simultaneousLimit;
+
+  if (startIdx >= totalMedia) {
+    if (jobDoc.type === 'loop') {
+      round    = 0;
+      startIdx = 0;
+      jobDoc.currentRound    = 0;
+      jobDoc.roundsCompleted = 0;
+      console.log(`[Job] Loop "${jobDoc.name}" — ciclo completo, reiniciando`);
+      broadcast('posts', { action: 'loop_cycled', jobId: String(jobDoc._id) });
+    } else {
+      jobDoc.status      = 'completed';
+      jobDoc.completedAt = new Date();
+      await jobDoc.save();
+      broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
+      console.log(`[Job] "${jobDoc.name}" — concluído (sem mais mídias)`);
+      return;
+    }
+  }
+
+  const endIdx     = Math.min(startIdx + jobDoc.simultaneousLimit, totalMedia);
+  const roundMedia = jobDoc.mediaFiles.slice(startIdx, endIdx);
+
+  jobDoc.status    = 'running';
+  jobDoc.startedAt = jobDoc.startedAt || new Date();
+  await jobDoc.save();
+  broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
+
+  console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1}/${jobDoc.totalRounds} (${roundMedia.length} mídia(s), ${jobDoc.accounts.length} conta(s))`);
+
+  let roundSuccess = 0;
+  let roundErrors  = 0;
+
+  await Promise.allSettled(roundMedia.map(async (mediaFile) => {
+    const isVideo   = /\.(mp4|mov|webm|avi|mkv)$/i.test(mediaFile);
+    const mediaType = isVideo ? 'video' : 'image';
+    let   postType  = jobDoc.postType || 'reel';
+    if (postType === 'reel' && !isVideo) postType = 'post';
+
+    // Pré-processa vídeo para contas Graph API
+    let preProcessedVideoUrl = null;
+    const graphAccs = jobDoc.accounts.filter(a => a.accessToken && a.igUserId);
+    if (graphAccs.length > 0) {
+      try {
+        preProcessedVideoUrl = await prepareVideo({ media: mediaFile, mediaType, postType });
+      } catch (e) {
+        console.log('[Job] pré-processamento falhou:', e.message);
+      }
+    }
+
+    // Cria Post document para esta mídia
+    const post = await Post.create({
+      media:         mediaFile,
+      mediaType,
+      postType,
+      cover:         jobDoc.cover         || '',
+      caption:       jobDoc.caption       || '',
+      ctaComment:    jobDoc.ctaComment    || '',
+      engageComment: jobDoc.engageComment || '',
+      location:      jobDoc.location      || '',
+      processMode:   jobDoc.processMode   || 'limpeza_leve',
+      accounts:      jobDoc.accounts.map(a => a._id),
+      status:        'processando',
+      scheduledAt:   new Date(),
+    });
+
+    // Publica para todas as contas em paralelo
+    const results = await Promise.allSettled(
+      jobDoc.accounts.map(acc => publishOneAccount(acc, post, preProcessedVideoUrl))
+    );
+
+    let postSuccess = 0;
+    const postErrorMsgs = [];
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') { postSuccess++; roundSuccess++; }
+      else {
+        roundErrors++;
+        postErrorMsgs.push(`@${jobDoc.accounts[i].username}: ${r.reason?.message || 'Erro'}`);
+      }
+    });
+
+    post.status = postSuccess === results.length ? 'concluido'
+                : postSuccess > 0               ? 'parcial'
+                :                                 'erro';
+    post.error  = postErrorMsgs.join(' | ');
+    await post.save();
+
+    // Registra post no Job (push atômico para evitar conflito)
+    await Job.findByIdAndUpdate(jobDoc._id, { $push: { postIds: post._id } });
+  }));
+
+  // Atualiza contadores
+  const nextRound     = round + 1;
+  const nextStartIdx  = nextRound * jobDoc.simultaneousLimit;
+  const hasMoreRounds = nextStartIdx < totalMedia || jobDoc.type === 'loop';
+
+  await Job.findByIdAndUpdate(jobDoc._id, {
+    $inc: {
+      postsPublished:  roundSuccess,
+      postsErrors:     roundErrors,
+      roundsCompleted: 1,
+    },
+    currentRound: nextRound,
+  });
+
+  broadcast('posts', { action: 'created' });
+
+  if (!hasMoreRounds) {
+    await Job.findByIdAndUpdate(jobDoc._id, { status: 'completed', completedAt: new Date() });
+    broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
+    console.log(`[Job] "${jobDoc.name}" — concluído`);
+    return;
+  }
+
+  // Agenda próxima rodada
+  const intervalMs     = (jobDoc.intervalMinutes || 0) * 60 * 1000;
+  const isLoopCycling  = jobDoc.type === 'loop' && nextStartIdx >= totalMedia;
+  const effectiveRound = isLoopCycling ? 0 : nextRound;
+
+  if (isLoopCycling) {
+    console.log(`[Job] Loop "${jobDoc.name}" — ciclo completo, próximo em ${jobDoc.intervalMinutes}min`);
+    broadcast('posts', { action: 'loop_cycled', jobId: String(jobDoc._id) });
+  }
+
+  const bullJob = await postQueue.add(
+    'job_round',
+    { jobId: String(jobDoc._id) },
+    { delay: intervalMs }
+  );
+
+  await Job.findByIdAndUpdate(jobDoc._id, {
+    status:       intervalMs > 0 ? 'waiting_interval' : 'running',
+    nextRoundAt:  new Date(Date.now() + intervalMs),
+    bullMqJobId:  String(bullJob.id),
+    ...(isLoopCycling ? { currentRound: 0, roundsCompleted: 0 } : {}),
+  });
+
+  broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
+  console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída (✓${roundSuccess} ✗${roundErrors}). Próxima ${intervalMs > 0 ? `em ${jobDoc.intervalMinutes}min` : 'imediatamente'}`);
+}
+
+// ── Worker BullMQ ─────────────────────────────────────────────────────────
+
 const worker = new Worker(
   'posts',
   async (job) => {
-    const { postId } = job.data;
-
-    const post = await Post.findById(postId).populate('accounts');
-    if (!post) { console.log('Post não encontrado:', postId); return; }
-
-    post.status = 'processando';
-    post.error  = '';
-    await post.save();
-
-    let successCount = 0;
-    let errorCount   = 0;
-    const errors     = [];
-
-    async function publishOne(acc) {
-      try {
-        let account = await Account.findById(acc._id);
-        if (!account) { errors.push(`@${acc.username}: conta não encontrada`); errorCount++; return; }
-
-        // Busy lock — se conta está em uso, aguarda ficar livre (até 5min)
-        if (account.isBusy) {
-          const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
-          if (lockAge > 10 * 60 * 1000) {
-            // Lock expirado — libera e continua
-            await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-          } else {
-            writeAccountLog(acc.username, 'Conta em uso por outro lote, aguardando ficar livre...');
-            const MAX_WAIT    = 5 * 60 * 1000;
-            const POLL        = 5_000;
-            const startWait   = Date.now();
-            let becameFree    = false;
-            while (Date.now() - startWait < MAX_WAIT) {
-              await delay(POLL);
-              const refreshed = await Account.findById(acc._id).lean();
-              if (!refreshed) break;
-              const age = Date.now() - (refreshed.busySince ? new Date(refreshed.busySince).getTime() : 0);
-              if (!refreshed.isBusy || age > 10 * 60 * 1000) {
-                if (age > 10 * 60 * 1000) {
-                  await Account.findByIdAndUpdate(acc._id, { isBusy: false, busySince: null, busyReason: '' });
-                }
-                account = Object.assign(account, refreshed, { isBusy: false });
-                becameFree = true;
-                break;
-              }
-            }
-            if (!becameFree) {
-              errors.push(`@${acc.username}: conta em uso — tempo de espera esgotado (5min)`);
-              errorCount++;
-              return;
-            }
-          }
-        }
-        await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
-        broadcast('accounts', { action: 'busy', accountId: account._id });
-        writeAccountLog(acc.username, 'Iniciando publicação');
-
-        if (!(await checkDailyLimit(account))) {
-          const msg = `Limite diário atingido: ${account.postsToday}/${account.dailyPostLimit}`;
-          writeAccountLog(acc.username, msg);
-          await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-          errors.push(`@${acc.username}: ${msg}`);
-          errorCount++;
-          return;
-        }
-
-        await publishWithRetry(post, account, preProcessedVideoUrl);
-        await registerSuccess(account);
-        await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-        broadcast('accounts', { action: 'synced' });
-        successCount++;
-
-        runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
-
-        if (post.ctaComment?.trim()) {
-          postCTACommentForPost(account._id, post.ctaComment)
-            .catch(e => console.log('[CTA] erro:', e.message));
-        }
-
-        if (post.engageComment?.trim()) {
-          postEngageCommentForPost(account._id, post.engageComment)
-            .catch(e => console.log('[Engage] erro:', e.message));
-        }
-
-      } catch (err) {
-        errorCount++;
-        errors.push(`@${acc.username}: ${err.message}`);
-        writeAccountLog(acc.username, `Erro: ${err.message}`);
-
-        const classified = classifyError(err);
-        const healthUpdate = {
-          isBusy: false, busySince: null, busyReason: '',
-          lastError: traduzirErro(err.message),
-        };
-        if (classified) healthUpdate.healthStatus = classified;
-        await Account.findByIdAndUpdate(acc._id, healthUpdate);
-        broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: classified || acc.healthStatus });
-      }
+    if (job.data.jobId) {
+      // Nova arquitetura — Job-based
+      await processJobRound(job.data.jobId);
+    } else if (job.data.postId) {
+      // Arquitetura legada — Post direto
+      await processLegacyPost(job.data.postId);
+    } else {
+      console.log('[Worker] job sem postId nem jobId:', job.data);
     }
-
-    // Pré-processa vídeo uma vez para contas Graph API (evita reconversão paralela)
-    let preProcessedVideoUrl = null;
-    const graphAccounts = post.accounts.filter(a => a.accessToken && a.igUserId);
-    if (graphAccounts.length > 0) {
-      try {
-        preProcessedVideoUrl = await prepareVideo(post);
-        console.log('Vídeo pré-processado para Graph API:', preProcessedVideoUrl);
-      } catch (e) {
-        console.log('Aviso: pré-processamento falhou, cada conta vai tentar individualmente:', e.message);
-      }
-    }
-
-    console.log(`Publicando para ${post.accounts.length} conta(s)...`);
-    await Promise.allSettled(post.accounts.map(acc => publishOne(acc)));
-
-    // Se TODAS as contas falharam por "conta em uso", reagenda em vez de marcar como erro
-    const pid         = String(post._id);
-    const allBusy     = successCount === 0 && errors.length > 0 && errors.every(e => /conta em uso/i.test(e));
-    const busyRetries = busyRetryMap.get(pid) || 0;
-
-    if (allBusy && busyRetries < 3) {
-      busyRetryMap.set(pid, busyRetries + 1);
-      post.status = 'pendente';
-      post.error  = '';
-      await post.save();
-      const postQueue = require('./postQueue');
-      await postQueue.add('post', { postId: pid }, { delay: 30_000 });
-      console.log(`Post ${pid} reagendado em 30s (contas ocupadas — tentativa ${busyRetries + 1}/3)`);
-      return;
-    }
-    busyRetryMap.delete(pid);
-
-    post.status = successCount > 0 && errorCount === 0 ? 'concluido'
-                : successCount > 0                     ? 'parcial'
-                :                                        'erro';
-    post.error  = errors.join(' | ') || '';
-    await post.save();
-
-    console.log(`Job finalizado — sucesso: ${successCount}, erro: ${errorCount}`);
   },
   { connection, concurrency: 5, lockDuration: 600_000, stalledInterval: 60_000 }
 );
 
-worker.on('completed', job => console.log('Job concluído:', job.id));
-worker.on('failed',    (job, err) => console.log('Job falhou:', err.message));
+worker.on('completed', job => console.log('[Worker] job concluído:', job.id));
+worker.on('failed',    (job, err) => console.log('[Worker] job falhou:', err.message));
 
-console.log('Worker rodando — 100% Private API (sem Graph API, sem browser)');
+console.log('[Worker] rodando — suporte a Job-based e legado');
