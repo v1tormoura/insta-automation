@@ -9,7 +9,7 @@ const { startFastSync } = require('./jobs/accountFastSync');
 const { startSessionKeepAlive } = require('./jobs/sessionKeepAlive');
 const { cleanProcessedFiles } = require('./services/videoProcessor');
 const { startHealthCheck } = require('./jobs/healthCheck');
-const { startLoopJob }    = require('./jobs/loopJob');
+// loopJob desativado — novos loops usam exclusivamente a arquitetura Job-based (processJobRound)
 const { startInsightAutoSync } = require('./services/insightSyncService');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
 const { startRepostJob }      = require('./jobs/repostJob');
@@ -154,7 +154,7 @@ startDailyReset();
 startFastSync();
 startSessionKeepAlive();
 startHealthCheck();
-startLoopJob();
+// startLoopJob() — desativado; loops antigos foram arquivados, novos usam Job Engine
 startInsightAutoSync();
 startTokenRefreshJob();
 startRepostJob();
