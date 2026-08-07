@@ -62,6 +62,9 @@ export default function Accounts() {
   const [bulkProxyOpen,  setBulkProxyOpen]  = useState(false);
   const [bulkProxyText,  setBulkProxyText]  = useState('');
   const [savingBulkProxy,setSavingBulkProxy]= useState(false);
+  const [selectedIds,    setSelectedIds]    = useState(new Set());
+  const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
+  const [bulkDeleting,   setBulkDeleting]   = useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -207,6 +210,28 @@ export default function Accounts() {
     setDeleteModal(false); setAccountToDelete(null);
   }
 
+  function toggleSelect(id) {
+    setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  function toggleSelectAllVisible() {
+    const vids   = filteredAccounts.map(a => a._id);
+    const allSel = vids.length > 0 && vids.every(id => selectedIds.has(id));
+    setSelectedIds(prev => { const n = new Set(prev); if (allSel) vids.forEach(id => n.delete(id)); else vids.forEach(id => n.add(id)); return n; });
+  }
+
+  async function bulkDelete() {
+    const count = selectedIds.size;
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map(id => api.delete(`/accounts/${id}`)));
+      setSelectedIds(new Set()); setBulkDeleteModal(false);
+      await loadAccounts();
+      showToast('success', 'Contas removidas', `${count} conta(s) excluída(s) com sucesso.`);
+    } catch { showToast('error', 'Erro', 'Falha ao excluir uma ou mais contas.'); }
+    finally { setBulkDeleting(false); }
+  }
+
   const safeAccounts    = Array.isArray(accounts) ? accounts : [];
   const totalFollowers  = safeAccounts.reduce((s, a) => s + Number(a.followers  || 0), 0);
   const totalPosts      = safeAccounts.reduce((s, a) => s + Number(a.postsCount || 0), 0);
@@ -236,6 +261,8 @@ export default function Accounts() {
     if (filter === 'offline')    return acc.healthStatus === 'desconectada';
     return true;
   });
+
+  const allVisibleSel = filteredAccounts.length > 0 && filteredAccounts.every(a => selectedIds.has(a._id));
 
   function fmt(v) { return Number(v || 0).toLocaleString('pt-BR'); }
   function fmtDateCompact(d) {
@@ -300,6 +327,13 @@ export default function Accounts() {
         onConfirm={confirmDelete}
         onCancel={() => { setDeleteModal(false); setAccountToDelete(null); }}
       />
+      <ConfirmModal
+        open={bulkDeleteModal}
+        title={`Excluir ${selectedIds.size} conta(s)`}
+        message={`Tem certeza que deseja excluir ${selectedIds.size} conta(s) selecionada(s)? Esta ação não pode ser desfeita.`}
+        onConfirm={bulkDelete}
+        onCancel={() => setBulkDeleteModal(false)}
+      />
 
       <PageShell
         icon={<PageIcon />}
@@ -356,18 +390,30 @@ export default function Accounts() {
               );
             })}
           </div>
-          <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position:'absolute', left:10, color:'var(--text3)', pointerEvents:'none' }}>
-              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-            </svg>
-            <input
-              style={{ background:'oklch(1 0 0 / 0.04)', border:'1px solid oklch(1 0 0 / 0.09)', borderRadius:9, padding:'7px 13px 7px 30px', fontSize:13, color:'var(--text)', outline:'none', width:'min(220px,100%)', minWidth:0, transition:'border-color .18s', fontFamily:'var(--font)' }}
-              placeholder="Buscar conta..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onFocus={e => e.target.style.borderColor='rgba(0,212,255,.35)'}
-              onBlur={e => e.target.style.borderColor='oklch(1 0 0 / 0.09)'}
-            />
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <button onClick={toggleSelectAllVisible} style={{
+              fontSize:11, fontWeight:700, padding:'6px 12px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap',
+              background:   allVisibleSel ? 'rgba(248,113,113,.1)'  : 'rgba(99,102,241,.1)',
+              color:        allVisibleSel ? '#f87171'                : '#818cf8',
+              border:       `1px solid ${allVisibleSel ? 'rgba(248,113,113,.3)' : 'rgba(99,102,241,.3)'}`,
+              fontFamily:'var(--font-mono)', transition:'all .15s',
+            }}>
+              {allVisibleSel ? 'Desmarcar' : 'Selecionar'}{' '}
+              {filteredAccounts.length < safeAccounts.length ? filteredAccounts.length : 'todas'}
+            </button>
+            <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position:'absolute', left:10, color:'var(--text3)', pointerEvents:'none' }}>
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+              <input
+                style={{ background:'oklch(1 0 0 / 0.04)', border:'1px solid oklch(1 0 0 / 0.09)', borderRadius:9, padding:'7px 13px 7px 30px', fontSize:13, color:'var(--text)', outline:'none', width:'min(220px,100%)', minWidth:0, transition:'border-color .18s', fontFamily:'var(--font)' }}
+                placeholder="Buscar conta..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onFocus={e => e.target.style.borderColor='rgba(0,212,255,.35)'}
+                onBlur={e => e.target.style.borderColor='oklch(1 0 0 / 0.09)'}
+              />
+            </div>
           </div>
         </div>
 
@@ -383,19 +429,32 @@ export default function Accounts() {
             const accType     = account.accountType?.toUpperCase() || 'CREATOR';
             const cardBg      = hBg(account.healthStatus);
             const cardBorder  = hBorder(account.healthStatus);
+            const isSel       = selectedIds.has(account._id);
 
             return (
               <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
+                onClick={() => toggleSelect(account._id)}
                 style={{
-                  background:`oklch(0.16 0.05 235 / 0.92)`,
-                  border:`1px solid oklch(1 0 0 / 0.09)`,
+                  background: isSel ? 'oklch(0.17 0.08 270 / 0.92)' : `oklch(0.16 0.05 235 / 0.92)`,
+                  border:     isSel ? '1px solid rgba(99,102,241,.45)' : `1px solid oklch(1 0 0 / 0.09)`,
                   borderLeft:`3px solid ${hc}`,
                   borderRadius:14, overflow:'hidden',
                   display:'flex', flexDirection:'column',
-                  transition:'transform .2s, box-shadow .2s, border-color .2s',
+                  transition:'transform .2s, box-shadow .2s, border-color .2s, background .15s',
+                  cursor:'pointer', position:'relative',
                 }}
-                whileHover={{ y:-2, boxShadow:`0 8px 32px rgba(0,0,0,.4), 0 0 0 1px ${hc}22` }}
+                whileHover={{ y:-2, boxShadow: isSel ? `0 8px 32px rgba(99,102,241,.25), 0 0 0 1px rgba(99,102,241,.4)` : `0 8px 32px rgba(0,0,0,.4), 0 0 0 1px ${hc}22` }}
               >
+                {/* checkbox indicator */}
+                <div style={{
+                  position:'absolute', top:8, right:10, width:18, height:18, borderRadius:5, zIndex:2,
+                  border:`1.5px solid ${isSel ? '#818cf8' : 'oklch(1 0 0 / 0.25)'}`,
+                  background: isSel ? '#818cf8' : 'oklch(0.12 0.04 235 / 0.75)',
+                  display:'grid', placeItems:'center', transition:'all .15s',
+                }}>
+                  {isSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+
                 {/* top line */}
                 <div style={{ position:'absolute', top:0, left:16, right:16, height:1, background:`linear-gradient(90deg,transparent,${hc}30,transparent)` }} />
 
@@ -419,7 +478,7 @@ export default function Accounts() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:5 }}>
                         <span style={{ fontWeight:700, fontSize:13, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{account.name || account.username}</span>
-                        <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" style={{ color:'var(--text3)', fontSize:10, textDecoration:'none', flexShrink:0, lineHeight:1 }}>↗</a>
+                        <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color:'var(--text3)', fontSize:10, textDecoration:'none', flexShrink:0, lineHeight:1 }}>↗</a>
                       </div>
                       <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginTop:1 }}>@{account.username}</div>
                       <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:5 }}>
@@ -462,7 +521,7 @@ export default function Accounts() {
 
                 {/* actions */}
                 <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
-                <div style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
+                <div onClick={e => e.stopPropagation()} style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
                   <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer"
                     style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', color:'var(--text3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s', flexShrink:0 }}
                     onMouseEnter={e => { e.currentTarget.style.color='var(--text)'; e.currentTarget.style.borderColor='oklch(1 0 0 / 0.16)'; }}
@@ -521,6 +580,40 @@ export default function Accounts() {
             </div>
           )}
         </div>
+
+        {/* Bulk action bar */}
+        <AnimatePresence>
+          {selectedIds.size > 0 && (
+            <motion.div
+              initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
+              style={{
+                position:'fixed', bottom:28, left:'50%', transform:'translateX(-50%)',
+                background:'oklch(0.18 0.06 235 / 0.97)',
+                border:'1px solid oklch(1 0 0 / 0.15)',
+                borderRadius:16, padding:'10px 16px',
+                display:'flex', alignItems:'center', gap:10,
+                boxShadow:'0 8px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(99,102,241,.22)',
+                backdropFilter:'blur(12px)', zIndex:100, whiteSpace:'nowrap',
+              }}
+            >
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'#818cf8',
+                background:'rgba(99,102,241,.15)', padding:'3px 10px', borderRadius:20, border:'1px solid rgba(99,102,241,.25)' }}>
+                {selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}
+              </span>
+              <button onClick={() => setSelectedIds(new Set())} style={{
+                fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8,
+                background:'oklch(1 0 0 / 0.06)', color:'var(--text2)',
+                border:'1px solid oklch(1 0 0 / 0.12)', cursor:'pointer', transition:'all .15s',
+              }}>Desmarcar</button>
+              <button onClick={() => setBulkDeleteModal(true)} disabled={bulkDeleting} style={{
+                fontSize:12, fontWeight:700, padding:'6px 14px', borderRadius:8,
+                background:'rgba(244,63,94,.15)', color:'var(--red)',
+                border:'1px solid rgba(244,63,94,.3)', cursor:'pointer',
+                display:'flex', alignItems:'center', gap:6, transition:'all .15s',
+              }}><IcoTrash /> Excluir {selectedIds.size}</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Pagination */}
         {pagination && pagination.pages > 1 && (
