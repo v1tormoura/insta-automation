@@ -1,10 +1,15 @@
 'use strict';
 
+const path    = require('path');
+const fs      = require('fs');
+const { execFile } = require('child_process');
 const Loop    = require('../models/Loop');
 const Job     = require('../models/Job');
 const Account = require('../models/Account');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
+
+const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
 
 // Mapeia Job → formato Loop (compatibilidade com Loop.jsx)
 function jobToLoop(job) {
@@ -33,16 +38,48 @@ function jobToLoop(job) {
   };
 }
 
+/* ── Gera thumbnail 270×480 via ffmpeg (não bloqueia em erro) ── */
+async function generateThumb(inputPath, thumbPath) {
+  return new Promise(resolve => {
+    const args = (seek) => [
+      ...(seek ? ['-ss', '00:00:01'] : []),
+      '-i', inputPath,
+      '-vf', 'scale=270:480:force_original_aspect_ratio=increase,crop=270:480',
+      '-frames:v', '1', '-q:v', '3', '-y', thumbPath,
+    ];
+    execFile('ffmpeg', args(true), { timeout: 30000 }, err => {
+      if (err) {
+        execFile('ffmpeg', args(false), { timeout: 30000 }, () => resolve());
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 /* ── Upload de mídias para loop (sem salvar na biblioteca) ── */
 exports.uploadMedia = async (req, res) => {
   try {
     console.log('[upload-media] content-type:', req.headers['content-type']);
     console.log('[upload-media] files recebidos:', req.files?.length ?? 'undefined');
     if (!req.files?.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    const files = req.files.map(f => ({
-      filename: f.filename,
-      type: /\.(mp4|mov|webm|avi|mkv)$/i.test(f.filename) ? 'video' : 'image',
+
+    const files = await Promise.all(req.files.map(async f => {
+      const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(f.filename);
+      let thumbnail = null;
+      if (isVideo) {
+        const thumbName = f.filename.replace(/\.[^.]+$/, '') + '.thumb.jpg';
+        const thumbPath = path.join(UPLOADS_DIR, thumbName);
+        try {
+          await generateThumb(f.path, thumbPath);
+          if (fs.existsSync(thumbPath)) thumbnail = thumbName;
+        } catch (e) {
+          console.warn('[thumbnail] falhou para', f.filename, e.message);
+        }
+      }
+      return { filename: f.filename, thumbnail, type: isVideo ? 'video' : 'image' };
     }));
+
     res.json({ files });
   } catch (err) {
     console.error('[upload-media] erro:', err);

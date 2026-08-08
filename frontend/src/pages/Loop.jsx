@@ -13,6 +13,49 @@ import './Loop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+/* ── Deriva URL de thumbnail a partir do nome do arquivo ── */
+function thumbSrc(filename) {
+  if (!filename) return null;
+  const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(filename);
+  if (isVideo) return `${API_URL}/uploads/${filename.replace(/\.[^.]+$/, '')}.thumb.jpg`;
+  return `${API_URL}/uploads/${filename}`;
+}
+
+/* ── Thumbnail de arquivo no servidor (loop existente ou modal) ── */
+function MediaThumb({ filename, thumbnail, index, selected, onClick, size = 'md' }) {
+  const [failed, setFailed] = useState(false);
+  const src = thumbnail ? `${API_URL}/uploads/${thumbnail}` : thumbSrc(filename);
+  return (
+    <button
+      type="button"
+      className={`lm-thumb lm-thumb--${size}${selected ? ' sel' : ''}`}
+      onClick={onClick}
+    >
+      {src && !failed ? (
+        <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+      ) : (
+        <div className="lm-thumb-fallback"><Film size={size === 'sm' ? 14 : 20} /></div>
+      )}
+      <span className="lm-num">#{index + 1}</span>
+      {selected && <div className="lm-chk2"><CheckCircle size={12} /></div>}
+    </button>
+  );
+}
+
+/* ── Thumbnail compacta para o strip do LoopCard ── */
+function LoopThumb({ filename, index }) {
+  const [failed, setFailed] = useState(false);
+  const src = thumbSrc(filename);
+  return (
+    <div className="lc-thumb-item">
+      {src && !failed
+        ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+        : <div className="lc-thumb-fallback"><Film size={13} /></div>}
+      <span className="lc-thumb-num">#{index + 1}</span>
+    </div>
+  );
+}
+
 function timeAgo(date) {
   if (!date) return '—';
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
@@ -93,6 +136,17 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
           <div className="lc-err"><AlertTriangle size={10} />{loop.lastError}</div>
         )}
       </div>
+
+      {mediaCount > 0 && (
+        <div className="lc-thumbs">
+          {(loop.mediaFiles || []).slice(0, 8).map((f, i) => (
+            <LoopThumb key={f} filename={f} index={i} />
+          ))}
+          {mediaCount > 8 && (
+            <div className="lc-thumbs-more">+{mediaCount - 8}</div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -313,17 +367,15 @@ function LoopModal({ onClose, onCreated }) {
               <div className="lm-grid" style={{ marginTop: 8 }}>
                 {uploadedFiles.map((m, i) => {
                   const sel = form.mediaFiles.includes(m.filename);
-                  const vid = m.type === 'video';
                   return (
-                    <button key={m.filename} type="button"
-                      className={`lm-thumb ${sel ? 'sel' : ''}`}
-                      onClick={() => tog('mediaFiles', m.filename)}>
-                      {vid
-                        ? <video src={`${API_URL}/uploads/${m.filename}`} muted playsInline />
-                        : <img src={`${API_URL}/uploads/${m.filename}`} alt="" />}
-                      <span className="lm-num">#{i + 1}</span>
-                      {sel && <div className="lm-chk2"><CheckCircle size={12} /></div>}
-                    </button>
+                    <MediaThumb
+                      key={m.filename}
+                      filename={m.filename}
+                      thumbnail={m.thumbnail}
+                      index={i}
+                      selected={sel}
+                      onClick={() => tog('mediaFiles', m.filename)}
+                    />
                   );
                 })}
               </div>

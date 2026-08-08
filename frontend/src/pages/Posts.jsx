@@ -80,6 +80,95 @@ function LegendDropdown({ legends, value, onChange }) {
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+/* ── Card de mídia com thumbnail real (canvas para vídeo, objectURL para imagem) ── */
+function MediaCard({ file, index, onRemove }) {
+  const [thumb, setThumb] = useState(null);
+  const isVideo = file.type?.startsWith('video/');
+
+  useEffect(() => {
+    let objectUrl;
+    if (!isVideo) {
+      objectUrl = URL.createObjectURL(file);
+      setThumb(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    }
+    objectUrl = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    video.src = objectUrl;
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(1, (video.duration || 0) * 0.05);
+    };
+    video.onseeked = () => {
+      try {
+        const W = 270, H = 480;
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        const vr = video.videoWidth / video.videoHeight;
+        const cr = W / H;
+        let sw, sh, sx, sy;
+        if (vr > cr) { sh = video.videoHeight; sw = sh * cr; sx = (video.videoWidth - sw) / 2; sy = 0; }
+        else { sw = video.videoWidth; sh = sw / cr; sx = 0; sy = (video.videoHeight - sh) / 2; }
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
+        setThumb(canvas.toDataURL('image/jpeg', 0.75));
+      } catch { /* canvas tainted ou erro */ }
+      URL.revokeObjectURL(objectUrl);
+    };
+    video.onerror = () => URL.revokeObjectURL(objectUrl);
+    return () => { video.src = ''; URL.revokeObjectURL(objectUrl); };
+  }, []);
+
+  return (
+    <div style={{
+      position: 'relative', borderRadius: 9, overflow: 'hidden',
+      background: 'oklch(0.12 0.04 235)', border: '1px solid oklch(1 0 0 / 0.08)',
+      aspectRatio: '9/16',
+    }}>
+      <button
+        type="button"
+        onClick={() => onRemove(index)}
+        style={{
+          position: 'absolute', top: 5, right: 5, zIndex: 2,
+          background: 'rgba(239,68,68,.85)', border: 'none', color: '#fff',
+          borderRadius: 5, width: 20, height: 20, cursor: 'pointer', fontSize: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >✕</button>
+
+      {thumb ? (
+        <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      ) : (
+        <div style={{
+          width: '100%', height: '100%', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', color: isVideo ? '#818cf8' : '#60a5fa', opacity: .55,
+        }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            {isVideo
+              ? <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>
+              : <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>}
+          </svg>
+        </div>
+      )}
+
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        background: 'linear-gradient(transparent, oklch(0 0 0 / 0.78))',
+        padding: '22px 6px 5px', pointerEvents: 'none',
+      }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+          #{index + 1}
+        </div>
+        <div style={{ fontSize: 9, color: 'oklch(1 0 0 / 0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {file.name}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Posts() {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
@@ -319,19 +408,14 @@ export default function Posts() {
                 </label>
 
                 {media.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8, marginTop: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginTop: 12 }}>
                     {media.map((file, i) => (
-                      <div key={i} style={{ background: 'oklch(0.12 0.04 235)', borderRadius: 9, padding: '10px 8px', textAlign: 'center', border: '1px solid oklch(1 0 0 / 0.08)', position: 'relative' }}>
-                        <button type="button" onClick={() => setMedia(m => m.filter((_, j) => j !== i))}
-                          style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,.2)', border: 'none', color: '#f87171', borderRadius: 4, width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: file.type?.includes('video') ? '#818cf8' : '#60a5fa' }}>
-                          {file.type?.includes('video')
-                            ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                            : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                          }
-                        </div>
-                        <div style={{ fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'var(--font-mono)' }}>{file.name}</div>
-                      </div>
+                      <MediaCard
+                        key={`${file.name}-${i}`}
+                        file={file}
+                        index={i}
+                        onRemove={idx => setMedia(m => m.filter((_, j) => j !== idx))}
+                      />
                     ))}
                   </div>
                 )}
