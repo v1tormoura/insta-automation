@@ -4,7 +4,8 @@ const router = require('express').Router();
 const ctrl   = require('../controllers/loopController');
 const upload = require('../config/upload');
 
-router.post('/upload-media', upload.any(), ctrl.uploadMedia);
+router.post('/upload-media',    upload.any(), ctrl.uploadMedia);
+router.post('/generate-thumbs', ctrl.generateAllThumbs);
 router.get('/',           ctrl.list);
 router.post('/',          ctrl.create);
 router.patch('/:id',      ctrl.update);

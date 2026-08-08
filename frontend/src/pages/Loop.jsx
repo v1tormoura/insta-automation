@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
   History, AlertTriangle, CheckCircle, X,
-  Upload,
+  Upload, Hash, Sparkles,
 } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
@@ -12,6 +12,13 @@ import AccountPicker from '../components/AccountPicker';
 import './Loop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const HASHTAG_SETS = [
+  { label: '🔥 Virais',  tags: ['#viral', '#viralbrasil', '#fyp', '#foryoupage', '#trending', '#explorepage', '#explore'] },
+  { label: '🎬 Reels BR', tags: ['#reels', '#reelsdobrasil', '#reelsbrasil', '#reelsviral', '#instareels', '#reelsvideo'] },
+  { label: '💬 Engaja',   tags: ['#comentaaqui', '#comenta', '#segueme', '#follow', '#curtaaqui', '#dica', '#compartilha'] },
+  { label: '💼 Negócios', tags: ['#empreendedor', '#empreendedorismo', '#marketingdigital', '#negócios', '#dinheiro', '#riqueza'] },
+];
 
 /* ── Deriva URL de thumbnail a partir do nome do arquivo ── */
 function thumbSrc(filename) {
@@ -163,6 +170,7 @@ function LoopModal({ onClose, onCreated }) {
   const [legendOpen,    setLegendOpen]    = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [err,           setErr]           = useState('');
+  const [hashtagCat,    setHashtagCat]    = useState(null);
   const fileInputRef  = useRef();
   const coverInputRef = useRef();
   const legendRef     = useRef();
@@ -511,6 +519,46 @@ function LoopModal({ onClose, onCreated }) {
             )}
           </div>
 
+          {/* Hashtags para viralizar */}
+          <div className="lm-row lm-htag-row">
+            <div className="lm-row-hd">
+              <label className="lm-label" style={{ display:'flex', alignItems:'center', gap:5 }}>
+                <Hash size={12} /> Hashtags para viralizar
+              </label>
+              <span className="lm-viral-badge"><Sparkles size={9} /> viralize</span>
+            </div>
+            <div className="lm-htag-cats">
+              {HASHTAG_SETS.map(cat => (
+                <button key={cat.label} type="button"
+                  className={`lm-htag-cat${hashtagCat === cat.label ? ' active' : ''}`}
+                  onClick={() => setHashtagCat(h => h === cat.label ? null : cat.label)}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            {hashtagCat && (
+              <div className="lm-htag-chips">
+                {HASHTAG_SETS.find(c => c.label === hashtagCat)?.tags.map(tag => {
+                  const used = form.caption.includes(tag);
+                  return (
+                    <button key={tag} type="button"
+                      className={`lm-htag-chip${used ? ' used' : ''}`}
+                      onClick={() => !used && setForm(f => ({ ...f, caption: (f.caption + ' ' + tag).trim() }))}>
+                      {tag} {used && <CheckCircle size={9} />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="lm-viral-tips">
+              <span>⏰ <strong>7h-9h · 12h-14h · 19h-22h</strong></span>
+              <span className="lm-vtip-sep">·</span>
+              <span>📅 Intervalo ideal: <strong>8-12h</strong></span>
+              <span className="lm-vtip-sep">·</span>
+              <span>🎯 3-5 hashtags de nicho</span>
+            </div>
+          </div>
+
           {err && <div className="lm-err"><AlertTriangle size={13} />{err}</div>}
 
           <div className="lm-ft">
@@ -533,6 +581,7 @@ export default function LoopPage() {
   const [showModal, setShowModal] = useState(false);
   const [histLoop,  setHistLoop]  = useState(null);
   const [histPosts, setHistPosts] = useState([]);
+  const [genThumb,  setGenThumb]  = useState('idle'); // idle|loading|done|error
 
   const load = useCallback(async () => {
     try { const r = await api.get('/loops'); setLoops(r.data || []); } catch {}
@@ -542,6 +591,19 @@ export default function LoopPage() {
   useEffect(() => { load(); }, [load]);
   useServerEvents(['posts', 'accounts'], load);
   useEffect(() => { const t = setInterval(load, 10_000); return () => clearInterval(t); }, [load]);
+
+  async function handleGenThumbs() {
+    if (genThumb === 'loading') return;
+    setGenThumb('loading');
+    try {
+      await api.post('/loops/generate-thumbs');
+      setGenThumb('done');
+      setTimeout(() => { setGenThumb('idle'); load(); }, 4000);
+    } catch {
+      setGenThumb('error');
+      setTimeout(() => setGenThumb('idle'), 3000);
+    }
+  }
 
   async function handleToggle(loop) {
     try {
@@ -576,6 +638,14 @@ export default function LoopPage() {
     <>
       <div className="lp-chip"><RefreshCw size={12} /> {activeCount} ativos</div>
       <div className="lp-chip"><Film size={12} /> {totalPosts} publicados</div>
+      <button
+        onClick={handleGenThumbs}
+        disabled={genThumb === 'loading'}
+        title="Gerar thumbnails para vídeos antigos que não têm preview"
+        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 13px', fontSize:'.78rem', fontWeight:600, borderRadius:9, border:'1px solid var(--border)', background:'transparent', color: genThumb === 'done' ? '#34d399' : genThumb === 'error' ? '#f87171' : 'var(--text2)', cursor: genThumb === 'loading' ? 'default' : 'pointer', transition:'color .2s' }}>
+        {genThumb === 'loading' ? <RefreshCw size={12} className="spin" /> : <Film size={12} />}
+        {genThumb === 'done' ? 'Pronto!' : genThumb === 'error' ? 'Erro' : 'Gerar thumbs'}
+      </button>
       <button className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 16px', fontSize:'.83rem', fontWeight:700, borderRadius:9 }} onClick={() => setShowModal(true)}>
         <Plus size={14} /> Novo loop
       </button>

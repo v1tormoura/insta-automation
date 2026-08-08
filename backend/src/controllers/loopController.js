@@ -243,6 +243,28 @@ exports.update = async (req, res) => {
   }
 };
 
+/* ── Gerar thumbnails retroativos (one-shot, background) ── */
+exports.generateAllThumbs = async (req, res) => {
+  try {
+    const files  = fs.readdirSync(UPLOADS_DIR);
+    const videos = files.filter(f => /\.(mp4|mov|webm|avi|mkv)$/i.test(f));
+    res.json({ message: `Processando ${videos.length} vídeos em background...`, total: videos.length });
+
+    let generated = 0, skipped = 0, failed = 0;
+    for (const filename of videos) {
+      const thumbName = filename.replace(/\.[^.]+$/, '') + '.thumb.jpg';
+      const thumbPath = path.join(UPLOADS_DIR, thumbName);
+      if (fs.existsSync(thumbPath)) { skipped++; continue; }
+      await generateThumb(path.join(UPLOADS_DIR, filename), thumbPath);
+      if (fs.existsSync(thumbPath)) generated++; else failed++;
+    }
+    console.log(`[generateAllThumbs] ${generated} gerados, ${skipped} pulados, ${failed} falhas`);
+  } catch (err) {
+    console.error('[generateAllThumbs]', err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  }
+};
+
 /* ── Histórico (últimos posts do loop) ── */
 exports.history = async (req, res) => {
   try {

@@ -657,6 +657,50 @@ select.lm-input   { cursor:pointer; }
 .lm-hist-f { flex:1; color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lm-hist-d { color:var(--text3); font-size:.74rem; white-space:nowrap; font-family:var(--font-mono); }
 
+/* ── Hashtag helper ── */
+.lm-htag-row {
+  border:1px solid oklch(0.82 0.19 196 / 0.12);
+  border-radius:10px; padding:12px 14px;
+  background:oklch(0.82 0.19 196 / 0.03);
+}
+.lm-viral-badge {
+  display:inline-flex; align-items:center; gap:3px;
+  font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--cyan); background:oklch(0.82 0.19 196 / 0.12);
+  border:1px solid oklch(0.82 0.19 196 / 0.25); border-radius:99px; padding:2px 7px;
+}
+.lm-htag-cats {
+  display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px;
+}
+.lm-htag-cat {
+  padding:3px 10px; border-radius:99px; border:1px solid var(--border);
+  background:transparent; color:var(--text2); cursor:pointer;
+  font-size:.74rem; font-weight:600; transition:all .15s;
+}
+.lm-htag-cat:hover  { border-color:oklch(0.82 0.19 196 / 0.4); color:var(--text); }
+.lm-htag-cat.active { border-color:var(--cyan); background:oklch(0.82 0.19 196 / 0.1); color:var(--cyan); }
+.lm-htag-chips {
+  display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px;
+}
+.lm-htag-chip {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px; border-radius:99px;
+  border:1px solid var(--border); background:transparent;
+  color:var(--text3); cursor:pointer; font-size:.72rem; transition:all .15s;
+}
+.lm-htag-chip:hover { border-color:oklch(0.82 0.19 196 / 0.4); color:var(--text); }
+.lm-htag-chip.used  {
+  background:oklch(0.82 0.19 196 / 0.1); border-color:oklch(0.82 0.19 196 / 0.35);
+  color:var(--cyan); cursor:default;
+}
+.lm-viral-tips {
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  font-size:.72rem; color:var(--text3); border-top:1px solid oklch(1 0 0 / 0.06);
+  padding-top:8px; margin-top:2px;
+}
+.lm-viral-tips strong { color:var(--text2); }
+.lm-vtip-sep { opacity:.3; }
+
 /* cover strip */
 .lm-cover-hint { font-size:.73rem; color:var(--text3); margin:0; }
 .lm-cover-strip {
