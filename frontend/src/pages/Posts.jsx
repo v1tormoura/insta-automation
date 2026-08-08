@@ -205,15 +205,17 @@ export default function Posts() {
   }
 
   async function load(targetPage = postPage) {
-    const [postsRes, accountsRes, legendsRes] = await Promise.all([
-      api.get(`/posts?page=${targetPage}&limit=20`),
-      api.get('/accounts?limit=200'),
-      api.get('/legends'),
-    ]);
-    setPosts(postsRes.data.posts || []);
-    setPostPagination(postsRes.data.pagination || null);
-    setAccounts(accountsRes.data.accounts || []);
-    setLegends(legendsRes.data);
+    try {
+      const [postsRes, accountsRes, legendsRes] = await Promise.all([
+        api.get(`/posts?page=${targetPage}&limit=20`),
+        api.get('/accounts?limit=200'),
+        api.get('/legends'),
+      ]);
+      setPosts(postsRes.data.posts || []);
+      setPostPagination(postsRes.data.pagination || null);
+      setAccounts(accountsRes.data.accounts || []);
+      setLegends(Array.isArray(legendsRes.data) ? legendsRes.data : []);
+    } catch { /* silencioso — estado anterior mantido */ }
   }
 
   function goToPostPage(p) { setPostPage(p); load(p); }
@@ -269,7 +271,7 @@ export default function Posts() {
     try {
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null);
-      setLocation(''); setSelectedAccounts({}); setScheduledAt('');
+      setLocation(''); setSelectedAccounts([]); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
       showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
       setPosted(true);
