@@ -286,10 +286,11 @@ async function checkOneAccount(account) {
     lastHealthCheck: new Date(),
   };
 
-  // Se banida, marca status principal também
+  // Se banida, marca status principal e cancela jobs/posts ativos
   if (result.status === 'banida') {
     update.status = 'banida';
     console.log(`🚫 [HealthCheck] @${fresh.username} — BANIDA/DESATIVADA`);
+    require('../utils/cancelAccountWork')(fresh._id, `Conta @${fresh.username} banida pelo Instagram`).catch(() => {});
   } else if (result.status === 'sessao_expirada') {
     console.log(`⚠️ [HealthCheck] @${fresh.username} — sessão expirada`);
   } else if (result.status === 'restrita') {

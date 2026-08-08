@@ -84,7 +84,9 @@ exports.getAccounts = async (req, res) => {
 
 exports.deleteAccount = async (req, res) => {
   try {
-    await Account.findByIdAndDelete(req.params.id);
+    const id = req.params.id;
+    await require('../utils/cancelAccountWork')(id, 'Conta excluída pelo usuário');
+    await Account.findByIdAndDelete(id);
     broadcast('accounts', { action: 'deleted' });
     res.json({ success: true });
   } catch (err) {
