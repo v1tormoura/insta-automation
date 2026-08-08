@@ -262,15 +262,19 @@ function JobCard({ job, onAction }) {
 export default function JobManager() {
   const [jobs,       setJobs]       = useState([]);
   const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
   const [filter,     setFilter]     = useState('all');   // all | active | loop | post | done
   const [confirming, setConfirming] = useState(null);    // { id, action }
 
   const load = useCallback(async () => {
     try {
+      setError(null);
       const res = await api.get('/jobs');
-      setJobs(res.data);
-    } catch {}
-    finally { setLoading(false); }
+      setJobs(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      setError(e.response?.data?.error || 'Erro ao carregar jobs');
+      setJobs([]);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -333,10 +337,17 @@ export default function JobManager() {
     { key: 'done',   label: 'Finalizados' },
   ];
 
+  const jobIcon = ICONS.running;
+
   return (
-    <PageShell title="Gerenciador de Jobs" subtitle="Acompanhe e controle suas postagens em tempo real">
+    <PageShell
+      icon={jobIcon}
+      title="Gerenciador de Jobs"
+      subtitle="Acompanhe e controle suas postagens em tempo real"
+      accent="cyan"
+    >
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {filters.map(f => (
           <button
             key={f.key}
@@ -366,6 +377,14 @@ export default function JobManager() {
         </button>
       </div>
 
+      {/* Error banner */}
+      {error && (
+        <div style={{ background: 'rgba(248,113,113,.08)', border: '1px solid rgba(248,113,113,.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#f87171', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {ICONS.warn} {error}
+          <button onClick={load} style={{ marginLeft: 'auto', background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.25)', borderRadius: 6, cursor: 'pointer', color: '#f87171', padding: '3px 8px', fontSize: 11 }}>Tentar novamente</button>
+        </div>
+      )}
+
       {/* Confirm banner */}
       {confirming && (
         <div style={{ background: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -377,16 +396,18 @@ export default function JobManager() {
 
       {/* Job list */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text3)', fontSize: 13 }}>
-          Carregando jobs...
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 60, color: 'var(--text3)', fontSize: 13 }}>
+          {ICONS.refresh} Carregando jobs...
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text3)' }}>
-          <div style={{ fontSize: 36, marginBottom: 12, opacity: .4 }}>📦</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Nenhum job encontrado</div>
-          <div style={{ fontSize: 12, marginTop: 6 }}>
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text3)' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,212,255,.06)', border: '1px solid rgba(0,212,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', color: 'var(--cyan)', opacity: .6 }}>
+            {ICONS.running}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>Nenhum job encontrado</div>
+          <div style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
             {filter === 'all'
-              ? 'Crie uma postagem ou loop para começar.'
+              ? 'Crie uma postagem na página "Postar" ou ative um Loop para começar.'
               : `Nenhum job com filtro "${filters.find(f => f.key === filter)?.label}".`}
           </div>
         </div>

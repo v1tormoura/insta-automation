@@ -49,7 +49,9 @@ function healthCls(s) {
 
 /* ──────────────────── Loop Card ──────────────────── */
 function LoopCard({ loop, onToggle, onDelete, onHistory }) {
-  const running = loop.status === 'ativo';
+  const running     = loop.status === 'ativo';
+  const mediaCount  = loop.mediaFiles?.length || 0;
+  const processando = loop._jobStatus === 'running' ? 1 : 0;
 
   return (
     <motion.div
@@ -74,10 +76,15 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
           </div>
         </div>
         <div className="lc-meta">
-          <span className="lc-sub">{loop.type} · {loop.mediaFiles?.length || 0} mídias</span>
+          <span className="lc-sub">{loop.type} · {mediaCount} mídias</span>
           <div className="lc-chips">
             <span className="lc-chip"><Clock size={9} /> {loop.intervalMinutes}m</span>
-            <span className="lc-chip">{loop.postsCount || 0} posts</span>
+            {mediaCount > 0 && (
+              <span className="lc-chip lc-chip--fila">
+                FILA: {mediaCount}, {processando} processando
+              </span>
+            )}
+            <span className="lc-chip">{loop.roundsCompleted || loop.postsCount || 0} ciclos</span>
             {running && <span className="lc-chip lc-chip--next">em {timeUntil(loop.nextRunAt)}</span>}
             {loop.lastRunAt && <span className="lc-chip">{timeAgo(loop.lastRunAt)}</span>}
           </div>
