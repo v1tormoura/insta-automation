@@ -138,7 +138,7 @@ exports.getDashboard = async (req, res) => {
       totalPosts, completedPosts,
       scheduledPostsLegacy, processingPostsLegacy, pendingPostsLegacy,
       partialPosts, errorPosts,
-      jobsWaiting, jobsRunning, jobsQueued,
+      allActiveJobsRaw,
     ] = await Promise.all([
       Post.countDocuments(),
       Post.countDocuments({ status: 'concluido' }),
@@ -147,10 +147,26 @@ exports.getDashboard = async (req, res) => {
       Post.countDocuments({ status: 'pendente' }),
       Post.countDocuments({ status: 'parcial' }),
       Post.countDocuments({ status: 'erro' }),
-      Job.countDocuments({ status: 'waiting_interval' }),
-      Job.countDocuments({ status: 'running' }),
-      Job.countDocuments({ status: 'queued' }),
+      Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
+        .populate('accounts', 'username avatar healthStatus')
+        .lean(),
     ]);
+
+    // Filtra jobs cujas contas estão todas banidas ou foram excluídas
+    const BANNED_STATUSES = ['banida', 'banido'];
+    const allActiveJobs = allActiveJobsRaw.filter(job =>
+      job.accounts?.some(acc => acc && !BANNED_STATUSES.includes(acc.healthStatus))
+    );
+
+    // Conta mídias individuais por job (não apenas 1 por job)
+    const countJobMedia = (jobs, status) =>
+      jobs.filter(j => j.status === status)
+          .reduce((sum, j) => sum + (j.mediaFiles?.length || 1), 0);
+
+    const jobsWaiting = countJobMedia(allActiveJobs, 'waiting_interval');
+    const jobsRunning = countJobMedia(allActiveJobs, 'running');
+    const jobsQueued  = countJobMedia(allActiveJobs, 'queued');
+
     const scheduledPosts  = scheduledPostsLegacy  + jobsWaiting;
     const processingPosts = processingPostsLegacy + jobsRunning;
     const pendingPosts    = pendingPostsLegacy    + jobsQueued;
@@ -218,17 +234,14 @@ exports.getDashboard = async (req, res) => {
     const problems7d    = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= sevenDaysAgo).length;
     const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;
 
-    const [legacyUpcoming, activeJobs] = await Promise.all([
-      Post.find({ status: { $in: ['agendado', 'pendente', 'processando'] } })
-        .populate('accounts')
-        .sort({ scheduledAt: 1 })
-        .limit(200)
-        .lean(),
-      Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
-        .populate('accounts', 'username avatar')
-        .lean(),
-    ]);
-    const upcomingPosts = [...legacyUpcoming, ...jobsToUpcomingPosts(activeJobs)]
+    const legacyUpcoming = await Post.find({ status: { $in: ['agendado', 'pendente', 'processando'] } })
+      .populate('accounts')
+      .sort({ scheduledAt: 1 })
+      .limit(200)
+      .lean();
+
+    // Reutiliza allActiveJobs já filtrado (sem contas banidas/excluídas)
+    const upcomingPosts = [...legacyUpcoming, ...jobsToUpcomingPosts(allActiveJobs)]
       .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
       .slice(0, 200);
 
@@ -569,7 +582,8 @@ exports.getLivePosts = async (req, res) => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const sel = 'username avatar';
 
-    const [processing, legacyQueue, errors, completed, activeJobsLive] = await Promise.all([
+    const BANNED_LIVE = ['banida', 'banido'];
+    const [processing, legacyQueue, errors, completed, activeJobsLiveRaw] = await Promise.all([
       Post.find({ status: 'processando' })
         .populate('accounts', sel).sort({ updatedAt: -1 }).limit(10).lean(),
       Post.find({ status: { $in: ['pendente', 'agendado'] } })
@@ -581,6 +595,10 @@ exports.getLivePosts = async (req, res) => {
       Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
         .populate('accounts', sel).lean(),
     ]);
+
+    const activeJobsLive = activeJobsLiveRaw.filter(job =>
+      job.accounts?.some(acc => acc && !BANNED_LIVE.includes(acc.healthStatus))
+    );
 
     const queue = [...legacyQueue, ...jobsToUpcomingPosts(activeJobsLive)]
       .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
