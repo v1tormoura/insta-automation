@@ -78,6 +78,7 @@ unlockStuck();
 recoverStuckPosts().catch(e => console.error('recoverStuckPosts:', e.message));
 recoverStuckJobs().catch(e => console.error('recoverStuckJobs:', e.message));
 setInterval(async () => { try { await unlockStuck(); } catch {} }, 60_000);
+setInterval(async () => { try { await recoverStuckJobs(); } catch (e) { console.error('recoverStuckJobs interval:', e.message); } }, 5 * 60_000);
 
 // ── Helpers de conta ────────────────────────────────────────────────────────
 
