@@ -1008,6 +1008,8 @@ export default function Dashboard() {
   const [proxyCount,    setProxyCount]    = useState(0);
 
   const loadRef  = useRef(null);
+  const chartContainerRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(0);
   const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
 
   const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch {} }, []);
@@ -1019,6 +1021,15 @@ export default function Dashboard() {
   loadRef.current = load;
 
   useEffect(() => { load(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, [load, loadStats, loadInsights, loadProxies, loadLoops]);
+  useEffect(() => {
+    const el = chartContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) setChartWidth(e.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, 15_000);
     return () => clearInterval(id);
@@ -1198,9 +1209,9 @@ export default function Dashboard() {
               <div style={{ minHeight:190 }}>
                 {forecastData.some(x => x.value>0) ? (
                   <>
-                    <div style={{ padding:'8px 4px 4px', minHeight:160 }}>
-                      <ResponsiveContainer width="100%" height={160}>
-                        <AreaChart data={forecastData} margin={{ top:10, right:4, left:-28, bottom:0 }}>
+                    <div ref={chartContainerRef} style={{ padding:'8px 4px 4px', minHeight:160 }}>
+                      {chartWidth > 0 && (
+                        <AreaChart data={forecastData} width={chartWidth - 8} height={160} margin={{ top:10, right:4, left:-28, bottom:0 }}>
                           <defs>
                             <linearGradient id="fg-chart" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%"   stopColor="#26c7ff" stopOpacity={.3} />
@@ -1216,7 +1227,7 @@ export default function Dashboard() {
                           <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--text)' }} formatter={(v, n, p) => [v, p.payload?.forecast ? 'Previsto' : 'Publicado']} />
                           <Area type="monotone" dataKey="value" stroke="var(--cyan)" strokeWidth={2} fill="url(#fg-chart)" dot={false} activeDot={{ r:4, fill:'var(--cyan)' }} />
                         </AreaChart>
-                      </ResponsiveContainer>
+                      )}
                     </div>
                     {forecastData.some(x => x.forecast) && (
                       <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize:10, color:'var(--text3)' }}>
