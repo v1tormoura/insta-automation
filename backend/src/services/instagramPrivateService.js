@@ -244,7 +244,8 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const dbSeed = dbSaved._deviceSeed || account.username;
       ig.state.generateDevice(dbSeed);
       await ig.state.deserialize(dbSaved);
-      // NÃO aplica proxy ao carregar sessão existente — proxy invalida sessão criada sem ele
+      // Aplica proxy se a conta tem um configurado — garante consistência de IP
+      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do banco OK`);
       return ig;

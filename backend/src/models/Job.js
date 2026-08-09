@@ -56,4 +56,8 @@ const jobSchema = new mongoose.Schema({
   lastError: { type: String, default: '' },
 }, { timestamps: true });
 
+jobSchema.index({ status: 1 });
+jobSchema.index({ accounts: 1, status: 1 });
+jobSchema.index({ status: 1, nextRoundAt: 1 });
+
 module.exports = mongoose.model('Job', jobSchema);

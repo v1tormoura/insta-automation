@@ -46,7 +46,15 @@ app.get('/image-proxy', async (req, res) => {
   }
 });
 
-app.use(cors());
+const _allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5200')
+  .split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || _allowedOrigins.some(o => origin.startsWith(o))) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Rotas públicas — sem autenticação

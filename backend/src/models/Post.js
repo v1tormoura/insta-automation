@@ -87,4 +87,8 @@ const postSchema = new mongoose.Schema(
   }
 );
 
+postSchema.index({ status: 1 });
+postSchema.index({ accounts: 1, status: 1 });
+postSchema.index({ updatedAt: -1 });
+
 module.exports = mongoose.model('Post', postSchema);

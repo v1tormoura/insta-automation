@@ -41,10 +41,12 @@ async function runRepostJob() {
 
         if (!accounts.length) continue;
 
+        const mediaFile = ins.thumbnailUrl.replace('/uploads/', '');
+        const isVideoMedia = /\.(mp4|mov|webm|avi|mkv)$/i.test(mediaFile);
         const post = await Post.create({
-          media:       ins.thumbnailUrl.replace('/uploads/', ''),
-          mediaType:   'video',
-          postType:    'reel',
+          media:       mediaFile,
+          mediaType:   isVideoMedia ? 'video' : 'image',
+          postType:    isVideoMedia ? 'reel' : 'post',
           caption:     ins.caption || '',
           accounts,
           scheduledAt,

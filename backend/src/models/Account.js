@@ -218,4 +218,7 @@ const accountSchema = new mongoose.Schema(
   }
 );
 
+accountSchema.index({ isBusy: 1, busySince: 1 });
+accountSchema.index({ healthStatus: 1 });
+
 module.exports = mongoose.model('Account', accountSchema);

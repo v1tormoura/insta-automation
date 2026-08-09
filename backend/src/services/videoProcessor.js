@@ -5,6 +5,9 @@ const ffmpegPath = require('ffmpeg-static');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// Deduplicação de conversão concorrente: evita que dois workers convertam o mesmo arquivo simultaneamente
+const _inProgress = new Map();
+
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
@@ -46,35 +49,42 @@ function probeVideo(inputPath) {
  * - Profile: high (H.264 High = melhor qualidade)
  */
 function convertToReelFormat(inputPath, options = {}) {
-  return new Promise(async (resolve, reject) => {
-    if (!isVideo(inputPath)) return resolve(inputPath);
+  if (!isVideo(inputPath)) return Promise.resolve(inputPath);
 
-    const outputDir = path.resolve(__dirname, '../../uploads/processed');
-    ensureDir(outputDir);
+  const outputDir = path.resolve(__dirname, '../../uploads/processed');
+  ensureDir(outputDir);
 
-    const filename = path.basename(inputPath, path.extname(inputPath));
-    const quality = options.quality || 'high'; // 'high' | 'max' | 'fast'
-    const processMode = options.processMode || 'sem_limpeza'; // 'sem_limpeza' | 'limpeza_leve' | 'ultra_clean' | 'humanizador'
+  const filename = path.basename(inputPath, path.extname(inputPath));
+  const quality = options.quality || 'high';
+  const processMode = options.processMode || 'sem_limpeza';
 
-    // limpeza/ultra/humanizador geram arquivo único por publicação (sem cache)
-    let suffix;
-    if (processMode === 'limpeza_leve') {
-      suffix = `-reel-clean-${Date.now().toString(36).slice(-5)}`;
-    } else if (processMode === 'ultra_clean') {
-      suffix = `-reel-ultra-${Date.now().toString(36).slice(-5)}`;
-    } else if (processMode === 'humanizador') {
-      suffix = `-reel-human-${Date.now().toString(36).slice(-6)}`;
-    } else {
-      suffix = quality === 'max' ? '-reel-max' : quality === 'fast' ? '-reel-fast' : '-reel-hq';
-    }
+  let suffix;
+  if (processMode === 'limpeza_leve') {
+    suffix = `-reel-clean-${Date.now().toString(36).slice(-5)}`;
+  } else if (processMode === 'ultra_clean') {
+    suffix = `-reel-ultra-${Date.now().toString(36).slice(-5)}`;
+  } else if (processMode === 'humanizador') {
+    suffix = `-reel-human-${Date.now().toString(36).slice(-6)}`;
+  } else {
+    suffix = quality === 'max' ? '-reel-max' : quality === 'fast' ? '-reel-fast' : '-reel-hq';
+  }
 
-    const outputPath = path.join(outputDir, `${filename}${suffix}.mp4`);
+  const outputPath = path.join(outputDir, `${filename}${suffix}.mp4`);
 
-    // Cache apenas para sem_limpeza
-    if (processMode === 'sem_limpeza' && fs.existsSync(outputPath)) {
+  // Cache + deduplicação apenas para sem_limpeza (os outros modos geram arquivo único por design)
+  if (processMode === 'sem_limpeza') {
+    if (fs.existsSync(outputPath)) {
       console.log(`♻️ Reutilizando vídeo já convertido: ${path.basename(outputPath)}`);
-      return resolve(outputPath);
+      return Promise.resolve(outputPath);
     }
+    // Se conversão já está em progresso para este arquivo, aguarda a mesma Promise
+    if (_inProgress.has(outputPath)) {
+      console.log(`⏳ Aguardando conversão em progresso: ${path.basename(outputPath)}`);
+      return _inProgress.get(outputPath);
+    }
+  }
+
+  const promise = new Promise(async (resolve, reject) => {
 
     // Detecta orientação do vídeo original
     let probe;
@@ -218,6 +228,13 @@ function convertToReelFormat(inputPath, options = {}) {
       })
       .save(outputPath);
   });
+
+  if (processMode === 'sem_limpeza') {
+    _inProgress.set(outputPath, promise);
+    promise.finally(() => _inProgress.delete(outputPath));
+  }
+
+  return promise;
 }
 
 /**

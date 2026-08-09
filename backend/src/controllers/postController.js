@@ -121,6 +121,17 @@ exports.deletePost = async (req, res) => {
       return res.status(404).json({ error: 'Post não encontrado' });
     }
 
+    // Bloqueia exclusão se a mídia está em uso por Job ativo
+    const activeJob = await Job.findOne({
+      mediaFiles: post.media,
+      status: { $in: ['queued', 'running', 'waiting_interval'] },
+    });
+    if (activeJob) {
+      return res.status(400).json({
+        error: `Mídia em uso pelo job "${activeJob.name}" — cancele o job antes de deletar`,
+      });
+    }
+
     const mediaPath = path.resolve(__dirname, '../../uploads', post.media);
 
     if (fs.existsSync(mediaPath)) {

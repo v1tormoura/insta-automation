@@ -41,12 +41,15 @@ async function recoverStuckPosts() {
 }
 
 // Jobs em 'running' ao reiniciar o worker indicam crash durante execução.
-// Re-enfileira a rodada atual para que BullMQ os retome automaticamente.
+// Jobs em 'waiting_interval' com nextRoundAt expirado indicam Redis reiniciado (sem persistência).
+// Ambos são re-enfileirados automaticamente.
 async function recoverStuckJobs() {
   const Job      = require('../models/Job');
   const postQueue = require('./postQueue');
   const cutoff   = new Date(Date.now() - 15 * 60 * 1000);
-  const stuck    = await Job.find({ status: 'running', updatedAt: { $lt: cutoff } });
+
+  // 1. Jobs travados em 'running' (crash durante execução)
+  const stuck = await Job.find({ status: 'running', updatedAt: { $lt: cutoff } });
   for (const job of stuck) {
     try {
       const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
@@ -54,6 +57,19 @@ async function recoverStuckJobs() {
       console.log(`♻️  [Job] "${job.name}" (${job._id}) re-enfileirado após restart`);
     } catch (e) {
       console.error(`[Job] Falha ao recuperar job ${job._id}:`, e.message);
+    }
+  }
+
+  // 2. Jobs em 'waiting_interval' cujo delayed job foi perdido (Redis restart sem AOF)
+  const now = new Date();
+  const stuckWaiting = await Job.find({ status: 'waiting_interval', nextRoundAt: { $lt: now } });
+  for (const job of stuckWaiting) {
+    try {
+      const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
+      await Job.findByIdAndUpdate(job._id, { status: 'queued', bullMqJobId: String(bullJob.id) });
+      console.log(`♻️  [Job] "${job.name}" (${job._id}) re-enfileirado após perda de delayed job`);
+    } catch (e) {
+      console.error(`[Job] Falha ao recuperar waiting_interval job ${job._id}:`, e.message);
     }
   }
 }
@@ -136,39 +152,45 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
 // Retorna true em sucesso, lança erro em falha.
 
 async function publishOneAccount(acc, post, preProcessedVideoUrl) {
-  let account = await Account.findById(acc._id);
-  if (!account) throw new Error(`Conta não encontrada`);
+  // Verifica se conta ainda existe e está em condições de publicar
+  const accountCheck = await Account.findById(acc._id).lean();
+  if (!accountCheck) throw new Error(`Conta não encontrada`);
+  if (accountCheck.healthStatus === 'banida') {
+    throw new Error(`Conta @${accountCheck.username} está banida — publicação cancelada`);
+  }
 
-  // Busy lock — aguarda até 5 minutos
-  if (account.isBusy) {
-    const lockAge = Date.now() - (account.busySince ? new Date(account.busySince).getTime() : 0);
-    if (lockAge > 10 * 60 * 1000) {
-      await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-    } else {
-      writeAccountLog(acc.username, 'Conta em uso por outro lote, aguardando ficar livre...');
-      const MAX_WAIT  = 5 * 60 * 1000;
-      const POLL      = 5_000;
-      const startWait = Date.now();
-      let becameFree  = false;
-      while (Date.now() - startWait < MAX_WAIT) {
-        await delay(POLL);
-        const refreshed = await Account.findById(acc._id).lean();
-        if (!refreshed) break;
-        const age = Date.now() - (refreshed.busySince ? new Date(refreshed.busySince).getTime() : 0);
-        if (!refreshed.isBusy || age > 10 * 60 * 1000) {
-          if (age > 10 * 60 * 1000) {
-            await Account.findByIdAndUpdate(acc._id, { isBusy: false, busySince: null, busyReason: '' });
-          }
-          account = Object.assign(account, refreshed, { isBusy: false });
-          becameFree = true;
-          break;
-        }
-      }
-      if (!becameFree) throw new Error(`conta em uso — tempo de espera esgotado (5min)`);
+  // Lock atômico: tenta adquirir isBusy em operação única.
+  // Elimina race condition onde dois workers veem isBusy=false e ambos publicam.
+  const MAX_WAIT  = 5 * 60 * 1000;
+  const POLL      = 5_000;
+  const startWait = Date.now();
+  let account     = null;
+
+  while (Date.now() - startWait <= MAX_WAIT) {
+    // Libera locks expirados (>10min) de forma preemptiva
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
+    await Account.updateOne(
+      { _id: acc._id, isBusy: true, busySince: { $lt: cutoff } },
+      { $set: { isBusy: false, busySince: null, busyReason: '' } }
+    );
+
+    // Tenta adquirir o lock atomicamente — só sucede se isBusy === false
+    account = await Account.findOneAndUpdate(
+      { _id: acc._id, isBusy: false },
+      { $set: { isBusy: true, busySince: new Date(), busyReason: 'Publicando' } },
+      { new: true }
+    );
+
+    if (account) break;
+
+    if (Date.now() - startWait < MAX_WAIT) {
+      writeAccountLog(acc.username, 'Conta em uso por outro processo, aguardando...');
+      await delay(POLL);
     }
   }
 
-  await Account.findByIdAndUpdate(account._id, { isBusy: true, busySince: new Date(), busyReason: 'Publicando' });
+  if (!account) throw new Error(`conta em uso — tempo de espera esgotado (5min)`);
+
   broadcast('accounts', { action: 'busy', accountId: account._id });
   writeAccountLog(acc.username, 'Iniciando publicação');
 
@@ -310,9 +332,18 @@ async function processJobRound(jobId) {
   const endIdx     = Math.min(startIdx + jobDoc.simultaneousLimit, totalMedia);
   const roundMedia = jobDoc.mediaFiles.slice(startIdx, endIdx);
 
-  jobDoc.status    = 'running';
-  jobDoc.startedAt = jobDoc.startedAt || new Date();
-  await jobDoc.save();
+  // Update condicional: não sobrescreve pause/cancel emitido concorrentemente
+  const activated = await Job.findOneAndUpdate(
+    { _id: jobDoc._id, status: { $nin: ['paused', 'cancelled', 'completed'] } },
+    { $set: { status: 'running', ...(!jobDoc.startedAt ? { startedAt: new Date() } : {}) } },
+    { new: true }
+  );
+  if (!activated) {
+    const fresh = await Job.findById(jobDoc._id).select('status').lean();
+    console.log(`[Job] "${jobDoc.name}" foi ${fresh?.status || 'modificado'} antes de iniciar — rodada ignorada`);
+    return;
+  }
+  jobDoc.startedAt = activated.startedAt;
   broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
 
   console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1}/${jobDoc.totalRounds} (${roundMedia.length} mídia(s), ${jobDoc.accounts.length} conta(s))`);
@@ -411,7 +442,9 @@ async function processJobRound(jobId) {
   }
 
   // Agenda próxima rodada
-  const intervalMs    = (jobDoc.intervalMinutes || 0) * 60 * 1000;
+  const rawIntervalMs = (jobDoc.intervalMinutes || 0) * 60 * 1000;
+  // Loops com intervalo=0 causariam tight loop consumindo todos os workers — mínimo 60s
+  const intervalMs = (jobDoc.type === 'loop' && rawIntervalMs < 60_000) ? 60_000 : rawIntervalMs;
   const isLoopCycling = jobDoc.type === 'loop' && nextStartIdx >= totalMedia;
 
   if (isLoopCycling) {
@@ -451,7 +484,7 @@ const worker = new Worker(
       console.log('[Worker] job sem postId nem jobId:', job.data);
     }
   },
-  { connection, concurrency: 5, lockDuration: 600_000, stalledInterval: 60_000 }
+  { connection, concurrency: 5, lockDuration: 1_200_000, stalledInterval: 60_000 }
 );
 
 worker.on('completed', job => console.log('[Worker] job concluído:', job.id));

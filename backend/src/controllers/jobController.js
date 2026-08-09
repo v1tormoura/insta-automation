@@ -152,6 +152,14 @@ exports.rerun = async (req, res) => {
       return res.status(400).json({ error: 'Só é possível reexecutar um job finalizado ou cancelado' });
     }
 
+    // Remove o delayed job antigo do Redis para evitar disparo duplo
+    if (job.bullMqJobId) {
+      try {
+        const old = await postQueue.getJob(job.bullMqJobId);
+        if (old) await old.remove();
+      } catch {}
+    }
+
     job.status         = 'queued';
     job.currentRound   = 0;
     job.roundsCompleted = 0;
