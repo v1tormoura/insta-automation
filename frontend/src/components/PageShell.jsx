@@ -28,7 +28,7 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
     <div style={{ display:'flex', flexDirection:'column', height:'100%', minHeight:0 }}>
       {/* ── Sticky header ── */}
       <motion.div
-        initial={{ opacity:0, y:-8 }}
+        initial={{ opacity:0, y:8 }}
         animate={{ opacity:1, y:0 }}
         transition={{ duration:.3, ease:[.4,0,.2,1] }}
         className="ps-header"

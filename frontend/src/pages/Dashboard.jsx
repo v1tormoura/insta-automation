@@ -1024,12 +1024,13 @@ export default function Dashboard() {
   useEffect(() => {
     const el = chartContainerRef.current;
     if (!el) return;
+    setChartWidth(el.getBoundingClientRect().width || el.offsetWidth || 0);
     const ro = new ResizeObserver(entries => {
       for (const e of entries) setChartWidth(e.contentRect.width);
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [data]);
   useEffect(() => {
     const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, 15_000);
     return () => clearInterval(id);
