@@ -63,6 +63,7 @@ export default function Accounts() {
   const [bulkProxyText,  setBulkProxyText]  = useState('');
   const [savingBulkProxy,setSavingBulkProxy]= useState(false);
   const [selectedIds,    setSelectedIds]    = useState(new Set());
+  const [selectMode,     setSelectMode]     = useState(false);
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
   const [bulkDeleting,   setBulkDeleting]   = useState(false);
 
@@ -214,10 +215,11 @@ export default function Accounts() {
     setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
-  function toggleSelectAllVisible() {
-    const vids   = filteredAccounts.map(a => a._id);
-    const allSel = vids.length > 0 && vids.every(id => selectedIds.has(id));
-    setSelectedIds(prev => { const n = new Set(prev); if (allSel) vids.forEach(id => n.delete(id)); else vids.forEach(id => n.add(id)); return n; });
+  function toggleSelectMode() {
+    setSelectMode(m => {
+      if (m) setSelectedIds(new Set());
+      return !m;
+    });
   }
 
   async function bulkDelete() {
@@ -261,8 +263,6 @@ export default function Accounts() {
     if (filter === 'offline')    return acc.healthStatus === 'desconectada';
     return true;
   });
-
-  const allVisibleSel = filteredAccounts.length > 0 && filteredAccounts.every(a => selectedIds.has(a._id));
 
   function fmt(v) { return Number(v || 0).toLocaleString('pt-BR'); }
   function fmtDateCompact(d) {
@@ -391,15 +391,14 @@ export default function Accounts() {
             })}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <button onClick={toggleSelectAllVisible} style={{
+            <button onClick={toggleSelectMode} style={{
               fontSize:11, fontWeight:700, padding:'6px 12px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap',
-              background:   allVisibleSel ? 'rgba(248,113,113,.1)'  : 'rgba(99,102,241,.1)',
-              color:        allVisibleSel ? '#f87171'                : '#818cf8',
-              border:       `1px solid ${allVisibleSel ? 'rgba(248,113,113,.3)' : 'rgba(99,102,241,.3)'}`,
+              background:   selectMode ? 'rgba(248,113,113,.1)'  : 'rgba(99,102,241,.1)',
+              color:        selectMode ? '#f87171'                : '#818cf8',
+              border:       `1px solid ${selectMode ? 'rgba(248,113,113,.3)' : 'rgba(99,102,241,.3)'}`,
               fontFamily:'var(--font-mono)', transition:'all .15s',
             }}>
-              {allVisibleSel ? 'Desmarcar' : 'Selecionar'}{' '}
-              {filteredAccounts.length < safeAccounts.length ? filteredAccounts.length : 'todas'}
+              {selectMode ? 'Cancelar' : 'Selecionar'}
             </button>
             <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position:'absolute', left:10, color:'var(--text3)', pointerEvents:'none' }}>
@@ -433,7 +432,7 @@ export default function Accounts() {
 
             return (
               <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
-                onClick={() => toggleSelect(account._id)}
+                onClick={() => selectMode && toggleSelect(account._id)}
                 style={{
                   background: isSel ? 'oklch(0.17 0.08 270 / 0.92)' : `oklch(0.16 0.05 235 / 0.92)`,
                   border:     isSel ? '1px solid rgba(99,102,241,.45)' : `1px solid oklch(1 0 0 / 0.09)`,
@@ -445,15 +444,17 @@ export default function Accounts() {
                 }}
                 whileHover={{ y:-2, boxShadow: isSel ? `0 8px 32px rgba(99,102,241,.25), 0 0 0 1px rgba(99,102,241,.4)` : `0 8px 32px rgba(0,0,0,.4), 0 0 0 1px ${hc}22` }}
               >
-                {/* checkbox indicator */}
-                <div style={{
-                  position:'absolute', top:8, right:10, width:18, height:18, borderRadius:5, zIndex:2,
-                  border:`1.5px solid ${isSel ? '#818cf8' : 'oklch(1 0 0 / 0.25)'}`,
-                  background: isSel ? '#818cf8' : 'oklch(0.12 0.04 235 / 0.75)',
-                  display:'grid', placeItems:'center', transition:'all .15s',
-                }}>
-                  {isSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                </div>
+                {/* checkbox indicator — only shown in selectMode */}
+                {selectMode && (
+                  <div style={{
+                    position:'absolute', top:8, right:10, width:18, height:18, borderRadius:5, zIndex:2,
+                    border:`1.5px solid ${isSel ? '#818cf8' : 'oklch(1 0 0 / 0.25)'}`,
+                    background: isSel ? '#818cf8' : 'oklch(0.12 0.04 235 / 0.75)',
+                    display:'grid', placeItems:'center', transition:'all .15s',
+                  }}>
+                    {isSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                )}
 
                 {/* top line */}
                 <div style={{ position:'absolute', top:0, left:16, right:16, height:1, background:`linear-gradient(90deg,transparent,${hc}30,transparent)` }} />
@@ -604,7 +605,7 @@ export default function Accounts() {
                 background:'rgba(99,102,241,.15)', padding:'3px 10px', borderRadius:20, border:'1px solid rgba(99,102,241,.25)' }}>
                 {selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}
               </span>
-              <button onClick={() => setSelectedIds(new Set())} style={{
+              <button onClick={() => { setSelectedIds(new Set()); setSelectMode(false); }} style={{
                 fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8,
                 background:'oklch(1 0 0 / 0.06)', color:'var(--text2)',
                 border:'1px solid oklch(1 0 0 / 0.12)', cursor:'pointer', transition:'all .15s',
