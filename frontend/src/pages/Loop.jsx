@@ -81,7 +81,8 @@ function timeUntil(date) {
   return `${Math.floor(s / 3600)}h`;
 }
 function formatNum(n) {
-  if (n == null || n === 0) return null;
+  if (n == null) return null;
+  if (n === 0) return '0';
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.0', '') + 'K';
   return n.toString();
@@ -697,9 +698,10 @@ export default function LoopPage() {
   const [loops,     setLoops]     = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [histLoop,  setHistLoop]  = useState(null);
-  const [histPosts, setHistPosts] = useState([]);
-  const [genThumb,  setGenThumb]  = useState('idle'); // idle|loading|done|error
+  const [histLoop,    setHistLoop]    = useState(null);
+  const [histPosts,   setHistPosts]   = useState([]);
+  const [genThumb,    setGenThumb]    = useState('idle'); // idle|loading|done|error
+  const [deleteModal, setDeleteModal] = useState(null);
 
   const load = useCallback(async () => {
     try { const r = await api.get('/loops'); setLoops(r.data || []); } catch {}
@@ -729,8 +731,12 @@ export default function LoopPage() {
       setLoops(ls => ls.map(l => l._id === loop._id ? r.data : l));
     } catch (e) { alert(e.response?.data?.error || e.message); }
   }
-  async function handleDelete(loop) {
-    if (!confirm(`Excluir "${loop.name}"?`)) return;
+  function handleDelete(loop) {
+    setDeleteModal(loop);
+  }
+  async function confirmDelete() {
+    const loop = deleteModal;
+    setDeleteModal(null);
     try { await api.delete(`/loops/${loop._id}`); setLoops(ls => ls.filter(l => l._id !== loop._id)); }
     catch (e) { alert(e.response?.data?.error || e.message); }
   }
@@ -839,7 +845,7 @@ export default function LoopPage() {
                         <span><b>{formatNum(account.followers)}</b> seg</span>
                       )}
                       {formatNum(account.following) && (
-                        <span><b>{formatNum(account.following)}</b> seg</span>
+                        <span><b>{formatNum(account.following)}</b> seguindo</span>
                       )}
                       {formatNum(account.postsCount) && (
                         <span><b>{formatNum(account.postsCount)}</b> pub</span>
@@ -910,6 +916,50 @@ export default function LoopPage() {
                       <span className="lm-hist-d">{new Date(p.createdAt).toLocaleString('pt-BR')}</span>
                     </div>
                   ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteModal && (
+          <motion.div
+            className="lm-bg"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setDeleteModal(null)}
+          >
+            <motion.div
+              className="lm lm--sm"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.2 }}
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: 400, padding: 0, overflow: 'hidden' }}
+            >
+              <div style={{ padding: '28px 28px 8px', textAlign: 'center' }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: 'oklch(0.4 0.18 15 / 0.15)', border: '1px solid oklch(0.5 0.18 15 / 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+                  <Trash2 size={24} style={{ color: 'oklch(0.65 0.2 15)' }} />
+                </div>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', margin: '0 0 6px' }}>Excluir loop?</h3>
+                <p style={{ fontSize: 13, color: 'var(--text3)', margin: '0 0 4px' }}>Você está prestes a excluir</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 16px' }}>"{deleteModal.name}"</p>
+                <p style={{ fontSize: 12, color: 'oklch(0.7 0.18 15 / 0.9)', background: 'oklch(0.4 0.18 15 / 0.1)', borderRadius: 8, padding: '8px 12px', margin: '0 0 24px', border: '1px solid oklch(0.5 0.18 15 / 0.2)', lineHeight: 1.5 }}>
+                  Esta ação não pode ser desfeita. O histórico de posts e as configurações serão perdidos.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 10, padding: '0 24px 24px' }}>
+                <button
+                  onClick={() => setDeleteModal(null)}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid oklch(1 0 0 / 0.12)', background: 'oklch(1 0 0 / 0.05)', color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
+                >Cancelar</button>
+                <button
+                  onClick={confirmDelete}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid oklch(0.5 0.2 15 / 0.5)', background: 'oklch(0.5 0.22 15)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: '.15s' }}
+                >Excluir loop</button>
               </div>
             </motion.div>
           </motion.div>

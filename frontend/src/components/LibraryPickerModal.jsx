@@ -65,7 +65,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi' 
     api.get('/media').then(r => {
       const data = r.data;
       const allFiles = data.files || [];
-      const allFolders = data.folders || [];
+      const allFolders = (data.folders || []).filter(f => f !== 'default');
       setFiles(allFiles);
       setFolders(allFolders);
       if (allFolders.length) setActive(allFolders[0]);
@@ -110,7 +110,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi' 
     folderCounts[k] = (folderCounts[k] || 0) + 1;
   });
 
-  const allFoldersForSidebar = ['default', ...folders.filter(f => f !== 'default')];
+  const allFoldersForSidebar = folders.filter(f => f !== 'default');
 
   function confirm() {
     onConfirm(Array.from(selected.values()));
