@@ -9,6 +9,7 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
+import LibraryPickerModal from '../components/LibraryPickerModal';
 import './Loop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -171,6 +172,8 @@ function LoopModal({ onClose, onCreated }) {
   const [saving,        setSaving]        = useState(false);
   const [err,           setErr]           = useState('');
   const [hashtagCat,    setHashtagCat]    = useState(null);
+  const [mediaSource,   setMediaSource]   = useState('upload');
+  const [showLibPicker, setShowLibPicker] = useState(false);
   const fileInputRef  = useRef();
   const coverInputRef = useRef();
   const legendRef     = useRef();
@@ -347,6 +350,15 @@ function LoopModal({ onClose, onCreated }) {
           </div>
 
           {/* Reels do loop */}
+          {showLibPicker && (
+            <LibraryPickerModal
+              onClose={() => setShowLibPicker(false)}
+              onConfirm={items => {
+                const newFilenames = items.map(m => m.filename).filter(Boolean);
+                setForm(f => ({ ...f, mediaFiles: [...new Set([...f.mediaFiles, ...newFilenames])] }));
+              }}
+            />
+          )}
           <div className="lm-section">
             <div className="lm-section-hd">
               <div className="lm-section-hd-l">
@@ -356,50 +368,98 @@ function LoopModal({ onClose, onCreated }) {
                   ? <span className="lm-section-note">Nenhum reel — envie agora</span>
                   : <span className="lm-section-count">{form.mediaFiles.length}</span>}
               </div>
-              <button type="button" className="lm-upload-btn" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={11} /> Enviar reels
-              </button>
-              <input ref={fileInputRef} type="file" multiple accept="video/*,image/*" hidden
-                onChange={e => handleUpload(e.target.files)} />
+              {/* Source toggle */}
+              <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 7, padding: 2, gap: 2, marginRight: 4 }}>
+                {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
+                  <button key={src} type="button"
+                    onClick={() => setMediaSource(src)}
+                    style={{ padding: '3px 9px', borderRadius: 5, fontSize: 10, fontWeight: mediaSource === src ? 700 : 400, cursor: 'pointer', border: 'none', transition: '.15s',
+                      background: mediaSource === src ? 'oklch(0.60 0.22 295)' : 'transparent',
+                      color: mediaSource === src ? '#fff' : 'var(--text3)',
+                    }}>{lbl}</button>
+                ))}
+              </div>
+              {mediaSource === 'upload' && (
+                <>
+                  <button type="button" className="lm-upload-btn" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={11} /> Enviar reels
+                  </button>
+                  <input ref={fileInputRef} type="file" multiple accept="video/*,image/*" hidden
+                    onChange={e => handleUpload(e.target.files)} />
+                </>
+              )}
             </div>
 
-            <div
-              className={`lm-dropzone lm-dropzone--sm ${dragOver ? 'drag' : ''}`}
-              onClick={() => !uploading && fileInputRef.current?.click()}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files); }}
-            >
-              <div className="lm-dz-inner">
-                {uploading
-                  ? <><RefreshCw size={20} className="spin lm-dz-ic" /><span className="lm-dz-sub">Fazendo upload...</span></>
-                  : <><Upload size={20} className="lm-dz-ic" />
-                      <span className="lm-dz-sub">Arraste ou envie seus reels</span>
-                      <span className="lm-dz-formats">MP4, MOV — envio em paralelo</span></>}
-              </div>
-            </div>
-
-            {uploadedFiles.length > 0 && (
-              <div className="lm-grid" style={{ marginTop: 8 }}>
-                {uploadedFiles.map((m, i) => {
-                  const sel = form.mediaFiles.includes(m.filename);
-                  return (
-                    <MediaThumb
-                      key={m.filename}
-                      filename={m.filename}
-                      thumbnail={m.thumbnail}
-                      index={i}
-                      selected={sel}
-                      onClick={() => tog('mediaFiles', m.filename)}
-                    />
-                  );
-                })}
-              </div>
+            {mediaSource === 'upload' ? (
+              <>
+                <div
+                  className={`lm-dropzone lm-dropzone--sm ${dragOver ? 'drag' : ''}`}
+                  onClick={() => !uploading && fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files); }}
+                >
+                  <div className="lm-dz-inner">
+                    {uploading
+                      ? <><RefreshCw size={20} className="spin lm-dz-ic" /><span className="lm-dz-sub">Fazendo upload...</span></>
+                      : <><Upload size={20} className="lm-dz-ic" />
+                          <span className="lm-dz-sub">Arraste ou envie seus reels</span>
+                          <span className="lm-dz-formats">MP4, MOV — envio em paralelo</span></>}
+                  </div>
+                </div>
+                {uploadedFiles.length > 0 && (
+                  <div className="lm-grid" style={{ marginTop: 8 }}>
+                    {uploadedFiles.map((m, i) => {
+                      const sel = form.mediaFiles.includes(m.filename);
+                      return (
+                        <MediaThumb
+                          key={m.filename}
+                          filename={m.filename}
+                          thumbnail={m.thumbnail}
+                          index={i}
+                          selected={sel}
+                          onClick={() => tog('mediaFiles', m.filename)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="lm-section-footer">
+                  Reels enviados aqui rodam somente neste loop e são apagados automaticamente após publicar — não ficam salvos no sistema.
+                </p>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setShowLibPicker(true)}
+                  style={{ width: '100%', marginTop: 8, padding: '16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 10, background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--cyan)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: '.15s' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>Escolher da biblioteca</span>
+                  <span style={{ fontSize: 10, color: 'var(--text3)' }}>Selecione mídias já salvas nas suas pastas</span>
+                </button>
+                {form.mediaFiles.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{form.mediaFiles.length} selecionado(s)</span>
+                      <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 10, color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
+                    </div>
+                    <div className="lm-grid">
+                      {form.mediaFiles.map((filename, i) => (
+                        <MediaThumb
+                          key={filename}
+                          filename={filename}
+                          index={i}
+                          selected
+                          onClick={() => setForm(f => ({ ...f, mediaFiles: f.mediaFiles.filter(x => x !== filename) }))}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="lm-section-footer" style={{ marginTop: 8 }}>
+                  Arquivos da biblioteca ficam salvos permanentemente — o loop os usa sem deletar.
+                </p>
+              </>
             )}
-
-            <p className="lm-section-footer">
-              Reels enviados aqui rodam somente neste loop e são apagados automaticamente após publicar — não ficam salvos no sistema.
-            </p>
           </div>
 
           {/* Capa dos Reels */}

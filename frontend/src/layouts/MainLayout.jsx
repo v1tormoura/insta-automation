@@ -67,6 +67,7 @@ const NAV_GROUPS = [
   {
     title: 'CONTEÚDO',
     items: [
+      { to: '/biblioteca',  label: 'Biblioteca',  sub: 'Mídias e pastas',       icon: ICONS.media       },
       { to: '/legends',     label: 'Legendas',    sub: 'Textos salvos',         icon: ICONS.legends     },
       { to: '/limpador',    label: 'Limpador',    sub: 'Remover metadados',     icon: ICONS.limpador    },
       { to: '/performance', label: 'Performance', sub: 'Insights gerais',       icon: ICONS.performance },

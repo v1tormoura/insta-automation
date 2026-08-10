@@ -6,6 +6,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
+import LibraryPickerModal from '../components/LibraryPickerModal';
 
 /* ── Custom legend dropdown ── */
 function LegendDropdown({ legends, value, onChange }) {
@@ -195,9 +196,13 @@ export default function Posts() {
   const [posted, setPosted]   = useState(false);
   const [ctaComment, setCtaComment]       = useState('');
   const [engageComment, setEngageComment] = useState('');
+  const [mediaSource, setMediaSource]     = useState('upload');
+  const [libraryMedia, setLibraryMedia]   = useState([]);
+  const [showLibPicker, setShowLibPicker] = useState(false);
 
   const selectedCount  = selectedAccounts.length;
-  const totalEstimated = media.length * selectedCount;
+  const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
+  const totalEstimated = activeMediaCount * selectedCount;
 
   function showToast(type, title, message) {
     setToast({ type, title, message });
@@ -252,10 +257,15 @@ export default function Posts() {
 
   async function createPost(e) {
     e.preventDefault();
-    if (!media.length) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
+    const hasMedia = mediaSource === 'library' ? libraryMedia.length > 0 : media.length > 0;
+    if (!hasMedia) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
     if (!selectedAccounts.length) return showToast('warning', 'Atenção', 'Selecione uma conta');
     const form = new FormData();
-    media.forEach(file => form.append('media', file));
+    if (mediaSource === 'library') {
+      form.append('mediaIds', JSON.stringify(libraryMedia.map(m => m._id)));
+    } else {
+      media.forEach(file => form.append('media', file));
+    }
     if (cover) form.append('cover', cover);
     form.append('caption', caption);
     if (location) form.append('location', location);
@@ -273,6 +283,7 @@ export default function Posts() {
       setCaption(''); setMedia([]); setCover(null);
       setLocation(''); setSelectedAccounts([]); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
+      setLibraryMedia([]);
       showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
       setPosted(true);
       setTimeout(() => setPosted(false), 2500);
@@ -364,13 +375,36 @@ export default function Posts() {
             transition={{ duration: 0.25 }}
           >
 
-            {/* Upload */}
+            {/* Upload / Biblioteca */}
+            {showLibPicker && (
+              <LibraryPickerModal
+                onClose={() => setShowLibPicker(false)}
+                onConfirm={items => setLibraryMedia(prev => {
+                  const existing = new Map(prev.map(m => [m._id, m]));
+                  items.forEach(m => existing.set(m._id, m));
+                  return Array.from(existing.values());
+                })}
+              />
+            )}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Mídia</h3>
-                <span style={{ fontSize: '.72rem', fontFamily: 'var(--font-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--cyan)', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 100, padding: '2px 10px' }}>
-                  {media.length} arquivo(s)
-                </span>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {/* Source toggle */}
+                  <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 7, padding: 2, gap: 2 }}>
+                    {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
+                      <button key={src} type="button"
+                        onClick={() => setMediaSource(src)}
+                        style={{ padding: '4px 10px', borderRadius: 5, fontSize: '.72rem', fontWeight: mediaSource === src ? 700 : 500, cursor: 'pointer', border: 'none', transition: '.15s',
+                          background: mediaSource === src ? 'oklch(0.60 0.22 295)' : 'transparent',
+                          color: mediaSource === src ? '#fff' : 'var(--text3)',
+                        }}>{lbl}</button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '.72rem', fontFamily: 'var(--font-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--cyan)', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 100, padding: '2px 10px' }}>
+                    {activeMediaCount} arquivo(s)
+                  </span>
+                </div>
               </div>
               <div style={cardBodyStyle}>
                 {/* Type tabs */}
@@ -390,36 +424,73 @@ export default function Posts() {
                   ))}
                 </div>
 
-                <label
-                  className={`upload-zone${dragOver ? ' drag-over' : ''}`}
-                  style={{ cursor: 'pointer' }}
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleDrop}
-                >
-                  <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
-                    onChange={e => setMedia(Array.from(e.target.files || []))} />
-                  <div style={{ marginBottom: 8 }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}>
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                  </div>
-                  <strong>Arraste ou envie seus vídeos</strong>
-                  <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
-                </label>
-
-                {media.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginTop: 12 }}>
-                    {media.map((file, i) => (
-                      <MediaCard
-                        key={`${file.name}-${i}`}
-                        file={file}
-                        index={i}
-                        onRemove={idx => setMedia(m => m.filter((_, j) => j !== idx))}
-                      />
-                    ))}
-                  </div>
+                {mediaSource === 'upload' ? (
+                  <>
+                    <label
+                      className={`upload-zone${dragOver ? ' drag-over' : ''}`}
+                      style={{ cursor: 'pointer' }}
+                      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                    >
+                      <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                        onChange={e => setMedia(Array.from(e.target.files || []))} />
+                      <div style={{ marginBottom: 8 }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text3)' }}>
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                      </div>
+                      <strong>Arraste ou envie seus vídeos</strong>
+                      <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
+                      <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
+                    </label>
+                    {media.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginTop: 12 }}>
+                        {media.map((file, i) => (
+                          <MediaCard
+                            key={`${file.name}-${i}`}
+                            file={file}
+                            index={i}
+                            onRemove={idx => setMedia(m => m.filter((_, j) => j !== idx))}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => setShowLibPicker(true)}
+                      style={{ width: '100%', padding: '18px 16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 10, background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--cyan)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: '.15s' }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>Escolher da biblioteca</span>
+                      <span style={{ fontSize: 11, color: 'var(--text3)' }}>Selecione mídias já enviadas nas suas pastas</span>
+                    </button>
+                    {libraryMedia.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{libraryMedia.length} selecionado(s)</span>
+                          <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 11, color: 'var(--cyan)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6 }}>
+                          {libraryMedia.map((m, i) => {
+                            const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(m.filename || '');
+                            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                            const src = isVideo ? `${API_URL}/uploads/${(m.filename||'').replace(/\.[^.]+$/,'')}.thumb.jpg` : `${API_URL}${m.url || `/uploads/${m.filename}`}`;
+                            return (
+                              <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 8, overflow: 'hidden', border: '1px solid oklch(1 0 0 / 0.1)', background: 'oklch(0.12 0.04 235)' }}>
+                                <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
+                                <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
+                                  style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 4, background: 'rgba(239,68,68,.85)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 3px' }}>
+                                  <div style={{ fontSize: 8, color: '#fff', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{i+1} {m.originalName || m.filename}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
