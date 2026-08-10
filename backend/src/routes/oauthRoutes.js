@@ -281,7 +281,11 @@ router.get('/url', async (req, res) => {
 
   // Encoda o metaAppId no state para o callback saber qual app usar
   const accountId = req.query.accountId || 'new';
-  const state     = dbApp ? `${accountId}__mapp_${dbApp._id}` : accountId;
+  const baseState = dbApp ? `${accountId}__mapp_${dbApp._id}` : accountId;
+
+  // Assina o state com HMAC-SHA256 para proteção CSRF
+  const { signState } = require('../services/csrfState');
+  const state = signState(baseState);
 
   const params = new URLSearchParams({
     client_id:     appId,
@@ -379,6 +383,15 @@ router.post('/connect-by-token', async (req, res) => {
 router.post('/connect/:accountId', async (req, res) => {
   let { accountId } = req.params;
   const { pastedUrl }  = req.body;
+
+  // Verifica assinatura CSRF do state
+  const { verifyAndStripState } = require('../services/csrfState');
+  const csrfResult = verifyAndStripState(accountId);
+  if (!csrfResult.valid) {
+    console.error(`[OAuth] CSRF inválido — state: ${String(accountId).slice(0, 50)}`);
+    return res.status(403).json({ error: 'State OAuth inválido ou adulterado. Tente conectar novamente.' });
+  }
+  accountId = csrfResult.state;
 
   // Extrai metaAppId do state se presente (formato: "accountId__mapp_<docId>")
   let metaAppDocId = null;

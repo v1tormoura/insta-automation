@@ -42,6 +42,7 @@ const ICONS = {
   limpador:    ic(<><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/><path d="M10 11v6M14 11v6"/></>),
   performance: ic(<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>),
   apimeta:     ic(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></>),
+  oauth:       ic(<><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>),
 };
 
 const NAV_GROUPS = [
@@ -81,7 +82,8 @@ const NAV_GROUPS = [
       { to: '/accounts',  label: 'Contas',   sub: 'Gerenciar contas',  icon: ICONS.accounts },
       { to: '/health',    label: 'Saúde',    sub: 'Status das contas', icon: ICONS.health   },
       { to: '/proxies',   label: 'Proxies',  sub: 'Gerenciar proxies', icon: ICONS.proxies  },
-      { to: '/api-meta',  label: 'API Meta', sub: 'Apps Meta / OAuth', icon: ICONS.apimeta  },
+      { to: '/api-meta',    label: 'API Meta',  sub: 'Apps Meta / OAuth',  icon: ICONS.apimeta },
+      { to: '/oauth-contas', label: 'OAuth',    sub: 'Conexões por conta', icon: ICONS.oauth   },
     ],
   },
   {

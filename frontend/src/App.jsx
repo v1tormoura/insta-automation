@@ -27,6 +27,7 @@ import Faturamento from './pages/Faturamento';
 import Performance from './pages/Performance';
 import Limpador from './pages/Limpador';
 import MediaLibrary from './pages/MediaLibrary';
+import OAuthAccounts from './pages/OAuthAccounts';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -87,6 +88,7 @@ export default function App() {
               <Route path="/performance"    element={<Performance />} />
               <Route path="/limpador"       element={<Limpador />} />
               <Route path="/api-meta"       element={<ApiMeta />} />
+              <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"     element={<MediaLibrary />} />
             </Routes>
           </MainLayout>

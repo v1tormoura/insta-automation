@@ -61,10 +61,12 @@ exports.getAccounts = async (req, res) => {
       obj.hasTotpSecret    = !!obj.totpSecret;
       obj.hasPassword      = !!obj.password;
       obj.hasIgSession     = !!(obj.igSession || obj.rawWebSessionid);
+      obj.hasApiToken      = !!(obj.igUserId && obj.accessToken);
       delete obj.totpSecret;
       delete obj.password;
       delete obj.igSession;
       delete obj.rawWebSessionid;
+      delete obj.accessToken; // token nunca sai para o frontend
       return obj;
     });
 

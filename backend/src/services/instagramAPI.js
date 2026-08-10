@@ -26,6 +26,16 @@ const GRAPH_IG = 'https://graph.instagram.com/v21.0';  // Instagram Login tokens
 const GRAPH_FB = 'https://graph.facebook.com/v21.0';   // Facebook Login tokens
 const delay    = ms => new Promise(r => setTimeout(r, ms));
 
+// Transparent decrypt — no-op for plaintext tokens; decrypts enc1: tokens.
+// Lazy-loaded to avoid circular requires at module init time.
+let _decryptFn;
+function decryptToken(raw) {
+  try {
+    if (!_decryptFn) _decryptFn = require('./tokenEncryption').decrypt;
+    return _decryptFn(raw) || raw;
+  } catch { return raw; }
+}
+
 // Detect which Graph base to use based on token prefix.
 // IG Business Login tokens start with "IGAAL" or "IGQ" -> graph.instagram.com
 // FB Login tokens start with "EAA" -> graph.facebook.com
@@ -36,7 +46,8 @@ function graphBase(token) {
 
 // --- Low-level helpers ---------------------------------------------------
 
-async function gGet(endpoint, params = {}, token) {
+async function gGet(endpoint, params = {}, rawToken) {
+  const token = decryptToken(rawToken);
   const GRAPH = graphBase(token);
   const url = new URL(GRAPH + endpoint);
   url.searchParams.set('access_token', token);
@@ -48,7 +59,8 @@ async function gGet(endpoint, params = {}, token) {
   return d;
 }
 
-async function gPost(endpoint, params = {}, body = {}, token) {
+async function gPost(endpoint, params = {}, body = {}, rawToken) {
+  const token = decryptToken(rawToken);
   const GRAPH = graphBase(token);
   const url = new URL(GRAPH + endpoint);
   url.searchParams.set('access_token', token);

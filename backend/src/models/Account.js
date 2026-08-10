@@ -221,4 +221,33 @@ const accountSchema = new mongoose.Schema(
 accountSchema.index({ isBusy: 1, busySince: 1 });
 accountSchema.index({ healthStatus: 1 });
 
+// ─── Token encryption (transparent) ──────────────────────────────────────────
+// Getter decrypts on read; setter encrypts on write.
+// Plaintext tokens pass through unchanged (backward compatible).
+// Without ENCRYPTION_KEY: no-op — tokens stored as plaintext.
+
+const { encrypt: _encryptToken, decrypt: _decryptToken } = require('../services/tokenEncryption');
+
+accountSchema.path('accessToken')
+  .get(function (v) { try { return _decryptToken(v); } catch { return v; } })
+  .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
+
+// findByIdAndUpdate / updateOne bypass path setters → encrypt here
+accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (next) {
+  const u = this.getUpdate();
+  const raw = u?.accessToken ?? u?.$set?.accessToken;
+  if (raw && typeof raw === 'string') {
+    try {
+      const enc = _encryptToken(raw);
+      if (u.accessToken !== undefined)      u.accessToken      = enc;
+      if (u.$set?.accessToken !== undefined) u.$set.accessToken = enc;
+    } catch { /* leave as-is on error */ }
+  }
+  next();
+});
+
+// Ensure getters run on toObject / toJSON calls used by controllers
+accountSchema.set('toObject', { getters: true });
+accountSchema.set('toJSON',   { getters: true });
+
 module.exports = mongoose.model('Account', accountSchema);
