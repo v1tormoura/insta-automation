@@ -44,7 +44,8 @@ export default function MediaLibrary() {
       const res = await api.get('/media');
       const data = res.data;
       const allFiles = data.files || data || [];
-      const allFolders = data.folders || [...new Set(allFiles.map(f => f.folder).filter(f => f && f !== 'default'))].sort();
+      const rawFolders = data.folders || [...new Set(allFiles.map(f => f.folder).filter(Boolean))];
+      const allFolders = rawFolders.filter(f => f && f !== 'default');
       setFiles(allFiles);
       const merged = [...new Set(allFolders)].sort();
       setFolders(merged);
