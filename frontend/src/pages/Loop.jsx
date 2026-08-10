@@ -10,6 +10,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
+import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import './Loop.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -174,8 +175,15 @@ function LoopModal({ onClose, onCreated }) {
   const [hashtagCat,    setHashtagCat]    = useState(null);
   const [mediaSource,   setMediaSource]   = useState('upload');
   const [showLibPicker, setShowLibPicker] = useState(false);
+  const [ctaSuffix,     setCtaSuffixState] = useState(() => getCTASuffix());
   const fileInputRef  = useRef();
   const coverInputRef = useRef();
+
+  function updateCtaSuffix(patch) {
+    const next = { ...ctaSuffix, ...patch };
+    setCtaSuffixState(next);
+    setCTASuffix(next);
+  }
   const legendRef     = useRef();
 
   const [form, setForm] = useState({
@@ -257,7 +265,7 @@ function LoopModal({ onClose, onCreated }) {
     if (!intervalVal || intervalVal < 1) return setErr('Informe um intervalo válido (mínimo 1 minuto).');
     setSaving(true);
     try {
-      const res = await api.post('/loops', { ...form, intervalMinutes: intervalVal });
+      const res = await api.post('/loops', { ...form, caption: applyCTASuffix(form.caption, ctaSuffix), intervalMinutes: intervalVal });
       onCreated(res.data); onClose();
     } catch (ex) {
       setErr(ex.response?.data?.error || ex.message);
@@ -538,6 +546,26 @@ function LoopModal({ onClose, onCreated }) {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Sufixo automático na legenda */}
+          <div className="lm-row">
+            <div className="lm-row-hd">
+              <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={ctaSuffix.enabled} onChange={e => updateCtaSuffix({ enabled: e.target.checked })}
+                  style={{ accentColor: 'var(--cyan)', width: 14, height: 14 }} />
+                Sufixo automático na legenda
+              </label>
+            </div>
+            {ctaSuffix.enabled && (
+              <>
+                <textarea className="lm-input" rows={2}
+                  value={ctaSuffix.text}
+                  onChange={e => updateCtaSuffix({ text: e.target.value })}
+                  placeholder={'Ex: \n\n🔗 Link na bio'} />
+                <div className="lm-cta-hint">Adicionado ao final da legenda em cada publicação do loop</div>
+              </>
+            )}
           </div>
 
           {/* Comentário CTA */}

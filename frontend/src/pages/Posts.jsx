@@ -7,6 +7,7 @@ import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
+import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 
 /* ── Custom legend dropdown ── */
 function LegendDropdown({ legends, value, onChange }) {
@@ -187,6 +188,13 @@ export default function Posts() {
   const [legends, setLegends] = useState([]);
   const [selectedLegend, setSelectedLegend] = useState('');
   const [location, setLocation] = useState('');
+  const [ctaSuffix, setCtaSuffixState] = useState(() => getCTASuffix());
+
+  function updateCtaSuffix(patch) {
+    const next = { ...ctaSuffix, ...patch };
+    setCtaSuffixState(next);
+    setCTASuffix(next);
+  }
   const [retryingId, setRetryingId] = useState(null);
   const [retryingAll, setRetryingAll] = useState(false);
   const [postPage, setPostPage] = useState(1);
@@ -267,7 +275,7 @@ export default function Posts() {
       media.forEach(file => form.append('media', file));
     }
     if (cover) form.append('cover', cover);
-    form.append('caption', caption);
+    form.append('caption', applyCTASuffix(caption, ctaSuffix));
     if (location) form.append('location', location);
     form.append('postType', postType);
     form.append('accounts', JSON.stringify(selectedAccounts));
@@ -547,7 +555,30 @@ export default function Posts() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>Aleatória</button>
                 </div>
-                <div style={{ marginTop: 12, borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 12 }}>
+                {/* CTA sufixo automático */}
+                <div style={{ marginTop: 10, borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ctaSuffix.enabled ? 8 : 0 }}>
+                    <label style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                      <input type="checkbox" checked={ctaSuffix.enabled} onChange={e => updateCtaSuffix({ enabled: e.target.checked })}
+                        style={{ accentColor: 'var(--cyan)', width: 14, height: 14 }} />
+                      Sufixo automático na legenda
+                    </label>
+                    {ctaSuffix.enabled && (
+                      <span style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>adicionado ao final</span>
+                    )}
+                  </div>
+                  {ctaSuffix.enabled && (
+                    <textarea
+                      value={ctaSuffix.text}
+                      onChange={e => updateCtaSuffix({ text: e.target.value })}
+                      rows={2}
+                      placeholder={`Ex: \n\n🔗 Link na bio`}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid oklch(1 0 0 / 0.09)', background: 'oklch(0.10 0.03 235 / 0.8)', color: 'var(--text)', fontSize: 12, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    />
+                  )}
+                </div>
+
+                <div style={{ marginTop: 10, borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 10 }}>
                   <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     Localização (opcional)
