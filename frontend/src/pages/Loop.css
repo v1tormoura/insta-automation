@@ -519,9 +519,9 @@ select.lm-input   { cursor:pointer; }
 
 /* ── Media grid ── */
 .lm-grid {
-  display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:6px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(60px,1fr)); gap:5px;
   background:oklch(0.10 0.03 235 / 0.8); border:1px solid oklch(1 0 0 / 0.08);
-  border-radius:10px; padding:8px; max-height:420px; overflow-y:auto;
+  border-radius:10px; padding:6px; max-height:380px; overflow-y:auto;
   scrollbar-width:thin; scrollbar-color:oklch(1 0 0 / 0.08) transparent;
 }
 .lm-grid::-webkit-scrollbar { width:3px; }

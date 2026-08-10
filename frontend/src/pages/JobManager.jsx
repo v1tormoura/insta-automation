@@ -126,6 +126,14 @@ function AvatarStack({ accounts = [] }) {
   );
 }
 
+// ── Formata número compacto ────────────────────────────────────────────────
+function fmtN(n) {
+  if (!n) return '—';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0','') + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.0','') + 'K';
+  return String(n);
+}
+
 // ── Job card ────────────────────────────────────────────────────────────────
 function JobCard({ job, onAction }) {
   const isLoop      = job.type === 'loop';
@@ -133,9 +141,16 @@ function JobCard({ job, onAction }) {
   const isCompleted = job.status === 'completed';
   const isCancelled = ['cancelled', 'failed'].includes(job.status);
   const isPaused    = job.status === 'paused';
+  const API         = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  const totalProgress = job.postsTotal || (job.totalRounds * (job.accounts?.length || 1));
-  const pct = totalProgress > 0 ? Math.round((job.postsPublished / totalProgress) * 100) : 0;
+  const totalProgress  = job.postsTotal || (job.totalRounds * (job.accounts?.length || 1));
+  const pct            = totalProgress > 0 ? Math.round((job.postsPublished / totalProgress) * 100) : 0;
+  const mediaLen       = job.mediaFiles?.length || 0;
+  const cyclePos       = mediaLen > 0 ? (job.roundsCompleted % mediaLen) : 0;
+  const cyclePct       = mediaLen > 0 ? Math.round((cyclePos / mediaLen) * 100) : 0;
+
+  const mainAccount    = job.accounts?.[0];
+  const extraAccounts  = (job.accounts?.length || 0) - 1;
 
   return (
     <div style={{
@@ -144,7 +159,7 @@ function JobCard({ job, onAction }) {
       transition: 'border-color .15s',
       borderLeft: `3px solid ${STATUS[job.status]?.color || 'var(--border)'}`,
     }}>
-      {/* Header */}
+      {/* Header: nome + badges */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, justifyContent: 'space-between' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -163,23 +178,47 @@ function JobCard({ job, onAction }) {
           </div>
           <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
             Criado em {new Date(job.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-            {job.intervalMinutes > 0 && (
-              <span style={{ marginLeft: 8 }}>· intervalo {job.intervalMinutes}min</span>
-            )}
+            {job.intervalMinutes > 0 && <span style={{ marginLeft: 8 }}>· intervalo {job.intervalMinutes}min</span>}
           </div>
         </div>
       </div>
 
+      {/* Conta principal */}
+      {mainAccount && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '8px 10px' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '1.5px solid rgba(255,255,255,.1)', background: 'var(--bg3)' }}>
+            {mainAccount.avatar
+              ? <img src={mainAccount.avatar.startsWith('/uploads') ? `${API}${mainAccount.avatar}` : mainAccount.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display='none'; }} />
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--text2)' }}>{mainAccount.username?.[0]?.toUpperCase()}</div>
+            }
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {mainAccount.name || mainAccount.username}
+              {extraAccounts > 0 && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text3)', fontWeight: 400 }}>+{extraAccounts} conta(s)</span>}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>@{mainAccount.username}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+            {[
+              { label: 'seg', value: fmtN(mainAccount.followers) },
+              { label: 'seg.', value: fmtN(mainAccount.following) },
+              { label: 'posts', value: fmtN(mainAccount.postsCount) },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+                <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Stats row */}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text2)' }}>
           {ICONS.media}
-          <span>{job.mediaFiles?.length || 0} mídia(s)</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text2)' }}>
-          {ICONS.account}
-          <AvatarStack accounts={job.accounts || []} />
-          <span>{job.accounts?.length || 0} conta(s)</span>
+          <span>{mediaLen} mídia(s)</span>
         </div>
         {job.totalRounds > 0 && (
           <div style={{ fontSize: 12, color: 'var(--text2)' }}>
@@ -187,25 +226,28 @@ function JobCard({ job, onAction }) {
           </div>
         )}
         {job.postsPublished > 0 && (
-          <div style={{ fontSize: 12, color: '#22c55e' }}>
-            ✓ {job.postsPublished} publicado(s)
-          </div>
+          <div style={{ fontSize: 12, color: '#22c55e' }}>✓ {job.postsPublished} publicado(s)</div>
         )}
         {job.postsErrors > 0 && (
-          <div style={{ fontSize: 12, color: '#f87171' }}>
-            ✗ {job.postsErrors} erro(s)
-          </div>
+          <div style={{ fontSize: 12, color: '#f87171' }}>✗ {job.postsErrors} erro(s)</div>
         )}
       </div>
 
-      {/* Progress bar */}
-      {totalProgress > 0 && !isLoop && (
+      {/* Barra de progresso — post comum: absoluta; loop: ciclo atual */}
+      {!isLoop && totalProgress > 0 && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginBottom: 3 }}>
-            <span>Progresso</span>
-            <span>{pct}%</span>
+            <span>Progresso</span><span>{pct}%</span>
           </div>
           <ProgressBar published={job.postsPublished} total={totalProgress} errors={job.postsErrors} />
+        </div>
+      )}
+      {isLoop && mediaLen > 0 && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginBottom: 3 }}>
+            <span>Ciclo atual</span><span>{cyclePos}/{mediaLen} ({cyclePct}%)</span>
+          </div>
+          <ProgressBar published={cyclePos} total={mediaLen} errors={0} />
         </div>
       )}
 

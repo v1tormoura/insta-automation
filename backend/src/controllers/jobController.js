@@ -5,7 +5,7 @@ const Loop = require('../models/Loop');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
 
-const POPULATE_FIELDS = 'username avatar name healthStatus accountType';
+const POPULATE_FIELDS = 'username avatar name healthStatus accountType followers following postsCount';
 
 const LOOP_STATUS_MAP = {
   ativo:   'queued',

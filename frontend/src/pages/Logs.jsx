@@ -69,9 +69,9 @@ function EntryCard({ entry, i }) {
           {m.label}
         </span>
       </div>
-      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--text3)' }}>
-        <span><span>conta: </span><span style={{ color:'var(--text2)' }}>{entry.accounts}</span></span>
-        {entry.media   && <span><span>mídia: </span><span style={{ color:'var(--text2)' }}>{entry.media}</span></span>}
+      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--text3)', minWidth:0 }}>
+        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>conta: </span><span style={{ color:'var(--text2)' }}>{entry.accounts}</span></span>
+        {entry.media   && <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>mídia: </span><span style={{ color:'var(--text2)' }}>{entry.media}</span></span>}
         {entry.caption && <span><span>legenda: </span><span style={{ color:'var(--text2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
         {entry.error   && <span style={{ color:'#f87171' }}><span style={{ color:'var(--text3)' }}>erro: </span>{entry.error}</span>}
         {entry.results?.length > 0 && entry.results.map((r, j) => {

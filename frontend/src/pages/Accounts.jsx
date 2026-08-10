@@ -489,6 +489,10 @@ export default function Accounts() {
                           {hl}
                         </span>
                         <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'oklch(1 0 0 / 0.05)', color:'var(--text3)', letterSpacing:'.5px' }}>{accType}</span>
+                        <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                          style={{ fontSize:9, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'rgba(0,212,255,.08)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.2)', textDecoration:'none', whiteSpace:'nowrap', letterSpacing:'.3px' }}>
+                          Ver Perfil ↗
+                        </a>
                       </div>
                     </div>
                   </div>
