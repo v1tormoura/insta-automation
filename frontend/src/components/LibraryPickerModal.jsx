@@ -112,6 +112,17 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi' 
 
   const allFoldersForSidebar = folders.filter(f => f !== 'default');
 
+  const shownSelected = shown.filter(f => selected.has(f._id)).length;
+  const allShownSel   = shown.length > 0 && shownSelected === shown.length;
+
+  function toggleSelectAll() {
+    if (allShownSel) {
+      setSelected(prev => { const m = new Map(prev); shown.forEach(f => m.delete(f._id)); return m; });
+    } else {
+      setSelected(prev => { const m = new Map(prev); shown.forEach(f => m.set(f._id, f)); return m; });
+    }
+  }
+
   function confirm() {
     onConfirm(Array.from(selected.values()));
     onClose();
@@ -166,28 +177,49 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi' 
             </div>
 
             {/* Grid de arquivos */}
-            <div style={{ flex: 1, overflow: 'auto', padding: 12 }}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files); }}
-            >
-              {loading && <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 40 }}>Carregando...</div>}
-              {!loading && shown.length === 0 && (
-                <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 40 }}>
-                  <div style={{ fontSize: 32, marginBottom: 10 }}>📂</div>
-                  <div style={{ fontSize: 13 }}>Nenhuma mídia nesta pasta.</div>
-                  <div style={{ fontSize: 11, marginTop: 6 }}>Use o botão "Upload" para adicionar arquivos.</div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {/* Toolbar de seleção */}
+              {!loading && shown.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
+                    {shown.length} arquivo{shown.length !== 1 ? 's' : ''}
+                    {shownSelected > 0 && (
+                      <> · <span style={{ color: 'var(--cyan)', fontWeight: 700 }}>{shownSelected} sel.</span></>
+                    )}
+                  </span>
+                  <button type="button" onClick={toggleSelectAll}
+                    style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', transition: 'all .15s',
+                      border: `1px solid ${allShownSel ? 'rgba(248,113,113,.3)' : 'oklch(1 0 0 / 0.1)'}`,
+                      background: allShownSel ? 'rgba(248,113,113,.08)' : 'oklch(1 0 0 / 0.05)',
+                      color: allShownSel ? '#f87171' : 'var(--text2)',
+                    }}>
+                    {allShownSel ? 'Desmarcar todos' : 'Selecionar todos'}
+                  </button>
                 </div>
               )}
-              {dragOver && (
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,212,255,.1)', border: '2px dashed var(--cyan)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'var(--cyan)', pointerEvents: 'none', zIndex: 10 }}>
-                  Solte para fazer upload
+              <div style={{ flex: 1, overflow: 'auto', padding: 12, position: 'relative' }}
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files); }}
+              >
+                {loading && <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 40 }}>Carregando...</div>}
+                {!loading && shown.length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 40 }}>
+                    <div style={{ fontSize: 32, marginBottom: 10 }}>📂</div>
+                    <div style={{ fontSize: 13 }}>Nenhuma mídia nesta pasta.</div>
+                    <div style={{ fontSize: 11, marginTop: 6 }}>Use o botão "Upload" para adicionar arquivos.</div>
+                  </div>
+                )}
+                {dragOver && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,212,255,.1)', border: '2px dashed var(--cyan)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'var(--cyan)', pointerEvents: 'none', zIndex: 10 }}>
+                    Solte para fazer upload
+                  </div>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6 }}>
+                  {shown.map(file => (
+                    <FileThumb key={file._id} file={file} selected={selected.has(file._id)} onClick={() => toggle(file)} />
+                  ))}
                 </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6 }}>
-                {shown.map(file => (
-                  <FileThumb key={file._id} file={file} selected={selected.has(file._id)} onClick={() => toggle(file)} />
-                ))}
               </div>
             </div>
           </div>
