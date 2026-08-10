@@ -1059,14 +1059,12 @@ export default function Dashboard() {
       value: x.posts || 0,
       forecast: false,
     }));
-    // Use backend's "today" key to avoid timezone mismatch between client and server
     const todayISO = past.length > 0 ? past[past.length - 1].iso : new Date().toISOString().slice(0, 10);
     const futureMap = {};
     (d.upcomingPosts||[]).forEach(post => {
       let iso;
       try { iso = post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 10) : todayISO; }
       catch { iso = todayISO; }
-      // Each account in the post = 1 publication on Instagram
       const count = post.accounts?.length || 1;
       futureMap[iso] = (futureMap[iso]||0) + count;
     });
@@ -1078,7 +1076,15 @@ export default function Dashboard() {
         past.push({ day: dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }), iso, value, forecast: true });
       }
     });
-    return past;
+    // Separa em duas séries para colorir publicado (azul) e previsto (laranja)
+    return past.map((p, i, arr) => {
+      const isJunction = !p.forecast && (i === arr.length - 1 || arr[i + 1]?.forecast);
+      return {
+        ...p,
+        published:  !p.forecast ? p.value : null,
+        forecasted: p.forecast  ? p.value : (isJunction ? p.value : null),
+      };
+    });
   }, [d.dailyPosts, d.upcomingPosts, period]);
 
   const queueItems = [
@@ -1225,8 +1231,9 @@ export default function Dashboard() {
                           </defs>
                           <XAxis dataKey="day" tick={{ fontSize:10, fill:'var(--text3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                           <YAxis allowDecimals={false} tick={{ fontSize:10, fill:'var(--text3)' }} tickLine={false} axisLine={false} />
-                          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--text)' }} formatter={(v, n, p) => [v, p.payload?.forecast ? 'Previsto' : 'Publicado']} />
-                          <Area type="monotone" dataKey="value" stroke="var(--cyan)" strokeWidth={2} fill="url(#fg-chart)" dot={false} activeDot={{ r:4, fill:'var(--cyan)' }} />
+                          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--text)' }} formatter={(v, name) => [v, name === 'published' ? 'Publicado' : 'Previsto']} />
+                          <Area type="monotone" dataKey="published"  stroke="var(--cyan)" strokeWidth={2} fill="url(#fg-chart)"       dot={false} activeDot={{ r:4, fill:'var(--cyan)' }} connectNulls={false} />
+                          <Area type="monotone" dataKey="forecasted" stroke="#f59e0b"      strokeWidth={2} fill="url(#fg-chart-amber)" dot={false} activeDot={{ r:4, fill:'#f59e0b'      }} connectNulls={false} strokeDasharray="5 3" />
                         </AreaChart>
                       )}
                     </div>

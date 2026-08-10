@@ -583,7 +583,7 @@ exports.getLivePosts = async (req, res) => {
     const sel = 'username avatar';
 
     const BANNED_LIVE = ['banida', 'banido'];
-    const [processing, legacyQueue, errors, completed, activeJobsLiveRaw] = await Promise.all([
+    const [legacyProcessing, legacyQueue, errors, completed, activeJobsLiveRaw] = await Promise.all([
       Post.find({ status: 'processando' })
         .populate('accounts', sel).sort({ updatedAt: -1 }).limit(10).lean(),
       Post.find({ status: { $in: ['pendente', 'agendado'] } })
@@ -599,6 +599,19 @@ exports.getLivePosts = async (req, res) => {
     const activeJobsLive = activeJobsLiveRaw.filter(job =>
       job.accounts?.some(acc => acc && !BANNED_LIVE.includes(acc.healthStatus))
     );
+
+    const runningJobs = activeJobsLive
+      .filter(j => j.status === 'running')
+      .map(j => ({
+        _id:      j._id,
+        accounts: j.accounts,
+        caption:  j.caption || j.name || '',
+        status:   'processando',
+        updatedAt: j.updatedAt,
+        error:    j.lastError || '',
+      }));
+
+    const processing = [...legacyProcessing, ...runningJobs].slice(0, 10);
 
     const queue = [...legacyQueue, ...jobsToUpcomingPosts(activeJobsLive)]
       .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
