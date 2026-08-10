@@ -178,7 +178,15 @@ function LoopModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     name: '', accounts: [], mediaFiles: [],
     type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '', engageComment: '',
+    processMode: 'limpeza_leve',
   });
+
+  const processModes = [
+    { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'SAFE',  desc: 'Posta o vídeo original, sem alterar nada',             color: '#10b981' },
+    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'RECOM', desc: 'Remove metadados e gera hash diferente',                color: '#3b82f6' },
+    { id: 'ultra_clean',  label: 'Ultra Clean',  tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo',            color: '#8b5cf6' },
+    { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + pitch áudio + CRF aleatório',        color: '#f59e0b' },
+  ];
 
   useEffect(() => {
     api.get('/accounts').then(r => setAccounts(r.data?.accounts || r.data || [])).catch(() => {});
@@ -517,6 +525,28 @@ function LoopModal({ onClose, onCreated }) {
                 <div className="lm-cta-hint">Postado ~60 min após publicar</div>
               </>
             )}
+          </div>
+
+          {/* Modo de processamento */}
+          <div className="lm-row">
+            <label className="lm-label">Modo de processamento</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+              {processModes.map(m => (
+                <div key={m.id} onClick={() => setForm(f => ({ ...f, processMode: m.id }))}
+                  style={{
+                    padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid',
+                    background: form.processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
+                    borderColor: form.processMode === m.id ? `${m.color}44` : 'oklch(1 0 0 / 0.07)',
+                    transition: 'all .15s',
+                  }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: form.processMode === m.id ? m.color : 'var(--text)' }}>{m.label}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color, fontFamily: 'var(--font-mono)' }}>{m.tag}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{m.desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Hashtags para viralizar */}

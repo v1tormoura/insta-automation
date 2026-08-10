@@ -109,7 +109,7 @@ exports.list = async (req, res) => {
 /* ── Criar loop (Job-based) ── */
 exports.create = async (req, res) => {
   try {
-    const { name, accounts, mediaFiles, type, intervalMinutes, caption, coverFile, ctaComment, engageComment } = req.body;
+    const { name, accounts, mediaFiles, type, intervalMinutes, caption, coverFile, ctaComment, engageComment, processMode } = req.body;
 
     if (!accounts?.length)   return res.status(400).json({ error: 'Selecione ao menos uma conta' });
     if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
@@ -128,6 +128,7 @@ exports.create = async (req, res) => {
       cover:             coverFile     || '',
       ctaComment:        ctaComment    || '',
       engageComment:     engageComment || '',
+      processMode:       processMode   || 'limpeza_leve',
       intervalMinutes:   Number(intervalMinutes),
       simultaneousLimit: 1,
       currentRound:      0,
