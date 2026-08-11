@@ -233,7 +233,7 @@ accountSchema.path('accessToken')
   .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
 
 // findByIdAndUpdate / updateOne bypass path setters → encrypt here
-accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (next) {
+accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], async function () {
   const u = this.getUpdate();
   const raw = u?.accessToken ?? u?.$set?.accessToken;
   if (raw && typeof raw === 'string') {
@@ -243,7 +243,6 @@ accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (nex
       if (u.$set?.accessToken !== undefined) u.$set.accessToken = enc;
     } catch { /* leave as-is on error */ }
   }
-  next();
 });
 
 // Ensure getters run on toObject / toJSON calls used by controllers
