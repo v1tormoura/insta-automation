@@ -175,8 +175,9 @@ function LoopModal({ onClose, onCreated }) {
   const [err,           setErr]           = useState('');
   const [hashtagCat,    setHashtagCat]    = useState(null);
   const [mediaSource,   setMediaSource]   = useState('upload');
-  const [showLibPicker, setShowLibPicker] = useState(false);
-  const [ctaSuffix,     setCtaSuffixState] = useState(() => getCTASuffix());
+  const [showLibPicker,   setShowLibPicker]   = useState(false);
+  const [showCoverPicker, setShowCoverPicker] = useState(false);
+  const [ctaSuffix,       setCtaSuffixState]  = useState(() => getCTASuffix());
   const fileInputRef  = useRef();
   const coverInputRef = useRef();
 
@@ -368,6 +369,18 @@ function LoopModal({ onClose, onCreated }) {
               }}
             />
           )}
+
+          {showCoverPicker && (
+            <LibraryPickerModal
+              mode="single"
+              accept="image"
+              onClose={() => setShowCoverPicker(false)}
+              onConfirm={items => {
+                if (items[0]) setForm(f => ({ ...f, coverFile: items[0].filename }));
+                setShowCoverPicker(false);
+              }}
+            />
+          )}
           <div className="lm-section">
             <div className="lm-section-hd">
               <div className="lm-section-hd-l">
@@ -478,8 +491,11 @@ function LoopModal({ onClose, onCreated }) {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <span className="lm-label">Capa dos Reels (opcional)</span>
               </div>
+              <button type="button" className="lm-upload-btn" onClick={() => setShowCoverPicker(true)}>
+                <Film size={11} /> Da biblioteca
+              </button>
               <button type="button" className="lm-upload-btn" onClick={() => coverInputRef.current?.click()}>
-                <Upload size={11} /> Enviar capa
+                <Upload size={11} /> Upload
               </button>
               <input ref={coverInputRef} type="file" accept="image/*" hidden
                 onChange={e => handleUpload(e.target.files, true)} />

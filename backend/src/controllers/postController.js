@@ -60,7 +60,7 @@ exports.createPost = async (req, res) => {
       mediaFiles:        mediaFilenames,
       postType,
       caption:           req.body.caption       || '',
-      cover:             coverFile ? coverFile.filename : '',
+      cover:             coverFile ? coverFile.filename : (req.body.coverFilename || ''),
       ctaComment:        req.body.ctaComment     || '',
       engageComment:     req.body.engageComment  || '',
       processMode:       req.body.processMode    || 'limpeza_leve',

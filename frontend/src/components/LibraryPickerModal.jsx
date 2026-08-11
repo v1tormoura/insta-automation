@@ -52,7 +52,7 @@ function FileThumb({ file, selected, onClick }) {
   );
 }
 
-export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi' }) {
+export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi', accept = 'all' }) {
   const [files,     setFiles]     = useState([]);
   const [folders,   setFolders]   = useState([]);
   const [activeFolder, setActive] = useState(null);
@@ -101,7 +101,8 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi' 
 
   const shown = files.filter(f =>
     !f.filename?.startsWith('__folder_') &&
-    (!activeFolder || (f.folder || 'default') === activeFolder)
+    (!activeFolder || (f.folder || 'default') === activeFolder) &&
+    (accept === 'all' || f.type === accept)
   );
 
   const folderCounts = {};

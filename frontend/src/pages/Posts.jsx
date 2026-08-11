@@ -179,6 +179,8 @@ export default function Posts() {
   const [caption, setCaption] = useState('');
   const [media, setMedia] = useState([]);
   const [cover, setCover] = useState(null);
+  const [coverLibFile, setCoverLibFile] = useState(null);
+  const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [scheduledAt, setScheduledAt] = useState('');
   const [intervalMins, setIntervalMins] = useState(0);
@@ -275,6 +277,7 @@ export default function Posts() {
       media.forEach(file => form.append('media', file));
     }
     if (cover) form.append('cover', cover);
+    else if (coverLibFile) form.append('coverFilename', coverLibFile.filename);
     form.append('caption', applyCTASuffix(caption, ctaSuffix));
     if (location) form.append('location', location);
     form.append('postType', postType);
@@ -394,6 +397,16 @@ export default function Posts() {
                 })}
               />
             )}
+
+            {/* Picker de capa da biblioteca */}
+            {showCoverPicker && (
+              <LibraryPickerModal
+                mode="single"
+                accept="image"
+                onClose={() => setShowCoverPicker(false)}
+                onConfirm={items => { if (items[0]) { setCoverLibFile(items[0]); setCover(null); } setShowCoverPicker(false); }}
+              />
+            )}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Mídia</h3>
@@ -510,17 +523,34 @@ export default function Posts() {
                 <span style={{ fontSize: '.73rem', color: 'var(--text3)' }}>Opcional — aplica a todos</span>
               </div>
               <div style={cardBodyStyle}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px', background: 'oklch(0.10 0.03 235 / 0.6)', borderRadius: 10, border: '1px dashed oklch(1 0 0 / 0.1)', cursor: 'pointer', flexWrap: 'wrap' }}>
-                  <input type="file" accept="image/*" style={{ display: 'none' }}
-                    onChange={e => setCover(e.target.files?.[0] || null)} />
-                  <div style={{ color: cover ? '#60a5fa' : 'var(--text3)' }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                {/* Botões de origem */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <button type="button"
+                    onClick={() => setShowCoverPicker(true)}
+                    style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid oklch(1 0 0 / 0.1)', background: coverLibFile ? 'rgba(0,212,255,.08)' : 'oklch(1 0 0 / 0.04)', color: coverLibFile ? 'var(--cyan)' : 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    {coverLibFile ? coverLibFile.filename.slice(0, 18) + '…' : 'Da biblioteca'}
+                  </button>
+                  <label style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid oklch(1 0 0 / 0.1)', background: cover ? 'rgba(96,165,250,.08)' : 'oklch(1 0 0 / 0.04)', color: cover ? '#60a5fa' : 'var(--text2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}>
+                    <input type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={e => { setCover(e.target.files?.[0] || null); setCoverLibFile(null); }} />
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    {cover ? cover.name.slice(0, 18) + '…' : 'Upload'}
+                  </label>
+                </div>
+                {/* Preview / estado vazio */}
+                {(cover || coverLibFile) ? (
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    {cover
+                      ? <img src={URL.createObjectURL(cover)} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid oklch(1 0 0 / 0.1)' }} />
+                      : <img src={`${API_URL}/uploads/${coverLibFile.filename}`} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid oklch(1 0 0 / 0.1)' }} />
+                    }
+                    <button type="button" onClick={() => { setCover(null); setCoverLibFile(null); }}
+                      style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: cover ? '#60a5fa' : 'var(--text2)' }}>{cover ? cover.name : 'Faça upload de uma imagem 1080×1920'}</div>
-                    {cover && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Clique para trocar</div>}
-                  </div>
-                </label>
+                ) : (
+                  <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Sem capa — usa o primeiro frame do vídeo</div>
+                )}
               </div>
             </div>
 
