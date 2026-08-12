@@ -592,13 +592,14 @@ export default function Accounts() {
             <motion.div
               initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
               style={{
-                position:'fixed', bottom:28, left:'50%', transform:'translateX(-50%)',
+                position:'fixed', bottom:'calc(28px + env(safe-area-inset-bottom, 0px))', left:'50%', transform:'translateX(-50%)',
                 background:'oklch(0.18 0.06 235 / 0.97)',
                 border:'1px solid oklch(1 0 0 / 0.15)',
                 borderRadius:16, padding:'10px 16px',
-                display:'flex', alignItems:'center', gap:10,
+                display:'flex', alignItems:'center', gap:10, flexWrap:'wrap',
                 boxShadow:'0 8px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(99,102,241,.22)',
-                backdropFilter:'blur(12px)', zIndex:100, whiteSpace:'nowrap',
+                backdropFilter:'blur(12px)', zIndex:100,
+                maxWidth:'calc(100vw - 32px)',
               }}
             >
               <span style={{ fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'#818cf8',

@@ -152,7 +152,7 @@ function HourBars({ hours, peakHour }) {
 function HeatRow({ hours, peakHour }) {
   const maxV=Math.max(...hours.map(h=>h.avgEngagement),1);
   return (
-    <div style={{display:'grid',gridTemplateColumns:'repeat(24,1fr)',gap:2}}>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(24,1fr)',gap:2,minWidth:240}}>
       {hours.map(h=>{
         const i=h.avgEngagement/maxV;
         const isPeak=h.hour===peakHour;
@@ -279,7 +279,7 @@ function AccountCard({ a, idx }) {
       </div>
 
       {/* Heat row */}
-      <div style={{padding:'8px 22px 14px'}}>
+      <div style={{padding:'8px 22px 14px', overflowX:'auto'}}>
         <HeatRow hours={a.hours} peakHour={a.peakHour}/>
       </div>
 

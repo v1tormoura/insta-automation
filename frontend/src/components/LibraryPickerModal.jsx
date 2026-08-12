@@ -138,7 +138,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
       >
         <motion.div
           initial={{ opacity: 0, y: 24, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }}
-          style={{ background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid oklch(1 0 0 / 0.1)', borderRadius: 16, width: 'min(820px, 100%)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px oklch(0 0 0 / .6)' }}
+          style={{ background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid oklch(1 0 0 / 0.1)', borderRadius: 16, width: 'min(820px, 100%)', maxHeight: 'min(90dvh,90vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px oklch(0 0 0 / .6)' }}
         >
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid oklch(1 0 0 / 0.08)', flexShrink: 0 }}>
@@ -153,10 +153,10 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
           </div>
 
           {/* Body */}
-          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <div className="lib-picker-body">
             {/* Sidebar pastas */}
-            <div style={{ width: 170, borderRight: '1px solid oklch(1 0 0 / 0.07)', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
-              <div style={{ padding: '10px 10px 6px', fontSize: 9, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', fontFamily: 'var(--font-mono)' }}>Pastas</div>
+            <div className="lib-picker-sidebar">
+              <div className="lib-picker-sidebar-label" style={{ padding: '10px 10px 6px', fontSize: 9, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', fontFamily: 'var(--font-mono)' }}>Pastas</div>
               {allFoldersForSidebar.map(f => (
                 <button key={f} type="button" onClick={() => setActive(f)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', margin: '0 6px 2px', borderRadius: 7, cursor: 'pointer', border: 'none', textAlign: 'left',
@@ -169,7 +169,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
                 </button>
               ))}
               {/* Upload na sidebar */}
-              <div style={{ marginTop: 'auto', padding: '10px 8px', borderTop: '1px solid oklch(1 0 0 / 0.07)' }}>
+              <div className="lib-picker-sidebar-upload" style={{ marginTop: 'auto', padding: '10px 8px', borderTop: '1px solid oklch(1 0 0 / 0.07)' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 8, cursor: uploading ? 'wait' : 'pointer', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.2)', color: 'var(--cyan)', fontSize: 11, fontWeight: 600 }}>
                   <input type="file" multiple accept="image/*,video/*" hidden onChange={e => uploadFiles(e.target.files)} />
                   {uploading ? '⏳ Enviando...' : '⬆ Upload'}
@@ -198,7 +198,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
                   </button>
                 </div>
               )}
-              <div style={{ flex: 1, overflow: 'auto', padding: 12, position: 'relative' }}
+              <div style={{ flex: 1, overflow: 'auto', padding: 12, position: 'relative', overscrollBehavior: 'contain' }}
                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={e => { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files); }}

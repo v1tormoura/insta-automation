@@ -72,7 +72,7 @@ export default function ABTest() {
         </div>
       )}
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:14, alignItems:'start' }}>
+      <div className="layout-form-2col" style={{ gap:14 }}>
         {/* Left — tests list */}
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {loading && <div style={{ ...cardStyle, padding:20, textAlign:'center', color:'var(--text3)', fontSize:13 }}>Carregando...</div>}

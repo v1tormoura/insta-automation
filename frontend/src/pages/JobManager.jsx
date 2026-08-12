@@ -454,7 +454,7 @@ export default function JobManager() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px,100%), 1fr))', gap: 14 }}>
           {filtered.map(job => (
             <JobCard
               key={job._id}

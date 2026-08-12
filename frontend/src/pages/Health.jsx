@@ -326,23 +326,25 @@ export default function Health() {
 
       {/* Filters */}
       <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:18, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', gap:4, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
-          {[
-            { v:'all',      l:'Todas' },
-            { v:'saudavel', l:'Saudáveis' },
-            { v:'atencao',  l:'Atenção' },
-            { v:'risco',    l:'Risco' },
-            { v:'banida',   l:'Banidas' },
-          ].map(f => (
-            <button key={f.v} onClick={() => setFilter(f.v)} style={{
-              height:28, padding:'0 12px', borderRadius:7, border:'none', cursor:'pointer', fontWeight:600, fontSize:'.78rem',
-              background: filter === f.v ? '#6366f1' : 'transparent',
-              color:      filter === f.v ? '#fff'    : 'var(--text3)',
-              transition: 'all .15s',
-            }}>{f.l}</button>
-          ))}
+        <div className="pill-scroll-x" style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', gap:4, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3, width:'max-content' }}>
+            {[
+              { v:'all',      l:'Todas' },
+              { v:'saudavel', l:'Saudáveis' },
+              { v:'atencao',  l:'Atenção' },
+              { v:'risco',    l:'Risco' },
+              { v:'banida',   l:'Banidas' },
+            ].map(f => (
+              <button key={f.v} onClick={() => setFilter(f.v)} style={{
+                height:28, padding:'0 12px', borderRadius:7, border:'none', cursor:'pointer', fontWeight:600, fontSize:'.78rem',
+                background: filter === f.v ? '#6366f1' : 'transparent',
+                color:      filter === f.v ? '#fff'    : 'var(--text3)',
+                transition: 'all .15s',
+              }}>{f.l}</button>
+            ))}
+          </div>
         </div>
-        <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
+        <span style={{ flexShrink:0, fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
           {filtered.length}/{data.accounts.length} · 10s
         </span>
       </div>

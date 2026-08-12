@@ -896,11 +896,11 @@ export default function TopPosts() {
       {/* Sticky selection bar */}
       {selectMode && selectedIds.size > 0 && (
         <div style={{
-          position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)',
+          position:'fixed', bottom:'calc(24px + env(safe-area-inset-bottom, 0px))', left:'50%', transform:'translateX(-50%)',
           background:'rgba(8,20,44,.97)', border:'1px solid rgba(36,201,255,.4)',
-          borderRadius:14, padding:'14px 24px', display:'flex', alignItems:'center', gap:16,
+          borderRadius:14, padding:'14px 20px', display:'flex', alignItems:'center', gap:12,
           boxShadow:'0 8px 40px rgba(0,0,0,.5)', backdropFilter:'blur(12px)', zIndex:500,
-          minWidth:360,
+          maxWidth:'calc(100vw - 32px)', width:'max-content',
         }}>
           <span style={{ fontSize:13, color:'#d9f4ff', fontWeight:600 }}>
             <strong style={{ color:'#22d7ff' }}>{selectedIds.size}</strong> post{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}

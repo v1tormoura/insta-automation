@@ -113,7 +113,7 @@ export default function Proxies() {
       <PageShell icon={pageIcon} title="Proxy Manager" subtitle="Gerencie proxies por conta, teste conexão e aplique em massa." accent="cyan" actions={pageActions}>
 
         {/* Stats */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:14 }}>
+        <div className="resp-grid-5" style={{ marginBottom:14 }}>
           {STATS.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
               style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>

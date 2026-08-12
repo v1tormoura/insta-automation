@@ -81,7 +81,7 @@ export default function Sessions() {
       <PageShell icon={pageIcon} title="Sessões" subtitle="Monitore sessões salvas, expiradas e contas que precisam de login." accent="purple" actions={pageActions}>
 
         {/* Stats */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10, marginBottom:14 }}>
+        <div className="resp-grid-5" style={{ marginBottom:14 }}>
           {STATS.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
               style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>

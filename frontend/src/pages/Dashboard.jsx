@@ -1324,7 +1324,7 @@ export default function Dashboard() {
               {topInsights.length === 0 ? (
                 <div style={{ padding:'20px 0', textAlign:'center', fontSize:12, color:'var(--text3)' }}>Nenhum insight sincronizado. Clique em SYNC para importar.</div>
               ) : (
-                <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(topInsights.length,6)},1fr)`, gap:10 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(130px,100%),1fr))', gap:10 }}>
                   {topInsights.slice(0,6).map((ins,i) => (
                     <Link key={ins._id} to="/top-posts" style={{ textDecoration:'none' }}>
                       <InsightThumb ins={ins} rank={i} />

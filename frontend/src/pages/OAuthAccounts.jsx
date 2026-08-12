@@ -325,19 +325,21 @@ export default function OAuthAccounts() {
         <input
           type="text" placeholder="Buscar por @usuário ou nome..." value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 12 }}
+          style={{ flex: 1, minWidth: 0, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 12 }}
         />
-        <div style={{ display: 'flex', gap: 4 }}>
-          {FILTERS.map(f => (
-            <button key={f.id} onClick={() => setFilter(f.id)}
-              style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: filter === f.id ? 700 : 400, cursor: 'pointer', transition: '.15s',
-                background: filter === f.id ? 'rgba(0,212,255,.15)' : 'transparent',
-                border: filter === f.id ? '1px solid rgba(0,212,255,.3)' : '1px solid var(--border)',
-                color: filter === f.id ? 'var(--cyan)' : 'var(--text2)',
-              }}>
-              {f.label}
-            </button>
-          ))}
+        <div className="pill-scroll-x" style={{ flex:'0 0 auto', maxWidth:'100%' }}>
+          <div style={{ display: 'flex', gap: 4, width: 'max-content' }}>
+            {FILTERS.map(f => (
+              <button key={f.id} onClick={() => setFilter(f.id)}
+                style={{ padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: filter === f.id ? 700 : 400, cursor: 'pointer', transition: '.15s',
+                  background: filter === f.id ? 'rgba(0,212,255,.15)' : 'transparent',
+                  border: filter === f.id ? '1px solid rgba(0,212,255,.3)' : '1px solid var(--border)',
+                  color: filter === f.id ? 'var(--cyan)' : 'var(--text2)',
+                }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -145,7 +145,7 @@ export default function MediaLibrary() {
       <Toast toast={toast} onClose={() => setToast(null)} />
       <PageShell icon={pageIcon} title="Biblioteca de Mídias" subtitle="Organize seus vídeos e imagens em pastas para reutilizar nas postagens." accent="purple" actions={pageActions}>
 
-        <div style={{ display:'grid', gridTemplateColumns:'220px 1fr', gap:14, alignItems:'start' }}>
+        <div className="layout-media-lib">
 
           {/* Sidebar de pastas */}
           <div style={{ background:'oklch(0.12 0.04 235 / 0.8)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', position:'sticky', top:20 }}>
