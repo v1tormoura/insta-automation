@@ -161,9 +161,18 @@ function convertToReelFormat(inputPath, options = {}) {
     console.log(`   Entrada: ${path.basename(inputPath)} (${w}×${h})`);
     console.log(`   Saída: ${path.basename(outputPath)}`);
 
-    // limpeza_leve, ultra_clean e humanizador removem todos os metadados do container
+    // limpeza_leve, ultra_clean e humanizador removem 100% dos metadados:
+    // container (-map_metadata -1), streams (-map_metadata:s -1), capítulos (-map_chapters -1),
+    // tags do muxer como creation_time/encoder (-fflags +bitexact),
+    // SEI user_data_unregistered do x264 no bitstream (-x264opts no-info=1)
     const metadataOpts = (processMode === 'limpeza_leve' || processMode === 'ultra_clean' || processMode === 'humanizador')
-      ? ['-map_metadata', '-1']
+      ? [
+          '-map_metadata', '-1',
+          '-map_metadata:s', '-1',
+          '-map_chapters', '-1',
+          '-fflags', '+bitexact',
+          '-x264opts', 'no-info=1',
+        ]
       : [];
 
     // Humanizador: CRF aleatório (17–20) para encoding ligeiramente diferente a cada vez
@@ -187,11 +196,11 @@ function convertToReelFormat(inputPath, options = {}) {
         '-ac', '2',                     // Stereo
         '-movflags', '+faststart',      // Streaming progressivo
         '-pix_fmt', 'yuv420p',
-        '-metadata:s:v:0', 'rotate=0', // Força orientação correta
+        ...metadataOpts,               // limpa tudo primeiro
+        '-metadata:s:v:0', 'rotate=0', // re-adiciona só a rotação (necessário para playback)
         '-avoid_negative_ts', 'make_zero',
         '-max_muxing_queue_size', '9999',
         ...audioFilterOpts,
-        ...metadataOpts,
       ])
       .on('start', cmd => console.log(`   FFmpeg: ${cmd.slice(0, 120)}...`))
       .on('progress', p => {
@@ -218,6 +227,7 @@ function convertToReelFormat(inputPath, options = {}) {
               '-ar', '44100',
               '-movflags', '+faststart',
               '-pix_fmt', 'yuv420p',
+              ...metadataOpts,
             ])
             .on('end', () => { console.log('✅ Fallback OK'); resolve(fallbackPath); })
             .on('error', e2 => reject(e2))
