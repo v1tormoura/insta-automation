@@ -415,7 +415,7 @@ select.lm-input   { cursor:pointer; }
   background:oklch(1 0 0 / 0.015);
 }
 .lm-section-hd {
-  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
 }
 .lm-section-hd-l {
   display:flex; align-items:center; gap:7px; flex:1; min-width:0;

@@ -204,6 +204,8 @@ export default function Stories() {
                     display: 'grid',
                     gridTemplateColumns: gridMode ? undefined : '1fr',
                     gap: 10, maxHeight: 330, overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                    WebkitOverflowScrolling: 'touch',
                   }}>
                   {medias.map(m => gridMode ? (
                     <div key={m.id} onClick={() => toggleMedia(m.id)} style={{
@@ -252,7 +254,7 @@ export default function Stories() {
               )}
 
               {/* Footer */}
-              <div style={{ height: 54, borderTop: '1px solid oklch(1 0 0 / 0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 19px', marginTop: medias.length > 0 ? 0 : 4 }}>
+              <div style={{ minHeight: 54, borderTop: '1px solid oklch(1 0 0 / 0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 19px', flexWrap: 'wrap', gap: 8, marginTop: medias.length > 0 ? 0 : 4 }}>
                 <span style={{ fontSize: 11, color: 'var(--cyan)', fontFamily: 'var(--font-mono)' }}>{selectedMedia.length} selecionadas</span>
                 <div style={{ display: 'flex', gap: 20 }}>
                   <button onClick={clearSelection} style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Limpar seleção</button>

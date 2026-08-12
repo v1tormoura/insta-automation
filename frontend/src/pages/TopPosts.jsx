@@ -124,7 +124,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
           </p>
         )}
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(55px,100%), 1fr))', gap:6 }}>
           {metrics.map(({ label, val }) => (
             <div key={label} style={{ background:'rgba(2,12,28,.6)', borderRadius:8, padding:'6px 8px', textAlign:'center' }}>
               <div style={{ fontSize:14, fontWeight:700, color:'#d9f4ff' }}>{fmtK(val)}</div>
@@ -439,7 +439,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           {/* Left: thumbnail grid */}
           <div style={{ padding:'18px 18px', borderRight:'1px solid rgba(51,65,85,.25)', maxHeight:520, overflowY:'auto' }}>
             <div style={{ fontSize:11, fontWeight:600, color:'#5a7a99', marginBottom:10, letterSpacing:'.06em' }}>POSTS SELECIONADOS ({insArray.length})</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(90px,100%), 1fr))', gap:8 }}>
               {insArray.map((ins, i) => {
                 const [imgErr, setImgErr] = useState(false);
                 const src = !imgErr ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : null;

@@ -1168,6 +1168,8 @@ table { table-layout: auto; }
   flex-shrink: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 @media (max-width: 640px) {
   .lib-picker-body { flex-direction: column; }
@@ -1204,3 +1206,41 @@ table { table-layout: auto; }
   scrollbar-width: none;
 }
 .pill-scroll-x::-webkit-scrollbar { display: none; }
+
+/* ════════════════════════════════════════════════════════
+   FASE 2B — responsive utilities
+   ════════════════════════════════════════════════════════ */
+
+/* H9 — Ranking rows: fixed columns → responsive */
+.ranking-row {
+  display: grid;
+  grid-template-columns: 48px 60px 1fr 80px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+@media (max-width: 560px) {
+  .ranking-row {
+    grid-template-columns: 36px 48px 1fr 68px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+}
+
+/* H7 — Sticky first column for scrollable tables */
+.tbl-sticky-first {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tbl-sticky-first th:first-child,
+.tbl-sticky-first td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: oklch(0.14 0.04 235);
+}
+
+/* H6 — Hide non-critical columns on narrow mobile */
+@media (max-width: 640px) {
+  .col-mob-hide { display: none !important; }
+}

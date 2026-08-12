@@ -136,6 +136,8 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
         maxHeight: 264,
         overflowY: 'auto',
         paddingRight: 2,
+        overscrollBehavior: 'contain',
+        WebkitOverflowScrolling: 'touch',
       }}>
         {filtered.length === 0 && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px 0', color: 'var(--text3)', fontSize: 12 }}>

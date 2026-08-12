@@ -360,6 +360,7 @@ export default function Posts() {
   const cardHdStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)',
+    flexWrap: 'wrap', rowGap: 4,
   };
   const cardH3Style = { fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 };
   const cardBodyStyle = { padding: '14px 16px' };

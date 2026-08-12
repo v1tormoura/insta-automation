@@ -143,12 +143,11 @@ export default function Ranking() {
             return (
               <motion.div
                 key={post._id}
+                className="ranking-row"
                 initial={{ opacity:0, y:6 }}
                 animate={{ opacity:1, y:0 }}
                 transition={{ delay: i * 0.025, duration: 0.2 }}
                 style={{
-                  display:'grid', gridTemplateColumns:'48px 60px 1fr 80px',
-                  alignItems:'center', gap:12, padding:'10px 16px',
                   borderBottom: i < posts.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none',
                   transition:'background .12s', cursor:'default',
                 }}
@@ -174,7 +173,7 @@ export default function Ranking() {
 
                 {/* Info + bar */}
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--text)', marginBottom:5 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--text)', marginBottom:5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     @{post.username || post.accountId}
                     <span style={{ marginLeft:8, fontSize:9, fontWeight:600, padding:'1px 6px', borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', color:'var(--text3)' }}>
                       {post.mediaType === 'VIDEO' ? 'Reel' : post.mediaType === 'CAROUSEL_ALBUM' ? 'Carrossel' : 'Foto'}

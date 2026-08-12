@@ -681,7 +681,7 @@ function PostagensTable({ stats }) {
         <span style={{ color:'var(--cyan)', fontWeight:700 }}>{fmt(totals['7d'])}</span> em 7d ·&nbsp;
         <span style={{ color:'var(--cyan)', fontWeight:700 }}>{fmt(totals['30d'])}</span> em 30d
       </div>
-      <div style={{ overflowX:'auto' }}>
+      <div className="tbl-sticky-first">
         <table style={{ width:'100%', borderCollapse:'collapse', minWidth:520 }}>
           <thead>
             <tr>
@@ -738,7 +738,7 @@ function PerformanceTable({ stats }) {
           <span style={{ color:'var(--text3)', fontSize:11 }}>Sucesso <strong style={{ color:'var(--green)' }}>{successRate}%</strong></span>
         </div>
       } />
-      <div style={{ overflowX:'auto' }}>
+      <div className="tbl-scroll-wrap">
         <table style={{ width:'100%', borderCollapse:'collapse', minWidth:700 }}>
           <thead>
             <tr>
@@ -746,12 +746,12 @@ function PerformanceTable({ stats }) {
               <th style={{ ...thS, textAlign:'left' }}>CONTA</th>
               <th style={thS}>STATUS</th>
               <th style={thS}>SEGUIDORES</th>
-              <th style={thS}>CRESCIMENTO 30D</th>
+              <th className="col-mob-hide" style={thS}>CRESCIMENTO 30D</th>
               <th style={thS}>PUBLICADOS</th>
               <th style={thS}>FALHAS</th>
               <th style={thS}>SUCESSO</th>
-              <th style={thS}>MÍDIAS</th>
-              <th style={thS}>ÚLTIMA SYNC</th>
+              <th className="col-mob-hide" style={thS}>MÍDIAS</th>
+              <th className="col-mob-hide" style={thS}>ÚLTIMA SYNC</th>
             </tr>
           </thead>
           <tbody>
@@ -777,12 +777,12 @@ function PerformanceTable({ stats }) {
                   </td>
                   <td style={{ padding:'9px 10px', textAlign:'right' }}><StatusBadge status={acc.status} /></td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.followers)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:growth>0?'var(--green)':growth<0?'var(--red)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:growth>0?'var(--green)':growth<0?'var(--red)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--cyan)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.failures30d>10?'var(--red)':acc.failures30d>0?'var(--amber)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
                   <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.posts30d===0?'var(--text3)':acc.successRate>=80?'var(--green)':acc.successRate>=60?'var(--amber)':'var(--red)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontSize:11, color:'var(--text3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontSize:11, color:'var(--text3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
                 </motion.tr>
               );
             })}
@@ -1008,8 +1008,7 @@ export default function Dashboard() {
   const [proxyCount,    setProxyCount]    = useState(0);
 
   const loadRef  = useRef(null);
-  const chartContainerRef = useRef(null);
-  const [chartWidth, setChartWidth] = useState(0);
+  // chartContainerRef removed — ResponsiveContainer handles sizing
   const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
 
   const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch {} }, []);
@@ -1021,16 +1020,6 @@ export default function Dashboard() {
   loadRef.current = load;
 
   useEffect(() => { load(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, [load, loadStats, loadInsights, loadProxies, loadLoops]);
-  useEffect(() => {
-    const el = chartContainerRef.current;
-    if (!el) return;
-    setChartWidth(el.getBoundingClientRect().width || el.offsetWidth || 0);
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) setChartWidth(e.contentRect.width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [data]);
   useEffect(() => {
     const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, 15_000);
     return () => clearInterval(id);
@@ -1216,9 +1205,9 @@ export default function Dashboard() {
               <div style={{ minHeight:190 }}>
                 {forecastData.some(x => x.value>0) ? (
                   <>
-                    <div ref={chartContainerRef} style={{ padding:'8px 4px 4px', minHeight:160 }}>
-                      {chartWidth > 0 && (
-                        <AreaChart data={forecastData} width={chartWidth - 8} height={160} margin={{ top:10, right:4, left:-28, bottom:0 }}>
+                    <div style={{ padding:'8px 4px 4px', minHeight:160 }}>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <AreaChart data={forecastData} margin={{ top:10, right:4, left:-28, bottom:0 }}>
                           <defs>
                             <linearGradient id="fg-chart" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%"   stopColor="#26c7ff" stopOpacity={.3} />
@@ -1235,7 +1224,7 @@ export default function Dashboard() {
                           <Area type="monotone" dataKey="published"  stroke="var(--cyan)" strokeWidth={2} fill="url(#fg-chart)"       dot={false} activeDot={{ r:4, fill:'var(--cyan)' }} connectNulls={false} />
                           <Area type="monotone" dataKey="forecasted" stroke="#f59e0b"      strokeWidth={2} fill="url(#fg-chart-amber)" dot={false} activeDot={{ r:4, fill:'#f59e0b'      }} connectNulls={false} strokeDasharray="5 3" />
                         </AreaChart>
-                      )}
+                      </ResponsiveContainer>
                     </div>
                     {forecastData.some(x => x.forecast) && (
                       <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize:10, color:'var(--text3)' }}>
