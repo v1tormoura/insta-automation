@@ -21,6 +21,26 @@ const ffmpeg       = require('fluent-ffmpeg');
 
 ffmpeg.setFfmpegPath(ffmpegBin);
 
+// Flags de limpeza aplicados a toda saída do modo watermark — mesma cobertura dos modos limpeza_leve/ultra_clean/humanizador:
+// -map_metadata -1      : remove tags globais do container
+// -map_metadata:s -1    : remove tags dos streams
+// -map_chapters -1      : remove capítulos
+// -fflags +bitexact     : impede muxer de gravar creation_time e "encoder: Lavf..."
+// -x264-params info=0   : impede x264 de escrever SEI user_data_unregistered
+// -bsf:v filter_units=remove_types=6 : remove SEI NAL units (type=6) do bitstream H.264 pós-encode
+const WM_CLEAN_OPTS = [
+  '-ar', '44100',
+  '-ac', '2',
+  '-profile:v', 'high',
+  '-level', '4.1',
+  '-map_metadata', '-1',
+  '-map_metadata:s', '-1',
+  '-map_chapters', '-1',
+  '-fflags', '+bitexact',
+  '-x264-params', 'info=0',
+  '-bsf:v', 'filter_units=remove_types=6',
+];
+
 const run = promisify(execFile);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -160,7 +180,13 @@ function applyDelogoAndConvert(inputPath, outputPath, region) {
       .videoCodec('libx264')
       .audioCodec('aac')
       .audioBitrate('192k')
-      .outputOptions(['-crf 20', '-preset fast', '-movflags +faststart', '-pix_fmt yuv420p'])
+      .outputOptions([
+        '-crf', '20',
+        '-preset', 'fast',
+        '-movflags', '+faststart',
+        '-pix_fmt', 'yuv420p',
+        ...WM_CLEAN_OPTS,
+      ])
       .on('end', () => resolve(outputPath))
       .on('error', reject)
       .save(outputPath);
@@ -222,7 +248,13 @@ async function applyPreset(inputPath, outputPath, presetKey) {
       .videoCodec('libx264')
       .audioCodec('aac')
       .audioBitrate('192k')
-      .outputOptions(['-crf 20', '-preset fast', '-movflags +faststart', '-pix_fmt yuv420p'])
+      .outputOptions([
+        '-crf', '20',
+        '-preset', 'fast',
+        '-movflags', '+faststart',
+        '-pix_fmt', 'yuv420p',
+        ...WM_CLEAN_OPTS,
+      ])
       .on('end', () => resolve(outputPath))
       .on('error', reject)
       .save(outputPath);

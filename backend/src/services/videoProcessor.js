@@ -161,18 +161,29 @@ function convertToReelFormat(inputPath, options = {}) {
     console.log(`   Entrada: ${path.basename(inputPath)} (${w}×${h})`);
     console.log(`   Saída: ${path.basename(outputPath)}`);
 
-    // limpeza_leve, ultra_clean e humanizador removem 100% dos metadados:
-    // container (-map_metadata -1), streams (-map_metadata:s -1), capítulos (-map_chapters -1),
-    // tags do muxer como creation_time/encoder (-fflags +bitexact),
-    // SEI user_data_unregistered do x264 no bitstream (-x264opts no-info=1)
-    const metadataOpts = (processMode === 'limpeza_leve' || processMode === 'ultra_clean' || processMode === 'humanizador')
+    // limpeza_leve, ultra_clean e humanizador removem metadados em duas camadas:
+    // Camada 1 — container e streams:
+    //   -map_metadata -1      : remove tags globais do container (title, author, GPS, etc.)
+    //   -map_metadata:s -1    : remove tags dos streams individuais (camera, creation_time, etc.)
+    //   -map_chapters -1      : remove capítulos
+    //   -fflags +bitexact     : impede o muxer de gravar creation_time e "encoder: Lavf..." no container
+    //   -x264-params info=0   : impede o x264 de escrever o SEI user_data_unregistered no bitstream
+    // Camada 2 — bitstream H.264 (pós-encode):
+    //   -bsf:v filter_units=remove_types=6 : remove todos os NAL units SEI (type=6) do bitstream final
+    //   Auditoria confirma: 1 SEI antes → 0 SEI após. Compatível com ffmpeg-static 6.1.1.
+    const isCleanMode = (processMode === 'limpeza_leve' || processMode === 'ultra_clean' || processMode === 'humanizador');
+    const metadataOpts = isCleanMode
       ? [
           '-map_metadata', '-1',
           '-map_metadata:s', '-1',
           '-map_chapters', '-1',
           '-fflags', '+bitexact',
-          '-x264opts', 'no-info=1',
+          '-x264-params', 'info=0',
         ]
+      : [];
+    // BSF separado: deve aparecer nos outputOptions após os flags de codec
+    const bitstreamOpts = isCleanMode
+      ? ['-bsf:v', 'filter_units=remove_types=6']
       : [];
 
     // Humanizador: CRF aleatório (17–20) para encoding ligeiramente diferente a cada vez
@@ -196,8 +207,9 @@ function convertToReelFormat(inputPath, options = {}) {
         '-ac', '2',                     // Stereo
         '-movflags', '+faststart',      // Streaming progressivo
         '-pix_fmt', 'yuv420p',
-        ...metadataOpts,               // limpa tudo primeiro
+        ...metadataOpts,               // camada 1: limpa container + streams + impede SEI
         '-metadata:s:v:0', 'rotate=0', // re-adiciona só a rotação (necessário para playback)
+        ...bitstreamOpts,              // camada 2: remove SEI do bitstream H.264 pós-encode
         '-avoid_negative_ts', 'make_zero',
         '-max_muxing_queue_size', '9999',
         ...audioFilterOpts,
@@ -220,14 +232,22 @@ function convertToReelFormat(inputPath, options = {}) {
             .outputOptions([
               '-vf', scaleFilter,
               '-c:v', 'libx264',
+              '-profile:v', 'high',
+              '-level', '4.1',
               '-preset', 'veryfast',
               '-crf', '23',
               '-c:a', 'aac',
               '-b:a', '128k',
               '-ar', '44100',
+              '-ac', '2',
               '-movflags', '+faststart',
               '-pix_fmt', 'yuv420p',
               ...metadataOpts,
+              '-metadata:s:v:0', 'rotate=0',
+              ...bitstreamOpts,
+              '-avoid_negative_ts', 'make_zero',
+              '-max_muxing_queue_size', '9999',
+              ...audioFilterOpts,
             ])
             .on('end', () => { console.log('✅ Fallback OK'); resolve(fallbackPath); })
             .on('error', e2 => reject(e2))
