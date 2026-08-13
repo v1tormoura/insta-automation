@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';

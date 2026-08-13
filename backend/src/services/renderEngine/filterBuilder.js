@@ -102,7 +102,7 @@ function buildFilterComplex(template, resolvedVars) {
 
     const iW = Math.round(el.width  || 120);
     const iH = el.height ? Math.round(el.height) : -1;
-    const scaleExpr = iH > 0 ? `scale=${iW}:${iH}` : `scale=${iW}:-1`;
+    const scaleExpr = iH > 0 ? `scale=${iW}:${iH}` : `scale=${iW}:-2`;
     filters.push(`[${idx}:v]${scaleExpr}[${iLabel}]`);
 
     const x = Math.round(el.x || 0);
@@ -136,7 +136,7 @@ function buildFilterComplex(template, resolvedVars) {
 
       const opts = [
         `fontfile='${fontPath}'`,
-        `text='${escapeText(rawText)}'`,
+        `text=${escapeText(rawText)}`,
         `x=${x}`,
         `y=${y}`,
         `fontsize=${fontsize}`,
@@ -159,7 +159,7 @@ function buildFilterComplex(template, resolvedVars) {
   }
 
   // ── Audio ────────────────────────────────────────────────────────
-  let audioMap = '[0:a]';
+  let audioMap = '0:a?';
   const musicSrc = audio.musicTrack ? resolveVars(audio.musicTrack, resolvedVars) : '';
   const hasMusicFile = musicSrc && !musicSrc.includes('{{') && fs.existsSync(musicSrc);
 

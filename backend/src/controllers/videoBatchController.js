@@ -6,7 +6,6 @@ const VideoBatch     = require('../models/VideoBatch');
 const VideoRenderJob = require('../models/VideoRenderJob');
 const VideoTemplate  = require('../models/VideoTemplate');
 const videoRenderQueue = require('../queue/videoRenderQueue');
-const { RENDERS_DIR } = require('../services/renderEngine/renderService');
 const { broadcast }  = require('../events/broadcaster');
 
 // ── Multer — upload de vídeos para o lote ────────────────────────────────────
