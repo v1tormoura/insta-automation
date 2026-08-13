@@ -753,6 +753,42 @@ a { text-decoration: none; color: inherit; }
 .input::placeholder { color: var(--text3); }
 textarea.input { resize: vertical; min-height: 78px; line-height: 1.5; }
 
+/* ── .inp — inputs / selects das páginas de vídeo ─────────── */
+.inp {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 12px; border-radius: 8px;
+  background: oklch(1 0 0 / 0.05);
+  border: 1px solid oklch(1 0 0 / 0.12);
+  color: var(--text); font-size: 13px;
+  font-family: var(--font);
+  transition: border-color .18s, box-shadow .18s;
+}
+.inp:focus { border-color: var(--border2); box-shadow: 0 0 10px var(--glow-sm); outline: none; }
+.inp::placeholder { color: var(--text3); }
+.inp:disabled { opacity: .5; cursor: not-allowed; }
+/* Select dark — seta customizada, sem appearance padrão */
+select.inp {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 34px; cursor: pointer;
+}
+/* Força dark nas options — funciona Firefox/Edge; Chrome usa OS popup */
+select.inp option { background: #0a1525; color: #e2edfd; }
+/* Color input dentro de .inp-wrap — tamanho consistente */
+input[type="color"].inp { padding: 2px 4px; height: 36px; cursor: pointer; }
+
+/* ── form-group — label + campo empilhados ─────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 0; }
+.form-group > label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  color: var(--text2); text-transform: uppercase; letter-spacing: .07em; display: block;
+}
+
+/* ── ps-header padding (PageShell) ────────────────────────── */
+.ps-header { padding: 14px 20px; }
+.ps-content { padding: 0; }
+
 /* ════════════════════════════════════════════════════════
    PROGRESS
    ════════════════════════════════════════════════════════ */
