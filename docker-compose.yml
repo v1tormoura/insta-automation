@@ -60,6 +60,27 @@ services:
     networks:
       - instaflow
 
+  video-render-worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/insta-automation
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      HEADLESS: "true"
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - uploads:/app/uploads
+      - sessions:/app/sessions
+      - data:/app/data
+      - ./backend/src:/app/src
+    command: node src/queue/videoRenderWorker.js
+    networks:
+      - instaflow
+
   frontend:
     build:
       context: ./frontend

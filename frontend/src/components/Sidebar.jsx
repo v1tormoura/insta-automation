@@ -16,6 +16,10 @@ export default function Sidebar() {
       <Link to="/stories">Stories</Link>
 
       <Link to="/scheduler">Agendador</Link>
+
+      <Link to="/video-templates">Templates de Vídeo</Link>
+
+      <Link to="/video-batches">Lotes de Vídeo</Link>
     </div>
   );
 }
