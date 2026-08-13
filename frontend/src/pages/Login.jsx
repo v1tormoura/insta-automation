@@ -162,7 +162,7 @@ export default function Login() {
         </div>
 
         {/* Form panel */}
-        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'44px 40px', boxSizing:'border-box' }}>
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'clamp(28px, 7vw, 44px) clamp(20px, 5vw, 40px)', boxSizing:'border-box' }}>
           <div style={{ width:'100%', maxWidth:320 }}>
             <BlurFade delay={0.15}>
               <div style={{ marginBottom:28 }}>

@@ -122,7 +122,7 @@ export default function Faturamento() {
         </div>
       </motion.div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:14 }}>
         {/* Registrar venda */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
           <div style={{ padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>

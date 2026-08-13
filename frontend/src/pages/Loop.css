@@ -333,6 +333,7 @@ select.lm-input   { cursor:pointer; }
 .lm-3col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:start; }
 @media(max-width:480px){
   .lm-2col, .lm-3col { grid-template-columns:1fr; }
+  .lp-chip { display:none; }
 }
 
 /* type tabs */

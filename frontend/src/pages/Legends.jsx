@@ -152,7 +152,7 @@ export default function Legends() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Legendas salvas</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.09)', borderRadius: 8, padding: '5px 10px', width: 200, transition: 'border-color .15s' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.09)', borderRadius: 8, padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color .15s' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, width: '100%' }} />
                 </div>

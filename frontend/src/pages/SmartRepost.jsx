@@ -153,7 +153,7 @@ export default function SmartRepost() {
                   <label className="input-label">Nome da regra</label>
                   <input className="input" required placeholder="Ex: Top Virais Semanais" value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value}))} />
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10 }}>
                   <div className="input-wrap">
                     <label className="input-label">Métrica</label>
                     <select className="input" value={form.condition.metric} onChange={e => setFormCond('metric', e.target.value)}>
@@ -168,7 +168,7 @@ export default function SmartRepost() {
                     <input className="input" type="number" min={0} value={form.condition.value} onChange={e => setFormCond('value', Number(e.target.value))} />
                   </div>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10 }}>
                   <div className="input-wrap">
                     <label className="input-label">Período</label>
                     <select className="input" value={form.condition.period} onChange={e => setFormCond('period', e.target.value)}>

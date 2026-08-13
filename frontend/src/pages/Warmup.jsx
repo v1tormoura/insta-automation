@@ -119,7 +119,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
 
       {/* ── Main row ── */}
       <div style={{padding:'18px 20px 14px'}}>
-        <div style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+        <div style={{display:'flex',gap:16,alignItems:'flex-start',flexWrap:'wrap'}}>
 
           {/* Avatar */}
           <div style={{position:'relative',flexShrink:0}}>
@@ -169,7 +169,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
             )}
 
             {/* Stats */}
-            <div style={{display:'inline-flex',borderRadius:9,overflow:'hidden',background:'var(--bg3)',border:'1px solid var(--border)',marginBottom:10}}>
+            <div style={{display:'flex',maxWidth:'100%',borderRadius:9,overflow:'hidden',background:'var(--bg3)',border:'1px solid var(--border)',marginBottom:10}}>
               {[
                 {label:'Seguid.',value:account.followers},
                 {label:'Seguindo',value:account.following},

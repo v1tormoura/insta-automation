@@ -189,7 +189,7 @@ export default function Scheduler() {
                       <div style={{ width: 1, height: 40, background: 'oklch(1 0 0 / 0.08)', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3, color: 'var(--text)' }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 12, fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 12, fontFamily: 'var(--font-mono)', flexWrap: 'wrap', rowGap: 2 }}>
                           <span>{post.postType === 'reel' ? 'Reel' : 'Post'}</span>
                           {post.scheduledAt && <span>{fmtDate(post.scheduledAt)}</span>}
                           {post.accounts?.length && <span>{post.accounts.map(a => `@${a.username}`).join(', ')}</span>}

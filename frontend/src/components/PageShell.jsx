@@ -66,7 +66,7 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
               <p style={{
                 fontFamily:'var(--font-mono)', fontSize:'var(--fs-2xs)', color:'var(--text3)',
                 marginTop:3, letterSpacing:'.04em',
-                whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
               }}>{subtitle}</p>
             )}
           </div>
