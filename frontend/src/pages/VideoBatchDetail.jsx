@@ -116,17 +116,38 @@ export default function VideoBatchDetail() {
     return `${base}/video-batches/${id}/renders/${renderId}/download?token=${token}`;
   }
 
+  async function downloadRender(renderId, originalName, idx) {
+    const url = downloadUrl(renderId);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        let msg = 'Erro ao baixar arquivo';
+        try { const j = await res.json(); msg = j.error || msg; } catch {}
+        showToast('error', 'Erro no download', msg);
+        return;
+      }
+      // Pega o filename do header Content-Disposition ou usa fallback
+      const disp = res.headers.get('Content-Disposition') || '';
+      const match = disp.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename = match ? match[1].replace(/['"]/g, '') : (originalName ? originalName.replace(/\.[^.]+$/, '') + '_rendered.mp4' : `render_${idx + 1}.mp4`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    } catch (err) {
+      showToast('error', 'Erro no download', err.message || 'Falha de rede');
+    }
+  }
+
   function downloadAll() {
     const completed = renderJobs.filter(rj => rj.status === 'completed');
     completed.forEach((rj, i) => {
-      setTimeout(() => {
-        const a = document.createElement('a');
-        a.href = downloadUrl(rj._id);
-        a.download = rj.originalName || `render_${i + 1}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }, i * 700);
+      setTimeout(() => downloadRender(rj._id, rj.originalName, i), i * 800);
     });
   }
 
@@ -277,11 +298,9 @@ export default function VideoBatchDetail() {
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button className="btn-ghost" onClick={() => showLogs(rj._id)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem' }}>Logs</button>
                             {rj.status === 'completed' && (
-                              <a href={downloadUrl(rj._id)} download style={{ textDecoration: 'none' }}>
-                                <button className="btn-ghost" style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: '#4ade80', borderColor: '#4ade8030' }}>
-                                  Download
-                                </button>
-                              </a>
+                              <button className="btn-ghost" onClick={() => downloadRender(rj._id, rj.originalName, renderJobs.indexOf(rj))} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: '#4ade80', borderColor: '#4ade8030' }}>
+                                Download
+                              </button>
                             )}
                             {['failed', 'cancelled'].includes(rj.status) && (
                               <button className="btn-ghost" onClick={() => retry(rj._id)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: '#60a5fa' }}>Retentar</button>

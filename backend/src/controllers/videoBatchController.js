@@ -1,5 +1,6 @@
 'use strict';
 const path      = require('path');
+const fs        = require('fs');
 const fsExtra   = require('fs-extra');
 const multer    = require('multer');
 const VideoBatch     = require('../models/VideoBatch');
@@ -169,10 +170,19 @@ exports.downloadRender = async (req, res) => {
       return res.status(400).json({ error: 'Render ainda não concluído' });
     }
     const outPath = path.resolve(rj.outputPath);
-    const filename = rj.originalName
-      ? rj.originalName.replace(/\.[^.]+$/, '') + '_rendered.mp4'
-      : `render_${rj._id}.mp4`;
-    res.download(outPath, filename);
+    if (!fs.existsSync(outPath)) {
+      return res.status(404).json({ error: 'Arquivo não encontrado no servidor. O render pode ter sido removido.' });
+    }
+    const ext = path.extname(outPath) || '.mp4';
+    const baseName = rj.originalName
+      ? rj.originalName.replace(/\.[^.]+$/, '') + '_rendered'
+      : `render_${rj._id}`;
+    const filename = baseName + ext;
+    res.download(outPath, filename, (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).json({ error: 'Erro ao enviar arquivo: ' + err.message });
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
