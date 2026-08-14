@@ -116,6 +116,20 @@ export default function VideoBatchDetail() {
     return `${base}/video-batches/${id}/renders/${renderId}/download?token=${token}`;
   }
 
+  function downloadAll() {
+    const completed = renderJobs.filter(rj => rj.status === 'completed');
+    completed.forEach((rj, i) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = downloadUrl(rj._id);
+        a.download = rj.originalName || `render_${i + 1}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, i * 700);
+    });
+  }
+
   if (loading) {
     return (
       <PageShell title="Lote de Vídeo" accent="green">
@@ -144,12 +158,20 @@ export default function VideoBatchDetail() {
     </svg>
   );
 
+  const completedCount = renderJobs.filter(rj => rj.status === 'completed').length;
+
   const pageActions = (
     <>
       <button className="btn-ghost" onClick={() => navigate('/video-batches')} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Lotes
       </button>
+      {completedCount > 0 && (
+        <button className="btn-ghost" onClick={downloadAll} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', color: '#4ade80', borderColor: '#4ade8030', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Baixar todos ({completedCount})
+        </button>
+      )}
       {batch.status === 'processing' && (
         <button className="btn-ghost" onClick={cancel} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', color: '#f87171' }}>
           Cancelar lote

@@ -50,11 +50,12 @@ const videoTemplateSchema = new mongoose.Schema({
   },
 
   output: {
-    format:     { type: String, default: 'mp4' },
-    videoCodec: { type: String, default: 'libx264' },
-    audioCodec: { type: String, default: 'aac' },
-    crf:        { type: Number, default: 20 },
-    preset:     { type: String, enum: ['ultrafast', 'superfast', 'veryfast', 'fast', 'medium', 'slow'], default: 'medium' },
+    format:         { type: String, default: 'mp4' },
+    videoCodec:     { type: String, default: 'libx264' },
+    audioCodec:     { type: String, default: 'aac' },
+    crf:            { type: Number, default: 20 },
+    preset:         { type: String, enum: ['ultrafast', 'superfast', 'veryfast', 'fast', 'medium', 'slow'], default: 'medium' },
+    removeMetadata: { type: Boolean, default: true },
   },
 
   elements:  { type: [elementSchema],  default: [] },

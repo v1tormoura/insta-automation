@@ -35,7 +35,7 @@ const DEFAULT_TEMPLATE = {
   name: '',
   description: '',
   canvas: { width: 1080, height: 1920, fps: 30, background: '#000000' },
-  output: { crf: 20, preset: 'medium' },
+  output: { crf: 20, preset: 'medium', removeMetadata: true },
   elements: [
     { id: uid(), type: 'video', label: 'Vídeo principal', source: '{{VIDEO}}', fit: 'cover', zIndex: 0 },
   ],
@@ -491,6 +491,14 @@ export default function VideoTemplateEditor() {
                     {['ultrafast', 'superfast', 'veryfast', 'fast', 'medium', 'slow'].map(p => (
                       <option key={p} value={p}>{p}</option>
                     ))}
+                  </select>
+                </Field>
+              </Row>
+              <Row>
+                <Field label="Remover metadados (FFmpeg)">
+                  <select className="inp" style={INP} value={String(tmpl.output.removeMetadata !== false)} onChange={e => set('output.removeMetadata', e.target.value === 'true')}>
+                    <option value="true">Sim — remove EXIF, GPS, câmera e outros</option>
+                    <option value="false">Não — preserva metadados originais</option>
                   </select>
                 </Field>
               </Row>

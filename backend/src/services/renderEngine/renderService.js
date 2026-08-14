@@ -58,9 +58,9 @@ async function renderVideo(renderJob, template) {
       '-b:a', '192k',
       '-ar', '44100',
       '-ac', '2',
-      '-map_metadata', '-1',
-      '-map_chapters', '-1',
-      '-fflags', '+bitexact',
+      ...(template.output?.removeMetadata !== false
+        ? ['-map_metadata', '-1', '-map_chapters', '-1', '-fflags', '+bitexact']
+        : []),
     ];
 
     cmd
