@@ -70,6 +70,24 @@ const videoTemplateSchema = new mongoose.Schema({
     endTime:   { type: mongoose.Schema.Types.Mixed,    default: null },
   },
 
+  templatePng: {
+    enabled:   { type: Boolean, default: false },
+    templates: {
+      type: [{
+        _id:        false,
+        serverPath: { type: String, default: '' },
+        name:       { type: String, default: '' },
+        url:        { type: String, default: '' },
+      }],
+      default: [],
+    },
+    videoX:   { type: Number, default: 0   },
+    videoY:   { type: Number, default: 0   },
+    videoW:   { type: Number, default: 540 },
+    videoH:   { type: Number, default: 960 },
+    videoFit: { type: String, default: 'cover' },
+  },
+
   elements:  { type: [elementSchema],  default: [] },
   variables: { type: [variableSchema], default: [] },
 

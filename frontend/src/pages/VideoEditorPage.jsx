@@ -8,12 +8,13 @@ const ITEM_H = 72;
 
 const DEFAULT_TMPL = {
   name: '',
-  canvas:  { width: 1080, height: 1920, fps: 30, background: '#000000' },
-  output:  { crf: 20, preset: 'medium', removeMetadata: true },
-  elements: [{ id: 'vid0', type: 'video', source: '{{VIDEO}}', fit: 'cover', label: 'Vídeo', zIndex: 0, x: 0, y: 0, width: 0, height: 0 }],
-  audio:   { keepOriginal: true, originalVolume: 1.0, musicTrack: '', musicVolume: 0.3 },
-  border:  { enabled: false, thickness: 4, color: '#FFFFFF', opacity: 1.0 },
-  trim:    { startTime: 0, endTime: null },
+  canvas:      { width: 1080, height: 1920, fps: 30, background: '#000000' },
+  output:      { crf: 20, preset: 'medium', removeMetadata: true },
+  elements:    [{ id: 'vid0', type: 'video', source: '{{VIDEO}}', fit: 'cover', label: 'Vídeo', zIndex: 0, x: 0, y: 0, width: 0, height: 0 }],
+  audio:       { keepOriginal: true, originalVolume: 1.0, musicTrack: '', musicVolume: 0.3 },
+  border:      { enabled: false, thickness: 4, color: '#FFFFFF', opacity: 1.0 },
+  trim:        { startTime: 0, endTime: null },
+  templatePng: { enabled: false, templates: [], videoX: 0, videoY: 0, videoW: 540, videoH: 960, videoFit: 'cover' },
 };
 
 const QUALITY_OPTS = [
@@ -125,7 +126,7 @@ function Fld({ label, children, span2 }) {
   );
 }
 
-function CanvasPreview({ tmpl, previewUrl }) {
+function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
   const W = tmpl.canvas?.width  || 1080;
   const H = tmpl.canvas?.height || 1920;
   const maxH = 520, maxW = 320;
@@ -137,6 +138,82 @@ function CanvasPreview({ tmpl, previewUrl }) {
   const imageEls = tmpl.elements?.filter(el => el.type === 'image') || [];
   const textEls  = tmpl.elements?.filter(el => el.type === 'text')  || [];
 
+  const tplPng     = tmpl.templatePng;
+  const tplEnabled = tplPng?.enabled && (tplPng?.templates || []).length > 0;
+  const firstTpl   = tplEnabled ? tplPng.templates[0] : null;
+
+  // Constrói URL completa do PNG para exibição no browser
+  const tplImgSrc = firstTpl
+    ? (firstTpl.url?.startsWith('http')
+        ? firstTpl.url
+        : `${api.defaults.baseURL.replace(/\/$/, '')}${firstTpl.url}`)
+    : null;
+
+  // Posição e tamanho da janela do vídeo dentro do template (em pixels do canvas)
+  const vX = Math.round(tplPng?.videoX ?? 0);
+  const vY = Math.round(tplPng?.videoY ?? 0);
+  const vW = Math.round(tplPng?.videoW ?? Math.round(W * 0.5));
+  const vH = Math.round(tplPng?.videoH ?? Math.round(H * 0.5));
+
+  // Em pixels da prévia (escalonados)
+  const pvX = Math.round(vX * scale);
+  const pvY = Math.round(vY * scale);
+  const pvW = Math.round(vW * scale);
+  const pvH = Math.round(vH * scale);
+
+  const dragRef = useRef(null);
+
+  const startDrag = useCallback((e, mode, handle = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { mode, handle, cx: e.clientX, cy: e.clientY, vX, vY, vW, vH };
+
+    const onMove = mv => {
+      if (!dragRef.current) return;
+      const d  = dragRef.current;
+      const dx = (mv.clientX - d.cx) / scale;
+      const dy = (mv.clientY - d.cy) / scale;
+      const MIN = 80;
+      let nx = d.vX, ny = d.vY, nw = d.vW, nh = d.vH;
+
+      if (d.mode === 'move') {
+        nx = Math.round(Math.max(0, Math.min(W - nw, d.vX + dx)));
+        ny = Math.round(Math.max(0, Math.min(H - nh, d.vY + dy)));
+      } else {
+        if (d.handle === 'br') {
+          nw = Math.round(Math.max(MIN, Math.min(W - d.vX, d.vW + dx)));
+          nh = Math.round(Math.max(MIN, Math.min(H - d.vY, d.vH + dy)));
+        } else if (d.handle === 'bl') {
+          const newX = Math.round(Math.max(0, d.vX + dx));
+          nw = Math.round(Math.max(MIN, d.vW + d.vX - newX));
+          nh = Math.round(Math.max(MIN, Math.min(H - d.vY, d.vH + dy)));
+          nx = newX;
+        } else if (d.handle === 'tr') {
+          const newY = Math.round(Math.max(0, d.vY + dy));
+          nw = Math.round(Math.max(MIN, Math.min(W - d.vX, d.vW + dx)));
+          nh = Math.round(Math.max(MIN, d.vH + d.vY - newY));
+          ny = newY;
+        } else if (d.handle === 'tl') {
+          const newX = Math.round(Math.max(0, d.vX + dx));
+          const newY = Math.round(Math.max(0, d.vY + dy));
+          nw = Math.round(Math.max(MIN, d.vW + d.vX - newX));
+          nh = Math.round(Math.max(MIN, d.vH + d.vY - newY));
+          nx = newX; ny = newY;
+        }
+      }
+      onVideoWindowChange?.(nx, ny, nw, nh);
+    };
+
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [vX, vY, vW, vH, scale, W, H, onVideoWindowChange]);
+
   const objFit = videoEl.fit === 'contain' ? 'contain' : videoEl.fit === 'stretch' ? 'fill' : 'cover';
 
   return (
@@ -147,54 +224,117 @@ function CanvasPreview({ tmpl, previewUrl }) {
       border: '1px solid oklch(1 0 0 / 0.14)',
       boxShadow: '0 20px 60px rgba(0,0,0,.8)',
     }}>
-      {previewUrl
-        ? <video key={previewUrl} src={previewUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: objFit }} autoPlay muted loop playsInline />
-        : (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10, background: 'linear-gradient(160deg,rgba(99,102,241,.15) 0%,rgba(139,92,246,.08) 100%)' }}>
-            <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,.4)" strokeWidth="1.2" strokeLinecap="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/><rect x="1" y="8" width="14" height="13" rx="2"/></svg>
-            <span style={{ fontSize: 10, color: 'rgba(139,92,246,.55)', fontFamily: 'var(--font-mono)' }}>Selecione um vídeo</span>
-          </div>
-        )
-      }
 
-      {/* blur vignette when fit=blur */}
-      {videoEl.fit === 'blur' && previewUrl && (
+      {tplEnabled ? (
+        <>
+          {/* Template PNG como fundo (z=1) */}
+          {tplImgSrc && (
+            <img src={tplImgSrc} alt="" draggable={false} style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              objectFit: 'fill', zIndex: 1, pointerEvents: 'none',
+            }} />
+          )}
+
+          {/* Janela do vídeo (z=2) */}
+          <div style={{
+            position: 'absolute', left: pvX, top: pvY, width: pvW, height: pvH,
+            zIndex: 2, overflow: 'hidden',
+          }}>
+            {previewUrl
+              ? <video key={previewUrl} src={previewUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: objFit }} autoPlay muted loop playsInline />
+              : <div style={{ width: '100%', height: '100%', background: 'oklch(0.55 0.18 235 / 0.09)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 9, color: 'rgba(96,165,250,.4)', fontFamily: 'var(--font-mono)', userSelect: 'none' }}>VÍDEO</span>
+                </div>
+            }
+          </div>
+
+          {/* Camada de interação: arrasto + handles de resize (z=10) */}
+          <div
+            onMouseDown={e => startDrag(e, 'move')}
+            style={{
+              position: 'absolute', left: pvX, top: pvY, width: pvW, height: pvH,
+              cursor: 'move', zIndex: 10,
+              outline: '2px dashed rgba(96,165,250,.65)',
+              outlineOffset: -1,
+            }}
+          >
+            {[
+              ['tl', 0,      0,      'nwse-resize'],
+              ['tr', '100%', 0,      'nesw-resize'],
+              ['bl', 0,      '100%', 'nesw-resize'],
+              ['br', '100%', '100%', 'nwse-resize'],
+            ].map(([h, l, t, c]) => (
+              <div key={h}
+                onMouseDown={e => { e.stopPropagation(); startDrag(e, 'resize', h); }}
+                style={{
+                  position: 'absolute', left: l, top: t,
+                  width: 10, height: 10, borderRadius: 2,
+                  background: '#60a5fa', border: '1.5px solid #1e3a5f',
+                  cursor: c, transform: 'translate(-50%,-50%)', zIndex: 11,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Badge de posição */}
+          <div style={{
+            position: 'absolute', bottom: 22, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 15, fontSize: 8, fontFamily: 'var(--font-mono)',
+            color: 'rgba(96,165,250,.85)', background: 'rgba(0,0,0,.65)',
+            padding: '2px 7px', borderRadius: 4, pointerEvents: 'none', whiteSpace: 'nowrap',
+          }}>
+            x:{vX} y:{vY} · {vW}×{vH}
+          </div>
+        </>
+      ) : (
+        previewUrl
+          ? <video key={previewUrl} src={previewUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: objFit }} autoPlay muted loop playsInline />
+          : (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10, background: 'linear-gradient(160deg,rgba(99,102,241,.15) 0%,rgba(139,92,246,.08) 100%)' }}>
+              <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,.4)" strokeWidth="1.2" strokeLinecap="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/><rect x="1" y="8" width="14" height="13" rx="2"/></svg>
+              <span style={{ fontSize: 10, color: 'rgba(139,92,246,.55)', fontFamily: 'var(--font-mono)' }}>Selecione um vídeo</span>
+            </div>
+          )
+      )}
+
+      {/* Blur vignette no modo blur (sem template) */}
+      {!tplEnabled && videoEl.fit === 'blur' && previewUrl && (
         <div style={{ position: 'absolute', inset: 0, backdropFilter: 'blur(18px)', background: 'rgba(0,0,0,.25)', pointerEvents: 'none' }} />
       )}
 
-      {/* image overlays */}
+      {/* Overlays de imagem */}
       {imageEls.map(el => {
         const realSrc = el.source && !el.source.includes('{{') ? el.source : null;
         const px = x => Math.round(x * scale);
         return realSrc
-          ? <img key={el.id} src={realSrc} alt="" style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(8, px(el.width||120)), height: el.height ? px(el.height) : 'auto', opacity: el.opacity??1 }} />
+          ? <img key={el.id} src={realSrc} alt="" style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(8, px(el.width||120)), height: el.height ? px(el.height) : 'auto', opacity: el.opacity??1, zIndex: tplEnabled ? 3 : undefined }} />
           : (
-            <div key={el.id} style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(10, px(el.width||120)), height: Math.max(6, px(el.height||40)), background: 'rgba(96,165,250,.18)', border: '1px solid rgba(96,165,250,.45)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div key={el.id} style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(10, px(el.width||120)), height: Math.max(6, px(el.height||40)), background: 'rgba(96,165,250,.18)', border: '1px solid rgba(96,165,250,.45)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: tplEnabled ? 3 : undefined }}>
               <span style={{ fontSize: 5, color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>{el.label||'IMG'}</span>
             </div>
           );
       })}
 
-      {/* text overlays */}
+      {/* Overlays de texto */}
       {textEls.map(el => {
         const txt = el.text && !el.text.includes('{{') ? el.text : `[${el.label||'TEXT'}]`;
         return (
-          <div key={el.id} style={{ position: 'absolute', left: Math.round((el.x||0)*scale), top: Math.round((el.y||0)*scale), fontSize: Math.max(8,Math.round((el.fontSize||48)*scale)), color: el.color||'#FFF', fontWeight: el.fontWeight||'bold', background: el.bgColor ? el.bgColor+'AA' : 'transparent', padding: el.bgColor ? '1px 4px' : 0, whiteSpace: 'nowrap', lineHeight: 1.2, borderRadius: 2 }}>
+          <div key={el.id} style={{ position: 'absolute', left: Math.round((el.x||0)*scale), top: Math.round((el.y||0)*scale), fontSize: Math.max(8,Math.round((el.fontSize||48)*scale)), color: el.color||'#FFF', fontWeight: el.fontWeight||'bold', background: el.bgColor ? el.bgColor+'AA' : 'transparent', padding: el.bgColor ? '1px 4px' : 0, whiteSpace: 'nowrap', lineHeight: 1.2, borderRadius: 2, zIndex: tplEnabled ? 4 : undefined }}>
             {txt}
           </div>
         );
       })}
 
-      {/* border */}
+      {/* Borda (FFmpeg drawbox) */}
       {tmpl.border?.enabled && (tmpl.border.thickness||0) > 0 && (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', boxSizing: 'border-box', border: `${Math.max(1,Math.round((tmpl.border.thickness||4)*scale))}px solid ${tmpl.border.color||'#FFF'}`, opacity: tmpl.border.opacity??1 }} />
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', boxSizing: 'border-box', border: `${Math.max(1,Math.round((tmpl.border.thickness||4)*scale))}px solid ${tmpl.border.color||'#FFF'}`, opacity: tmpl.border.opacity??1, zIndex: 20 }} />
       )}
 
-      {/* reference grid */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px)', backgroundSize: `${Math.round(W/4*scale)}px ${Math.round(H/8*scale)}px` }} />
+      {/* Grid de referência */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px)', backgroundSize: `${Math.round(W/4*scale)}px ${Math.round(H/8*scale)}px`, zIndex: 0 }} />
 
-      {/* dimension badge */}
-      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,.38)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 3 }}>{W}×{H}</div>
+      {/* Badge de dimensão */}
+      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,.38)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 3, zIndex: 25 }}>{W}×{H}</div>
     </div>
   );
 }
@@ -208,7 +348,7 @@ export default function VideoEditorPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [tmpl,       setTmpl]       = useState(() => ({ ...DEFAULT_TMPL, elements: [{ ...DEFAULT_TMPL.elements[0], id: uid() }] }));
   const [batchName,  setBatchName]  = useState('');
-  const [sections,   setSections]   = useState({ canvas: false, enquadramento: true, reels: false, borda: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: true, metadados: false });
+  const [sections,   setSections]   = useState({ canvas: false, enquadramento: true, reels: false, moldura: false, borda: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: true, metadados: false });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [toast,   setToast]   = useState(null);
@@ -218,6 +358,7 @@ export default function VideoEditorPage() {
 
   const fileInputRef   = useRef();
   const folderInputRef = useRef();
+  const pngInputRef    = useRef();
   const listRef        = useRef();
   const thumbCache     = useRef(new Map());
   const urlCache       = useRef(new Map());
@@ -293,6 +434,49 @@ export default function VideoEditorPage() {
     });
   }
 
+  function onVideoWindowChange(x, y, w, h) {
+    setTmpl(prev => ({
+      ...prev,
+      templatePng: { ...(prev.templatePng || {}), videoX: x, videoY: y, videoW: w, videoH: h },
+    }));
+  }
+
+  async function handlePngUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post('/video-templates/upload-png', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { serverPath, name, url } = r.data;
+      setTmpl(prev => {
+        const next = JSON.parse(JSON.stringify(prev));
+        if (!next.templatePng) next.templatePng = { ...DEFAULT_TMPL.templatePng };
+        const W = next.canvas?.width  || 1080;
+        const H = next.canvas?.height || 1920;
+        next.templatePng.enabled   = true;
+        next.templatePng.templates = [...(next.templatePng.templates || []), { serverPath, name, url }];
+        if (!next.templatePng.videoW || next.templatePng.videoW === 540) next.templatePng.videoW = Math.round(W * 0.5);
+        if (!next.templatePng.videoH || next.templatePng.videoH === 960) next.templatePng.videoH = Math.round(H * 0.5);
+        return next;
+      });
+      setSections(s => ({ ...s, moldura: true }));
+      toast3('success', 'Template PNG', `"${name}" carregado.`);
+    } catch (err) {
+      toast3('error', 'Erro', err?.response?.data?.error || 'Falha ao enviar PNG.');
+    }
+  }
+
+  function removeTplPng(idx) {
+    setTmpl(prev => {
+      const next = JSON.parse(JSON.stringify(prev));
+      next.templatePng.templates = next.templatePng.templates.filter((_, i) => i !== idx);
+      if (!next.templatePng.templates.length) next.templatePng.enabled = false;
+      return next;
+    });
+  }
+
   const videoEl  = tmpl.elements?.find(el => el.type === 'video') || tmpl.elements?.[0];
   const imageEls = tmpl.elements?.filter(el => el.type === 'image') || [];
   const textEls  = tmpl.elements?.filter(el => el.type === 'text')  || [];
@@ -316,7 +500,7 @@ export default function VideoEditorPage() {
     try {
       const r = await api.get(`/video-templates/${id}`);
       const t = r.data;
-      setTmpl({ _id: t._id, name: t.name, canvas: t.canvas || DEFAULT_TMPL.canvas, output: t.output || DEFAULT_TMPL.output, elements: t.elements?.length ? t.elements : DEFAULT_TMPL.elements, audio: t.audio || DEFAULT_TMPL.audio, border: t.border || DEFAULT_TMPL.border, trim: t.trim || DEFAULT_TMPL.trim });
+      setTmpl({ _id: t._id, name: t.name, canvas: t.canvas || DEFAULT_TMPL.canvas, output: t.output || DEFAULT_TMPL.output, elements: t.elements?.length ? t.elements : DEFAULT_TMPL.elements, audio: t.audio || DEFAULT_TMPL.audio, border: t.border || DEFAULT_TMPL.border, trim: t.trim || DEFAULT_TMPL.trim, templatePng: t.templatePng || DEFAULT_TMPL.templatePng });
       toast3('success', 'Carregado', t.name);
     } catch { toast3('error', 'Erro', 'Falha ao carregar template.'); }
   }
@@ -446,6 +630,7 @@ export default function VideoEditorPage() {
           </div>
           <input ref={fileInputRef} type="file" multiple accept="video/*,.mp4,.mov,.avi,.mkv,.webm" style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
           <input ref={folderInputRef} type="file" multiple accept="video/*" webkitdirectory="" directory="" style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
+          <input ref={pngInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp" style={{ display: 'none' }} onChange={handlePngUpload} />
         </div>
 
         {/* Selection bar */}
@@ -505,7 +690,7 @@ export default function VideoEditorPage() {
       ══════════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'oklch(0.065 0.022 235)', overflow: 'auto', gap: 14, padding: '20px 20px' }}>
 
-        <CanvasPreview tmpl={tmpl} previewUrl={previewUrl} />
+        <CanvasPreview tmpl={tmpl} previewUrl={previewUrl} onVideoWindowChange={onVideoWindowChange} />
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', maxWidth: 340, width: '100%' }}>
           <input className="inp" value={tmpl.name} onChange={e => setT('name', e.target.value)} placeholder="Nome do template…" style={{ flex: 1 }} />
@@ -581,6 +766,61 @@ export default function VideoEditorPage() {
               Converter para 1080×1920 (Reels/TikTok)
             </label>
             <p style={{ margin: '8px 0 0', fontSize: '.68rem', color: 'var(--text3)', lineHeight: 1.5 }}>Usa o enquadramento selecionado acima para adaptar qualquer vídeo ao formato vertical.</p>
+          </Acc>
+
+          {/* MOLDURA / TEMPLATE PNG */}
+          <Acc title="Moldura / Template PNG" id="moldura" open={sections.moldura} toggle={toggleSection} count={(tmpl.templatePng?.templates || []).length || undefined}>
+            <p style={{ margin: '0 0 10px', fontSize: '.67rem', color: 'var(--text3)', lineHeight: 1.5 }}>
+              O PNG vira o fundo do canvas. Arraste o quadro azul na prévia para posicionar onde o vídeo aparece dentro do template.
+            </p>
+
+            {/* Lista de templates enviados */}
+            {(tmpl.templatePng?.templates || []).map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'oklch(1 0 0 / 0.04)', border: '1px solid oklch(1 0 0 / 0.08)', marginBottom: 6 }}>
+                <img
+                  src={t.url?.startsWith('http') ? t.url : `${api.defaults.baseURL.replace(/\/$/, '')}${t.url}`}
+                  alt=""
+                  style={{ width: 44, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0, background: 'oklch(1 0 0 / 0.06)' }}
+                />
+                <span style={{ flex: 1, fontSize: '.68rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                <button onClick={() => removeTplPng(i)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: '.68rem', color: '#f87171', borderRadius: 4, flexShrink: 0 }}>✕</button>
+              </div>
+            ))}
+
+            {/* Botão de upload */}
+            <button
+              onClick={() => pngInputRef.current?.click()}
+              className="btn-ghost"
+              style={{ width: '100%', padding: '8px 0', borderRadius: 7, fontSize: '.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10, border: '1px dashed oklch(0.55 0.18 235 / 0.45)', color: '#60a5fa' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              {(tmpl.templatePng?.templates || []).length > 0 ? '+ Adicionar outro (rotação)' : 'Escolher Template PNG'}
+            </button>
+
+            {/* Controles da janela do vídeo */}
+            {(tmpl.templatePng?.templates || []).length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <Fld label="X (pixels)">
+                  <input className="inp" type="number" min="0" value={tmpl.templatePng?.videoX ?? 0} onChange={e => setT('templatePng.videoX', Number(e.target.value))} style={INP} />
+                </Fld>
+                <Fld label="Y (pixels)">
+                  <input className="inp" type="number" min="0" value={tmpl.templatePng?.videoY ?? 0} onChange={e => setT('templatePng.videoY', Number(e.target.value))} style={INP} />
+                </Fld>
+                <Fld label="Largura">
+                  <input className="inp" type="number" min="50" value={tmpl.templatePng?.videoW ?? 540} onChange={e => setT('templatePng.videoW', Number(e.target.value))} style={INP} />
+                </Fld>
+                <Fld label="Altura">
+                  <input className="inp" type="number" min="50" value={tmpl.templatePng?.videoH ?? 960} onChange={e => setT('templatePng.videoH', Number(e.target.value))} style={INP} />
+                </Fld>
+                <Fld label="Enquadramento" span2>
+                  <select className="inp" value={tmpl.templatePng?.videoFit || 'cover'} onChange={e => setT('templatePng.videoFit', e.target.value)} style={INP}>
+                    <option value="cover">Preencher (corta sobra)</option>
+                    <option value="contain">Conter (com barras)</option>
+                    <option value="stretch">Esticar</option>
+                  </select>
+                </Fld>
+              </div>
+            )}
           </Acc>
 
           {/* BORDA */}

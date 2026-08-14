@@ -78,8 +78,43 @@ function buildFilterComplex(template, resolvedVars) {
   let inputIdx = 1;
   let curLabel = 'base';
 
-  // ── Main video fit ──────────────────────────────────────────────
-  if (videoEl.fit === 'blur') {
+  // ── Template PNG mode (fundo PNG + janela de vídeo posicionável) ─────────────
+  const tplPng    = template.templatePng;
+  const tplEnabled = tplPng?.enabled && Array.isArray(tplPng.templates) && tplPng.templates.length > 0;
+
+  if (tplEnabled) {
+    const tplDef  = tplPng.templates[0]; // índice 0 por padrão; rotação pode ser adicionada futuramente
+    const tplPath = tplDef.serverPath;
+
+    if (tplPath && fs.existsSync(tplPath)) {
+      inputs.push(tplPath);
+      const tplIdx = inputIdx++;
+
+      const vW  = Math.max(10, Math.round(tplPng.videoW || W * 0.5));
+      const vH  = Math.max(10, Math.round(tplPng.videoH || H * 0.5));
+      const vX  = Math.round(tplPng.videoX || 0);
+      const vY  = Math.round(tplPng.videoY || 0);
+      const fit = (tplPng.videoFit && tplPng.videoFit !== 'blur') ? tplPng.videoFit : (videoEl.fit !== 'blur' ? videoEl.fit : 'cover');
+
+      const winScale = buildMainVideoScale(fit, vW, vH, bgHex);
+      filters.push(`[0:v]${winScale}[vid_win]`);
+      filters.push(`[${tplIdx}:v]scale=${W}:${H}[tmpl_base]`);
+      filters.push(`[tmpl_base][vid_win]overlay=x=${vX}:y=${vY}[base]`);
+    } else {
+      // PNG ausente — renderiza sem template (fallback seguro)
+      console.warn(`[filterBuilder] Template PNG não encontrado: ${tplPath}`);
+      if (videoEl.fit === 'blur') {
+        filters.push(`[0:v]split[raw1][raw2]`);
+        filters.push(`[raw1]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20[bg]`);
+        filters.push(`[raw2]scale=-2:${H}[fg]`);
+        filters.push(`[bg][fg]overlay=x=(main_w-overlay_w)/2:y=0[base]`);
+      } else {
+        filters.push(`[0:v]${buildMainVideoScale(videoEl.fit, W, H, bgHex)}[base]`);
+      }
+    }
+
+  // ── Main video fit (modo normal) ─────────────────────────────────────────────
+  } else if (videoEl.fit === 'blur') {
     filters.push(`[0:v]split[raw1][raw2]`);
     filters.push(`[raw1]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20[bg]`);
     filters.push(`[raw2]scale=-2:${H}[fg]`);
