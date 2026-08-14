@@ -43,6 +43,7 @@ const ICONS = {
   performance: ic(<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>),
   videotpl:    ic(<><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/><rect x="1" y="8" width="14" height="13" rx="2"/></>),
   videobatch:  ic(<><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></>),
+  videoeditor: ic(<><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l2-2 2 2"/><path d="M12 8v5"/></>),
   apimeta:     ic(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></>),
   oauth:       ic(<><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>),
 };
@@ -81,8 +82,9 @@ const NAV_GROUPS = [
   {
     title: 'VÍDEO',
     items: [
-      { to: '/video-templates', label: 'Templates',     sub: 'Modelos de vídeo',      icon: ICONS.videotpl   },
-      { to: '/video-batches',   label: 'Lotes de Vídeo', sub: 'Renderização em massa', icon: ICONS.videobatch },
+      { to: '/video-editor',    label: 'Editor',        sub: 'Editor de vídeos',      icon: ICONS.videoeditor },
+      { to: '/video-templates', label: 'Templates',     sub: 'Modelos de vídeo',      icon: ICONS.videotpl    },
+      { to: '/video-batches',   label: 'Processamentos', sub: 'Lotes e resultados',   icon: ICONS.videobatch  },
     ],
   },
   {
@@ -254,7 +256,7 @@ export default function MainLayout({ children }) {
     }
   );
 
-  const isDash = location.pathname === '/';
+  const isDash = location.pathname === '/' || location.pathname === '/video-editor';
   function logout() { removeToken(); navigate('/login'); }
 
   return (

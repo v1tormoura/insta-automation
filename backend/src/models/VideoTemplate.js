@@ -58,6 +58,18 @@ const videoTemplateSchema = new mongoose.Schema({
     removeMetadata: { type: Boolean, default: true },
   },
 
+  border: {
+    enabled:   { type: Boolean, default: false },
+    thickness: { type: Number,  default: 4 },
+    color:     { type: String,  default: '#FFFFFF' },
+    opacity:   { type: Number,  default: 1.0 },
+  },
+
+  trim: {
+    startTime: { type: Number,                         default: 0    },
+    endTime:   { type: mongoose.Schema.Types.Mixed,    default: null },
+  },
+
   elements:  { type: [elementSchema],  default: [] },
   variables: { type: [variableSchema], default: [] },
 

@@ -36,10 +36,19 @@ async function renderVideo(renderJob, template) {
   const crf    = String(template.output?.crf ?? 20);
 
   return new Promise((resolve, reject) => {
+    const trimStart = Number(template.trim?.startTime) || 0;
+    const trimEnd   = template.trim?.endTime ?? null;
+
     let cmd = ffmpeg();
 
-    for (const inp of inputs) {
-      cmd = cmd.input(inp);
+    for (let i = 0; i < inputs.length; i++) {
+      cmd = cmd.input(inputs[i]);
+      if (i === 0) {
+        const iOpts = [];
+        if (trimStart > 0)   iOpts.push(`-ss ${trimStart}`);
+        if (trimEnd != null) iOpts.push(`-to ${trimEnd}`);
+        if (iOpts.length)    cmd = cmd.inputOptions(iOpts);
+      }
     }
 
     const outputOpts = [

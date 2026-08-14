@@ -32,6 +32,7 @@ import VideoTemplates from './pages/VideoTemplates';
 import VideoTemplateEditor from './pages/VideoTemplateEditor';
 import VideoBatches from './pages/VideoBatches';
 import VideoBatchDetail from './pages/VideoBatchDetail';
+import VideoEditorPage from './pages/VideoEditorPage';
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -94,11 +95,12 @@ export default function App() {
               <Route path="/api-meta"       element={<ApiMeta />} />
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"          element={<MediaLibrary />} />
-              <Route path="/video-templates"     element={<VideoTemplates />} />
-              <Route path="/video-templates/new" element={<VideoTemplateEditor />} />
+              <Route path="/video-editor"            element={<VideoEditorPage />} />
+              <Route path="/video-templates"         element={<VideoTemplates />} />
+              <Route path="/video-templates/new"     element={<VideoTemplateEditor />} />
               <Route path="/video-templates/:id/edit" element={<VideoTemplateEditor />} />
-              <Route path="/video-batches"       element={<VideoBatches />} />
-              <Route path="/video-batches/:id"   element={<VideoBatchDetail />} />
+              <Route path="/video-batches"           element={<VideoBatches />} />
+              <Route path="/video-batches/:id"       element={<VideoBatchDetail />} />
             </Routes>
           </MainLayout>
         </PrivateRoute>

@@ -174,6 +174,16 @@ function buildFilterComplex(template, resolvedVars) {
     audioMap = '[a_out]';
   }
 
+  // ── Border (drawbox) ─────────────────────────────────────────────
+  const border = template.border;
+  if (border?.enabled && (border.thickness || 0) > 0) {
+    const thick = Math.max(1, Math.round(border.thickness || 4));
+    const col   = bgToFFmpeg(border.color || '#FFFFFF');
+    const alpha = Math.min(1, Math.max(0, border.opacity ?? 1)).toFixed(2);
+    filters.push(`[${curLabel}]drawbox=x=0:y=0:w=iw:h=ih:color=${col}@${alpha}:t=${thick}[brd]`);
+    curLabel = 'brd';
+  }
+
   return {
     inputs,
     filterComplex: filters.join(';'),
