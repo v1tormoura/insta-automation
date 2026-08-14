@@ -230,8 +230,6 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     ig.state.constants.APP_VERSION_CODE = '574767436';
   } catch {}
 
-  // Proxy só é aplicado no login com senha (mais abaixo), não no carregamento de sessão
-
   const _skipToFile = (account.igSession === 'use_cookies');
 
   // 1. Sessao do banco — tenta ANTES de verificar challengeState
@@ -283,6 +281,11 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
     }
   }
 
+  // Garante proxy consistente em TODOS os passos de restauração de sessão.
+  // Step 1 já aplica após deserialize; steps 2-3 precisam da mesma garantia para
+  // evitar que o Instagram detecte mudança de IP entre validações.
+  if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+
   // 2. cookies.json
   try {
     if (await _tryAuthWithCookies(ig, account)) return ig;
@@ -298,6 +301,8 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const saved = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
       ig.state.generateDevice(saved._deviceSeed || account.username);
       await ig.state.deserialize(saved);
+      // Reaplicar proxy após deserialize — deserialize pode restaurar proxyUrl antigo ou nulo
+      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do arquivo OK`);
       return ig;
