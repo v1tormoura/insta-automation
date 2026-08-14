@@ -58,15 +58,17 @@ exports.getAccounts = async (req, res) => {
     // Converte campos sensíveis em flags booleanos (não expõe dados para o frontend)
     const accounts = rawAccounts.map(a => {
       const obj = a.toObject();
-      obj.hasTotpSecret    = !!obj.totpSecret;
-      obj.hasPassword      = !!obj.password;
-      obj.hasIgSession     = !!(obj.igSession || obj.rawWebSessionid);
-      obj.hasApiToken      = !!(obj.igUserId && obj.accessToken);
+      obj.hasTotpSecret        = !!obj.totpSecret;
+      obj.hasPassword          = !!obj.password;
+      obj.hasIgSession         = !!(obj.igSession || obj.rawWebSessionid);
+      obj.hasApiToken          = !!(obj.igUserId && obj.accessToken);
+      obj.hasInstagrapiSession = !!obj.instagrapiSession;
       delete obj.totpSecret;
       delete obj.password;
       delete obj.igSession;
       delete obj.rawWebSessionid;
-      delete obj.accessToken; // token nunca sai para o frontend
+      delete obj.accessToken;
+      delete obj.instagrapiSession;
       return obj;
     });
 

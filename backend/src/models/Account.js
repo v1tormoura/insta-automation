@@ -189,6 +189,51 @@ const accountSchema = new mongoose.Schema(
       default: '',
     },
 
+    // ─── Provider selector ────────────────────────────────────────────────────
+    // Selects the Instagram API implementation for this account.
+    // All existing accounts default to 'official' — zero migration needed.
+
+    provider: {
+      type: String,
+      enum: ['official', 'instagrapi'],
+      default: 'official',
+    },
+
+    // ─── Instagrapi session ───────────────────────────────────────────────────
+    // Encrypted JSON blob equivalent to instagrapi's settings.json.
+    // Never sent to the frontend — accountController.getAccounts strips it.
+    // Uses the same AES-256-GCM getter/setter pattern as accessToken.
+
+    instagrapiSession: {
+      type: String,
+      default: '',
+    },
+
+    // sessionStatus tracks the instagrapi session state machine.
+    // Not a duplicate of healthStatus: healthStatus reflects overall account
+    // health across both providers; sessionStatus is instagrapi-specific.
+
+    sessionStatus: {
+      type: String,
+      enum: ['UNKNOWN', 'VALID', 'EXPIRING', 'INVALID', 'RECOVERING', 'AUTH_REQUIRED', 'CHALLENGE_REQUIRED', 'FAILED', 'DISABLED'],
+      default: 'UNKNOWN',
+    },
+
+    // ─── Instagrapi timestamps ────────────────────────────────────────────────
+
+    lastValidatedAt:         { type: Date,   default: null },
+    lastSuccessfulRequestAt: { type: Date,   default: null },
+    lastSessionErrorAt:      { type: Date,   default: null },
+    lastLoginAt:             { type: Date,   default: null },
+
+    // ─── Instagrapi counters ──────────────────────────────────────────────────
+
+    loginAttempts:       { type: Number, default: 0 },
+    reloginAttempts:     { type: Number, default: 0 },
+    consecutiveFailures: { type: Number, default: 0 },
+    // Incremented on each new login to invalidate stale in-memory sessions.
+    sessionVersion:      { type: Number, default: 0 },
+
     accountType: {
       type: String,
       default: '',
@@ -220,6 +265,7 @@ const accountSchema = new mongoose.Schema(
 
 accountSchema.index({ isBusy: 1, busySince: 1 });
 accountSchema.index({ healthStatus: 1 });
+accountSchema.index({ provider: 1 });
 
 // ─── Token encryption (transparent) ──────────────────────────────────────────
 // Getter decrypts on read; setter encrypts on write.
@@ -232,15 +278,27 @@ accountSchema.path('accessToken')
   .get(function (v) { try { return _decryptToken(v); } catch { return v; } })
   .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
 
+accountSchema.path('instagrapiSession')
+  .get(function (v) { try { return _decryptToken(v); } catch { return v; } })
+  .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
+
 // findByIdAndUpdate / updateOne bypass path setters → encrypt here
 accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], async function () {
   const u = this.getUpdate();
-  const raw = u?.accessToken ?? u?.$set?.accessToken;
-  if (raw && typeof raw === 'string') {
+  const rawToken = u?.accessToken ?? u?.$set?.accessToken;
+  if (rawToken && typeof rawToken === 'string') {
     try {
-      const enc = _encryptToken(raw);
-      if (u.accessToken !== undefined)      u.accessToken      = enc;
-      if (u.$set?.accessToken !== undefined) u.$set.accessToken = enc;
+      const enc = _encryptToken(rawToken);
+      if (u.accessToken !== undefined)       u.accessToken       = enc;
+      if (u.$set?.accessToken !== undefined) u.$set.accessToken  = enc;
+    } catch { /* leave as-is on error */ }
+  }
+  const rawSession = u?.instagrapiSession ?? u?.$set?.instagrapiSession;
+  if (rawSession && typeof rawSession === 'string') {
+    try {
+      const enc = _encryptToken(rawSession);
+      if (u.instagrapiSession !== undefined)       u.instagrapiSession       = enc;
+      if (u.$set?.instagrapiSession !== undefined) u.$set.instagrapiSession  = enc;
     } catch { /* leave as-is on error */ }
   }
 });
