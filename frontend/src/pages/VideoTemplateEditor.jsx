@@ -174,6 +174,152 @@ function TextElementRow({ el, onChange, onRemove }) {
   );
 }
 
+// ── Template Preview ─────────────────────────────────────────────────────────
+
+const FIT_DESC = {
+  cover:   'Cover',
+  contain: 'Contain',
+  blur:    'Blur',
+  stretch: 'Stretch',
+};
+
+function TemplatePreview({ tmpl }) {
+  const W = tmpl.canvas.width  || 1080;
+  const H = tmpl.canvas.height || 1920;
+  const PREV_W = 210;
+  const scale  = PREV_W / W;
+  const PREV_H = Math.round(H * scale);
+
+  const videoEl  = tmpl.elements.find(el => el.type === 'video');
+  const imageEls = tmpl.elements.filter(el => el.type === 'image');
+  const textEls  = tmpl.elements.filter(el => el.type === 'text');
+
+  const fitGrad = {
+    cover:   'linear-gradient(135deg,rgba(99,102,241,.25) 0%,rgba(139,92,246,.18) 100%)',
+    contain: 'linear-gradient(135deg,rgba(16,185,129,.18) 0%,rgba(6,182,212,.15) 100%)',
+    blur:    'linear-gradient(135deg,rgba(251,191,36,.15) 0%,rgba(249,115,22,.12) 100%)',
+    stretch: 'linear-gradient(135deg,rgba(244,63,94,.15)  0%,rgba(168,85,247,.12) 100%)',
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+        Preview — {W}×{H}
+      </div>
+
+      {/* Canvas */}
+      <div style={{
+        position: 'relative', width: PREV_W, height: PREV_H,
+        background: tmpl.canvas.background || '#000000',
+        borderRadius: 8, overflow: 'hidden',
+        border: '1px solid oklch(1 0 0 / 0.14)',
+        boxShadow: '0 8px 28px rgba(0,0,0,.55)',
+        userSelect: 'none',
+      }}>
+
+        {/* Fundo de vídeo */}
+        {videoEl && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: fitGrad[videoEl.fit || 'cover'],
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4,
+          }}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,.65)" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/>
+              <rect x="1" y="8" width="14" height="13" rx="2"/>
+            </svg>
+            <span style={{ fontSize: 7, fontFamily: 'var(--font-mono)', color: 'rgba(167,139,250,.8)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              {FIT_DESC[videoEl.fit] || 'Cover'}
+            </span>
+          </div>
+        )}
+
+        {/* Grade de referência */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          backgroundImage: 'linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)',
+          backgroundSize: `${Math.round(W / 6 * scale)}px ${Math.round(H / 6 * scale)}px`,
+        }}/>
+
+        {/* Overlays de imagem */}
+        {imageEls.map(el => (
+          <div key={el.id} style={{
+            position: 'absolute',
+            left:   Math.round((el.x || 0) * scale),
+            top:    Math.round((el.y || 0) * scale),
+            width:  Math.max(12, Math.round((el.width || 120) * scale)),
+            height: el.height ? Math.max(8, Math.round(el.height * scale)) : Math.max(8, Math.round(40 * scale)),
+            background: 'rgba(96,165,250,.2)',
+            border: '1px solid rgba(96,165,250,.55)',
+            borderRadius: 2,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
+            <span style={{ fontSize: 5, color: '#60a5fa', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>
+              {el.label || 'img'}
+            </span>
+          </div>
+        ))}
+
+        {/* Overlays de texto */}
+        {textEls.map(el => (
+          <div key={el.id} style={{
+            position: 'absolute',
+            left:     Math.round((el.x || 0) * scale),
+            top:      Math.round((el.y || 0) * scale),
+            fontSize: Math.max(6, Math.round((el.fontSize || 48) * scale)),
+            color:    el.color || '#fff',
+            fontWeight: 700, lineHeight: 1.2,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            maxWidth:  Math.round((W - (el.x || 0)) * scale),
+            textShadow: '0 1px 4px rgba(0,0,0,.9)',
+            letterSpacing: '-.01em',
+          }}>
+            {el.text && !el.text.includes('{{') ? el.text : (el.label || '{{TEXT}}')}
+          </div>
+        ))}
+
+        {/* Dimensões */}
+        <div style={{
+          position: 'absolute', bottom: 4, right: 4,
+          fontSize: 6, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,.28)',
+          background: 'rgba(0,0,0,.35)', borderRadius: 3, padding: '1px 5px',
+        }}>
+          {W}×{H}
+        </div>
+      </div>
+
+      {/* Legenda de elementos */}
+      <div style={{ marginTop: 10, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+        {videoEl && (
+          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', borderRadius: 4, padding: '2px 7px', background: 'rgba(139,92,246,.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,.22)' }}>
+            {FIT_DESC[videoEl.fit] || 'cover'}
+          </span>
+        )}
+        {imageEls.map(el => (
+          <span key={el.id} style={{ fontSize: 9, fontFamily: 'var(--font-mono)', borderRadius: 4, padding: '2px 7px', background: 'rgba(96,165,250,.1)', color: '#60a5fa', border: '1px solid rgba(96,165,250,.22)' }}>
+            🖼 {el.label || 'img'}
+          </span>
+        ))}
+        {textEls.map(el => (
+          <span key={el.id} style={{ fontSize: 9, fontFamily: 'var(--font-mono)', borderRadius: 4, padding: '2px 7px', background: 'rgba(74,222,128,.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,.22)' }}>
+            T {el.label || 'text'}
+          </span>
+        ))}
+        {!videoEl && imageEls.length === 0 && textEls.length === 0 && (
+          <span style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>sem elementos</span>
+        )}
+      </div>
+
+      {/* Áudio */}
+      <div style={{ marginTop: 8, fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text3)' }}>
+        {tmpl.audio.keepOriginal ? '🔊 áudio original' : '🔇 sem áudio'}
+        {tmpl.audio.musicTrack ? ' + trilha' : ''}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function VideoTemplateEditor() {
@@ -291,7 +437,8 @@ export default function VideoTemplateEditor() {
         actions={pageActions}
       >
         <form id="tmpl-form" onSubmit={save}>
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 238px', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* ── Informações gerais ── */}
             <Section title="Informações gerais">
@@ -444,8 +591,14 @@ export default function VideoTemplateEditor() {
                 {saving ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Criar template'}
               </button>
             </div>
+          </div>{/* fim coluna esquerda */}
 
+          {/* ── Coluna direita: preview ── */}
+          <div style={{ position: 'sticky', top: 70 }}>
+            <TemplatePreview tmpl={tmpl} />
           </div>
+
+          </div>{/* fim grid */}
         </form>
       </PageShell>
     </>
