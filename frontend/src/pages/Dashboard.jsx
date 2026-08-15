@@ -1011,7 +1011,7 @@ export default function Dashboard() {
   // chartContainerRef removed — ResponsiveContainer handles sizing
   const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
 
-  const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch {} }, []);
+  const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch { setData(d => d ?? {}); } }, []);
   const loadStats   = useCallback(async () => { try { const r = await api.get('/dashboard/account-stats');                                 setAccountStats(r.data||[]); } catch {} }, []);
   const loadInsights= useCallback(async () => { try { const r = await api.get('/insights', { params:{ period:'30d', limit:6 } });          setTopInsights(r.data?.insights||[]); } catch {} }, []);
   const loadProxies = useCallback(async () => { try { const r = await api.get('/proxies'); const list=r.data?.proxies||(Array.isArray(r.data)?r.data:[]); setProxyCount(list.length); } catch {} }, []);
