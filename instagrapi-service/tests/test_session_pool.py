@@ -162,3 +162,106 @@ async def test_remove_entry_clears_pending_2fa():
     session_pool.store_pending_2fa("evict-2fa", "user", "ident")
     await session_pool.remove_entry("evict-2fa")
     assert session_pool.get_pending_2fa("evict-2fa") is None
+
+
+# ── Phase B: isinstance-based classify_error ───────────────────────────────────
+# These tests use REAL instagrapi exception classes so the isinstance path is exercised,
+# not just the type-name fallback path.
+
+def test_classify_real_two_factor_required():
+    from app import session_pool
+    from instagrapi.exceptions import TwoFactorRequired
+    assert session_pool.classify_error(TwoFactorRequired("2fa")) == "TWO_FACTOR_REQUIRED"
+
+
+def test_classify_real_challenge_required():
+    from app import session_pool
+    from instagrapi.exceptions import ChallengeRequired
+    assert session_pool.classify_error(ChallengeRequired("chall")) == "CHALLENGE_REQUIRED"
+
+
+def test_classify_real_bad_password():
+    from app import session_pool
+    from instagrapi.exceptions import BadPassword
+    assert session_pool.classify_error(BadPassword("wrong")) == "BAD_PASSWORD"
+
+
+def test_classify_real_login_required_is_session_expired():
+    from app import session_pool
+    from instagrapi.exceptions import LoginRequired
+    assert session_pool.classify_error(LoginRequired("expired")) == "SESSION_EXPIRED"
+
+
+def test_classify_real_feedback_required():
+    from app import session_pool
+    from instagrapi.exceptions import FeedbackRequired
+    assert session_pool.classify_error(FeedbackRequired("blocked")) == "FEEDBACK_REQUIRED"
+
+
+# ── Phase B: PROXY_ERROR ───────────────────────────────────────────────────────
+
+def test_classify_proxy_error_by_typename():
+    from app import session_pool
+    exc = type("ProxyError", (Exception,), {})("connection refused through proxy")
+    assert session_pool.classify_error(exc) == "PROXY_ERROR"
+
+
+def test_classify_proxy_error_by_message():
+    from app import session_pool
+    e = Exception("proxy refused connection: 407 Proxy Authentication Required")
+    assert session_pool.classify_error(e) == "PROXY_ERROR"
+
+
+def test_classify_tunnel_connect_refused_is_proxy_error():
+    from app import session_pool
+    e = Exception("tunnel connection failed: 403 Forbidden (connect refused)")
+    assert session_pool.classify_error(e) == "PROXY_ERROR"
+
+
+# ── Phase B: NETWORK_ERROR ────────────────────────────────────────────────────
+
+def test_classify_connection_error_typename():
+    from app import session_pool
+    exc = type("ConnectionError", (Exception,), {})("network failure")
+    assert session_pool.classify_error(exc) == "NETWORK_ERROR"
+
+
+def test_classify_network_error_by_message():
+    from app import session_pool
+    e = Exception("connection refused to api.instagram.com:443")
+    assert session_pool.classify_error(e) == "NETWORK_ERROR"
+
+
+def test_classify_eof_is_network_error():
+    from app import session_pool
+    e = Exception("EOF occurred in violation of protocol")
+    assert session_pool.classify_error(e) == "NETWORK_ERROR"
+
+
+def test_classify_maxretry_429_is_rate_limited_not_network():
+    """MaxRetryError with '429' message must classify as RATE_LIMITED, not NETWORK_ERROR."""
+    from app import session_pool
+    exc = type("MaxRetryError", (Exception,), {})(
+        "HTTPSConnectionPool: Max retries exceeded (Caused by ResponseError('too many 429 error responses'))"
+    )
+    assert session_pool.classify_error(exc) == "RATE_LIMITED"
+
+
+# ── Phase B: _slog secret stripping ───────────────────────────────────────────
+
+def test_slog_strips_password(caplog):
+    import logging
+    from app import session_pool
+    with caplog.at_level(logging.INFO, logger="app.session_pool"):
+        session_pool._slog("TEST_EVENT", "acc-secret", password="supersecret", username="user1")
+    assert "supersecret" not in caplog.text
+    assert "user1" in caplog.text
+
+
+def test_slog_strips_verification_code(caplog):
+    import logging
+    from app import session_pool
+    with caplog.at_level(logging.INFO, logger="app.session_pool"):
+        session_pool._slog("TEST_EVENT", "acc-vc", verification_code="123456", event_type="login")
+    assert "123456" not in caplog.text
+    assert "event_type" in caplog.text

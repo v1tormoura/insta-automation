@@ -14,9 +14,39 @@ SECURITY GUARANTEES:
 """
 
 import asyncio
+import json
+import logging
 import time
 from typing import Dict, Optional
+
+# ── Instagrapi exceptions — imported at module level (fail fast) ──────────────
+# If instagrapi is not properly installed, the service will fail to start.
+# This is intentional: we MUST NOT silently create stub exception classes, as
+# that would cause real Instagram exceptions to fall through the wrong handler.
 from instagrapi import Client
+from instagrapi.exceptions import (
+    BadPassword,
+    ChallengeRequired,
+    FeedbackRequired,
+    LoginRequired,
+    TwoFactorRequired,
+)
+
+# Optional extras not available in all instagrapi 2.x minor versions.
+# Absence is fine — classify_error() covers these via message content.
+try:
+    from instagrapi.exceptions import PleaseWaitFewMinutes as _PleaseWait
+except ImportError:
+    _PleaseWait = None
+
+try:
+    from instagrapi.exceptions import RateLimitError as _RateLimit
+except ImportError:
+    _RateLimit = None
+
+logger = logging.getLogger(__name__)
+
+# ── In-memory pool ────────────────────────────────────────────────────────────
 
 # pool: account_id → { "client": Client, "lock": asyncio.Lock }
 _pool: Dict[str, dict] = {}
@@ -52,6 +82,21 @@ def is_loaded(account_id: str) -> bool:
     return account_id in _pool
 
 
+# ── Structured logging ────────────────────────────────────────────────────────
+
+# Fields that must never appear in logs.
+_REDACT = frozenset({
+    "password", "verification_code", "totp", "session",
+    "cookies", "settings", "access_token", "token",
+})
+
+
+def _slog(event: str, account_id: str, **kwargs) -> None:
+    """Emit a structured JSON log line. Strips secrets before logging."""
+    safe = {k: v for k, v in kwargs.items() if k not in _REDACT}
+    logger.info("%s", json.dumps({"event": event, "account": account_id, **safe}))
+
+
 # ── Pending 2FA store ─────────────────────────────────────────────────────────
 
 def store_pending_2fa(account_id: str, username: str, identifier: str) -> None:
@@ -61,10 +106,11 @@ def store_pending_2fa(account_id: str, username: str, identifier: str) -> None:
     TTL: 5 minutes — after that the challenge must be restarted.
     """
     _pending_2fa[account_id] = {
-        "username":            username,
+        "username":              username,
         "two_factor_identifier": identifier,
-        "expires_at":          time.time() + _PENDING_2FA_TTL,
+        "expires_at":            time.time() + _PENDING_2FA_TTL,
     }
+    _slog("LOGIN_2FA_PENDING", account_id, ttl_s=_PENDING_2FA_TTL)
 
 
 def get_pending_2fa(account_id: str) -> Optional[dict]:
@@ -89,14 +135,50 @@ def classify_error(e: Exception) -> str:
     """
     Map an instagrapi / httpx / urllib3 exception to a stable error code string.
 
-    IMPORTANT: check substrings in both the type name AND the message, because
-    instagrapi sometimes wraps lower-level exceptions and the original type is
-    lost. The message is lowercased for case-insensitive matching.
+    Strategy:
+    1. isinstance checks against known instagrapi exception classes (most precise —
+       catches subclasses and works even when the exception is re-raised or wrapped).
+    2. Type name substring checks (handles wrapped exceptions from older versions).
+    3. Message content checks (last resort for exceptions we can't import).
+
+    Invariants:
+    - RATE_LIMITED is never confused with TWO_FACTOR_REQUIRED.
+    - PROXY_ERROR is checked before generic NETWORK_ERROR.
+    - The "too many 429 error responses" MaxRetryError is always RATE_LIMITED.
     """
+    # ── isinstance (primary — most reliable) ─────────────────────────────────
+    if isinstance(e, TwoFactorRequired):
+        return "TWO_FACTOR_REQUIRED"
+    if isinstance(e, ChallengeRequired):
+        return "CHALLENGE_REQUIRED"
+    if isinstance(e, BadPassword):
+        return "BAD_PASSWORD"
+    if isinstance(e, LoginRequired):
+        return "SESSION_EXPIRED"
+    if isinstance(e, FeedbackRequired):
+        return "FEEDBACK_REQUIRED"
+    if _PleaseWait is not None and isinstance(e, _PleaseWait):
+        return "RATE_LIMITED"
+    if _RateLimit is not None and isinstance(e, _RateLimit):
+        return "RATE_LIMITED"
+
     type_name = type(e).__name__.lower()
     msg       = str(e).lower()
 
-    # ── Specific instagrapi exception types (most precise — check first) ──────
+    # ── Proxy errors (before generic network) ────────────────────────────────
+    if any(x in type_name for x in ("proxyerror", "socks5", "socks4")):
+        return "PROXY_ERROR"
+    if "proxy" in msg or ("tunnel" in msg and ("connect" in msg or "refused" in msg)):
+        return "PROXY_ERROR"
+
+    # ── Rate limit ────────────────────────────────────────────────────────────
+    # "too many 429 error responses" — urllib3 MaxRetryError after exhausting retries
+    if "429" in msg or "too many" in msg or "please wait" in msg:
+        return "RATE_LIMITED"
+    if "ratelimit" in type_name or "rate_limit" in msg:
+        return "RATE_LIMITED"
+
+    # ── Specific type name fallbacks ──────────────────────────────────────────
     if "twofactorrequired" in type_name:
         return "TWO_FACTOR_REQUIRED"
     if "challengerequired" in type_name or "challenge_required" in type_name:
@@ -108,22 +190,28 @@ def classify_error(e: Exception) -> str:
     if "feedbackrequired" in type_name or "feedback_required" in type_name:
         return "FEEDBACK_REQUIRED"
 
-    # ── Fallback: classify by message content ─────────────────────────────────
-    # 429 / rate-limiting — must appear before generic checks
-    # The message "too many 429 error responses" contains "429" and "too many"
-    if "429" in msg or "too many" in msg or "ratelimit" in type_name or "rate_limit" in msg:
-        return "RATE_LIMITED"
-
+    # ── Message-based fallbacks ───────────────────────────────────────────────
     if "challenge" in msg:
         return "CHALLENGE_REQUIRED"
     if "two_factor" in msg or "two factor" in msg or "2fa" in msg:
         return "TWO_FACTOR_REQUIRED"
-    if "bad password" in msg or "password" in msg:
+    if "bad password" in msg or "wrong password" in msg:
         return "BAD_PASSWORD"
     if "login" in msg and ("required" in msg or "needed" in msg):
         return "SESSION_EXPIRED"
 
+    # ── Timeouts ──────────────────────────────────────────────────────────────
     if "timeout" in type_name or "timed out" in msg or "timeout" in msg:
         return "TIMEOUT"
+
+    # ── Network / connection (checked after RATE_LIMITED so MaxRetryError
+    #    with 429 message doesn't land here) ───────────────────────────────────
+    if any(x in type_name for x in ("connectionerror", "connecttimeout",
+                                     "connectionreset", "networkxexception")):
+        return "NETWORK_ERROR"
+    if any(x in msg for x in ("connection refused", "connection reset",
+                               "unreachable", "eof occurred", "broken pipe",
+                               "name or service not known")):
+        return "NETWORK_ERROR"
 
     return "UNKNOWN_ERROR"

@@ -1,6 +1,19 @@
 import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+
+# ── Instagrapi exceptions — module-level import (fail fast on startup) ────────
+# Do NOT use a try/except ImportError fallback here. If instagrapi is not
+# properly installed, the service must refuse to start — creating stub exception
+# classes would silently swallow real Instagram exceptions in the wrong handler.
+from instagrapi.exceptions import (
+    BadPassword,
+    ChallengeRequired,
+    FeedbackRequired,
+    LoginRequired,
+    TwoFactorRequired,
+)
+
 from ..models import LoadRequest, EvictRequest, LoginRequest, TwoFactorVerifyRequest
 from .. import session_pool
 
@@ -49,22 +62,13 @@ async def login(body: LoginRequest):
     - HTTP 202 {"status": "TWO_FACTOR_REQUIRED"}  — user must supply the 2FA code
     - HTTP 429 {"code": "RATE_LIMITED", ...}       — Instagram rate-limited this IP
     - HTTP 428 {"code": "CHALLENGE_REQUIRED", ...} — challenge required in the app
-    - HTTP 401 {"code": "BAD_PASSWORD", ...}       — wrong credentials
+    - HTTP 422 {"code": "BAD_PASSWORD", ...}       — wrong credentials
     - HTTP 403 {"code": "FEEDBACK_REQUIRED", ...}  — Instagram action block
 
     SECURITY: the password travels in-memory only — it is NEVER stored or logged.
     Only account_id and error type/code are written to logs.
     """
-    # Import exceptions lazily so missing extras don't crash the module import
-    try:
-        from instagrapi.exceptions import (
-            TwoFactorRequired, ChallengeRequired, BadPassword,
-            FeedbackRequired, LoginRequired,
-        )
-    except ImportError:
-        # Fallback: use generic Exception so the classify_error msg-based path handles it
-        TwoFactorRequired = type("TwoFactorRequired", (Exception,), {})
-        ChallengeRequired = BadPassword = FeedbackRequired = LoginRequired = None
+    session_pool._slog("LOGIN_ATTEMPT", body.account_id, username=body.username)
 
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
@@ -100,6 +104,7 @@ async def login(body: LoginRequest):
 
         settings = client.get_settings()
 
+    session_pool._slog("LOGIN_SUCCESS", body.account_id)
     return {"status": "AUTHENTICATED", "settings": settings}
 
 
@@ -125,19 +130,13 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     async with entry["lock"]:
         client = entry["client"]
         try:
-            identifier = pending.get("two_factor_identifier", "")
-            username   = pending["username"]
-
-            if identifier and hasattr(client, "two_factor_login"):
-                # Preferred path: use the stored identifier (no password needed)
-                client.two_factor_login(username, body.verification_code, identifier)
-            else:
-                # Fallback: the client remembers internal state from the first login call
-                # calling login() again with the code completes the 2FA flow
-                raise HTTPException(status_code=400, detail={
-                    "code":    "NO_PENDING_2FA",
-                    "message": "Challenge expirado. Faça o login novamente.",
-                })
+            identifier = pending.get("two_factor_identifier", "") or ""
+            # Use keyword arguments — positional order varies between instagrapi versions.
+            # identifier defaults to "" when not available; instagrapi handles the empty case.
+            client.two_factor_login(
+                verification_code=body.verification_code,
+                two_factor_identifier=identifier,
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -147,15 +146,13 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
                 code, body.account_id, type(e).__name__,
             )
             session_pool.clear_pending_2fa(body.account_id)
-            raise HTTPException(status_code=401, detail={
-                "code":    code,
-                "message": "Código inválido ou expirado.",
-            })
+            _raise_for_code(code)
         finally:
             session_pool.clear_pending_2fa(body.account_id)
 
         settings = client.get_settings()
 
+    session_pool._slog("VERIFY_2FA_SUCCESS", body.account_id)
     return {"status": "AUTHENTICATED", "settings": settings}
 
 
@@ -175,11 +172,14 @@ def _raise_for_code(code: str) -> None:
     _STATUS = {
         "RATE_LIMITED":       429,
         "CHALLENGE_REQUIRED": 428,
-        "BAD_PASSWORD":       401,
+        "BAD_PASSWORD":       422,
         "FEEDBACK_REQUIRED":  403,
-        "SESSION_EXPIRED":    401,
+        "SESSION_EXPIRED":    422,
         "TIMEOUT":            504,
-        "TWO_FACTOR_REQUIRED": 202,  # handled before this function is called
+        "PROXY_ERROR":        502,
+        "NETWORK_ERROR":      503,
+        "LOGIN_IN_PROGRESS":  409,
+        # TWO_FACTOR_REQUIRED is handled before this function is called — 202 is not an error
     }
-    http_status = _STATUS.get(code, 401)
+    http_status = _STATUS.get(code, 422)  # fallback 422, not 401 (401 triggers SaaS logout)
     raise HTTPException(status_code=http_status, detail={"code": code, "message": ""})
