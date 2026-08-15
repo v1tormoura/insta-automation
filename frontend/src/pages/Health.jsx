@@ -167,14 +167,18 @@ function AccountCard({ account }) {
       {/* ── Linhas de info ── */}
       <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 9 }}>
 
-        {/* Última sincronização */}
+        {/* Última sincronização / último login */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: '#475569' }}>Última sincronização</span>
+          <span style={{ fontSize: 12, color: '#475569' }}>
+            {account.provider === 'instagrapi' ? 'Último login' : 'Última sincronização'}
+          </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
             </svg>
-            {timeAgo(account.lastSync)}
+            {timeAgo(account.provider === 'instagrapi'
+              ? (account.lastLoginAt || account.lastValidatedAt)
+              : account.lastSync)}
           </span>
         </div>
 

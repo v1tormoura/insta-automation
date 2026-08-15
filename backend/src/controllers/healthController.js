@@ -13,9 +13,11 @@ function calculateScore(account) {
 
   let score = 100;
 
+  const isInstagrapi = account.provider === 'instagrapi';
+
   // Sessão / autenticação
-  const hasApiToken = !!(account.accessToken && account.igUserId);
-  const hasMobileSession = !!account.igSession;
+  const hasApiToken      = !!(account.accessToken && account.igUserId);
+  const hasMobileSession = !!account.igSession || (isInstagrapi && !!account.instagrapiSession);
   const hasCookieSession = hasSession(account.username);
 
   if (!hasApiToken && !hasMobileSession && !hasCookieSession) score -= 35;
@@ -32,26 +34,29 @@ function calculateScore(account) {
   // Ocupada há mais de 30 min (travada)
   if (account.isBusy && account.busySince) {
     const busyMs = Date.now() - new Date(account.busySince).getTime();
-    if (busyMs > 30 * 60 * 1000) score -= 20; // travada
+    if (busyMs > 30 * 60 * 1000) score -= 20;
     else score -= 5;
   }
 
-  // Sync desatualizada há mais de 48h → incerteza
-  if (account.lastSync) {
-    const hoursAgo = (Date.now() - new Date(account.lastSync).getTime()) / (1000 * 60 * 60);
+  // Sync desatualizada — instagrapi usa lastValidatedAt; official usa lastSync
+  const syncDate = isInstagrapi ? account.lastValidatedAt : account.lastSync;
+  if (syncDate) {
+    const hoursAgo = (Date.now() - new Date(syncDate).getTime()) / (1000 * 60 * 60);
     if (hoursAgo > 72) score -= 20;
     else if (hoursAgo > 48) score -= 10;
-  } else {
-    score -= 20; // nunca sincronizado
+  } else if (!isInstagrapi) {
+    score -= 20; // nunca sincronizado (penalidade só para contas official)
   }
 
-  // Token API inválido / expirado
-  if (account.healthStatus === 'token_invalido') {
-    score -= 60;
-  } else if (account.tokenExpiresAt) {
-    const daysLeft = (new Date(account.tokenExpiresAt) - Date.now()) / (1000 * 60 * 60 * 24);
-    if (daysLeft < 0)  score -= 60; // expirado mesmo sem health check ter detectado ainda
-    else if (daysLeft < 7) score -= 15;
+  // Token Meta API inválido/expirado — não se aplica a contas instagrapi
+  if (!isInstagrapi) {
+    if (account.healthStatus === 'token_invalido') {
+      score -= 60;
+    } else if (account.tokenExpiresAt) {
+      const daysLeft = (new Date(account.tokenExpiresAt) - Date.now()) / (1000 * 60 * 60 * 24);
+      if (daysLeft < 0)  score -= 60;
+      else if (daysLeft < 7) score -= 15;
+    }
   }
 
   return Math.max(0, score);
@@ -108,6 +113,9 @@ exports.getHealth = async (req, res) => {
         isBusy: account.isBusy,
         busyReason: account.busyReason,
         tokenDaysLeft,
+        sessionStatus: account.sessionStatus || null,
+        lastLoginAt: account.lastLoginAt || null,
+        lastValidatedAt: account.lastValidatedAt || null,
       };
     });
 
