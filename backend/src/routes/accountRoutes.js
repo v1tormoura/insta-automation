@@ -1119,8 +1119,14 @@ function _igHttpStatus(code) {
     FEEDBACK_REQUIRED:              403,
     TIMEOUT:                        504,
     NO_PENDING_2FA:                 400,
+    // Instagram credential errors — must NOT be 401 (would trigger SaaS logout)
+    BAD_PASSWORD:                   422,
+    SESSION_EXPIRED:                422,
+    AUTH_REQUIRED:                  422,
+    NO_INSTAGRAPI_SESSION:          422,
   };
-  return map[code] || 401;
+  // Fallback 422 (not 401) so the frontend interceptor never triggers a SaaS logout
+  return map[code] || 422;
 }
 
 function _getHttp() {
