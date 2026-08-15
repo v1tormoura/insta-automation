@@ -66,6 +66,7 @@ export default function Accounts() {
   const [selectMode,     setSelectMode]     = useState(false);
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
   const [bulkDeleting,   setBulkDeleting]   = useState(false);
+  const [instaModal,     setInstaModal]     = useState(null);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -202,6 +203,42 @@ export default function Accounts() {
       setBulkProxyOpen(false); setBulkProxyText(''); loadAccounts();
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
     finally { setSavingBulkProxy(false); }
+  }
+
+  function openInstaModal(account) {
+    setInstaModal({ account, loading: false, error: '', username: account.username || '', password: '' });
+  }
+
+  async function connectInstagrapi() {
+    setInstaModal(m => ({ ...m, loading: true, error: '' }));
+    try {
+      await api.post(`/accounts/${instaModal.account._id}/instagrapi-login`, {
+        username: instaModal.username.trim(),
+        password: instaModal.password.trim(),
+      });
+      showToast('success', 'Conectada!', `@${instaModal.username} conectada via API Mobile`);
+      setInstaModal(null);
+      loadAccounts();
+    } catch (err) {
+      const msg  = err.response?.data?.error || err.message;
+      const code = err.response?.data?.code  || '';
+      const errMsg = code === 'CHALLENGE_REQUIRED'
+        ? 'Challenge requerido — resolva o desafio no app do Instagram e tente novamente.'
+        : code === 'INSTAGRAPI_SERVICE_UNAVAILABLE'
+          ? 'Serviço indisponível no momento — tente novamente em instantes.'
+          : msg;
+      setInstaModal(m => ({ ...m, loading: false, error: errMsg }));
+    }
+  }
+
+  async function disconnectInstagrapi(account) {
+    try {
+      await api.post(`/accounts/${account._id}/instagrapi-disconnect`);
+      showToast('success', 'Desconectada', `@${account.username} voltou ao modo oficial`);
+      loadAccounts();
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
+    }
   }
 
   function deleteAccount(id) { setAccountToDelete(id); setDeleteModal(true); }
@@ -548,6 +585,16 @@ export default function Accounts() {
                     }}
                   ><IcoSignal /> Proxy</button>
 
+                  <button
+                    onClick={() => account.provider === 'instagrapi' ? disconnectInstagrapi(account) : openInstaModal(account)}
+                    title={account.provider === 'instagrapi' ? 'API Mobile ativa — clique para desconectar' : 'Conectar via API Mobile (sessão mobile, sem expiração de 60 dias)'}
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
+                      background: account.provider === 'instagrapi' ? 'rgba(16,185,129,.12)' : 'oklch(1 0 0 / 0.04)',
+                      color:      account.provider === 'instagrapi' ? 'var(--green)'          : 'var(--text3)',
+                      border:     account.provider === 'instagrapi' ? '1px solid rgba(16,185,129,.28)' : '1px solid oklch(1 0 0 / 0.08)',
+                    }}
+                  >📱 {account.provider === 'instagrapi' ? 'Mobile ✓' : 'Mobile'}</button>
+
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                     title={needsRecon ? 'Reconectar' : 'API ok'}
                     style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
@@ -820,6 +867,52 @@ export default function Accounts() {
               <button className="btn btn-ghost" onClick={() => { setProxyValue(''); saveProxy(); }} disabled={savingProxy}>Remover proxy</button>
               <button className="btn btn-ghost" onClick={() => setProxyModal(null)}>Cancelar</button>
               <button className="btn btn-primary" onClick={saveProxy} disabled={savingProxy}>{savingProxy ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Instagrapi (API Mobile) Modal ───────────────────────── */}
+      {instaModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width: 'min(440px,100%)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div>
+                <h3 style={{ margin:0 }}>📱 API Mobile — Instagrapi</h3>
+                <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>@{instaModal.account.username}</div>
+              </div>
+              <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
+            </div>
+            <div style={{ fontSize:12, color:'var(--text3)', marginBottom:14, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
+              Sessão mobile — dura meses, sem o limite de 60 dias da API Graph. A senha é usada apenas para login e <strong>nunca é salva</strong>.
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>USUÁRIO DO INSTAGRAM</label>
+              <input className="input" style={{ width:'100%' }} placeholder="username (sem @)"
+                value={instaModal.username}
+                onChange={e => setInstaModal(m => ({ ...m, username: e.target.value.replace(/^@/, '') }))}
+                disabled={instaModal.loading} />
+            </div>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>SENHA</label>
+              <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
+                value={instaModal.password}
+                onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
+                disabled={instaModal.loading} />
+            </div>
+            {instaModal.error && (
+              <div style={{ fontSize:12, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
+                {instaModal.error}
+              </div>
+            )}
+            <div className="modal-actions" style={{ marginTop:4 }}>
+              <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
+              <button className="btn btn-primary" onClick={connectInstagrapi}
+                disabled={instaModal.loading || !instaModal.username.trim() || !instaModal.password.trim()}
+                style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
+                {instaModal.loading ? 'Conectando...' : 'Conectar via API Mobile'}
+              </button>
             </div>
           </div>
         </div>
