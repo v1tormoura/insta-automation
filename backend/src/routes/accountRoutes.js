@@ -1088,6 +1088,52 @@ router.post('/:id/challenge-sms', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * POST /accounts/instagrapi-direct
+ * Cria (se não existir) ou encontra uma conta pelo username e faz login via instagrapi.
+ * Body: { username, password }
+ */
+router.post('/instagrapi-direct', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username?.trim() || !password?.trim()) {
+      return res.status(400).json({ error: 'username e password são obrigatórios' });
+    }
+    const clean = username.trim().replace(/^@/, '').toLowerCase();
+
+    let account = await Account.findOne({ username: clean });
+    if (!account) {
+      account = await Account.create({ username: clean, status: 'ativa', provider: 'official' });
+    }
+
+    const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
+    const { getSessionManager }    = require('../services/instagrapi/SessionManager');
+    const sm   = getSessionManager();
+    const http = new InstagrapiHttpClient(null, sm);
+
+    await http.login(account, clean, password.trim());
+
+    await Account.findByIdAndUpdate(account._id, {
+      provider:      'instagrapi',
+      sessionStatus: 'VALID',
+      healthStatus:  'ativa',
+      lastError:     '',
+    });
+
+    broadcast('accounts', { action: 'synced' });
+    res.json({ success: true, accountId: String(account._id), message: `@${clean} conectada via instagrapi` });
+  } catch (err) {
+    const code = err?.code || '';
+    if (code === 'CHALLENGE_REQUIRED') {
+      return res.status(428).json({ error: 'Challenge necessário — resolva o desafio no Instagram e tente novamente', code });
+    }
+    if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE') {
+      return res.status(503).json({ error: 'Serviço instagrapi indisponível no momento', code });
+    }
+    res.status(400).json({ error: err.message, code });
+  }
+});
+
+/**
  * POST /accounts/:id/instagrapi-login
  * Faz login no Instagram via instagrapi (Python service) e salva a sessão no MongoDB.
  * Body: { username, password }
