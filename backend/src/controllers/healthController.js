@@ -81,7 +81,7 @@ exports.getHealth = async (req, res) => {
       const level = getLevel(score, account);
 
       const hasApiToken      = !!(account.accessToken && account.igUserId);
-      const hasMobileSession = !!account.igSession;
+      const hasMobileSession = !!account.igSession || !!account.instagrapiSession;
       const syncAgeHours     = account.lastSync
         ? (Date.now() - new Date(account.lastSync).getTime()) / (1000 * 60 * 60)
         : null;
