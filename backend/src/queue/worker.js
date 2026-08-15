@@ -110,6 +110,47 @@ function isGraphApiPublishLimit(err) {
   return /número máximo de posts|content_publish_rate_limit|application request limit|maximum number of posts|too many publishes/i.test(err.message || '');
 }
 
+// ── Publicação instagrapi ─────────────────────────────────────────────────
+
+// Mapeamento de erro instagrapi → healthStatus no MongoDB.
+// Undefined = não altera healthStatus (erro de infraestrutura, não de sessão).
+const _IG_HEALTH = {
+  SESSION_EXPIRED:       'sessao_expirada',
+  NO_INSTAGRAPI_SESSION: 'sessao_expirada',
+  CHALLENGE_REQUIRED:    'restrita',
+  FEEDBACK_REQUIRED:     'restrita',
+  RATE_LIMITED:          'restrita',
+};
+
+async function publishViaInstagrapi(account, post) {
+  const { getProvider }     = require('../providers/ProviderFactory');
+  const { getSessionManager } = require('../services/instagrapi/SessionManager');
+  const provider = getProvider(account);
+  const sm       = getSessionManager();
+
+  const postType = post.postType || 'reel';
+  if (postType === 'story') {
+    throw Object.assign(
+      new Error('instagrapi não suporta stories — configure a conta com sessão mobile para histórias'),
+      { code: 'UNSUPPORTED_TYPE' }
+    );
+  }
+
+  try {
+    writeAccountLog(account.username, `Publicando via instagrapi (${postType})...`);
+    if (postType === 'reel') {
+      await provider.publishReel(account, post);
+    } else {
+      await provider.publishPost(account, post);
+    }
+    await sm.recordSuccess(String(account._id));
+    writeAccountLog(account.username, 'Publicado com sucesso via instagrapi');
+  } catch (igErr) {
+    await sm.recordFailure(String(account._id), igErr).catch(() => {});
+    throw igErr;
+  }
+}
+
 // ── Publicação (Graph API → Private API fallback) ─────────────────────────
 
 async function publishWithRetry(post, account, preProcessedVideoUrl) {
@@ -203,7 +244,11 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
   }
 
   try {
-    await publishWithRetry(post, account, preProcessedVideoUrl);
+    if (account.provider === 'instagrapi') {
+      await publishViaInstagrapi(account, post);
+    } else {
+      await publishWithRetry(post, account, preProcessedVideoUrl);
+    }
     await registerSuccess(account);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
     broadcast('accounts', { action: 'synced' });
@@ -215,14 +260,25 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
     return true;
   } catch (err) {
     writeAccountLog(acc.username, `Erro: ${err.message}`);
-    const classified  = classifyError(err);
     const healthUpdate = {
       isBusy: false, busySince: null, busyReason: '',
       lastError: traduzirErro(err.message),
     };
-    if (classified) healthUpdate.healthStatus = classified;
+    const provider = account?.provider || acc.provider;
+    if (provider === 'instagrapi') {
+      const igCode = err?.code || '';
+      const igHealth = _IG_HEALTH[igCode];
+      // Only update healthStatus for session/auth errors — not for infra/config issues
+      if (igHealth) healthUpdate.healthStatus = igHealth;
+      else if (!['INSTAGRAPI_SERVICE_UNAVAILABLE', 'UNSUPPORTED_TYPE'].includes(igCode)) {
+        healthUpdate.healthStatus = classifyError(err) || 'sessao_expirada';
+      }
+    } else {
+      const classified = classifyError(err);
+      if (classified) healthUpdate.healthStatus = classified;
+    }
     await Account.findByIdAndUpdate(acc._id, healthUpdate);
-    broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: classified || acc.healthStatus });
+    broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: healthUpdate.healthStatus || acc.healthStatus });
     throw err;
   }
 }

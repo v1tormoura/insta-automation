@@ -1083,6 +1083,83 @@ router.post('/:id/challenge-sms', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  INSTAGRAPI — conexão via Python service
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * POST /accounts/:id/instagrapi-login
+ * Faz login no Instagram via instagrapi (Python service) e salva a sessão no MongoDB.
+ * Body: { username, password }
+ *
+ * A senha é transmitida em memória apenas, nunca armazenada no banco.
+ * Define account.provider = 'instagrapi' em caso de sucesso.
+ */
+router.post('/:id/instagrapi-login', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    const { username, password } = req.body;
+    if (!username?.trim() || !password?.trim()) {
+      return res.status(400).json({ error: 'username e password são obrigatórios' });
+    }
+
+    const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
+    const { getSessionManager }    = require('../services/instagrapi/SessionManager');
+    const sm  = getSessionManager();
+    const http = new InstagrapiHttpClient(null, sm);
+
+    await http.login(account, username.trim(), password.trim());
+
+    await Account.findByIdAndUpdate(account._id, {
+      provider:      'instagrapi',
+      sessionStatus: 'VALID',
+      healthStatus:  'ativa',
+      lastError:     '',
+    });
+
+    broadcast('accounts', { action: 'synced' });
+    res.json({
+      success: true,
+      message: `@${account.username} conectada via instagrapi — sessão salva com sucesso`,
+    });
+  } catch (err) {
+    const code = err?.code || '';
+    if (code === 'CHALLENGE_REQUIRED') {
+      return res.status(428).json({ error: 'Challenge necessário — resolva o desafio no Instagram e tente novamente', code });
+    }
+    if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE') {
+      return res.status(503).json({ error: 'Serviço instagrapi indisponível no momento', code });
+    }
+    res.status(400).json({ error: err.message, code });
+  }
+});
+
+/**
+ * POST /accounts/:id/instagrapi-disconnect
+ * Remove a sessão instagrapi e restaura o provider para 'official'.
+ */
+router.post('/:id/instagrapi-disconnect', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    const { getSessionManager } = require('../services/instagrapi/SessionManager');
+    await getSessionManager().invalidate(String(account._id));
+
+    await Account.findByIdAndUpdate(account._id, {
+      provider:      'official',
+      sessionStatus: 'UNKNOWN',
+    });
+
+    broadcast('accounts', { action: 'synced' });
+    res.json({ success: true, message: `@${account.username} desconectada do instagrapi` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /**
  * POST /accounts/clear-oauth-tokens
  * Remove accessToken/tokenExpiresAt/igUserId antigos (legado OAuth removido).
