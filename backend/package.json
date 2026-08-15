@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "bullmq": "^3.16.2",
-    "jsonwebtoken": "^9.0.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -26,6 +25,7 @@
     "https-proxy-agent": "^9.1.0",
     "instagram-private-api": "^1.46.1",
     "ioredis": "^5.11.0",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.6.3",
     "multer": "^2.1.1",
     "otplib": "^13.4.1",
