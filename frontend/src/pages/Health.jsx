@@ -98,16 +98,20 @@ function AccountCard({ account }) {
       {(() => {
         const tokenExpired = account.tokenDaysLeft !== null && account.tokenDaysLeft <= 0;
         const tokenInvalid = account.healthStatus === 'token_invalido' || tokenExpired;
-        const apiOk = account.hasApiToken && !tokenInvalid;
+        const apiOk = (account.hasApiToken && !tokenInvalid) || account.provider === 'instagrapi';
         return (
           <div style={{ padding: '0 18px 14px', display: 'flex', gap: 8 }}>
             {apiOk ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.25)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', flexShrink: 0, display: 'inline-block' }} />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>API Conectada</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>
+                    {account.provider === 'instagrapi' ? 'API Mobile Ativa' : 'API Conectada'}
+                  </div>
                   <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>
-                    {account.tokenDaysLeft !== null ? `Token válido · ${account.tokenDaysLeft} dias restantes` : 'Meta API ativa'}
+                    {account.provider === 'instagrapi'
+                      ? 'Sessão instagrapi ativa'
+                      : account.tokenDaysLeft !== null ? `Token válido · ${account.tokenDaysLeft} dias restantes` : 'Meta API ativa'}
                   </div>
                 </div>
               </div>

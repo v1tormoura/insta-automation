@@ -96,6 +96,7 @@ exports.getHealth = async (req, res) => {
         sessionOk,
         hasApiToken,
         hasMobileSession,
+        provider: account.provider || 'official',
         proxy: account.proxy || '',
         proxyStatus: account.proxyStatus || 'nao_testado',
         postsToday: account.postsToday || 0,
