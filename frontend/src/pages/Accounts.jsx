@@ -25,6 +25,7 @@ const IcoSync    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcoLink    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
 const IcoWave    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 const IcoWifi    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
+const IcoPhone   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
 
 export default function Accounts() {
   const ACCOUNTS_CACHE_KEY = 'instaflow_accounts_cache';
@@ -206,17 +207,23 @@ export default function Accounts() {
   }
 
   function openInstaModal(account) {
-    setInstaModal({ account, loading: false, error: '', username: account.username || '', password: '' });
+    setInstaModal({ selectedId: account?._id || '', loading: false, error: '', password: '' });
   }
 
   async function connectInstagrapi() {
+    const acc = safeAccounts.find(a => a._id === instaModal.selectedId);
+    if (!acc) return;
+    if (acc.provider === 'instagrapi') {
+      await disconnectInstagrapi(acc);
+      return;
+    }
     setInstaModal(m => ({ ...m, loading: true, error: '' }));
     try {
-      await api.post(`/accounts/${instaModal.account._id}/instagrapi-login`, {
-        username: instaModal.username.trim(),
+      await api.post(`/accounts/${acc._id}/instagrapi-login`, {
+        username: acc.username,
         password: instaModal.password.trim(),
       });
-      showToast('success', 'Conectada!', `@${instaModal.username} conectada via API Mobile`);
+      showToast('success', 'Conectada!', `@${acc.username} conectada via API Mobile`);
       setInstaModal(null);
       loadAccounts();
     } catch (err) {
@@ -235,6 +242,7 @@ export default function Accounts() {
     try {
       await api.post(`/accounts/${account._id}/instagrapi-disconnect`);
       showToast('success', 'Desconectada', `@${account.username} voltou ao modo oficial`);
+      setInstaModal(null);
       loadAccounts();
     } catch (err) {
       showToast('error', 'Erro', err.response?.data?.error || err.message);
@@ -384,6 +392,9 @@ export default function Accounts() {
             </button>
             <button onClick={syncAll} disabled={syncing} className="btn-ghost" style={{ padding:'7px 14px', fontSize:12 }}>
               <IcoSync /> {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </button>
+            <button onClick={() => openInstaModal(null)} className="btn-ghost" style={{ padding:'7px 14px', fontSize:12, background:'rgba(139,92,246,.1)', color:'#a78bfa', borderColor:'rgba(139,92,246,.3)' }}>
+              <IcoPhone /> Conectar Instagram
             </button>
             <button onClick={() => openOAuthConnect(null)} disabled={!!connecting['new']} className="btn-primary" style={{ fontSize:13 }}>
               <IcoLink /> {connecting['new'] ? 'Aguarde...' : 'Conectar via API'}
@@ -584,16 +595,6 @@ export default function Accounts() {
                       border:     account.proxy ? '1px solid rgba(139,92,246,.28)' : '1px solid oklch(1 0 0 / 0.08)',
                     }}
                   ><IcoSignal /> Proxy</button>
-
-                  <button
-                    onClick={() => account.provider === 'instagrapi' ? disconnectInstagrapi(account) : openInstaModal(account)}
-                    title={account.provider === 'instagrapi' ? 'API Mobile ativa — clique para desconectar' : 'Conectar via API Mobile (sessão mobile, sem expiração de 60 dias)'}
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
-                      background: account.provider === 'instagrapi' ? 'rgba(16,185,129,.12)' : 'oklch(1 0 0 / 0.04)',
-                      color:      account.provider === 'instagrapi' ? 'var(--green)'          : 'var(--text3)',
-                      border:     account.provider === 'instagrapi' ? '1px solid rgba(16,185,129,.28)' : '1px solid oklch(1 0 0 / 0.08)',
-                    }}
-                  >📱 {account.provider === 'instagrapi' ? 'Mobile ✓' : 'Mobile'}</button>
 
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                     title={needsRecon ? 'Reconectar' : 'API ok'}
@@ -873,50 +874,80 @@ export default function Accounts() {
       )}
 
       {/* ── Instagrapi (API Mobile) Modal ───────────────────────── */}
-      {instaModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(440px,100%)' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div>
-                <h3 style={{ margin:0 }}>📱 API Mobile — Instagrapi</h3>
-                <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>@{instaModal.account.username}</div>
+      {instaModal && (() => {
+        const selAcc = safeAccounts.find(a => a._id === instaModal.selectedId) || null;
+        const isConnected = selAcc?.provider === 'instagrapi';
+        return (
+          <div className="modal-overlay">
+            <div className="modal" style={{ width: 'min(440px,100%)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                <div>
+                  <h3 style={{ margin:0 }}>📱 Conectar Instagram</h3>
+                  <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>API Mobile — sessão duradoura, sem expiração de 60 dias</div>
+                </div>
+                <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
               </div>
-              <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
-            </div>
-            <div style={{ fontSize:12, color:'var(--text3)', marginBottom:14, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
-              Sessão mobile — dura meses, sem o limite de 60 dias da API Graph. A senha é usada apenas para login e <strong>nunca é salva</strong>.
-            </div>
-            <div style={{ marginBottom:10 }}>
-              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>USUÁRIO DO INSTAGRAM</label>
-              <input className="input" style={{ width:'100%' }} placeholder="username (sem @)"
-                value={instaModal.username}
-                onChange={e => setInstaModal(m => ({ ...m, username: e.target.value.replace(/^@/, '') }))}
-                disabled={instaModal.loading} />
-            </div>
-            <div style={{ marginBottom:12 }}>
-              <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>SENHA</label>
-              <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
-                value={instaModal.password}
-                onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
-                disabled={instaModal.loading} />
-            </div>
-            {instaModal.error && (
-              <div style={{ fontSize:12, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
-                {instaModal.error}
+
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>CONTA</label>
+                <select className="input" style={{ width:'100%' }}
+                  value={instaModal.selectedId}
+                  onChange={e => setInstaModal(m => ({ ...m, selectedId: e.target.value, error: '', password: '' }))}
+                  disabled={instaModal.loading}>
+                  <option value="">— Selecione uma conta —</option>
+                  {safeAccounts.map(a => (
+                    <option key={a._id} value={a._id}>
+                      @{a.username}{a.provider === 'instagrapi' ? ' ✓ Mobile ativo' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
-            <div className="modal-actions" style={{ marginTop:4 }}>
-              <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
-              <button className="btn btn-primary" onClick={connectInstagrapi}
-                disabled={instaModal.loading || !instaModal.username.trim() || !instaModal.password.trim()}
-                style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
-                {instaModal.loading ? 'Conectando...' : 'Conectar via API Mobile'}
-              </button>
+
+              {selAcc && isConnected ? (
+                <div style={{ background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.22)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#34d399' }}>
+                  ✓ <strong>@{selAcc.username}</strong> já usa API Mobile. Clique em "Desconectar" para voltar ao modo oficial.
+                </div>
+              ) : selAcc ? (
+                <>
+                  <div style={{ fontSize:12, color:'var(--text3)', marginBottom:12, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
+                    A senha é usada apenas para login e <strong>nunca é salva</strong>.
+                  </div>
+                  <div style={{ marginBottom:12 }}>
+                    <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>SENHA</label>
+                    <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
+                      value={instaModal.password}
+                      onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
+                      disabled={instaModal.loading} autoFocus />
+                  </div>
+                </>
+              ) : null}
+
+              {instaModal.error && (
+                <div style={{ fontSize:12, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
+                  {instaModal.error}
+                </div>
+              )}
+
+              <div className="modal-actions" style={{ marginTop:4 }}>
+                <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
+                {selAcc && isConnected ? (
+                  <button className="btn" onClick={() => disconnectInstagrapi(selAcc)} disabled={instaModal.loading}
+                    style={{ background:'rgba(244,63,94,.12)', color:'#f87171', borderColor:'rgba(244,63,94,.3)' }}>
+                    Desconectar
+                  </button>
+                ) : (
+                  <button className="btn btn-primary" onClick={connectInstagrapi}
+                    disabled={instaModal.loading || !selAcc || !instaModal.password.trim()}
+                    style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
+                    {instaModal.loading ? 'Conectando...' : 'Conectar'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Bulk Proxy Modal ─────────────────────────────────────── */}
       {bulkProxyOpen && (

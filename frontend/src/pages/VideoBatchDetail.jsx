@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import { getToken } from '../services/auth';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 
@@ -111,7 +112,7 @@ export default function VideoBatchDetail() {
   }
 
   function downloadUrl(renderId) {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     const base  = import.meta.env.VITE_API_URL || '';
     return `${base}/video-batches/${id}/renders/${renderId}/download?token=${token}`;
   }
