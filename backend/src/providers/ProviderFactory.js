@@ -11,7 +11,7 @@ let _instagrapi = null;
 /**
  * Returns the InstagramProvider for the given account.
  *
- * account.provider === 'instagrapi' → InstagrapiProvider
+ * account.provider === 'instagrapi' → InstagrapiProvider (backed by Python HTTP service)
  * anything else (default: 'official') → OfficialAPIProvider
  *
  * Callers never import provider classes directly — this is the single
@@ -23,8 +23,11 @@ let _instagrapi = null;
 function getProvider(account) {
   if (account?.provider === 'instagrapi') {
     if (!_instagrapi) {
-      const { getSessionManager } = require('../services/instagrapi/SessionManager');
-      _instagrapi = new InstagrapiProvider(getSessionManager());
+      const { getSessionManager }     = require('../services/instagrapi/SessionManager');
+      const { InstagrapiHttpClient }  = require('../services/instagrapi/InstagrapiHttpClient');
+      const sm   = getSessionManager();
+      const http = new InstagrapiHttpClient(null, sm);
+      _instagrapi = new InstagrapiProvider(sm, http);
     }
     return _instagrapi;
   }

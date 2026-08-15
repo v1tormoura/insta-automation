@@ -6,23 +6,27 @@ const NOT_IMPLEMENTED_CODE = 'INSTAGRAPI_NOT_IMPLEMENTED';
 const NOT_IMPLEMENTED_MSG  = 'Python instagrapi service not yet implemented (Phase 4+)';
 
 /**
- * Stub provider for the Python instagrapi service.
+ * Instagram provider backed by the Docker-internal Python instagrapi service.
  *
- * All publication methods intentionally throw INSTAGRAPI_NOT_IMPLEMENTED.
- * Session management (load/save/lock/metrics) IS wired so Phase 4+ can start
- * using the session infrastructure without touching account models again.
+ * Session metadata (validate/invalidate/metrics) is always handled by SessionManager.
+ * Publication (publishReel/publishPost) delegates to InstagrapiHttpClient which:
+ *   1. Loads the instagrapi session from MongoDB into the Python service pool.
+ *   2. Calls the appropriate /publish/* endpoint.
+ *   3. Saves the updated session blob returned by Python back to MongoDB.
  *
- * Phase 4+:
- *   - publishReel / publishPost / publishStory call the Docker-internal Python HTTP service
- *   - recoverSession triggers instagrapi login flow via that service
+ * Constructor accepts an optional httpClient. When omitted (legacy / test usage),
+ * publication methods throw INSTAGRAPI_NOT_IMPLEMENTED — identical to Phase 3 stub
+ * behaviour, so existing Phase 3 tests remain valid without modification.
  */
 class InstagrapiProvider extends InstagramProvider {
   /**
    * @param {import('../services/instagrapi/SessionManager').SessionManager} sessionManager
+   * @param {import('../services/instagrapi/InstagrapiHttpClient').InstagrapiHttpClient|null} [httpClient]
    */
-  constructor(sessionManager) {
+  constructor(sessionManager, httpClient = null) {
     super();
     this.sessionManager = sessionManager;
+    this._http = httpClient;
   }
 
   get providerName() { return 'instagrapi'; }
@@ -33,25 +37,38 @@ class InstagrapiProvider extends InstagramProvider {
   }
 
   async publishReel(account, postData) {
-    throw this._notReady('publishReel');
+    if (!this._http) throw this._notReady('publishReel');
+    return this._http.publishReel(account, postData);
   }
 
   async publishPost(account, postData) {
-    throw this._notReady('publishPost');
+    if (!this._http) throw this._notReady('publishPost');
+    return this._http.publishPost(account, postData);
   }
 
   async publishStory(account, storyData) {
+    // instagrapi does not expose a public story upload endpoint — use official provider
     throw this._notReady('publishStory');
   }
 
   async invalidateSession(accountId) {
     await this.sessionManager.invalidate(String(accountId));
+    if (this._http) await this._http.evictSession(String(accountId));
   }
 
   async recoverSession(account) {
-    // Phase 4+: will trigger instagrapi re-login via Python service
-    await this.sessionManager._setStatus(String(account._id), 'RECOVERING');
-    return { recovered: false, reason: NOT_IMPLEMENTED_MSG };
+    if (!this._http) {
+      // No HTTP client configured — same stub behaviour as Phase 3
+      await this.sessionManager._setStatus(String(account._id), 'RECOVERING');
+      return { recovered: false, reason: NOT_IMPLEMENTED_MSG };
+    }
+    // With HTTP client: automatic recovery is not possible (no stored password).
+    // Flag as AUTH_REQUIRED so the UI can prompt the admin to reconnect.
+    await this.sessionManager._setStatus(String(account._id), 'AUTH_REQUIRED');
+    return {
+      recovered: false,
+      reason:    'Re-login instagrapi necessário — reconecte a conta pelo painel de administração',
+    };
   }
 
   _notReady(method) {

@@ -25,9 +25,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       HEADLESS: "true"
+      INSTAGRAPI_SERVICE_URL: http://instagrapi-svc:8000
     depends_on:
       - mongo
       - redis
+      - instagrapi-svc
     volumes:
       - uploads:/app/uploads
       - sessions:/app/sessions
@@ -48,9 +50,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       HEADLESS: "true"
+      INSTAGRAPI_SERVICE_URL: http://instagrapi-svc:8000
     depends_on:
       - mongo
       - redis
+      - instagrapi-svc
     volumes:
       - uploads:/app/uploads
       - sessions:/app/sessions
@@ -78,6 +82,17 @@ services:
       - data:/app/data
       - ./backend/src:/app/src
     command: node src/queue/videoRenderWorker.js
+    networks:
+      - instaflow
+
+  instagrapi-svc:
+    build: ./instagrapi-service
+    restart: unless-stopped
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - uploads:/app/uploads
+    # No ports: — internal Docker network only; never exposed to the host
     networks:
       - instaflow
 
