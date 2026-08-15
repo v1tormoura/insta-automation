@@ -13,11 +13,12 @@ function calculateScore(account) {
 
   let score = 100;
 
-  const isInstagrapi = account.provider === 'instagrapi';
+  // Instagrapi: detecta pelo provider OU pela presença de sessão armazenada
+  const isInstagrapi = account.provider === 'instagrapi' || !!account.instagrapiSession;
 
   // Sessão / autenticação
   const hasApiToken      = !!(account.accessToken && account.igUserId);
-  const hasMobileSession = !!account.igSession || (isInstagrapi && !!account.instagrapiSession);
+  const hasMobileSession = !!account.igSession || !!account.instagrapiSession;
   const hasCookieSession = hasSession(account.username);
 
   if (!hasApiToken && !hasMobileSession && !hasCookieSession) score -= 35;

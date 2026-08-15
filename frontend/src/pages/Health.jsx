@@ -46,6 +46,11 @@ function AccountCard({ account }) {
 
   const recentError = account.lastError && account.lastError.length > 0;
 
+  // True se a conta usa API Mobile (instagrapi) — detectado por provider, sessionStatus ou sessão armazenada
+  const isMobileAccount = account.provider === 'instagrapi'
+    || account.sessionStatus === 'VALID'
+    || account.hasMobileSession;
+
   return (
     <div style={{
       background: 'rgba(10,18,36,.85)',
@@ -98,7 +103,7 @@ function AccountCard({ account }) {
       {(() => {
         const tokenExpired = account.tokenDaysLeft !== null && account.tokenDaysLeft <= 0;
         const tokenInvalid = account.healthStatus === 'token_invalido' || tokenExpired;
-        const apiOk = (account.hasApiToken && !tokenInvalid) || account.provider === 'instagrapi';
+        const apiOk = (account.hasApiToken && !tokenInvalid) || isMobileAccount;
         return (
           <div style={{ padding: '0 18px 14px', display: 'flex', gap: 8 }}>
             {apiOk ? (
@@ -106,10 +111,10 @@ function AccountCard({ account }) {
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', flexShrink: 0, display: 'inline-block' }} />
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>
-                    {account.provider === 'instagrapi' ? 'API Mobile Ativa' : 'API Conectada'}
+                    {isMobileAccount ? 'API Mobile Ativa' : 'API Conectada'}
                   </div>
                   <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>
-                    {account.provider === 'instagrapi'
+                    {isMobileAccount
                       ? 'Sessão instagrapi ativa'
                       : account.tokenDaysLeft !== null ? `Token válido · ${account.tokenDaysLeft} dias restantes` : 'Meta API ativa'}
                   </div>
@@ -170,13 +175,13 @@ function AccountCard({ account }) {
         {/* Última sincronização / último login */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12, color: '#475569' }}>
-            {account.provider === 'instagrapi' ? 'Último login' : 'Última sincronização'}
+            {isMobileAccount ? 'Último login' : 'Última sincronização'}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
             </svg>
-            {timeAgo(account.provider === 'instagrapi'
+            {timeAgo(isMobileAccount
               ? (account.lastLoginAt || account.lastValidatedAt)
               : account.lastSync)}
           </span>
