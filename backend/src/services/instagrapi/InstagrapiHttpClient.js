@@ -146,6 +146,36 @@ class InstagrapiHttpClient {
   }
 
   /**
+   * Lightweight session check — calls Python /session/ping which calls account_info().
+   * Used by the health check to verify the session is still active with Instagram.
+   * Never attempts a new login.
+   *
+   * @param {Object} account — Mongoose Account document
+   * @returns {Promise<{valid, username, full_name, pk}>}
+   */
+  async pingSession(account) {
+    const accountId = String(account._id);
+    return this._get(`/session/ping?account_id=${encodeURIComponent(accountId)}`);
+  }
+
+  /**
+   * Fetches a safe subset of public profile info for the account's username.
+   * Called immediately after a successful login to populate avatar, display name, etc.
+   * Non-blocking from the caller's perspective — errors should be caught and logged,
+   * not allowed to break the login flow.
+   *
+   * @param {Object} account   — Mongoose Account document
+   * @param {string} username
+   * @returns {Promise<{pk, full_name, profile_pic_url, follower_count, following_count, media_count}>}
+   */
+  async getUserInfo(account, username) {
+    const accountId = String(account._id);
+    return this._get(
+      `/session/userinfo?account_id=${encodeURIComponent(accountId)}&username=${encodeURIComponent(username)}`
+    );
+  }
+
+  /**
    * Evicts the account's client from the Python service pool.
    * Called after invalidation so stale sessions are not reused.
    * Best-effort — failure is silently ignored.

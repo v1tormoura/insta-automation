@@ -28,7 +28,100 @@ function getMultiloginService() {
   return require('./multiloginService');
 }
 
+/**
+ * KeepAlive para contas instagrapi.
+ *
+ * Contrato:
+ *  - Usa APENAS ensureSession() — nunca senha, nunca login.
+ *  - Erro de rede/Python → retorna ok (transitório), sessão preservada.
+ *  - Sessão inválida localmente → retorna expirada (sem chamar rede).
+ *  - Lock por conta: se ocupado por publish/login, pula este ciclo.
+ *  - NUNCA apaga instagrapiSession por erro técnico.
+ *
+ * @returns {{ status: 'ok'|'expirada', error?: string }}
+ */
+async function _keepAliveInstagrapi(account) {
+  const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
+  const { getSessionManager }    = require('../services/instagrapi/SessionManager');
+  const sm        = getSessionManager();
+  const http      = new InstagrapiHttpClient(null, sm);
+  const accountId = String(account._id);
+  const label     = `@${account.username}`;
+
+  // ── 1. Validação local (sem rede) ─────────────────────────────────────────
+  const validation = await sm.validate(accountId);
+  if (!validation.valid) {
+    console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — ${validation.reason}`);
+    return { status: 'expirada', error: validation.reason };
+  }
+
+  // ── 2. Tenta adquirir lock por conta ─────────────────────────────────────
+  // Se outra operação (publish, login) está em andamento, pula este ciclo.
+  const token = await sm.acquireLock(accountId, 20_000);
+  if (!token) {
+    console.log(`⏩ [KeepAlive] ${label} (instagrapi) — lock ocupado, pulando ciclo`);
+    return { status: 'ok' };
+  }
+
+  try {
+    // ── 3. Garante sessão no pool Python (sem login novo) ──────────────────
+    await http.ensureSession(account);
+    await Account.findByIdAndUpdate(accountId, { lastSessionKeepAlive: new Date() });
+    console.log(`✅ [KeepAlive] ${label} (instagrapi) — sessão mantida`);
+    return { status: 'ok' };
+
+  } catch (err) {
+    const code = err?.code || '';
+
+    // Erros de infraestrutura — transitórios, NÃO apagar sessão
+    if (
+      code === 'INSTAGRAPI_SERVICE_UNAVAILABLE' || code === 'TIMEOUT' ||
+      code === 'NETWORK_ERROR'                  || code === 'PROXY_ERROR'
+    ) {
+      console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — ${code}, sessão preservada`);
+      return { status: 'ok' };
+    }
+
+    // Sem sessão no banco — fluxo de login normal tratará isto
+    if (code === 'NO_INSTAGRAPI_SESSION') {
+      console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — sem sessão no banco`);
+      return { status: 'expirada', error: 'Sessão não encontrada — reconecte a conta' };
+    }
+
+    // Sessão expirada / autenticação rejeitada pelo Instagram
+    if (code === 'SESSION_EXPIRED' || code === 'AUTH_REQUIRED' || code === 'BAD_PASSWORD') {
+      await sm.recordFailure(accountId, err).catch(() => {});
+      await Account.findByIdAndUpdate(accountId, {
+        healthStatus: 'sessao_expirada',
+        lastError:    'Sessão expirada — reconecte a conta',
+      }).catch(() => {});
+      console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — sessão expirada, aguardando relogin manual`);
+      return { status: 'expirada', error: err.message };
+    }
+
+    // Desafio / rate-limit — preservar sessão
+    if (
+      code === 'CHALLENGE_REQUIRED' || code === 'FEEDBACK_REQUIRED' ||
+      code === 'RATE_LIMITED'
+    ) {
+      console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — ${code}, sessão preservada`);
+      return { status: 'ok' };
+    }
+
+    // Erro desconhecido — tratar como transitório para evitar falso positivo
+    console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — erro desconhecido: ${code || err?.message?.slice(0, 60)}`);
+    return { status: 'ok' };
+
+  } finally {
+    await sm.releaseLock(accountId, token).catch(() => {});
+  }
+}
+
 async function keepAliveAccount(account) {
+  // ── Instagrapi: nunca usa senha, nunca login, apenas ensureSession ────────
+  if (account.provider === 'instagrapi' || account.instagrapiSession) {
+    return _keepAliveInstagrapi(account);
+  }
   const label = `@${account.username}`;
 
   // ── 1. Multilogin auto-sync ───────────────────────────────────────────────
@@ -116,6 +209,8 @@ async function runKeepAlive() {
   const accounts = await Account.find({
     status: { $ne: 'banida' },
     $or: [
+      { provider:             'instagrapi' },
+      { instagrapiSession:    { $exists: true, $ne: '' } },
       { igSession:            { $exists: true, $ne: '' } },
       { multiloginProfileId:  { $exists: true, $ne: '' } },
       { password:             { $exists: true, $ne: '' } },
@@ -152,4 +247,4 @@ function startSessionKeepAlive() {
   console.log('⏰ [KeepAlive] Agendado — primeira execução em 30s, depois a cada 2h');
 }
 
-module.exports = { startSessionKeepAlive, runKeepAlive, keepAliveAccount };
+module.exports = { startSessionKeepAlive, runKeepAlive, keepAliveAccount, _keepAliveInstagrapi };

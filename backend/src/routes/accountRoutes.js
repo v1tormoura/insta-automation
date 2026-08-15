@@ -1087,6 +1087,11 @@ router.post('/:id/challenge-sms', async (req, res) => {
 //  INSTAGRAPI — conexão via Python service
 // ─────────────────────────────────────────────────────────────────────────────
 
+// broadcast is required at section level so every instagrapi handler can use it
+// without repeating the require — earlier handlers in this file use their own
+// handler-level require, which takes precedence via block scope.
+const { broadcast } = require('../events/broadcaster');
+
 /**
  * Error-code → user-facing message map.
  * Raw Python/httpx messages are NEVER sent to the frontend.
@@ -1100,6 +1105,7 @@ const INSTA_ERROR_MESSAGES = {
   FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente novamente mais tarde.',
   INSTAGRAPI_SERVICE_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente novamente em instantes.',
   SESSION_LOCKED:                 'Já existe uma operação em andamento para esta conta. Aguarde.',
+  LOGIN_IN_PROGRESS:              'Já existe uma tentativa de login em andamento para esta conta. Aguarde e tente novamente.',
   NO_INSTAGRAPI_SESSION:          'Conta sem sessão — faça login pelo painel.',
   NO_PENDING_2FA:                 'Nenhum desafio 2FA pendente ou expirado. Inicie o login novamente.',
   TIMEOUT:                        'Tempo de conexão esgotado. Verifique a rede e tente novamente.',
@@ -1119,6 +1125,7 @@ function _igHttpStatus(code) {
     FEEDBACK_REQUIRED:              403,
     TIMEOUT:                        504,
     NO_PENDING_2FA:                 400,
+    LOGIN_IN_PROGRESS:              409,
     // Instagram credential errors — must NOT be 401 (would trigger SaaS logout)
     BAD_PASSWORD:                   422,
     SESSION_EXPIRED:                422,
@@ -1136,15 +1143,103 @@ function _getHttp() {
   return new InstagrapiHttpClient(null, sm);
 }
 
+// ── Helper: per-account login lock (Redis, TTL 35 s) ─────────────────────────
+//
+// Key: "iglock:login:{accountId}" — distinct from session mutation lock "iglock:{accountId}".
+// Throws { code: 'LOGIN_IN_PROGRESS' } when a concurrent login is already running.
+// The lock is ALWAYS released in finally — TTL is just a safety net for crashes.
+
+async function _withLoginLock(accountId, fn) {
+  const SessionLock = require('../services/instagrapi/SessionLock');
+  const redis       = require('../queue/connection');
+  const lock        = new SessionLock(redis);
+  const lockKey     = `login:${accountId}`; // → Redis key "iglock:login:{accountId}"
+
+  const token = await lock.acquire(lockKey, 35_000);
+  if (!token) {
+    const err  = new Error('Login já em andamento para esta conta');
+    err.code   = 'LOGIN_IN_PROGRESS';
+    throw err;
+  }
+  try {
+    return await fn();
+  } finally {
+    await lock.release(lockKey, token).catch(() => {});
+  }
+}
+
 // ── Helper: update DB after successful instagrapi login ───────────────────────
 
 async function _markInstagrapiConnected(accountId) {
   await Account.findByIdAndUpdate(accountId, {
-    provider:      'instagrapi',
-    sessionStatus: 'VALID',
-    healthStatus:  'ativa',
-    lastError:     '',
+    provider:        'instagrapi',
+    sessionStatus:   'VALID',
+    healthStatus:    'ativa',
+    lastError:       '',
+    lastValidatedAt: new Date(),
   });
+}
+
+// ── Helper: try to restore existing session without a new login ───────────────
+//
+// Returns one of:
+//   { restored: true }                           — session loaded; no login needed
+//   { restored: false, networkError: true, err } — service unavailable; surface error
+//   { restored: false }                          — no valid session; proceed to login
+
+async function _tryRestoreSession(account, http) {
+  const accountId = String(account._id);
+  const { getSessionManager } = require('../services/instagrapi/SessionManager');
+  const sm = getSessionManager();
+
+  // 1. Does a session blob exist in MongoDB?
+  const info = await sm.hasPersistedSession(accountId);
+  if (!info.exists) return { restored: false };
+
+  // 2. Is the local metadata valid (no network call to Instagram)?
+  const validation = await sm.validate(accountId);
+  if (!validation.valid) return { restored: false };
+
+  // 3. Load the session into the Python pool
+  try {
+    await http.ensureSession(account);
+    await Account.findByIdAndUpdate(accountId, {
+      lastValidatedAt:         new Date(),
+      lastSuccessfulRequestAt: new Date(),
+    });
+    return { restored: true };
+  } catch (err) {
+    const code = err?.code || '';
+    // Transient infrastructure problems: DO NOT fall through to login
+    if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE' || code === 'TIMEOUT') {
+      return { restored: false, networkError: true, err };
+    }
+    // Session corrupt / invalid / not found: proceed to fresh login
+    return { restored: false };
+  }
+}
+
+// ── Helper: fetch public profile and save to Account (non-throwing) ──────────
+//
+// Always awaited before broadcasting success — errors are logged and swallowed
+// so a failed profile fetch never breaks the login response.
+
+async function _fetchAndSaveProfile(http, account, username) {
+  try {
+    const info = await http.getUserInfo(account, username);
+    const update = {};
+    if (info.full_name)              update.name        = info.full_name;
+    if (info.profile_pic_url)        update.avatar      = info.profile_pic_url;
+    if (info.follower_count  != null) update.followers   = info.follower_count;
+    if (info.following_count != null) update.following   = info.following_count;
+    if (info.media_count     != null) update.postsCount  = info.media_count;
+    if (info.pk)                      update.igUserId    = String(info.pk);
+    if (Object.keys(update).length) {
+      await Account.findByIdAndUpdate(String(account._id), update);
+    }
+  } catch (e) {
+    console.error(`[instagrapi] profile fetch failed for ${account._id}:`, e?.message?.slice(0, 100));
+  }
 }
 
 // ── Helper: handle instagrapi errors uniformly ────────────────────────────────
@@ -1187,23 +1282,42 @@ router.post('/instagrapi-direct', async (req, res) => {
   }
 
   const accountId = String(account._id);
+  const http = _getHttp();
 
+  // ── FASE 3: per-account login lock (35 s) — prevents duplicate logins ─────
   try {
-    const result = await _getHttp().login(account, clean, password.trim(), (totp || '').trim());
+    await _withLoginLock(accountId, async () => {
 
-    if (result.status === 'TWO_FACTOR_REQUIRED') {
-      return res.status(202).json({
-        status:    'TWO_FACTOR_REQUIRED',
-        accountId,
-        message:   _igUserMessage('TWO_FACTOR_REQUIRED'),
-      });
-    }
+      // ── FASE 2: restore existing session before triggering a new login ────
+      try {
+        const restore = await _tryRestoreSession(account, http);
+        if (restore.networkError) { _handleInstagrapiError(restore.err, res); return; }
+        if (restore.restored) {
+          await _markInstagrapiConnected(accountId);
+          await _fetchAndSaveProfile(http, account, clean);
+          broadcast('accounts', { action: 'synced' });
+          res.json({ success: true, accountId, message: `@${clean} — sessão existente restaurada` });
+          return;
+        }
+      } catch (restoreErr) {
+        console.error(`[instagrapi] restore check failed for ${accountId}:`, restoreErr?.message?.slice(0, 100));
+      }
 
-    await _markInstagrapiConnected(accountId);
-    broadcast('accounts', { action: 'synced' });
-    return res.json({ success: true, accountId, message: `@${clean} conectada via API Mobile` });
+      // ── Fresh login (no valid persisted session) ──────────────────────────
+      const result = await http.login(account, clean, password.trim(), (totp || '').trim());
+
+      if (result.status === 'TWO_FACTOR_REQUIRED') {
+        res.status(202).json({ status: 'TWO_FACTOR_REQUIRED', accountId, message: _igUserMessage('TWO_FACTOR_REQUIRED') });
+        return;
+      }
+
+      await _markInstagrapiConnected(accountId);
+      await _fetchAndSaveProfile(http, account, clean);
+      broadcast('accounts', { action: 'synced' });
+      res.json({ success: true, accountId, message: `@${clean} conectada via API Mobile` });
+    });
   } catch (err) {
-    return _handleInstagrapiError(err, res);
+    _handleInstagrapiError(err, res);
   }
 });
 
@@ -1223,8 +1337,10 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
   try {
-    await _getHttp().verify2fa(account, code.trim());
+    const http = _getHttp();
+    await http.verify2fa(account, code.trim());
     await _markInstagrapiConnected(String(account._id));
+    await _fetchAndSaveProfile(http, account, clean);
     broadcast('accounts', { action: 'synced' });
     return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
   } catch (err) {
@@ -1247,23 +1363,42 @@ router.post('/:id/instagrapi-login', async (req, res) => {
   }
 
   const accountId = String(account._id);
+  const http = _getHttp();
 
+  // ── FASE 3: per-account login lock (35 s) — prevents duplicate logins ─────
   try {
-    const result = await _getHttp().login(account, username.trim(), password.trim(), (totp || '').trim());
+    await _withLoginLock(accountId, async () => {
 
-    if (result.status === 'TWO_FACTOR_REQUIRED') {
-      return res.status(202).json({
-        status:    'TWO_FACTOR_REQUIRED',
-        accountId,
-        message:   _igUserMessage('TWO_FACTOR_REQUIRED'),
-      });
-    }
+      // ── FASE 2: restore existing session before triggering a new login ────
+      try {
+        const restore = await _tryRestoreSession(account, http);
+        if (restore.networkError) { _handleInstagrapiError(restore.err, res); return; }
+        if (restore.restored) {
+          await _markInstagrapiConnected(accountId);
+          await _fetchAndSaveProfile(http, account, account.username);
+          broadcast('accounts', { action: 'synced' });
+          res.json({ success: true, accountId, message: `@${account.username} — sessão existente restaurada` });
+          return;
+        }
+      } catch (restoreErr) {
+        console.error(`[instagrapi] restore check failed for ${accountId}:`, restoreErr?.message?.slice(0, 100));
+      }
 
-    await _markInstagrapiConnected(accountId);
-    broadcast('accounts', { action: 'synced' });
-    return res.json({ success: true, accountId, message: `@${account.username} conectada via API Mobile` });
+      // ── Fresh login (no valid persisted session) ──────────────────────────
+      const result = await http.login(account, username.trim(), password.trim(), (totp || '').trim());
+
+      if (result.status === 'TWO_FACTOR_REQUIRED') {
+        res.status(202).json({ status: 'TWO_FACTOR_REQUIRED', accountId, message: _igUserMessage('TWO_FACTOR_REQUIRED') });
+        return;
+      }
+
+      await _markInstagrapiConnected(accountId);
+      await _fetchAndSaveProfile(http, account, account.username);
+      broadcast('accounts', { action: 'synced' });
+      res.json({ success: true, accountId, message: `@${account.username} conectada via API Mobile` });
+    });
   } catch (err) {
-    return _handleInstagrapiError(err, res);
+    _handleInstagrapiError(err, res);
   }
 });
 

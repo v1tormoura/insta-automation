@@ -71,18 +71,20 @@ def _patch_client_retries(client: Client) -> None:
     """
     Disable urllib3's automatic HTTP retry on the instagrapi private session.
 
-    By default urllib3 retries 3 times on 429 responses. This amplifies Instagram
-    rate limits: one login attempt becomes 4 requests, triggering MaxRetryError with
-    "too many 429 error responses" and making the rate limit window much longer.
-    Setting total=0 makes every 429 raise immediately so classify_error() handles it
-    as RATE_LIMITED without retrying.
+    By default instagrapi/urllib3 may retry on 429 responses, turning one login
+    click into 3-4 Instagram requests and accelerating the rate-limit window.
+    Setting total=0 makes every 429 raise immediately so classify_error() handles
+    it as RATE_LIMITED without amplifying requests to Instagram.
+
+    Compatibility: works with urllib3 1.x and 2.x — avoids raise_on_status which
+    has different semantics across minor versions and is not needed with total=0.
     """
     if not _HAS_REQUESTS_RETRY:
         return
     private = getattr(client, 'private', None)
     if private is None or not hasattr(private, 'mount'):
         return  # httpx-based client (future instagrapi versions) — no-op
-    adapter = _HTTPAdapter(max_retries=_Retry(total=0, raise_on_status=False))
+    adapter = _HTTPAdapter(max_retries=_Retry(total=0))
     private.mount('https://', adapter)
     private.mount('http://', adapter)
 

@@ -156,6 +156,76 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     return {"status": "AUTHENTICATED", "settings": settings}
 
 
+# ── /session/ping ─────────────────────────────────────────────────────────────
+
+@router.get("/ping")
+async def session_ping(account_id: str):
+    """
+    Lightweight session validation — calls account_info() to check whether the
+    session is still active with Instagram. No new login is attempted.
+
+    Used by the Node.js health check to confirm a persisted session is valid
+    without consuming the rate-limit budget of heavier endpoints.
+
+    Returns { valid: true, username, full_name, pk } on success.
+    Raises via _raise_for_code() on any Instagram-side error.
+    """
+    entry = await session_pool.get_entry(account_id)
+    async with entry["lock"]:
+        client = entry["client"]
+        try:
+            info = client.account_info()
+            return {
+                "valid":     True,
+                "username":  info.username or "",
+                "full_name": info.full_name or "",
+                "pk":        str(info.pk),
+            }
+        except Exception as e:
+            code = session_pool.classify_error(e)
+            logger.warning(
+                "session_ping: %s for account %s (type=%s)",
+                code, account_id, type(e).__name__,
+            )
+            _raise_for_code(code)
+
+
+# ── /session/userinfo ──────────────────────────────────────────────────────────
+
+@router.get("/userinfo")
+async def get_user_info(account_id: str, username: str):
+    """
+    Fetch a safe subset of public profile info for `username` using the
+    account's existing session (no new Instagram login required).
+
+    Called by Node.js immediately after a successful login to populate
+    the account avatar, display name, and counters in MongoDB.
+
+    Returns only non-sensitive fields — raw instagrapi User objects are
+    never forwarded to the frontend or stored directly.
+    """
+    entry = await session_pool.get_entry(account_id)
+    async with entry["lock"]:
+        client = entry["client"]
+        try:
+            user = client.user_info_by_username_v1(username)
+            return {
+                "pk":              str(user.pk),
+                "full_name":       user.full_name or "",
+                "profile_pic_url": str(user.profile_pic_url) if user.profile_pic_url else "",
+                "follower_count":  getattr(user, "follower_count", None) or 0,
+                "following_count": getattr(user, "following_count", None) or 0,
+                "media_count":     getattr(user, "media_count", None) or 0,
+            }
+        except Exception as e:
+            code = session_pool.classify_error(e)
+            logger.warning(
+                "get_user_info: %s for account %s username %s (type=%s)",
+                code, account_id, username, type(e).__name__,
+            )
+            _raise_for_code(code)
+
+
 # ── /session/evict ─────────────────────────────────────────────────────────────
 
 @router.post("/evict")

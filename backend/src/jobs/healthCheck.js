@@ -182,6 +182,98 @@ async function checkViaPrivateAPI(account) {
 }
 
 /**
+ * Verifica saúde de uma conta com sessão instagrapi (provider === 'instagrapi').
+ *
+ * Contrato:
+ *  - NUNCA faz novo login — usa apenas a sessão persistida em MongoDB.
+ *  - Erro de rede/Python retorna { status: null } — não invalida a sessão.
+ *  - Sessão expirada detectada pelo Instagram retorna { status: 'sessao_expirada' }.
+ *  - Rate-limit é transitório — não altera status nem sessionStatus.
+ *
+ * @returns {{ status: string|null, error: string }}
+ *   status null  → erro transitório; manter status atual
+ *   status string → novo healthStatus a aplicar
+ */
+async function checkViaInstagrapi(account) {
+  try {
+    const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
+    const { getSessionManager }    = require('../services/instagrapi/SessionManager');
+    const sm        = getSessionManager();
+    const http      = new InstagrapiHttpClient(null, sm);
+    const accountId = String(account._id);
+
+    // ── 1. Validação local (sem rede) ────────────────────────────────────────
+    // Verifica consecutiveFailures e sessionStatus no MongoDB — sem chamar Instagram.
+    const validation = await sm.validate(accountId);
+    if (!validation.valid) {
+      return {
+        status: 'sessao_expirada',
+        error:  validation.reason || 'Sessão marcada como inválida — reconecte a conta',
+      };
+    }
+
+    // ── 2. Restaurar sessão no pool Python (sem novo login) ──────────────────
+    try {
+      await http.ensureSession(account);
+    } catch (err) {
+      const code = err?.code || '';
+      if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE' || code === 'TIMEOUT') {
+        return { status: null, error: `Serviço Python indisponível (${code})` };
+      }
+      if (code === 'NO_INSTAGRAPI_SESSION') {
+        return { status: 'sessao_expirada', error: 'Sessão não encontrada — reconecte a conta' };
+      }
+      return { status: null, error: err?.message?.slice(0, 100) || code };
+    }
+
+    // ── 3. Ping leve ao Instagram via session Python ──────────────────────────
+    try {
+      await http.pingSession(account);
+      // Sucesso: sessão válida. recordSuccess limpa consecutiveFailures e atualiza sessionStatus.
+      await sm.recordSuccess(accountId);
+      return { status: 'ativa', error: '' };
+
+    } catch (pingErr) {
+      const code = pingErr?.code || '';
+
+      // Erros de infraestrutura — transitórios, NÃO invalidar sessão
+      if (
+        code === 'INSTAGRAPI_SERVICE_UNAVAILABLE' || code === 'TIMEOUT' ||
+        code === 'PROXY_ERROR'                    || code === 'NETWORK_ERROR'
+      ) {
+        return { status: null, error: `Erro técnico: ${code}` };
+      }
+
+      // Rate-limit — a sessão ESTÁ ativa, só com limitação temporária
+      if (code === 'RATE_LIMITED') {
+        return { status: null, error: 'Rate limit temporário — sessão preservada' };
+      }
+
+      // Sessão expirada / senha alterada — Instagram rejeitou
+      if (code === 'SESSION_EXPIRED' || code === 'AUTH_REQUIRED' || code === 'BAD_PASSWORD') {
+        await sm.recordFailure(accountId, pingErr);
+        return { status: 'sessao_expirada', error: 'Sessão expirada — reconecte a conta' };
+      }
+
+      // Desafio pendente — conta restrita, sessão não apagada
+      if (code === 'CHALLENGE_REQUIRED') {
+        return { status: 'restrita', error: 'Verificação necessária no app Instagram' };
+      }
+
+      // Ação bloqueada — restrição temporária
+      if (code === 'FEEDBACK_REQUIRED') {
+        return { status: 'restrita', error: 'Conta com restrição temporária do Instagram' };
+      }
+
+      // Erro desconhecido — tratar como transitório para evitar falso positivo
+      return { status: null, error: `Erro inesperado: ${code || pingErr?.message?.slice(0, 60)}` };
+    }
+  } catch (outerErr) {
+    return { status: null, error: outerErr?.message?.slice(0, 100) || 'erro interno' };
+  }
+}
+
+/**
  * Verifica saúde via rawWebSessionid (fetch server-side igual ao import-session).
  */
 const WEB_UA_HC = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -237,13 +329,53 @@ async function checkViaWebSession(account) {
  */
 async function checkOneAccount(account) {
   const fresh = await Account.findById(account._id)
-    .select('username _id accessToken igSession rawWebSessionid healthStatus status lastError lastSync lastHealthCheck proxy');
+    .select('username _id provider accessToken igSession rawWebSessionid instagrapiSession healthStatus status lastError lastSync lastHealthCheck lastValidatedAt proxy');
   if (!fresh) return;
 
   // Guard contra execuções paralelas do próprio health check (não usa lastSync para
   // evitar conflito com o FastSync que atualiza lastSync a cada 5 min)
   const fiveMinAgo = Date.now() - 5 * 60 * 1000;
   if (fresh.lastHealthCheck && new Date(fresh.lastHealthCheck).getTime() > fiveMinAgo) return;
+
+  // ── Branch instagrapi: sem login, sem apagar sessão por erro transitório ──
+  if (fresh.provider === 'instagrapi' || fresh.instagrapiSession) {
+    const result = await checkViaInstagrapi(fresh);
+
+    if (!result.status) {
+      // Erro transitório — preserva healthStatus atual, registra erro técnico
+      await Account.findByIdAndUpdate(fresh._id, {
+        lastHealthCheck: new Date(),
+        ...(result.error ? { lastError: result.error } : {}),
+      });
+      return;
+    }
+
+    const currentStatus = fresh.healthStatus || 'ativa';
+    const update = {
+      healthStatus:    result.status,
+      lastError:       result.error || '',
+      lastHealthCheck: new Date(),
+    };
+    if (result.status === 'ativa') update.lastValidatedAt = new Date();
+
+    if (result.status === 'sessao_expirada') {
+      console.log(`⚠️ [HealthCheck] @${fresh.username} (instagrapi) — sessão expirada`);
+    } else if (result.status === 'restrita') {
+      console.log(`⚠️ [HealthCheck] @${fresh.username} (instagrapi) — restrita/challenge`);
+    } else if (result.status === 'ativa' && currentStatus !== 'ativa') {
+      console.log(`✅ [HealthCheck] @${fresh.username} (instagrapi) — recuperada (era ${currentStatus})`);
+    }
+
+    await Account.findByIdAndUpdate(fresh._id, update);
+    broadcast('accounts', {
+      action:       'health_update',
+      accountId:    String(fresh._id),
+      username:     fresh.username,
+      healthStatus: result.status,
+      error:        result.error || '',
+    });
+    return; // nunca cai nos checks legados
+  }
 
   let result = { status: null, error: '' };
 
@@ -319,11 +451,13 @@ async function runHealthCheck() {
     const accounts = await Account.find({
       isBusy: { $ne: true },
       $or: [
-        { igSession:       { $exists: true, $ne: '' } },
-        { rawWebSessionid: { $exists: true, $ne: '' } },
-        { accessToken:     { $exists: true, $ne: '' } },
+        { provider:          'instagrapi' },
+        { instagrapiSession: { $exists: true, $ne: '' } },
+        { igSession:         { $exists: true, $ne: '' } },
+        { rawWebSessionid:   { $exists: true, $ne: '' } },
+        { accessToken:       { $exists: true, $ne: '' } },
       ],
-    }).select('username _id accessToken igSession rawWebSessionid healthStatus status lastError');
+    }).select('username _id provider accessToken igSession rawWebSessionid instagrapiSession healthStatus status lastError');
 
     console.log(`🩺 [HealthCheck] Verificando ${accounts.length} conta(s)...`);
 
@@ -418,4 +552,4 @@ function startHealthCheck() {
   console.log('🩺 [HealthCheck] Agendado — health a cada 5min, token refresh a cada 24h');
 }
 
-module.exports = { startHealthCheck, runHealthCheck, classifyError };
+module.exports = { startHealthCheck, runHealthCheck, classifyError, checkViaInstagrapi };
