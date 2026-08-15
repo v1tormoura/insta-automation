@@ -68,6 +68,8 @@ export default function Accounts() {
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
   const [bulkDeleting,   setBulkDeleting]   = useState(false);
   const [instaModal,     setInstaModal]     = useState(null);
+  const [rateLimitExpiry, setRateLimitExpiry] = useState(null);
+  const [cooldownSecs,    setCooldownSecs]    = useState(0);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -120,6 +122,34 @@ export default function Accounts() {
     const t = setInterval(() => loadRef.current?.(), 3000);
     return () => clearInterval(t);
   }, []);
+
+  // Countdown tick for rate-limit cooldown
+  useEffect(() => {
+    if (!rateLimitExpiry) return;
+    const tick = () => {
+      const rem = Math.ceil((rateLimitExpiry - Date.now()) / 1000);
+      if (rem <= 0) {
+        setCooldownSecs(0);
+        setRateLimitExpiry(null);
+      } else {
+        setCooldownSecs(rem);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [rateLimitExpiry]);
+
+  // Restore cooldown from localStorage when username changes in modal
+  useEffect(() => {
+    const uname = instaModal?.username?.trim().replace(/^@/, '') || '';
+    if (!uname) { setCooldownSecs(0); setRateLimitExpiry(null); return; }
+    try {
+      const exp = Number(localStorage.getItem(`ig_rl_${uname}`) || '0');
+      if (exp > Date.now()) setRateLimitExpiry(exp);
+      else { setRateLimitExpiry(null); setCooldownSecs(0); }
+    } catch { /* localStorage unavailable */ }
+  }, [instaModal?.username]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -222,7 +252,7 @@ export default function Accounts() {
   }
 
   const INSTA_MESSAGES = {
-    RATE_LIMITED:                   'Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos.',
+    RATE_LIMITED:                   'Instagram bloqueou temporariamente este IP. Aguarde antes de tentar novamente.',
     CHALLENGE_REQUIRED:             'O Instagram requer verificação adicional. Acesse o app oficial e resolva o desafio, depois tente novamente.',
     TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
     BAD_PASSWORD:                   'Usuário ou senha incorretos.',
@@ -232,6 +262,9 @@ export default function Accounts() {
     SESSION_LOCKED:                 'Já existe uma operação em andamento para esta conta. Aguarde.',
     NO_PENDING_2FA:                 'Sessão 2FA expirada. Faça o login novamente.',
     TIMEOUT:                        'Tempo de conexão esgotado. Tente novamente.',
+    PROXY_ERROR:                    'Erro de proxy — verifique se o proxy está ativo e funcionando.',
+    NETWORK_ERROR:                  'Erro de rede entre o servidor e o Instagram. Tente em instantes.',
+    LOGIN_IN_PROGRESS:              'Já existe um login em andamento para esta conta. Aguarde.',
   };
 
   function _igMessage(code, fallback) {
@@ -240,13 +273,13 @@ export default function Accounts() {
 
   async function connectInstagrapi() {
     const uname = instaModal.username.trim().replace(/^@/, '');
-    if (!uname || !instaModal.password.trim()) return;
+    if (!uname || !instaModal.password.trim() || cooldownSecs > 0) return;
     setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
     try {
       const r = await api.post('/accounts/instagrapi-direct', {
         username: uname,
         password: instaModal.password.trim(),
-        totp:     instaModal.totp.trim(),
+        // 2FA code is collected in step 'two_factor' after Instagram requests it — not here
       });
       // 202 — 2FA required (axios doesn't throw on 2xx)
       if (r.status === 202 || r.data?.status === 'TWO_FACTOR_REQUIRED') {
@@ -265,6 +298,11 @@ export default function Accounts() {
       loadAccounts();
     } catch (err) {
       const code = err.response?.data?.code || '';
+      if (code === 'RATE_LIMITED') {
+        const expiry = Date.now() + 5 * 60 * 1000; // 5-minute cooldown
+        setRateLimitExpiry(expiry);
+        try { localStorage.setItem(`ig_rl_${uname}`, String(expiry)); } catch {}
+      }
       setInstaModal(m => ({
         ...m,
         loading: false,
@@ -987,6 +1025,9 @@ export default function Accounts() {
         const isConnected = selAcc?.provider === 'instagrapi';
         const is2FA       = instaModal.step === 'two_factor';
         const isRateLimited = instaModal.status === 'RATE_LIMITED';
+        const blocked       = isRateLimited || cooldownSecs > 0;
+        const cdMin = Math.floor(cooldownSecs / 60);
+        const cdSec = String(cooldownSecs % 60).padStart(2, '0');
 
         const lbl = (text) => (
           <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
@@ -1031,21 +1072,12 @@ export default function Accounts() {
                       <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
                         value={instaModal.password}
                         onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
-                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
-                        disabled={instaModal.loading} />
-                    </>)}
-
-                    {field(<>
-                      {lbl('CÓDIGO 2FA — deixe vazio se não utilizar')}
-                      <input className="input" type="text" style={{ width:'100%' }} placeholder="000000"
-                        value={instaModal.totp}
-                        onChange={e => setInstaModal(m => ({ ...m, totp: e.target.value.replace(/\D/g, '') }))}
-                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
-                        disabled={instaModal.loading} maxLength={8} />
+                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && !blocked && connectInstagrapi()}
+                        disabled={instaModal.loading || blocked} />
                     </>)}
 
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:12, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
-                      A senha é usada apenas para login e <strong>nunca é salva</strong>. Funciona com contas novas ou já cadastradas.
+                      A senha é usada apenas para login e <strong>nunca é salva</strong>. Se a conta tiver 2FA, o código será pedido na próxima etapa.
                     </div>
                   </>)}
                 </>
@@ -1068,15 +1100,24 @@ export default function Accounts() {
                 </>
               )}
 
-              {/* Rate limited banner */}
-              {isRateLimited && (
-                <div style={{ fontSize:12, color:'#fbbf24', background:'rgba(234,179,8,.08)', border:'1px solid rgba(234,179,8,.25)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
-                  ⏳ Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos antes de tentar novamente.
+              {/* Rate limited / cooldown banner */}
+              {blocked && (
+                <div style={{ fontSize:12, background:'rgba(234,179,8,.09)', border:'1px solid rgba(234,179,8,.3)', borderRadius:8, padding:'10px 14px', marginBottom:10 }}>
+                  <div style={{ fontWeight:700, color:'#fbbf24', marginBottom:4 }}>
+                    ⏳ Instagram bloqueou tentativas deste IP temporariamente
+                  </div>
+                  {cooldownSecs > 0
+                    ? <div style={{ color:'#fbbf24', opacity:.9 }}>
+                        Aguarde <strong style={{ fontFamily:'monospace' }}>{cdMin}:{cdSec}</strong> antes de tentar novamente.
+                        Tentar antes piora o bloqueio.
+                      </div>
+                    : <div style={{ color:'#fbbf24', opacity:.9 }}>Aguarde alguns minutos antes de tentar novamente.</div>
+                  }
                 </div>
               )}
 
               {/* Error */}
-              {instaModal.error && !isRateLimited && (
+              {instaModal.error && !blocked && (
                 <div style={{ fontSize:12, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
                   {instaModal.error}
                 </div>
@@ -1098,9 +1139,9 @@ export default function Accounts() {
 
                 {!is2FA && !isConnected && (
                   <button className="btn btn-primary" onClick={connectInstagrapi}
-                    disabled={instaModal.loading || !uname || !instaModal.password.trim() || isRateLimited}
-                    style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
-                    {instaModal.loading ? 'Conectando...' : 'Conectar'}
+                    disabled={instaModal.loading || !uname || !instaModal.password.trim() || blocked}
+                    style={{ background: blocked ? 'rgba(100,116,139,.4)' : 'rgba(139,92,246,.85)', borderColor: blocked ? 'rgba(100,116,139,.3)' : 'rgba(139,92,246,.5)', cursor: blocked ? 'not-allowed' : 'pointer' }}>
+                    {instaModal.loading ? 'Conectando...' : blocked && cooldownSecs > 0 ? `Aguarde ${cdMin}:${cdSec}` : 'Conectar'}
                   </button>
                 )}
 
