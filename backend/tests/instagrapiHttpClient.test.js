@@ -132,7 +132,7 @@ describe('InstagrapiHttpClient: login()', () => {
 
   test('saves returned settings to MongoDB and records login on success', async () => {
     const settings = { cookies: { sessionid: 'xyz' } };
-    mockFetch(200, { settings });
+    mockFetch(200, { status: 'AUTHENTICATED', settings });
     const client = makeClient();
 
     await client.login(account, 'user', 'pass');
@@ -141,12 +141,107 @@ describe('InstagrapiHttpClient: login()', () => {
     expect(_sm.recordLogin).toHaveBeenCalledWith('acc2', true);
   });
 
-  test('propagates CHALLENGE_REQUIRED from Python service', async () => {
+  test('returns TWO_FACTOR_REQUIRED without saving session (HTTP 202)', async () => {
+    mockFetch(202, { status: 'TWO_FACTOR_REQUIRED', message: 'Digite o código' });
+    const client = makeClient();
+
+    const result = await client.login(account, 'user', 'pass');
+
+    expect(result.status).toBe('TWO_FACTOR_REQUIRED');
+    expect(_sm.save).not.toHaveBeenCalled();
+    expect(_sm.recordLogin).not.toHaveBeenCalled();
+  });
+
+  test('passes verification_code to Python service', async () => {
+    let capturedBody;
+    _fetchMock = jest.fn().mockImplementation((url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ status: 'AUTHENTICATED', settings: {} }), text: async () => '' });
+    });
+    const client = makeClient();
+    await client.login(account, 'user', 'pass', '123456');
+
+    expect(capturedBody.verification_code).toBe('123456');
+  });
+
+  test('propagates CHALLENGE_REQUIRED (HTTP 428) from Python service', async () => {
     mockFetch(428, { detail: { code: 'CHALLENGE_REQUIRED', message: 'Challenge needed' } });
     const client = makeClient();
     await expect(client.login(account, 'user', 'pass'))
       .rejects.toMatchObject({ code: 'CHALLENGE_REQUIRED' });
     expect(_sm.save).not.toHaveBeenCalled();
+  });
+
+  test('propagates RATE_LIMITED (HTTP 429) from Python service', async () => {
+    mockFetch(429, { detail: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+    const client = makeClient();
+    await expect(client.login(account, 'user', 'pass'))
+      .rejects.toMatchObject({ code: 'RATE_LIMITED', httpStatus: 429 });
+    expect(_sm.save).not.toHaveBeenCalled();
+  });
+
+  test('propagates BAD_PASSWORD (HTTP 401) from Python service', async () => {
+    mockFetch(401, { detail: { code: 'BAD_PASSWORD', message: 'Wrong credentials' } });
+    const client = makeClient();
+    await expect(client.login(account, 'user', 'wrongpass'))
+      .rejects.toMatchObject({ code: 'BAD_PASSWORD' });
+  });
+
+  test('sends proxy to Python service when account has one', async () => {
+    let capturedBody;
+    _fetchMock = jest.fn().mockImplementation((url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ status: 'AUTHENTICATED', settings: {} }), text: async () => '' });
+    });
+    const accWithProxy = { _id: 'acc-p', proxy: 'http://proxy:3128' };
+    const client = makeClient();
+    await client.login(accWithProxy, 'user', 'pass');
+
+    expect(capturedBody.proxy).toBe('http://proxy:3128');
+  });
+
+  test('sends null proxy when account has no proxy', async () => {
+    let capturedBody;
+    _fetchMock = jest.fn().mockImplementation((url, opts) => {
+      capturedBody = JSON.parse(opts.body);
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ status: 'AUTHENTICATED', settings: {} }), text: async () => '' });
+    });
+    const client = makeClient();
+    await client.login(account, 'user', 'pass');
+
+    expect(capturedBody.proxy).toBeNull();
+  });
+});
+
+// ── verify2fa ─────────────────────────────────────────────────────────────────
+
+describe('InstagrapiHttpClient: verify2fa()', () => {
+  const account = { _id: 'acc-2fa', proxy: null };
+
+  test('saves returned settings and records login on success', async () => {
+    const settings = { cookies: { sessionid: '2fa-session' } };
+    mockFetch(200, { status: 'AUTHENTICATED', settings });
+    const client = makeClient();
+
+    await client.verify2fa(account, '123456');
+
+    expect(_sm.save).toHaveBeenCalledWith('acc-2fa', settings);
+    expect(_sm.recordLogin).toHaveBeenCalledWith('acc-2fa', true);
+  });
+
+  test('propagates NO_PENDING_2FA when challenge expired', async () => {
+    mockFetch(400, { detail: { code: 'NO_PENDING_2FA', message: 'Nenhum desafio pendente' } });
+    const client = makeClient();
+    await expect(client.verify2fa(account, '000000'))
+      .rejects.toMatchObject({ code: 'NO_PENDING_2FA' });
+    expect(_sm.save).not.toHaveBeenCalled();
+  });
+
+  test('propagates RATE_LIMITED from Python service', async () => {
+    mockFetch(429, { detail: { code: 'RATE_LIMITED', message: '' } });
+    const client = makeClient();
+    await expect(client.verify2fa(account, '111111'))
+      .rejects.toMatchObject({ code: 'RATE_LIMITED', httpStatus: 429 });
   });
 });
 

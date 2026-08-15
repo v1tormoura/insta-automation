@@ -87,16 +87,53 @@ class InstagrapiHttpClient {
   /**
    * Performs a fresh login with username + password.
    * The password travels in-memory only — it is NEVER persisted.
+   * Returns { status: 'AUTHENTICATED', settings } on success.
+   * Returns { status: 'TWO_FACTOR_REQUIRED' } when Instagram requires 2FA
+   * (caller must handle this case and call verify2fa() after getting the code).
    * Saves the resulting session to MongoDB via SessionManager.
+   *
+   * @param {Object}  account          — Mongoose Account document
+   * @param {string}  username
+   * @param {string}  password         — never stored
+   * @param {string}  [verificationCode=''] — TOTP or SMS/email 2FA code (optional on first try)
    */
-  async login(account, username, password) {
+  async login(account, username, password, verificationCode = '') {
     const accountId = String(account._id);
     const result = await this._post('/session/login', {
-      account_id: accountId,
+      account_id:         accountId,
       username,
       password,
-      proxy: account.proxy || null,
+      verification_code:  verificationCode || '',
+      proxy:              account.proxy || null,
     });
+
+    // TWO_FACTOR_REQUIRED is returned as a 2xx (202) — not an error
+    if (result.status === 'TWO_FACTOR_REQUIRED') {
+      return result;
+    }
+
+    if (result.settings) {
+      await this._sm.save(accountId, result.settings);
+      await this._sm.recordLogin(accountId, true);
+    }
+    return result;
+  }
+
+  /**
+   * Completes a pending 2FA challenge using the code sent to the user's device.
+   * Must be called after login() returned { status: 'TWO_FACTOR_REQUIRED' }.
+   * Saves the resulting session to MongoDB via SessionManager.
+   *
+   * @param {Object} account           — Mongoose Account document
+   * @param {string} verificationCode  — SMS/email/TOTP code
+   */
+  async verify2fa(account, verificationCode) {
+    const accountId = String(account._id);
+    const result = await this._post('/session/verify-2fa', {
+      account_id:        accountId,
+      verification_code: verificationCode,
+    });
+
     if (result.settings) {
       await this._sm.save(accountId, result.settings);
       await this._sm.recordLogin(accountId, true);
@@ -118,10 +155,6 @@ class InstagrapiHttpClient {
   /**
    * Publishes a Reel via the Python instagrapi service.
    * Persists the updated session blob returned by Python to MongoDB.
-   *
-   * @param {Object} account  — Mongoose Account document (lean or hydrated)
-   * @param {Object} postData — { media, caption, cover? }
-   * @returns {Promise<{ media_id: string }>}
    */
   async publishReel(account, postData) {
     const accountId = String(account._id);

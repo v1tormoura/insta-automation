@@ -206,31 +206,92 @@ export default function Accounts() {
     finally { setSavingBulkProxy(false); }
   }
 
+  // instaModal state shape:
+  // { step: 'credentials'|'two_factor', username, password, totp, loading, error, status }
+
   function openInstaModal(account) {
-    setInstaModal({ username: account?.username || '', password: '', loading: false, error: '' });
+    setInstaModal({
+      step:     'credentials',
+      username: account?.username || '',
+      password: '',
+      totp:     '',
+      loading:  false,
+      error:    '',
+      status:   null,
+    });
+  }
+
+  const INSTA_MESSAGES = {
+    RATE_LIMITED:                   'Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos.',
+    CHALLENGE_REQUIRED:             'O Instagram requer verificação adicional. Acesse o app oficial e resolva o desafio, depois tente novamente.',
+    TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
+    BAD_PASSWORD:                   'Usuário ou senha incorretos.',
+    SESSION_EXPIRED:                'Sessão expirada — faça login novamente.',
+    FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente mais tarde.',
+    INSTAGRAPI_SERVICE_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente em instantes.',
+    SESSION_LOCKED:                 'Já existe uma operação em andamento para esta conta. Aguarde.',
+    NO_PENDING_2FA:                 'Sessão 2FA expirada. Faça o login novamente.',
+    TIMEOUT:                        'Tempo de conexão esgotado. Tente novamente.',
+  };
+
+  function _igMessage(code, fallback) {
+    return INSTA_MESSAGES[code] || fallback || 'Não foi possível autenticar. Verifique suas credenciais.';
   }
 
   async function connectInstagrapi() {
     const uname = instaModal.username.trim().replace(/^@/, '');
-    if (!uname) return;
-    setInstaModal(m => ({ ...m, loading: true, error: '' }));
+    if (!uname || !instaModal.password.trim()) return;
+    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
     try {
-      await api.post('/accounts/instagrapi-direct', {
+      const r = await api.post('/accounts/instagrapi-direct', {
         username: uname,
         password: instaModal.password.trim(),
+        totp:     instaModal.totp.trim(),
       });
+      // 202 — 2FA required (axios doesn't throw on 2xx)
+      if (r.status === 202 || r.data?.status === 'TWO_FACTOR_REQUIRED') {
+        setInstaModal(m => ({
+          ...m,
+          loading: false,
+          step:    'two_factor',
+          totp:    '',
+          status:  'TWO_FACTOR_REQUIRED',
+          error:   '',
+        }));
+        return;
+      }
       showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
       setInstaModal(null);
       loadAccounts();
     } catch (err) {
-      const msg  = err.response?.data?.error || err.message;
-      const code = err.response?.data?.code  || '';
-      const errMsg = code === 'CHALLENGE_REQUIRED'
-        ? 'Challenge requerido — resolva o desafio no app do Instagram e tente novamente.'
-        : code === 'INSTAGRAPI_SERVICE_UNAVAILABLE'
-          ? 'Serviço indisponível no momento — tente novamente em instantes.'
-          : msg;
-      setInstaModal(m => ({ ...m, loading: false, error: errMsg }));
+      const code = err.response?.data?.code || '';
+      setInstaModal(m => ({
+        ...m,
+        loading: false,
+        status:  code || 'AUTH_FAILED',
+        error:   _igMessage(code, err.response?.data?.error),
+      }));
+    }
+  }
+
+  async function verify2fa() {
+    const uname = instaModal.username.trim().replace(/^@/, '');
+    const code  = instaModal.totp.trim();
+    if (!uname || !code) return;
+    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
+    try {
+      await api.post('/accounts/instagrapi-verify-2fa', { username: uname, code });
+      showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
+      setInstaModal(null);
+      loadAccounts();
+    } catch (err) {
+      const errCode = err.response?.data?.code || '';
+      setInstaModal(m => ({
+        ...m,
+        loading: false,
+        status:  errCode || 'AUTH_FAILED',
+        error:   _igMessage(errCode, err.response?.data?.error),
+      }));
     }
   }
 
@@ -871,66 +932,133 @@ export default function Accounts() {
 
       {/* ── Instagrapi (API Mobile) Modal ───────────────────────── */}
       {instaModal && (() => {
-        const uname      = instaModal.username.trim().replace(/^@/, '');
-        const selAcc     = safeAccounts.find(a => a.username === uname) || null;
+        const uname       = instaModal.username.trim().replace(/^@/, '');
+        const selAcc      = safeAccounts.find(a => a.username === uname) || null;
         const isConnected = selAcc?.provider === 'instagrapi';
+        const is2FA       = instaModal.step === 'two_factor';
+        const isRateLimited = instaModal.status === 'RATE_LIMITED';
+
+        const lbl = (text) => (
+          <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
+        );
+        const field = (content) => <div style={{ marginBottom:12 }}>{content}</div>;
+
         return (
           <div className="modal-overlay">
-            <div className="modal" style={{ width: 'min(440px,100%)' }}>
+            <div className="modal" style={{ width: 'min(460px,100%)' }}>
+
+              {/* Header */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
-                  <h3 style={{ margin:0 }}>📱 Conectar Instagram</h3>
-                  <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>API Mobile — sessão duradoura, sem expiração de 60 dias</div>
+                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : 'Conectar Instagram'}</h3>
+                  <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>
+                    {is2FA ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura, sem expiração de 60 dias'}
+                  </div>
                 </div>
                 <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
               </div>
 
-              <div style={{ marginBottom:12 }}>
-                <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>USUÁRIO DO INSTAGRAM</label>
-                <input className="input" type="text" style={{ width:'100%' }} placeholder="@usuario"
-                  value={instaModal.username}
-                  onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error: '' }))}
-                  disabled={instaModal.loading} autoFocus />
-              </div>
-
-              {isConnected ? (
-                <div style={{ background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.22)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#34d399' }}>
-                  ✓ <strong>@{uname}</strong> já usa API Mobile. Clique em "Desconectar" para voltar ao modo oficial.
-                </div>
-              ) : (
+              {/* Step: credentials */}
+              {!is2FA && (
                 <>
-                  <div style={{ fontSize:12, color:'var(--text3)', marginBottom:12, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
-                    A senha é usada apenas para login e <strong>nunca é salva</strong>. Funciona com contas novas ou já cadastradas.
-                  </div>
-                  <div style={{ marginBottom:12 }}>
-                    <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>SENHA</label>
-                    <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
-                      value={instaModal.password}
-                      onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
-                      onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
-                      disabled={instaModal.loading} />
-                  </div>
+                  {field(<>
+                    {lbl('USUÁRIO DO INSTAGRAM')}
+                    <input className="input" type="text" style={{ width:'100%' }} placeholder="@usuario"
+                      value={instaModal.username}
+                      onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error: '', status: null }))}
+                      disabled={instaModal.loading} autoFocus />
+                  </>)}
+
+                  {isConnected && (
+                    <div style={{ background:'rgba(16,185,129,.07)', border:'1px solid rgba(16,185,129,.22)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#34d399' }}>
+                      ✓ <strong>@{uname}</strong> já usa API Mobile. Clique em "Desconectar" para voltar ao modo oficial.
+                    </div>
+                  )}
+
+                  {!isConnected && (<>
+                    {field(<>
+                      {lbl('SENHA')}
+                      <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
+                        value={instaModal.password}
+                        onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
+                        disabled={instaModal.loading} />
+                    </>)}
+
+                    {field(<>
+                      {lbl('CÓDIGO 2FA — deixe vazio se não utilizar')}
+                      <input className="input" type="text" style={{ width:'100%' }} placeholder="000000"
+                        value={instaModal.totp}
+                        onChange={e => setInstaModal(m => ({ ...m, totp: e.target.value.replace(/\D/g, '') }))}
+                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectInstagrapi()}
+                        disabled={instaModal.loading} maxLength={8} />
+                    </>)}
+
+                    <div style={{ fontSize:12, color:'var(--text3)', marginBottom:12, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
+                      A senha é usada apenas para login e <strong>nunca é salva</strong>. Funciona com contas novas ou já cadastradas.
+                    </div>
+                  </>)}
                 </>
               )}
 
-              {instaModal.error && (
+              {/* Step: two_factor */}
+              {is2FA && (
+                <>
+                  <div style={{ background:'rgba(234,179,8,.07)', border:'1px solid rgba(234,179,8,.25)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#fbbf24', lineHeight:1.6 }}>
+                    O Instagram enviou um código pelo seu método de autenticação. Digite-o abaixo.
+                  </div>
+                  {field(<>
+                    {lbl('CÓDIGO DE VERIFICAÇÃO')}
+                    <input className="input" type="text" style={{ width:'100%' }} placeholder="000000"
+                      value={instaModal.totp}
+                      onChange={e => setInstaModal(m => ({ ...m, totp: e.target.value.replace(/\D/g, '') }))}
+                      onKeyDown={e => e.key === 'Enter' && !instaModal.loading && verify2fa()}
+                      disabled={instaModal.loading} maxLength={8} autoFocus />
+                  </>)}
+                </>
+              )}
+
+              {/* Rate limited banner */}
+              {isRateLimited && (
+                <div style={{ fontSize:12, color:'#fbbf24', background:'rgba(234,179,8,.08)', border:'1px solid rgba(234,179,8,.25)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
+                  ⏳ Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos antes de tentar novamente.
+                </div>
+              )}
+
+              {/* Error */}
+              {instaModal.error && !isRateLimited && (
                 <div style={{ fontSize:12, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
                   {instaModal.error}
                 </div>
               )}
 
+              {/* Actions */}
               <div className="modal-actions" style={{ marginTop:4 }}>
-                <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
-                {isConnected ? (
+                {is2FA
+                  ? <button className="btn btn-ghost" onClick={() => setInstaModal(m => ({ ...m, step:'credentials', totp:'', error:'', status:null }))} disabled={instaModal.loading}>Voltar</button>
+                  : <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
+                }
+
+                {!is2FA && isConnected && (
                   <button className="btn" onClick={() => disconnectInstagrapi(selAcc)} disabled={instaModal.loading}
                     style={{ background:'rgba(244,63,94,.12)', color:'#f87171', borderColor:'rgba(244,63,94,.3)' }}>
                     Desconectar
                   </button>
-                ) : (
+                )}
+
+                {!is2FA && !isConnected && (
                   <button className="btn btn-primary" onClick={connectInstagrapi}
-                    disabled={instaModal.loading || !uname || !instaModal.password.trim()}
+                    disabled={instaModal.loading || !uname || !instaModal.password.trim() || isRateLimited}
                     style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
                     {instaModal.loading ? 'Conectando...' : 'Conectar'}
+                  </button>
+                )}
+
+                {is2FA && (
+                  <button className="btn btn-primary" onClick={verify2fa}
+                    disabled={instaModal.loading || !instaModal.totp.trim()}
+                    style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
+                    {instaModal.loading ? 'Verificando...' : 'Verificar'}
                   </button>
                 )}
               </div>

@@ -16,7 +16,13 @@ class LoginRequest(BaseModel):
     account_id: str
     username: str
     password: str
+    verification_code: Optional[str] = ""
     proxy: Optional[str] = None
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    account_id: str
+    verification_code: str
 
 
 class PublishReelRequest(BaseModel):

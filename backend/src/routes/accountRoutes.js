@@ -1088,97 +1088,176 @@ router.post('/:id/challenge-sms', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Error-code → user-facing message map.
+ * Raw Python/httpx messages are NEVER sent to the frontend.
+ */
+const INSTA_ERROR_MESSAGES = {
+  RATE_LIMITED:                   'Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos antes de tentar novamente.',
+  CHALLENGE_REQUIRED:             'O Instagram requer uma verificação adicional. Acesse o app oficial, resolva o desafio e tente novamente.',
+  TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
+  BAD_PASSWORD:                   'Usuário ou senha incorretos.',
+  SESSION_EXPIRED:                'Sessão expirada — faça login novamente.',
+  FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente novamente mais tarde.',
+  INSTAGRAPI_SERVICE_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente novamente em instantes.',
+  SESSION_LOCKED:                 'Já existe uma operação em andamento para esta conta. Aguarde.',
+  NO_INSTAGRAPI_SESSION:          'Conta sem sessão — faça login pelo painel.',
+  NO_PENDING_2FA:                 'Nenhum desafio 2FA pendente ou expirado. Inicie o login novamente.',
+  TIMEOUT:                        'Tempo de conexão esgotado. Verifique a rede e tente novamente.',
+};
+
+function _igUserMessage(code) {
+  return INSTA_ERROR_MESSAGES[code] || 'Não foi possível autenticar. Verifique suas credenciais e tente novamente.';
+}
+
+function _igHttpStatus(code) {
+  const map = {
+    RATE_LIMITED:                   429,
+    CHALLENGE_REQUIRED:             428,
+    TWO_FACTOR_REQUIRED:            202,
+    SESSION_LOCKED:                 429,
+    INSTAGRAPI_SERVICE_UNAVAILABLE: 503,
+    FEEDBACK_REQUIRED:              403,
+    TIMEOUT:                        504,
+    NO_PENDING_2FA:                 400,
+  };
+  return map[code] || 401;
+}
+
+function _getHttp() {
+  const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
+  const { getSessionManager }    = require('../services/instagrapi/SessionManager');
+  const sm = getSessionManager();
+  return new InstagrapiHttpClient(null, sm);
+}
+
+// ── Helper: update DB after successful instagrapi login ───────────────────────
+
+async function _markInstagrapiConnected(accountId) {
+  await Account.findByIdAndUpdate(accountId, {
+    provider:      'instagrapi',
+    sessionStatus: 'VALID',
+    healthStatus:  'ativa',
+    lastError:     '',
+  });
+}
+
+// ── Helper: handle instagrapi errors uniformly ────────────────────────────────
+
+function _handleInstagrapiError(err, res) {
+  const code = err?.code || 'UNKNOWN_ERROR';
+  // Log the raw technical detail internally only — never forward to frontend
+  const safeLog = err?.message?.slice(0, 200) || 'no message';
+  console.error(`[instagrapi] code=${code} raw=${safeLog}`);
+  return res.status(_igHttpStatus(code)).json({ error: _igUserMessage(code), code });
+}
+
+/**
  * POST /accounts/instagrapi-direct
- * Cria (se não existir) ou encontra uma conta pelo username e faz login via instagrapi.
- * Body: { username, password }
+ * Cria (se não existir) ou encontra uma conta pelo username e faz login.
+ * Body: { username, password, totp? }
+ *
+ * Responses:
+ *   200 { success: true, accountId }
+ *   202 { status: 'TWO_FACTOR_REQUIRED', accountId } — user must call verify-2fa
+ *   429 { error, code: 'RATE_LIMITED' }
+ *   428 { error, code: 'CHALLENGE_REQUIRED' }
+ *   401 { error, code: 'BAD_PASSWORD' | ... }
  */
 router.post('/instagrapi-direct', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username?.trim() || !password?.trim()) {
-      return res.status(400).json({ error: 'username e password são obrigatórios' });
-    }
-    const clean = username.trim().replace(/^@/, '').toLowerCase();
+  const { username, password, totp = '' } = req.body;
+  if (!username?.trim() || !password?.trim()) {
+    return res.status(400).json({ error: 'username e password são obrigatórios' });
+  }
+  const clean = username.trim().replace(/^@/, '').toLowerCase();
 
-    let account = await Account.findOne({ username: clean });
+  let account;
+  try {
+    account = await Account.findOne({ username: clean });
     if (!account) {
       account = await Account.create({ username: clean, status: 'ativa', provider: 'official' });
     }
-
-    const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
-    const { getSessionManager }    = require('../services/instagrapi/SessionManager');
-    const sm   = getSessionManager();
-    const http = new InstagrapiHttpClient(null, sm);
-
-    await http.login(account, clean, password.trim());
-
-    await Account.findByIdAndUpdate(account._id, {
-      provider:      'instagrapi',
-      sessionStatus: 'VALID',
-      healthStatus:  'ativa',
-      lastError:     '',
-    });
-
-    broadcast('accounts', { action: 'synced' });
-    res.json({ success: true, accountId: String(account._id), message: `@${clean} conectada via instagrapi` });
   } catch (err) {
-    const code = err?.code || '';
-    if (code === 'CHALLENGE_REQUIRED') {
-      return res.status(428).json({ error: 'Challenge necessário — resolva o desafio no Instagram e tente novamente', code });
+    return res.status(500).json({ error: 'Erro ao localizar/criar conta no banco de dados.' });
+  }
+
+  const accountId = String(account._id);
+
+  try {
+    const result = await _getHttp().login(account, clean, password.trim(), (totp || '').trim());
+
+    if (result.status === 'TWO_FACTOR_REQUIRED') {
+      return res.status(202).json({
+        status:    'TWO_FACTOR_REQUIRED',
+        accountId,
+        message:   _igUserMessage('TWO_FACTOR_REQUIRED'),
+      });
     }
-    if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE') {
-      return res.status(503).json({ error: 'Serviço instagrapi indisponível no momento', code });
-    }
-    res.status(400).json({ error: err.message, code });
+
+    await _markInstagrapiConnected(accountId);
+    broadcast('accounts', { action: 'synced' });
+    return res.json({ success: true, accountId, message: `@${clean} conectada via API Mobile` });
+  } catch (err) {
+    return _handleInstagrapiError(err, res);
+  }
+});
+
+/**
+ * POST /accounts/instagrapi-verify-2fa
+ * Completa o desafio 2FA iniciado por /instagrapi-direct.
+ * Body: { username, code }
+ */
+router.post('/instagrapi-verify-2fa', async (req, res) => {
+  const { username, code } = req.body;
+  if (!username?.trim() || !code?.trim()) {
+    return res.status(400).json({ error: 'username e code são obrigatórios' });
+  }
+  const clean = username.trim().replace(/^@/, '').toLowerCase();
+
+  const account = await Account.findOne({ username: clean });
+  if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+  try {
+    await _getHttp().verify2fa(account, code.trim());
+    await _markInstagrapiConnected(String(account._id));
+    broadcast('accounts', { action: 'synced' });
+    return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
+  } catch (err) {
+    return _handleInstagrapiError(err, res);
   }
 });
 
 /**
  * POST /accounts/:id/instagrapi-login
- * Faz login no Instagram via instagrapi (Python service) e salva a sessão no MongoDB.
- * Body: { username, password }
- *
- * A senha é transmitida em memória apenas, nunca armazenada no banco.
- * Define account.provider = 'instagrapi' em caso de sucesso.
+ * Login via instagrapi para conta já existente.
+ * Body: { username, password, totp? }
  */
 router.post('/:id/instagrapi-login', async (req, res) => {
+  const account = await Account.findById(req.params.id).catch(() => null);
+  if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+  const { username, password, totp = '' } = req.body;
+  if (!username?.trim() || !password?.trim()) {
+    return res.status(400).json({ error: 'username e password são obrigatórios' });
+  }
+
+  const accountId = String(account._id);
+
   try {
-    const account = await Account.findById(req.params.id);
-    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+    const result = await _getHttp().login(account, username.trim(), password.trim(), (totp || '').trim());
 
-    const { username, password } = req.body;
-    if (!username?.trim() || !password?.trim()) {
-      return res.status(400).json({ error: 'username e password são obrigatórios' });
+    if (result.status === 'TWO_FACTOR_REQUIRED') {
+      return res.status(202).json({
+        status:    'TWO_FACTOR_REQUIRED',
+        accountId,
+        message:   _igUserMessage('TWO_FACTOR_REQUIRED'),
+      });
     }
 
-    const { InstagrapiHttpClient } = require('../services/instagrapi/InstagrapiHttpClient');
-    const { getSessionManager }    = require('../services/instagrapi/SessionManager');
-    const sm  = getSessionManager();
-    const http = new InstagrapiHttpClient(null, sm);
-
-    await http.login(account, username.trim(), password.trim());
-
-    await Account.findByIdAndUpdate(account._id, {
-      provider:      'instagrapi',
-      sessionStatus: 'VALID',
-      healthStatus:  'ativa',
-      lastError:     '',
-    });
-
+    await _markInstagrapiConnected(accountId);
     broadcast('accounts', { action: 'synced' });
-    res.json({
-      success: true,
-      message: `@${account.username} conectada via instagrapi — sessão salva com sucesso`,
-    });
+    return res.json({ success: true, accountId, message: `@${account.username} conectada via API Mobile` });
   } catch (err) {
-    const code = err?.code || '';
-    if (code === 'CHALLENGE_REQUIRED') {
-      return res.status(428).json({ error: 'Challenge necessário — resolva o desafio no Instagram e tente novamente', code });
-    }
-    if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE') {
-      return res.status(503).json({ error: 'Serviço instagrapi indisponível no momento', code });
-    }
-    res.status(400).json({ error: err.message, code });
+    return _handleInstagrapiError(err, res);
   }
 });
 
@@ -1201,6 +1280,33 @@ router.post('/:id/instagrapi-disconnect', async (req, res) => {
 
     broadcast('accounts', { action: 'synced' });
     res.json({ success: true, message: `@${account.username} desconectada do instagrapi` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /accounts/:id/session-status
+ * Retorna o estado da sessão instagrapi de forma segura.
+ * NUNCA retorna: password, cookies, instagrapiSession, sessionid, tokens.
+ */
+router.get('/:id/session-status', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id)
+      .select('provider sessionStatus consecutiveFailures lastValidatedAt lastSuccessfulRequestAt lastSessionErrorAt sessionVersion instagrapiSession')
+      .lean();
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    return res.json({
+      provider:                 account.provider,
+      sessionStatus:            account.sessionStatus,
+      hasSession:               !!account.instagrapiSession,
+      consecutiveFailures:      account.consecutiveFailures || 0,
+      lastValidatedAt:          account.lastValidatedAt || null,
+      lastSuccessfulRequestAt:  account.lastSuccessfulRequestAt || null,
+      lastSessionErrorAt:       account.lastSessionErrorAt || null,
+      sessionVersion:           account.sessionVersion || 0,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
