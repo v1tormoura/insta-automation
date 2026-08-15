@@ -44,6 +44,14 @@ try:
 except ImportError:
     _RateLimit = None
 
+# urllib3 retry suppression
+try:
+    from urllib3.util.retry import Retry as _Retry
+    from requests.adapters import HTTPAdapter as _HTTPAdapter
+    _HAS_REQUESTS_RETRY = True
+except ImportError:
+    _HAS_REQUESTS_RETRY = False
+
 logger = logging.getLogger(__name__)
 
 # ── In-memory pool ────────────────────────────────────────────────────────────
@@ -59,12 +67,34 @@ _PENDING_2FA_TTL = 300  # 5 minutes
 _pending_2fa: Dict[str, dict] = {}
 
 
+def _patch_client_retries(client: Client) -> None:
+    """
+    Disable urllib3's automatic HTTP retry on the instagrapi private session.
+
+    By default urllib3 retries 3 times on 429 responses. This amplifies Instagram
+    rate limits: one login attempt becomes 4 requests, triggering MaxRetryError with
+    "too many 429 error responses" and making the rate limit window much longer.
+    Setting total=0 makes every 429 raise immediately so classify_error() handles it
+    as RATE_LIMITED without retrying.
+    """
+    if not _HAS_REQUESTS_RETRY:
+        return
+    private = getattr(client, 'private', None)
+    if private is None or not hasattr(private, 'mount'):
+        return  # httpx-based client (future instagrapi versions) — no-op
+    adapter = _HTTPAdapter(max_retries=_Retry(total=0, raise_on_status=False))
+    private.mount('https://', adapter)
+    private.mount('http://', adapter)
+
+
 async def get_entry(account_id: str) -> dict:
     """Get or create a pool entry for this account (creates isolated Client + Lock)."""
     async with _pool_lock:
         if account_id not in _pool:
+            client = Client()
+            _patch_client_retries(client)
             _pool[account_id] = {
-                "client": Client(),
+                "client": client,
                 "lock":   asyncio.Lock(),
             }
         return _pool[account_id]
