@@ -122,8 +122,13 @@ const _IG_HEALTH = {
   RATE_LIMITED:          'restrita',
 };
 
+// Exponential backoff with jitter for RATE_LIMITED responses.
+const _IG_RATE_BACKOFF_BASE = 60_000;  // 1 min base
+const _IG_RATE_BACKOFF_MAX  = 5 * 60_000;  // 5 min ceiling
+const _IG_RATE_MAX_RETRIES  = 2;
+
 async function publishViaInstagrapi(account, post) {
-  const { getProvider }     = require('../providers/ProviderFactory');
+  const { getProvider }       = require('../providers/ProviderFactory');
   const { getSessionManager } = require('../services/instagrapi/SessionManager');
   const provider = getProvider(account);
   const sm       = getSessionManager();
@@ -136,18 +141,30 @@ async function publishViaInstagrapi(account, post) {
     );
   }
 
-  try {
-    writeAccountLog(account.username, `Publicando via instagrapi (${postType})...`);
-    if (postType === 'reel') {
-      await provider.publishReel(account, post);
-    } else {
-      await provider.publishPost(account, post);
+  let attempt = 0;
+  while (true) {
+    try {
+      writeAccountLog(account.username, `Publicando via instagrapi (${postType})${attempt > 0 ? ` — tentativa ${attempt + 1}` : ''}...`);
+      if (postType === 'reel') {
+        await provider.publishReel(account, post);
+      } else {
+        await provider.publishPost(account, post);
+      }
+      await sm.recordSuccess(String(account._id));
+      writeAccountLog(account.username, 'Publicado com sucesso via instagrapi');
+      return;
+    } catch (igErr) {
+      if (igErr.code === 'RATE_LIMITED' && attempt < _IG_RATE_MAX_RETRIES) {
+        attempt++;
+        const jitter    = Math.random() * 30_000;
+        const backoffMs = Math.min(_IG_RATE_BACKOFF_BASE * Math.pow(2, attempt) + jitter, _IG_RATE_BACKOFF_MAX);
+        writeAccountLog(account.username, `Rate limited — aguardando ${Math.round(backoffMs / 1000)}s antes de tentar novamente`);
+        await delay(backoffMs);
+        continue;
+      }
+      await sm.recordFailure(String(account._id), igErr).catch(() => {});
+      throw igErr;
     }
-    await sm.recordSuccess(String(account._id));
-    writeAccountLog(account.username, 'Publicado com sucesso via instagrapi');
-  } catch (igErr) {
-    await sm.recordFailure(String(account._id), igErr).catch(() => {});
-    throw igErr;
   }
 }
 

@@ -31,6 +31,8 @@ const _sm = {
   recordLogin:   jest.fn().mockResolvedValue(undefined),
   recordSuccess: jest.fn().mockResolvedValue(undefined),
   recordFailure: jest.fn().mockResolvedValue(undefined),
+  // withLock: in tests, just execute the callback immediately (no Redis needed)
+  withLock:      jest.fn().mockImplementation((_id, _ttl, fn) => fn()),
 };
 
 const { InstagrapiHttpClient } = require('../src/services/instagrapi/InstagrapiHttpClient');

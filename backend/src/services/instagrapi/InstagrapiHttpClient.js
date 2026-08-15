@@ -1,9 +1,12 @@
 'use strict';
 
-const UPLOADS_DIR     = process.env.UPLOADS_DIR || '/app/uploads';
-const DEFAULT_BASE    = process.env.INSTAGRAPI_SERVICE_URL || 'http://instagrapi-svc:8000';
-const TIMEOUT_FAST    = 15_000;   // ms — for session operations
-const TIMEOUT_MEDIA   = 180_000;  // ms — up to 3 min for video uploads
+const UPLOADS_DIR      = process.env.UPLOADS_DIR || '/app/uploads';
+const DEFAULT_BASE     = process.env.INSTAGRAPI_SERVICE_URL || 'http://instagrapi-svc:8000';
+const TIMEOUT_FAST     = 15_000;   // ms — for session operations
+const TIMEOUT_MEDIA    = 180_000;  // ms — up to 3 min for video uploads
+// Publish lock TTL: longer than the media upload timeout so the lock never
+// expires while a valid upload is in progress.
+const LOCK_TTL_PUBLISH = 210_000;  // ms — 3.5 min
 
 /**
  * HTTP client for the Docker-internal Python instagrapi service.
@@ -63,6 +66,7 @@ class InstagrapiHttpClient {
    * Ensures the Python service has this account's session in its in-memory pool.
    * If the pool entry is missing (e.g. after a Python restart), loads from MongoDB
    * and sends the decrypted settings to the Python service.
+   * Structured event: SESSION_RESTORED is logged by SessionManager.load().
    */
   async ensureSession(account) {
     const accountId = String(account._id);
@@ -154,39 +158,41 @@ class InstagrapiHttpClient {
 
   /**
    * Publishes a Reel via the Python instagrapi service.
+   * Acquires a per-account Redis lock to prevent concurrent publications.
    * Persists the updated session blob returned by Python to MongoDB.
    */
   async publishReel(account, postData) {
     const accountId = String(account._id);
-    await this.ensureSession(account);
-
-    const result = await this._post('/publish/reel', {
-      account_id: accountId,
-      media_path: _toContainerPath(postData.media),
-      caption:    postData.caption || '',
-      cover_path: _toContainerPath(postData.cover) || null,
-    }, TIMEOUT_MEDIA);
-
-    if (result.settings) await this._sm.save(accountId, result.settings);
-    return result;
+    return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
+      await this.ensureSession(account);
+      const result = await this._post('/publish/reel', {
+        account_id: accountId,
+        media_path: _toContainerPath(postData.media),
+        caption:    postData.caption || '',
+        cover_path: _toContainerPath(postData.cover) || null,
+      }, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
   }
 
   /**
    * Publishes a photo post via the Python instagrapi service.
+   * Acquires a per-account Redis lock to prevent concurrent publications.
    * Persists the updated session blob returned by Python to MongoDB.
    */
   async publishPost(account, postData) {
     const accountId = String(account._id);
-    await this.ensureSession(account);
-
-    const result = await this._post('/publish/post', {
-      account_id: accountId,
-      media_path: _toContainerPath(postData.media),
-      caption:    postData.caption || '',
-    }, TIMEOUT_MEDIA);
-
-    if (result.settings) await this._sm.save(accountId, result.settings);
-    return result;
+    return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
+      await this.ensureSession(account);
+      const result = await this._post('/publish/post', {
+        account_id: accountId,
+        media_path: _toContainerPath(postData.media),
+        caption:    postData.caption || '',
+      }, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
   }
 }
 

@@ -215,7 +215,14 @@ const accountSchema = new mongoose.Schema(
 
     sessionStatus: {
       type: String,
-      enum: ['UNKNOWN', 'VALID', 'EXPIRING', 'INVALID', 'RECOVERING', 'AUTH_REQUIRED', 'CHALLENGE_REQUIRED', 'FAILED', 'DISABLED'],
+      enum: [
+        'UNKNOWN', 'VALID', 'EXPIRING', 'INVALID', 'RECOVERING',
+        'AUTH_REQUIRED', 'CHALLENGE_REQUIRED', 'FAILED', 'DISABLED',
+        // Extended states:
+        'RATE_LIMITED',   // Instagram rate-limited this account/IP
+        'REAUTH_REQUIRED', // Re-login required (more specific than AUTH_REQUIRED)
+        'NETWORK_ERROR',   // Transient infrastructure failure
+      ],
       default: 'UNKNOWN',
     },
 
@@ -225,12 +232,14 @@ const accountSchema = new mongoose.Schema(
     lastSuccessfulRequestAt: { type: Date,   default: null },
     lastSessionErrorAt:      { type: Date,   default: null },
     lastLoginAt:             { type: Date,   default: null },
+    lastRateLimitAt:         { type: Date,   default: null },
 
     // ─── Instagrapi counters ──────────────────────────────────────────────────
 
     loginAttempts:       { type: Number, default: 0 },
     reloginAttempts:     { type: Number, default: 0 },
     consecutiveFailures: { type: Number, default: 0 },
+    rateLimitCount:      { type: Number, default: 0 },
     // Incremented on each new login to invalidate stale in-memory sessions.
     sessionVersion:      { type: Number, default: 0 },
 

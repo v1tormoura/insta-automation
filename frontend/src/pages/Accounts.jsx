@@ -390,6 +390,31 @@ export default function Accounts() {
     if (s === 'desconectada')    return '#64748b';
     return '#10b981';
   }
+  function sessionStatusLabel(s) {
+    const MAP = {
+      VALID:            'Sessão ativa',
+      EXPIRING:         'Expirando',
+      INVALID:          'Inválida',
+      RECOVERING:       'Recuperando',
+      AUTH_REQUIRED:    'Login necessário',
+      REAUTH_REQUIRED:  'Re-login necessário',
+      CHALLENGE_REQUIRED: 'Desafio pendente',
+      FAILED:           'Falha',
+      DISABLED:         'Desativada',
+      RATE_LIMITED:     'Rate limited',
+      NETWORK_ERROR:    'Erro de rede',
+      UNKNOWN:          'Desconhecida',
+    };
+    return MAP[s] || s || 'Desconhecida';
+  }
+  function sessionStatusColor(s) {
+    if (s === 'VALID')                         return '#10b981';
+    if (s === 'EXPIRING' || s === 'RECOVERING') return '#f59e0b';
+    if (s === 'RATE_LIMITED')                  return '#f59e0b';
+    if (s === 'NETWORK_ERROR')                 return '#64748b';
+    if (s === 'UNKNOWN')                       return '#64748b';
+    return '#ef4444';
+  }
 
   /* ── stat cards config ────────────────────────────────────────────── */
   const STATS = [
@@ -587,7 +612,7 @@ export default function Accounts() {
                         <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color:'var(--text3)', fontSize:10, textDecoration:'none', flexShrink:0, lineHeight:1 }}>↗</a>
                       </div>
                       <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginTop:1 }}>@{account.username}</div>
-                      <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:5 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:5, flexWrap:'wrap' }}>
                         <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px 2px 5px', borderRadius:20,
                           background:`${hc}15`, color:hc, border:`1px solid ${hc}28`,
                           display:'inline-flex', alignItems:'center', gap:4 }}>
@@ -595,6 +620,11 @@ export default function Accounts() {
                           {hl}
                         </span>
                         <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'oklch(1 0 0 / 0.05)', color:'var(--text3)', letterSpacing:'.5px' }}>{accType}</span>
+                        {account.provider === 'instagrapi' && (
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.25)', letterSpacing:'.4px' }}>
+                            API Mobile
+                          </span>
+                        )}
                         <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                           style={{ fontSize:9, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'rgba(0,212,255,.08)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.2)', textDecoration:'none', whiteSpace:'nowrap', letterSpacing:'.3px' }}>
                           Ver Perfil ↗
@@ -620,11 +650,22 @@ export default function Accounts() {
 
                 {/* meta row */}
                 <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
-                <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:isHealthy?'var(--green)':account.healthStatus==='restrita'?'#f59e0b':'#f87171', display:'flex', alignItems:'center', gap:5 }}>
-                    <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Conta restrita' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
-                  </span>
-                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', display:'flex', alignItems:'center', gap:4 }}>
+                <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6 }}>
+                  {account.provider === 'instagrapi' && account.sessionStatus ? (
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5,
+                      color: sessionStatusColor(account.sessionStatus) }}>
+                      <IcoPhone />
+                      {sessionStatusLabel(account.sessionStatus)}
+                      {account.consecutiveFailures > 0 && (
+                        <span style={{ fontSize:9, opacity:.7 }}>({account.consecutiveFailures} falhas)</span>
+                      )}
+                    </span>
+                  ) : (
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:isHealthy?'var(--green)':account.healthStatus==='restrita'?'#f59e0b':'#f87171', display:'flex', alignItems:'center', gap:5 }}>
+                      <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Conta restrita' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
+                    </span>
+                  )}
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
                     <IcoWave /> {compact}
                   </span>
                 </div>
@@ -638,12 +679,21 @@ export default function Accounts() {
                     onMouseLeave={e => { e.currentTarget.style.color='var(--text3)'; e.currentTarget.style.borderColor='oklch(1 0 0 / 0.09)'; }}
                   ><IcoEye /> Ver</a>
 
-                  <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
-                    style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
-                      background:'rgba(0,212,255,.1)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.25)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.16)'}
-                    onMouseLeave={e => e.currentTarget.style.background='rgba(0,212,255,.1)'}
-                  ><IcoPerson /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{isConnecting ? '...' : 'Editar'}</span></button>
+                  {account.provider === 'instagrapi' ? (
+                    <button onClick={() => openInstaModal(account)} title="Reconectar via API Mobile"
+                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
+                        background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background='rgba(139,92,246,.2)'}
+                      onMouseLeave={e => e.currentTarget.style.background='rgba(139,92,246,.12)'}
+                    ><IcoPhone /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>Sessão</span></button>
+                  ) : (
+                    <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
+                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
+                        background:'rgba(0,212,255,.1)', color:'var(--cyan)', border:'1px solid rgba(0,212,255,.25)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.16)'}
+                      onMouseLeave={e => e.currentTarget.style.background='rgba(0,212,255,.1)'}
+                    ><IcoPerson /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{isConnecting ? '...' : 'Editar'}</span></button>
+                  )}
 
                   <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
                     style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
