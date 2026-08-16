@@ -1408,8 +1408,9 @@ router.post('/:id/instagrapi-sessionid', async (req, res) => {
   const account = await Account.findById(req.params.id).catch(() => null);
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-  const sessionid = (req.body.sessionid || '').trim();
+  let sessionid = (req.body.sessionid || '').trim();
   if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
+  try { sessionid = decodeURIComponent(sessionid); } catch { /* já decodificado */ }
 
   const accountId = String(account._id);
   const http = _getHttp();

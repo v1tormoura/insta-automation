@@ -1144,7 +1144,11 @@ export default function Accounts() {
                       {lbl('SESSION ID')}
                       <input className="input" type="text" style={{ width:'100%' }} placeholder="Cole o valor do cookie sessionid aqui"
                         value={instaModal.sessionid}
-                        onChange={e => setInstaModal(m => ({ ...m, sessionid: e.target.value.trim(), error:'', status:null }))}
+                        onChange={e => {
+                        let val = e.target.value.trim();
+                        try { val = decodeURIComponent(val); } catch {}
+                        setInstaModal(m => ({ ...m, sessionid: val, error:'', status:null }));
+                      }}
                         onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectBySessionId()}
                         disabled={instaModal.loading} autoFocus />
                     </>)}
