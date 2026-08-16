@@ -44,6 +44,27 @@ try:
 except ImportError:
     _RateLimit = None
 
+try:
+    from instagrapi.exceptions import ClientThrottledError as _ClientThrottled
+except ImportError:
+    _ClientThrottled = None
+
+# Combined tuple of all rate-limit exception types known to instagrapi.
+# None values are excluded (optional imports that may be missing in some versions).
+_RATE_LIMIT_EXC = tuple(e for e in (_PleaseWait, _RateLimit, _ClientThrottled) if e is not None)
+
+
+class _PreLoginRateLimited(Exception):
+    """Sentinel raised when pre_login_flow() is rate-limited.
+
+    Using a custom type (not PleaseWaitFewMinutes or ClientThrottledError) ensures
+    that login() does NOT swallow it — its except handler only catches those two
+    library types. classify_error() maps _PreLoginRateLimited explicitly to
+    RATE_LIMITED without any message-content parsing.
+    """
+    pass
+
+
 # urllib3 retry suppression + HTTP request logging
 try:
     from urllib3.util.retry import Retry as _Retry
@@ -111,12 +132,41 @@ def _patch_client_retries(client: Client) -> None:
     private.mount('http://', adapter)
 
 
+def _patch_client_fail_fast(client: Client) -> None:
+    """Override pre_login_flow to raise _PreLoginRateLimited on 429 instead of ignoring it.
+
+    instagrapi's login() catches PleaseWaitFewMinutes/ClientThrottledError from
+    pre_login_flow() and silently continues to call accounts/login/ — wasting one
+    Instagram request per blocked attempt.
+
+    This patch wraps pre_login_flow so any 429 raises _PreLoginRateLimited (a type
+    that login() does NOT catch) → classify_error() maps it to RATE_LIMITED, and
+    the accounts/login/ call is never made.
+
+    Effect: each IP-blocked login attempt uses 1 Instagram request instead of 2.
+    """
+    if not _RATE_LIMIT_EXC:
+        return  # no rate-limit exceptions importable — safe no-op
+    _orig = client.pre_login_flow
+
+    def _fail_fast_pre_login_flow():
+        try:
+            return _orig()
+        except _RATE_LIMIT_EXC as exc:
+            raise _PreLoginRateLimited(
+                "pre_login_flow rate-limited — aborting to avoid spending accounts/login/ request"
+            ) from exc
+
+    client.pre_login_flow = _fail_fast_pre_login_flow
+
+
 async def get_entry(account_id: str) -> dict:
     """Get or create a pool entry for this account (creates isolated Client + Lock)."""
     async with _pool_lock:
         if account_id not in _pool:
             client = Client()
             _patch_client_retries(client)
+            _patch_client_fail_fast(client)
             _pool[account_id] = {
                 "client": client,
                 "lock":   asyncio.Lock(),
@@ -200,6 +250,10 @@ def classify_error(e: Exception) -> str:
     - PROXY_ERROR is checked before generic NETWORK_ERROR.
     - The "too many 429 error responses" MaxRetryError is always RATE_LIMITED.
     """
+    # ── Sentinel: pre_login_flow was rate-limited — explicit, no message parsing ──
+    if isinstance(e, _PreLoginRateLimited):
+        return "RATE_LIMITED"
+
     # ── isinstance (primary — most reliable) ─────────────────────────────────
     if isinstance(e, TwoFactorRequired):
         return "TWO_FACTOR_REQUIRED"
