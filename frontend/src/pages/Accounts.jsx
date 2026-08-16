@@ -237,18 +237,21 @@ export default function Accounts() {
   }
 
   // instaModal state shape:
-  // { step: 'credentials'|'two_factor', accountId, username, password, totp, loading, error, status }
+  // { step: 'credentials'|'two_factor', loginMethod: 'password'|'sessionid',
+  //   accountId, username, password, sessionid, totp, loading, error, status }
 
   function openInstaModal(account) {
     setInstaModal({
-      step:      'credentials',
-      accountId: account?._id || null,
-      username:  account?.username || '',
-      password:  '',
-      totp:      '',
-      loading:   false,
-      error:     '',
-      status:    null,
+      step:        'credentials',
+      loginMethod: 'password',
+      accountId:   account?._id || null,
+      username:    account?.username || '',
+      password:    '',
+      sessionid:   '',
+      totp:        '',
+      loading:     false,
+      error:       '',
+      status:      null,
     });
   }
 
@@ -331,6 +334,28 @@ export default function Accounts() {
         loading: false,
         status:  errCode || 'AUTH_FAILED',
         error:   _igMessage(errCode, err.response?.data?.error),
+      }));
+    }
+  }
+
+  async function connectBySessionId() {
+    const accountId = instaModal.accountId;
+    const sid = instaModal.sessionid.trim();
+    if (!accountId || !sid) return;
+    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
+    try {
+      await api.post(`/accounts/${accountId}/instagrapi-sessionid`, { sessionid: sid });
+      const uname = instaModal.username.trim().replace(/^@/, '');
+      showToast('success', 'Conectada!', `@${uname} conectada via Session ID`);
+      setInstaModal(null);
+      loadAccounts();
+    } catch (err) {
+      const code = err.response?.data?.code || '';
+      setInstaModal(m => ({
+        ...m,
+        loading: false,
+        status:  code || 'AUTH_FAILED',
+        error:   _igMessage(code, err.response?.data?.error),
       }));
     }
   }
@@ -1040,6 +1065,8 @@ export default function Accounts() {
         ]);
         const canRetryNow = !!instaModal.status && RETRY_IMMEDIATELY.has(instaModal.status);
 
+        const isSidMode = instaModal.loginMethod === 'sessionid';
+
         const lbl = (text) => (
           <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
         );
@@ -1047,23 +1074,37 @@ export default function Accounts() {
 
         return (
           <div className="modal-overlay">
-            <div className="modal" style={{ width: 'min(460px,100%)' }}>
+            <div className="modal" style={{ width: 'min(480px,100%)' }}>
 
               {/* Header */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
                   <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : 'Conectar Instagram'}</h3>
                   <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>
-                    {is2FA ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura, sem expiração de 60 dias'}
+                    {is2FA ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura'}
                   </div>
                 </div>
                 <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
               </div>
 
+              {/* Method toggle (only on credentials step, not connected) */}
+              {!is2FA && !isConnected && (
+                <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius:8, padding:4 }}>
+                  {[['password','🔑 Senha'],['sessionid','🍪 Session ID']].map(([method, label]) => (
+                    <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
+                      style={{ flex:1, padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:6, border:'none', cursor:'pointer',
+                        background: instaModal.loginMethod === method ? 'rgba(139,92,246,.8)' : 'transparent',
+                        color: instaModal.loginMethod === method ? '#fff' : 'var(--text2)' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Step: credentials */}
               {!is2FA && (
                 <>
-                  {field(<>
+                  {!isSidMode && field(<>
                     {lbl('USUÁRIO DO INSTAGRAM')}
                     <input className="input" type="text" style={{ width:'100%' }} placeholder="@usuario"
                       value={instaModal.username}
@@ -1077,19 +1118,36 @@ export default function Accounts() {
                     </div>
                   )}
 
-                  {!isConnected && (<>
+                  {!isConnected && !isSidMode && (<>
                     {field(<>
                       {lbl('SENHA')}
                       <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
                         value={instaModal.password}
                         onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
                         onKeyDown={e => e.key === 'Enter' && !instaModal.loading && !blocked && connectInstagrapi()}
-                        disabled={instaModal.loading || blocked} /* blocked = cooldownSecs>0 only */ />
+                        disabled={instaModal.loading || blocked} />
                     </>)}
-
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:12, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
                       A senha é usada apenas para login e <strong>nunca é salva</strong>. Se a conta tiver 2FA, o código será pedido na próxima etapa.
                     </div>
+                  </>)}
+
+                  {!isConnected && isSidMode && (<>
+                    <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10, lineHeight:1.7, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:8, padding:'10px 12px' }}>
+                      <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
+                      1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>
+                      2. Pressione <strong>F12</strong> → aba <strong>Application</strong><br/>
+                      3. Cookies → <code style={{ fontSize:11 }}>https://www.instagram.com</code><br/>
+                      4. Copie o valor do cookie <strong>sessionid</strong>
+                    </div>
+                    {field(<>
+                      {lbl('SESSION ID')}
+                      <input className="input" type="text" style={{ width:'100%' }} placeholder="Cole o valor do cookie sessionid aqui"
+                        value={instaModal.sessionid}
+                        onChange={e => setInstaModal(m => ({ ...m, sessionid: e.target.value.trim(), error:'', status:null }))}
+                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectBySessionId()}
+                        disabled={instaModal.loading} autoFocus />
+                    </>)}
                   </>)}
                 </>
               )}
@@ -1146,11 +1204,19 @@ export default function Accounts() {
                   </button>
                 )}
 
-                {!is2FA && !isConnected && (
+                {!is2FA && !isConnected && !isSidMode && (
                   <button className="btn btn-primary" onClick={connectInstagrapi}
                     disabled={instaModal.loading || !uname || !instaModal.password.trim() || blocked}
                     style={{ background: blocked ? 'rgba(100,116,139,.4)' : 'rgba(139,92,246,.85)', borderColor: blocked ? 'rgba(100,116,139,.3)' : 'rgba(139,92,246,.5)', cursor: blocked ? 'not-allowed' : 'pointer' }}>
                     {instaModal.loading ? 'Conectando...' : blocked ? `Aguarde ${cdMin}:${cdSec}` : 'Conectar'}
+                  </button>
+                )}
+
+                {!is2FA && !isConnected && isSidMode && (
+                  <button className="btn btn-primary" onClick={connectBySessionId}
+                    disabled={instaModal.loading || !instaModal.accountId || !instaModal.sessionid.trim()}
+                    style={{ background:'rgba(59,130,246,.85)', borderColor:'rgba(59,130,246,.5)' }}>
+                    {instaModal.loading ? 'Conectando...' : 'Conectar via Session ID'}
                   </button>
                 )}
 

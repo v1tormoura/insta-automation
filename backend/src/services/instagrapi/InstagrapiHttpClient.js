@@ -125,6 +125,31 @@ class InstagrapiHttpClient {
   }
 
   /**
+   * Authenticates using an existing Instagram session ID (from browser cookie).
+   * Does NOT call accounts/login/ — bypasses IP-level rate limits entirely.
+   *
+   * The sessionid is never persisted in Node.js — it is forwarded to Python and
+   * discarded immediately after the request. Only the resulting instagrapi
+   * settings blob (encrypted by SessionManager) is stored in MongoDB.
+   *
+   * @param {Object} account   — Mongoose Account document
+   * @param {string} sessionid — value of the 'sessionid' cookie from instagram.com
+   */
+  async loginBySessionid(account, sessionid) {
+    const accountId = String(account._id);
+    const result = await this._post('/session/login-by-sessionid', {
+      account_id: accountId,
+      sessionid,
+    }, TIMEOUT_LOGIN);
+
+    if (result.settings) {
+      await this._sm.save(accountId, result.settings);
+      await this._sm.recordLogin(accountId, true);
+    }
+    return result;
+  }
+
+  /**
    * Completes a pending 2FA challenge using the code sent to the user's device.
    * Must be called after login() returned { status: 'TWO_FACTOR_REQUIRED' }.
    * Saves the resulting session to MongoDB via SessionManager.

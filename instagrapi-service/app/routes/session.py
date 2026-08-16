@@ -16,7 +16,7 @@ from instagrapi.exceptions import (
     TwoFactorRequired,
 )
 
-from ..models import LoadRequest, EvictRequest, LoginRequest, TwoFactorVerifyRequest
+from ..models import LoadRequest, EvictRequest, LoginRequest, TwoFactorVerifyRequest, SessionIdLoginRequest
 from .. import session_pool
 
 logger = logging.getLogger(__name__)
@@ -242,6 +242,46 @@ async def get_user_info(account_id: str, username: str):
                 code, account_id, username, type(e).__name__,
             )
             _raise_for_code(code)
+
+
+# ── /session/login-by-sessionid ────────────────────────────────────────────────
+
+@router.post("/login-by-sessionid")
+async def login_by_sessionid(body: SessionIdLoginRequest):
+    """
+    Authenticate using an existing Instagram session ID (from browser cookie).
+
+    Does NOT call accounts/login/ — completely bypasses IP-level rate limits.
+    The user copies the 'sessionid' cookie from instagram.com in their browser
+    (F12 → Application → Cookies → sessionid) and pastes it here.
+
+    SECURITY: sessionid is never logged — it is equivalent to a password.
+    Returns { status: "AUTHENTICATED", settings: {...} } on success.
+    """
+    session_pool._slog("LOGIN_BY_SESSIONID_ATTEMPT", body.account_id)
+    entry = await session_pool.get_entry(body.account_id)
+    async with entry["lock"]:
+        client = entry["client"]
+        loop = asyncio.get_running_loop()
+        t0 = time.perf_counter()
+        try:
+            # login_by_sessionid sets the cookie and validates via account_info()
+            # — no accounts/login/ call is made.
+            await loop.run_in_executor(None, lambda: client.login_by_sessionid(body.sessionid))
+        except Exception as e:
+            code = session_pool.classify_error(e)
+            duration_ms = int((time.perf_counter() - t0) * 1000)
+            logger.warning(
+                "login_by_sessionid: %s for account %s (type=%s) duration_ms=%d",
+                code, body.account_id, type(e).__name__, duration_ms,
+            )
+            await session_pool.remove_entry(body.account_id)
+            _raise_for_code(code)
+
+        settings = client.get_settings()
+
+    session_pool._slog("LOGIN_BY_SESSIONID_SUCCESS", body.account_id)
+    return {"status": "AUTHENTICATED", "settings": settings}
 
 
 # ── /session/evict ─────────────────────────────────────────────────────────────

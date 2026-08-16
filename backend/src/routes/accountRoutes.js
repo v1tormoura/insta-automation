@@ -1393,6 +1393,43 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
 });
 
 /**
+ * POST /accounts/:id/instagrapi-sessionid
+ * Conecta conta via Session ID do Instagram (cookie do browser).
+ * NÃO chama accounts/login/ — imune ao bloqueio de IP por rate limit.
+ *
+ * Como obter o sessionid:
+ *   1. Abra instagram.com no seu navegador
+ *   2. F12 → Application → Cookies → https://www.instagram.com
+ *   3. Copie o valor do cookie "sessionid"
+ *
+ * Body: { sessionid }
+ */
+router.post('/:id/instagrapi-sessionid', async (req, res) => {
+  const account = await Account.findById(req.params.id).catch(() => null);
+  if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+  const sessionid = (req.body.sessionid || '').trim();
+  if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
+
+  const accountId = String(account._id);
+  const http = _getHttp();
+  const { broadcast } = require('../events/broadcaster');
+
+  try {
+    await _withLoginLock(accountId, async () => {
+      await http.loginBySessionid(account, sessionid);
+      await _markInstagrapiConnected(accountId);
+      await _fetchAndSaveProfile(http, account, account.username);
+      broadcast('accounts', { action: 'synced' });
+      console.log(`[SID-LOGIN] @${account.username} conectada via sessionid`);
+      res.json({ success: true, accountId, message: `@${account.username} conectada via Session ID` });
+    });
+  } catch (err) {
+    _handleInstagrapiError(err, res);
+  }
+});
+
+/**
  * POST /accounts/:id/instagrapi-login
  * Login via instagrapi para conta já existente.
  * Body: { username, password, totp? }

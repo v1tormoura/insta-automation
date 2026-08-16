@@ -25,6 +25,11 @@ class TwoFactorVerifyRequest(BaseModel):
     verification_code: str
 
 
+class SessionIdLoginRequest(BaseModel):
+    account_id: str
+    sessionid: str
+
+
 class PublishReelRequest(BaseModel):
     account_id: str
     media_path: str
