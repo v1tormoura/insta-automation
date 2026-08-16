@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -80,6 +81,8 @@ async def login(body: LoginRequest):
         # Run the blocking Instagram I/O in a thread so the asyncio event loop
         # stays responsive to other requests during the 20-90 s login round-trip.
         loop = asyncio.get_running_loop()
+        session_pool._slog("LOGIN_FLOW_START", body.account_id)  # [TEMP-DEBUG]
+        t0 = time.perf_counter()
         try:
             await loop.run_in_executor(None, lambda: client.login(
                 body.username,
@@ -91,8 +94,8 @@ async def login(body: LoginRequest):
             # Store the identifier (NOT the password) for the verify-2fa step
             session_pool.store_pending_2fa(body.account_id, body.username, identifier)
             logger.info(
-                "login: TWO_FACTOR_REQUIRED for account %s (type=%s)",
-                body.account_id, type(e).__name__,
+                "login: TWO_FACTOR_REQUIRED for account %s (type=%s) duration_ms=%d",
+                body.account_id, type(e).__name__, int((time.perf_counter() - t0) * 1000),
             )
             return JSONResponse(status_code=202, content={
                 "status":  "TWO_FACTOR_REQUIRED",
@@ -100,10 +103,13 @@ async def login(body: LoginRequest):
             })
         except Exception as e:
             code = session_pool.classify_error(e)
-            # Log only the error code and type — never the full message (may contain credentials)
+            duration_ms = int((time.perf_counter() - t0) * 1000)
+            # exc_msg: safe to log — exception messages never contain the password,
+            # they contain HTTP error details (status codes, URLs, response fragments).
+            exc_msg = str(e)[:250]
             logger.warning(
-                "login: %s for account %s (type=%s)",
-                code, body.account_id, type(e).__name__,
+                "[TEMP-DEBUG] login: %s for account %s (type=%s) duration_ms=%d exc=%s",
+                code, body.account_id, type(e).__name__, duration_ms, exc_msg,
             )
             # Evict the failed client from the pool so ensureSession doesn't treat
             # this entry as a loaded session on subsequent restore attempts.

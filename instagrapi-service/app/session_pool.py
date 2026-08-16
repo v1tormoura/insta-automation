@@ -44,13 +44,34 @@ try:
 except ImportError:
     _RateLimit = None
 
-# urllib3 retry suppression
+# urllib3 retry suppression + HTTP request logging
 try:
     from urllib3.util.retry import Retry as _Retry
     from requests.adapters import HTTPAdapter as _HTTPAdapter
     _HAS_REQUESTS_RETRY = True
+
+    class _LoggingHTTPAdapter(_HTTPAdapter):
+        """[TEMP-DEBUG] Logs every Instagram HTTP request/response for investigation.
+        Logs ONLY: method, host, path, status_code, error type. Never logs credentials."""
+        _seq = 0  # class-level counter — safe under Python GIL for simple int increment
+
+        def send(self, request, **kwargs):
+            import urllib.parse
+            _LoggingHTTPAdapter._seq += 1
+            n = _LoggingHTTPAdapter._seq
+            u = urllib.parse.urlparse(request.url)
+            logger.info("[IG-HTTP] #%d → %s %s%s", n, request.method, u.netloc, u.path)
+            try:
+                resp = super().send(request, **kwargs)
+                logger.info("[IG-HTTP] #%d ← status=%d", n, resp.status_code)
+                return resp
+            except Exception as exc:
+                logger.info("[IG-HTTP] #%d ✗ %s — %s", n, type(exc).__name__, str(exc)[:150])
+                raise
+
 except ImportError:
     _HAS_REQUESTS_RETRY = False
+    _LoggingHTTPAdapter = None
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +105,8 @@ def _patch_client_retries(client: Client) -> None:
     private = getattr(client, 'private', None)
     if private is None or not hasattr(private, 'mount'):
         return  # httpx-based client (future instagrapi versions) — no-op
-    adapter = _HTTPAdapter(max_retries=_Retry(total=0))
+    adapter_cls = _LoggingHTTPAdapter if _LoggingHTTPAdapter is not None else _HTTPAdapter
+    adapter = adapter_cls(max_retries=_Retry(total=0))
     private.mount('https://', adapter)
     private.mount('http://', adapter)
 
