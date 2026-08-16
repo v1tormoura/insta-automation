@@ -360,6 +360,27 @@ export default function Accounts() {
     }
   }
 
+  async function connectBySessionIdNew() {
+    const username = instaModal.username.trim().replace(/^@/, '');
+    const sid = instaModal.sessionid.trim();
+    if (!username || !sid) return;
+    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
+    try {
+      await api.post('/accounts/instagrapi-sessionid-new', { username, sessionid: sid });
+      showToast('success', 'Conectada!', `@${username} conectada via Session ID`);
+      setInstaModal(null);
+      loadAccounts();
+    } catch (err) {
+      const code = err.response?.data?.code || '';
+      setInstaModal(m => ({
+        ...m,
+        loading: false,
+        status:  code || 'AUTH_FAILED',
+        error:   _igMessage(code, err.response?.data?.error),
+      }));
+    }
+  }
+
   async function disconnectInstagrapi(account) {
     try {
       await api.post(`/accounts/${account._id}/instagrapi-disconnect`);
@@ -1151,9 +1172,13 @@ export default function Accounts() {
                               })}
                             </select>
                           </>)
-                        : <div style={{ fontSize:12, color:'#f59e0b', background:'rgba(245,158,11,.08)', border:'1px solid rgba(245,158,11,.25)', borderRadius:8, padding:'10px 12px', marginBottom:10 }}>
-                            ⚠️ Feche e abra o modal pelo botão <strong>"Sessão"</strong> na sua conta na lista.
-                          </div>
+                        : field(<>
+                            {lbl('USUÁRIO DO INSTAGRAM')}
+                            <input className="input" type="text" style={{ width:'100%' }} placeholder="@seuusuario"
+                              value={instaModal.username}
+                              onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error:'', status:null }))}
+                              disabled={instaModal.loading} autoFocus />
+                          </>)
                     )}
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10, lineHeight:1.7, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:8, padding:'10px 12px' }}>
                       <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
@@ -1238,13 +1263,20 @@ export default function Accounts() {
                   </button>
                 )}
 
-                {!is2FA && !isConnected && isSidMode && (
-                  <button className="btn btn-primary" onClick={connectBySessionId}
-                    disabled={instaModal.loading || !instaModal.accountId || !instaModal.sessionid.trim()}
-                    style={{ background:'rgba(59,130,246,.85)', borderColor:'rgba(59,130,246,.5)' }}>
-                    {instaModal.loading ? 'Conectando...' : 'Conectar via Session ID'}
-                  </button>
-                )}
+                {!is2FA && !isConnected && isSidMode && (() => {
+                  const hasAccount = !!instaModal.accountId;
+                  const hasSid     = !!instaModal.sessionid.trim();
+                  const hasUser    = !!instaModal.username.trim();
+                  const sidOk      = hasSid && (hasAccount || hasUser);
+                  return (
+                    <button className="btn btn-primary"
+                      onClick={hasAccount ? connectBySessionId : connectBySessionIdNew}
+                      disabled={instaModal.loading || !sidOk}
+                      style={{ background:'rgba(59,130,246,.85)', borderColor:'rgba(59,130,246,.5)' }}>
+                      {instaModal.loading ? 'Conectando...' : 'Conectar via Session ID'}
+                    </button>
+                  );
+                })()}
 
                 {is2FA && (
                   <button className="btn btn-primary" onClick={verify2fa}

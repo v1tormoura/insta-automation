@@ -1393,6 +1393,50 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
 });
 
 /**
+ * POST /accounts/instagrapi-sessionid-new
+ * Cria conta (se não existir) e conecta via Session ID — sem accountId prévio.
+ * Usado quando não há nenhuma conta cadastrada ainda.
+ * Body: { username, sessionid }
+ */
+router.post('/instagrapi-sessionid-new', async (req, res) => {
+  const { broadcast } = require('../events/broadcaster');
+  const http = _getHttp();
+
+  const clean = (req.body.username || '').trim().replace(/^@/, '').toLowerCase();
+  if (!clean) return res.status(400).json({ error: 'username não informado' });
+
+  let sessionid = (req.body.sessionid || '').trim();
+  try { sessionid = decodeURIComponent(sessionid); } catch { /* já decodificado */ }
+  if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
+
+  let account;
+  let _isNew = false;
+  try {
+    account = await Account.findOne({ username: clean });
+    if (!account) {
+      account = await Account.create({ username: clean, status: 'ativa', provider: 'official' });
+      _isNew = true;
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao localizar/criar conta no banco de dados.' });
+  }
+
+  const accountId = String(account._id);
+  try {
+    await _withLoginLock(accountId, async () => {
+      await http.loginBySessionid(account, sessionid);
+      await _markInstagrapiConnected(accountId);
+      await _fetchAndSaveProfile(http, account, clean);
+      broadcast('accounts', { action: 'synced' });
+      res.json({ success: true, accountId, message: `@${clean} conectada via Session ID` });
+    });
+  } catch (err) {
+    if (_isNew) await Account.deleteOne({ _id: account._id }).catch(() => {});
+    _handleInstagrapiError(err, res);
+  }
+});
+
+/**
  * POST /accounts/:id/instagrapi-sessionid
  * Conecta conta via Session ID do Instagram (cookie do browser).
  * NÃO chama accounts/login/ — imune ao bloqueio de IP por rate limit.
