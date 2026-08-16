@@ -1155,16 +1155,20 @@ async function _withLoginLock(accountId, fn) {
   const lock        = new SessionLock(redis);
   const lockKey     = `login:${accountId}`; // → Redis key "iglock:login:{accountId}"
 
-  const token = await lock.acquire(lockKey, 35_000);
+  // TTL must exceed TIMEOUT_LOGIN (90 s) so the lock never expires during an active login.
+  const token = await lock.acquire(lockKey, 95_000);
   if (!token) {
+    console.warn(`[IG-LOGIN] lock status=BLOCKED accountId=${accountId} — LOGIN_IN_PROGRESS`);
     const err  = new Error('Login já em andamento para esta conta');
     err.code   = 'LOGIN_IN_PROGRESS';
     throw err;
   }
+  console.log(`[IG-LOGIN] lock status=FREE acquired accountId=${accountId}`);
   try {
     return await fn();
   } finally {
     await lock.release(lockKey, token).catch(() => {});
+    console.log(`[IG-LOGIN] lock released accountId=${accountId}`);
   }
 }
 
@@ -1266,7 +1270,10 @@ function _handleInstagrapiError(err, res) {
  */
 router.post('/instagrapi-direct', async (req, res) => {
   const { username, password, totp = '' } = req.body;
+  console.log(`[IG-LOGIN] request received — username=${String(username || '').slice(0, 30)}`);
+
   if (!username?.trim() || !password?.trim()) {
+    console.log('[IG-LOGIN] rejected — missing username or password');
     return res.status(400).json({ error: 'username e password são obrigatórios' });
   }
   const clean = username.trim().replace(/^@/, '').toLowerCase();
@@ -1276,47 +1283,69 @@ router.post('/instagrapi-direct', async (req, res) => {
     account = await Account.findOne({ username: clean });
     if (!account) {
       account = await Account.create({ username: clean, status: 'ativa', provider: 'official' });
+      console.log(`[IG-LOGIN] accountId=${account._id} provider=official (new account created)`);
+    } else {
+      console.log(`[IG-LOGIN] accountId=${account._id} provider=${account.provider} healthStatus=${account.healthStatus} sessionStatus=${account.sessionStatus}`);
     }
   } catch (err) {
+    console.error('[IG-LOGIN] DB error:', err.message?.slice(0, 100));
     return res.status(500).json({ error: 'Erro ao localizar/criar conta no banco de dados.' });
   }
 
   const accountId = String(account._id);
   const http = _getHttp();
 
-  // ── FASE 3: per-account login lock (35 s) — prevents duplicate logins ─────
+  // ── FASE 3: per-account login lock (95 s) — prevents duplicate logins ─────
   try {
     await _withLoginLock(accountId, async () => {
 
       // ── FASE 2: restore existing session before triggering a new login ────
+      console.log(`[IG-LOGIN] restore attempt — accountId=${accountId}`);
       try {
         const restore = await _tryRestoreSession(account, http);
-        if (restore.networkError) { _handleInstagrapiError(restore.err, res); return; }
+        console.log(`[IG-LOGIN] restore result — restored=${restore.restored} networkError=${!!restore.networkError} errCode=${restore.err?.code || 'none'}`);
+        if (restore.networkError) {
+          console.warn(`[IG-LOGIN] restore failed with network error — code=${restore.err?.code}`);
+          _handleInstagrapiError(restore.err, res);
+          return;
+        }
         if (restore.restored) {
           await _markInstagrapiConnected(accountId);
           await _fetchAndSaveProfile(http, account, clean);
           broadcast('accounts', { action: 'synced' });
+          console.log(`[IG-LOGIN] final response=200 (restored existing session)`);
           res.json({ success: true, accountId, message: `@${clean} — sessão existente restaurada` });
           return;
         }
       } catch (restoreErr) {
-        console.error(`[instagrapi] restore check failed for ${accountId}:`, restoreErr?.message?.slice(0, 100));
+        console.error(`[IG-LOGIN] restore check threw — ${restoreErr?.message?.slice(0, 100)}`);
       }
 
       // ── Fresh login (no valid persisted session) ──────────────────────────
+      console.log(`[IG-LOGIN] calling Python service — POST /session/login (timeout=90s)`);
       const result = await http.login(account, clean, password.trim(), (totp || '').trim());
+      console.log(`[IG-LOGIN] Python response — status=${result.status} has_settings=${!!result.settings}`);
 
       if (result.status === 'TWO_FACTOR_REQUIRED') {
+        console.log('[IG-LOGIN] final response=202 (2FA required)');
         res.status(202).json({ status: 'TWO_FACTOR_REQUIRED', accountId, message: _igUserMessage('TWO_FACTOR_REQUIRED') });
         return;
       }
 
+      console.log(`[IG-LOGIN] session saved=${!!result.settings} — marking connected`);
       await _markInstagrapiConnected(accountId);
+
+      console.log('[IG-LOGIN] profile fetch — starting');
       await _fetchAndSaveProfile(http, account, clean);
+
+      console.log('[IG-LOGIN] broadcast — sending accounts synced');
       broadcast('accounts', { action: 'synced' });
+
+      console.log('[IG-LOGIN] final response=200 (authenticated)');
       res.json({ success: true, accountId, message: `@${clean} conectada via API Mobile` });
     });
   } catch (err) {
+    console.error(`[IG-LOGIN] error — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
     _handleInstagrapiError(err, res);
   }
 });

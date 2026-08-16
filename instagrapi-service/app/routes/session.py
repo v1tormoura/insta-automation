@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -75,12 +76,16 @@ async def login(body: LoginRequest):
         client = entry["client"]
         if body.proxy:
             client.set_proxy(body.proxy)
+
+        # Run the blocking Instagram I/O in a thread so the asyncio event loop
+        # stays responsive to other requests during the 20-90 s login round-trip.
+        loop = asyncio.get_running_loop()
         try:
-            client.login(
+            await loop.run_in_executor(None, lambda: client.login(
                 body.username,
                 body.password,
                 verification_code=body.verification_code or "",
-            )
+            ))
         except TwoFactorRequired as e:
             identifier = getattr(e, "two_factor_identifier", "") or ""
             # Store the identifier (NOT the password) for the verify-2fa step
@@ -100,6 +105,9 @@ async def login(body: LoginRequest):
                 "login: %s for account %s (type=%s)",
                 code, body.account_id, type(e).__name__,
             )
+            # Evict the failed client from the pool so ensureSession doesn't treat
+            # this entry as a loaded session on subsequent restore attempts.
+            await session_pool.remove_entry(body.account_id)
             _raise_for_code(code)
 
         settings = client.get_settings()

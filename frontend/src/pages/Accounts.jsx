@@ -1024,10 +1024,19 @@ export default function Accounts() {
         const selAcc      = safeAccounts.find(a => a.username === uname) || null;
         const isConnected = selAcc?.provider === 'instagrapi';
         const is2FA       = instaModal.step === 'two_factor';
-        const isRateLimited = instaModal.status === 'RATE_LIMITED';
-        const blocked       = isRateLimited || cooldownSecs > 0;
+        // blocked = true only while an active countdown is running.
+        // status === 'RATE_LIMITED' with cooldownSecs === 0 means the cooldown just
+        // expired and the user should be able to retry immediately.
+        const blocked = cooldownSecs > 0;
         const cdMin = Math.floor(cooldownSecs / 60);
         const cdSec = String(cooldownSecs % 60).padStart(2, '0');
+
+        // Errors that allow immediate retry (no cooldown required)
+        const RETRY_IMMEDIATELY = new Set([
+          'INSTAGRAPI_SERVICE_UNAVAILABLE', 'TIMEOUT', 'NETWORK_ERROR',
+          'PROXY_ERROR', 'LOGIN_IN_PROGRESS', 'UNKNOWN_ERROR',
+        ]);
+        const canRetryNow = !!instaModal.status && RETRY_IMMEDIATELY.has(instaModal.status);
 
         const lbl = (text) => (
           <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
@@ -1073,7 +1082,7 @@ export default function Accounts() {
                         value={instaModal.password}
                         onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
                         onKeyDown={e => e.key === 'Enter' && !instaModal.loading && !blocked && connectInstagrapi()}
-                        disabled={instaModal.loading || blocked} />
+                        disabled={instaModal.loading || blocked} /* blocked = cooldownSecs>0 only */ />
                     </>)}
 
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:12, lineHeight:1.6, background:'rgba(139,92,246,.06)', border:'1px solid rgba(139,92,246,.18)', borderRadius:8, padding:'10px 12px' }}>
@@ -1100,26 +1109,24 @@ export default function Accounts() {
                 </>
               )}
 
-              {/* Rate limited / cooldown banner */}
+              {/* Rate limited — active countdown */}
               {blocked && (
                 <div style={{ fontSize:12, background:'rgba(234,179,8,.09)', border:'1px solid rgba(234,179,8,.3)', borderRadius:8, padding:'10px 14px', marginBottom:10 }}>
                   <div style={{ fontWeight:700, color:'#fbbf24', marginBottom:4 }}>
-                    ⏳ Instagram bloqueou tentativas deste IP temporariamente
+                    Instagram confirmou limite de tentativas neste IP
                   </div>
-                  {cooldownSecs > 0
-                    ? <div style={{ color:'#fbbf24', opacity:.9 }}>
-                        Aguarde <strong style={{ fontFamily:'monospace' }}>{cdMin}:{cdSec}</strong> antes de tentar novamente.
-                        Tentar antes piora o bloqueio.
-                      </div>
-                    : <div style={{ color:'#fbbf24', opacity:.9 }}>Aguarde alguns minutos antes de tentar novamente.</div>
-                  }
+                  <div style={{ color:'#fbbf24', opacity:.9 }}>
+                    Aguarde <strong style={{ fontFamily:'monospace' }}>{cdMin}:{cdSec}</strong> antes de tentar novamente.
+                    Tentar antes piora o bloqueio.
+                  </div>
                 </div>
               )}
 
-              {/* Error */}
+              {/* Error (shown only when no active countdown) */}
               {instaModal.error && !blocked && (
-                <div style={{ fontSize:12, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
+                <div style={{ fontSize:12, color: canRetryNow ? '#94a3b8' : '#f87171', background: canRetryNow ? 'rgba(100,116,139,.08)' : 'rgba(244,63,94,.08)', border: `1px solid ${canRetryNow ? 'rgba(100,116,139,.25)' : 'rgba(244,63,94,.2)'}`, borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
                   {instaModal.error}
+                  {canRetryNow && <span style={{ display:'block', marginTop:4, fontSize:11, color:'#64748b' }}>Você pode tentar novamente.</span>}
                 </div>
               )}
 
@@ -1141,7 +1148,7 @@ export default function Accounts() {
                   <button className="btn btn-primary" onClick={connectInstagrapi}
                     disabled={instaModal.loading || !uname || !instaModal.password.trim() || blocked}
                     style={{ background: blocked ? 'rgba(100,116,139,.4)' : 'rgba(139,92,246,.85)', borderColor: blocked ? 'rgba(100,116,139,.3)' : 'rgba(139,92,246,.5)', cursor: blocked ? 'not-allowed' : 'pointer' }}>
-                    {instaModal.loading ? 'Conectando...' : blocked && cooldownSecs > 0 ? `Aguarde ${cdMin}:${cdSec}` : 'Conectar'}
+                    {instaModal.loading ? 'Conectando...' : blocked ? `Aguarde ${cdMin}:${cdSec}` : 'Conectar'}
                   </button>
                 )}
 

@@ -2,7 +2,8 @@
 
 const UPLOADS_DIR      = process.env.UPLOADS_DIR || '/app/uploads';
 const DEFAULT_BASE     = process.env.INSTAGRAPI_SERVICE_URL || 'http://instagrapi-svc:8000';
-const TIMEOUT_FAST     = 15_000;   // ms — for session operations
+const TIMEOUT_FAST     = 15_000;   // ms — for session operations (status, ping, evict)
+const TIMEOUT_LOGIN    = 90_000;   // ms — Instagram login can take 20-90 s under load
 const TIMEOUT_MEDIA    = 180_000;  // ms — up to 3 min for video uploads
 // Publish lock TTL: longer than the media upload timeout so the lock never
 // expires while a valid upload is in progress.
@@ -109,7 +110,7 @@ class InstagrapiHttpClient {
       password,
       verification_code:  verificationCode || '',
       proxy:              account.proxy || null,
-    });
+    }, TIMEOUT_LOGIN);
 
     // TWO_FACTOR_REQUIRED is returned as a 2xx (202) — not an error
     if (result.status === 'TWO_FACTOR_REQUIRED') {
