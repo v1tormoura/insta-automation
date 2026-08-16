@@ -1133,6 +1133,21 @@ export default function Accounts() {
                   </>)}
 
                   {!isConnected && isSidMode && (<>
+                    {!instaModal.accountId && accounts.length > 0 && field(<>
+                      {lbl('CONTA')}
+                      <select className="input" style={{ width:'100%' }}
+                        defaultValue=""
+                        onChange={e => {
+                          const acc = accounts.find(a => String(a._id) === e.target.value);
+                          if (acc) setInstaModal(m => ({ ...m, accountId: acc._id, username: acc.username }));
+                        }}
+                        disabled={instaModal.loading}>
+                        <option value="" disabled>— selecione uma conta —</option>
+                        {accounts.map(a => (
+                          <option key={String(a._id)} value={String(a._id)}>@{a.username}</option>
+                        ))}
+                      </select>
+                    </>)}
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10, lineHeight:1.7, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:8, padding:'10px 12px' }}>
                       <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
                       1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>
@@ -1145,10 +1160,10 @@ export default function Accounts() {
                       <input className="input" type="text" style={{ width:'100%' }} placeholder="Cole o valor do cookie sessionid aqui"
                         value={instaModal.sessionid}
                         onChange={e => {
-                        let val = e.target.value.trim();
-                        try { val = decodeURIComponent(val); } catch {}
-                        setInstaModal(m => ({ ...m, sessionid: val, error:'', status:null }));
-                      }}
+                          let val = e.target.value.trim();
+                          try { val = decodeURIComponent(val); } catch {}
+                          setInstaModal(m => ({ ...m, sessionid: val, error:'', status:null }));
+                        }}
                         onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectBySessionId()}
                         disabled={instaModal.loading} autoFocus />
                     </>)}
