@@ -244,7 +244,7 @@ export default function Accounts() {
     setInstaModal({
       step:        'credentials',
       loginMethod: 'password',
-      accountId:   account?._id || null,
+      accountId:   account?._id || account?.id || null,
       username:    account?.username || '',
       password:    '',
       sessionid:   '',
@@ -1133,21 +1133,28 @@ export default function Accounts() {
                   </>)}
 
                   {!isConnected && isSidMode && (<>
-                    {!instaModal.accountId && accounts.length > 0 && field(<>
-                      {lbl('CONTA')}
-                      <select className="input" style={{ width:'100%' }}
-                        defaultValue=""
-                        onChange={e => {
-                          const acc = accounts.find(a => String(a._id) === e.target.value);
-                          if (acc) setInstaModal(m => ({ ...m, accountId: acc._id, username: acc.username }));
-                        }}
-                        disabled={instaModal.loading}>
-                        <option value="" disabled>— selecione uma conta —</option>
-                        {accounts.map(a => (
-                          <option key={String(a._id)} value={String(a._id)}>@{a.username}</option>
-                        ))}
-                      </select>
-                    </>)}
+                    {!instaModal.accountId && (
+                      safeAccounts.length > 0
+                        ? field(<>
+                            {lbl('CONTA')}
+                            <select className="input" style={{ width:'100%' }}
+                              defaultValue=""
+                              onChange={e => {
+                                const acc = safeAccounts.find(a => String(a._id || a.id) === e.target.value);
+                                if (acc) setInstaModal(m => ({ ...m, accountId: acc._id || acc.id, username: acc.username }));
+                              }}
+                              disabled={instaModal.loading}>
+                              <option value="" disabled>— selecione a conta —</option>
+                              {safeAccounts.map(a => {
+                                const id = String(a._id || a.id || '');
+                                return <option key={id} value={id}>@{a.username}</option>;
+                              })}
+                            </select>
+                          </>)
+                        : <div style={{ fontSize:12, color:'#f59e0b', background:'rgba(245,158,11,.08)', border:'1px solid rgba(245,158,11,.25)', borderRadius:8, padding:'10px 12px', marginBottom:10 }}>
+                            ⚠️ Feche e abra o modal pelo botão <strong>"Sessão"</strong> na sua conta na lista.
+                          </div>
+                    )}
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10, lineHeight:1.7, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:8, padding:'10px 12px' }}>
                       <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
                       1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>
