@@ -90,9 +90,9 @@ async def login(body: LoginRequest):
                 verification_code=body.verification_code or "",
             ))
         except TwoFactorRequired as e:
-            identifier = getattr(e, "two_factor_identifier", "") or ""
-            # Store the identifier (NOT the password) for the verify-2fa step
-            session_pool.store_pending_2fa(body.account_id, body.username, identifier)
+            # Store the exception (not the password) — verify-2fa uses it to
+            # extract two_step_verification_context via _login_with_bloks_two_factor.
+            session_pool.store_pending_2fa(body.account_id, body.username, e)
             logger.info(
                 "login: TWO_FACTOR_REQUIRED for account %s (type=%s) duration_ms=%d",
                 body.account_id, type(e).__name__, int((time.perf_counter() - t0) * 1000),
@@ -144,12 +144,16 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     async with entry["lock"]:
         client = entry["client"]
         try:
-            identifier = pending.get("two_factor_identifier", "") or ""
-            # Use keyword arguments — positional order varies between instagrapi versions.
-            # identifier defaults to "" when not available; instagrapi handles the empty case.
-            client.two_factor_login(
-                verification_code=body.verification_code,
-                two_factor_identifier=identifier,
+            # instagrapi 2.18.14 uses a bloks-based 2FA flow — two_factor_login was
+            # removed. _login_with_bloks_two_factor extracts two_step_verification_context
+            # from login_json, infers the challenge type (totp/sms/backup_codes),
+            # and drives the full bloks verification sequence.
+            login_json = pending.get("login_json", {})
+            orig_exc   = pending.get("exc") or TwoFactorRequired("2FA pending state")
+            client._login_with_bloks_two_factor(
+                body.verification_code,
+                login_json,
+                orig_exc,
             )
         except HTTPException:
             raise

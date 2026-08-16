@@ -99,25 +99,60 @@ def test_classify_unknown():
 
 # ── Pending 2FA store ──────────────────────────────────────────────────────────
 
+def _make_2fa_exc(response=None):
+    """Helper: create a fake TwoFactorRequired with a controllable .response."""
+    from instagrapi.exceptions import TwoFactorRequired
+    exc = TwoFactorRequired("2FA required")
+    exc.response = response
+    return exc
+
+
 def test_store_and_get_pending_2fa():
     from app import session_pool
-    session_pool.store_pending_2fa("acc1", "user1", "ident-abc")
+
+    # response is already a dict — store_pending_2fa should keep it as-is
+    exc = _make_2fa_exc(response={"two_step_verification_context": "ctx-abc"})
+    session_pool.store_pending_2fa("acc1", "user1", exc)
     pending = session_pool.get_pending_2fa("acc1")
     assert pending is not None
     assert pending["username"] == "user1"
-    assert pending["two_factor_identifier"] == "ident-abc"
+    assert pending["login_json"] == {"two_step_verification_context": "ctx-abc"}
+    assert pending["exc"] is exc
+
+
+def test_store_pending_2fa_response_object():
+    from app import session_pool
+    from unittest.mock import MagicMock
+
+    # response is a requests.Response-like object with .json()
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"two_step_verification_context": "ctx-xyz"}
+    exc = _make_2fa_exc(response=mock_response)
+    session_pool.store_pending_2fa("acc1b", "user1b", exc)
+    pending = session_pool.get_pending_2fa("acc1b")
+    assert pending["login_json"] == {"two_step_verification_context": "ctx-xyz"}
+
+
+def test_store_pending_2fa_no_response():
+    from app import session_pool
+
+    # response is None — login_json should default to {}
+    exc = _make_2fa_exc(response=None)
+    session_pool.store_pending_2fa("acc1c", "user1c", exc)
+    pending = session_pool.get_pending_2fa("acc1c")
+    assert pending["login_json"] == {}
 
 
 def test_clear_pending_2fa():
     from app import session_pool
-    session_pool.store_pending_2fa("acc2", "user2", "ident-xyz")
+    session_pool.store_pending_2fa("acc2", "user2", _make_2fa_exc())
     session_pool.clear_pending_2fa("acc2")
     assert session_pool.get_pending_2fa("acc2") is None
 
 
 def test_pending_2fa_expires():
     from app import session_pool
-    session_pool.store_pending_2fa("acc3", "user3", "ident")
+    session_pool.store_pending_2fa("acc3", "user3", _make_2fa_exc())
     # Manually expire the entry
     session_pool._pending_2fa["acc3"]["expires_at"] = time.time() - 1
     assert session_pool.get_pending_2fa("acc3") is None

@@ -33,10 +33,10 @@ async def _startup_diagnostics():
 
     try:
         from instagrapi import Client
-        sig = inspect.signature(Client.two_factor_login)
-        logger.info("STARTUP two_factor_login signature: %s", sig)
+        sig = inspect.signature(Client._login_with_bloks_two_factor)
+        logger.info("STARTUP _login_with_bloks_two_factor signature: %s", sig)
     except Exception as e:
-        logger.error("STARTUP could not inspect two_factor_login: %s", e)
+        logger.error("STARTUP could not inspect _login_with_bloks_two_factor: %s", e)
 
     try:
         from instagrapi.exceptions import (

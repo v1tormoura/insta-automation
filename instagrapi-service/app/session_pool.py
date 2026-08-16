@@ -203,16 +203,36 @@ def _slog(event: str, account_id: str, **kwargs) -> None:
 
 # ── Pending 2FA store ─────────────────────────────────────────────────────────
 
-def store_pending_2fa(account_id: str, username: str, identifier: str) -> None:
+def store_pending_2fa(account_id: str, username: str, exc: Exception) -> None:
     """
-    Store the two_factor_identifier needed to complete a pending 2FA challenge.
+    Store 2FA challenge state for a pending verification.
+
+    instagrapi 2.18.14 uses a bloks-based 2FA flow: the TwoFactorRequired
+    exception carries the raw Instagram response that _login_with_bloks_two_factor
+    needs to extract two_step_verification_context. We store both login_json and
+    the original exception so verify-2fa can call that method directly.
+
     The password is deliberately NOT stored here.
     TTL: 5 minutes — after that the challenge must be restarted.
     """
+    # Extract the JSON dict from the exception's response attribute.
+    # exc.response may be a requests.Response object (has .json()) or already a dict.
+    response = getattr(exc, "response", None)
+    if response is not None and hasattr(response, "json") and callable(response.json):
+        try:
+            login_json = response.json()
+        except Exception:
+            login_json = {}
+    elif isinstance(response, dict):
+        login_json = response
+    else:
+        login_json = {}
+
     _pending_2fa[account_id] = {
-        "username":              username,
-        "two_factor_identifier": identifier,
-        "expires_at":            time.time() + _PENDING_2FA_TTL,
+        "username":   username,
+        "login_json": login_json,
+        "exc":        exc,        # kept in-memory; never serialised or logged
+        "expires_at": time.time() + _PENDING_2FA_TTL,
     }
     _slog("LOGIN_2FA_PENDING", account_id, ttl_s=_PENDING_2FA_TTL)
 
