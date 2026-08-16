@@ -1269,8 +1269,8 @@ function _handleInstagrapiError(err, res) {
  *   401 { error, code: 'BAD_PASSWORD' | ... }
  */
 router.post('/instagrapi-direct', async (req, res) => {
-  const { username, password, totp = '' } = req.body;
-  console.log(`[IG-LOGIN] request received — username=${String(username || '').slice(0, 30)}`);
+  const { username, password, totp = '', accountId: bodyAccountId } = req.body;
+  console.log(`[IG-LOGIN] request received — username=${String(username || '').slice(0, 30)} bodyAccountId=${bodyAccountId || 'none'}`);
 
   if (!username?.trim() || !password?.trim()) {
     console.log('[IG-LOGIN] rejected — missing username or password');
@@ -1279,13 +1279,23 @@ router.post('/instagrapi-direct', async (req, res) => {
   const clean = username.trim().replace(/^@/, '').toLowerCase();
 
   let account;
+  let _isNewAccount = false; // rastreia se criou conta temporária — para limpeza em caso de falha
   try {
-    account = await Account.findOne({ username: clean });
-    if (!account) {
-      account = await Account.create({ username: clean, status: 'ativa', provider: 'official' });
-      console.log(`[IG-LOGIN] accountId=${account._id} provider=official (new account created)`);
+    if (bodyAccountId) {
+      // Frontend passou accountId → busca por ID (evita criar duplicata)
+      account = await Account.findById(bodyAccountId);
+      if (!account) return res.status(404).json({ error: 'Conta não encontrada', code: 'ACCOUNT_NOT_FOUND' });
+      console.log(`[IG-LOGIN] accountId=${account._id} provider=${account.provider} healthStatus=${account.healthStatus} (by ID)`);
     } else {
-      console.log(`[IG-LOGIN] accountId=${account._id} provider=${account.provider} healthStatus=${account.healthStatus} sessionStatus=${account.sessionStatus}`);
+      // Sem accountId → busca por username; cria apenas se realmente não existir
+      account = await Account.findOne({ username: clean });
+      if (!account) {
+        account = await Account.create({ username: clean, status: 'ativa', provider: 'official' });
+        _isNewAccount = true;
+        console.log(`[IG-LOGIN] accountId=${account._id} provider=official (new account created)`);
+      } else {
+        console.log(`[IG-LOGIN] accountId=${account._id} provider=${account.provider} healthStatus=${account.healthStatus} sessionStatus=${account.sessionStatus}`);
+      }
     }
   } catch (err) {
     console.error('[IG-LOGIN] DB error:', err.message?.slice(0, 100));
@@ -1345,6 +1355,11 @@ router.post('/instagrapi-direct', async (req, res) => {
       res.json({ success: true, accountId, message: `@${clean} conectada via API Mobile` });
     });
   } catch (err) {
+    // Limpeza: se esta rota criou uma conta temporária e o login falhou, remove o órfão
+    if (_isNewAccount) {
+      await Account.findByIdAndDelete(account?._id).catch(() => {});
+      console.log(`[IG-LOGIN] orphan account ${account?._id} deleted — login failed with code=${err?.code}`);
+    }
     console.error(`[IG-LOGIN] error — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
     _handleInstagrapiError(err, res);
   }

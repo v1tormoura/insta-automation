@@ -237,17 +237,18 @@ export default function Accounts() {
   }
 
   // instaModal state shape:
-  // { step: 'credentials'|'two_factor', username, password, totp, loading, error, status }
+  // { step: 'credentials'|'two_factor', accountId, username, password, totp, loading, error, status }
 
   function openInstaModal(account) {
     setInstaModal({
-      step:     'credentials',
-      username: account?.username || '',
-      password: '',
-      totp:     '',
-      loading:  false,
-      error:    '',
-      status:   null,
+      step:      'credentials',
+      accountId: account?._id || null,
+      username:  account?.username || '',
+      password:  '',
+      totp:      '',
+      loading:   false,
+      error:     '',
+      status:    null,
     });
   }
 
@@ -277,8 +278,9 @@ export default function Accounts() {
     setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
     try {
       const r = await api.post('/accounts/instagrapi-direct', {
-        username: uname,
-        password: instaModal.password.trim(),
+        username:  uname,
+        password:  instaModal.password.trim(),
+        ...(instaModal.accountId ? { accountId: instaModal.accountId } : {}),
         // 2FA code is collected in step 'two_factor' after Instagram requests it — not here
       });
       // 202 — 2FA required (axios doesn't throw on 2xx)
