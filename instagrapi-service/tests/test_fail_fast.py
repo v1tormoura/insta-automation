@@ -149,11 +149,12 @@ def test_get_entry_client_has_fail_fast_patch():
         entry = await get_entry(test_id)
         client = entry["client"]
 
-        # Simulate Instagram returning 429 during pre_login_flow
-        client.pre_login_flow = MagicMock(side_effect=PleaseWaitFewMinutes("wait"))
+        # Mock sync_launcher (what the original pre_login_flow calls internally).
+        # Mocking pre_login_flow directly would replace the fail-fast wrapper, bypassing it.
+        client.sync_launcher = MagicMock(side_effect=PleaseWaitFewMinutes("wait"))
 
         try:
-            client.pre_login_flow()
+            client.pre_login_flow()  # wrapper → _orig() → sync_launcher → PleaseWait → _PreLoginRateLimited
             return "no_exception"
         except _PreLoginRateLimited:
             return "correct"

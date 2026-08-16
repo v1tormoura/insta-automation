@@ -283,7 +283,7 @@ def classify_error(e: Exception) -> str:
     # "too many 429 error responses" — urllib3 MaxRetryError after exhausting retries
     if "429" in msg or "too many" in msg or "please wait" in msg:
         return "RATE_LIMITED"
-    if "ratelimit" in type_name or "rate_limit" in msg:
+    if "ratelimit" in type_name or "rate_limit" in msg or "rate limit" in msg:
         return "RATE_LIMITED"
 
     # ── Specific type name fallbacks ──────────────────────────────────────────
