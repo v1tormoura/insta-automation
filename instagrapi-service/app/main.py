@@ -24,12 +24,36 @@ app.include_router(publish.router)
 @app.on_event("startup")
 async def _startup_diagnostics():
     """Log instagrapi version and two_factor_login signature for container verification."""
+    # instagrapi não expõe __version__ de forma confiável — os metadados do pacote
+    # sim. Saber a versão instalada importa: assinaturas de métodos e a string de
+    # versão do app Instagram mudam entre releases, e é isso que decide se o
+    # payload de login é aceito.
     try:
-        import instagrapi
-        version = getattr(instagrapi, "__version__", "unknown")
-        logger.info("STARTUP instagrapi version=%s", version)
+        from importlib.metadata import version as _pkg_version
+        logger.info("STARTUP instagrapi version=%s", _pkg_version("instagrapi"))
+    except Exception:
+        try:
+            import instagrapi
+            logger.info(
+                "STARTUP instagrapi version=%s (via __version__)",
+                getattr(instagrapi, "__version__", "unknown"),
+            )
+        except Exception as e:
+            logger.error("STARTUP could not read instagrapi version: %s", e)
+
+    # Versão do app Instagram que vai no payload de login. Se o Instagram
+    # descontinuar essa build, o login por senha é recusado enquanto o site segue
+    # funcionando — sintoma que se confunde com senha incorreta.
+    try:
+        from instagrapi import config as _ig_config
+        dev = getattr(_ig_config, "DEVICE_SETTINGS", {}) or {}
+        logger.info(
+            "STARTUP app_version=%s version_code=%s device=%s/%s",
+            dev.get("app_version"), dev.get("version_code"),
+            dev.get("manufacturer"), dev.get("model"),
+        )
     except Exception as e:
-        logger.error("STARTUP could not read instagrapi version: %s", e)
+        logger.warning("STARTUP could not read DEVICE_SETTINGS: %s", e)
 
     try:
         from instagrapi import Client
