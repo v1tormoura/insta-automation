@@ -391,6 +391,28 @@ export default function Accounts() {
     LOGIN_IN_PROGRESS:              'Já existe um login em andamento para esta conta. Aguarde.',
   };
 
+  /**
+   * Pergunta ao Instagram se um @ existe, usando a sessão de uma conta já
+   * conectada como sonda. Chamado quando o login falha com USER_NOT_FOUND, para
+   * separar "@ digitado errado" de "@ existe e o login está sendo recusado".
+   */
+  async function verificarUsername(uname) {
+    try {
+      const { data } = await api.get(`/accounts/check-username/${encodeURIComponent(uname)}`);
+      if (!data.available) {
+        return 'Não há conta conectada para verificar o @ — confira manualmente em instagram.com/' + uname;
+      }
+      if (data.exists) {
+        return `Verificado: o @ EXISTE no Instagram (${data.full_name || 'sem nome'} · ${data.followers} seguidores). `
+             + 'Então o problema não é o nome de usuário — o Instagram está recusando o login em si.';
+      }
+      return `Verificado: esse @ NÃO existe no Instagram. Confira separadores — a outra conta sua tem underscore no início `
+           + `(ex.: _${uname} ou ${uname.replace(/(\d+)$/, '.$1')}).`;
+    } catch {
+      return '';
+    }
+  }
+
   function _igMessage(code, fallback) {
     return INSTA_MESSAGES[code] || fallback || 'Não foi possível autenticar. Verifique suas credenciais.';
   }
@@ -450,6 +472,12 @@ export default function Accounts() {
         error:   _igMessage(code, err.response?.data?.error),
         detail:  err.response?.data?.detail || '',
       }));
+      // O Instagram diz que o @ não existe — confirmamos com uma sessão já
+      // conectada em vez de deixar a dúvida entre erro de digitação e bloqueio.
+      if (code === 'USER_NOT_FOUND') {
+        const veredito = await verificarUsername(uname);
+        if (veredito) setInstaModal(m => (m ? { ...m, veredito } : m));
+      }
     }
   }
 
@@ -1715,6 +1743,14 @@ export default function Accounts() {
                     <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid oklch(1 0 0 / 0.08)',
                       fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', wordBreak:'break-word' }}>
                       {instaModal.detail}
+                    </div>
+                  )}
+                  {/* Veredito da sonda: consulta o Instagram com uma sessão já
+                      conectada para dizer se o @ existe de fato. */}
+                  {instaModal.veredito && (
+                    <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid oklch(1 0 0 / 0.08)',
+                      fontSize:11, color:'var(--cyan)', lineHeight:1.5 }}>
+                      {instaModal.veredito}
                     </div>
                   )}
                   {canRetryNow && <span style={{ display:'block', marginTop:4, fontSize:11, color:'#64748b' }}>Você pode tentar novamente.</span>}

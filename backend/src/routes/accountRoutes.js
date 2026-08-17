@@ -1452,6 +1452,54 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
 });
 
 /**
+ * GET /accounts/check-username/:username
+ * Verifica se um @ existe no Instagram, usando a sessão de uma conta já
+ * conectada como sonda. Serve para decidir entre "o @ está errado" e "o @ existe
+ * e o Instagram está recusando o login por outro motivo" — distinção que a
+ * resposta do endpoint de login não permite fazer.
+ *
+ * Respostas:
+ *   200 { available: false }                     — nenhuma conta conectada para sondar
+ *   200 { available: true, exists: false }       — o @ não existe
+ *   200 { available: true, exists: true, ... }   — existe, com dados públicos
+ */
+router.get('/check-username/:username', async (req, res) => {
+  const alvo = String(req.params.username || '').trim().replace(/^@/, '').toLowerCase();
+  if (!alvo) return res.status(400).json({ error: 'username é obrigatório' });
+
+  try {
+    // Sonda: qualquer conta com sessão instagrapi ativa, exceto a própria.
+    const prober = await Account.findOne({
+      provider: 'instagrapi',
+      instagrapiSession: { $exists: true, $nin: [null, ''] },
+      username: { $ne: alvo },
+    });
+    if (!prober) return res.json({ available: false });
+
+    const http = _getHttp();
+    await http.ensureSession(prober);
+    const info = await http.getUserInfo(prober, alvo);
+
+    return res.json({
+      available:  true,
+      exists:     true,
+      username:   alvo,
+      full_name:  info.full_name || '',
+      followers:  info.follower_count || 0,
+      posts:      info.media_count || 0,
+      probed_by:  prober.username,
+    });
+  } catch (err) {
+    if (err?.code === 'USER_NOT_FOUND') {
+      return res.json({ available: true, exists: false, username: alvo });
+    }
+    // Qualquer outra falha (sessão da sonda expirada, rede) não é conclusiva.
+    console.error(`[CHECK-USERNAME] @${alvo} — code=${err?.code} msg=${err?.message?.slice(0, 120)}`);
+    return res.json({ available: false, error: err?.code || 'PROBE_FAILED' });
+  }
+});
+
+/**
  * POST /accounts/instagrapi-challenge-approved
  * Reconhece o checkpoint "aprove no app" depois da aprovação manual.
  * Body: { username }
