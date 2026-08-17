@@ -574,7 +574,10 @@ def _raise_for_code(code: str, exc: Exception | None = None, secrets: tuple = ()
         # TWO_FACTOR_REQUIRED is handled before this function is called — 202 is not an error
     }
     http_status = _STATUS.get(code, 422)  # fallback 422, not 401 (401 triggers SaaS logout)
-    # Códigos conhecidos têm mensagem curada no Node; para os desconhecidos,
-    # devolvemos o motivo real (higienizado) em vez de deixar o front adivinhar.
-    message = _safe_detail(exc, secrets) if code == "UNKNOWN_ERROR" else ""
+    # A mensagem técnica acompanha TODOS os códigos, não só os desconhecidos.
+    # Motivo: as mensagens curadas às vezes contradizem o que o Instagram disse
+    # — BAD_PASSWORD, por exemplo, aparece quando ele recusa a tentativa por
+    # padrão suspeito, e "usuário ou senha incorretos" manda depurar a coisa
+    # errada. O Node decide como exibir; aqui garantimos que a verdade chegue.
+    message = _safe_detail(exc, secrets)
     raise HTTPException(status_code=http_status, detail={"code": code, "message": message})

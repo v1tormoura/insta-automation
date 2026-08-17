@@ -1108,7 +1108,10 @@ const INSTA_ERROR_MESSAGES = {
   NOT_APPROVED_YET:               'O Instagram ainda não registrou a aprovação. Abra o app, aprove a tentativa de login e confirme aqui de novo.',
   TWO_FACTOR_NO_SESSION:          'O código foi aceito, mas o Instagram não liberou a sessão. Faça o login novamente — se repetir, aguarde alguns minutos antes de tentar.',
   TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
-  BAD_PASSWORD:                   'Usuário ou senha incorretos.',
+  // O Instagram devolve erro de credencial também quando recusa a tentativa por
+  // padrão suspeito (IP de datacenter, proxy rotativo). Afirmar "senha errada"
+  // manda o usuário trocar a senha quando o problema é outro.
+  BAD_PASSWORD:                   'O Instagram recusou o login. Se a senha está certa, ele está bloqueando a tentativa — veja o detalhe abaixo.',
   USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
   SESSION_EXPIRED:                'Sessão expirada — faça login novamente.',
   FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente novamente mais tarde.',
@@ -1273,7 +1276,16 @@ function _handleInstagrapiError(err, res) {
   // Log the raw technical detail internally only — never forward to frontend
   const safeLog = err?.message?.slice(0, 200) || 'no message';
   console.error(`[instagrapi] code=${code} raw=${safeLog}`);
-  return res.status(_igHttpStatus(code)).json({ error: _igUserMessage(code, err?.detail), code });
+  // `detail` vai junto da mensagem curada, em campo separado: a tela mostra o
+  // texto legível e, abaixo, o que o Instagram respondeu de fato. Sem isso, uma
+  // mensagem curada errada (ex.: BAD_PASSWORD com senha certa) faz o usuário
+  // depurar a coisa errada — foi o que aconteceu repetidamente aqui.
+  const detail = String(err?.detail || '').slice(0, 300);
+  return res.status(_igHttpStatus(code)).json({
+    error: _igUserMessage(code, detail),
+    code,
+    detail,
+  });
 }
 
 /**

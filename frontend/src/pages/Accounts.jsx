@@ -374,7 +374,7 @@ export default function Accounts() {
     RATE_LIMITED:                   'Instagram bloqueou temporariamente este IP. Aguarde antes de tentar novamente.',
     CHALLENGE_REQUIRED:             'O Instagram requer verificação adicional. Acesse o app oficial e resolva o desafio, depois tente novamente.',
     TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
-    BAD_PASSWORD:                   'Usuário ou senha incorretos.',
+    BAD_PASSWORD:                   'O Instagram recusou o login. Se a senha está certa, ele está bloqueando a tentativa — veja o detalhe abaixo.',
     USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
     TWO_FACTOR_NO_SESSION:          'O código foi aceito, mas o Instagram não liberou a sessão. Faça o login novamente — se repetir, aguarde alguns minutos antes de tentar.',
     NOT_APPROVED_YET:               'O Instagram ainda não registrou a aprovação. Abra o app, aprove a tentativa de login e confirme aqui de novo.',
@@ -448,6 +448,7 @@ export default function Accounts() {
         loading: false,
         status:  code || 'AUTH_FAILED',
         error:   _igMessage(code, err.response?.data?.error),
+        detail:  err.response?.data?.detail || '',
       }));
     }
   }
@@ -476,6 +477,7 @@ export default function Accounts() {
         step:    expirou ? 'credentials' : 'challenge',
         status:  errCode || 'AUTH_FAILED',
         error:   _igMessage(errCode, err.response?.data?.error),
+        detail:  err.response?.data?.detail || '',
       }));
     }
   }
@@ -513,6 +515,7 @@ export default function Accounts() {
         totp:    '',
         status:  errCode || 'AUTH_FAILED',
         error:   _igMessage(errCode, err.response?.data?.error),
+        detail:  err.response?.data?.detail || '',
       }));
     }
   }
@@ -534,6 +537,7 @@ export default function Accounts() {
         loading: false,
         status:  errCode || 'AUTH_FAILED',
         error:   _igMessage(errCode, err.response?.data?.error),
+        detail:  err.response?.data?.detail || '',
       }));
     }
   }
@@ -556,6 +560,7 @@ export default function Accounts() {
         loading: false,
         status:  code || 'AUTH_FAILED',
         error:   _igMessage(code, err.response?.data?.error),
+        detail:  err.response?.data?.detail || '',
       }));
     }
   }
@@ -577,6 +582,7 @@ export default function Accounts() {
         loading: false,
         status:  code || 'AUTH_FAILED',
         error:   _igMessage(code, err.response?.data?.error),
+        detail:  err.response?.data?.detail || '',
       }));
     }
   }
@@ -1703,6 +1709,14 @@ export default function Accounts() {
               {instaModal.error && !blocked && (
                 <div style={{ fontSize:12, color: canRetryNow ? '#94a3b8' : '#f87171', background: canRetryNow ? 'rgba(100,116,139,.08)' : 'rgba(244,63,94,.08)', border: `1px solid ${canRetryNow ? 'rgba(100,116,139,.25)' : 'rgba(244,63,94,.2)'}`, borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
                   {instaModal.error}
+                  {/* Resposta técnica do Instagram. Fica visível de propósito: a
+                      mensagem curada acima às vezes contradiz o motivo real. */}
+                  {instaModal.detail && (
+                    <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid oklch(1 0 0 / 0.08)',
+                      fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', wordBreak:'break-word' }}>
+                      {instaModal.detail}
+                    </div>
+                  )}
                   {canRetryNow && <span style={{ display:'block', marginTop:4, fontSize:11, color:'#64748b' }}>Você pode tentar novamente.</span>}
                 </div>
               )}
