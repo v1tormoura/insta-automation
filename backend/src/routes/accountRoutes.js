@@ -1104,6 +1104,7 @@ const INSTA_ERROR_MESSAGES = {
   CHALLENGE_REQUIRED:             'O Instagram requer uma verificação adicional. Acesse o app oficial, resolva o desafio e tente novamente.',
   TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
   BAD_PASSWORD:                   'Usuário ou senha incorretos.',
+  USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
   SESSION_EXPIRED:                'Sessão expirada — faça login novamente.',
   FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente novamente mais tarde.',
   INSTAGRAPI_SERVICE_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente novamente em instantes.',

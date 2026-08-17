@@ -375,6 +375,7 @@ export default function Accounts() {
     CHALLENGE_REQUIRED:             'O Instagram requer verificação adicional. Acesse o app oficial e resolva o desafio, depois tente novamente.',
     TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
     BAD_PASSWORD:                   'Usuário ou senha incorretos.',
+    USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
     SESSION_EXPIRED:                'Sessão expirada — faça login novamente.',
     FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente mais tarde.',
     INSTAGRAPI_SERVICE_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente em instantes.',

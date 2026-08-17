@@ -342,4 +342,12 @@ def classify_error(e: Exception) -> str:
                                "name or service not known")):
         return "NETWORK_ERROR"
 
+    # ── Identificador inexistente ─────────────────────────────────────────────
+    # Resposta do Instagram quando o @ (ou e-mail) não corresponde a nenhuma
+    # conta — inclui contas apagadas ou desativadas. Sem esta classificação cai
+    # em UNKNOWN_ERROR e o painel sugere trocar a senha, que não é o problema.
+    if ("can't find an account" in msg or "can’t find an account" in msg
+            or "cant find an account" in msg or "no users found" in msg):
+        return "USER_NOT_FOUND"
+
     return "UNKNOWN_ERROR"

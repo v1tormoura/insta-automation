@@ -332,6 +332,7 @@ def _raise_for_code(code: str, exc: Exception | None = None, secrets: tuple = ()
         "RATE_LIMITED":       429,
         "CHALLENGE_REQUIRED": 428,
         "BAD_PASSWORD":       422,
+        "USER_NOT_FOUND":     422,
         "FEEDBACK_REQUIRED":  403,
         "SESSION_EXPIRED":    422,
         "TIMEOUT":            504,
