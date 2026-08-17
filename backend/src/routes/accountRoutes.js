@@ -1361,15 +1361,21 @@ router.post('/instagrapi-direct', async (req, res) => {
         return;
       }
 
-      // Desafio de verificação: o Python já disparou o código e está aguardando.
-      // A conta permanece cadastrada para que o passo do código possa concluir.
+      // Desafio de verificação. `kind` decide a tela: 'approval' (aprovar no app,
+      // sem código) ou 'code' (código por e-mail/SMS). Repassar este campo é
+      // obrigatório — sem ele o front cai no padrão 'code' e pede um código que
+      // o Instagram nunca enviou.
       if (result.status === 'CHALLENGE_REQUIRED') {
-        console.log(`[IG-LOGIN] final response=202 (challenge required, canal=${result.channel || '?'})`);
+        const kind = result.kind === 'approval' ? 'approval' : 'code';
+        console.log(`[IG-LOGIN] final response=202 (challenge required, kind=${kind}, canal=${result.channel || '-'})`);
         res.status(202).json({
           status:    'CHALLENGE_REQUIRED',
           accountId,
+          kind,
           channel:   result.channel || null,
-          message:   result.message || 'O Instagram enviou um código de verificação. Digite-o para concluir.',
+          message:   result.message || (kind === 'approval'
+            ? 'Aprove a tentativa de login no app do Instagram e depois confirme aqui.'
+            : 'O Instagram enviou um código de verificação. Digite-o para concluir.'),
         });
         return;
       }

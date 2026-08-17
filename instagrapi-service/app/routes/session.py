@@ -438,6 +438,14 @@ async def challenge_approved(body: EvictRequest):
         session_pool.clear_pending_challenge(body.account_id)
         return {"status": "DISMISSED", "message": "Verificação reconhecida. Refaça o login."}
 
+    if result["status"] == "RETRY_LOGIN":
+        # Era um desafio de código e o usuário aprovou no app: a thread parada
+        # ainda é dona deste client, então descartamos a entrada do pool para
+        # que o novo login comece com um client limpo.
+        session_pool.clear_pending_challenge(body.account_id)
+        await session_pool.remove_entry(body.account_id)
+        return {"status": "DISMISSED", "message": "Refaça o login para concluir."}
+
     if result["status"] == "NOT_APPROVED_YET":
         raise HTTPException(status_code=409, detail={
             "code":    "NOT_APPROVED_YET",

@@ -327,6 +327,7 @@ def dismiss_bloks_challenge(account_id: str) -> dict:
 
     Devolve:
       {"status": "DISMISSED"}            — reconhecido; refazer o login conclui
+      {"status": "RETRY_LOGIN"}          — não era desafio bloks; descartar e refazer
       {"status": "NOT_APPROVED_YET"}     — o Instagram ainda vê o desafio aberto
       {"status": "UNSUPPORTED"}          — versão do instagrapi sem o método
       {"status": "FAILED", "error": ...} — falha inesperada
@@ -334,6 +335,13 @@ def dismiss_bloks_challenge(account_id: str) -> dict:
     entry = get_pending_challenge(account_id)
     if not entry:
         return {"status": "FAILED", "error": "Nenhum desafio pendente"}
+
+    # Desafio de código em que o usuário diz ter aprovado no app: não existe
+    # contexto bloks para reconhecer. Serve de escape quando a detecção do tipo
+    # errou — descartamos o desafio e o login é refeito com um client limpo.
+    if entry.get("kind") != "approval":
+        _slog("CHALLENGE_KIND_FALLBACK", account_id)
+        return {"status": "RETRY_LOGIN"}
 
     client = entry["client"]
     if not hasattr(client, "challenge_bloks_redirect_dismiss"):
@@ -389,6 +397,7 @@ def start_challenge(account_id: str, client: Client, last_json: dict, username: 
     thread.start()
 
     entry = {
+        "kind": "code",
         "queue": code_q,
         "state": state,
         "thread": thread,

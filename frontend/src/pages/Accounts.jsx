@@ -1650,6 +1650,13 @@ export default function Accounts() {
                       onKeyDown={e => e.key === 'Enter' && !instaModal.loading && submitChallengeCode()}
                       disabled={instaModal.loading} maxLength={8} autoFocus />
                   </>)}
+                  {/* Escape: se o Instagram pediu aprovação no app em vez de código,
+                      esta conta não vai receber código nenhum. */}
+                  <button onClick={confirmChallengeApproval} disabled={instaModal.loading}
+                    style={{ background:'none', border:'none', padding:0, marginBottom:10, fontSize:11,
+                      color:'var(--cyan)', textDecoration:'underline', cursor:'pointer' }}>
+                    Não chegou código? O Instagram pediu aprovação no app — clique aqui
+                  </button>
                 </>
               ))}
 
