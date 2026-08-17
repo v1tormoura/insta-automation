@@ -1375,6 +1375,12 @@ router.post('/instagrapi-direct', async (req, res) => {
       }
 
       // ── Fresh login (no valid persisted session) ──────────────────────────
+      // Comprimento da senha, nunca a senha: compara com o que o Python recebe e
+      // prova se ela atravessa a pilha íntegra (há .trim() aqui e no frontend).
+      const _pwd = password.trim();
+      console.log(
+        `[IG-LOGIN] password_len=${_pwd.length} ascii=${/^[\x20-\x7E]*$/.test(_pwd)}`
+      );
       console.log(`[IG-LOGIN] calling Python service — POST /session/login (timeout=90s)`);
       const result = await http.login(account, clean, password.trim(), (totp || '').trim());
       console.log(`[IG-LOGIN] Python response — status=${result.status} has_settings=${!!result.settings}`);

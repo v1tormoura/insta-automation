@@ -81,7 +81,17 @@ async def login(body: LoginRequest):
     SECURITY: the password travels in-memory only — it is NEVER stored or logged.
     Only account_id and error type/code are written to logs.
     """
-    session_pool._slog("LOGIN_ATTEMPT", body.account_id, username=body.username)
+    # Comprimento e faixa de caracteres da senha — NUNCA a senha. Serve para
+    # provar se ela chega íntegra do navegador até aqui: há .trim() no frontend e
+    # no Node, e caractere fora de ASCII pode se perder na serialização. Se este
+    # número diferir do que o Node registrou, o defeito é nosso, não do Instagram.
+    session_pool._slog(
+        "LOGIN_ATTEMPT",
+        body.account_id,
+        username=body.username,
+        password_len=len(body.password),
+        password_ascii=body.password.isascii(),
+    )
 
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
