@@ -185,7 +185,7 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     Complete a pending two-factor-authentication challenge.
 
     Must be called after /session/login returned TWO_FACTOR_REQUIRED.
-    The pending challenge expires after 5 minutes — if expired, restart the login.
+    The pending challenge expires after 10 minutes — if expired, restart the login.
     Returns the same shape as a successful /session/login.
     """
     pending = session_pool.get_pending_2fa(body.account_id)

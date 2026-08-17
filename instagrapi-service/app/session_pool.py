@@ -107,7 +107,9 @@ _pool_lock = asyncio.Lock()
 # Pending two-factor challenges: account_id → {username, two_factor_identifier, expires_at}
 # Stored in-memory only — never written to disk or database.
 # Cleared on verification (success or failure) or after TTL expires.
-_PENDING_2FA_TTL = 300  # 5 minutes
+# 10 min — igual ao prazo do desafio. Com 5 min, o tempo de receber o SMS/e-mail,
+# trocar de app e digitar estourava o prazo e o login reiniciava em loop.
+_PENDING_2FA_TTL = 600
 _pending_2fa: Dict[str, dict] = {}
 
 
