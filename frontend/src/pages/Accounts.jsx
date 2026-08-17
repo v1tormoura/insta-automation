@@ -711,12 +711,20 @@ export default function Accounts() {
     { label: 'PUBLICAÇÕES', value: fmt(totalPosts),          color: '#f97316', Icon: IcoGrid,   numColor: '#f59e0b' },
   ];
 
+  /**
+   * Conta realmente conectada: tem token da Meta API ou sessão mobile salva.
+   * `healthStatus` NÃO serve para isso — ele nasce saudável numa conta nova, e
+   * usá-lo fazia o card anunciar "API conectada" para conta que nunca conectou.
+   * Os flags vêm do backend, que nunca expõe token nem sessão em si.
+   */
+  const isLinked = a => !!(a?.hasApiToken || a?.hasInstagrapiSession || a?.hasIgSession);
+
   /* ── health helpers ── */
   const hBg    = s => ({ ativa:'rgba(16,185,129,.09)', restrita:'rgba(245,158,11,.09)', banida:'rgba(244,63,94,.09)', token_invalido:'rgba(244,63,94,.09)', sessao_expirada:'rgba(245,158,11,.09)', erro_login:'rgba(244,63,94,.09)', desconectada:'rgba(100,116,139,.09)' }[s] || 'rgba(16,185,129,.09)');
   const hBorder= s => ({ ativa:'rgba(16,185,129,.25)', restrita:'rgba(245,158,11,.25)', banida:'rgba(244,63,94,.25)', token_invalido:'rgba(244,63,94,.25)', sessao_expirada:'rgba(245,158,11,.25)', erro_login:'rgba(244,63,94,.25)', desconectada:'rgba(100,116,139,.2)' }[s] || 'rgba(16,185,129,.25)');
 
   const STAT_DEFS = [
-    { label:'CONECTADAS',  value:fmt(safeAccounts.length), color:'var(--purple)',  bg:'rgba(139,92,246,.09)',  border:'rgba(139,92,246,.18)',  Icon:IcoUsers  },
+    { label:'CONECTADAS',  value:fmt(safeAccounts.filter(isLinked).length), color:'var(--purple)',  bg:'rgba(139,92,246,.09)',  border:'rgba(139,92,246,.18)',  Icon:IcoUsers  },
     { label:'SAUDÁVEIS',   value:fmt(activeAccounts),      color:'var(--cyan)',    bg:'rgba(0,212,255,.09)',   border:'rgba(0,212,255,.18)',   Icon:IcoShield },
     { label:'COM ERRO',    value:fmt(errorAccounts),       color:'var(--red)',     bg:'rgba(244,63,94,.09)',   border:'rgba(244,63,94,.18)',   Icon:IcoWarn   },
     { label:'SEGUIDORES',  value:fmt(totalFollowers),      color:'var(--amber)',   bg:'rgba(245,158,11,.09)',  border:'rgba(245,158,11,.18)',  Icon:IcoTrend  },
@@ -971,6 +979,7 @@ export default function Accounts() {
             const cardBg      = hBg(account.healthStatus);
             const cardBorder  = hBorder(account.healthStatus);
             const isSel       = selectedIds.has(account._id);
+            const linked      = isLinked(account);
 
             /* Proxy desta conta: o próprio tem prioridade; sem ele vale o global.
                Status e IP vêm do monitoramento contínuo do servidor. */
@@ -1077,7 +1086,13 @@ export default function Accounts() {
                 {/* meta row */}
                 <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
                 <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6 }}>
-                  {account.provider === 'instagrapi' && account.sessionStatus ? (
+                  {!linked ? (
+                    // Sem token e sem sessão: a conta existe no painel mas não está
+                    // conectada a nada. Antes isso aparecia como "API conectada".
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5, color:'#f87171' }}>
+                      <IcoWifi /> Não conectada
+                    </span>
+                  ) : account.provider === 'instagrapi' && account.sessionStatus ? (
                     <span style={{ fontFamily:'var(--font-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5,
                       color: sessionStatusColor(account.sessionStatus) }}>
                       <IcoPhone />
