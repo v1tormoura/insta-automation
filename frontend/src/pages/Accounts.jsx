@@ -426,9 +426,36 @@ export default function Accounts() {
     return INSTA_MESSAGES[code] || fallback || 'Não foi possível autenticar. Verifique suas credenciais.';
   }
 
-  async function connectInstagrapi() {
+  /**
+   * @param {{ignorarCooldown?: boolean}} [opts] — ignorarCooldown é usado pela
+   *   retomada após aprovação no app, onde esperar faria a aprovação expirar.
+   */
+  async function connectInstagrapi(opts = {}) {
     const uname = instaModal.username.trim().replace(/^@/, '');
-    if (!uname || !instaModal.password.trim() || cooldownSecs > 0) return;
+    // Guardas visíveis: antes retornavam em silêncio, e quando esta função era
+    // chamada por outro fluxo (retomada após aprovação no app) a tela voltava às
+    // credenciais sem explicação nenhuma — parecia que o clique não fez nada.
+    if (!uname) {
+      setInstaModal(m => ({ ...m, loading: false, error: 'Informe o usuário do Instagram.' }));
+      return;
+    }
+    if (!instaModal.password.trim()) {
+      setInstaModal(m => ({
+        ...m, loading: false,
+        error: 'A senha foi apagada do campo. Digite novamente para concluir a conexão.',
+      }));
+      return;
+    }
+    // A espera não se aplica à retomada após aprovação no app: o Instagram acabou
+    // de autorizar a tentativa, e esperar aqui deixaria a aprovação expirar.
+    if (cooldownSecs > 0 && !opts.ignorarCooldown) {
+      const m2 = Math.floor(cooldownSecs / 60), s2 = String(cooldownSecs % 60).padStart(2, '0');
+      setInstaModal(m => ({
+        ...m, loading: false, status: 'RATE_LIMITED',
+        error: `Limite de tentativas ativo neste IP — aguarde ${m2}:${s2} antes de tentar novamente.`,
+      }));
+      return;
+    }
     setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
     try {
       const r = await api.post('/accounts/instagrapi-direct', {
@@ -501,9 +528,13 @@ export default function Accounts() {
     setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
     try {
       await api.post('/accounts/instagrapi-challenge-approved', { username: uname });
-      // Reconhecido — refaz o login, que agora deve passar.
+      // Reconhecido — refaz o login, que agora deve passar. A espera local é
+      // ignorada de propósito: a aprovação tem validade curta.
+      setRateLimitExpiry(null);
+      setCooldownSecs(0);
+      try { localStorage.removeItem(`ig_rl_${uname}`); } catch {}
       setInstaModal(m => ({ ...m, step: 'credentials', error: '', status: null }));
-      await connectInstagrapi();
+      await connectInstagrapi({ ignorarCooldown: true });
     } catch (err) {
       const errCode = err.response?.data?.code || '';
       const expirou = errCode === 'NO_PENDING_CHALLENGE' || errCode === 'CHALLENGE_FAILED';
