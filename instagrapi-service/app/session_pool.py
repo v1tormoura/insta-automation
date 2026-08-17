@@ -275,6 +275,86 @@ _pending_challenge: Dict[str, dict] = {}
 # instagrapi usa 1 para e-mail e 0 para SMS em challenge_resolve_contact_form
 _CHOICE_LABEL = {"1": "e-mail", "0": "SMS"}
 
+# Ação bloks do checkpoint "aprove no app" — o Instagram não envia código nenhum
+# nesse fluxo; ele espera aprovação num dispositivo confiável. Importada da
+# biblioteca quando disponível, com literal de reserva para versões que não expõem.
+try:
+    from instagrapi.mixins.challenge import BLOKS_REDIRECT_ACTION
+except ImportError:  # pragma: no cover — depende da versão do instagrapi
+    BLOKS_REDIRECT_ACTION = "com.bloks.www.ig.challenge.redirect.async"
+
+
+def detect_challenge_kind(client: Client) -> str:
+    """
+    Distingue os dois tipos de checkpoint do Instagram.
+
+    'approval' — bloks redirect: aparece "tentativa de login" no app oficial e o
+                 usuário aprova ali. NÃO chega código por e-mail/SMS. Depois da
+                 aprovação é preciso chamar challenge_bloks_redirect_dismiss()
+                 no MESMO client para reconhecer o checkpoint.
+    'code'     — contact form: o Instagram envia um código por e-mail ou SMS.
+
+    Confundir os dois deixa o usuário esperando um código que nunca chega.
+    """
+    last_json = getattr(client, "last_json", None) or {}
+    if last_json.get("bloks_action") == BLOKS_REDIRECT_ACTION and last_json.get("challenge_context"):
+        return "approval"
+    return "code"
+
+
+def store_pending_approval(account_id: str, client: Client, username: str) -> dict:
+    """
+    Registra um checkpoint do tipo aprovação.
+
+    Sem thread e sem fila: nada a aguardar aqui — o usuário aprova no app e só
+    então chamamos o dismiss. O client é preservado porque
+    challenge_bloks_redirect_dismiss() depende do last_json desta instância.
+    """
+    entry = {
+        "kind":       "approval",
+        "client":     client,
+        "username":   username,
+        "expires_at": time.time() + _PENDING_CHALLENGE_TTL,
+    }
+    _pending_challenge[account_id] = entry
+    _slog("CHALLENGE_APPROVAL_PENDING", account_id, ttl_s=_PENDING_CHALLENGE_TTL)
+    return entry
+
+
+def dismiss_bloks_challenge(account_id: str) -> dict:
+    """
+    Reconhece o checkpoint depois que o usuário aprovou o login no app oficial.
+
+    Devolve:
+      {"status": "DISMISSED"}            — reconhecido; refazer o login conclui
+      {"status": "NOT_APPROVED_YET"}     — o Instagram ainda vê o desafio aberto
+      {"status": "UNSUPPORTED"}          — versão do instagrapi sem o método
+      {"status": "FAILED", "error": ...} — falha inesperada
+    """
+    entry = get_pending_challenge(account_id)
+    if not entry:
+        return {"status": "FAILED", "error": "Nenhum desafio pendente"}
+
+    client = entry["client"]
+    if not hasattr(client, "challenge_bloks_redirect_dismiss"):
+        return {"status": "UNSUPPORTED"}
+
+    try:
+        ok = bool(client.challenge_bloks_redirect_dismiss())
+    except ChallengeRequired as e:
+        # A própria biblioteca sinaliza assim quando o desafio segue aberto —
+        # normalmente porque a aprovação no app ainda não foi feita.
+        _slog("CHALLENGE_NOT_APPROVED_YET", account_id)
+        return {"status": "NOT_APPROVED_YET", "error": str(e)[:200]}
+    except Exception as e:  # noqa: BLE001
+        return {"status": "FAILED", "error": f"{type(e).__name__}: {e}"[:300]}
+
+    if not ok:
+        return {"status": "NOT_APPROVED_YET"}
+
+    _slog("CHALLENGE_DISMISSED", account_id)
+    return {"status": "DISMISSED"}
+
 
 def start_challenge(account_id: str, client: Client, last_json: dict, username: str) -> dict:
     """

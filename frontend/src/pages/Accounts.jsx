@@ -402,16 +402,18 @@ export default function Accounts() {
         ...(instaModal.accountId ? { accountId: instaModal.accountId } : {}),
         // 2FA code is collected in step 'two_factor' after Instagram requests it — not here
       });
-      // 202 — desafio de verificação: o Instagram já enviou o código
+      // 202 — desafio de verificação. Dois tipos: 'approval' (aprovar no app,
+      // sem código) e 'code' (código por e-mail/SMS).
       if (r.data?.status === 'CHALLENGE_REQUIRED') {
         setInstaModal(m => ({
           ...m,
-          loading:  false,
-          step:     'challenge',
-          totp:     '',
-          channel:  r.data?.channel || null,
-          status:   'CHALLENGE_REQUIRED',
-          error:    '',
+          loading:       false,
+          step:          'challenge',
+          totp:          '',
+          challengeKind: r.data?.kind === 'approval' ? 'approval' : 'code',
+          channel:       r.data?.channel || null,
+          status:        'CHALLENGE_REQUIRED',
+          error:         '',
         }));
         return;
       }
@@ -442,6 +444,34 @@ export default function Accounts() {
         loading: false,
         status:  code || 'AUTH_FAILED',
         error:   _igMessage(code, err.response?.data?.error),
+      }));
+    }
+  }
+
+  /**
+   * Confirma que o usuário aprovou a tentativa de login no app do Instagram.
+   * O servidor reconhece o checkpoint e então repetimos o login — a senha
+   * continua apenas nesta tela, nunca foi armazenada no servidor.
+   */
+  async function confirmChallengeApproval() {
+    const uname = instaModal.username.trim().replace(/^@/, '');
+    if (!uname) return;
+    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
+    try {
+      await api.post('/accounts/instagrapi-challenge-approved', { username: uname });
+      // Reconhecido — refaz o login, que agora deve passar.
+      setInstaModal(m => ({ ...m, step: 'credentials', error: '', status: null }));
+      await connectInstagrapi();
+    } catch (err) {
+      const errCode = err.response?.data?.code || '';
+      const expirou = errCode === 'NO_PENDING_CHALLENGE' || errCode === 'CHALLENGE_FAILED';
+      setInstaModal(m => ({
+        ...m,
+        loading: false,
+        // NOT_APPROVED_YET mantém o passo: o usuário aprova no app e confirma de novo.
+        step:    expirou ? 'credentials' : 'challenge',
+        status:  errCode || 'AUTH_FAILED',
+        error:   _igMessage(errCode, err.response?.data?.error),
       }));
     }
   }
@@ -1431,6 +1461,8 @@ export default function Accounts() {
         // mecanismo diferente do 2FA, mas com a mesma forma de tela: pede código.
         const isChallenge = instaModal.step === 'challenge';
         const isCodeStep  = is2FA || isChallenge;
+        // Bloks redirect: aprovação no app, sem código. É o caso das contas sem 2FA.
+        const isApprovalChallenge = isChallenge && instaModal.challengeKind === 'approval';
         // blocked = true only while an active countdown is running.
         // status === 'RATE_LIMITED' with cooldownSecs === 0 means the cooldown just
         // expired and the user should be able to retry immediately.
@@ -1582,8 +1614,25 @@ export default function Accounts() {
                 </>
               )}
 
-              {/* Step: challenge — checkpoint do Instagram por e-mail/SMS */}
-              {isChallenge && (
+              {/* Step: challenge — aprovação no app OU código por e-mail/SMS */}
+              {isChallenge && (isApprovalChallenge ? (
+                <div style={{ background:'rgba(59,130,246,.07)', border:'1px solid rgba(59,130,246,.25)', borderRadius:8, padding:'12px 14px', marginBottom:12, fontSize:12, color:'#60a5fa', lineHeight:1.7 }}>
+                  <strong style={{ color:'var(--text1)' }}>Aprove no app do Instagram</strong>
+                  <div style={{ marginTop:6 }}>
+                    Esta conta não usa código — o Instagram mostra um aviso de
+                    <strong> "tentativa de login" </strong>no app.
+                  </div>
+                  <div style={{ marginTop:8 }}>
+                    1. Abra o app do Instagram (no celular já logado)<br/>
+                    2. Toque no aviso e confirme que <strong>foi você</strong><br/>
+                    3. Volte aqui e clique em <strong>Já aprovei</strong>
+                  </div>
+                  <div style={{ marginTop:8, fontSize:11, opacity:.8 }}>
+                    Se já aprovou e ainda assim não passar, aprove de novo e repita — o
+                    Instagram às vezes leva alguns segundos para registrar.
+                  </div>
+                </div>
+              ) : (
                 <>
                   <div style={{ background:'rgba(59,130,246,.07)', border:'1px solid rgba(59,130,246,.25)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#60a5fa', lineHeight:1.6 }}>
                     O Instagram pediu confirmação de identidade e enviou um código
@@ -1602,7 +1651,7 @@ export default function Accounts() {
                       disabled={instaModal.loading} maxLength={8} autoFocus />
                   </>)}
                 </>
-              )}
+              ))}
 
               {/* Rate limited — active countdown */}
               {blocked && (
@@ -1632,13 +1681,19 @@ export default function Accounts() {
                   : <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
                 }
 
-                {isChallenge && (
+                {isChallenge && (isApprovalChallenge ? (
+                  <button className="btn btn-primary" onClick={confirmChallengeApproval}
+                    disabled={instaModal.loading}
+                    style={{ background:'rgba(59,130,246,.85)', borderColor:'rgba(59,130,246,.5)' }}>
+                    {instaModal.loading ? 'Verificando...' : 'Já aprovei no app'}
+                  </button>
+                ) : (
                   <button className="btn btn-primary" onClick={submitChallengeCode}
                     disabled={instaModal.loading || !instaModal.totp.trim()}
                     style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
                     {instaModal.loading ? 'Verificando...' : 'Confirmar código'}
                   </button>
-                )}
+                ))}
 
                 {!isCodeStep && isConnected && (
                   <button className="btn" onClick={() => disconnectInstagrapi(selAcc)} disabled={instaModal.loading}

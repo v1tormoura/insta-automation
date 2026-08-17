@@ -1105,6 +1105,7 @@ const INSTA_ERROR_MESSAGES = {
   CHALLENGE_CODE_REJECTED:        'Código incorreto. Confira o e-mail/SMS e digite novamente.',
   CHALLENGE_FAILED:               'Não foi possível concluir a verificação. Faça o login novamente.',
   NO_PENDING_CHALLENGE:           'O prazo da verificação expirou (10 min). Faça o login novamente.',
+  NOT_APPROVED_YET:               'O Instagram ainda não registrou a aprovação. Abra o app, aprove a tentativa de login e confirme aqui de novo.',
   TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
   BAD_PASSWORD:                   'Usuário ou senha incorretos.',
   USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
@@ -1145,6 +1146,7 @@ function _igHttpStatus(code) {
     CHALLENGE_CODE_REJECTED:        422,
     CHALLENGE_FAILED:               422,
     NO_PENDING_CHALLENGE:           422,
+    NOT_APPROVED_YET:               409,
     SESSION_EXPIRED:                422,
     AUTH_REQUIRED:                  422,
     NO_INSTAGRAPI_SESSION:          422,
@@ -1418,6 +1420,37 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
     broadcast('accounts', { action: 'synced' });
     return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
   } catch (err) {
+    return _handleInstagrapiError(err, res);
+  }
+});
+
+/**
+ * POST /accounts/instagrapi-challenge-approved
+ * Reconhece o checkpoint "aprove no app" depois da aprovação manual.
+ * Body: { username }
+ *
+ * Não conclui a conexão: o frontend deve repetir o login (a senha continua
+ * apenas na tela, nunca é armazenada no servidor).
+ *
+ * Respostas:
+ *   200 { status: 'DISMISSED' }            — reconhecido, refaça o login
+ *   409 { code: 'NOT_APPROVED_YET' }       — aprovação ainda não registrada
+ */
+router.post('/instagrapi-challenge-approved', async (req, res) => {
+  const { username } = req.body;
+  if (!username?.trim()) return res.status(400).json({ error: 'username é obrigatório' });
+  const clean = username.trim().replace(/^@/, '').toLowerCase();
+
+  const account = await Account.findOne({ username: clean });
+  if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+  try {
+    const http   = _getHttp();
+    const result = await http.challengeApproved(account);
+    console.log(`[IG-CHALLENGE] @${clean} — checkpoint reconhecido`);
+    return res.json({ status: result.status || 'DISMISSED', message: result.message || '' });
+  } catch (err) {
+    console.error(`[IG-CHALLENGE] @${clean} approve — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
     return _handleInstagrapiError(err, res);
   }
 });

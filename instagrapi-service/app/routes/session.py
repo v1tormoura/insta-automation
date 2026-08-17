@@ -112,10 +112,29 @@ async def login(body: LoginRequest):
                 "message": "Digite o código enviado pelo seu método de autenticação.",
             })
         except ChallengeRequired as e:
-            # O Instagram exige confirmação de identidade por código. Em vez de
-            # só reportar, iniciamos o fluxo de resolução: o instagrapi escolhe
-            # o canal (e-mail/SMS), dispara o código e fica aguardando numa
-            # thread até /session/challenge-code entregar o valor digitado.
+            # Dois fluxos distintos, e tratar o errado deixa o usuário esperando
+            # um código que nunca chega.
+            kind = session_pool.detect_challenge_kind(client)
+            duration_ms = int((time.perf_counter() - t0) * 1000)
+
+            if kind == "approval":
+                # Bloks redirect: o app oficial mostra "tentativa de login" e o
+                # usuário aprova ali. Nenhum código é enviado. Guardamos o client
+                # intacto — o dismiss depende do last_json desta instância.
+                session_pool.store_pending_approval(body.account_id, client, body.username)
+                logger.info(
+                    "login: CHALLENGE_REQUIRED (approval) for account %s duration_ms=%d",
+                    body.account_id, duration_ms,
+                )
+                return JSONResponse(status_code=202, content={
+                    "status":  "CHALLENGE_REQUIRED",
+                    "kind":    "approval",
+                    "channel": None,
+                    "message": "Aprove a tentativa de login no app do Instagram e depois confirme aqui.",
+                })
+
+            # Contact form: o instagrapi escolhe o canal, dispara o código e fica
+            # aguardando numa thread até /session/challenge-code entregar o valor.
             last_json = getattr(client, "last_json", None) or {}
             session_pool.start_challenge(body.account_id, client, last_json, body.username)
             # wait_challenge_target faz polling com sleep — precisa sair do event
@@ -124,11 +143,12 @@ async def login(body: LoginRequest):
                 None, lambda: session_pool.wait_challenge_target(body.account_id)
             )
             logger.info(
-                "login: CHALLENGE_REQUIRED for account %s — desafio iniciado (canal=%s) duration_ms=%d",
-                body.account_id, canal or "desconhecido", int((time.perf_counter() - t0) * 1000),
+                "login: CHALLENGE_REQUIRED (code) for account %s — canal=%s duration_ms=%d",
+                body.account_id, canal or "desconhecido", duration_ms,
             )
             return JSONResponse(status_code=202, content={
                 "status":  "CHALLENGE_REQUIRED",
+                "kind":    "code",
                 "channel": canal,
                 "message": (
                     f"O Instagram enviou um código por {canal}. Digite-o para concluir."
@@ -380,6 +400,60 @@ async def challenge_code(body: ChallengeCodeRequest):
 
     session_pool._slog("CHALLENGE_RESOLVED", body.account_id)
     return {"status": "AUTHENTICATED", "settings": settings}
+
+
+# ── /session/challenge-approved ────────────────────────────────────────────────
+
+@router.post("/challenge-approved")
+async def challenge_approved(body: EvictRequest):
+    """
+    Reconhece o checkpoint "aprove no app" depois da aprovação manual.
+
+    Fluxo: /session/login devolve CHALLENGE_REQUIRED com kind='approval' → o
+    usuário aprova a tentativa de login no app oficial → este endpoint chama
+    challenge_bloks_redirect_dismiss() no mesmo client → o Node refaz o login,
+    que agora passa.
+
+    Não conclui a autenticação por si: o login precisa ser repetido com a senha,
+    que nunca é armazenada aqui.
+
+    Respostas:
+    - HTTP 200 {"status": "DISMISSED"}       — reconhecido, refazer o login
+    - HTTP 409 {"code": "NOT_APPROVED_YET"}  — aprovação ainda não registrada
+    - HTTP 400 {"code": "NO_PENDING_CHALLENGE"}
+    """
+    pending = session_pool.get_pending_challenge(body.account_id)
+    if not pending:
+        raise HTTPException(status_code=400, detail={
+            "code":    "NO_PENDING_CHALLENGE",
+            "message": "Nenhum desafio pendente ou o prazo expirou. Faça o login novamente.",
+        })
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, lambda: session_pool.dismiss_bloks_challenge(body.account_id)
+    )
+
+    if result["status"] == "DISMISSED":
+        session_pool.clear_pending_challenge(body.account_id)
+        return {"status": "DISMISSED", "message": "Verificação reconhecida. Refaça o login."}
+
+    if result["status"] == "NOT_APPROVED_YET":
+        raise HTTPException(status_code=409, detail={
+            "code":    "NOT_APPROVED_YET",
+            "message": "O Instagram ainda não registrou a aprovação. Aprove no app e tente de novo.",
+        })
+
+    if result["status"] == "UNSUPPORTED":
+        # Sem o método na biblioteca, refazer o login após aprovar costuma bastar.
+        session_pool.clear_pending_challenge(body.account_id)
+        return {"status": "DISMISSED", "message": "Refaça o login para concluir."}
+
+    session_pool.clear_pending_challenge(body.account_id)
+    raise HTTPException(status_code=422, detail={
+        "code":    "CHALLENGE_FAILED",
+        "message": result.get("error") or "Não foi possível concluir a verificação.",
+    })
 
 
 # ── /session/evict ─────────────────────────────────────────────────────────────

@@ -154,6 +154,18 @@ class InstagrapiHttpClient {
   }
 
   /**
+   * Reconhece o checkpoint "aprove no app" após a aprovação manual do usuário.
+   * Não autentica por si — depois disto o login deve ser repetido com a senha.
+   *
+   * NOT_APPROVED_YET indica que o Instagram ainda não registrou a aprovação.
+   */
+  async challengeApproved(account) {
+    return this._post('/session/challenge-approved', {
+      account_id: String(account._id),
+    }, TIMEOUT_LOGIN);
+  }
+
+  /**
    * Conclui um desafio de verificação (checkpoint por e-mail/SMS) com o código
    * que o Instagram enviou. Deve ser chamado após login() devolver
    * { status: 'CHALLENGE_REQUIRED' }.
