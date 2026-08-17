@@ -1106,6 +1106,7 @@ const INSTA_ERROR_MESSAGES = {
   CHALLENGE_FAILED:               'Não foi possível concluir a verificação. Faça o login novamente.',
   NO_PENDING_CHALLENGE:           'O prazo da verificação expirou (10 min). Faça o login novamente.',
   NOT_APPROVED_YET:               'O Instagram ainda não registrou a aprovação. Abra o app, aprove a tentativa de login e confirme aqui de novo.',
+  TWO_FACTOR_NO_SESSION:          'O código foi aceito, mas o Instagram não liberou a sessão. Faça o login novamente — se repetir, aguarde alguns minutos antes de tentar.',
   TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
   BAD_PASSWORD:                   'Usuário ou senha incorretos.',
   USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
@@ -1419,8 +1420,16 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
   try {
-    const http = _getHttp();
-    await http.verify2fa(account, code.trim());
+    const http   = _getHttp();
+    const result = await http.verify2fa(account, code.trim());
+    // Sem settings não houve sessão — marcar conectada aqui produziria uma conta
+    // verde no painel e desconectada no health check.
+    if (!result?.settings) {
+      return res.status(422).json({
+        code:  'TWO_FACTOR_NO_SESSION',
+        error: _igUserMessage('TWO_FACTOR_NO_SESSION'),
+      });
+    }
     await _markInstagrapiConnected(String(account._id));
     await _fetchAndSaveProfile(http, account, clean);
     broadcast('accounts', { action: 'synced' });

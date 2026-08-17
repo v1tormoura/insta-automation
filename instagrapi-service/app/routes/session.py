@@ -209,11 +209,16 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
             # and drives the full bloks verification sequence.
             login_json = pending.get("login_json", {})
             orig_exc   = pending.get("exc") or TwoFactorRequired("2FA pending state")
-            client._login_with_bloks_two_factor(
+            ok = client._login_with_bloks_two_factor(
                 body.verification_code,
                 login_json,
                 orig_exc,
             )
+            # O retorno é um bool e ignorá-lo era um bug: com False, o serviço
+            # respondia AUTHENTICATED e a conta ficava marcada como conectada sem
+            # sessão nenhuma — card verde, 0 seguidores, nunca sincroniza.
+            if ok is False:
+                raise RuntimeError("Instagram recusou o código de verificação")
         except HTTPException:
             raise
         except Exception as e:
@@ -226,6 +231,24 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
             _raise_for_code(code, e, (body.verification_code,))
         finally:
             session_pool.clear_pending_2fa(body.account_id)
+
+        # Confirma que existe sessão de fato antes de declarar sucesso. Sem esta
+        # checagem, um 2FA que "passa" sem autenticar produz uma conta conectada
+        # só na aparência — o painel mostra verde e o health check mostra
+        # desconectada, porque um lê a flag e o outro lê a sessão.
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(None, client.account_info)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "verify-2fa: código aceito mas sessão inválida para %s (%s)",
+                body.account_id, type(e).__name__,
+            )
+            await session_pool.remove_entry(body.account_id)
+            raise HTTPException(status_code=422, detail={
+                "code":    "TWO_FACTOR_NO_SESSION",
+                "message": "O código foi aceito mas a sessão não foi estabelecida. Faça o login novamente.",
+            })
 
         settings = client.get_settings()
 
