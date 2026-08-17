@@ -9,12 +9,15 @@ from fastapi.responses import JSONResponse
 # Do NOT use a try/except ImportError fallback here. If instagrapi is not
 # properly installed, the service must refuse to start — creating stub exception
 # classes would silently swallow real Instagram exceptions in the wrong handler.
+from uuid import uuid4
+
 from instagrapi.exceptions import (
     BadPassword,
     ChallengeRequired,
     FeedbackRequired,
     LoginRequired,
     TwoFactorRequired,
+    UnknownError,
 )
 
 from ..models import (
@@ -208,32 +211,74 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
 
         loop = asyncio.get_running_loop()
         try:
-            # instagrapi 2.18.14 usa fluxo 2FA baseado em bloks — two_factor_login
-            # foi removido. _login_with_bloks_two_factor extrai o
-            # two_step_verification_context de login_json, infere o tipo do
-            # desafio (totp/sms/backup_codes) e conduz a sequência bloks.
+            # login_json é o corpo da resposta 400 de accounts/login/ — é dele que
+            # sai o two_factor_identifier exigido pelo endpoint do 2FA.
             login_json = pending.get("login_json", {})
-            orig_exc   = pending.get("exc") or TwoFactorRequired("2FA pending state")
 
             def _finish_two_factor() -> None:
                 """
-                Repete o que instagrapi.login() faz em volta do 2FA.
+                Reproduz fielmente o ramo `except TwoFactorRequired` de
+                instagrapi.login() para código de 6 dígitos (TOTP/SMS).
 
-                Chamar _login_with_bloks_two_factor isolado aplica a autorização
-                mas para aí. O login() real continua com login_flow(), que abre a
-                sessão como o app faria (reels tray + timeline) — é essa etapa que
-                faz o Instagram tratar o dispositivo como logado. Sem ela o código
-                é aceito e a sessão nunca se firma: conta "conectada" que não
-                sincroniza nada.
+                O caminho correto é o endpoint accounts/two_factor_login/, usando
+                o two_factor_identifier que vem em login_json["two_factor_info"].
+                _login_with_bloks_two_factor é apenas o FALLBACK — a biblioteca só
+                o usa para backup codes, ou quando o endpoint acima responde
+                "invalid parameters". Chamá-lo direto para um código normal falha
+                na primeira linha, procurando um two_step_verification_context que
+                a resposta do 2FA comum não contém.
 
-                Roda em thread porque são várias requisições de rede e travariam
-                o event loop do FastAPI.
+                Depois do login, login_flow() abre a sessão como o app faria
+                (reels tray + timeline) — sem isso a sessão não se firma.
+
+                Roda em thread: são várias requisições de rede e travariam o
+                event loop do FastAPI.
                 """
-                client._login_with_bloks_two_factor(
-                    body.verification_code,
-                    login_json,
-                    orig_exc,
+                code = body.verification_code.strip()
+
+                # O client é o mesmo do login (vem do pool), então já traz device,
+                # phone_id e uuid coerentes com a tentativa que gerou o desafio.
+                if not getattr(client, "username", None):
+                    client.username = pending.get("username") or ""
+
+                two_factor_identifier = (
+                    (login_json.get("two_factor_info") or {}).get("two_factor_identifier")
                 )
+
+                data = {
+                    "verification_code":     code,
+                    "phone_id":              client.phone_id,
+                    "_csrftoken":            client.token,
+                    "two_factor_identifier": two_factor_identifier,
+                    "username":              client.username,
+                    "trust_this_device":     "0",
+                    "guid":                  client.uuid,
+                    "device_id":             client.android_device_id,
+                    "waterfall_id":          str(uuid4()),
+                    "verification_method":   "3",
+                }
+
+                try:
+                    logged = client.private_request(
+                        "accounts/two_factor_login/", data, login=True
+                    )
+                except UnknownError as exc:
+                    message = (getattr(exc, "message", "") or "").strip().lower()
+                    if message == "invalid parameters":
+                        # Só aqui o fluxo bloks é o correto.
+                        logged = client._login_with_bloks_two_factor(code, login_json, exc)
+                    else:
+                        raise
+                else:
+                    client.authorization_data = client.parse_authorization(
+                        client.last_response.headers.get("ig-set-authorization")
+                    )
+
+                if not logged:
+                    raise RuntimeError(
+                        "Instagram não concluiu o login após o código de verificação"
+                    )
+
                 client.login_flow()
                 client.last_login      = time.time()
                 client.relogin_attempt = 0
