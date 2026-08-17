@@ -1,5 +1,7 @@
 'use strict';
 
+const { resolveProxyFor } = require('../globalProxy');
+
 const UPLOADS_DIR      = process.env.UPLOADS_DIR || '/app/uploads';
 const DEFAULT_BASE     = process.env.INSTAGRAPI_SERVICE_URL || 'http://instagrapi-svc:8000';
 const TIMEOUT_FAST     = 15_000;   // ms — for session operations (status, ping, evict)
@@ -85,7 +87,8 @@ class InstagrapiHttpClient {
     await this._post('/session/load', {
       account_id: accountId,
       settings,
-      proxy: account.proxy || null,
+      // Proxy da conta, ou o proxy global quando a conta não tem um próprio.
+      proxy: (await resolveProxyFor(account)) || null,
     });
   }
 
@@ -109,7 +112,7 @@ class InstagrapiHttpClient {
       username,
       password,
       verification_code:  verificationCode || '',
-      proxy:              account.proxy || null,
+      proxy:              (await resolveProxyFor(account)) || null,
     }, TIMEOUT_LOGIN);
 
     // TWO_FACTOR_REQUIRED is returned as a 2xx (202) — not an error
@@ -140,6 +143,7 @@ class InstagrapiHttpClient {
     const result = await this._post('/session/login-by-sessionid', {
       account_id: accountId,
       sessionid,
+      proxy: (await resolveProxyFor(account)) || null,
     }, TIMEOUT_LOGIN);
 
     if (result.settings) {

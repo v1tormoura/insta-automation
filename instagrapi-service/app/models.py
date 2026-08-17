@@ -28,6 +28,7 @@ class TwoFactorVerifyRequest(BaseModel):
 class SessionIdLoginRequest(BaseModel):
     account_id: str
     sessionid: str
+    proxy: str | None = None
 
 
 class PublishReelRequest(BaseModel):

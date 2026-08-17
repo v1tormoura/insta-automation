@@ -54,6 +54,13 @@ const accountSchema = new mongoose.Schema(
       default: 'nao_testado',
     },
 
+    // IP de saída detectado no último teste do proxy desta conta —
+    // exibido no card para confirmar por onde a conta está saindo.
+    proxyIp: {
+      type: String,
+      default: '',
+    },
+
     proxyLastCheck: {
       type: Date,
       default: null,

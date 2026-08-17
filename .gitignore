@@ -28,3 +28,7 @@ backend/sessions/
 
 # Uploads
 uploads/
+
+# Python bytecode
+__pycache__/
+*.pyc

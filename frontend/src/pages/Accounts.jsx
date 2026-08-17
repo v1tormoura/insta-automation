@@ -26,6 +26,7 @@ const IcoLink    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcoWave    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 const IcoWifi    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
 const IcoPhone   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
+const IcoGlobe   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
 
 export default function Accounts() {
   const ACCOUNTS_CACHE_KEY = 'instaflow_accounts_cache';
@@ -54,6 +55,14 @@ export default function Accounts() {
   const [connecting,     setConnecting]     = useState({});
   const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
+  const [proxyUrl,       setProxyUrl]       = useState('');
+  // Estado do proxy global — `ok` e `ip` vêm do monitoramento contínuo do servidor.
+  const [proxyStatus,    setProxyStatus]    = useState({
+    ativo: false, ok: false, ip: null, erro: null, lastCheck: null, testando: false, salvando: false,
+  });
+  const [ipDireto,       setIpDireto]       = useState(null);
+  // Teste do proxy dentro do modal de uma conta específica.
+  const [proxyTest,      setProxyTest]      = useState({ testando: false, ip: null, erro: null });
   const oauthModalRef   = useRef(null);
   const oauthWaitingRef = useRef(false);
   oauthModalRef.current   = oauthModal;
@@ -102,6 +111,100 @@ export default function Accounts() {
 
   function goToPage(p) { setPage(p); loadAccounts(p); }
 
+  /* ── Proxy global ─────────────────────────────────────────────────────
+     O status vem do servidor, que testa o proxy continuamente em background
+     (job proxyHealthCheck). A página só espelha o resultado — assim o card
+     mostra o mesmo estado em qualquer navegador, mesmo com a aba fechada. */
+
+  async function carregarStatusProxy({ silencioso = true } = {}) {
+    try {
+      const { data } = await api.get('/proxy/status');
+      setProxyStatus(s => ({
+        ...s,
+        ativo:     !!data.ativo,
+        ok:        !!data.ok,
+        ip:        data.ip || null,
+        erro:      data.error || null,
+        lastCheck: data.lastCheck || null,
+      }));
+      if (data.proxy_url) setProxyUrl(prev => (prev.trim() ? prev : data.proxy_url));
+    } catch (err) {
+      if (!silencioso) showToast('error', 'Erro', 'Não foi possível ler o status do proxy');
+    }
+  }
+
+  const testarProxyGlobal = async () => {
+    if (!proxyUrl.trim()) return showToast('error', 'Erro', 'URL de proxy obrigatória');
+    setProxyStatus(s => ({ ...s, testando: true, erro: null }));
+    try {
+      const { data } = await api.post('/proxy/test', { proxy_url: proxyUrl.trim() });
+      setProxyStatus(s => ({ ...s, ip: data.ip, ok: true, erro: null, lastCheck: new Date().toISOString() }));
+      showToast('success', 'Proxy OK', `IP de saída: ${data.ip} (${data.latencyMs} ms)`);
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message;
+      setProxyStatus(s => ({ ...s, ok: false, erro: msg }));
+      showToast('error', 'Proxy falhou', msg);
+    } finally {
+      setProxyStatus(s => ({ ...s, testando: false }));
+    }
+  };
+
+  const ativarProxyGlobal = async () => {
+    if (!proxyUrl.trim()) return showToast('error', 'Erro', 'URL obrigatória');
+    setProxyStatus(s => ({ ...s, salvando: true }));
+    try {
+      const { data } = await api.post('/proxy/configure', { proxy_url: proxyUrl.trim() });
+      setProxyStatus(s => ({ ...s, ativo: true, ok: true, ip: data.ip, erro: null, lastCheck: new Date().toISOString() }));
+      showToast('success', 'Proxy ativado', `Toda a automação sai por ${data.ip}`);
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message;
+      setProxyStatus(s => ({ ...s, erro: msg }));
+      showToast('error', 'Não foi possível ativar', msg);
+    } finally {
+      setProxyStatus(s => ({ ...s, salvando: false }));
+    }
+  };
+
+  const desativarProxyGlobal = async () => {
+    setProxyStatus(s => ({ ...s, salvando: true }));
+    try {
+      await api.post('/proxy/configure', { action: 'desativar' });
+      setProxyStatus(s => ({ ...s, ativo: false, ok: false, ip: null, erro: null }));
+      setProxyUrl('');
+      showToast('success', 'Proxy desativado', 'A automação voltou a sair pelo IP do servidor');
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
+    } finally {
+      setProxyStatus(s => ({ ...s, salvando: false }));
+    }
+  };
+
+  /* ── Proxy por conta ──────────────────────────────────────────────── */
+
+  async function testarProxyConta() {
+    if (!proxyModal) return;
+    const url = proxyValue.trim();
+    if (!url) return setProxyTest({ testando: false, ip: null, erro: 'Informe a URL do proxy' });
+
+    setProxyTest({ testando: true, ip: null, erro: null });
+    try {
+      // Salva antes de testar para que o teste rode contra o proxy que a conta
+      // vai realmente usar — e o resultado já fique gravado no card.
+      await api.patch(`/accounts/${proxyModal._id}/proxy`, { proxy: url });
+      const { data } = await api.post(`/accounts/${proxyModal._id}/proxy/test`);
+      if (data.ok) {
+        setProxyTest({ testando: false, ip: data.ip, erro: null });
+        setProxyModal(m => (m ? { ...m, proxy: url } : m));
+        showToast('success', 'Proxy OK', `@${proxyModal.username} sai por ${data.ip}`);
+      } else {
+        setProxyTest({ testando: false, ip: null, erro: data.error || 'Proxy não respondeu' });
+      }
+      loadAccounts();
+    } catch (err) {
+      setProxyTest({ testando: false, ip: null, erro: err.response?.data?.error || err.message });
+    }
+  }
+
   const loadRef = useRef(null);
   loadRef.current = loadAccounts;
 
@@ -120,6 +223,14 @@ export default function Accounts() {
     loadRef.current?.();
     loadMetaApps();
     const t = setInterval(() => loadRef.current?.(), 3000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Status do proxy global ao vivo — espelha o monitoramento do servidor.
+  useEffect(() => {
+    carregarStatusProxy();
+    api.get('/proxy/ip-direto').then(({ data }) => setIpDireto(data.ip || null)).catch(() => {});
+    const t = setInterval(carregarStatusProxy, 15_000);
     return () => clearInterval(t);
   }, []);
 
@@ -213,7 +324,11 @@ export default function Accounts() {
     }
   }
 
-  function openProxyModal(account) { setProxyModal(account); setProxyValue(account.proxy || ''); }
+  function openProxyModal(account) {
+    setProxyModal(account);
+    setProxyValue(account.proxy || '');
+    setProxyTest({ testando: false, ip: null, erro: null });
+  }
 
   async function saveProxy() {
     setSavingProxy(true);
@@ -584,6 +699,132 @@ export default function Accounts() {
           ))}
         </div>
 
+        {/* ── Card de Proxy Global ── */}
+        {(() => {
+          const online  = proxyStatus.ativo && proxyStatus.ok;
+          const caiu    = proxyStatus.ativo && !proxyStatus.ok;
+          const accent  = online ? '#34d399' : caiu ? '#f87171' : 'var(--cyan)';
+          const accentBg = online ? '16,185,129' : caiu ? '244,63,94' : '0,212,255';
+
+          return (
+        <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} style={{
+          background: `linear-gradient(135deg, rgba(${accentBg},.07) 0%, oklch(0.16 0.05 235 / 0.6) 100%)`,
+          border: `1px solid rgba(${accentBg},${proxyStatus.ativo ? '.35' : '.18'})`,
+          borderLeft: `3px solid ${accent}`,
+          borderRadius: 14, padding: 16, marginBottom: 20,
+          boxShadow: online ? `0 0 24px rgba(${accentBg},.10)` : 'none',
+          transition: 'border-color .3s, box-shadow .3s',
+        }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, flexWrap:'wrap', marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:11 }}>
+              <div style={{ width:36, height:36, borderRadius:10, flexShrink:0, display:'grid', placeItems:'center',
+                background:`rgba(${accentBg},.12)`, border:`1px solid rgba(${accentBg},.28)`, color:accent }}>
+                <IcoGlobe />
+              </div>
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>Proxy Global</div>
+                <div style={{ fontSize:11, marginTop:3, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontWeight:700, color:accent }}>
+                    <span style={{ width:6, height:6, borderRadius:'50%', background:accent, boxShadow:`0 0 6px ${accent}`,
+                      animation: online ? 'pulseGlow 1.8s ease-in-out infinite' : 'none' }} />
+                    {online ? 'Ativo e funcionando' : caiu ? 'Ativo — proxy fora do ar' : 'Inativo'}
+                  </span>
+                  <span style={{ color:'var(--text3)' }}>
+                    {proxyStatus.ativo
+                      ? 'toda a automação sai por este IP'
+                      : `automação saindo pelo IP do servidor${ipDireto ? ` (${ipDireto})` : ''}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {proxyStatus.ativo && (
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                {ipDireto && (
+                  <div style={{ padding:'6px 11px', borderRadius:9, background:'oklch(1 0 0 / 0.04)', border:'1px solid oklch(1 0 0 / 0.08)' }}>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:8.5, color:'var(--text3)', letterSpacing:'.08em' }}>IP DO SERVIDOR</div>
+                    <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--text3)', textDecoration:'line-through', marginTop:2 }}>{ipDireto}</div>
+                  </div>
+                )}
+                <div style={{ padding:'6px 11px', borderRadius:9, background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP EM USO AGORA</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:13, fontWeight:700, color:accent, marginTop:2 }}>
+                    {proxyStatus.ip || '—'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <input
+              type="text"
+              placeholder="http://usuario:senha@host:porta"
+              value={proxyUrl}
+              onChange={e => setProxyUrl(e.target.value)}
+              disabled={proxyStatus.ativo}
+              onKeyDown={e => { if (e.key === 'Enter' && !proxyStatus.ativo) testarProxyGlobal(); }}
+              style={{
+                flex: 1, minWidth: 240, padding: '9px 12px', borderRadius: 9, fontFamily:'var(--font-mono)',
+                border: '1px solid oklch(1 0 0 / 0.1)', background: 'oklch(0.12 0.04 235 / 0.75)',
+                color: 'var(--text)', fontSize: 12, opacity: proxyStatus.ativo ? 0.55 : 1,
+              }}
+            />
+            <button
+              onClick={testarProxyGlobal}
+              disabled={!proxyUrl.trim() || proxyStatus.testando}
+              style={{
+                padding: '9px 15px', borderRadius: 9, fontSize: 12, fontWeight: 700, whiteSpace:'nowrap',
+                background: 'rgba(0,212,255,.1)', color: 'var(--cyan)', border: '1px solid rgba(0,212,255,.25)',
+                cursor: proxyStatus.testando ? 'wait' : 'pointer', opacity: !proxyUrl.trim() || proxyStatus.testando ? 0.5 : 1,
+              }}
+            >
+              {proxyStatus.testando ? 'Testando…' : 'Testar'}
+            </button>
+            {!proxyStatus.ativo ? (
+              <button
+                onClick={ativarProxyGlobal}
+                disabled={!proxyUrl.trim() || proxyStatus.salvando}
+                title="Testa e ativa o proxy para toda a automação"
+                style={{
+                  padding: '9px 15px', borderRadius: 9, fontSize: 12, fontWeight: 700, whiteSpace:'nowrap',
+                  background: 'rgba(16,185,129,.12)', color: '#34d399', border: '1px solid rgba(16,185,129,.3)',
+                  cursor: !proxyUrl.trim() || proxyStatus.salvando ? 'not-allowed' : 'pointer',
+                  opacity: !proxyUrl.trim() || proxyStatus.salvando ? 0.5 : 1,
+                }}
+              >
+                {proxyStatus.salvando ? 'Ativando…' : 'Ativar'}
+              </button>
+            ) : (
+              <button
+                onClick={desativarProxyGlobal}
+                disabled={proxyStatus.salvando}
+                style={{
+                  padding: '9px 15px', borderRadius: 9, fontSize: 12, fontWeight: 700, whiteSpace:'nowrap',
+                  background: 'rgba(244,63,94,.1)', color: '#f87171', border: '1px solid rgba(244,63,94,.28)',
+                  cursor: 'pointer', opacity: proxyStatus.salvando ? 0.5 : 1,
+                }}
+              >
+                {proxyStatus.salvando ? 'Desativando…' : 'Desativar'}
+              </button>
+            )}
+          </div>
+
+          {(proxyStatus.ativo || proxyStatus.erro) && (
+            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:10,
+              fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)' }}>
+              {proxyStatus.ativo && (
+                <span>Verificado a cada 90s pelo servidor{proxyStatus.lastCheck ? ` — último: ${fmtDateCompact(proxyStatus.lastCheck)}` : ''}</span>
+              )}
+              {proxyStatus.erro && (
+                <span style={{ color:'#f87171' }}>· {proxyStatus.erro}</span>
+              )}
+            </div>
+          )}
+        </motion.div>
+          );
+        })()}
+
         {/* ── Filters + search ── */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
@@ -645,6 +886,20 @@ export default function Accounts() {
             const cardBg      = hBg(account.healthStatus);
             const cardBorder  = hBorder(account.healthStatus);
             const isSel       = selectedIds.has(account._id);
+
+            /* Proxy desta conta: o próprio tem prioridade; sem ele vale o global.
+               Status e IP vêm do monitoramento contínuo do servidor. */
+            const temProxyProprio = !!account.proxy?.trim();
+            const usaGlobal       = !temProxyProprio && proxyStatus.ativo;
+            const pxOnline        = temProxyProprio ? account.proxyStatus === 'online'  : (usaGlobal && proxyStatus.ok);
+            const pxDown          = temProxyProprio ? account.proxyStatus === 'offline' : (usaGlobal && !proxyStatus.ok);
+            const pxColor         = pxOnline ? '#34d399' : pxDown ? '#f87171' : 'var(--text3)';
+            const pxIp            = temProxyProprio ? (pxOnline ? account.proxyIp : '') : (pxOnline ? proxyStatus.ip : '');
+            const pxLabel         = temProxyProprio
+              ? (pxOnline ? 'Proxy próprio ativo' : pxDown ? 'Proxy próprio fora do ar' : 'Proxy não testado')
+              : usaGlobal
+                ? (pxOnline ? 'Proxy global' : 'Proxy global fora do ar')
+                : 'Sem proxy — IP do servidor';
 
             return (
               <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
@@ -756,6 +1011,23 @@ export default function Accounts() {
                   </span>
                 </div>
 
+                {/* proxy row — por onde esta conta está saindo, ao vivo */}
+                <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
+                <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
+                  background: pxOnline ? 'rgba(16,185,129,.05)' : pxDown ? 'rgba(244,63,94,.05)' : 'transparent' }}>
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5, color:pxColor, minWidth:0 }}>
+                    <span style={{ width:6, height:6, borderRadius:'50%', flexShrink:0, background:pxColor,
+                      boxShadow: pxOnline ? `0 0 6px ${pxColor}` : 'none',
+                      animation: pxOnline ? 'pulseGlow 1.8s ease-in-out infinite' : 'none' }} />
+                    <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pxLabel}</span>
+                  </span>
+                  {pxIp && (
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, color:pxColor, flexShrink:0 }}>
+                      {pxIp}
+                    </span>
+                  )}
+                </div>
+
                 {/* actions */}
                 <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
                 <div onClick={e => e.stopPropagation()} style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
@@ -781,11 +1053,11 @@ export default function Accounts() {
                     ><IcoPerson /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{isConnecting ? '...' : 'Editar'}</span></button>
                   )}
 
-                  <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy'}
+                  <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy exclusivo desta conta'}
                     style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
-                      background: account.proxy ? 'rgba(139,92,246,.12)' : 'oklch(1 0 0 / 0.04)',
-                      color:      account.proxy ? 'var(--purple)'         : 'var(--text3)',
-                      border:     account.proxy ? '1px solid rgba(139,92,246,.28)' : '1px solid oklch(1 0 0 / 0.08)',
+                      background: temProxyProprio ? (pxOnline ? 'rgba(16,185,129,.12)' : pxDown ? 'rgba(244,63,94,.1)' : 'rgba(139,92,246,.12)') : 'oklch(1 0 0 / 0.04)',
+                      color:      temProxyProprio ? (pxOnline ? '#34d399' : pxDown ? '#f87171' : 'var(--purple)') : 'var(--text3)',
+                      border:     temProxyProprio ? `1px solid ${pxOnline ? 'rgba(16,185,129,.3)' : pxDown ? 'rgba(244,63,94,.28)' : 'rgba(139,92,246,.28)'}` : '1px solid oklch(1 0 0 / 0.08)',
                     }}
                   ><IcoSignal /> Proxy</button>
 
@@ -1054,12 +1326,51 @@ export default function Accounts() {
               </div>
               <button onClick={() => setProxyModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>As chamadas de API desta conta sairão por este proxy — IP diferente por conta.</div>
-            <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => setProxyValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveProxy()} autoFocus />
-            {proxyModal.proxy && <div style={{ fontSize: 11, color: '#34d399', marginTop: 6 }}>Proxy atual: {proxyModal.proxy}</div>}
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+              As chamadas desta conta sairão por este proxy — IP exclusivo, independente do proxy global.
+            </div>
+            <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => { setProxyValue(e.target.value); setProxyTest({ testando:false, ip:null, erro:null }); }} onKeyDown={e => e.key === 'Enter' && testarProxyConta()} autoFocus />
+
+            {/* Estado atual gravado + resultado do teste feito agora */}
+            <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
+              {proxyModal.proxy && !proxyTest.ip && (
+                <div style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'var(--font-mono)', fontSize:11,
+                  color: proxyModal.proxyStatus === 'online' ? '#34d399' : proxyModal.proxyStatus === 'offline' ? '#f87171' : 'var(--text3)' }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:'currentColor' }} />
+                  {proxyModal.proxyStatus === 'online'
+                    ? `Online — saindo por ${proxyModal.proxyIp || '—'}`
+                    : proxyModal.proxyStatus === 'offline' ? 'Offline no último teste do servidor' : 'Ainda não testado'}
+                  {proxyModal.proxyLastCheck && <span style={{ color:'var(--text3)' }}>· {fmtDateCompact(proxyModal.proxyLastCheck)}</span>}
+                </div>
+              )}
+              {proxyTest.ip && (
+                <div style={{ padding:'9px 11px', borderRadius:9, background:'rgba(16,185,129,.1)', border:'1px solid rgba(16,185,129,.3)' }}>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'#34d399', opacity:.8, letterSpacing:'.08em' }}>PROXY OK — IP DE SAÍDA</div>
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:14, fontWeight:700, color:'#34d399', marginTop:2 }}>{proxyTest.ip}</div>
+                </div>
+              )}
+              {proxyTest.erro && (
+                <div style={{ padding:'9px 11px', borderRadius:9, background:'rgba(244,63,94,.1)', border:'1px solid rgba(244,63,94,.25)', fontSize:11, color:'#f87171' }}>
+                  {proxyTest.erro}
+                </div>
+              )}
+              {!proxyModal.proxy && !proxyTest.ip && !proxyTest.erro && (
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text3)' }}>
+                  {proxyStatus.ativo
+                    ? `Sem proxy próprio — hoje esta conta usa o proxy global${proxyStatus.ip ? ` (${proxyStatus.ip})` : ''}.`
+                    : 'Sem proxy próprio — esta conta sai pelo IP do servidor.'}
+                </div>
+              )}
+            </div>
+
             <div className="modal-actions" style={{ marginTop: 14 }}>
-              <button className="btn btn-ghost" onClick={() => { setProxyValue(''); saveProxy(); }} disabled={savingProxy}>Remover proxy</button>
+              {proxyModal.proxy && (
+                <button className="btn btn-ghost" onClick={() => { setProxyValue(''); setProxyTest({ testando:false, ip:null, erro:null }); saveProxy(); }} disabled={savingProxy}>Remover</button>
+              )}
               <button className="btn btn-ghost" onClick={() => setProxyModal(null)}>Cancelar</button>
+              <button className="btn btn-ghost" onClick={testarProxyConta} disabled={!proxyValue.trim() || proxyTest.testando}>
+                {proxyTest.testando ? 'Testando…' : 'Salvar e testar'}
+              </button>
               <button className="btn btn-primary" onClick={saveProxy} disabled={savingProxy}>{savingProxy ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
@@ -1154,32 +1465,35 @@ export default function Accounts() {
                   </>)}
 
                   {!isConnected && isSidMode && (<>
-                    {!instaModal.accountId && (
-                      safeAccounts.length > 0
-                        ? field(<>
-                            {lbl('CONTA')}
-                            <select className="input" style={{ width:'100%' }}
-                              defaultValue=""
-                              onChange={e => {
-                                const acc = safeAccounts.find(a => String(a._id || a.id) === e.target.value);
-                                if (acc) setInstaModal(m => ({ ...m, accountId: acc._id || acc.id, username: acc.username }));
-                              }}
-                              disabled={instaModal.loading}>
-                              <option value="" disabled>— selecione a conta —</option>
-                              {safeAccounts.map(a => {
-                                const id = String(a._id || a.id || '');
-                                return <option key={id} value={id}>@{a.username}</option>;
-                              })}
-                            </select>
-                          </>)
-                        : field(<>
-                            {lbl('USUÁRIO DO INSTAGRAM')}
-                            <input className="input" type="text" style={{ width:'100%' }} placeholder="@seuusuario"
-                              value={instaModal.username}
-                              onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error:'', status:null }))}
-                              disabled={instaModal.loading} autoFocus />
-                          </>)
-                    )}
+                    {!instaModal.accountId && (() => {
+                      const validAccounts = safeAccounts.filter(a => a.username);
+                      return (
+                        validAccounts.length > 0
+                          ? field(<>
+                              {lbl('CONTA')}
+                              <select className="input" style={{ width:'100%' }}
+                                defaultValue=""
+                                onChange={e => {
+                                  const acc = validAccounts.find(a => String(a._id || a.id) === e.target.value);
+                                  if (acc) setInstaModal(m => ({ ...m, accountId: acc._id || acc.id, username: acc.username }));
+                                }}
+                                disabled={instaModal.loading}>
+                                <option value="" disabled>— selecione a conta —</option>
+                                {validAccounts.map(a => {
+                                  const id = String(a._id || a.id || '');
+                                  return <option key={id} value={id}>@{a.username}</option>;
+                                })}
+                              </select>
+                            </>)
+                          : field(<>
+                              {lbl('USUÁRIO DO INSTAGRAM')}
+                              <input className="input" type="text" style={{ width:'100%' }} placeholder="@seuusuario"
+                                value={instaModal.username}
+                                onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error:'', status:null }))}
+                                disabled={instaModal.loading} autoFocus />
+                            </>)
+                      );
+                    })()}
                     <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10, lineHeight:1.7, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:8, padding:'10px 12px' }}>
                       <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
                       1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>

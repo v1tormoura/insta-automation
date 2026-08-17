@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -75,8 +76,10 @@ async def login(body: LoginRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
-        if body.proxy:
-            client.set_proxy(body.proxy)
+        # Use account proxy if provided, otherwise fallback to global proxy
+        proxy = body.proxy or os.getenv('GLOBAL_PROXY')
+        if proxy:
+            client.set_proxy(proxy)
 
         # Run the blocking Instagram I/O in a thread so the asyncio event loop
         # stays responsive to other requests during the 20-90 s login round-trip.
@@ -143,6 +146,10 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
+        # Apply global proxy if available
+        global_proxy = os.getenv('GLOBAL_PROXY')
+        if global_proxy:
+            client.set_proxy(global_proxy)
         try:
             # instagrapi 2.18.14 uses a bloks-based 2FA flow — two_factor_login was
             # removed. _login_with_bloks_two_factor extracts two_step_verification_context
@@ -262,6 +269,11 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
+        # Proxy resolvido pelo Node (proxy da conta ou proxy global do painel);
+        # GLOBAL_PROXY do ambiente continua valendo como fallback.
+        proxy = body.proxy or os.getenv('GLOBAL_PROXY')
+        if proxy:
+            client.set_proxy(proxy)
         loop = asyncio.get_running_loop()
         t0 = time.perf_counter()
         try:

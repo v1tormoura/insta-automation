@@ -441,6 +441,7 @@ exports.updateProxy = async (req, res) => {
       {
         proxy: req.body.proxy || '',
         proxyStatus: 'nao_testado',
+        proxyIp: '',
         proxyLastCheck: null,
       },
       { new: true }
@@ -460,12 +461,18 @@ exports.testAccountProxy = async (req, res) => {
       return res.status(404).json({ error: 'Conta não encontrada' });
     }
 
+    if (!account.proxy?.trim()) {
+      return res.status(400).json({ error: 'Conta sem proxy configurado' });
+    }
+
     const result = await testProxy(account.proxy);
 
     account.proxyStatus = result.ok ? 'online' : 'offline';
     account.proxyLastCheck = new Date();
 
-    if (!result.ok) {
+    if (result.ok) {
+      account.proxyIp = result.ip;
+    } else {
       account.lastError = result.error;
     }
 
@@ -473,7 +480,9 @@ exports.testAccountProxy = async (req, res) => {
 
     res.json({
       success: result.ok,
+      ok: result.ok,
       ip: result.ip,
+      latencyMs: result.latencyMs,
       error: result.error,
       account,
     });
@@ -502,7 +511,9 @@ exports.testAllProxies = async (req, res) => {
         account.proxyStatus = result.ok ? 'online' : 'offline';
         account.proxyLastCheck = new Date();
 
-        if (!result.ok) {
+        if (result.ok) {
+          account.proxyIp = result.ip;
+        } else {
           account.lastError = result.error;
         }
 

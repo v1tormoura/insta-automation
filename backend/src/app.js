@@ -13,6 +13,7 @@ const { startHealthCheck } = require('./jobs/healthCheck');
 const { startInsightAutoSync } = require('./services/insightSyncService');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
 const { startRepostJob }      = require('./jobs/repostJob');
+const { startProxyHealthCheck } = require('./jobs/proxyHealthCheck');
 const auth = require('./middleware/auth');
 const app = express();
 
@@ -71,6 +72,7 @@ app.use('/settings',     auth, require('./routes/settingsRoutes'));
 app.use('/sessions',     auth, require('./routes/sessionRoutes'));
 app.use('/health',       auth, require('./routes/healthRoutes'));
 app.use('/accounts',     auth, require('./routes/accountRoutes'));
+app.use('/proxy',        auth, require('./routes/proxyRoutes'));
 app.use('/posts',        auth, require('./routes/postRoutes'));
 app.use('/legends',      auth, require('./routes/legendRoutes'));
 app.use('/media',        auth, require('./routes/mediaRoutes'));
@@ -168,6 +170,7 @@ startHealthCheck();
 startInsightAutoSync();
 startTokenRefreshJob();
 startRepostJob();
+startProxyHealthCheck();
 
 // Limpa vídeos processados antigos a cada 6 horas
 setInterval(() => cleanProcessedFiles(24), 6 * 60 * 60 * 1000);
