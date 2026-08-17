@@ -167,14 +167,17 @@ async def login(body: LoginRequest):
             # exc_msg: safe to log — exception messages never contain the password,
             # they contain HTTP error details (status codes, URLs, response fragments).
             exc_msg = str(e)[:250]
+            # Metadados da resposta do Instagram — error_type diferencia senha
+            # realmente errada de bloqueio disfarçado de erro de credencial.
+            meta = _login_error_metadata(client)
             logger.warning(
-                "[TEMP-DEBUG] login: %s for account %s (type=%s) duration_ms=%d exc=%s",
-                code, body.account_id, type(e).__name__, duration_ms, exc_msg,
+                "[TEMP-DEBUG] login: %s for account %s (type=%s) duration_ms=%d exc=%s%s",
+                code, body.account_id, type(e).__name__, duration_ms, exc_msg, meta,
             )
             # Evict the failed client from the pool so ensureSession doesn't treat
             # this entry as a loaded session on subsequent restore attempts.
             await session_pool.remove_entry(body.account_id)
-            _raise_for_code(code, e, (body.password,))
+            _raise_for_code(code, e, (body.password,), extra=meta)
 
         settings = client.get_settings()
 
@@ -605,7 +608,28 @@ def _safe_detail(exc: Exception | None, secrets: tuple = ()) -> str:
     return msg
 
 
-def _raise_for_code(code: str, exc: Exception | None = None, secrets: tuple = ()) -> None:
+def _login_error_metadata(client) -> str:
+    """
+    Campos de erro da última resposta do Instagram — só metadados, nunca conteúdo.
+
+    `error_type` é o que distingue de forma conclusiva uma senha realmente
+    incorreta ("bad_password") de um bloqueio disfarçado. Sem ele, a mensagem
+    "We can send you an email..." é ambígua e manda depurar a coisa errada.
+    """
+    last = getattr(client, "last_json", None)
+    if not isinstance(last, dict):
+        return ""
+    campos = ("error_type", "status", "two_factor_required", "checkpoint_url", "help_url")
+    presentes = {k: last[k] for k in campos if k in last}
+    return f" [{presentes}]" if presentes else ""
+
+
+def _raise_for_code(
+    code: str,
+    exc: Exception | None = None,
+    secrets: tuple = (),
+    extra: str = "",
+) -> None:
     """Raise the appropriate HTTPException for a given error code."""
     _STATUS = {
         "RATE_LIMITED":       429,
@@ -628,4 +652,6 @@ def _raise_for_code(code: str, exc: Exception | None = None, secrets: tuple = ()
     # padrão suspeito, e "usuário ou senha incorretos" manda depurar a coisa
     # errada. O Node decide como exibir; aqui garantimos que a verdade chegue.
     message = _safe_detail(exc, secrets)
+    if extra:
+        message = f"{message}{extra}" if message else extra.strip()
     raise HTTPException(status_code=http_status, detail={"code": code, "message": message})
