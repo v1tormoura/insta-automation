@@ -16,6 +16,8 @@ SECURITY GUARANTEES:
 import asyncio
 import json
 import logging
+import queue
+import threading
 import time
 from typing import Dict, Optional
 
@@ -251,6 +253,147 @@ def get_pending_2fa(account_id: str) -> Optional[dict]:
 def clear_pending_2fa(account_id: str) -> None:
     """Clear pending 2FA state after verification (success or failure)."""
     _pending_2fa.pop(account_id, None)
+
+
+# ── Desafio de verificação (checkpoint por e-mail/SMS) ────────────────────────
+#
+# Diferente do 2FA: aqui o Instagram exige confirmação de identidade por código
+# enviado ao e-mail ou telefone da conta. O instagrapi resolve esse fluxo por
+# conta própria em challenge_resolve(), mas pede o código por um callback
+# SÍNCRONO (challenge_code_handler), que bloqueia até receber a resposta.
+#
+# Para encaixar isso num fluxo HTTP de duas etapas, challenge_resolve roda numa
+# thread e o callback bloqueia numa Queue. O endpoint que recebe o código do
+# usuário coloca o valor na fila e a thread prossegue de onde parou.
+#
+# A thread é dona do client enquanto o desafio está em andamento — por isso o
+# endpoint do código NÃO adquire o lock da conta (evita deadlock com a thread).
+
+_PENDING_CHALLENGE_TTL = 600  # 10 min — e-mail/SMS pode demorar a chegar
+_pending_challenge: Dict[str, dict] = {}
+
+# instagrapi usa 1 para e-mail e 0 para SMS em challenge_resolve_contact_form
+_CHOICE_LABEL = {"1": "e-mail", "0": "SMS"}
+
+
+def start_challenge(account_id: str, client: Client, last_json: dict, username: str) -> dict:
+    """
+    Dispara challenge_resolve() em thread e devolve o registro pendente.
+
+    O código de verificação nunca é armazenado — ele passa pela fila e é
+    consumido imediatamente pelo callback.
+    """
+    code_q: queue.Queue = queue.Queue(maxsize=1)
+    state = {"asked": 0, "done": False, "ok": False, "error": "", "choice": None}
+
+    def code_handler(_uname: str, choice) -> str:
+        """Chamado pelo instagrapi a cada tentativa de código."""
+        state["choice"] = str(choice)
+        state["asked"] += 1
+        try:
+            return code_q.get(timeout=_PENDING_CHALLENGE_TTL)
+        except queue.Empty:
+            raise TimeoutError("Tempo esgotado aguardando o código de verificação")
+
+    client.challenge_code_handler = code_handler
+
+    def run() -> None:
+        try:
+            state["ok"] = bool(client.challenge_resolve(last_json))
+        except Exception as e:  # noqa: BLE001 — qualquer falha vira erro do desafio
+            state["error"] = f"{type(e).__name__}: {e}"[:300]
+        finally:
+            state["done"] = True
+
+    thread = threading.Thread(target=run, name=f"challenge-{account_id}", daemon=True)
+    thread.start()
+
+    entry = {
+        "queue": code_q,
+        "state": state,
+        "thread": thread,
+        "client": client,
+        "username": username,
+        "sent": 0,  # quantos códigos já enviamos para a fila
+        "expires_at": time.time() + _PENDING_CHALLENGE_TTL,
+    }
+    _pending_challenge[account_id] = entry
+    _slog("CHALLENGE_PENDING", account_id, ttl_s=_PENDING_CHALLENGE_TTL)
+    return entry
+
+
+def wait_challenge_target(account_id: str, timeout: float = 20.0) -> Optional[str]:
+    """
+    Espera o instagrapi escolher o canal (e-mail/SMS) e disparar o código.
+
+    Devolve 'e-mail', 'SMS' ou None se ainda não deu tempo — nesse caso o
+    desafio continua válido, só não sabemos o canal para exibir na tela.
+    """
+    entry = _pending_challenge.get(account_id)
+    if not entry:
+        return None
+    state = entry["state"]
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if state["choice"] is not None:
+            return _CHOICE_LABEL.get(state["choice"], state["choice"])
+        if state["done"]:
+            return None
+        time.sleep(0.25)
+    return None
+
+
+def get_pending_challenge(account_id: str) -> Optional[dict]:
+    """Registro do desafio pendente, ou None se inexistente/expirado."""
+    entry = _pending_challenge.get(account_id)
+    if not entry:
+        return None
+    if time.time() > entry["expires_at"]:
+        _pending_challenge.pop(account_id, None)
+        return None
+    return entry
+
+
+def submit_challenge_code(account_id: str, code: str, timeout: float = 120.0) -> dict:
+    """
+    Entrega o código à thread do desafio e aguarda o desfecho.
+
+    Devolve um dos três resultados:
+      {"status": "AUTHENTICATED"}   — desafio resolvido
+      {"status": "CODE_REJECTED"}   — Instagram recusou; o desafio segue aberto
+                                      e o usuário pode tentar outro código
+      {"status": "FAILED", "error"} — o fluxo terminou em erro
+    """
+    entry = get_pending_challenge(account_id)
+    if not entry:
+        return {"status": "FAILED", "error": "Nenhum desafio pendente"}
+
+    state = entry["state"]
+    asked_before = state["asked"]
+
+    entry["queue"].put(code)
+    entry["sent"] += 1
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if state["done"]:
+            if state["ok"]:
+                _slog("CHALLENGE_SUCCESS", account_id)
+                return {"status": "AUTHENTICATED"}
+            return {"status": "FAILED", "error": state["error"] or "Desafio não concluído"}
+        # O callback foi chamado de novo: o instagrapi recusou este código e
+        # está pedindo outro. O desafio continua vivo.
+        if state["asked"] > asked_before:
+            _slog("CHALLENGE_CODE_REJECTED", account_id, attempt=entry["sent"])
+            return {"status": "CODE_REJECTED"}
+        time.sleep(0.25)
+
+    return {"status": "FAILED", "error": "Tempo esgotado ao validar o código"}
+
+
+def clear_pending_challenge(account_id: str) -> None:
+    """Descarta o desafio pendente (sucesso, falha ou cancelamento)."""
+    _pending_challenge.pop(account_id, None)
 
 
 # ── Error classification ──────────────────────────────────────────────────────

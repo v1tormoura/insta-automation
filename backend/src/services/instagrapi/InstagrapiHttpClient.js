@@ -154,6 +154,31 @@ class InstagrapiHttpClient {
   }
 
   /**
+   * Conclui um desafio de verificação (checkpoint por e-mail/SMS) com o código
+   * que o Instagram enviou. Deve ser chamado após login() devolver
+   * { status: 'CHALLENGE_REQUIRED' }.
+   *
+   * Código errado vem como CHALLENGE_CODE_REJECTED — o desafio segue aberto e o
+   * usuário pode tentar outro código sem refazer o login.
+   *
+   * @param {Object} account
+   * @param {string} code — código de verificação recebido
+   */
+  async challengeCode(account, code) {
+    const accountId = String(account._id);
+    const result = await this._post('/session/challenge-code', {
+      account_id: accountId,
+      code,
+    }, TIMEOUT_LOGIN);
+
+    if (result.settings) {
+      await this._sm.save(accountId, result.settings);
+      await this._sm.recordLogin(accountId, true);
+    }
+    return result;
+  }
+
+  /**
    * Completes a pending 2FA challenge using the code sent to the user's device.
    * Must be called after login() returned { status: 'TWO_FACTOR_REQUIRED' }.
    * Saves the resulting session to MongoDB via SessionManager.

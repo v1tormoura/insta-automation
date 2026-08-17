@@ -31,6 +31,11 @@ class SessionIdLoginRequest(BaseModel):
     proxy: str | None = None
 
 
+class ChallengeCodeRequest(BaseModel):
+    account_id: str
+    code: str
+
+
 class PublishReelRequest(BaseModel):
     account_id: str
     media_path: str

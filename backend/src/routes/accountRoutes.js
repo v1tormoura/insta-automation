@@ -1102,6 +1102,9 @@ const { broadcast } = require('../events/broadcaster');
 const INSTA_ERROR_MESSAGES = {
   RATE_LIMITED:                   'Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos antes de tentar novamente.',
   CHALLENGE_REQUIRED:             'O Instagram requer uma verificação adicional. Acesse o app oficial, resolva o desafio e tente novamente.',
+  CHALLENGE_CODE_REJECTED:        'Código incorreto. Confira o e-mail/SMS e digite novamente.',
+  CHALLENGE_FAILED:               'Não foi possível concluir a verificação. Faça o login novamente.',
+  NO_PENDING_CHALLENGE:           'O prazo da verificação expirou (10 min). Faça o login novamente.',
   TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
   BAD_PASSWORD:                   'Usuário ou senha incorretos.',
   USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
@@ -1139,6 +1142,9 @@ function _igHttpStatus(code) {
     LOGIN_IN_PROGRESS:              409,
     // Instagram credential errors — must NOT be 401 (would trigger SaaS logout)
     BAD_PASSWORD:                   422,
+    CHALLENGE_CODE_REJECTED:        422,
+    CHALLENGE_FAILED:               422,
+    NO_PENDING_CHALLENGE:           422,
     SESSION_EXPIRED:                422,
     AUTH_REQUIRED:                  422,
     NO_INSTAGRAPI_SESSION:          422,
@@ -1353,6 +1359,19 @@ router.post('/instagrapi-direct', async (req, res) => {
         return;
       }
 
+      // Desafio de verificação: o Python já disparou o código e está aguardando.
+      // A conta permanece cadastrada para que o passo do código possa concluir.
+      if (result.status === 'CHALLENGE_REQUIRED') {
+        console.log(`[IG-LOGIN] final response=202 (challenge required, canal=${result.channel || '?'})`);
+        res.status(202).json({
+          status:    'CHALLENGE_REQUIRED',
+          accountId,
+          channel:   result.channel || null,
+          message:   result.message || 'O Instagram enviou um código de verificação. Digite-o para concluir.',
+        });
+        return;
+      }
+
       console.log(`[IG-LOGIN] session saved=${!!result.settings} — marking connected`);
       await _markInstagrapiConnected(accountId);
 
@@ -1399,6 +1418,40 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
     broadcast('accounts', { action: 'synced' });
     return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
   } catch (err) {
+    return _handleInstagrapiError(err, res);
+  }
+});
+
+/**
+ * POST /accounts/instagrapi-challenge-code
+ * Conclui o desafio de verificação iniciado por /instagrapi-direct.
+ * Body: { username, code }
+ *
+ * Respostas:
+ *   200 { success: true }                          — conta conectada
+ *   422 { code: 'CHALLENGE_CODE_REJECTED' }        — código errado, pode tentar outro
+ *   422 { code: 'NO_PENDING_CHALLENGE' }           — prazo de 10 min expirou
+ */
+router.post('/instagrapi-challenge-code', async (req, res) => {
+  const { username, code } = req.body;
+  if (!username?.trim() || !code?.trim()) {
+    return res.status(400).json({ error: 'username e code são obrigatórios' });
+  }
+  const clean = username.trim().replace(/^@/, '').toLowerCase();
+
+  const account = await Account.findOne({ username: clean });
+  if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+  try {
+    const http = _getHttp();
+    await http.challengeCode(account, code.trim());
+    await _markInstagrapiConnected(String(account._id));
+    await _fetchAndSaveProfile(http, account, clean);
+    broadcast('accounts', { action: 'synced' });
+    console.log(`[IG-CHALLENGE] @${clean} conectada após verificação`);
+    return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
+  } catch (err) {
+    console.error(`[IG-CHALLENGE] @${clean} — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
     return _handleInstagrapiError(err, res);
   }
 });

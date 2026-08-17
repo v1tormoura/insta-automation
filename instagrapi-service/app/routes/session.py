@@ -17,7 +17,14 @@ from instagrapi.exceptions import (
     TwoFactorRequired,
 )
 
-from ..models import LoadRequest, EvictRequest, LoginRequest, TwoFactorVerifyRequest, SessionIdLoginRequest
+from ..models import (
+    LoadRequest,
+    EvictRequest,
+    LoginRequest,
+    TwoFactorVerifyRequest,
+    SessionIdLoginRequest,
+    ChallengeCodeRequest,
+)
 from .. import session_pool
 
 logger = logging.getLogger(__name__)
@@ -103,6 +110,31 @@ async def login(body: LoginRequest):
             return JSONResponse(status_code=202, content={
                 "status":  "TWO_FACTOR_REQUIRED",
                 "message": "Digite o código enviado pelo seu método de autenticação.",
+            })
+        except ChallengeRequired as e:
+            # O Instagram exige confirmação de identidade por código. Em vez de
+            # só reportar, iniciamos o fluxo de resolução: o instagrapi escolhe
+            # o canal (e-mail/SMS), dispara o código e fica aguardando numa
+            # thread até /session/challenge-code entregar o valor digitado.
+            last_json = getattr(client, "last_json", None) or {}
+            session_pool.start_challenge(body.account_id, client, last_json, body.username)
+            # wait_challenge_target faz polling com sleep — precisa sair do event
+            # loop, senão congela o serviço inteiro enquanto espera o canal.
+            canal = await loop.run_in_executor(
+                None, lambda: session_pool.wait_challenge_target(body.account_id)
+            )
+            logger.info(
+                "login: CHALLENGE_REQUIRED for account %s — desafio iniciado (canal=%s) duration_ms=%d",
+                body.account_id, canal or "desconhecido", int((time.perf_counter() - t0) * 1000),
+            )
+            return JSONResponse(status_code=202, content={
+                "status":  "CHALLENGE_REQUIRED",
+                "channel": canal,
+                "message": (
+                    f"O Instagram enviou um código por {canal}. Digite-o para concluir."
+                    if canal else
+                    "O Instagram enviou um código de verificação. Digite-o para concluir."
+                ),
             })
         except Exception as e:
             code = session_pool.classify_error(e)
@@ -293,6 +325,60 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
         settings = client.get_settings()
 
     session_pool._slog("LOGIN_BY_SESSIONID_SUCCESS", body.account_id)
+    return {"status": "AUTHENTICATED", "settings": settings}
+
+
+# ── /session/challenge-code ────────────────────────────────────────────────────
+
+@router.post("/challenge-code")
+async def challenge_code(body: ChallengeCodeRequest):
+    """
+    Conclui um desafio de verificação enviando o código recebido por e-mail/SMS.
+
+    Deve ser chamado depois de /session/login responder CHALLENGE_REQUIRED (202).
+    O desafio expira em 10 minutos — depois disso é preciso refazer o login.
+
+    Respostas:
+    - HTTP 200 {"status": "AUTHENTICATED", "settings": {...}} — resolvido
+    - HTTP 422 {"code": "CHALLENGE_CODE_REJECTED"} — código errado, pode tentar
+      outro sem refazer o login (o desafio continua aberto)
+    - HTTP 400 {"code": "NO_PENDING_CHALLENGE"} — nada pendente ou já expirou
+
+    IMPORTANTE: este endpoint não adquire o lock da conta. A thread do desafio é
+    dona do client até terminar; pegar o lock aqui causaria deadlock.
+    """
+    pending = session_pool.get_pending_challenge(body.account_id)
+    if not pending:
+        raise HTTPException(status_code=400, detail={
+            "code":    "NO_PENDING_CHALLENGE",
+            "message": "Nenhum desafio pendente ou o prazo expirou. Faça o login novamente.",
+        })
+
+    loop = asyncio.get_running_loop()
+    # submit_challenge_code bloqueia esperando a thread — precisa do executor.
+    result = await loop.run_in_executor(
+        None, lambda: session_pool.submit_challenge_code(body.account_id, body.code.strip())
+    )
+
+    if result["status"] == "CODE_REJECTED":
+        raise HTTPException(status_code=422, detail={
+            "code":    "CHALLENGE_CODE_REJECTED",
+            "message": "Código incorreto. Confira e digite novamente.",
+        })
+
+    if result["status"] != "AUTHENTICATED":
+        session_pool.clear_pending_challenge(body.account_id)
+        await session_pool.remove_entry(body.account_id)
+        raise HTTPException(status_code=422, detail={
+            "code":    "CHALLENGE_FAILED",
+            "message": result.get("error") or "Não foi possível concluir a verificação.",
+        })
+
+    client   = pending["client"]
+    settings = client.get_settings()
+    session_pool.clear_pending_challenge(body.account_id)
+
+    session_pool._slog("CHALLENGE_RESOLVED", body.account_id)
     return {"status": "AUTHENTICATED", "settings": settings}
 
 

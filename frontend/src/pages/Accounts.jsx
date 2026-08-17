@@ -402,6 +402,19 @@ export default function Accounts() {
         ...(instaModal.accountId ? { accountId: instaModal.accountId } : {}),
         // 2FA code is collected in step 'two_factor' after Instagram requests it — not here
       });
+      // 202 — desafio de verificação: o Instagram já enviou o código
+      if (r.data?.status === 'CHALLENGE_REQUIRED') {
+        setInstaModal(m => ({
+          ...m,
+          loading:  false,
+          step:     'challenge',
+          totp:     '',
+          channel:  r.data?.channel || null,
+          status:   'CHALLENGE_REQUIRED',
+          error:    '',
+        }));
+        return;
+      }
       // 202 — 2FA required (axios doesn't throw on 2xx)
       if (r.status === 202 || r.data?.status === 'TWO_FACTOR_REQUIRED') {
         setInstaModal(m => ({
@@ -429,6 +442,36 @@ export default function Accounts() {
         loading: false,
         status:  code || 'AUTH_FAILED',
         error:   _igMessage(code, err.response?.data?.error),
+      }));
+    }
+  }
+
+  /**
+   * Envia o código do desafio de verificação (checkpoint por e-mail/SMS).
+   * Código recusado mantém o usuário no mesmo passo — o desafio continua aberto
+   * no serviço Python por 10 min, então não é preciso refazer o login.
+   */
+  async function submitChallengeCode() {
+    const uname = instaModal.username.trim().replace(/^@/, '');
+    const code  = instaModal.totp.trim();
+    if (!uname || !code) return;
+    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
+    try {
+      await api.post('/accounts/instagrapi-challenge-code', { username: uname, code });
+      showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
+      setInstaModal(null);
+      loadAccounts();
+    } catch (err) {
+      const errCode = err.response?.data?.code || '';
+      const expirou = errCode === 'NO_PENDING_CHALLENGE' || errCode === 'CHALLENGE_FAILED';
+      setInstaModal(m => ({
+        ...m,
+        loading: false,
+        // Prazo expirado ou fluxo abortado: volta ao início; código errado fica no passo.
+        step:    expirou ? 'credentials' : 'challenge',
+        totp:    '',
+        status:  errCode || 'AUTH_FAILED',
+        error:   _igMessage(errCode, err.response?.data?.error),
       }));
     }
   }
@@ -1384,6 +1427,10 @@ export default function Accounts() {
         const selAcc      = safeAccounts.find(a => a.username === uname) || null;
         const isConnected = selAcc?.provider === 'instagrapi';
         const is2FA       = instaModal.step === 'two_factor';
+        // Desafio de verificação (checkpoint por e-mail/SMS) — passo próprio,
+        // mecanismo diferente do 2FA, mas com a mesma forma de tela: pede código.
+        const isChallenge = instaModal.step === 'challenge';
+        const isCodeStep  = is2FA || isChallenge;
         // blocked = true only while an active countdown is running.
         // status === 'RATE_LIMITED' with cooldownSecs === 0 means the cooldown just
         // expired and the user should be able to retry immediately.
@@ -1412,16 +1459,16 @@ export default function Accounts() {
               {/* Header */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
-                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : 'Conectar Instagram'}</h3>
+                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : 'Conectar Instagram'}</h3>
                   <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>
-                    {is2FA ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura'}
+                    {isCodeStep ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura'}
                   </div>
                 </div>
                 <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
               </div>
 
               {/* Method toggle (only on credentials step, not connected) */}
-              {!is2FA && !isConnected && (
+              {!isCodeStep && !isConnected && (
                 <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius:8, padding:4 }}>
                   {[['password','🔑 Senha'],['sessionid','🍪 Session ID']].map(([method, label]) => (
                     <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
@@ -1435,7 +1482,7 @@ export default function Accounts() {
               )}
 
               {/* Step: credentials */}
-              {!is2FA && (
+              {!isCodeStep && (
                 <>
                   {!isSidMode && field(<>
                     {lbl('USUÁRIO DO INSTAGRAM')}
@@ -1535,6 +1582,28 @@ export default function Accounts() {
                 </>
               )}
 
+              {/* Step: challenge — checkpoint do Instagram por e-mail/SMS */}
+              {isChallenge && (
+                <>
+                  <div style={{ background:'rgba(59,130,246,.07)', border:'1px solid rgba(59,130,246,.25)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#60a5fa', lineHeight:1.6 }}>
+                    O Instagram pediu confirmação de identidade e enviou um código
+                    {instaModal.channel ? <> por <strong>{instaModal.channel}</strong></> : null}.
+                    Digite-o abaixo para concluir a conexão.
+                    <div style={{ marginTop:6, fontSize:11, opacity:.8 }}>
+                      Você tem 10 minutos. Se errar o código, pode digitar outro sem refazer o login.
+                    </div>
+                  </div>
+                  {field(<>
+                    {lbl('CÓDIGO DE VERIFICAÇÃO')}
+                    <input className="input" type="text" style={{ width:'100%' }} placeholder="000000"
+                      value={instaModal.totp}
+                      onChange={e => setInstaModal(m => ({ ...m, totp: e.target.value.replace(/\D/g, ''), error:'' }))}
+                      onKeyDown={e => e.key === 'Enter' && !instaModal.loading && submitChallengeCode()}
+                      disabled={instaModal.loading} maxLength={8} autoFocus />
+                  </>)}
+                </>
+              )}
+
               {/* Rate limited — active countdown */}
               {blocked && (
                 <div style={{ fontSize:12, background:'rgba(234,179,8,.09)', border:'1px solid rgba(234,179,8,.3)', borderRadius:8, padding:'10px 14px', marginBottom:10 }}>
@@ -1558,19 +1627,27 @@ export default function Accounts() {
 
               {/* Actions */}
               <div className="modal-actions" style={{ marginTop:4 }}>
-                {is2FA
+                {isCodeStep
                   ? <button className="btn btn-ghost" onClick={() => setInstaModal(m => ({ ...m, step:'credentials', totp:'', error:'', status:null }))} disabled={instaModal.loading}>Voltar</button>
                   : <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
                 }
 
-                {!is2FA && isConnected && (
+                {isChallenge && (
+                  <button className="btn btn-primary" onClick={submitChallengeCode}
+                    disabled={instaModal.loading || !instaModal.totp.trim()}
+                    style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
+                    {instaModal.loading ? 'Verificando...' : 'Confirmar código'}
+                  </button>
+                )}
+
+                {!isCodeStep && isConnected && (
                   <button className="btn" onClick={() => disconnectInstagrapi(selAcc)} disabled={instaModal.loading}
                     style={{ background:'rgba(244,63,94,.12)', color:'#f87171', borderColor:'rgba(244,63,94,.3)' }}>
                     Desconectar
                   </button>
                 )}
 
-                {!is2FA && !isConnected && !isSidMode && (
+                {!isCodeStep && !isConnected && !isSidMode && (
                   <button className="btn btn-primary" onClick={connectInstagrapi}
                     disabled={instaModal.loading || !uname || !instaModal.password.trim() || blocked}
                     style={{ background: blocked ? 'rgba(100,116,139,.4)' : 'rgba(139,92,246,.85)', borderColor: blocked ? 'rgba(100,116,139,.3)' : 'rgba(139,92,246,.5)', cursor: blocked ? 'not-allowed' : 'pointer' }}>
@@ -1578,7 +1655,7 @@ export default function Accounts() {
                   </button>
                 )}
 
-                {!is2FA && !isConnected && isSidMode && (() => {
+                {!isCodeStep && !isConnected && isSidMode && (() => {
                   const hasAccount = !!instaModal.accountId;
                   const hasSid     = !!instaModal.sessionid.trim();
                   const hasUser    = !!instaModal.username.trim();
