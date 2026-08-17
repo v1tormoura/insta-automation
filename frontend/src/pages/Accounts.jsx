@@ -1750,6 +1750,16 @@ export default function Accounts() {
                     Aguarde <strong style={{ fontFamily:'monospace' }}>{cdMin}:{cdSec}</strong> antes de tentar novamente.
                     Tentar antes piora o bloqueio.
                   </div>
+                  {/* O limite é do endpoint accounts/login/. O Session ID não passa
+                      por ele, então funciona mesmo com o IP limitado — é a única
+                      saída enquanto o bloqueio durar. */}
+                  {!isSidMode && (
+                    <button onClick={() => setInstaModal(m => ({ ...m, loginMethod:'sessionid', error:'', detail:'', status:null }))}
+                      style={{ marginTop:8, padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+                        background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)' }}>
+                      Conectar por Session ID — não passa por este limite
+                    </button>
+                  )}
                 </div>
               )}
 
