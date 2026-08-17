@@ -23,6 +23,9 @@ export default function Stories() {
   const [linkOn, setLinkOn]           = useState(false);
   const [linkUrl, setLinkUrl]         = useState('');
   const [linkLabel, setLinkLabel]     = useState('');
+  /* Posição do link sticker em coordenadas normalizadas (0..1) do story, onde
+     x/y é o CENTRO do sticker. Padrão 0.5/0.8 = rodapé, como o app faz. */
+  const [linkPos, setLinkPos]         = useState({ x: 0.5, y: 0.8 });
   const [interval, setIntervalMin]    = useState(3);
   const [loading, setLoading]         = useState(false);
   const [results, setResults]         = useState(null);
@@ -30,6 +33,21 @@ export default function Stories() {
   const fileRef = useRef();
 
   function showToast(type, t, msg) { setToast({ type, title: t, message: msg }); setTimeout(() => setToast(null), 3500); }
+
+  /* Converte o clique no preview 9:16 em coordenadas normalizadas do story.
+     É o mesmo sistema que o Instagram usa: 0,0 é o canto superior esquerdo. */
+  function posicionarSticker(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const y = Math.min(1, Math.max(0, (e.clientY - r.top)  / r.height));
+    setLinkPos({ x: Number(x.toFixed(3)), y: Number(y.toFixed(3)) });
+  }
+
+  const PRESETS_STICKER = [
+    { rotulo: 'Topo',   x: 0.5, y: 0.15 },
+    { rotulo: 'Centro', x: 0.5, y: 0.5  },
+    { rotulo: 'Rodapé', x: 0.5, y: 0.8  },
+  ];
 
   useEffect(() => {
     api.get('/accounts').then(r => {
@@ -81,6 +99,7 @@ export default function Stories() {
         imageUrl: selectedMedia[0].url,
         linkUrl: linkOn && linkUrl.trim() ? linkUrl.trim() : null,
         linkText: linkOn && linkLabel.trim() ? linkLabel.trim() : null,
+        ...(linkOn ? { linkX: linkPos.x, linkY: linkPos.y } : {}),
         mediaUrls: selectedMedia.map(m => m.url),
         intervalMinutes: interval,
       });
@@ -338,7 +357,7 @@ export default function Stories() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <h3 style={{ ...PANEL_TITLE, margin: 0 }}>Link sticker no story</h3>
-                  <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--text3)' }}>Figurinha clicável — só funciona em contas OAuth (Graph API)</p>
+                  <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--text3)' }}>Figurinha clicável — contas API Mobile e OAuth</p>
                 </div>
                 <button onClick={() => setLinkOn(p => !p)} style={{
                   width: 31, height: 19, borderRadius: 999, padding: 2,
@@ -362,6 +381,66 @@ export default function Stories() {
                       maxLength={35}
                       style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 11 }} />
                     <span style={{ fontSize: 10, color: 'var(--text3)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>{linkLabel.length}/35</span>
+                  </div>
+
+                  {/* ── Posicionador do sticker ──────────────────────────────
+                      Clique no preview define onde a figurinha fica. As
+                      coordenadas são normalizadas (0..1) e x/y é o centro do
+                      sticker — mesmo sistema que o Instagram usa. */}
+                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                    <div
+                      onClick={posicionarSticker}
+                      title="Clique para posicionar a figurinha"
+                      style={{
+                        position: 'relative', width: 104, flexShrink: 0, aspectRatio: '9 / 16',
+                        borderRadius: 8, overflow: 'hidden', cursor: 'crosshair',
+                        border: '1px solid oklch(1 0 0 / 0.12)',
+                        background: selectedMedia[0]?.url
+                          ? `center/cover no-repeat url(${selectedMedia[0].url})`
+                          : 'linear-gradient(160deg, oklch(0.22 0.05 260), oklch(0.14 0.04 235))',
+                      }}
+                    >
+                      {/* grade discreta de terços, ajuda a mirar */}
+                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+                        background:
+                          'linear-gradient(to bottom, transparent 33.3%, oklch(1 0 0 / .10) 33.3%, oklch(1 0 0 / .10) 33.5%, transparent 33.5%,' +
+                          ' transparent 66.6%, oklch(1 0 0 / .10) 66.6%, oklch(1 0 0 / .10) 66.8%, transparent 66.8%)' }} />
+                      <span style={{
+                        position: 'absolute',
+                        left: `${linkPos.x * 100}%`, top: `${linkPos.y * 100}%`,
+                        transform: 'translate(-50%, -50%)',
+                        maxWidth: '90%', padding: '3px 7px', borderRadius: 6,
+                        background: 'oklch(1 0 0 / 0.92)', color: '#0b1220',
+                        fontSize: 8, fontWeight: 800, letterSpacing: '.02em',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        boxShadow: '0 2px 8px oklch(0 0 0 / .45)', pointerEvents: 'none',
+                      }}>
+                        🔗 {linkLabel.trim() || 'Ver mais'}
+                      </span>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontSize: 10, color: 'var(--text3)' }}>Posição da figurinha</div>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        {PRESETS_STICKER.map(p => {
+                          const ativo = Math.abs(linkPos.x - p.x) < 0.02 && Math.abs(linkPos.y - p.y) < 0.02;
+                          return (
+                            <button key={p.rotulo} onClick={() => setLinkPos({ x: p.x, y: p.y })} style={{
+                              padding: '5px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                              background: ativo ? 'rgba(0,212,255,.14)' : 'oklch(1 0 0 / 0.04)',
+                              color:      ativo ? 'var(--cyan)'        : 'var(--text3)',
+                              border:     ativo ? '1px solid rgba(0,212,255,.35)' : '1px solid oklch(1 0 0 / 0.08)',
+                            }}>{p.rotulo}</button>
+                          );
+                        })}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
+                        x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.5 }}>
+                        Clique no preview para posicionar livremente.
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

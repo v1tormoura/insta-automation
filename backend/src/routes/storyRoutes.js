@@ -47,7 +47,7 @@ router.post('/upload', upload.single('image'), (req, res) => {
  * }
  */
 router.post('/', async (req, res) => {
-  const { accountIds, imageUrl, linkUrl, linkText, intervalMinutes } = req.body;
+  const { accountIds, imageUrl, linkUrl, linkText, intervalMinutes, linkX, linkY } = req.body;
 
   if (!Array.isArray(accountIds) || accountIds.length === 0) {
     return res.status(400).json({ error: 'Selecione pelo menos uma conta' });
@@ -79,6 +79,9 @@ router.post('/', async (req, res) => {
           imageUrl,
           linkUrl:  linkUrl  || null,
           linkText: linkText || 'Clique Aqui',
+          // Posição da figurinha (0..1, x/y = centro). Ausente → padrão da lib.
+          linkX:    linkX !== undefined ? Number(linkX) : undefined,
+          linkY:    linkY !== undefined ? Number(linkY) : undefined,
         });
         results.push({
           accountId: accountIds[i],

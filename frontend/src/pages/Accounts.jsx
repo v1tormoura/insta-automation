@@ -67,6 +67,10 @@ export default function Accounts() {
   const oauthWaitingRef = useRef(false);
   oauthModalRef.current   = oauthModal;
   oauthWaitingRef.current = oauthWaiting;
+  const [perfilModal,    setPerfilModal]    = useState(null);
+  const [perfilForm,     setPerfilForm]     = useState({ fullName:'', biography:'', externalUrl:'', gender:'', foto:null });
+  const [perfilSalvando, setPerfilSalvando] = useState(false);
+  const [perfilErro,     setPerfilErro]     = useState('');
   const [proxyValue,     setProxyValue]     = useState('');
   const [savingProxy,    setSavingProxy]    = useState(false);
   const [bulkProxyOpen,  setBulkProxyOpen]  = useState(false);
@@ -329,6 +333,46 @@ export default function Accounts() {
       setTokenError(err.response?.data?.error || err.message || 'Token inválido');
     } finally {
       setTokenConnecting(false);
+    }
+  }
+
+  /* ── Editar perfil ────────────────────────────────────────────────────────
+     Contas instagrapi editam nome, bio, link e gênero pela própria sessão —
+     sem senha e sem navegador. O link da bio só é alterável por este caminho. */
+
+  function openPerfilModal(account) {
+    setPerfilModal(account);
+    setPerfilErro('');
+    setPerfilForm({
+      fullName:    account.name || '',
+      biography:   account.bio  || '',
+      externalUrl: account.externalLink || '',
+      gender:      '',
+      foto:        null,
+    });
+  }
+
+  async function salvarPerfil() {
+    if (!perfilModal) return;
+    setPerfilSalvando(true);
+    setPerfilErro('');
+    try {
+      // multipart porque a foto vai no mesmo envio (campo `photo` na rota)
+      const fd = new FormData();
+      if (perfilForm.fullName    !== '') fd.append('fullName',    perfilForm.fullName);
+      if (perfilForm.biography   !== '') fd.append('biography',   perfilForm.biography);
+      if (perfilForm.externalUrl !== '') fd.append('externalUrl', perfilForm.externalUrl);
+      if (perfilForm.gender      !== '') fd.append('gender',      perfilForm.gender);
+      if (perfilForm.foto)               fd.append('photo',       perfilForm.foto);
+
+      await api.post(`/profile-edit/${perfilModal._id}`, fd);
+      showToast('success', 'Perfil enviado', `@${perfilModal.username} — alterações aplicadas em segundo plano.`);
+      setPerfilModal(null);
+      setTimeout(loadAccounts, 4000);
+    } catch (err) {
+      setPerfilErro(err.response?.data?.error || err.message || 'Falha ao editar o perfil');
+    } finally {
+      setPerfilSalvando(false);
     }
   }
 
@@ -1246,6 +1290,14 @@ export default function Accounts() {
                     }}
                   ><IcoSignal /> Proxy</button>
 
+                  {/* Editar perfil — nome, bio, link e gênero pela sessão salva */}
+                  <button onClick={() => openPerfilModal(account)} title="Editar nome, bio, link da bio e foto"
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
+                      background:'rgba(139,92,246,.1)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.25)' }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(139,92,246,.18)'}
+                    onMouseLeave={e => e.currentTarget.style.background='rgba(139,92,246,.1)'}
+                  ><IcoPerson /> Perfil</button>
+
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                     title={needsRecon ? 'Reconectar' : 'API ok'}
                     style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
@@ -1499,6 +1551,105 @@ export default function Accounts() {
           </div>
         </div>
       )}
+
+      {/* ── Editar Perfil Modal ──────────────────────────────────── */}
+      {perfilModal && (() => {
+        const viaInstagrapi = perfilModal.provider === 'instagrapi' || !!perfilModal.hasInstagrapiSession;
+        const lbl = t => <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--text2)', marginBottom:5, letterSpacing:'.04em' }}>{t}</label>;
+        return (
+          <div className="modal-overlay">
+            <div className="modal" style={{ width: 'min(480px,100%)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                <div>
+                  <h3 style={{ margin:0 }}>Editar perfil</h3>
+                  <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>@{perfilModal.username}</div>
+                </div>
+                <button onClick={() => setPerfilModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
+              </div>
+
+              <div style={{ fontSize:11, lineHeight:1.6, marginBottom:12, padding:'9px 11px', borderRadius:8,
+                background: viaInstagrapi ? 'rgba(139,92,246,.07)' : 'rgba(245,158,11,.08)',
+                border: `1px solid ${viaInstagrapi ? 'rgba(139,92,246,.2)' : 'rgba(245,158,11,.25)'}`,
+                color: viaInstagrapi ? 'var(--text3)' : '#fbbf24' }}>
+                {viaInstagrapi
+                  ? <>Editado pela <strong>sessão API Mobile</strong> — sem senha e sem navegador. O Instagram exige e-mail ou telefone confirmado na conta para aceitar a alteração.</>
+                  : <>Esta conta não usa API Mobile: a edição vai pelo caminho antigo (senha ou navegador), e o <strong>link da bio não é alterável</strong> por ali.</>}
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                {lbl('NOME')}
+                <input className="input" style={{ width:'100%' }} placeholder="Nome exibido no perfil"
+                  value={perfilForm.fullName}
+                  onChange={e => setPerfilForm(f => ({ ...f, fullName: e.target.value }))}
+                  disabled={perfilSalvando} />
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                {lbl('BIO')}
+                <textarea className="input" rows={3} style={{ width:'100%', resize:'vertical' }} maxLength={150}
+                  placeholder="Descrição do perfil"
+                  value={perfilForm.biography}
+                  onChange={e => setPerfilForm(f => ({ ...f, biography: e.target.value }))}
+                  disabled={perfilSalvando} />
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', textAlign:'right', marginTop:3 }}>
+                  {perfilForm.biography.length}/150
+                </div>
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                {lbl('LINK DA BIO')}
+                <input className="input" type="url" style={{ width:'100%' }} placeholder="https://seusite.com"
+                  value={perfilForm.externalUrl}
+                  onChange={e => setPerfilForm(f => ({ ...f, externalUrl: e.target.value }))}
+                  disabled={perfilSalvando || !viaInstagrapi} />
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                {lbl('GÊNERO')}
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                  {[['', 'Não alterar'], ['1', 'Masculino'], ['2', 'Feminino'], ['3', 'Personalizado']].map(([valor, texto]) => {
+                    const ativo = perfilForm.gender === valor;
+                    return (
+                      <button key={valor || 'nada'} onClick={() => setPerfilForm(f => ({ ...f, gender: valor }))}
+                        disabled={perfilSalvando}
+                        style={{ padding:'6px 11px', borderRadius:7, fontSize:11, fontWeight:600, cursor:'pointer',
+                          background: ativo ? 'rgba(139,92,246,.16)' : 'oklch(1 0 0 / 0.04)',
+                          color:      ativo ? '#a78bfa'              : 'var(--text3)',
+                          border:     ativo ? '1px solid rgba(139,92,246,.35)' : '1px solid oklch(1 0 0 / 0.08)' }}>
+                        {texto}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                {lbl('FOTO DE PERFIL')}
+                <input type="file" accept="image/*" disabled={perfilSalvando}
+                  onChange={e => setPerfilForm(f => ({ ...f, foto: e.target.files?.[0] || null }))}
+                  style={{ width:'100%', fontSize:11, color:'var(--text3)' }} />
+                {perfilForm.foto && (
+                  <div style={{ fontSize:10, color:'#34d399', marginTop:4 }}>{perfilForm.foto.name}</div>
+                )}
+              </div>
+
+              {perfilErro && (
+                <div style={{ fontSize:11, color:'#f87171', background:'rgba(244,63,94,.08)', border:'1px solid rgba(244,63,94,.2)', borderRadius:8, padding:'8px 11px', marginBottom:10 }}>
+                  {perfilErro}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button className="btn btn-ghost" onClick={() => setPerfilModal(null)} disabled={perfilSalvando}>Cancelar</button>
+                <button className="btn btn-primary" onClick={salvarPerfil} disabled={perfilSalvando}
+                  style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
+                  {perfilSalvando ? 'Enviando...' : 'Salvar alterações'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Proxy Modal ──────────────────────────────────────────── */}
       {proxyModal && (
