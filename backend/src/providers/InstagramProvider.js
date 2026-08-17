@@ -60,6 +60,24 @@ class InstagramProvider {
   }
 
   /**
+   * Edita o perfil: nome, bio e link da bio.
+   * @param {Object} account
+   * @param {{biography?: string, externalUrl?: string, fullName?: string}} fields
+   */
+  async editProfile(account, fields) {
+    throw new Error(`${this.constructor.name}.editProfile() not implemented`);
+  }
+
+  /**
+   * Troca a foto de perfil.
+   * @param {Object} account
+   * @param {string} imagePath
+   */
+  async changeProfilePicture(account, imagePath) {
+    throw new Error(`${this.constructor.name}.changeProfilePicture() not implemented`);
+  }
+
+  /**
    * Marks the session as invalid in persistent storage.
    * @param {string} accountId
    * @returns {Promise<void>}

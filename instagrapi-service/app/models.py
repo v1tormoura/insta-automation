@@ -36,6 +36,29 @@ class ChallengeCodeRequest(BaseModel):
     code: str
 
 
+class PublishStoryRequest(BaseModel):
+    account_id: str
+    media_path: str
+    caption: str = ""
+    # Link sticker do story. O Instagram exige elegibilidade da conta (em geral
+    # 10 mil seguidores ou verificação) — sem isso ele recusa o sticker.
+    link_url: str | None = None
+
+
+class ProfileEditRequest(BaseModel):
+    account_id: str
+    # Campos ausentes (None) não são alterados — account_edit sobrescreve o que
+    # recebe, então enviar apenas o que muda evita apagar o resto do perfil.
+    biography: str | None = None
+    external_url: str | None = None
+    full_name: str | None = None
+
+
+class ProfilePictureRequest(BaseModel):
+    account_id: str
+    image_path: str
+
+
 class PublishReelRequest(BaseModel):
     account_id: str
     media_path: str

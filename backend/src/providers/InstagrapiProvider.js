@@ -46,9 +46,28 @@ class InstagrapiProvider extends InstagramProvider {
     return this._http.publishPost(account, postData);
   }
 
+  /**
+   * Publica story com link sticker opcional.
+   *
+   * O comentário anterior aqui afirmava que instagrapi não expõe upload de story.
+   * Isso estava errado: a biblioteca tem photo_upload_to_story /
+   * video_upload_to_story, com `links: List[StoryLink]` para o link sticker.
+   */
   async publishStory(account, storyData) {
-    // instagrapi does not expose a public story upload endpoint — use official provider
-    throw this._notReady('publishStory');
+    if (!this._http) throw this._notReady('publishStory');
+    return this._http.publishStory(account, storyData);
+  }
+
+  /** Edita nome, bio e link da bio (external_url) via account_edit. */
+  async editProfile(account, fields) {
+    if (!this._http) throw this._notReady('editProfile');
+    return this._http.editProfile(account, fields);
+  }
+
+  /** Troca a foto de perfil via account_change_picture. */
+  async changeProfilePicture(account, imagePath) {
+    if (!this._http) throw this._notReady('changeProfilePicture');
+    return this._http.changeProfilePicture(account, imagePath);
   }
 
   async invalidateSession(accountId) {

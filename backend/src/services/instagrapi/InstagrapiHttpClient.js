@@ -274,6 +274,66 @@ class InstagrapiHttpClient {
   }
 
   /**
+   * Publica um story (foto ou vídeo) com link sticker opcional.
+   *
+   * O link exige elegibilidade da conta no Instagram (em geral 10 mil seguidores
+   * ou verificação); sem isso o Instagram recusa e o erro é propagado.
+   *
+   * @param {Object} account
+   * @param {{media: string, caption?: string, linkUrl?: string}} storyData
+   */
+  async publishStory(account, storyData) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
+      await this.ensureSession(account);
+      const result = await this._post('/publish/story', {
+        account_id: accountId,
+        media_path: _toContainerPath(storyData.media),
+        caption:    storyData.caption || '',
+        link_url:   storyData.linkUrl || null,
+      }, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /**
+   * Edita nome, bio e link da bio (external_url) pela sessão instagrapi.
+   * Campos ausentes não são alterados — account_edit sobrescreve o que recebe.
+   *
+   * @param {Object} account
+   * @param {{biography?: string, externalUrl?: string, fullName?: string}} fields
+   */
+  async editProfile(account, fields) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
+      await this.ensureSession(account);
+      const body = { account_id: accountId };
+      if (fields.biography  !== undefined) body.biography    = fields.biography;
+      if (fields.externalUrl !== undefined) body.external_url = fields.externalUrl;
+      if (fields.fullName   !== undefined) body.full_name    = fields.fullName;
+
+      const result = await this._post('/profile/edit', body, TIMEOUT_LOGIN);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /** Troca a foto de perfil pela sessão instagrapi. */
+  async changeProfilePicture(account, imagePath) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
+      await this.ensureSession(account);
+      const result = await this._post('/profile/picture', {
+        account_id:  accountId,
+        image_path:  _toContainerPath(imagePath),
+      }, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /**
    * Publishes a photo post via the Python instagrapi service.
    * Acquires a per-account Redis lock to prevent concurrent publications.
    * Persists the updated session blob returned by Python to MongoDB.
