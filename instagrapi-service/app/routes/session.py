@@ -198,27 +198,45 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
-        # Apply global proxy if available
+        # Proxy do painel (conta ou global) — o Node não repassa proxy neste
+        # endpoint, então aqui só vale o do ambiente.
         global_proxy = os.getenv('GLOBAL_PROXY')
         if global_proxy:
             client.set_proxy(global_proxy)
+
+        loop = asyncio.get_running_loop()
         try:
-            # instagrapi 2.18.14 uses a bloks-based 2FA flow — two_factor_login was
-            # removed. _login_with_bloks_two_factor extracts two_step_verification_context
-            # from login_json, infers the challenge type (totp/sms/backup_codes),
-            # and drives the full bloks verification sequence.
+            # instagrapi 2.18.14 usa fluxo 2FA baseado em bloks — two_factor_login
+            # foi removido. _login_with_bloks_two_factor extrai o
+            # two_step_verification_context de login_json, infere o tipo do
+            # desafio (totp/sms/backup_codes) e conduz a sequência bloks.
             login_json = pending.get("login_json", {})
             orig_exc   = pending.get("exc") or TwoFactorRequired("2FA pending state")
-            ok = client._login_with_bloks_two_factor(
-                body.verification_code,
-                login_json,
-                orig_exc,
-            )
-            # O retorno é um bool e ignorá-lo era um bug: com False, o serviço
-            # respondia AUTHENTICATED e a conta ficava marcada como conectada sem
-            # sessão nenhuma — card verde, 0 seguidores, nunca sincroniza.
-            if ok is False:
-                raise RuntimeError("Instagram recusou o código de verificação")
+
+            def _finish_two_factor() -> None:
+                """
+                Repete o que instagrapi.login() faz em volta do 2FA.
+
+                Chamar _login_with_bloks_two_factor isolado aplica a autorização
+                mas para aí. O login() real continua com login_flow(), que abre a
+                sessão como o app faria (reels tray + timeline) — é essa etapa que
+                faz o Instagram tratar o dispositivo como logado. Sem ela o código
+                é aceito e a sessão nunca se firma: conta "conectada" que não
+                sincroniza nada.
+
+                Roda em thread porque são várias requisições de rede e travariam
+                o event loop do FastAPI.
+                """
+                client._login_with_bloks_two_factor(
+                    body.verification_code,
+                    login_json,
+                    orig_exc,
+                )
+                client.login_flow()
+                client.last_login      = time.time()
+                client.relogin_attempt = 0
+
+            await loop.run_in_executor(None, _finish_two_factor)
         except HTTPException:
             raise
         except Exception as e:
@@ -236,13 +254,12 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
         # checagem, um 2FA que "passa" sem autenticar produz uma conta conectada
         # só na aparência — o painel mostra verde e o health check mostra
         # desconectada, porque um lê a flag e o outro lê a sessão.
-        loop = asyncio.get_running_loop()
         try:
             await loop.run_in_executor(None, client.account_info)
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                "verify-2fa: código aceito mas sessão inválida para %s (%s)",
-                body.account_id, type(e).__name__,
+                "verify-2fa: código aceito mas sessão inválida para %s (type=%s) exc=%s",
+                body.account_id, type(e).__name__, str(e)[:200],
             )
             await session_pool.remove_entry(body.account_id)
             raise HTTPException(status_code=422, detail={
