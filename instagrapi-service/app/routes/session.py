@@ -169,7 +169,7 @@ async def login(body: LoginRequest):
             exc_msg = str(e)[:250]
             # Metadados da resposta do Instagram — error_type diferencia senha
             # realmente errada de bloqueio disfarçado de erro de credencial.
-            meta = _login_error_metadata(client)
+            meta = _login_error_metadata(e, client)
             logger.warning(
                 "[TEMP-DEBUG] login: %s for account %s (type=%s) duration_ms=%d exc=%s%s",
                 code, body.account_id, type(e).__name__, duration_ms, exc_msg, meta,
@@ -608,19 +608,30 @@ def _safe_detail(exc: Exception | None, secrets: tuple = ()) -> str:
     return msg
 
 
-def _login_error_metadata(client) -> str:
-    """
-    Campos de erro da última resposta do Instagram — só metadados, nunca conteúdo.
+_ERROR_META_FIELDS = ("error_type", "status", "two_factor_required", "checkpoint_url", "help_url")
 
-    `error_type` é o que distingue de forma conclusiva uma senha realmente
-    incorreta ("bad_password") de um bloqueio disfarçado. Sem ele, a mensagem
-    "We can send you an email..." é ambígua e manda depurar a coisa errada.
+
+def _login_error_metadata(exc: Exception | None, client) -> str:
     """
-    last = getattr(client, "last_json", None)
-    if not isinstance(last, dict):
-        return ""
-    campos = ("error_type", "status", "two_factor_required", "checkpoint_url", "help_url")
-    presentes = {k: last[k] for k in campos if k in last}
+    Metadados de erro da resposta do Instagram — só nomes e valores de erro.
+
+    `error_type` distingue de forma conclusiva senha realmente incorreta
+    ("bad_password") de bloqueio disfarçado de erro de credencial.
+
+    A fonte é a EXCEÇÃO, não client.last_json: o instagrapi levanta
+    BadPassword(**last_json), então a exceção carrega os campos do momento da
+    falha. Ler o client depois trazia estado já sobrescrito por outra requisição
+    — foi o que fez aparecer "status: ok" numa falha de login.
+    """
+    presentes = {}
+    if exc is not None:
+        presentes = {f: getattr(exc, f) for f in _ERROR_META_FIELDS if hasattr(exc, f)}
+
+    if not presentes:
+        last = getattr(client, "last_json", None)
+        if isinstance(last, dict):
+            presentes = {f: last[f] for f in _ERROR_META_FIELDS if f in last}
+
     return f" [{presentes}]" if presentes else ""
 
 
