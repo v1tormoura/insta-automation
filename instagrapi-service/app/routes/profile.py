@@ -11,6 +11,40 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/profile")
 
 
+def _edit_com_genero(client, campos: dict, genero: int) -> None:
+    """
+    Envia accounts/edit_profile/ incluindo `gender`.
+
+    account_edit() filtra os dados para (external_url, username, full_name,
+    biography, phone_number, email) — `gender` é descartado silenciosamente. O
+    endpoint em si aceita o campo, então aqui a chamada é direta.
+
+    O endpoint SOBRESCREVE o perfil: os campos não informados são preenchidos com
+    os valores atuais, senão a edição apagaria bio, nome ou link. e-mail e telefone
+    só são enviados quando existem — enviar vazio dispara o erro "You need an
+    email or confirmed phone number".
+
+    Esta é a única parte que sai da superfície pública da biblioteca, porque a
+    biblioteca não expõe gênero.
+    """
+    atual = client.account_info()
+
+    payload = {
+        "username":     campos.get("username")     or atual.username,
+        "full_name":    campos.get("full_name")    if campos.get("full_name")    is not None else (atual.full_name or ""),
+        "biography":    campos.get("biography")    if campos.get("biography")    is not None else (atual.biography or ""),
+        "external_url": campos.get("external_url") if campos.get("external_url") is not None else str(atual.external_url or ""),
+        "gender":       int(genero),
+    }
+
+    for chave in ("email", "phone_number"):
+        valor = getattr(atual, chave, None)
+        if valor:
+            payload[chave] = str(valor)
+
+    client.private_request("accounts/edit_profile/", client.with_default_data(payload))
+
+
 def _require_session(account_id: str) -> None:
     if not session_pool.is_loaded(account_id):
         raise HTTPException(
@@ -47,7 +81,7 @@ async def profile_edit(body: ProfileEditRequest):
         )
         if valor is not None
     }
-    if not campos:
+    if not campos and body.gender is None:
         raise HTTPException(
             status_code=400,
             detail={"code": "NOTHING_TO_EDIT", "message": "Envie ao menos um campo para alterar"},
@@ -57,15 +91,27 @@ async def profile_edit(body: ProfileEditRequest):
     async with entry["lock"]:
         client = entry["client"]
         loop   = asyncio.get_running_loop()
+
+        def _aplicar():
+            # Com gênero, uma única chamada direta cobre tudo — o endpoint
+            # sobrescreve o perfil, então dividir em duas faria a segunda desfazer
+            # parte da primeira. Sem gênero, usa account_edit, que é o caminho
+            # público e já resolve o merge com os valores atuais.
+            if body.gender is not None:
+                _edit_com_genero(client, campos, body.gender)
+                return client.account_info()
+            return client.account_edit(**campos)
+
         try:
-            conta = await loop.run_in_executor(None, lambda: client.account_edit(**campos))
+            conta = await loop.run_in_executor(None, _aplicar)
         except Exception as e:
             logger.exception("profile_edit: failed for account %s", body.account_id)
             code = session_pool.classify_error(e)
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)[:300]})
         settings = client.get_settings()
 
-    session_pool._slog("PROFILE_EDITED", body.account_id, campos=",".join(sorted(campos)))
+    alterados = sorted(campos) + (["gender"] if body.gender is not None else [])
+    session_pool._slog("PROFILE_EDITED", body.account_id, campos=",".join(alterados))
     return {
         "ok": True,
         "profile": {

@@ -52,6 +52,9 @@ class ProfileEditRequest(BaseModel):
     biography: str | None = None
     external_url: str | None = None
     full_name: str | None = None
+    # 1=masculino, 2=feminino, 3=personalizado. account_edit FILTRA este campo,
+    # então ele exige uma chamada direta ao endpoint (ver rota /profile/edit).
+    gender: int | None = None
 
 
 class ProfilePictureRequest(BaseModel):

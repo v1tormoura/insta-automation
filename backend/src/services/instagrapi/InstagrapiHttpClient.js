@@ -309,9 +309,11 @@ class InstagrapiHttpClient {
     return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
       await this.ensureSession(account);
       const body = { account_id: accountId };
-      if (fields.biography  !== undefined) body.biography    = fields.biography;
+      if (fields.biography   !== undefined) body.biography    = fields.biography;
       if (fields.externalUrl !== undefined) body.external_url = fields.externalUrl;
-      if (fields.fullName   !== undefined) body.full_name    = fields.fullName;
+      if (fields.fullName    !== undefined) body.full_name    = fields.fullName;
+      // 1=masculino, 2=feminino, 3=personalizado
+      if (fields.gender      !== undefined) body.gender       = Number(fields.gender);
 
       const result = await this._post('/profile/edit', body, TIMEOUT_LOGIN);
       if (result.settings) await this._sm.save(accountId, result.settings);

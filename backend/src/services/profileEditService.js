@@ -167,7 +167,7 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
  * precisa da senha nem de navegador. A foto vai num arquivo temporário porque o
  * serviço Python publica a partir do disco.
  */
-async function _editViaInstagrapi(account, { fullName, biography, externalUrl, picBuffer }) {
+async function _editViaInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer }) {
   const { getProvider } = require('../providers/ProviderFactory');
   const provider = getProvider(account);
   const alterados = [];
@@ -176,6 +176,9 @@ async function _editViaInstagrapi(account, { fullName, biography, externalUrl, p
   if (fullName    !== undefined && fullName    !== null) campos.fullName    = fullName;
   if (biography   !== undefined && biography   !== null) campos.biography   = biography;
   if (externalUrl !== undefined && externalUrl !== null) campos.externalUrl = externalUrl;
+  if (gender      !== undefined && gender      !== null && !Number.isNaN(Number(gender))) {
+    campos.gender = Number(gender);
+  }
 
   let perfil = null;
   if (Object.keys(campos).length) {
@@ -216,7 +219,7 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   // alterar o link da bio (account_edit aceita external_url); os caminhos antigos
   // apenas preservavam o link existente.
   if (account.provider === 'instagrapi' || account.instagrapiSession) {
-    return _editViaInstagrapi(account, { fullName, biography, externalUrl, picBuffer });
+    return _editViaInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer });
   }
 
   // rawWebSessionid presente → fetch server-side direto (igual ao import-session que funciona)
