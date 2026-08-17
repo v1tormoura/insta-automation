@@ -13,6 +13,17 @@ const { execSync }         = require('child_process');
 const Account              = require('../models/Account');
 const { convertToReelFormat } = require('./videoProcessor');
 const speakeasy = require('speakeasy');
+const { resolveProxyFor } = require('./globalProxy');
+
+/**
+ * Aplica o proxy efetivo da conta ao cliente — o proxy próprio tem prioridade;
+ * sem ele, vale o proxy global do painel. Precisa ser reaplicado após cada
+ * deserialize, que pode restaurar um proxyUrl antigo ou nulo.
+ */
+async function _applyProxy(ig, account) {
+  const url = await resolveProxyFor(account);
+  if (url) ig.state.proxyUrl = url;
+}
 
 function generateTotpCode(rawSecret) {
   const secret = rawSecret.replace(/\s/g, '').toUpperCase();
@@ -242,8 +253,8 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const dbSeed = dbSaved._deviceSeed || account.username;
       ig.state.generateDevice(dbSeed);
       await ig.state.deserialize(dbSaved);
-      // Aplica proxy se a conta tem um configurado — garante consistência de IP
-      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+      // Aplica proxy (da conta ou global) — garante consistência de IP
+      await _applyProxy(ig, account);
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do banco OK`);
       return ig;
@@ -284,7 +295,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
   // Garante proxy consistente em TODOS os passos de restauração de sessão.
   // Step 1 já aplica após deserialize; steps 2-3 precisam da mesma garantia para
   // evitar que o Instagram detecte mudança de IP entre validações.
-  if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+  await _applyProxy(ig, account);
 
   // 2. cookies.json
   try {
@@ -302,7 +313,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       ig.state.generateDevice(saved._deviceSeed || account.username);
       await ig.state.deserialize(saved);
       // Reaplicar proxy após deserialize — deserialize pode restaurar proxyUrl antigo ou nulo
-      if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+      await _applyProxy(ig, account);
       await ig.account.currentUser();
       console.log(`[PrivateAPI] @${account.username} -- sessao do arquivo OK`);
       return ig;
@@ -332,7 +343,7 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
       const { syncCookiesFromMultilogin } = require('./multiloginService');
       await syncCookiesFromMultilogin(freshAcc);
       const ig2 = new IgApiClient();
-      if (account.proxy?.trim()) { try { ig2.state.proxyUrl = account.proxy.trim(); } catch {} }
+      try { await _applyProxy(ig2, account); } catch {}
       const freshAcc2 = await Account.findById(account._id);
       if (await _tryAuthWithCookies(ig2, freshAcc2)) {
         console.log(`[PrivateAPI] @${account.username} -- recuperado via Multilogin`);
@@ -358,8 +369,8 @@ async function createClient(account, { forcePasswordLogin = false } = {}) {
   if (account.password) {
     const newSeed = `${account.username}_${String(account._id)}`;
     ig.state.generateDevice(newSeed);
-    // Aplica proxy no login com senha (IP residencial do proxy evita bloqueio do Instagram)
-    if (account.proxy?.trim()) ig.state.proxyUrl = account.proxy.trim();
+    // Aplica proxy no login com senha (IP residencial evita bloqueio do Instagram)
+    await _applyProxy(ig, account);
     const loginId = account.loginEmail?.trim() || account.username;
     console.log(`[PrivateAPI] @${account.username} -- tentando login com senha...`);
 

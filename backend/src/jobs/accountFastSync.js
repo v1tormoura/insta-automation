@@ -7,6 +7,7 @@
 
 const Account       = require('../models/Account');
 const { broadcast } = require('../events/broadcaster');
+const { resolveProxyFor } = require('../services/globalProxy');
 const path          = require('path');
 const fs            = require('fs');
 const https         = require('https');
@@ -83,7 +84,8 @@ async function syncViaWebSession(account) {
     'User-Agent': WEB_UA,
     'X-IG-App-ID': '936619743392459',
   };
-  const dispatcher = makeProxyFS(account.proxy);
+  // Proxy da conta ou, na ausência dele, o proxy global do painel.
+  const dispatcher = makeProxyFS(await resolveProxyFor(account));
   const fetchOpts = (extra = {}) => ({ headers, signal: AbortSignal.timeout(10_000), ...extra, ...(dispatcher ? { dispatcher } : {}) });
 
   // 1. Valida sessão e obtém username/nome

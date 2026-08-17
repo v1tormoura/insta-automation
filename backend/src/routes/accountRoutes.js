@@ -57,12 +57,15 @@ router.post('/:id/reconnect', async (req, res) => {
     account = await Account.findById(req.params.id);
     if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
     if (!account.password) return res.status(400).json({ error: 'Conta sem senha configurada' });
-    if (!account.proxy?.trim()) {
+    // Login por senha sem proxy queima o IP do servidor e gera challenge.
+    // Aceita o proxy da conta OU o proxy global ativo no painel.
+    const { resolveProxyFor } = require('../services/globalProxy');
+    if (!(await resolveProxyFor(account))) {
       // Sem proxy: limpa challengeState mas não tenta login (evita gerar novo challenge)
       await Account.findByIdAndUpdate(account._id, { challengeState: '' });
       return res.status(400).json({
         code: 'NO_PROXY',
-        error: 'Configure um proxy residencial na conta (botão Proxy) antes de reconectar por senha.',
+        error: 'Ative o proxy global ou configure um proxy residencial nesta conta (botão Proxy) antes de reconectar por senha.',
       });
     }
 

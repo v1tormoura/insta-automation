@@ -15,6 +15,7 @@
 
 const Account       = require('../models/Account');
 const { broadcast } = require('../events/broadcaster');
+const { resolveProxyFor } = require('../services/globalProxy');
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -291,7 +292,8 @@ async function checkViaWebSession(account) {
       'User-Agent': WEB_UA_HC,
       'X-IG-App-ID': '936619743392459',
     };
-    const dispatcher = makeProxyHC(account.proxy);
+    // Proxy da conta ou, na ausência dele, o proxy global do painel.
+    const dispatcher = makeProxyHC(await resolveProxyFor(account));
     const fetchOpts = (extra = {}) => ({ headers, signal: AbortSignal.timeout(10_000), ...extra, ...(dispatcher ? { dispatcher } : {}) });
 
     const r = await fetch('https://www.instagram.com/api/v1/accounts/current_user/?edit=true', fetchOpts());
