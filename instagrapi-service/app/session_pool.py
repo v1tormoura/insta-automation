@@ -17,6 +17,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import queue
 import threading
 import time
@@ -199,12 +200,60 @@ def _device_uuids(account_id: str) -> dict:
     }
 
 
+def apply_app_version(client: Client) -> str:
+    """
+    Aplica a build do app Instagram definida em INSTAGRAPI_APP_VERSION.
+
+    O Instagram recusa login por API quando a build no payload foi descontinuada —
+    e mantém o site funcionando, o que faz o erro parecer senha incorreta
+    (error_type=bad_password com credencial válida).
+
+    Só aceita valores presentes em config.APP_SETTINGS: são builds reais que a
+    biblioteca mantém, com version_code e bloks_versioning_id correspondentes.
+    Inventar combinação de versão piora a detecção em vez de melhorar.
+
+    Sem a variável definida, mantém o padrão da biblioteca.
+    Devolve a app_version efetiva, para registro.
+    """
+    desejada = (os.getenv("INSTAGRAPI_APP_VERSION") or "").strip()
+    settings = getattr(client, "device_settings", None)
+    if not isinstance(settings, dict):
+        return "desconhecida"
+
+    if desejada:
+        try:
+            from instagrapi import config as ig_config
+            entry = (getattr(ig_config, "APP_SETTINGS", {}) or {}).get(desejada)
+        except Exception:
+            entry = None
+
+        if entry:
+            settings["app_version"] = desejada
+            for key in ("version_code", "bloks_versioning_id"):
+                if entry.get(key):
+                    settings[key] = entry[key]
+            if entry.get("bloks_versioning_id"):
+                client.bloks_versioning_id = entry["bloks_versioning_id"]
+            try:
+                client.set_user_agent()  # reconstrói o UA a partir de device_settings
+            except Exception as e:  # noqa: BLE001
+                logger.warning("apply_app_version: set_user_agent falhou — %s", e)
+        else:
+            logger.warning(
+                "apply_app_version: '%s' não está em APP_SETTINGS — mantendo o padrão",
+                desejada,
+            )
+
+    return settings.get("app_version") or "desconhecida"
+
+
 async def get_entry(account_id: str) -> dict:
     """Get or create a pool entry for this account (creates isolated Client + Lock)."""
     async with _pool_lock:
         if account_id not in _pool:
             client = Client()
             client.set_uuids(_device_uuids(account_id))
+            apply_app_version(client)
             _patch_client_retries(client)
             _patch_client_fail_fast(client)
             _pool[account_id] = {

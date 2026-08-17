@@ -90,6 +90,13 @@ services:
     restart: unless-stopped
     environment:
       PYTHONUNBUFFERED: "1"
+      # Build do app Instagram usada no payload de login. Vazio = padrão da
+      # biblioteca. Aceita apenas valores de config.APP_SETTINGS — hoje
+      # 428.0.0.47.67 (padrão), 385.0.0.47.74 e 364.0.0.35.86. Trocar aqui é o
+      # caminho quando o Instagram recusa o login com credencial válida
+      # (error_type=bad_password no site funcionando).
+      INSTAGRAPI_APP_VERSION: ${INSTAGRAPI_APP_VERSION:-}
+      GLOBAL_PROXY: ${GLOBAL_PROXY:-}
     volumes:
       - uploads:/app/uploads
     # No ports: — internal Docker network only; never exposed to the host

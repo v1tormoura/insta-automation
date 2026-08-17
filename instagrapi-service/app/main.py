@@ -41,19 +41,30 @@ async def _startup_diagnostics():
         except Exception as e:
             logger.error("STARTUP could not read instagrapi version: %s", e)
 
-    # Versão do app Instagram que vai no payload de login. Se o Instagram
+    # Build do app Instagram que vai no payload de login. Se o Instagram
     # descontinuar essa build, o login por senha é recusado enquanto o site segue
     # funcionando — sintoma que se confunde com senha incorreta.
+    # app_version não está em config.DEVICE_SETTINGS: entra em device_settings do
+    # client via set_app(), então lemos de um client real.
     try:
+        from instagrapi import Client as _C
         from instagrapi import config as _ig_config
-        dev = getattr(_ig_config, "DEVICE_SETTINGS", {}) or {}
+        from . import session_pool as _sp
+
+        _probe = _C()
+        efetiva = _sp.apply_app_version(_probe)
+        dev = getattr(_probe, "device_settings", {}) or {}
         logger.info(
-            "STARTUP app_version=%s version_code=%s device=%s/%s",
-            dev.get("app_version"), dev.get("version_code"),
-            dev.get("manufacturer"), dev.get("model"),
+            "STARTUP app_version=%s version_code=%s device=%s %s",
+            efetiva, dev.get("version_code"), dev.get("manufacturer"), dev.get("model"),
+        )
+        logger.info("STARTUP user_agent=%s", getattr(_probe, "user_agent", None))
+        logger.info(
+            "STARTUP builds disponiveis=%s",
+            ",".join((getattr(_ig_config, "APP_SETTINGS", {}) or {}).keys()),
         )
     except Exception as e:
-        logger.warning("STARTUP could not read DEVICE_SETTINGS: %s", e)
+        logger.warning("STARTUP could not read app build: %s", e)
 
     try:
         from instagrapi import Client
