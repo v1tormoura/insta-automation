@@ -152,6 +152,20 @@ async function syncViaWebSession(account) {
  * Retorna true se conseguiu sincronizar, false caso contrário.
  */
 async function syncOneAccountFast(account) {
+  // Conta instagrapi usa a sessão própria. Sem este ramo a função retornava
+  // false em silêncio (nenhum igSession, nenhum cookies.json) e a conta nunca
+  // sincronizava pelo AutoSync, que roda periodicamente e chama esta função.
+  if (account.provider === 'instagrapi' || account.instagrapiSession) {
+    try {
+      const { syncInstagrapiAccount } = require('../services/syncInstagrapiAccount');
+      await syncInstagrapiAccount(account);
+      return true;
+    } catch (err) {
+      console.log(`⚠️ [FastSync] @${account.username} (instagrapi): ${String(err.message || '').slice(0, 70)}`);
+      return false;
+    }
+  }
+
   const IgApiClient = getIgApiClient();
   if (!IgApiClient) return false;
 
@@ -255,6 +269,22 @@ async function runFastSync() {
     }).select('username _id igSession rawWebSessionid avatar name bio followers following postsCount proxy healthStatus');
 
     for (const acc of accounts) {
+      // Conta instagrapi: sincroniza pela própria sessão. Nenhum dos testes
+      // abaixo (rawWebSessionid / igSession / cookies) a reconhece, então ela
+      // ficava permanentemente sem sincronizar — seguidores e posts nunca
+      // atualizavam.
+      if (acc.provider === 'instagrapi' || acc.instagrapiSession) {
+        try {
+          const { syncInstagrapiAccount } = require('../services/syncInstagrapiAccount');
+          await syncInstagrapiAccount(acc);
+          synced++;
+        } catch (err) {
+          console.log(`⚠️ [FastSync] @${acc.username} (instagrapi): ${String(err.message || '').slice(0, 70)}`);
+        }
+        await delay(400);
+        continue;
+      }
+
       // rawWebSessionid tem prioridade: igSession pode ser um shell sem dados mobile reais
       if (acc.rawWebSessionid) {
         try { await syncViaWebSession(acc); synced++; } catch {}

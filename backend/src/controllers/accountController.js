@@ -127,12 +127,24 @@ exports.syncAllAccounts = async (req, res) => {
 
     let apiCount = 0, privateCount = 0, skipCount = 0; // eslint-disable-line no-unused-vars
 
+    const { syncInstagrapiAccount } = require('./../services/syncInstagrapiAccount');
+
     for (const account of accounts) {
-      const hasApiToken = !!(account.accessToken && account.igUserId);
-      const hasSession  = !!(account.igSession || account.rawWebSessionid);
+      const hasApiToken   = !!(account.accessToken && account.igUserId);
+      const hasSession    = !!(account.igSession || account.rawWebSessionid);
+      // Conta instagrapi não casa com nenhum dos dois testes acima. Sem esta
+      // verificação ela caía no ramo "sem sessão" e era marcada como
+      // sessao_expirada mesmo com a sessão intacta — o painel anunciava sessão
+      // caída sozinho, sem o Instagram ter invalidado nada.
+      const hasInstagrapi = account.provider === 'instagrapi' || !!account.instagrapiSession;
 
       try {
-        if (hasApiToken) {
+        if (hasInstagrapi) {
+          console.log(`🔄 [SyncAll] instagrapi @${account.username}`);
+          await syncInstagrapiAccount(account);
+          privateCount++;
+          await new Promise(r => setTimeout(r, 2000));
+        } else if (hasApiToken) {
           console.log(`🔄 [SyncAll] Graph API @${account.username}`);
           await syncViaAPI(account);
           apiCount++;
