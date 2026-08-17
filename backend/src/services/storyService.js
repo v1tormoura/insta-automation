@@ -169,9 +169,15 @@ async function postStory(account, options) {
     const provider = getProvider(account);
     const media = await _resolveLocalMedia(options.imagePath || options.imageUrl);
     const res = await provider.publishStory(account, {
-      media:   media,
-      caption: options.caption || '',
-      linkUrl: options.linkUrl || null,
+      media:        media,
+      caption:      options.caption || '',
+      linkUrl:      options.linkUrl || null,
+      // Posição do sticker (0..1, x/y = centro). Ausentes → centralizado.
+      linkX:        options.linkX,
+      linkY:        options.linkY,
+      linkWidth:    options.linkWidth,
+      linkHeight:   options.linkHeight,
+      linkRotation: options.linkRotation,
     });
     console.log(`✅ [Story instagrapi] @${account.username} — id ${res.media_id}${res.with_link ? ' (com link)' : ''}`);
     return { id: res.media_id, method: 'instagrapi', withLink: !!res.with_link };

@@ -66,8 +66,20 @@ async function _keepAliveInstagrapi(account) {
   try {
     // ── 3. Garante sessão no pool Python (sem login novo) ──────────────────
     await http.ensureSession(account);
-    await Account.findByIdAndUpdate(accountId, { lastSessionKeepAlive: new Date() });
-    console.log(`✅ [KeepAlive] ${label} (instagrapi) — sessão mantida`);
+
+    // ── 4. Ping leve ao Instagram ─────────────────────────────────────────
+    // ensureSession apenas carrega o blob na memória do serviço Python — não
+    // fala com o Instagram. Sem este ping o "keep-alive" não mantinha nada:
+    // a sessão ficava meses sem uso aparente para o Instagram, e o blob salvo
+    // nunca recebia os cookies/tokens que ele rotaciona a cada requisição.
+    // pingSession persiste o estado atualizado.
+    await http.pingSession(account);
+
+    await Account.findByIdAndUpdate(accountId, {
+      lastSessionKeepAlive:    new Date(),
+      lastSuccessfulRequestAt: new Date(),
+    });
+    console.log(`✅ [KeepAlive] ${label} (instagrapi) — sessão renovada`);
     return { status: 'ok' };
 
   } catch (err) {

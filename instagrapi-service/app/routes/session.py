@@ -352,11 +352,16 @@ async def session_ping(account_id: str):
         client = entry["client"]
         try:
             info = client.account_info()
+            # settings vai na resposta para o Node persistir: o Instagram rotaciona
+            # cookies e tokens durante as requisições, e descartar essa atualização
+            # faz o blob salvo divergir do que ele espera — a sessão morre antes do
+            # tempo por desatualização, não por invalidação.
             return {
                 "valid":     True,
                 "username":  info.username or "",
                 "full_name": info.full_name or "",
                 "pk":        str(info.pk),
+                "settings":  client.get_settings(),
             }
         except Exception as e:
             code = session_pool.classify_error(e)
@@ -393,6 +398,9 @@ async def get_user_info(account_id: str, username: str):
                 "follower_count":  getattr(user, "follower_count", None) or 0,
                 "following_count": getattr(user, "following_count", None) or 0,
                 "media_count":     getattr(user, "media_count", None) or 0,
+                # Mesmo motivo do /session/ping: o estado atualizado da sessão
+                # precisa voltar ao banco, senão o blob envelhece.
+                "settings":        client.get_settings(),
             }
         except Exception as e:
             code = session_pool.classify_error(e)

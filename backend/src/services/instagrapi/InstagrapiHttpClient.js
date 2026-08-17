@@ -222,7 +222,14 @@ class InstagrapiHttpClient {
    */
   async pingSession(account) {
     const accountId = String(account._id);
-    return this._get(`/session/ping?account_id=${encodeURIComponent(accountId)}`);
+    const result = await this._get(`/session/ping?account_id=${encodeURIComponent(accountId)}`);
+    // Persiste o estado devolvido: o Instagram rotaciona cookies e tokens durante
+    // as requisições, e descartar isso faz o blob salvo envelhecer até deixar de
+    // ser aceito — a sessão morria por desatualização, não por invalidação.
+    if (result?.settings) {
+      await this._sm.save(accountId, result.settings).catch(() => {});
+    }
+    return result;
   }
 
   /**
@@ -237,9 +244,15 @@ class InstagrapiHttpClient {
    */
   async getUserInfo(account, username) {
     const accountId = String(account._id);
-    return this._get(
+    const result = await this._get(
       `/session/userinfo?account_id=${encodeURIComponent(accountId)}&username=${encodeURIComponent(username)}`
     );
+    // Mesmo motivo do pingSession: mantém o blob do banco em dia com o que o
+    // Instagram acabou de emitir.
+    if (result?.settings) {
+      await this._sm.save(accountId, result.settings).catch(() => {});
+    }
+    return result;
   }
 
   /**
@@ -279,19 +292,37 @@ class InstagrapiHttpClient {
    * O link exige elegibilidade da conta no Instagram (em geral 10 mil seguidores
    * ou verificação); sem isso o Instagram recusa e o erro é propagado.
    *
+   * Posição do sticker (opcional) em coordenadas normalizadas 0..1, onde x/y são
+   * o CENTRO do sticker. Ausentes → sticker centralizado (padrão da biblioteca).
+   *
    * @param {Object} account
-   * @param {{media: string, caption?: string, linkUrl?: string}} storyData
+   * @param {{media: string, caption?: string, linkUrl?: string,
+   *          linkX?: number, linkY?: number, linkWidth?: number,
+   *          linkHeight?: number, linkRotation?: number}} storyData
    */
   async publishStory(account, storyData) {
     const accountId = String(account._id);
     return this._sm.withLock(accountId, LOCK_TTL_PUBLISH, async () => {
       await this.ensureSession(account);
-      const result = await this._post('/publish/story', {
+      const body = {
         account_id: accountId,
         media_path: _toContainerPath(storyData.media),
         caption:    storyData.caption || '',
         link_url:   storyData.linkUrl || null,
-      }, TIMEOUT_MEDIA);
+      };
+      const posicao = {
+        link_x:        storyData.linkX,
+        link_y:        storyData.linkY,
+        link_width:    storyData.linkWidth,
+        link_height:   storyData.linkHeight,
+        link_rotation: storyData.linkRotation,
+      };
+      for (const [chave, valor] of Object.entries(posicao)) {
+        if (valor !== undefined && valor !== null && !Number.isNaN(Number(valor))) {
+          body[chave] = Number(valor);
+        }
+      }
+      const result = await this._post('/publish/story', body, TIMEOUT_MEDIA);
       if (result.settings) await this._sm.save(accountId, result.settings);
       return result;
     });

@@ -40,9 +40,15 @@ class PublishStoryRequest(BaseModel):
     account_id: str
     media_path: str
     caption: str = ""
-    # Link sticker do story. O Instagram exige elegibilidade da conta (em geral
-    # 10 mil seguidores ou verificação) — sem isso ele recusa o sticker.
     link_url: str | None = None
+    # Posição do link sticker em coordenadas normalizadas do story (0 a 1):
+    # x/y são o CENTRO do sticker — x=0 é a borda esquerda, y=0 o topo.
+    # Ausentes = padrão do StoryLink (centro da tela).
+    link_x: float | None = None
+    link_y: float | None = None
+    link_width: float | None = None
+    link_height: float | None = None
+    link_rotation: float | None = None
 
 
 class ProfileEditRequest(BaseModel):

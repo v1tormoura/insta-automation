@@ -124,12 +124,26 @@ async def publish_story(body: PublishStoryRequest):
 
     links: list[StoryLink] = []
     if body.link_url:
+        # A posição do sticker vem do próprio StoryLink: photo_configure_to_story
+        # monta a StorySticker com x/y/z/width/height/rotation lidos daqui.
+        # Campos ausentes ficam com o padrão do modelo (sticker centralizado).
+        posicao = {
+            chave: valor
+            for chave, valor in (
+                ("x",        body.link_x),
+                ("y",        body.link_y),
+                ("width",    body.link_width),
+                ("height",   body.link_height),
+                ("rotation", body.link_rotation),
+            )
+            if valor is not None
+        }
         try:
-            links = [StoryLink(webUri=body.link_url)]
+            links = [StoryLink(webUri=body.link_url, **posicao)]
         except Exception as e:
             raise HTTPException(
                 status_code=422,
-                detail={"code": "INVALID_LINK", "message": f"URL de link inválida: {e}"},
+                detail={"code": "INVALID_LINK", "message": f"Link inválido: {e}"},
             )
 
     entry = await session_pool.get_entry(body.account_id)
