@@ -1482,8 +1482,20 @@ router.post('/instagrapi-challenge-code', async (req, res) => {
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
   try {
-    const http = _getHttp();
-    await http.challengeCode(account, code.trim());
+    const http   = _getHttp();
+    const result = await http.challengeCode(account, code.trim());
+
+    // Checkpoint resolvido, porém sem sessão: o login precisa ser repetido.
+    // Não marcamos a conta como conectada aqui — fazer isso deixaria o card
+    // "conectado" sem sessão real, com 0 seguidores e sem sincronizar.
+    if (result.status === 'RELOGIN_REQUIRED') {
+      console.log(`[IG-CHALLENGE] @${clean} — checkpoint resolvido, relogin necessário`);
+      return res.status(202).json({
+        status:  'RELOGIN_REQUIRED',
+        message: result.message || 'Verificação concluída. Concluindo a conexão...',
+      });
+    }
+
     await _markInstagrapiConnected(String(account._id));
     await _fetchAndSaveProfile(http, account, clean);
     broadcast('accounts', { action: 'synced' });

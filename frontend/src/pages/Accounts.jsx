@@ -487,7 +487,14 @@ export default function Accounts() {
     if (!uname || !code) return;
     setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
     try {
-      await api.post('/accounts/instagrapi-challenge-code', { username: uname, code });
+      const r = await api.post('/accounts/instagrapi-challenge-code', { username: uname, code });
+      // Checkpoint resolvido mas sem sessão: refaz o login, que agora passa sem
+      // desafio no caminho. A senha continua nesta tela — nunca foi ao servidor.
+      if (r.data?.status === 'RELOGIN_REQUIRED') {
+        setInstaModal(m => ({ ...m, step: 'credentials', totp: '', error: '', status: null }));
+        await connectInstagrapi();
+        return;
+      }
       showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
       setInstaModal(null);
       loadAccounts();

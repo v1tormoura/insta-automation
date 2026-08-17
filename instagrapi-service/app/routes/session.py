@@ -394,10 +394,34 @@ async def challenge_code(body: ChallengeCodeRequest):
             "message": result.get("error") or "Não foi possível concluir a verificação.",
         })
 
-    client   = pending["client"]
-    settings = client.get_settings()
+    client = pending["client"]
+
+    # challenge_resolve() limpa o checkpoint, mas NÃO conclui o login: a exceção
+    # ChallengeRequired interrompeu client.login() antes de a sessão existir.
+    # Sem esta verificação, salvaríamos um settings sem autorização e a conta
+    # apareceria "conectada" com 0 seguidores e sem sincronizar nunca.
+    try:
+        await loop.run_in_executor(None, client.account_info)
+        autenticado = True
+    except Exception as e:  # noqa: BLE001
+        autenticado = False
+        logger.info(
+            "challenge_code: checkpoint resolvido mas sessão ainda não válida para %s (%s)",
+            body.account_id, type(e).__name__,
+        )
+
     session_pool.clear_pending_challenge(body.account_id)
 
+    if not autenticado:
+        # O Node repete o login com a senha (que nunca é armazenada aqui) — agora
+        # sem checkpoint no caminho, ele conclui.
+        session_pool._slog("CHALLENGE_RESOLVED_RELOGIN", body.account_id)
+        return {
+            "status":  "RELOGIN_REQUIRED",
+            "message": "Verificação concluída. Refazendo o login para concluir a conexão.",
+        }
+
+    settings = client.get_settings()
     session_pool._slog("CHALLENGE_RESOLVED", body.account_id)
     return {"status": "AUTHENTICATED", "settings": settings}
 
