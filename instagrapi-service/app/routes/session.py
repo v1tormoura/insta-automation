@@ -117,7 +117,7 @@ async def login(body: LoginRequest):
             # Evict the failed client from the pool so ensureSession doesn't treat
             # this entry as a loaded session on subsequent restore attempts.
             await session_pool.remove_entry(body.account_id)
-            _raise_for_code(code)
+            _raise_for_code(code, e, (body.password,))
 
         settings = client.get_settings()
 
@@ -171,7 +171,7 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
                 code, body.account_id, type(e).__name__,
             )
             session_pool.clear_pending_2fa(body.account_id)
-            _raise_for_code(code)
+            _raise_for_code(code, e, (body.verification_code,))
         finally:
             session_pool.clear_pending_2fa(body.account_id)
 
@@ -212,7 +212,7 @@ async def session_ping(account_id: str):
                 "session_ping: %s for account %s (type=%s)",
                 code, account_id, type(e).__name__,
             )
-            _raise_for_code(code)
+            _raise_for_code(code, e)
 
 
 # ── /session/userinfo ──────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ async def get_user_info(account_id: str, username: str):
                 "get_user_info: %s for account %s username %s (type=%s)",
                 code, account_id, username, type(e).__name__,
             )
-            _raise_for_code(code)
+            _raise_for_code(code, e)
 
 
 # ── /session/login-by-sessionid ────────────────────────────────────────────────
@@ -288,7 +288,7 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
                 code, body.account_id, type(e).__name__, duration_ms,
             )
             await session_pool.remove_entry(body.account_id)
-            _raise_for_code(code)
+            _raise_for_code(code, e, (body.sessionid,))
 
         settings = client.get_settings()
 
@@ -307,7 +307,26 @@ async def evict_session(body: EvictRequest):
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
 
-def _raise_for_code(code: str) -> None:
+def _safe_detail(exc: Exception | None, secrets: tuple = ()) -> str:
+    """
+    Mensagem técnica curta e higienizada de uma exceção, para diagnóstico.
+
+    Só é usada quando o erro não pôde ser classificado (UNKNOWN_ERROR) — nesse
+    caso o front não tem mensagem curada e, sem isso, mostra um palpite errado
+    ("verifique suas credenciais") para qualquer falha desconhecida.
+
+    SEGURANÇA: senha e sessionid são removidos antes de sair do serviço.
+    """
+    if exc is None:
+        return ""
+    msg = f"{type(exc).__name__}: {exc}"[:300]
+    for secret in secrets:
+        if secret:
+            msg = msg.replace(str(secret), "***")
+    return msg
+
+
+def _raise_for_code(code: str, exc: Exception | None = None, secrets: tuple = ()) -> None:
     """Raise the appropriate HTTPException for a given error code."""
     _STATUS = {
         "RATE_LIMITED":       429,
@@ -322,4 +341,7 @@ def _raise_for_code(code: str) -> None:
         # TWO_FACTOR_REQUIRED is handled before this function is called — 202 is not an error
     }
     http_status = _STATUS.get(code, 422)  # fallback 422, not 401 (401 triggers SaaS logout)
-    raise HTTPException(status_code=http_status, detail={"code": code, "message": ""})
+    # Códigos conhecidos têm mensagem curada no Node; para os desconhecidos,
+    # devolvemos o motivo real (higienizado) em vez de deixar o front adivinhar.
+    message = _safe_detail(exc, secrets) if code == "UNKNOWN_ERROR" else ""
+    raise HTTPException(status_code=http_status, detail={"code": code, "message": message})

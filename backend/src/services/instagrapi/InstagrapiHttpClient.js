@@ -285,6 +285,9 @@ async function _parseResponse(res, endpoint) {
     const e       = new Error(`InstagrapiService ${endpoint}: ${message}`);
     e.code        = code || `INSTAGRAPI_HTTP_${res.status}`;
     e.httpStatus  = res.status;
+    // Detalhe cru do Python, separado do texto do Error — usado só quando o
+    // código não tem mensagem curada, para não exibir um palpite errado.
+    e.detail      = typeof message === 'string' ? message : '';
     throw e;
   }
   return body;

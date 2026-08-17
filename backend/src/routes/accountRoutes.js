@@ -1114,8 +1114,15 @@ const INSTA_ERROR_MESSAGES = {
   TIMEOUT:                        'Tempo de conexão esgotado. Verifique a rede e tente novamente.',
 };
 
-function _igUserMessage(code) {
-  return INSTA_ERROR_MESSAGES[code] || 'Não foi possível autenticar. Verifique suas credenciais e tente novamente.';
+function _igUserMessage(code, detail) {
+  if (INSTA_ERROR_MESSAGES[code]) return INSTA_ERROR_MESSAGES[code];
+  // Código não mapeado (UNKNOWN_ERROR): mostrar o motivo real é melhor que
+  // chutar "credenciais incorretas" — o palpite manda o usuário trocar a senha
+  // quando o problema pode ser proxy, rede ou mudança na API do Instagram.
+  const raw = String(detail || '').trim();
+  return raw
+    ? `Falha não classificada no login: ${raw}`
+    : 'Falha não classificada no login. Veja os logs do serviço instagrapi para o motivo exato.';
 }
 
 function _igHttpStatus(code) {
@@ -1256,7 +1263,7 @@ function _handleInstagrapiError(err, res) {
   // Log the raw technical detail internally only — never forward to frontend
   const safeLog = err?.message?.slice(0, 200) || 'no message';
   console.error(`[instagrapi] code=${code} raw=${safeLog}`);
-  return res.status(_igHttpStatus(code)).json({ error: _igUserMessage(code), code });
+  return res.status(_igHttpStatus(code)).json({ error: _igUserMessage(code, err?.detail), code });
 }
 
 /**
