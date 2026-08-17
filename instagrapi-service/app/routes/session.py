@@ -102,7 +102,9 @@ async def login(body: LoginRequest):
         except TwoFactorRequired as e:
             # Store the exception (not the password) — verify-2fa uses it to
             # extract two_step_verification_context via _login_with_bloks_two_factor.
-            session_pool.store_pending_2fa(body.account_id, body.username, e)
+            # Passa o client: o payload do 2FA vive em client.last_json, que é a
+            # fonte que o próprio instagrapi.login() usa.
+            session_pool.store_pending_2fa(body.account_id, body.username, e, client)
             logger.info(
                 "login: TWO_FACTOR_REQUIRED for account %s (type=%s) duration_ms=%d",
                 body.account_id, type(e).__name__, int((time.perf_counter() - t0) * 1000),

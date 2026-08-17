@@ -207,30 +207,45 @@ def _slog(event: str, account_id: str, **kwargs) -> None:
 
 # ── Pending 2FA store ─────────────────────────────────────────────────────────
 
-def store_pending_2fa(account_id: str, username: str, exc: Exception) -> None:
+def store_pending_2fa(
+    account_id: str,
+    username: str,
+    exc: Exception,
+    client: Optional[Client] = None,
+) -> None:
     """
-    Store 2FA challenge state for a pending verification.
+    Guarda o estado do 2FA pendente para a verificação em duas etapas.
 
-    instagrapi 2.18.14 uses a bloks-based 2FA flow: the TwoFactorRequired
-    exception carries the raw Instagram response that _login_with_bloks_two_factor
-    needs to extract two_step_verification_context. We store both login_json and
-    the original exception so verify-2fa can call that method directly.
+    O fluxo 2FA do instagrapi 2.18.14 é baseado em bloks e
+    _login_with_bloks_two_factor precisa do `login_json` — o corpo da resposta de
+    accounts/login/ — para extrair o two_step_verification_context.
 
-    The password is deliberately NOT stored here.
-    TTL: 5 minutes — after that the challenge must be restarted.
+    A fonte correta desse corpo é `client.last_json`, que é o que o próprio
+    instagrapi.login() passa adiante. Extrair de exc.response.json() não serve:
+    o payload do 2FA não vem por ali, e o resultado era o método falhar logo na
+    primeira linha com "the response did not include two_step_verification_context".
+    A extração pela exceção fica como reserva.
+
+    A senha deliberadamente NÃO é armazenada aqui.
+    TTL: 10 minutos — depois disso o login precisa ser reiniciado.
     """
-    # Extract the JSON dict from the exception's response attribute.
-    # exc.response may be a requests.Response object (has .json()) or already a dict.
-    response = getattr(exc, "response", None)
-    if response is not None and hasattr(response, "json") and callable(response.json):
-        try:
-            login_json = response.json()
-        except Exception:
-            login_json = {}
-    elif isinstance(response, dict):
-        login_json = response
-    else:
-        login_json = {}
+    login_json: dict = {}
+
+    if client is not None:
+        candidate = getattr(client, "last_json", None)
+        if isinstance(candidate, dict):
+            login_json = candidate
+
+    if not login_json:
+        # Reserva: alguns caminhos carregam o corpo na própria exceção.
+        response = getattr(exc, "response", None)
+        if response is not None and hasattr(response, "json") and callable(response.json):
+            try:
+                login_json = response.json()
+            except Exception:
+                login_json = {}
+        elif isinstance(response, dict):
+            login_json = response
 
     _pending_2fa[account_id] = {
         "username":   username,
@@ -238,7 +253,14 @@ def store_pending_2fa(account_id: str, username: str, exc: Exception) -> None:
         "exc":        exc,        # kept in-memory; never serialised or logged
         "expires_at": time.time() + _PENDING_2FA_TTL,
     }
-    _slog("LOGIN_2FA_PENDING", account_id, ttl_s=_PENDING_2FA_TTL)
+    # As chaves do payload são registradas (só os nomes, nunca os valores) porque
+    # a ausência de two_step_verification_context é a falha mais provável aqui.
+    _slog(
+        "LOGIN_2FA_PENDING",
+        account_id,
+        ttl_s=_PENDING_2FA_TTL,
+        payload_keys=",".join(sorted(login_json.keys()))[:200] or "vazio",
+    )
 
 
 def get_pending_2fa(account_id: str) -> Optional[dict]:
