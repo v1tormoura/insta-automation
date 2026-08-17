@@ -373,6 +373,7 @@ export default function Accounts() {
   const INSTA_MESSAGES = {
     RATE_LIMITED:                   'Instagram bloqueou temporariamente este IP. Aguarde antes de tentar novamente.',
     CHALLENGE_REQUIRED:             'O Instagram requer verificação adicional. Acesse o app oficial e resolva o desafio, depois tente novamente.',
+    ACCOUNT_SUSPENDED:              'Esta conta está SUSPENSA pelo Instagram. Nenhuma automação consegue conectá-la enquanto isso durar — entre no app oficial com ela e siga o processo de recurso.',
     TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
     BAD_PASSWORD:                   'O Instagram recusou o login. Se a senha está certa, ele está bloqueando a tentativa — veja o detalhe abaixo.',
     USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',

@@ -549,6 +549,15 @@ def classify_error(e: Exception) -> str:
     type_name = type(e).__name__.lower()
     msg       = str(e).lower()
 
+    # ── Conta suspensa ────────────────────────────────────────────────────────
+    # instagrapi só lança AccountSuspended quando a URL do desafio contém
+    # "/suspended/". A mensagem da exceção é "challenge_required", então a
+    # checagem por texto mais abaixo classificaria como desafio comum e o painel
+    # mandaria o usuário resolver algo no app — quando o estado real é suspensão,
+    # que nenhuma automação resolve. O tipo tem prioridade sobre a mensagem.
+    if "accountsuspended" in type_name or "account_suspended" in msg:
+        return "ACCOUNT_SUSPENDED"
+
     # ── Proxy errors (before generic network) ────────────────────────────────
     if any(x in type_name for x in ("proxyerror", "socks5", "socks4")):
         return "PROXY_ERROR"

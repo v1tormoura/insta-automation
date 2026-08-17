@@ -613,6 +613,7 @@ def _raise_for_code(code: str, exc: Exception | None = None, secrets: tuple = ()
         "BAD_PASSWORD":       422,
         "USER_NOT_FOUND":     422,
         "FEEDBACK_REQUIRED":  403,
+        "ACCOUNT_SUSPENDED":  403,
         "SESSION_EXPIRED":    422,
         "TIMEOUT":            504,
         "PROXY_ERROR":        502,

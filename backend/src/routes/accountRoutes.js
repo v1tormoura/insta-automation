@@ -1102,6 +1102,7 @@ const { broadcast } = require('../events/broadcaster');
 const INSTA_ERROR_MESSAGES = {
   RATE_LIMITED:                   'Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos antes de tentar novamente.',
   CHALLENGE_REQUIRED:             'O Instagram requer uma verificação adicional. Acesse o app oficial, resolva o desafio e tente novamente.',
+  ACCOUNT_SUSPENDED:              'Esta conta está SUSPENSA pelo Instagram. Nenhuma automação consegue conectá-la enquanto isso durar — entre no app oficial com ela e siga o processo de recurso.',
   CHALLENGE_CODE_REJECTED:        'Código incorreto. Confira o e-mail/SMS e digite novamente.',
   CHALLENGE_FAILED:               'Não foi possível concluir a verificação. Faça o login novamente.',
   NO_PENDING_CHALLENGE:           'O prazo da verificação expirou (10 min). Faça o login novamente.',
@@ -1142,6 +1143,7 @@ function _igHttpStatus(code) {
     SESSION_LOCKED:                 429,
     INSTAGRAPI_SERVICE_UNAVAILABLE: 503,
     FEEDBACK_REQUIRED:              403,
+    ACCOUNT_SUSPENDED:              403,
     TIMEOUT:                        504,
     NO_PENDING_2FA:                 400,
     LOGIN_IN_PROGRESS:              409,
@@ -1271,8 +1273,17 @@ async function _fetchAndSaveProfile(http, account, username) {
 
 // ── Helper: handle instagrapi errors uniformly ────────────────────────────────
 
-function _handleInstagrapiError(err, res) {
+async function _handleInstagrapiError(err, res, accountId = null) {
   const code = err?.code || 'UNKNOWN_ERROR';
+
+  // Suspensão é estado da conta, não falha transitória: registra no healthStatus
+  // para o painel parar de exibir "Saudável" numa conta que o Instagram derrubou.
+  if (code === 'ACCOUNT_SUSPENDED' && accountId) {
+    await Account.findByIdAndUpdate(accountId, {
+      healthStatus: 'banida',
+      lastError:    'Conta suspensa pelo Instagram',
+    }).catch(() => {});
+  }
   // Log the raw technical detail internally only — never forward to frontend
   const safeLog = err?.message?.slice(0, 200) || 'no message';
   console.error(`[instagrapi] code=${code} raw=${safeLog}`);
@@ -1412,7 +1423,9 @@ router.post('/instagrapi-direct', async (req, res) => {
       console.log(`[IG-LOGIN] orphan account ${account?._id} deleted — login failed with code=${err?.code}`);
     }
     console.error(`[IG-LOGIN] error — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
-    _handleInstagrapiError(err, res);
+    // Passa o id só quando a conta permanece cadastrada — em conta órfã recém
+    // removida não há o que marcar.
+    return _handleInstagrapiError(err, res, _isNewAccount ? null : account?._id);
   }
 });
 
@@ -1447,7 +1460,7 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
     broadcast('accounts', { action: 'synced' });
     return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
   } catch (err) {
-    return _handleInstagrapiError(err, res);
+    return _handleInstagrapiError(err, res, account?._id);
   }
 });
 
