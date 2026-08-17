@@ -160,12 +160,63 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
   return results;
 }
 
-async function editProfile(account, { fullName, biography, gender, profilePicUrl, profilePicBuffer, customGender }, _retried = false) {
+/**
+ * Edita o perfil pela sessão instagrapi.
+ *
+ * Diferente dos caminhos antigos, aceita o link da bio (external_url) e não
+ * precisa da senha nem de navegador. A foto vai num arquivo temporário porque o
+ * serviço Python publica a partir do disco.
+ */
+async function _editViaInstagrapi(account, { fullName, biography, externalUrl, picBuffer }) {
+  const { getProvider } = require('../providers/ProviderFactory');
+  const provider = getProvider(account);
+  const alterados = [];
+
+  const campos = {};
+  if (fullName    !== undefined && fullName    !== null) campos.fullName    = fullName;
+  if (biography   !== undefined && biography   !== null) campos.biography   = biography;
+  if (externalUrl !== undefined && externalUrl !== null) campos.externalUrl = externalUrl;
+
+  let perfil = null;
+  if (Object.keys(campos).length) {
+    const res = await provider.editProfile(account, campos);
+    perfil = res?.profile || null;
+    alterados.push(...Object.keys(campos));
+  }
+
+  if (picBuffer) {
+    const tmpDir = path.resolve(__dirname, '../../uploads/tmp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+    const nome = `avatar_${account._id}_${Date.now()}.jpg`;
+    fs.writeFileSync(path.join(tmpDir, nome), picBuffer);
+    await provider.changeProfilePicture(account, `tmp/${nome}`);
+    alterados.push('profilePic');
+  }
+
+  const dbUpdate = {};
+  if (biography !== undefined && biography !== null) dbUpdate.bio  = biography;
+  if (fullName  !== undefined && fullName  !== null) dbUpdate.name = fullName;
+  if (Object.keys(dbUpdate).length) {
+    await Account.findByIdAndUpdate(account._id, dbUpdate).catch(() => {});
+  }
+
+  console.log(`[EditProfile] @${account.username} — instagrapi (${alterados.join(', ') || 'nada'})`);
+  return { method: 'instagrapi', changed: alterados, profile: perfil };
+}
+
+async function editProfile(account, { fullName, biography, gender, profilePicUrl, profilePicBuffer, customGender, externalUrl }, _retried = false) {
   let picBuffer = profilePicBuffer || null;
   if (!picBuffer && profilePicUrl) {
     const res = await fetch(profilePicUrl);
     if (!res.ok) throw new Error(`Nao foi possivel baixar a foto: HTTP ${res.status}`);
     picBuffer = Buffer.from(await res.arrayBuffer());
+  }
+
+  // Sessão instagrapi — caminho principal quando existe. É o único que suporta
+  // alterar o link da bio (account_edit aceita external_url); os caminhos antigos
+  // apenas preservavam o link existente.
+  if (account.provider === 'instagrapi' || account.instagrapiSession) {
+    return _editViaInstagrapi(account, { fullName, biography, externalUrl, picBuffer });
   }
 
   // rawWebSessionid presente → fetch server-side direto (igual ao import-session que funciona)

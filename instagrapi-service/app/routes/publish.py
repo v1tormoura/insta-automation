@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from contextlib import contextmanager
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
@@ -59,6 +60,44 @@ async def publish_reel(body: PublishReelRequest):
 _VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".webm"}
 
 
+@contextmanager
+def _tolerate_link_validation(client):
+    """
+    Impede que a validação de URL do link sticker aborte o story.
+
+    Antes de montar o sticker, a biblioteca chama media/validate_reel_url/ e
+    DESCARTA a resposta — mas uma exceção ali propaga e derruba o upload inteiro.
+    Efeito: conta que o Instagram não deixa validar URL não consegue postar o
+    story de jeito nenhum, nem sem o link.
+
+    Como a resposta é ignorada de qualquer forma, tratamos a falha dessa chamada
+    específica como não-fatal e seguimos com o sticker. Isso não burla permissão:
+    se o Instagram realmente recusar o link, a recusa vem no configure seguinte,
+    com erro real, e é propagada normalmente.
+
+    O patch é restrito a esse endpoint e revertido no finally.
+    """
+    original = client.private_request
+
+    def _wrapper(endpoint, *args, **kwargs):
+        if isinstance(endpoint, str) and "validate_reel_url" in endpoint:
+            try:
+                return original(endpoint, *args, **kwargs)
+            except Exception as e:  # noqa: BLE001
+                logger.info(
+                    "story link: validate_reel_url falhou (%s) — seguindo, resposta é descartada",
+                    type(e).__name__,
+                )
+                return {}
+        return original(endpoint, *args, **kwargs)
+
+    client.private_request = _wrapper
+    try:
+        yield
+    finally:
+        client.private_request = original
+
+
 @router.post("/story")
 async def publish_story(body: PublishStoryRequest):
     """
@@ -101,13 +140,14 @@ async def publish_story(body: PublishStoryRequest):
         def _upload():
             # Upload é I/O de rede longo — vai para thread, senão congela o event
             # loop e o serviço para de responder durante a publicação.
-            if is_video:
-                return client.video_upload_to_story(
+            with _tolerate_link_validation(client):
+                if is_video:
+                    return client.video_upload_to_story(
+                        path=media_path, caption=body.caption or "", links=links
+                    )
+                return client.photo_upload_to_story(
                     path=media_path, caption=body.caption or "", links=links
                 )
-            return client.photo_upload_to_story(
-                path=media_path, caption=body.caption or "", links=links
-            )
 
         try:
             media = await loop.run_in_executor(None, _upload)

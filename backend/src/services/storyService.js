@@ -131,7 +131,52 @@ async function postStoryPrivateAPI(account, { imageUrl, imageBuffer, linkUrl }) 
  * @param {string} [options.linkUrl]  - URL do link sticker
  * @param {string} [options.linkText] - Texto da figurinha (padrão: "Clique Aqui")
  */
+/**
+ * Resolve a mídia para um caminho de arquivo — o instagrapi publica a partir do
+ * disco, enquanto o painel envia URL pública.
+ *
+ * URLs do próprio servidor (.../uploads/<rel>) viram <rel>, que o HttpClient
+ * prefixa com UPLOADS_DIR. URL externa é baixada para uploads/tmp.
+ */
+async function _resolveLocalMedia(media) {
+  const bruto = String(media || '').trim();
+  if (!bruto) throw new Error('Story sem mídia');
+
+  const doUploads = bruto.match(/\/uploads\/(.+)$/);
+  if (doUploads) return decodeURIComponent(doUploads[1]);
+
+  if (!/^https?:\/\//i.test(bruto)) return bruto; // já é caminho local
+
+  const path = require('path');
+  const fs   = require('fs');
+  const tmpDir = path.resolve(__dirname, '../../uploads/tmp');
+  if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+
+  const res = await fetch(bruto, { signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) throw new Error(`Não foi possível baixar a mídia do story: HTTP ${res.status}`);
+  const ext  = (bruto.split('?')[0].match(/\.(jpg|jpeg|png|mp4|mov)$/i) || [, 'jpg'])[1];
+  const nome = `story_${Date.now()}.${ext}`;
+  fs.writeFileSync(path.join(tmpDir, nome), Buffer.from(await res.arrayBuffer()));
+  return `tmp/${nome}`;
+}
+
 async function postStory(account, options) {
+  // 0. Sessão instagrapi — método principal quando existe.
+  // Vem antes da Graph API porque suporta link sticker em qualquer conta: a Graph
+  // API responde 9007 (link_sticker sem permissão) e cai em story sem link.
+  if (account.provider === 'instagrapi' || account.instagrapiSession) {
+    const { getProvider } = require('../providers/ProviderFactory');
+    const provider = getProvider(account);
+    const media = await _resolveLocalMedia(options.imagePath || options.imageUrl);
+    const res = await provider.publishStory(account, {
+      media:   media,
+      caption: options.caption || '',
+      linkUrl: options.linkUrl || null,
+    });
+    console.log(`✅ [Story instagrapi] @${account.username} — id ${res.media_id}${res.with_link ? ' (com link)' : ''}`);
+    return { id: res.media_id, method: 'instagrapi', withLink: !!res.with_link };
+  }
+
   // 1. Graph API (OAuth) — conta conectada via Meta API
   if (account.accessToken && account.igUserId) {
     // Para contas OAuth, Graph API é o método principal — não cai em Private API

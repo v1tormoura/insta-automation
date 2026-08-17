@@ -68,13 +68,18 @@ router.post('/:id', upload.single('photo'), async (req, res) => {
   const account = await Account.findById(req.params.id).catch(() => null);
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-  if (!account.igSession && !account.password && !account.rawWebSessionid) {
+  // Conta instagrapi já satisfaz o requisito de sessão pela própria sessão salva.
+  const temInstagrapi = account.provider === 'instagrapi' || !!account.instagrapiSession;
+  if (!temInstagrapi && !account.igSession && !account.password && !account.rawWebSessionid) {
     return res.status(400).json({ error: 'Conta sem sessão — importe cookies via 🍪 ou configure senha' });
   }
 
   const body = {
     fullName:         req.body.fullName,
     biography:        req.body.biography,
+    // Link da bio — só o caminho instagrapi consegue alterar (account_edit
+    // aceita external_url); os antigos apenas preservavam o link existente.
+    externalUrl:      req.body.externalUrl,
     gender:           req.body.gender !== undefined ? Number(req.body.gender) : undefined,
     profilePicUrl:    req.body.profilePicUrl,
     profilePicBuffer: req.file ? req.file.buffer : undefined,
