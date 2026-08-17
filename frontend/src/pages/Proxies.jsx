@@ -162,7 +162,16 @@ export default function Proxies() {
                     </td>
                     <td style={tdStyle}>
                       {account.proxy
-                        ? <ProxyBadge status={account.proxyStatus} />
+                        ? (
+                          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                            <ProxyBadge status={account.proxyStatus} />
+                            {account.proxyStatus === 'online' && account.proxyIp && (
+                              <span style={{ fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700, color:'#34d399' }}>
+                                {account.proxyIp}
+                              </span>
+                            )}
+                          </div>
+                        )
                         : <span style={{ color:'var(--text3)', fontSize:11 }}>—</span>
                       }
                     </td>
