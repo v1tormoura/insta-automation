@@ -71,6 +71,7 @@ export default function Accounts() {
   const [perfilForm,     setPerfilForm]     = useState({ fullName:'', biography:'', externalUrl:'', gender:'', foto:null });
   const [perfilSalvando, setPerfilSalvando] = useState(false);
   const [perfilErro,     setPerfilErro]     = useState('');
+  const [perfilPreview,  setPerfilPreview]  = useState(null); // objectURL da foto escolhida
   const [proxyValue,     setProxyValue]     = useState('');
   const [savingProxy,    setSavingProxy]    = useState(false);
   const [bulkProxyOpen,  setBulkProxyOpen]  = useState(false);
@@ -220,7 +221,22 @@ export default function Accounts() {
   const loadRef = useRef(null);
   loadRef.current = loadAccounts;
 
-  useServerEvents(['accounts', 'posts'], (data) => {
+  useServerEvents(['accounts', 'posts', 'profile_edit'], (data, evento) => {
+    // A edição de perfil roda em segundo plano e o backend transmite o desfecho.
+    // Sem escutar isto, o usuário salvava e nunca sabia se deu certo.
+    if (evento === 'profile_edit') {
+      if (data?.status === 'done') {
+        const campos = Array.isArray(data.changed) && data.changed.length
+          ? data.changed.join(', ')
+          : 'perfil';
+        showToast('success', 'Perfil atualizado', `@${data.username || ''} — ${campos}`);
+      } else if (data?.status === 'error') {
+        showToast('error', 'Falha ao editar perfil', data.error || 'Erro desconhecido');
+      }
+      loadRef.current?.();
+      return;
+    }
+
     loadRef.current?.();
     if (data?.action === 'oauth_connected' && oauthWaitingRef.current) {
       const modal = oauthModalRef.current;
@@ -343,6 +359,8 @@ export default function Accounts() {
   function openPerfilModal(account) {
     setPerfilModal(account);
     setPerfilErro('');
+    if (perfilPreview) URL.revokeObjectURL(perfilPreview);
+    setPerfilPreview(null);
     setPerfilForm({
       fullName:    account.name || '',
       biography:   account.bio  || '',
@@ -350,6 +368,18 @@ export default function Accounts() {
       gender:      '',
       foto:        null,
     });
+  }
+
+  function escolherFotoPerfil(file) {
+    if (perfilPreview) URL.revokeObjectURL(perfilPreview);
+    setPerfilPreview(file ? URL.createObjectURL(file) : null);
+    setPerfilForm(f => ({ ...f, foto: file || null }));
+  }
+
+  function fecharPerfilModal() {
+    if (perfilPreview) URL.revokeObjectURL(perfilPreview);
+    setPerfilPreview(null);
+    setPerfilModal(null);
   }
 
   async function salvarPerfil() {
@@ -366,9 +396,10 @@ export default function Accounts() {
       if (perfilForm.foto)               fd.append('photo',       perfilForm.foto);
 
       await api.post(`/profile-edit/${perfilModal._id}`, fd);
-      showToast('success', 'Perfil enviado', `@${perfilModal.username} — alterações aplicadas em segundo plano.`);
-      setPerfilModal(null);
-      setTimeout(loadAccounts, 4000);
+      // O resultado real chega pelo evento SSE 'profile_edit' — aqui só
+      // confirmamos o envio, sem afirmar que o Instagram aceitou.
+      showToast('info', 'Enviado', `@${perfilModal.username} — aplicando no Instagram...`);
+      fecharPerfilModal();
     } catch (err) {
       setPerfilErro(err.response?.data?.error || err.message || 'Falha ao editar o perfil');
     } finally {
@@ -1564,7 +1595,7 @@ export default function Accounts() {
                   <h3 style={{ margin:0 }}>Editar perfil</h3>
                   <div style={{ fontSize:12, color:'var(--text2)', marginTop:3 }}>@{perfilModal.username}</div>
                 </div>
-                <button onClick={() => setPerfilModal(null)} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
+                <button onClick={fecharPerfilModal} style={{ background:'none', border:'none', color:'var(--text2)', fontSize:20, cursor:'pointer' }}>×</button>
               </div>
 
               <div style={{ fontSize:11, lineHeight:1.6, marginBottom:12, padding:'9px 11px', borderRadius:8,
@@ -1623,14 +1654,34 @@ export default function Accounts() {
                 </div>
               </div>
 
-              <div style={{ marginBottom:12 }}>
+              <div style={{ marginBottom:14 }}>
                 {lbl('FOTO DE PERFIL')}
-                <input type="file" accept="image/*" disabled={perfilSalvando}
-                  onChange={e => setPerfilForm(f => ({ ...f, foto: e.target.files?.[0] || null }))}
-                  style={{ width:'100%', fontSize:11, color:'var(--text3)' }} />
-                {perfilForm.foto && (
-                  <div style={{ fontSize:10, color:'#34d399', marginTop:4 }}>{perfilForm.foto.name}</div>
-                )}
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:54, height:54, borderRadius:'50%', overflow:'hidden', flexShrink:0,
+                    border:'1px solid oklch(1 0 0 / 0.12)', background:'oklch(0.12 0.04 235)', display:'grid', placeItems:'center' }}>
+                    {perfilPreview
+                      ? <img src={perfilPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                      : perfilModal.avatar
+                        ? <img src={avatarUrl(perfilModal.avatar)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        : <span style={{ fontSize:19, fontWeight:800, color:'var(--text3)' }}>
+                            {perfilModal.username?.charAt(0)?.toUpperCase() || 'I'}
+                          </span>}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <label style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:8,
+                      cursor: perfilSalvando ? 'not-allowed' : 'pointer', fontSize:11, fontWeight:700,
+                      background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)',
+                      opacity: perfilSalvando ? 0.5 : 1 }}>
+                      {perfilForm.foto ? 'Trocar imagem' : 'Escolher imagem'}
+                      <input type="file" accept="image/*" disabled={perfilSalvando} style={{ display:'none' }}
+                        onChange={e => escolherFotoPerfil(e.target.files?.[0] || null)} />
+                    </label>
+                    <div style={{ fontSize:10, color: perfilForm.foto ? '#34d399' : 'var(--text3)', marginTop:6,
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {perfilForm.foto ? perfilForm.foto.name : 'JPG ou PNG — imagem quadrada fica melhor'}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {perfilErro && (
@@ -1640,7 +1691,7 @@ export default function Accounts() {
               )}
 
               <div className="modal-actions">
-                <button className="btn btn-ghost" onClick={() => setPerfilModal(null)} disabled={perfilSalvando}>Cancelar</button>
+                <button className="btn btn-ghost" onClick={fecharPerfilModal} disabled={perfilSalvando}>Cancelar</button>
                 <button className="btn btn-primary" onClick={salvarPerfil} disabled={perfilSalvando}
                   style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
                   {perfilSalvando ? 'Enviando...' : 'Salvar alterações'}

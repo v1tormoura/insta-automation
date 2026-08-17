@@ -329,6 +329,36 @@
   backdrop-filter: blur(16px);
 }
 .toast svg { color: var(--green); }
+.toast strong { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
+.toast p      { margin: 0; font-size: 11.5px; opacity: .82; line-height: 1.45; }
+.toast button {
+  background: none; border: 0; color: inherit; opacity: .5;
+  font-size: 17px; line-height: 1; cursor: pointer; margin-left: 4px; align-self: flex-start;
+}
+.toast button:hover { opacity: 1; }
+
+/* Variantes por tipo. Sem elas todo toast herdava o verde do estilo base —
+   inclusive os de erro, que apareciam como se fossem sucesso. */
+.toast-error {
+  border-color: rgba(244,63,94,.4);
+  box-shadow: 0 12px 36px rgba(0,0,0,.4), 0 0 20px rgba(244,63,94,.12);
+  color: #ffe4e9;
+}
+.toast-error svg { color: var(--red); }
+
+.toast-warning {
+  border-color: rgba(245,158,11,.42);
+  box-shadow: 0 12px 36px rgba(0,0,0,.4), 0 0 20px rgba(245,158,11,.12);
+  color: #fff4e0;
+}
+.toast-warning svg { color: #f59e0b; }
+
+.toast-info {
+  border-color: rgba(59,130,246,.4);
+  box-shadow: 0 12px 36px rgba(0,0,0,.4), 0 0 20px rgba(59,130,246,.12);
+  color: #e2eeff;
+}
+.toast-info svg { color: #60a5fa; }
 
 /* ── Keyframes ───────────────────────────────────────── */
 @keyframes dash-float    { 50% { transform: translateY(-5px) scale(1.02); } }
