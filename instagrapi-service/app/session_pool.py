@@ -14,11 +14,13 @@ SECURITY GUARANTEES:
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import queue
 import threading
 import time
+import uuid as _uuid
 from typing import Dict, Optional
 
 # ── Instagrapi exceptions — imported at module level (fail fast) ──────────────
@@ -164,11 +166,45 @@ def _patch_client_fail_fast(client: Client) -> None:
     client.pre_login_flow = _fail_fast_pre_login_flow
 
 
+def _device_uuids(account_id: str) -> dict:
+    """
+    Identidade de aparelho derivada do account_id — estável entre tentativas e
+    entre restarts do serviço.
+
+    O instagrapi gera esses valores aleatoriamente em cada Client():
+    generate_uuid() é uuid4() e generate_android_device_id() é
+    sha256(time())[:16]. Como um login falho remove a entrada do pool, cada
+    retentativa criava um client novo — e, para o Instagram, a mesma conta
+    tentando entrar de um APARELHO DIFERENTE a cada tentativa. Esse é o padrão de
+    conta invadida, e a resposta dele é justamente "we can send you an email to
+    help you get back into your account".
+
+    Ficam estáveis apenas os ids que representam o aparelho. client_session_id,
+    request_id e tray_session_id são omitidos de propósito: num app real eles
+    rotacionam por sessão, e set_uuids() gera novos quando ausentes.
+
+    Sessão já salva continua mandando — set_settings() sobrescreve estes valores.
+    """
+    def _as_uuid(tag: str) -> str:
+        digest = hashlib.sha256(f"{account_id}:{tag}".encode()).hexdigest()
+        return str(_uuid.UUID(digest[:32]))
+
+    return {
+        "phone_id":          _as_uuid("phone_id"),
+        "uuid":              _as_uuid("uuid"),
+        "advertising_id":    _as_uuid("advertising_id"),
+        "android_device_id": "android-" + hashlib.sha256(
+            f"{account_id}:android_device_id".encode()
+        ).hexdigest()[:16],
+    }
+
+
 async def get_entry(account_id: str) -> dict:
     """Get or create a pool entry for this account (creates isolated Client + Lock)."""
     async with _pool_lock:
         if account_id not in _pool:
             client = Client()
+            client.set_uuids(_device_uuids(account_id))
             _patch_client_retries(client)
             _patch_client_fail_fast(client)
             _pool[account_id] = {
