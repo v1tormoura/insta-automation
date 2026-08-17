@@ -56,6 +56,19 @@ router.post('/test', async (req, res) => {
 
     const result = await testProxy(url);
 
+    // Segunda medição: o login do Instagram são 4 requisições em sequência
+    // (launcher/sync → accounts/login/ → two_factor_login → login_flow). Se o
+    // proxy troca de IP entre elas, o Instagram vê a sessão nascendo espalhada
+    // e recusa o login mesmo com credencial correta. Medir duas vezes revela
+    // isso de forma objetiva, em vez de deixar como suspeita.
+    let rotating = false;
+    let ipSegundo = '';
+    if (result.ok) {
+      const segundo = await testProxy(url);
+      ipSegundo = segundo.ip || '';
+      rotating = !!(segundo.ok && ipSegundo && ipSegundo !== result.ip);
+    }
+
     if (cfg.ativo && normalizeProxy(cfg.url) === url) {
       await saveGlobalProxyConfig({
         ip:        result.ip,
@@ -71,6 +84,8 @@ router.post('/test', async (req, res) => {
     res.json({
       ok:        true,
       ip:        result.ip,
+      ip2:       ipSegundo,
+      rotating,
       latencyMs: result.latencyMs,
       proxy_url: url,
     });

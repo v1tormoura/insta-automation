@@ -138,8 +138,16 @@ export default function Accounts() {
     setProxyStatus(s => ({ ...s, testando: true, erro: null }));
     try {
       const { data } = await api.post('/proxy/test', { proxy_url: proxyUrl.trim() });
-      setProxyStatus(s => ({ ...s, ip: data.ip, ok: true, erro: null, lastCheck: new Date().toISOString() }));
-      showToast('success', 'Proxy OK', `IP de saída: ${data.ip} (${data.latencyMs} ms)`);
+      setProxyStatus(s => ({
+        ...s,
+        ip: data.ip, ok: true, erro: null, rotating: !!data.rotating, ip2: data.ip2 || null,
+        lastCheck: new Date().toISOString(),
+      }));
+      if (data.rotating) {
+        showToast('warning', 'Proxy rotativa', `IP mudou entre duas medições: ${data.ip} → ${data.ip2}`);
+      } else {
+        showToast('success', 'Proxy OK', `IP de saída: ${data.ip} (${data.latencyMs} ms)`);
+      }
     } catch (err) {
       const msg = err.response?.data?.error || err.message;
       setProxyStatus(s => ({ ...s, ok: false, erro: msg }));
@@ -937,6 +945,17 @@ export default function Accounts() {
               </button>
             )}
           </div>
+
+          {proxyStatus.rotating && (
+            <div style={{ marginTop:10, padding:'9px 12px', borderRadius:9, fontSize:11, lineHeight:1.6,
+              background:'rgba(245,158,11,.09)', border:'1px solid rgba(245,158,11,.3)', color:'#fbbf24' }}>
+              <strong>Proxy rotativa detectada</strong> — o IP mudou entre duas medições
+              {proxyStatus.ip2 ? <> (<span style={{fontFamily:'var(--font-mono)'}}>{proxyStatus.ip} → {proxyStatus.ip2}</span>)</> : null}.
+              O login do Instagram são 4 requisições em sequência; se cada uma sai de um IP
+              diferente, ele recusa mesmo com a senha certa. Peça ao seu provedor uma
+              <strong> sticky session</strong> (IP fixo por 10–30 min) para conectar contas.
+            </div>
+          )}
 
           {(proxyStatus.ativo || proxyStatus.erro) && (
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:10,
