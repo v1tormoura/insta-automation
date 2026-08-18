@@ -3,7 +3,7 @@
 const router  = require('express').Router();
 const multer  = require('multer');
 const Account = require('../models/Account');
-const { editProfile, bulkEditProfiles } = require('../services/profileEditService');
+const { editProfile, bulkEditProfiles, avaliarRiscoPerfil } = require('../services/profileEditService');
 const { broadcast } = require('../events/broadcaster');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -74,7 +74,33 @@ router.post('/:id', upload.single('photo'), async (req, res) => {
     return res.status(400).json({ error: 'Conta sem sessão — importe cookies via 🍪 ou configure senha' });
   }
 
+  // Checagens ANTES de disparar o job: o processamento e em segundo plano, e
+  // sem isto o usuario so saberia do risco depois da alteracao ja ter sido feita.
+  const confirmarRisco = req.body.confirmarRisco === 'true' || req.body.confirmarRisco === true;
+
+  const EDIT_COOLDOWN_MS = 30 * 60 * 1000;
+  const ultima = account.lastProfileEditAt ? new Date(account.lastProfileEditAt).getTime() : 0;
+  if (ultima && Date.now() - ultima < EDIT_COOLDOWN_MS) {
+    const faltam = Math.ceil((EDIT_COOLDOWN_MS - (Date.now() - ultima)) / 60000);
+    return res.status(429).json({
+      code:  'PROFILE_EDIT_COOLDOWN',
+      error: `Perfil editado ha pouco. Aguarde ${faltam} min — alteracoes seguidas fazem o Instagram sinalizar a conta.`,
+    });
+  }
+
+  if (temInstagrapi && !confirmarRisco) {
+    const risco = avaliarRiscoPerfil(account, { externalUrl: req.body.externalUrl });
+    if (risco.alto) {
+      return res.status(409).json({
+        code:    'PROFILE_EDIT_RISK',
+        motivos: risco.motivos,
+        error:   'Alto risco de banimento — confirme para prosseguir.',
+      });
+    }
+  }
+
   const body = {
+    confirmarRisco,
     fullName:         req.body.fullName,
     biography:        req.body.biography,
     // Link da bio — só o caminho instagrapi consegue alterar (account_edit

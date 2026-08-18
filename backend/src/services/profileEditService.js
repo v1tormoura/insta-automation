@@ -160,14 +160,82 @@ async function _editViaWebApi(account, { fullName, biography, gender, customGend
   return results;
 }
 
+// Intervalo mínimo entre edições de perfil da mesma conta. Alterar perfil várias
+// vezes seguidas é um dos padrões que o Instagram mais penaliza.
+const EDIT_COOLDOWN_MS = 30 * 60 * 1000;
+
+/**
+ * Avalia o risco de banimento antes de tocar no perfil.
+ *
+ * O sinal mais forte é link externo em conta nova e vazia: é a assinatura
+ * clássica de spam, e o Instagram costuma derrubar a conta em vez de só recusar
+ * a edição. Como o dano é irreversível, esta checagem existe para exigir
+ * confirmação consciente — não para impedir quem sabe o que está fazendo.
+ */
+function avaliarRiscoPerfil(account, { externalUrl }) {
+  const posts      = Number(account.postsCount || 0);
+  const seguidores = Number(account.followers  || 0);
+  const idadeHoras = account.createdAt
+    ? (Date.now() - new Date(account.createdAt).getTime()) / 3_600_000
+    : 999;
+
+  const motivos = [];
+  if (posts === 0)        motivos.push('conta sem publicações');
+  if (seguidores < 10)    motivos.push('menos de 10 seguidores');
+  if (idadeHoras < 24)    motivos.push('conta cadastrada há menos de 24h');
+  if (externalUrl)        motivos.push('inclui link externo na bio');
+
+  // Link externo numa conta nova/vazia é o cenário que derruba conta.
+  const alto = !!externalUrl && (posts === 0 || seguidores < 10 || idadeHoras < 24);
+  return { alto, motivos };
+}
+
+/** Pausa aleatória — escrever tudo no mesmo instante é assinatura de automação. */
+const _pausaHumana = () => new Promise(r => setTimeout(r, 8000 + Math.random() * 12000));
+
 /**
  * Edita o perfil pela sessão instagrapi.
  *
  * Diferente dos caminhos antigos, aceita o link da bio (external_url) e não
  * precisa da senha nem de navegador. A foto vai num arquivo temporário porque o
  * serviço Python publica a partir do disco.
+ *
+ * Proteções contra banimento:
+ *  - trava de 30 min entre edições da mesma conta;
+ *  - pausa entre a edição de texto e a troca de foto, para não escrever tudo de
+ *    uma vez como só um robô faria;
+ *  - bloqueio de edição de alto risco sem confirmação explícita.
  */
-async function _editViaInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer }) {
+async function _editViaInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer, confirmarRisco }) {
+  // ── Trava temporal ────────────────────────────────────────────────────────
+  const ultima = account.lastProfileEditAt ? new Date(account.lastProfileEditAt).getTime() : 0;
+  const decorrido = Date.now() - ultima;
+  if (ultima && decorrido < EDIT_COOLDOWN_MS) {
+    const faltam = Math.ceil((EDIT_COOLDOWN_MS - decorrido) / 60000);
+    const err = new Error(
+      `Perfil editado há pouco. Aguarde ${faltam} min — alterações seguidas fazem o Instagram sinalizar a conta.`
+    );
+    err.code = 'PROFILE_EDIT_COOLDOWN';
+    throw err;
+  }
+
+  // ── Risco de banimento ────────────────────────────────────────────────────
+  const risco = avaliarRiscoPerfil(account, { externalUrl });
+  if (risco.alto && !confirmarRisco) {
+    const err = new Error(
+      `Alto risco de banimento: ${risco.motivos.join(', ')}. ` +
+      'Link externo em conta nova e sem publicações é o padrão que o Instagram mais pune. ' +
+      'Publique conteúdo e deixe a conta amadurecer antes, ou confirme para prosseguir mesmo assim.'
+    );
+    err.code    = 'PROFILE_EDIT_RISK';
+    err.motivos = risco.motivos;
+    throw err;
+  }
+
+  return _aplicarEdicaoInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer });
+}
+
+async function _aplicarEdicaoInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer }) {
   const { getProvider } = require('../providers/ProviderFactory');
   const provider = getProvider(account);
   const alterados = [];
@@ -188,6 +256,10 @@ async function _editViaInstagrapi(account, { fullName, biography, externalUrl, g
   }
 
   if (picBuffer) {
+    // Pausa antes da segunda escrita: texto e foto no mesmo instante é padrão
+    // que nenhum usuário real produz.
+    if (alterados.length) await _pausaHumana();
+
     const tmpDir = path.resolve(__dirname, '../../uploads/tmp');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     const nome = `avatar_${account._id}_${Date.now()}.jpg`;
@@ -196,18 +268,16 @@ async function _editViaInstagrapi(account, { fullName, biography, externalUrl, g
     alterados.push('profilePic');
   }
 
-  const dbUpdate = {};
+  const dbUpdate = { lastProfileEditAt: new Date() };
   if (biography !== undefined && biography !== null) dbUpdate.bio  = biography;
   if (fullName  !== undefined && fullName  !== null) dbUpdate.name = fullName;
-  if (Object.keys(dbUpdate).length) {
-    await Account.findByIdAndUpdate(account._id, dbUpdate).catch(() => {});
-  }
+  await Account.findByIdAndUpdate(account._id, dbUpdate).catch(() => {});
 
   console.log(`[EditProfile] @${account.username} — instagrapi (${alterados.join(', ') || 'nada'})`);
   return { method: 'instagrapi', changed: alterados, profile: perfil };
 }
 
-async function editProfile(account, { fullName, biography, gender, profilePicUrl, profilePicBuffer, customGender, externalUrl }, _retried = false) {
+async function editProfile(account, { fullName, biography, gender, profilePicUrl, profilePicBuffer, customGender, externalUrl, confirmarRisco }, _retried = false) {
   let picBuffer = profilePicBuffer || null;
   if (!picBuffer && profilePicUrl) {
     const res = await fetch(profilePicUrl);
@@ -219,7 +289,7 @@ async function editProfile(account, { fullName, biography, gender, profilePicUrl
   // alterar o link da bio (account_edit aceita external_url); os caminhos antigos
   // apenas preservavam o link existente.
   if (account.provider === 'instagrapi' || account.instagrapiSession) {
-    return _editViaInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer });
+    return _editViaInstagrapi(account, { fullName, biography, externalUrl, gender, picBuffer, confirmarRisco });
   }
 
   // rawWebSessionid presente → fetch server-side direto (igual ao import-session que funciona)
@@ -387,4 +457,4 @@ async function bulkEditProfiles(edits, { delayBetween = 5000, jobId } = {}) {
   return results;
 }
 
-module.exports = { editProfile, bulkEditProfiles };
+module.exports = { avaliarRiscoPerfil, editProfile, bulkEditProfiles };

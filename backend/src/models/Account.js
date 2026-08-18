@@ -66,6 +66,13 @@ const accountSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Última edição de perfil aplicada. Serve de trava: alterações de perfil em
+    // sequência são um dos padrões que o Instagram mais penaliza.
+    lastProfileEditAt: {
+      type: Date,
+      default: null,
+    },
+
     lastSync: {
       type: Date,
       default: null,

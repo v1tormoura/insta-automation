@@ -72,6 +72,7 @@ export default function Accounts() {
   const [perfilSalvando, setPerfilSalvando] = useState(false);
   const [perfilErro,     setPerfilErro]     = useState('');
   const [perfilPreview,  setPerfilPreview]  = useState(null); // objectURL da foto escolhida
+  const [perfilRisco,    setPerfilRisco]    = useState(null); // motivos do alto risco, quando bloqueado
   const [proxyValue,     setProxyValue]     = useState('');
   const [savingProxy,    setSavingProxy]    = useState(false);
   const [bulkProxyOpen,  setBulkProxyOpen]  = useState(false);
@@ -359,6 +360,7 @@ export default function Accounts() {
   function openPerfilModal(account) {
     setPerfilModal(account);
     setPerfilErro('');
+    setPerfilRisco(null);
     if (perfilPreview) URL.revokeObjectURL(perfilPreview);
     setPerfilPreview(null);
     setPerfilForm({
@@ -382,10 +384,11 @@ export default function Accounts() {
     setPerfilModal(null);
   }
 
-  async function salvarPerfil() {
+  async function salvarPerfil(confirmarRisco = false) {
     if (!perfilModal) return;
     setPerfilSalvando(true);
     setPerfilErro('');
+    if (!confirmarRisco) setPerfilRisco(null);
     try {
       // multipart porque a foto vai no mesmo envio (campo `photo` na rota)
       const fd = new FormData();
@@ -394,6 +397,7 @@ export default function Accounts() {
       if (perfilForm.externalUrl !== '') fd.append('externalUrl', perfilForm.externalUrl);
       if (perfilForm.gender      !== '') fd.append('gender',      perfilForm.gender);
       if (perfilForm.foto)               fd.append('photo',       perfilForm.foto);
+      if (confirmarRisco)                fd.append('confirmarRisco', 'true');
 
       await api.post(`/profile-edit/${perfilModal._id}`, fd);
       // O resultado real chega pelo evento SSE 'profile_edit' — aqui só
@@ -401,7 +405,13 @@ export default function Accounts() {
       showToast('info', 'Enviado', `@${perfilModal.username} — aplicando no Instagram...`);
       fecharPerfilModal();
     } catch (err) {
-      setPerfilErro(err.response?.data?.error || err.message || 'Falha ao editar o perfil');
+      const dados = err.response?.data;
+      if (dados?.code === 'PROFILE_EDIT_RISK') {
+        // Não é falha: é bloqueio proposital, aguardando decisão consciente.
+        setPerfilRisco(dados.motivos || []);
+      } else {
+        setPerfilErro(dados?.error || err.message || 'Falha ao editar o perfil');
+      }
     } finally {
       setPerfilSalvando(false);
     }
@@ -1690,9 +1700,31 @@ export default function Accounts() {
                 </div>
               )}
 
+              {/* Bloqueio consciente: link externo em conta nova é o padrão que
+                  o Instagram mais pune, e o dano (banimento) é irreversível. */}
+              {perfilRisco && (
+                <div style={{ fontSize:11, lineHeight:1.6, marginBottom:10, padding:'11px 13px', borderRadius:9,
+                  background:'rgba(245,158,11,.09)', border:'1px solid rgba(245,158,11,.35)', color:'#fbbf24' }}>
+                  <strong style={{ display:'block', fontSize:12, marginBottom:5 }}>Alto risco de banimento</strong>
+                  <div style={{ marginBottom:6 }}>
+                    {perfilRisco.map((m, i) => <div key={i}>· {m}</div>)}
+                  </div>
+                  <div style={{ opacity:.9 }}>
+                    Link externo em conta nova e sem publicações é o padrão que o Instagram
+                    mais pune — normalmente com banimento, não com recusa da edição.
+                    O recomendado é publicar conteúdo e deixar a conta amadurecer alguns dias antes.
+                  </div>
+                  <button onClick={() => salvarPerfil(true)} disabled={perfilSalvando}
+                    style={{ marginTop:9, padding:'7px 12px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer',
+                      background:'rgba(244,63,94,.14)', color:'#f87171', border:'1px solid rgba(244,63,94,.35)' }}>
+                    Entendo o risco — aplicar mesmo assim
+                  </button>
+                </div>
+              )}
+
               <div className="modal-actions">
                 <button className="btn btn-ghost" onClick={fecharPerfilModal} disabled={perfilSalvando}>Cancelar</button>
-                <button className="btn btn-primary" onClick={salvarPerfil} disabled={perfilSalvando}
+                <button className="btn btn-primary" onClick={() => salvarPerfil(false)} disabled={perfilSalvando}
                   style={{ background:'rgba(139,92,246,.85)', borderColor:'rgba(139,92,246,.5)' }}>
                   {perfilSalvando ? 'Enviando...' : 'Salvar alterações'}
                 </button>
