@@ -116,17 +116,47 @@ _PENDING_2FA_TTL = 600
 _pending_2fa: Dict[str, dict] = {}
 
 
+def _build_retry():
+    """
+    Política de retentativa que separa falha de TRANSPORTE de resposta do Instagram.
+
+    Antes era total=0 — nenhuma retentativa — para não amplificar rate limit: um
+    clique de login virava 3-4 requisições e acelerava o bloqueio. A intenção
+    estava certa, mas o efeito colateral era grave: qualquer falha momentânea de
+    rede matava o login inteiro. Com proxy, isso é comum — o túnel TLS cai e o
+    erro chega como "UNEXPECTED_EOF_WHILE_READING" já no launcher/sync.
+
+    A separação:
+      connect > 0  → repete quando a conexão/TLS falha. A requisição não chegou ao
+                     servidor, então repetir é seguro e não gera ação duplicada.
+      read = 0     → NÃO repete depois de enviar. Um POST já entregue pode ter sido
+                     processado; repetir arriscaria publicar ou logar duas vezes.
+      status = 0   → NÃO repete por código HTTP. 429 continua falhando de imediato,
+                     preservando a proteção original contra rate limit.
+
+    allowed_methods=None é necessário porque urllib3 só repete métodos idempotentes
+    por padrão — e o login é POST.
+    """
+    comum = dict(total=2, connect=2, read=0, status=0, status_forcelist=[], backoff_factor=1.5)
+    try:
+        return _Retry(allowed_methods=None, **comum)
+    except TypeError:
+        # urllib3 < 1.26 usa o nome antigo
+        try:
+            return _Retry(method_whitelist=None, **comum)
+        except TypeError:
+            return _Retry(total=0)  # última reserva: comportamento anterior
+
+
 def _patch_client_retries(client: Client) -> None:
     """
-    Disable urllib3's automatic HTTP retry on the instagrapi private session.
+    Ajusta a política de retentativa da sessão privada do instagrapi.
 
-    By default instagrapi/urllib3 may retry on 429 responses, turning one login
-    click into 3-4 Instagram requests and accelerating the rate-limit window.
-    Setting total=0 makes every 429 raise immediately so classify_error() handles
-    it as RATE_LIMITED without amplifying requests to Instagram.
+    Ver _build_retry() para o racional: repete falha de conexão, nunca repete por
+    status HTTP (429 falha na hora) e nunca repete um POST já entregue.
 
-    Compatibility: works with urllib3 1.x and 2.x — avoids raise_on_status which
-    has different semantics across minor versions and is not needed with total=0.
+    Compatível com urllib3 1.x e 2.x — evita raise_on_status, cuja semântica muda
+    entre versões menores.
     """
     if not _HAS_REQUESTS_RETRY:
         return
@@ -134,7 +164,7 @@ def _patch_client_retries(client: Client) -> None:
     if private is None or not hasattr(private, 'mount'):
         return  # httpx-based client (future instagrapi versions) — no-op
     adapter_cls = _LoggingHTTPAdapter if _LoggingHTTPAdapter is not None else _HTTPAdapter
-    adapter = adapter_cls(max_retries=_Retry(total=0))
+    adapter = adapter_cls(max_retries=_build_retry())
     private.mount('https://', adapter)
     private.mount('http://', adapter)
 
