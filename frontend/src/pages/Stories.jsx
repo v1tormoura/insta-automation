@@ -377,7 +377,7 @@ export default function Stories() {
                   </div>
                   <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'oklch(0.10 0.03 235)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 7 }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker (ex: Ver oferta)"
+                    <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker — só contas OAuth"
                       maxLength={35}
                       style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 11 }} />
                     <span style={{ fontSize: 10, color: 'var(--text3)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>{linkLabel.length}/35</span>
@@ -387,39 +387,64 @@ export default function Stories() {
                       Clique no preview define onde a figurinha fica. As
                       coordenadas são normalizadas (0..1) e x/y é o centro do
                       sticker — mesmo sistema que o Instagram usa. */}
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                  <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
                     <div
                       onClick={posicionarSticker}
                       title="Clique para posicionar a figurinha"
                       style={{
-                        position: 'relative', width: 104, flexShrink: 0, aspectRatio: '9 / 16',
-                        borderRadius: 8, overflow: 'hidden', cursor: 'crosshair',
-                        border: '1px solid oklch(1 0 0 / 0.12)',
-                        background: selectedMedia[0]?.url
-                          ? `center/cover no-repeat url(${selectedMedia[0].url})`
-                          : 'linear-gradient(160deg, oklch(0.22 0.05 260), oklch(0.14 0.04 235))',
+                        position: 'relative', width: 186, flexShrink: 0, aspectRatio: '9 / 16',
+                        borderRadius: 10, overflow: 'hidden', cursor: 'crosshair',
+                        border: '1px solid oklch(1 0 0 / 0.14)',
+                        background: 'linear-gradient(160deg, oklch(0.20 0.05 260), oklch(0.12 0.04 235))',
                       }}
                     >
-                      {/* grade discreta de terços, ajuda a mirar */}
+                      {/* A mídia entra como <img> com object-fit: cover — mesmo
+                          enquadramento que o Instagram aplica no story 9:16. */}
+                      {selectedMedia[0]?.url && (
+                        /\.(mp4|mov|webm|m4v)(\?|$)/i.test(selectedMedia[0].url)
+                          ? <video src={selectedMedia[0].url} muted playsInline
+                              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                          : <img src={selectedMedia[0].url} alt=""
+                              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                      )}
+
+                      {!selectedMedia.length && (
+                        <div style={{ position:'absolute', inset:0, display:'grid', placeItems:'center',
+                          fontSize:10, color:'var(--text3)', textAlign:'center', padding:'0 14px', lineHeight:1.5 }}>
+                          Selecione uma mídia para ver o enquadramento real
+                        </div>
+                      )}
+
+                      {/* grade de terços — ajuda a mirar */}
                       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
                         background:
-                          'linear-gradient(to bottom, transparent 33.3%, oklch(1 0 0 / .10) 33.3%, oklch(1 0 0 / .10) 33.5%, transparent 33.5%,' +
-                          ' transparent 66.6%, oklch(1 0 0 / .10) 66.6%, oklch(1 0 0 / .10) 66.8%, transparent 66.8%)' }} />
-                      <span style={{
+                          'linear-gradient(to bottom, transparent 33.3%, oklch(1 0 0 / .12) 33.3%, oklch(1 0 0 / .12) 33.5%, transparent 33.5%,' +
+                          ' transparent 66.6%, oklch(1 0 0 / .12) 66.6%, oklch(1 0 0 / .12) 66.8%, transparent 66.8%)' }} />
+
+                      {/* Sticker no tamanho REAL: 51% da largura e 25.9% da altura
+                          são os padrões do StoryLink, então o que você vê aqui é o
+                          espaço que ele vai ocupar de verdade no story. */}
+                      <div style={{
                         position: 'absolute',
                         left: `${linkPos.x * 100}%`, top: `${linkPos.y * 100}%`,
+                        width: '51%', height: '25.9%',
                         transform: 'translate(-50%, -50%)',
-                        maxWidth: '90%', padding: '3px 7px', borderRadius: 6,
-                        background: 'oklch(1 0 0 / 0.92)', color: '#0b1220',
-                        fontSize: 8, fontWeight: 800, letterSpacing: '.02em',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        boxShadow: '0 2px 8px oklch(0 0 0 / .45)', pointerEvents: 'none',
+                        display: 'grid', placeItems: 'center', pointerEvents: 'none',
+                        border: '1px dashed oklch(1 0 0 / 0.35)', borderRadius: 8,
                       }}>
-                        🔗 {linkLabel.trim() || 'Ver mais'}
-                      </span>
+                        <span style={{
+                          maxWidth: '96%', padding: '4px 9px', borderRadius: 7,
+                          background: 'oklch(0.28 0.02 260 / 0.92)', color: '#fff',
+                          fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap',
+                          overflow: 'hidden', textOverflow: 'ellipsis',
+                          boxShadow: '0 2px 10px oklch(0 0 0 / .5)',
+                        }}>
+                          Acessar link ›
+                        </span>
+                      </div>
                     </div>
 
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 7 }}>
                       <div style={{ fontSize: 10, color: 'var(--text3)' }}>Posição da figurinha</div>
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {PRESETS_STICKER.map(p => {
@@ -438,7 +463,12 @@ export default function Stories() {
                         x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.5 }}>
-                        Clique no preview para posicionar livremente.
+                        Clique no preview para posicionar. O retângulo tracejado é o
+                        espaço real que a figurinha ocupa.
+                      </div>
+                      <div style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1.5, marginTop: 2 }}>
+                        O texto do sticker é sempre <strong>"Acessar link"</strong> — o
+                        Instagram não permite personalizá-lo pela API Mobile.
                       </div>
                     </div>
                   </div>
