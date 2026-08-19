@@ -5,6 +5,7 @@ WORKDIR /app
 # System deps needed by some instagrapi dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
+    tzdata \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 

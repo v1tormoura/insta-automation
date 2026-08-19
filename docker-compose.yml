@@ -21,6 +21,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # Fuso do agendamento: janela, weekdays e proximo horario sao
+      # calculados em horario local. Sem isto o container roda em UTC e a
+      # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
+      TZ: America/Sao_Paulo
       MONGO_URI: mongodb://mongo:27017/insta-automation
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -46,6 +50,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # Fuso do agendamento: janela, weekdays e proximo horario sao
+      # calculados em horario local. Sem isto o container roda em UTC e a
+      # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
+      TZ: America/Sao_Paulo
       MONGO_URI: mongodb://mongo:27017/insta-automation
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -89,6 +97,10 @@ services:
     build: ./instagrapi-service
     restart: unless-stopped
     environment:
+      # Fuso do agendamento: janela, weekdays e proximo horario sao
+      # calculados em horario local. Sem isto o container roda em UTC e a
+      # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
+      TZ: America/Sao_Paulo
       PYTHONUNBUFFERED: "1"
       # Build do app Instagram usada no payload de login. Vazio = padrão da
       # biblioteca. Aceita apenas valores de config.APP_SETTINGS — hoje
