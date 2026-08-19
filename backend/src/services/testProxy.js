@@ -1,5 +1,18 @@
 const https = require('https');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+
+/**
+ * Carrega HttpsProxyAgent sob demanda.
+ *
+ * O pacote é ESM e, exigido no topo do módulo, quebra qualquer suíte Jest que
+ * importe este arquivo indiretamente — hoje a cadeia é
+ * ProviderFactory → InstagrapiHttpClient → globalProxy → testProxy.
+ * O require preguiçoso mantém o comportamento idêntico em produção (o agente é
+ * criado exatamente quando um proxy vai ser usado) sem arrastar o pacote para o
+ * carregamento de quem só precisa de normalizeProxy.
+ */
+function _carregarProxyAgent() {
+  return require('https-proxy-agent').HttpsProxyAgent;
+}
 
 const IP_ENDPOINT  = 'https://api.ipify.org?format=json';
 const TEST_TIMEOUT = 15_000; // ms
@@ -31,6 +44,7 @@ async function testProxy(proxy) {
 
   let agent;
   try {
+    const HttpsProxyAgent = _carregarProxyAgent();
     agent = new HttpsProxyAgent(url);
   } catch (err) {
     return { ok: false, ip: '', error: `URL de proxy inválida: ${err.message}`, latencyMs: 0 };

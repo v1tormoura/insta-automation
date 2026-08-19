@@ -21,6 +21,11 @@ jest.mock('../src/services/instagrapi/SessionManager', () => ({
 
 const mockHttp = {
   ensureSession: jest.fn(),
+  // O keep-alive passou a fazer um ping leve depois de carregar a sessao:
+  // ensureSession apenas popula o pool do servico Python, sem falar com o
+  // Instagram. Sem o ping o blob salvo nunca recebia os cookies/tokens que o
+  // Instagram rotaciona, e a sessao envelhecia parada.
+  pingSession:   jest.fn(),
   login:         jest.fn(), // must never be called by keepAlive
 };
 
@@ -73,13 +78,14 @@ describe('_keepAliveInstagrapi: sessão válida', () => {
     mockSm.validate.mockResolvedValue({ valid: true, status: 'VALID', reason: '' });
     mockSm.acquireLock.mockResolvedValue(LOCK_TOKEN);
     mockHttp.ensureSession.mockResolvedValue(undefined);
+    mockHttp.pingSession.mockResolvedValue({ valid: true });
 
     const result = await _keepAliveInstagrapi(ACCOUNT);
 
     expect(result.status).toBe('ok');
     expect(mockHttp.ensureSession).toHaveBeenCalledTimes(1);
+    expect(mockHttp.pingSession).toHaveBeenCalledTimes(1); // mantem a sessao viva
     expect(mockHttp.login).not.toHaveBeenCalled();       // NUNCA pede senha
-    expect(mockSm.recordSuccess).not.toHaveBeenCalled(); // keepAlive não pinga Instagram
     expect(Account.findByIdAndUpdate).toHaveBeenCalledWith(
       'acc1',
       expect.objectContaining({ lastSessionKeepAlive: expect.any(Date) })

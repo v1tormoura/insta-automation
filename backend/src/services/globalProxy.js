@@ -36,6 +36,16 @@ function _fromEnv() {
 async function getGlobalProxyConfig() {
   if (_cache && Date.now() - _cacheAt < CACHE_TTL) return _cache;
 
+  // Sem conexão ativa o Mongoose ENFILEIRA a query em vez de falhar, e só
+  // desiste após bufferTimeoutMS (10s por padrão). Como esta função está no
+  // caminho de todo login e publicação, isso significaria travar cada operação
+  // por 10s durante uma instabilidade do Mongo. Aqui a ausência de conexão é
+  // tratada como "sem configuração": cai no cache ou na variável de ambiente.
+  const mongoose = require('mongoose');
+  if (mongoose.connection?.readyState !== 1) {
+    return _cache || _fromEnv();
+  }
+
   let doc = null;
   try {
     doc = await Setting.findOne({ key: KEY }).lean();
