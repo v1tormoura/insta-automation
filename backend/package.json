@@ -7,7 +7,7 @@
     "start": "concurrently \"node src/app.js\" \"node src/queue/worker.js\"",
     "server": "node src/app.js",
     "worker": "node src/queue/worker.js",
-    "test": "jest --testPathPattern=tests/"
+    "test": "jest"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
