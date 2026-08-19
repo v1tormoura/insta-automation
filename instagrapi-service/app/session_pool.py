@@ -423,7 +423,35 @@ except ImportError:  # pragma: no cover — depende da versão do instagrapi
     BLOKS_REDIRECT_ACTION = "com.bloks.www.ig.challenge.redirect.async"
 
 
-def detect_challenge_kind(client: Client) -> str:
+def payload_do_desafio(exc: Optional[Exception], client: Client) -> dict:
+    """
+    Corpo da resposta que originou o desafio.
+
+    A fonte primária é a EXCEÇÃO: o instagrapi levanta ChallengeRequired(**last_json),
+    então ela carrega os campos do instante exato da falha. Ler client.last_json é
+    reserva, porque esse estado é sobrescrito pela requisição seguinte — e entre a
+    falha do login e o clique do usuário passam minutos, tempo de sobra para o
+    health check pingar a conta e apagar o contexto do desafio.
+    """
+    campos = ("bloks_action", "challenge_context", "challenge", "status", "message",
+              "step_name", "step_data", "user_id", "nonce_code", "flow_render_type")
+
+    payload = {}
+    if exc is not None:
+        for campo in campos:
+            if hasattr(exc, campo):
+                payload[campo] = getattr(exc, campo)
+
+    if not payload.get("bloks_action"):
+        ultimo = getattr(client, "last_json", None)
+        if isinstance(ultimo, dict):
+            # Preserva o que já veio da exceção; completa com o do client.
+            payload = {**ultimo, **payload}
+
+    return payload
+
+
+def detect_challenge_kind(exc: Optional[Exception], client: Client) -> str:
     """
     Distingue os dois tipos de checkpoint do Instagram.
 
@@ -433,26 +461,32 @@ def detect_challenge_kind(client: Client) -> str:
                  no MESMO client para reconhecer o checkpoint.
     'code'     — contact form: o Instagram envia um código por e-mail ou SMS.
 
-    Confundir os dois deixa o usuário esperando um código que nunca chega.
+    Confundir os dois deixa o usuário esperando um código que nunca chega — foi
+    o que aconteceu enquanto a detecção lia client.last_json, já sobrescrito.
     """
-    last_json = getattr(client, "last_json", None) or {}
-    if last_json.get("bloks_action") == BLOKS_REDIRECT_ACTION and last_json.get("challenge_context"):
+    payload = payload_do_desafio(exc, client)
+    if payload.get("bloks_action") == BLOKS_REDIRECT_ACTION and payload.get("challenge_context"):
         return "approval"
     return "code"
 
 
-def store_pending_approval(account_id: str, client: Client, username: str) -> dict:
+def store_pending_approval(account_id: str, client: Client, username: str, payload: dict) -> dict:
     """
     Registra um checkpoint do tipo aprovação.
 
     Sem thread e sem fila: nada a aguardar aqui — o usuário aprova no app e só
-    então chamamos o dismiss. O client é preservado porque
-    challenge_bloks_redirect_dismiss() depende do last_json desta instância.
+    então chamamos o dismiss.
+
+    O `payload` é guardado porque challenge_bloks_redirect_dismiss() lê
+    self.last_json para achar bloks_action e challenge_context. Entre a falha e a
+    aprovação o client atende outras requisições (health check, ping) e esse
+    estado se perde; guardá-lo aqui permite restaurá-lo na hora do dismiss.
     """
     entry = {
         "kind":       "approval",
         "client":     client,
         "username":   username,
+        "payload":    payload or {},
         "expires_at": time.time() + _PENDING_CHALLENGE_TTL,
     }
     _pending_challenge[account_id] = entry
@@ -485,6 +519,18 @@ def dismiss_bloks_challenge(account_id: str) -> dict:
     client = entry["client"]
     if not hasattr(client, "challenge_bloks_redirect_dismiss"):
         return {"status": "UNSUPPORTED"}
+
+    # Restaura o contexto do desafio antes do dismiss: a biblioteca o procura em
+    # self.last_json, e qualquer requisição feita pelo client desde a falha
+    # (health check, ping, sync) já sobrescreveu esse estado. Sem isto o dismiss
+    # falha com "No pending Bloks redirect challenge context found" mesmo depois
+    # de o usuário ter aprovado corretamente no app.
+    payload = entry.get("payload") or {}
+    if payload.get("bloks_action") and payload.get("challenge_context"):
+        atual = getattr(client, "last_json", None)
+        if not (isinstance(atual, dict) and atual.get("challenge_context")):
+            client.last_json = dict(payload)
+            _slog("CHALLENGE_CONTEXT_RESTORED", account_id)
 
     try:
         ok = bool(client.challenge_bloks_redirect_dismiss())

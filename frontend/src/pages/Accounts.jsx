@@ -560,7 +560,15 @@ export default function Accounts() {
           challengeKind: r.data?.kind === 'approval' ? 'approval' : 'code',
           channel:       r.data?.channel || null,
           status:        'CHALLENGE_REQUIRED',
-          error:         '',
+          // Cair de novo no desafio logo após uma aprovação significa que o
+          // Instagram não registrou o "fui eu". Sem dizer isso, a tela parecia
+          // apenas "voltar sozinha" e o usuário repetia o ciclo às cegas.
+          // opts vem direto da chamada; não depende do tempo de atualização do
+          // estado do React, que poderia ainda não ter aplicado a marcação.
+          error: (opts.aprovacaoTentada || m.aprovacaoTentada)
+            ? 'O Instagram pediu verificação de novo — a aprovação anterior não foi registrada. Aprove no app e confirme aqui em seguida, sem demora.'
+            : '',
+          aprovacaoTentada: false,
         }));
         return;
       }
@@ -618,8 +626,10 @@ export default function Accounts() {
       setRateLimitExpiry(null);
       setCooldownSecs(0);
       try { localStorage.removeItem(`ig_rl_${uname}`); } catch {}
-      setInstaModal(m => ({ ...m, step: 'credentials', error: '', status: null }));
-      await connectInstagrapi({ ignorarCooldown: true });
+      // Marca a tentativa para que um novo desafio logo em seguida seja
+      // explicado, em vez de a tela simplesmente voltar sem motivo aparente.
+      setInstaModal(m => ({ ...m, step: 'credentials', error: '', status: null, aprovacaoTentada: true }));
+      await connectInstagrapi({ ignorarCooldown: true, aprovacaoTentada: true });
     } catch (err) {
       const errCode = err.response?.data?.code || '';
       const expirou = errCode === 'NO_PENDING_CHALLENGE' || errCode === 'CHALLENGE_FAILED';

@@ -129,14 +129,18 @@ async def login(body: LoginRequest):
         except ChallengeRequired as e:
             # Dois fluxos distintos, e tratar o errado deixa o usuário esperando
             # um código que nunca chega.
-            kind = session_pool.detect_challenge_kind(client)
+            # O payload vem da EXCEÇÃO, não de client.last_json: esse estado é
+            # sobrescrito pela requisição seguinte, e ler dali classificava
+            # desafio de aprovação como se fosse de código.
+            payload = session_pool.payload_do_desafio(e, client)
+            kind = session_pool.detect_challenge_kind(e, client)
             duration_ms = int((time.perf_counter() - t0) * 1000)
 
             if kind == "approval":
                 # Bloks redirect: o app oficial mostra "tentativa de login" e o
-                # usuário aprova ali. Nenhum código é enviado. Guardamos o client
-                # intacto — o dismiss depende do last_json desta instância.
-                session_pool.store_pending_approval(body.account_id, client, body.username)
+                # usuário aprova ali. Nenhum código é enviado. O client é mantido
+                # no pool e o payload guardado — o dismiss precisa dos dois.
+                session_pool.store_pending_approval(body.account_id, client, body.username, payload)
                 logger.info(
                     "login: CHALLENGE_REQUIRED (approval) for account %s duration_ms=%d",
                     body.account_id, duration_ms,
@@ -150,8 +154,8 @@ async def login(body: LoginRequest):
 
             # Contact form: o instagrapi escolhe o canal, dispara o código e fica
             # aguardando numa thread até /session/challenge-code entregar o valor.
-            last_json = getattr(client, "last_json", None) or {}
-            session_pool.start_challenge(body.account_id, client, last_json, body.username)
+            # Usa o payload da exceção pelo mesmo motivo da detecção acima.
+            session_pool.start_challenge(body.account_id, client, payload, body.username)
             # wait_challenge_target faz polling com sleep — precisa sair do event
             # loop, senão congela o serviço inteiro enquanto espera o canal.
             canal = await loop.run_in_executor(

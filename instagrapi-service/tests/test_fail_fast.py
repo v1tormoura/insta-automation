@@ -180,7 +180,9 @@ def test_get_entry_client_has_retry_zero_and_fail_fast():
 
         # Check retry patch
         adapter = client.private.get_adapter("https://i.instagram.com/")
-        retry_ok = adapter.max_retries.total == 0
+        # read=0/status=0 é a proteção real (ver _build_retry); total=0 era a
+        # política antiga, trocada na correção do login por TLS EOF.
+        retry_ok = adapter.max_retries.read == 0 and adapter.max_retries.status == 0
 
         # Check fail-fast patch
         fail_fast_ok = 'pre_login_flow' in client.__dict__
