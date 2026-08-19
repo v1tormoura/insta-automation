@@ -328,10 +328,28 @@ async function postReel(account, post, preProcessedVideoUrl = null) {
   return publishedId;
 }
 
+/**
+ * Comenta numa mídia ESPECÍFICA pela Graph API.
+ *
+ * O id vem da publicação que criou a mídia. Não há busca por "última mídia" —
+ * numa campanha com várias publicações da mesma conta, a última nem sempre é a
+ * pretendida, e o comentário sairia no post errado.
+ *
+ * @param {Object} account   precisa de accessToken
+ * @param {string} mediaId   id devolvido pela publicação
+ * @param {string} text      texto já resolvido pelo templateResolver
+ * @returns {Promise<string>} id do comentário criado
+ */
+async function commentOnMedia(account, mediaId, text) {
+  const d = await gPost(`/${mediaId}/comments`, {}, { message: text }, account.accessToken);
+  return d?.id || '';
+}
+
 module.exports = {
   exchangeToken,
   refreshToken,
   getIgUserId,
   prepareVideo,
   postReel,
+  commentOnMedia,
 };

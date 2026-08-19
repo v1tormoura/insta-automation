@@ -60,6 +60,22 @@ class InstagramProvider {
   }
 
   /**
+   * Posts a comment on a SPECIFIC media.
+   *
+   * `mediaId` is the identifier returned by the publish call that created the
+   * media. It is never resolved by looking up "the account's latest media" —
+   * with several publications from the same account, the latest one is not
+   * reliably the intended target.
+   *
+   * @param {Object} account
+   * @param {{mediaId: string, text: string}} data
+   * @returns {Promise<{commentId?: string, mediaId: string}>}
+   */
+  async comment(account, data) {
+    throw new Error(`${this.constructor.name}.comment() not implemented`);
+  }
+
+  /**
    * Edita o perfil: nome, bio e link da bio.
    * @param {Object} account
    * @param {{biography?: string, externalUrl?: string, fullName?: string}} fields

@@ -79,3 +79,13 @@ class PublishPostRequest(BaseModel):
     account_id: str
     media_path: str
     caption: str = ""
+
+
+class PublishCommentRequest(BaseModel):
+    account_id: str
+    # Aceita tanto o pk puro ("2277033926878261772") quanto a forma completa
+    # ("2277033926878261772_1903424587"). A forma completa é preferível: sem o
+    # "_", media_comment() precisa chamar media_user() e gasta uma requisição
+    # extra ao Instagram só para descobrir o dono da mídia.
+    media_id: str
+    text: str

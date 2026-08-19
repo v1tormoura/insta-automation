@@ -10,6 +10,11 @@ const TIMEOUT_MEDIA    = 180_000;  // ms — up to 3 min for video uploads
 // Publish lock TTL: longer than the media upload timeout so the lock never
 // expires while a valid upload is in progress.
 const LOCK_TTL_PUBLISH = 210_000;  // ms — 3.5 min
+// Comentar é uma requisição só, não um upload — não precisa do TTL do publish.
+// Um TTL curto também libera a conta mais cedo se o processo morrer no meio.
+const TIMEOUT_COMMENT  = 30_000;   // ms
+const LOCK_TTL_COMMENT = 45_000;   // ms — acima do timeout, para o lock nunca
+                                   // expirar com a requisição ainda em voo
 
 /**
  * HTTP client for the Docker-internal Python instagrapi service.
@@ -281,6 +286,35 @@ class InstagrapiHttpClient {
         caption:    postData.caption || '',
         cover_path: _toContainerPath(postData.cover) || null,
       }, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /**
+   * Comenta em uma mídia específica, identificada pelo id que a publicação
+   * devolveu.
+   *
+   * Usa o mesmo lock por conta do publish: comentário e publicação da mesma
+   * conta nunca rodam ao mesmo tempo. O TTL é o curto — comentar é uma
+   * requisição só, não um upload.
+   *
+   * O atraso configurado pelo usuário NÃO é esperado aqui: quem o representa é
+   * o `delay` do job no BullMQ, então o worker não fica preso.
+   *
+   * @param {Object} account
+   * @param {{mediaId: string, text: string}} dados
+   * @returns {Promise<{status: string, comment_id: string, media_id: string}>}
+   */
+  async comment(account, { mediaId, text }) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_COMMENT, async () => {
+      await this.ensureSession(account);
+      const result = await this._post('/publish/comment', {
+        account_id: accountId,
+        media_id:   String(mediaId || ''),
+        text:       String(text || ''),
+      }, TIMEOUT_COMMENT);
       if (result.settings) await this._sm.save(accountId, result.settings);
       return result;
     });

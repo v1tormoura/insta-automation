@@ -30,14 +30,20 @@ class OfficialAPIProvider extends InstagramProvider {
     return { valid: false, reason: 'Sem credenciais — conecte via Meta API ou importe cookies (🍪)' };
   }
 
+  /**
+   * @returns {Promise<{mediaId: string}>} id da mídia publicada quando a via
+   *          usada o expõe. A Graph API devolve o id no publish; a Private API
+   *          não o expõe de forma confiável e devolve string vazia.
+   */
   async publishReel(account, postData) {
     if (account.accessToken && account.igUserId) {
       const { postReel } = require('../services/instagramAPI');
-      await postReel(account, postData, null);
-    } else {
-      const { postReel } = require('../services/instagramPrivateService');
-      await postReel(account, postData);
+      const id = await postReel(account, postData, null);
+      return { mediaId: id ? String(id) : '' };
     }
+    const { postReel } = require('../services/instagramPrivateService');
+    await postReel(account, postData);
+    return { mediaId: '' };
   }
 
   async publishPost(account, postData) {
@@ -48,6 +54,32 @@ class OfficialAPIProvider extends InstagramProvider {
   async publishStory(account, storyData) {
     const { postStory } = require('../services/storyService');
     await postStory(account, storyData);
+  }
+
+  /**
+   * Comenta numa mídia específica pela Graph API.
+   *
+   * Recebe o media_id da publicação correspondente. A busca por "mídia mais
+   * recente da conta" que o fluxo de CTA usa não entra aqui: numa campanha, a
+   * mais recente frequentemente não é a que se quer comentar.
+   */
+  async comment(account, { mediaId, text }) {
+    if (!mediaId) {
+      throw Object.assign(
+        new Error('Comentário sem media_id da publicação'),
+        { code: 'COMMENT_MEDIA_NOT_FOUND' }
+      );
+    }
+    if (!account.accessToken) {
+      throw Object.assign(
+        new Error('Comentário exige conta conectada pela API oficial'),
+        { code: 'COMMENT_NOT_SUPPORTED' }
+      );
+    }
+
+    const { commentOnMedia } = require('../services/instagramAPI');
+    const id = await commentOnMedia(account, String(mediaId), String(text || ''));
+    return { commentId: id ? String(id) : '', mediaId: String(mediaId) };
   }
 
   async invalidateSession(accountId) {

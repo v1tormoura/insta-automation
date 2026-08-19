@@ -6,7 +6,12 @@ from fastapi import APIRouter, HTTPException
 
 from instagrapi.types import StoryLink
 
-from ..models import PublishReelRequest, PublishPostRequest, PublishStoryRequest
+from ..models import (
+    PublishReelRequest,
+    PublishPostRequest,
+    PublishStoryRequest,
+    PublishCommentRequest,
+)
 from .. import session_pool
 
 logger = logging.getLogger(__name__)
@@ -18,6 +23,24 @@ def _resolve_file(raw_path: str) -> Path:
     if not p.exists():
         raise HTTPException(status_code=422, detail=f"Arquivo de mídia não encontrado: {raw_path}")
     return p
+
+
+def _identificacao(media) -> dict:
+    """
+    Identificação da mídia publicada.
+
+    `media_id` continua sendo o pk puro — é o que os chamadores atuais leem, e
+    mudá-lo quebraria compatibilidade. `media_full_id` é a forma "pk_userid",
+    que é o que media_comment() precisa: recebendo só o pk, a biblioteca chama
+    media_user() para descobrir o dono e gasta uma requisição a mais.
+
+    `media_code` é o shortcode da URL pública, útil para o painel.
+    """
+    return {
+        "media_id":      str(media.pk),
+        "media_full_id": str(getattr(media, "id", "") or media.pk),
+        "media_code":    str(getattr(media, "code", "") or ""),
+    }
 
 
 @router.post("/reel")
@@ -54,7 +77,7 @@ async def publish_reel(body: PublishReelRequest):
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)})
         settings = client.get_settings()
 
-    return {"media_id": str(media.pk), "settings": settings}
+    return {**_identificacao(media), "settings": settings}
 
 
 _VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".webm"}
@@ -200,4 +223,82 @@ async def publish_post(body: PublishPostRequest):
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)})
         settings = client.get_settings()
 
-    return {"media_id": str(media.pk), "settings": settings}
+    return {**_identificacao(media), "settings": settings}
+
+
+@router.post("/comment")
+async def publish_comment(body: PublishCommentRequest):
+    """
+    Comenta em uma mídia específica.
+
+    A mídia é identificada pelo id que a própria publicação devolveu — nunca
+    por "a mais recente da conta". Com várias publicações da mesma conta numa
+    campanha, procurar a mais recente comentaria no post errado sempre que duas
+    saíssem próximas.
+
+    Usa o MESMO lock por conta do publish (entry["lock"]), então comentário e
+    publicação nunca disputam o mesmo Client. O atraso do comentário não é
+    esperado aqui: quem segura o tempo é o delay do job no BullMQ.
+
+    Método: Client.media_comment(media_id, text) — instagrapi 2.18.16.
+    Devolve { status, comment_id, media_id, settings }.
+    """
+    if not session_pool.is_loaded(body.account_id):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "SESSION_NOT_LOADED", "message": "Chame /session/load antes de comentar"},
+        )
+
+    texto = (body.text or "").strip()
+    if not texto:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "COMMENT_EMPTY", "message": "Texto do comentário vazio"},
+        )
+
+    media_id = (body.media_id or "").strip()
+    if not media_id:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "COMMENT_MEDIA_NOT_FOUND", "message": "media_id ausente"},
+        )
+
+    entry = await session_pool.get_entry(body.account_id)
+    async with entry["lock"]:
+        client = entry["client"]
+        try:
+            comment = client.media_comment(media_id, texto)
+        except Exception as e:
+            logger.exception("publish_comment: failed for account %s", body.account_id)
+            code = session_pool.classify_error(e)
+            # A mídia pode ter sido apagada entre publicar e comentar. Isso é um
+            # estado do conteúdo, não da sessão — separar evita que o painel
+            # mande reconectar uma conta que está perfeitamente saudável.
+            msg = str(e)
+            if code in ("UNKNOWN_ERROR", "BAD_REQUEST") and _midia_ausente(msg):
+                code = "COMMENT_MEDIA_NOT_FOUND"
+            raise HTTPException(status_code=422, detail={"code": code, "message": msg[:300]})
+        settings = client.get_settings()
+
+    session_pool._slog(
+        "COMMENT_PUBLISHED",
+        body.account_id,
+        media_id=media_id,
+        comment_id=str(getattr(comment, "pk", "") or ""),
+    )
+
+    return {
+        "status":     "COMMENT_PUBLISHED",
+        "comment_id": str(getattr(comment, "pk", "") or ""),
+        "media_id":   media_id,
+        "settings":   settings,
+    }
+
+
+def _midia_ausente(msg: str) -> bool:
+    """Reconhece a mídia apagada/indisponível a partir da mensagem do Instagram."""
+    m = msg.lower()
+    return any(x in m for x in (
+        "media not found", "media_not_found", "does not exist",
+        "unable to find", "invalid media_id", "media has been deleted",
+    ))

@@ -58,6 +58,24 @@ class InstagrapiProvider extends InstagramProvider {
     return this._http.publishStory(account, storyData);
   }
 
+  /**
+   * Comenta via serviço Python (Client.media_comment).
+   *
+   * O media_id vem da publicação correspondente — a mídia mais recente da conta
+   * nunca é consultada.
+   */
+  async comment(account, { mediaId, text }) {
+    if (!this._http) throw this._notReady('comment');
+    if (!mediaId) {
+      throw Object.assign(
+        new Error('Comentário sem media_id da publicação'),
+        { code: 'COMMENT_MEDIA_NOT_FOUND' }
+      );
+    }
+    const r = await this._http.comment(account, { mediaId, text });
+    return { commentId: r?.comment_id || '', mediaId: String(mediaId) };
+  }
+
   /** Edita nome, bio e link da bio (external_url) via account_edit. */
   async editProfile(account, fields) {
     if (!this._http) throw this._notReady('editProfile');
