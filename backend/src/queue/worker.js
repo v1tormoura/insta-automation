@@ -74,11 +74,20 @@ async function recoverStuckJobs() {
   }
 }
 
+// Campanhas: mesmo desenho do recoverStuckJobs — o plano vive no Mongo, então
+// jobs perdidos num restart do Redis são reenfileirados a partir dele.
+async function recoverCampaigns() {
+  const { recuperarCampanhas } = require('../jobs/campaignRecovery');
+  return recuperarCampanhas();
+}
+
 unlockStuck();
 recoverStuckPosts().catch(e => console.error('recoverStuckPosts:', e.message));
 recoverStuckJobs().catch(e => console.error('recoverStuckJobs:', e.message));
+recoverCampaigns().catch(e => console.error('recoverCampaigns:', e.message));
 setInterval(async () => { try { await unlockStuck(); } catch {} }, 60_000);
 setInterval(async () => { try { await recoverStuckJobs(); } catch (e) { console.error('recoverStuckJobs interval:', e.message); } }, 5 * 60_000);
+setInterval(async () => { try { await recoverCampaigns(); } catch (e) { console.error('recoverCampaigns interval:', e.message); } }, 5 * 60_000);
 
 // ── Helpers de conta ────────────────────────────────────────────────────────
 
@@ -145,14 +154,16 @@ async function publishViaInstagrapi(account, post) {
   while (true) {
     try {
       writeAccountLog(account.username, `Publicando via instagrapi (${postType})${attempt > 0 ? ` — tentativa ${attempt + 1}` : ''}...`);
-      if (postType === 'reel') {
-        await provider.publishReel(account, post);
-      } else {
-        await provider.publishPost(account, post);
-      }
+      const r = postType === 'reel'
+        ? await provider.publishReel(account, post)
+        : await provider.publishPost(account, post);
       await sm.recordSuccess(String(account._id));
       writeAccountLog(account.username, 'Publicado com sucesso via instagrapi');
-      return;
+      // Devolve o id da mídia recém-criada. A campanha o guarda para comentar
+      // exatamente nesta publicação, em vez de procurar a mais recente da conta.
+      // Prefere a forma "pk_userid": com o pk puro, media_comment() gasta uma
+      // requisição extra só para descobrir o dono da mídia.
+      return { mediaId: String(r?.media_full_id || r?.media_id || '') };
     } catch (igErr) {
       if (igErr.code === 'RATE_LIMITED' && attempt < _IG_RATE_MAX_RETRIES) {
         attempt++;
@@ -177,9 +188,9 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
   if (account.accessToken && account.igUserId) {
     writeAccountLog(account.username, 'Publicando via Graph API (Meta)...');
     try {
-      await postReelGraph(account, post, preProcessedVideoUrl || null);
+      const id = await postReelGraph(account, post, preProcessedVideoUrl || null);
       writeAccountLog(account.username, 'Publicado com sucesso via Graph API');
-      return true;
+      return { mediaId: id ? String(id) : '' };
     } catch (err) {
       writeAccountLog(account.username, `Graph API: ${err.message}`);
       if (!isGraphApiPublishLimit(err)) throw err;
@@ -200,7 +211,9 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
   try {
     await postReelPrivate(account, post);
     writeAccountLog(account.username, 'Publicado com sucesso via Private API');
-    return true;
+    // A Private API não expõe o id de forma confiável — sem id, a campanha
+    // marca o comentário como não suportado em vez de comentar no post errado.
+    return { mediaId: '' };
   } catch (err) {
     writeAccountLog(account.username, `Private API: ${err.message}`);
     throw err;
@@ -261,11 +274,12 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
   }
 
   try {
-    if (account.provider === 'instagrapi') {
-      await publishViaInstagrapi(account, post);
-    } else {
-      await publishWithRetry(post, account, preProcessedVideoUrl);
-    }
+    // `resultado` carrega o id da mídia publicada. Postar e Loop ignoram o
+    // retorno (usam Promise.allSettled e só olham fulfilled/rejected); a
+    // campanha o consome para amarrar o comentário à publicação certa.
+    const resultado = account.provider === 'instagrapi'
+      ? await publishViaInstagrapi(account, post)
+      : await publishWithRetry(post, account, preProcessedVideoUrl);
     await registerSuccess(account);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
     broadcast('accounts', { action: 'synced' });
@@ -274,7 +288,7 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
     if (post.ctaComment?.trim())    postCTACommentForPost(account._id, post.ctaComment).catch(e => console.log('[CTA]:', e.message));
     if (post.engageComment?.trim()) postEngageCommentForPost(account._id, post.engageComment).catch(e => console.log('[Engage]:', e.message));
 
-    return true;
+    return { ok: true, mediaId: String(resultado?.mediaId || '') };
   } catch (err) {
     writeAccountLog(acc.username, `Erro: ${err.message}`);
     const healthUpdate = {
@@ -543,12 +557,59 @@ async function processJobRound(jobId) {
   console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída (✓${roundSuccess} ✗${roundErrors}). Próxima ${intervalMs > 0 ? `em ${jobDoc.intervalMinutes}min` : 'imediatamente'}`);
 }
 
+// ── Processamento de campanha (fase 8) ────────────────────────────────────
+//
+// A regra de execução vive em services/campaignExecutor.js — aqui fica só a
+// ligação. O executor recebe `publicarNaConta` por injeção porque o único
+// caminho seguro de publicação é o publishOneAccount deste arquivo, com o lock
+// atômico de isBusy e a checagem de limite diário. Importar o executor e deixá-lo
+// chamar direto exigiria mover publishOneAccount para fora daqui (mexendo no que
+// Postar e Loop usam) ou reescrevê-lo lá (dois locks de conta concorrendo pela
+// mesma conta). Injetar mantém um caminho só.
+
+async function processCampaignPublication(publicationId) {
+  const executor = require('../services/campaignExecutor');
+  return executor.processarPublicacao(publicationId, {
+    publicarNaConta: (account, post) => publishOneAccount(account, post, null),
+    broadcast,
+  });
+}
+
+async function processCampaignComment(publicationId) {
+  const executor = require('../services/campaignExecutor');
+  return executor.processarComentario(publicationId, {
+    comentarNaConta: publicarComentarioCampanha,
+    broadcast,
+  });
+}
+
+/**
+ * Publica o comentário de uma publicação de campanha.
+ *
+ * Despacha pelo mesmo ProviderFactory da publicação: conta instagrapi comenta
+ * pelo serviço Python (Client.media_comment), conta oficial pela Graph API. Os
+ * dois caminhos não se misturam.
+ *
+ * O comentário vai para `mediaId` — o id que a própria publicação devolveu.
+ * Nenhuma das vias procura "a mídia mais recente da conta".
+ */
+async function publicarComentarioCampanha(account, { mediaId, text }) {
+  const { getProvider } = require('../providers/ProviderFactory');
+  return getProvider(account).comment(account, { mediaId, text });
+}
+
 // ── Worker BullMQ ─────────────────────────────────────────────────────────
 
 const worker = new Worker(
   'posts',
   async (job) => {
-    if (job.data.jobId) {
+    if (job.data.campaignPublicationId) {
+      // Campanha — uma publicação por job (fase 8)
+      await processCampaignPublication(job.data.campaignPublicationId);
+    } else if (job.data.campaignCommentId) {
+      // Campanha — comentário agendado como tarefa própria
+      await processCampaignComment(job.data.campaignCommentId);
+    } else if (job.data.jobId) {
       // Nova arquitetura — Job-based
       await processJobRound(job.data.jobId);
     } else if (job.data.postId) {
