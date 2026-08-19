@@ -17,6 +17,9 @@ import Stories from './pages/Stories';
 import Warmup from './pages/Warmup';
 import Loop from './pages/Loop';
 import JobManager from './pages/JobManager';
+import Campaigns from './pages/Campaigns';
+import CampaignWizard from './pages/CampaignWizard';
+import CampaignDetail from './pages/CampaignDetail';
 import OAuthCallback from './pages/OAuthCallback';
 import TopPosts from './pages/TopPosts';
 import BestTimes from './pages/BestTimes';
@@ -84,6 +87,10 @@ export default function App() {
               <Route path="/warmup"       element={<Warmup />} />
               <Route path="/loop"         element={<Loop />} />
               <Route path="/jobs"         element={<JobManager />} />
+              {/* /campaigns/nova antes de /campaigns/:id — senão "nova" seria lido como id */}
+              <Route path="/campaigns"      element={<Campaigns />} />
+              <Route path="/campaigns/nova" element={<CampaignWizard />} />
+              <Route path="/campaigns/:id"  element={<CampaignDetail />} />
               <Route path="/top-posts"      element={<TopPosts />} />
               <Route path="/best-times"     element={<BestTimes />} />
               <Route path="/smart-repost"   element={<SmartRepost />} />

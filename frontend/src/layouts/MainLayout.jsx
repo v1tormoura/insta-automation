@@ -63,6 +63,7 @@ const NAV_GROUPS = [
       { to: '/posts',        label: 'Postar',       sub: 'Criar e agendar',    icon: ICONS.posts     },
       { to: '/loop',         label: 'Loop',         sub: 'Ciclos contínuos',   icon: ICONS.loop      },
       { to: '/jobs',         label: 'Jobs',         sub: 'Gerenciar execuções', icon: ICONS.jobs      },
+      { to: '/campaigns',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking  },
       { to: '/stories',      label: 'Stories',      sub: 'Publicar em massa',  icon: ICONS.stories   },
       { to: '/scheduler',    label: 'Agendamentos', sub: 'Fila e calendário',  icon: ICONS.scheduler },
       { to: '/smart-repost', label: 'Automatizar',  sub: 'Regras automáticas', icon: ICONS.repost    },
