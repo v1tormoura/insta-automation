@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import VariableInserter, { inserirNoCursor } from './VariableInserter';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import VariableInserter, { inserirNoCursor, useVariaveisSuportadas } from './VariableInserter';
 
 /**
  * Editor de legendas da campanha — os quatro modos, com edição inline.
@@ -46,7 +46,7 @@ const MODOS = [
 ];
 
 export default function CaptionEditor({
-  mode,
+  mode = 'global',
   onModeChange,
   captions = {},
   onChange,          // (proximo) => void — recebe o objeto captions inteiro
@@ -56,7 +56,16 @@ export default function CaptionEditor({
   placeholder = 'Confira o novo conteúdo 🔥',
 }) {
   const [contaAtiva, setContaAtiva] = useState(accounts[0]?.id || null);
-  const suportadas = useVariaveisSuportadas();
+  const suportadas = useVariaveisSuportadas() || [];
+
+  // Sincroniza conta ativa caso as contas mudem ou a atual seja removida
+  useEffect(() => {
+    if (!accounts.length) {
+      setContaAtiva(null);
+    } else if (!accounts.some(a => a.id === contaAtiva)) {
+      setContaAtiva(accounts[0]?.id || null);
+    }
+  }, [accounts, contaAtiva]);
 
   // Guarda o textarea em foco para que o botão de variável saiba onde inserir.
   // Sem isso a marcação iria sempre para o último campo, não para o que o
@@ -67,11 +76,12 @@ export default function CaptionEditor({
     per_account:         'byAccount',
     per_content:         'byContent',
     per_account_content: 'byAccountContent',
-  }[mode];
+  }[mode] || 'byAccount';
 
   /* ── Leitura e escrita nos mapas ───────────────────────────────────────── */
 
   const ler = (mapa, chave) => {
+    if (!captions || !mapa) return '';
     const fonte = captions[mapa];
     if (!fonte) return '';
     // Aceita Map (vindo do backend) e objeto simples (estado local).
@@ -79,10 +89,14 @@ export default function CaptionEditor({
   };
 
   const escrever = (mapa, chave, valor) => {
-    const atual = captions[mapa] || {};
+    const atual = (captions && captions[mapa]) || {};
     const objeto = typeof atual.get === 'function' ? Object.fromEntries(atual) : { ...atual };
-    if (valor) objeto[chave] = valor; else delete objeto[chave];
-    onChange({ ...captions, [mapa]: objeto });
+    if (valor !== undefined && valor !== null && String(valor).length > 0) {
+      objeto[chave] = valor;
+    } else {
+      delete objeto[chave];
+    }
+    onChange?.({ ...(captions || {}), [mapa]: objeto });
   };
 
   /* ── Linhas conforme o modo ────────────────────────────────────────────── */
@@ -327,15 +341,15 @@ export default function CaptionEditor({
             </div>
             <textarea className="input" rows={2} style={{ width:'100%', resize:'vertical', fontSize:12 }}
               placeholder={placeholder}
-              value={captions.global || ''}
+              value={captions?.global || ''}
               onFocus={e => { focadoRef.current = e.target; }}
-              onChange={e => onChange({ ...captions, global: e.target.value })} />
+              onChange={e => onChange?.({ ...(captions || {}), global: e.target.value })} />
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:5 }}>
               <VariableInserter compacto onInsert={m => inserirVariavel(
-                m, captions.global || '', t => onChange({ ...captions, global: t }))} />
-              {contador(captions.global || '')}
+                m, captions?.global || '', t => onChange?.({ ...(captions || {}), global: t }))} />
+              {contador(captions?.global || '')}
             </div>
-            {fichasVariaveis(captions.global || '')}
+            {fichasVariaveis(captions?.global || '')}
           </div>
         </>
       )}

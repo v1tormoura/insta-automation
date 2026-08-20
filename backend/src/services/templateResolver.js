@@ -91,9 +91,72 @@ function resolveTemplate(template, context = {}) {
   return { text: texto, unresolved: [...naoResolvidas] };
 }
 
+function _leMapa(mapa, chave) {
+  if (!mapa || !chave) return undefined;
+  if (typeof mapa.get === 'function') return mapa.get(chave);
+  return mapa[chave];
+}
+
+/**
+ * Resolve a legenda correta seguindo a precedência estrita:
+ * 1. conta + conteúdo (byAccountContent: `${accountId}__${contentId}`)
+ * 2. conteúdo (byContent: `${contentId}`)
+ * 3. conta (byAccount: `${accountId}`)
+ * 4. global
+ * 5. ''
+ *
+ * Em seguida, substitui variáveis no template bruto com o contexto informado.
+ */
+function resolveCaption({ campaign, account, content, captions, context = {} } = {}) {
+  const accountId = account?._id ? String(account._id) : (account?.id ? String(account.id) : (typeof account === 'string' ? account : ''));
+  const contentId = content?._id ? String(content._id) : (content?.id ? String(content.id) : (typeof content === 'string' ? content : ''));
+  const fonte = captions || campaign?.captions;
+
+  let template = '';
+  if (fonte) {
+    const composta = `${accountId}__${contentId}`;
+    const candidatos = [
+      _leMapa(fonte.byAccountContent, composta),
+      _leMapa(fonte.byContent, contentId),
+      _leMapa(fonte.byAccount, accountId),
+      fonte.global,
+    ];
+    for (const valor of candidatos) {
+      if (typeof valor === 'string' && valor.length > 0) {
+        template = valor;
+        break;
+      }
+    }
+  }
+
+  const ctx = {
+    username:    account?.username || context.username || '',
+    name:        account?.name || account?.fullName || context.name || '',
+    campaign:    campaign?.name || context.campaign || '',
+    contentName: content?.originalName || content?.name || content?.label || content?.filename || context.contentName || '',
+    ...context,
+  };
+
+  return resolveTemplate(template, ctx);
+}
+
+/**
+ * Resolve o comentário seguindo a mesma ordem de precedência.
+ */
+function resolveComment({ campaign, account, content, comments, context = {} } = {}) {
+  return resolveCaption({
+    campaign,
+    account,
+    content,
+    captions: comments || campaign?.comments,
+    context,
+  });
+}
+
 /** Nomes das marcações suportadas — usado pelo botão "Inserir variável" da UI. */
 function listarVariaveis() {
   return Object.keys(VARIAVEIS);
 }
 
-module.exports = { resolveTemplate, listarVariaveis };
+module.exports = { resolveTemplate, resolveCaption, resolveComment, listarVariaveis };
+

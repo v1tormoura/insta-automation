@@ -17,6 +17,7 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { NumberTicker } from '../components/magicui/number-ticker';
 import { BlurFade } from '../components/magicui/blur-fade';
+import ConnectedAccountsMetrics from '../components/ConnectedAccountsMetrics';
 
 /* ── helpers (unchanged) ── */
 const fmt  = v => Number(v || 0).toLocaleString('pt-BR');
@@ -1151,6 +1152,11 @@ export default function Dashboard() {
           <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="violet" spark={sparkErrors} delay={.12}  />
           <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={[]}         delay={.18} />
         </motion.section>
+
+        {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
+        <BlurFade delay={0.04} inView>
+          <ConnectedAccountsMetrics />
+        </BlurFade>
 
         {/* ── POSTAGENS EM TEMPO REAL ── */}
         <BlurFade delay={0.08} inView>
