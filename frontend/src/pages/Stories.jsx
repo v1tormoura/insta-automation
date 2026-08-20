@@ -88,7 +88,11 @@ export default function Stories() {
       const accs = r.data.accounts || r.data || [];
       setAccounts(accs);
       if (!selected.length) {
-        setSelected(accs.filter(a => a.accessToken || a.igSession).map(a => a._id));
+        setSelected(
+          accs
+            .filter(a => a.hasApiToken || a.hasInstagrapiSession || a.hasIgSession || a.healthStatus === 'ativa' || a.accessToken || a.igSession)
+            .map(a => a._id)
+        );
       }
     }).catch(() => {});
   }, []);

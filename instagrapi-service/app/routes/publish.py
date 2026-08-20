@@ -178,13 +178,28 @@ async def publish_story(body: PublishStoryRequest):
             # Upload é I/O de rede longo — vai para thread, senão congela o event
             # loop e o serviço para de responder durante a publicação.
             with _tolerate_link_validation(client):
-                if is_video:
-                    return client.video_upload_to_story(
+                try:
+                    if is_video:
+                        return client.video_upload_to_story(
+                            path=media_path, caption=body.caption or "", links=links
+                        )
+                    return client.photo_upload_to_story(
                         path=media_path, caption=body.caption or "", links=links
                     )
-                return client.photo_upload_to_story(
-                    path=media_path, caption=body.caption or "", links=links
-                )
+                except Exception as link_err:
+                    if links:
+                        logger.warning(
+                            "publish_story: upload com link sticker falhou (%s) — publicando mídia com sticker visual",
+                            link_err,
+                        )
+                        if is_video:
+                            return client.video_upload_to_story(
+                                path=media_path, caption=body.caption or ""
+                            )
+                        return client.photo_upload_to_story(
+                            path=media_path, caption=body.caption or ""
+                        )
+                    raise
 
         try:
             media = await loop.run_in_executor(None, _upload)

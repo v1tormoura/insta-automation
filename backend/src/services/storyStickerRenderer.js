@@ -151,30 +151,45 @@ html, body {
 </body>
 </html>`;
 
-  let puppeteer;
-  try { puppeteer = require('puppeteer-extra'); }
-  catch { puppeteer = require('puppeteer'); }
+  const puppeteer = require('puppeteer');
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox', '--disable-setuid-sandbox',
-      '--disable-gpu', '--disable-dev-shm-usage',
-      `--window-size=${widthPx},${heightPx}`,
-    ],
-  });
-
+  let browser;
   try {
+    const launchPromise = puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--disable-extensions',
+        '--disable-background-networking',
+        `--window-size=${widthPx},${heightPx}`,
+      ],
+      timeout: 6000,
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Puppeteer launch timeout')), 6000)
+    );
+
+    browser = await Promise.race([launchPromise, timeoutPromise]);
+
     const page = await browser.newPage();
     await page.setViewport({ width: widthPx, height: heightPx, deviceScaleFactor: 2 });
-    await page.setContent(html, { waitUntil: 'domcontentloaded' });
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 4000 });
     await page.screenshot({
       path: stickerPath,
       type: 'png',
       omitBackground: true,
     });
+  } catch (err) {
+    console.error(`⚠️ [StorySticker] Falha ao renderizar PNG (${err.message})`);
+    throw err;
   } finally {
-    await browser.close().catch(() => {});
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
   }
 
   return stickerPath;

@@ -21,7 +21,7 @@ let _instagrapi = null;
  * @returns {import('./InstagramProvider')}
  */
 function getProvider(account) {
-  if (account?.provider === 'instagrapi') {
+  if (account?.provider === 'instagrapi' || account?.instagrapiSession || account?.accountType === 'instagrapi' || (account?.password && !account?.accessToken)) {
     if (!_instagrapi) {
       const { getSessionManager }     = require('../services/instagrapi/SessionManager');
       const { InstagrapiHttpClient }  = require('../services/instagrapi/InstagrapiHttpClient');
