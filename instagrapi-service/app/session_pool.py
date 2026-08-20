@@ -230,6 +230,82 @@ def _device_uuids(account_id: str) -> dict:
     }
 
 
+_REAL_ANDROID_DEVICES = [
+    {
+        "app_version": "361.0.0.39.109",
+        "android_version": 33,
+        "android_release": "13.0",
+        "dpi": "480dpi",
+        "resolution": "1080x2340",
+        "manufacturer": "Samsung",
+        "device": "dm1q",
+        "model": "SM-S911B",
+        "cpu": "qcom",
+    },
+    {
+        "app_version": "361.0.0.39.109",
+        "android_version": 34,
+        "android_release": "14.0",
+        "dpi": "480dpi",
+        "resolution": "1080x2400",
+        "manufacturer": "Google",
+        "device": "panther",
+        "model": "Pixel 7",
+        "cpu": "tensor",
+    },
+    {
+        "app_version": "361.0.0.39.109",
+        "android_version": 33,
+        "android_release": "13.0",
+        "dpi": "480dpi",
+        "resolution": "1080x2400",
+        "manufacturer": "Xiaomi",
+        "device": "fuxi",
+        "model": "2211133G",
+        "cpu": "qcom",
+    },
+    {
+        "app_version": "361.0.0.39.109",
+        "android_version": 33,
+        "android_release": "13.0",
+        "dpi": "560dpi",
+        "resolution": "1440x3088",
+        "manufacturer": "Samsung",
+        "device": "dm3q",
+        "model": "SM-S918B",
+        "cpu": "qcom",
+    },
+    {
+        "app_version": "361.0.0.39.109",
+        "android_version": 34,
+        "android_release": "14.0",
+        "dpi": "480dpi",
+        "resolution": "1080x2400",
+        "manufacturer": "Motorola",
+        "device": "eqs",
+        "model": "motorola edge 40",
+        "cpu": "mt6891",
+    },
+]
+
+
+def apply_deterministic_device(client: Client, account_id: str) -> None:
+    """
+    Associa deterministicamente cada conta a um modelo de smartphone Android real.
+    Garante que a Meta identifique sempre o mesmo aparelho móvel para aquela conta.
+    """
+    idx = int(hashlib.sha256(account_id.encode()).hexdigest(), 16) % len(_REAL_ANDROID_DEVICES)
+    chosen = dict(_REAL_ANDROID_DEVICES[idx])
+    custom_app_version = (os.getenv("INSTAGRAPI_APP_VERSION") or "").strip()
+    if custom_app_version:
+        chosen["app_version"] = custom_app_version
+    try:
+        client.set_device(chosen)
+        client.set_user_agent()
+    except Exception as e:
+        logger.debug("apply_deterministic_device fallback: %s", e)
+
+
 def apply_app_version(client: Client) -> str:
     """
     Aplica a build do app Instagram definida em INSTAGRAPI_APP_VERSION.
@@ -282,6 +358,7 @@ async def get_entry(account_id: str) -> dict:
     async with _pool_lock:
         if account_id not in _pool:
             client = Client()
+            apply_deterministic_device(client, account_id)
             client.set_uuids(_device_uuids(account_id))
             apply_app_version(client)
             _patch_client_retries(client)

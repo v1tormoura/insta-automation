@@ -377,7 +377,7 @@ export default function Stories() {
                   </div>
                   <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'oklch(0.10 0.03 235)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 7 }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker — só contas OAuth"
+                    <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker (ex: Ver oferta, Clique aqui)"
                       maxLength={35}
                       style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 11 }} />
                     <span style={{ fontSize: 10, color: 'var(--text3)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>{linkLabel.length}/35</span>
@@ -421,25 +421,24 @@ export default function Stories() {
                           'linear-gradient(to bottom, transparent 33.3%, oklch(1 0 0 / .12) 33.3%, oklch(1 0 0 / .12) 33.5%, transparent 33.5%,' +
                           ' transparent 66.6%, oklch(1 0 0 / .12) 66.6%, oklch(1 0 0 / .12) 66.8%, transparent 66.8%)' }} />
 
-                      {/* Sticker no tamanho REAL: 51% da largura e 25.9% da altura
-                          são os padrões do StoryLink, então o que você vê aqui é o
-                          espaço que ele vai ocupar de verdade no story. */}
+                      {/* Sticker no tamanho REAL */}
                       <div style={{
                         position: 'absolute',
                         left: `${linkPos.x * 100}%`, top: `${linkPos.y * 100}%`,
-                        width: '51%', height: '25.9%',
+                        width: '56%', height: '20%',
                         transform: 'translate(-50%, -50%)',
                         display: 'grid', placeItems: 'center', pointerEvents: 'none',
                         border: '1px dashed oklch(1 0 0 / 0.35)', borderRadius: 8,
                       }}>
                         <span style={{
-                          maxWidth: '96%', padding: '4px 9px', borderRadius: 7,
-                          background: 'oklch(0.28 0.02 260 / 0.92)', color: '#fff',
-                          fontSize: 9, fontWeight: 700, whiteSpace: 'nowrap',
+                          maxWidth: '96%', padding: '4px 10px', borderRadius: 999,
+                          background: '#FFFFFF', color: '#111827',
+                          fontSize: 9, fontWeight: 800, whiteSpace: 'nowrap',
                           overflow: 'hidden', textOverflow: 'ellipsis',
-                          boxShadow: '0 2px 10px oklch(0 0 0 / .5)',
+                          boxShadow: '0 3px 12px rgba(0,0,0,.35)',
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
                         }}>
-                          Acessar link ›
+                          <span style={{ color: '#2563eb' }}>🔗</span> {linkLabel ? linkLabel : 'Acessar link ›'}
                         </span>
                       </div>
                     </div>
@@ -463,12 +462,7 @@ export default function Stories() {
                         x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.5 }}>
-                        Clique no preview para posicionar. O retângulo tracejado é o
-                        espaço real que a figurinha ocupa.
-                      </div>
-                      <div style={{ fontSize: 10, color: '#fbbf24', lineHeight: 1.5, marginTop: 2 }}>
-                        O texto do sticker é sempre <strong>"Acessar link"</strong> — o
-                        Instagram não permite personalizá-lo pela API Mobile.
+                        Clique no preview para posicionar. A figurinha visual oficial do Instagram será renderizada e aplicada na posição exata de toque.
                       </div>
                     </div>
                   </div>

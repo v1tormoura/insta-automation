@@ -472,10 +472,23 @@ async function processJobRound(jobId) {
       scheduledAt:   new Date(),
     });
 
-    // Publica para todas as contas em paralelo
-    const results = await Promise.allSettled(
-      jobDoc.accounts.map(acc => publishOneAccount(acc, post, preProcessedVideoUrl))
-    );
+    // Publica para as contas com espaçamento e intercalação humanizada (anti-detecção Meta)
+    const results = [];
+    for (let accIdx = 0; accIdx < jobDoc.accounts.length; accIdx++) {
+      const acc = jobDoc.accounts[accIdx];
+      // Intervalo humanizado aleatório (12s a 30s) entre contas diferentes
+      if (accIdx > 0) {
+        const humanDelayMs = Math.floor(Math.random() * 18000) + 12000;
+        console.log(`[Job] Intervalo humanizado de ${(humanDelayMs / 1000).toFixed(1)}s antes de postar em @${acc.username}...`);
+        await new Promise(r => setTimeout(r, humanDelayMs));
+      }
+      try {
+        const res = await publishOneAccount(acc, post, preProcessedVideoUrl);
+        results.push({ status: 'fulfilled', value: res });
+      } catch (err) {
+        results.push({ status: 'rejected', reason: err });
+      }
+    }
 
     let postSuccess = 0;
     const postErrorMsgs = [];
@@ -529,14 +542,20 @@ async function processJobRound(jobId) {
     return;
   }
 
-  // Agenda próxima rodada
+  // Agenda próxima rodada com micro-variação (jitter humanizado de ±10%) para não bater em minutos fixos no relógio
   const rawIntervalMs = (jobDoc.intervalMinutes || 0) * 60 * 1000;
-  // Loops com intervalo=0 causariam tight loop consumindo todos os workers — mínimo 60s
-  const intervalMs = (jobDoc.type === 'loop' && rawIntervalMs < 60_000) ? 60_000 : rawIntervalMs;
+  let intervalMs = rawIntervalMs;
+  if (intervalMs > 0) {
+    const jitterFactor = 1 + ((Math.random() * 0.20) - 0.08); // variação de -8% a +12%
+    intervalMs = Math.max(30_000, Math.round(rawIntervalMs * jitterFactor));
+  } else if (jobDoc.type === 'loop') {
+    intervalMs = 60_000 + Math.floor(Math.random() * 15000);
+  }
+
   const isLoopCycling = jobDoc.type === 'loop' && nextStartIdx >= totalMedia;
 
   if (isLoopCycling) {
-    console.log(`[Job] Loop "${jobDoc.name}" — ciclo completo, próximo em ${jobDoc.intervalMinutes}min`);
+    console.log(`[Job] Loop "${jobDoc.name}" — ciclo completo, próximo em ${(intervalMs / 60000).toFixed(1)}min`);
     broadcast('posts', { action: 'loop_cycled', jobId: String(jobDoc._id) });
   }
 
@@ -554,7 +573,7 @@ async function processJobRound(jobId) {
   });
 
   broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
-  console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída (✓${roundSuccess} ✗${roundErrors}). Próxima ${intervalMs > 0 ? `em ${jobDoc.intervalMinutes}min` : 'imediatamente'}`);
+  console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída (✓${roundSuccess} ✗${roundErrors}). Próxima ${intervalMs > 0 ? `em ${(intervalMs / 60000).toFixed(1)}min (jitter humanizado)` : 'imediatamente'}`);
 }
 
 // ── Processamento de campanha (fase 8) ────────────────────────────────────
