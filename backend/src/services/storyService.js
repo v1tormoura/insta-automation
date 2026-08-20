@@ -160,31 +160,10 @@ async function _resolveLocalMedia(media) {
   return `tmp/${nome}`;
 }
 
-const { renderStoryWithLinkSticker } = require('./storyStickerRenderer');
-
 async function postStory(account, options) {
-  // Se houver link sticker, renderiza a figurinha visual na mídia para não ficar invisível
   if (options.linkUrl) {
-    try {
-      const rawLocal = await _resolveLocalMedia(options.imagePath || options.imageUrl);
-      const absPath = path.resolve(__dirname, '../../uploads', rawLocal);
-      const fs = require('fs');
-      if (fs.existsSync(absPath)) {
-        const renderedAbs = await renderStoryWithLinkSticker(absPath, {
-          linkUrl:  options.linkUrl,
-          linkText: options.linkText,
-          linkX:    options.linkX,
-          linkY:    options.linkY,
-        });
-        const rel = path.relative(path.resolve(__dirname, '../../uploads'), renderedAbs);
-        const relPath = rel.replace(/\\/g, '/');
-        const publicBase = (process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
-        options.imagePath = relPath;
-        options.imageUrl  = `${publicBase}/uploads/${relPath}`;
-      }
-    } catch (renderErr) {
-      console.error('[Story] Erro ao renderizar sticker visual:', renderErr.message);
-    }
+    // Fase 16: Desativamos a queima visual do link sticker para evitar sobreposição
+    // com o nativo desenhado pelo Instagram.
   }
 
   // 0. Sessão instagrapi — método principal quando existe.

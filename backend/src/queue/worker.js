@@ -341,9 +341,22 @@ async function processLegacyPost(postId) {
   }
 
   console.log(`[Legacy] Publicando para ${post.accounts.length} conta(s)...`);
-  const results = await Promise.allSettled(
-    post.accounts.map(acc => publishOneAccount(acc, post, preProcessedVideoUrl))
-  );
+  const results = [];
+  for (let i = 0; i < post.accounts.length; i++) {
+    const acc = post.accounts[i];
+    if (i > 0) {
+      // Fase 16: Intercalação orgânica real de 3 a 7 minutos (180s a 420s)
+      const humanDelayMs = Math.floor(Math.random() * 240000) + 180000;
+      console.log(`[Legacy] Intervalo humanizado de ${(humanDelayMs / 1000).toFixed(1)}s antes de postar em @${acc.username}...`);
+      await delay(humanDelayMs);
+    }
+    try {
+      const res = await publishOneAccount(acc, post, preProcessedVideoUrl);
+      results.push({ status: 'fulfilled', value: res });
+    } catch (err) {
+      results.push({ status: 'rejected', reason: err });
+    }
+  }
 
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') successCount++;
@@ -476,11 +489,11 @@ async function processJobRound(jobId) {
     const results = [];
     for (let accIdx = 0; accIdx < jobDoc.accounts.length; accIdx++) {
       const acc = jobDoc.accounts[accIdx];
-      // Intervalo humanizado aleatório (12s a 30s) entre contas diferentes
+      // Fase 16: Aumentando intervalo humanizado de segundos para 2 a 5 minutos (120s a 300s) para simular troca real de conta
       if (accIdx > 0) {
-        const humanDelayMs = Math.floor(Math.random() * 18000) + 12000;
+        const humanDelayMs = Math.floor(Math.random() * 180000) + 120000;
         console.log(`[Job] Intervalo humanizado de ${(humanDelayMs / 1000).toFixed(1)}s antes de postar em @${acc.username}...`);
-        await new Promise(r => setTimeout(r, humanDelayMs));
+        await delay(humanDelayMs);
       }
       try {
         const res = await publishOneAccount(acc, post, preProcessedVideoUrl);

@@ -268,13 +268,30 @@ async function agendarCampanha(campaignId, { agora = new Date(), lote = 50 } = {
 
     if (!pagina.length) break;
 
+    let atrasadosNestaPagina = 0;
     for (const pub of pagina) {
-      const { jobId, criado } = await fila.agendarPublicacao(pub, agora);
+      let calcDelay = fila.calcularDelay(pub.scheduledAt, agora);
+      let novoAgendamento = pub.scheduledAt;
+
+      // Fase 16: Anti-Burst. Se o job está atrasado (delay 0), nós o empurramos
+      // para o futuro com espaçamento de segurança (5 a 10 minutos por job atrasado).
+      if (calcDelay === 0) {
+        const offsetMinutos = (atrasadosNestaPagina * 5) + Math.floor(Math.random() * 5);
+        novoAgendamento = new Date(agora.getTime() + offsetMinutos * 60_000);
+        calcDelay = fila.calcularDelay(novoAgendamento, agora);
+        atrasadosNestaPagina++;
+      }
+
+      const { jobId, criado } = await fila.agendarPublicacao(
+        { ...pub.toObject(), scheduledAt: novoAgendamento }, 
+        agora
+      );
+      
       if (criado) agendadas++; else jaExistiam++;
 
       await CampaignPublication.updateOne(
         { _id: pub._id, status: { $in: AGENDAVEIS } },
-        { $set: { status: 'scheduled', bullMqJobId: jobId } },
+        { $set: { status: 'scheduled', bullMqJobId: jobId, scheduledAt: novoAgendamento } },
       );
 
       registrarEvento('PUBLICATION_SCHEDULED', {

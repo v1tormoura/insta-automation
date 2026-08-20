@@ -414,55 +414,103 @@ export default function CampaignWizard() {
         : [...f.contentIds, id],
     }));
 
+    // Fase 16: Função de upload direto no Wizard
+    const [uploadingMedia, setUploadingMedia] = useState(false);
+    const handleUpload = async (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      setUploadingMedia(true);
+      const formData = new FormData();
+      files.forEach(f => formData.append('files', f));
+      try {
+        const { data } = await api.post('/media/upload', formData);
+        const novosIds = data.files.map(f => f._id);
+        // Recarrega mídias
+        const res = await api.get('/media');
+        const lista = Array.isArray(res.data) ? res.data : (res.data.medias || res.data.files || []);
+        setMidias(lista);
+        // Auto-seleciona os que acabaram de subir
+        setForm(f => ({ ...f, contentIds: [...new Set([...f.contentIds, ...novosIds])] }));
+        aviso('success', 'Upload concluído', `${files.length} arquivo(s) enviado(s) e selecionado(s).`);
+      } catch (err) {
+        aviso('error', 'Erro no upload', 'Não foi possível enviar os arquivos.');
+      } finally {
+        setUploadingMedia(false);
+      }
+    };
+
     return painel(null, <>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
         <div style={{ fontSize:12, color:'var(--cyan)', fontWeight:700 }}>
           {form.contentIds.length} conteúdo(s) selecionado(s)
         </div>
-        <button onClick={() => setForm(f => ({
-          ...f,
-          contentIds: f.contentIds.length === midias.length ? [] : midias.map(m => m._id),
-        }))} style={{
-          padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-          background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)',
-        }}>{form.contentIds.length === midias.length ? 'Desmarcar' : 'Selecionar todos'}</button>
+        
+        <div style={{ display:'flex', gap:8 }}>
+          <label style={{
+            padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor: uploadingMedia ? 'default' : 'pointer',
+            background:'rgba(16,185,129,.12)', color:'#34d399', border:'1px solid rgba(16,185,129,.28)',
+            display:'flex', alignItems:'center', gap:5
+          }}>
+            {uploadingMedia ? 'Enviando...' : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload na hora
+              </>
+            )}
+            <input type="file" multiple accept="video/*,image/*" style={{ display:'none' }} disabled={uploadingMedia} onChange={handleUpload} />
+          </label>
+
+          <button onClick={() => setForm(f => ({
+            ...f,
+            contentIds: f.contentIds.length === midias.length ? [] : midias.map(m => m._id),
+          }))} style={{
+            padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+            background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)',
+          }}>{form.contentIds.length === midias.length ? 'Desmarcar todos' : 'Selecionar todos'}</button>
+        </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(140px,100%),1fr))', gap:9 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))', gap:10 }}>
         {midias.map(m => {
           const marcado = form.contentIds.includes(m._id);
           const ordem   = form.contentIds.indexOf(m._id) + 1;
           const video   = m.type === 'video' || /\.(mp4|mov|webm|m4v)$/i.test(m.filename || '');
           return (
             <button key={m._id} onClick={() => alternar(m._id)} style={{
-              position:'relative', padding:0, borderRadius:10, overflow:'hidden', cursor:'pointer',
-              aspectRatio:'9/13', textAlign:'left', transition:'all .15s',
-              background:'oklch(0.12 0.04 235)',
-              border: `2px solid ${marcado ? 'var(--cyan)' : 'oklch(1 0 0 / 0.07)'}`,
+              position:'relative', padding:0, borderRadius:12, overflow:'hidden', cursor:'pointer',
+              aspectRatio:'3/4', textAlign:'left', transition:'all .2s cubic-bezier(0.4, 0, 0.2, 1)',
+              background:'oklch(0.16 0.05 235)',
+              border: `2px solid ${marcado ? 'var(--cyan)' : 'transparent'}`,
+              boxShadow: marcado ? '0 4px 14px rgba(0,212,255,0.2)' : 'none',
+              transform: marcado ? 'translateY(-2px)' : 'none'
             }}>
               {m.url && !video && (
-                <img src={m.url} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                <img src={m.url} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', filter: marcado ? 'brightness(1.1)' : 'brightness(0.8)' }} />
               )}
               {m.url && video && (
-                <video src={m.url} muted playsInline style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                <video src={m.url} muted playsInline style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', filter: marcado ? 'brightness(1.1)' : 'brightness(0.8)' }} />
               )}
+              <div style={{ position:'absolute', inset:0, background: marcado ? 'linear-gradient(to top, rgba(0,212,255,0.2), transparent)' : 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }} />
+              
               {marcado && (
-                <span style={{ position:'absolute', top:6, left:6, width:20, height:20, borderRadius:'50%',
-                  background:'var(--cyan)', color:'#04121c', display:'grid', placeItems:'center',
-                  fontSize:10, fontWeight:800 }}>{ordem}</span>
+                <span style={{ position:'absolute', top:8, left:8, width:24, height:24, borderRadius:'50%',
+                  background:'var(--cyan)', color:'#04121c', display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:12, fontWeight:800, boxShadow:'0 2px 5px rgba(0,0,0,0.3)' }}>{ordem}</span>
               )}
-              <div style={{ position:'absolute', left:0, right:0, bottom:0, padding:'14px 7px 6px',
-                background:'linear-gradient(to top, oklch(0 0 0 / .85), transparent)',
-                fontSize:9.5, fontWeight:600, color:'#fff',
-                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                {video ? '▶ ' : ''}{m.originalName || m.filename}
+              <div style={{ position:'absolute', left:0, right:0, bottom:0, padding:'20px 10px 8px',
+                background:'linear-gradient(to top, rgba(0,0,0,0.9), transparent)',
+                fontSize:10, fontWeight:600, color:'#fff',
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,0.8)' }}>
+                {video ? (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ display:'inline-block', verticalAlign:'-1px', marginRight:4 }}><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                ) : ''}{m.originalName || m.filename}
               </div>
             </button>
           );
         })}
         {!midias.length && (
-          <div style={{ gridColumn:'1/-1', padding:'26px 0', textAlign:'center', color:'var(--text3)', fontSize:12 }}>
-            Nenhuma mídia na biblioteca. Envie arquivos em <strong>Biblioteca</strong> primeiro.
+          <div style={{ gridColumn:'1/-1', padding:'30px 0', textAlign:'center', color:'var(--text3)', fontSize:13, background:'rgba(255,255,255,0.02)', borderRadius:12 }}>
+            Nenhuma mídia encontrada.<br/>Clique em <strong>Upload na hora</strong> acima para enviar seus vídeos.
           </div>
         )}
       </div>

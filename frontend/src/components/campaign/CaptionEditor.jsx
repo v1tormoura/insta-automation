@@ -57,7 +57,16 @@ export default function CaptionEditor({
 }) {
   const [contaAtiva, setContaAtiva] = useState(accounts[0]?.id || null);
   const suportadas = useVariaveisSuportadas() || [];
-
+  const [modalBiblioteca, setModalBiblioteca] = useState({ ativa: false, alvo: null });
+  const [modalIA, setModalIA] = useState({ ativa: false, alvo: null });
+  const [legendsLib, setLegendsLib] = useState([]);
+  
+  useEffect(() => {
+    // Busca legendas já cadastradas na biblioteca
+    import('../../services/api').then(m => {
+      m.default.get('/legends').then(r => setLegendsLib(r.data)).catch(()=>console.error('Erro ao buscar legendas'));
+    });
+  }, []);
   // Sincroniza conta ativa caso as contas mudem ou a atual seja removida
   useEffect(() => {
     if (!accounts.length) {
@@ -247,8 +256,18 @@ export default function CaptionEditor({
             onFocus={e => { focadoRef.current = e.target; }}
             onChange={e => onChange({ ...captions, global: e.target.value })} />
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:5 }}>
-            <VariableInserter onInsert={m => inserirVariavel(
-              m, captions.global || '', t => onChange({ ...captions, global: t }))} />
+            <div style={{ display:'flex', gap:6 }}>
+              <VariableInserter onInsert={m => inserirVariavel(
+                m, captions.global || '', t => onChange({ ...captions, global: t }))} />
+              <button onClick={() => setModalBiblioteca({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
+                style={{ padding:'4px 8px', borderRadius:6, fontSize:10, fontWeight:700, cursor:'pointer', background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+                📚 Biblioteca
+              </button>
+              <button onClick={() => setModalIA({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
+                style={{ padding:'4px 8px', borderRadius:6, fontSize:10, fontWeight:700, cursor:'pointer', background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)' }}>
+                ✨ Gerar IA
+              </button>
+            </div>
             {contador(captions.global || '')}
           </div>
           {fichasVariaveis(captions.global || '')}
@@ -316,9 +335,19 @@ export default function CaptionEditor({
                     value={texto}
                     onFocus={e => { focadoRef.current = e.target; }}
                     onChange={e => escrever(mapaAtual, l.chave, e.target.value)} />
-                  <div style={{ marginTop:5 }}>
-                    <VariableInserter compacto onInsert={m => inserirVariavel(
-                      m, texto, t => escrever(mapaAtual, l.chave, t))} />
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:5 }}>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <VariableInserter compacto onInsert={m => inserirVariavel(
+                        m, texto, t => escrever(mapaAtual, l.chave, t))} />
+                      <button onClick={() => setModalBiblioteca({ ativa: true, alvo: { mapa: mapaAtual, chave: l.chave } })}
+                        style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+                        📚 Biblioteca
+                      </button>
+                      <button onClick={() => setModalIA({ ativa: true, alvo: { mapa: mapaAtual, chave: l.chave } })}
+                        style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)' }}>
+                        ✨ IA
+                      </button>
+                    </div>
                   </div>
                   {fichasVariaveis(texto)}
                 </div>
@@ -345,13 +374,86 @@ export default function CaptionEditor({
               onFocus={e => { focadoRef.current = e.target; }}
               onChange={e => onChange?.({ ...(captions || {}), global: e.target.value })} />
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:5 }}>
-              <VariableInserter compacto onInsert={m => inserirVariavel(
-                m, captions?.global || '', t => onChange?.({ ...(captions || {}), global: t }))} />
+              <div style={{ display:'flex', gap:6 }}>
+                <VariableInserter compacto onInsert={m => inserirVariavel(
+                  m, captions?.global || '', t => onChange?.({ ...(captions || {}), global: t }))} />
+                <button onClick={() => setModalBiblioteca({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
+                  style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+                  📚 Biblioteca
+                </button>
+                <button onClick={() => setModalIA({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
+                  style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)' }}>
+                  ✨ IA
+                </button>
+              </div>
               {contador(captions?.global || '')}
             </div>
             {fichasVariaveis(captions?.global || '')}
           </div>
         </>
+      )}
+      
+      {/* Modal Biblioteca */}
+      {modalBiblioteca.ativa && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:999, display:'grid', placeItems:'center' }}
+             onClick={(e) => { if (e.target === e.currentTarget) setModalBiblioteca({ ativa: false, alvo: null }); }}>
+          <div style={{ background:'oklch(0.16 0.05 235)', padding:24, borderRadius:16, width:500, maxWidth:'95vw', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+            <h3 style={{ margin:'0 0 16px', fontSize:16, fontWeight:700 }}>Selecionar da Biblioteca</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:10, maxHeight:'60vh', overflowY:'auto', paddingRight:8 }}>
+              {legendsLib.map(lg => (
+                <button key={lg._id} onClick={() => {
+                  const { mapa, chave } = modalBiblioteca.alvo;
+                  if (mapa === 'global') {
+                    onChange({ ...captions, global: lg.text });
+                  } else {
+                    escrever(mapa, chave, lg.text);
+                  }
+                  setModalBiblioteca({ ativa: false, alvo: null });
+                }} style={{ textAlign:'left', padding:12, borderRadius:10, background:'oklch(1 0 0 / 0.05)', border:'1px solid oklch(1 0 0 / 0.1)', cursor:'pointer', transition:'all 0.2s', ':hover':{background:'oklch(1 0 0 / 0.1)'} }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--cyan)', marginBottom:6 }}>{lg.name}</div>
+                  <div style={{ fontSize:11, color:'var(--text2)', whiteSpace:'pre-wrap' }}>{lg.text}</div>
+                </button>
+              ))}
+              {!legendsLib.length && (
+                <div style={{ textAlign:'center', color:'var(--text3)', padding:20, fontSize:12 }}>Nenhuma legenda na biblioteca.</div>
+              )}
+            </div>
+            <div style={{ marginTop:16, textAlign:'right' }}>
+              <button onClick={() => setModalBiblioteca({ ativa: false, alvo: null })} style={{ padding:'8px 16px', borderRadius:8, background:'oklch(1 0 0 / 0.1)', color:'var(--text2)', border:'none', cursor:'pointer', fontWeight:600 }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal IA */}
+      {modalIA.ativa && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', zIndex:999, display:'grid', placeItems:'center' }}
+             onClick={(e) => { if (e.target === e.currentTarget) setModalIA({ ativa: false, alvo: null }); }}>
+          <div style={{ background:'oklch(0.16 0.05 235)', padding:24, borderRadius:16, width:500, maxWidth:'95vw', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+            <h3 style={{ margin:'0 0 8px', fontSize:16, fontWeight:700 }}>✨ Gerar Legenda com IA</h3>
+            <p style={{ fontSize:12, color:'var(--text3)', margin:'0 0 16px' }}>Descreva o que deseja na legenda ou cole um modelo para a IA se inspirar.</p>
+            <textarea className="input" rows={4} style={{ width:'100%', resize:'vertical', fontSize:13, marginBottom:16 }} placeholder="Ex: Crie uma legenda chamativa para um reels de comédia sobre rotina de trabalho. Use emojis divertidos e uma pergunta no final para engajar." id="ai-prompt-input"></textarea>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <button onClick={() => setModalIA({ ativa: false, alvo: null })} style={{ padding:'8px 16px', borderRadius:8, background:'transparent', color:'var(--text3)', border:'none', cursor:'pointer', fontWeight:600 }}>Cancelar</button>
+              <button onClick={() => {
+                const p = document.getElementById('ai-prompt-input').value;
+                if (!p.trim()) return;
+                // Como não temos endpoint oficial de IA ainda, simulamos uma chamada.
+                const { mapa, chave } = modalIA.alvo;
+                const textoGerado = `✨ Aqui está a legenda gerada com base em: "${p.slice(0, 30)}..."\n\nQue incrível ver isso ganhando forma! Qual a sua opinião? 👇\n\n#novidade #{username}`;
+                if (mapa === 'global') {
+                  onChange({ ...captions, global: textoGerado });
+                } else {
+                  escrever(mapa, chave, textoGerado);
+                }
+                setModalIA({ ativa: false, alvo: null });
+                alert('A integração real com IA deve ser feita no backend. Esta é uma simulação da interface.');
+              }} style={{ padding:'8px 16px', borderRadius:8, background:'rgba(139,92,246,.2)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.5)', cursor:'pointer', fontWeight:700 }}>
+                🪄 Gerar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

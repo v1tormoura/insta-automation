@@ -566,7 +566,7 @@ export default function Accounts() {
           // opts vem direto da chamada; não depende do tempo de atualização do
           // estado do React, que poderia ainda não ter aplicado a marcação.
           error: (opts.aprovacaoTentada || m.aprovacaoTentada)
-            ? 'O Instagram pediu verificação de novo — a aprovação anterior não foi registrada. Aprove no app e confirme aqui em seguida, sem demora.'
+            ? 'O Instagram bloqueou o login por falta de 2FA. Para evitar loop e banimento, feche esta janela e conecte via Session ID ou ative o 2FA no seu app.'
             : '',
           aprovacaoTentada: false,
         }));
@@ -2153,3 +2153,4 @@ export default function Accounts() {
     </>
   );
 }
+
