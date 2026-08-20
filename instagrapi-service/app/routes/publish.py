@@ -145,29 +145,34 @@ async def publish_story(body: PublishStoryRequest):
     media_path = _resolve_file(body.media_path)
     is_video   = media_path.suffix.lower() in _VIDEO_SUFFIXES
 
-    links: list[StoryLink] = []
+    from instagrapi.types import StorySticker
+    stickers = []
     if body.link_url:
-        # A posição do sticker vem do próprio StoryLink: photo_configure_to_story
-        # monta a StorySticker com x/y/z/width/height/rotation lidos daqui.
-        # Campos ausentes ficam com o padrão do modelo (sticker centralizado).
         posicao = {
-            chave: valor
-            for chave, valor in (
-                ("x",        body.link_x),
-                ("y",        body.link_y),
-                ("width",    body.link_width),
-                ("height",   body.link_height),
-                ("rotation", body.link_rotation),
-            )
-            if valor is not None
+            "x": body.link_x if body.link_x is not None else 0.5,
+            "y": body.link_y if body.link_y is not None else 0.5,
+            "width": body.link_width if body.link_width is not None else 0.5,
+            "height": body.link_height if body.link_height is not None else 0.2,
+            "rotation": body.link_rotation if body.link_rotation is not None else 0.0,
         }
-        try:
-            links = [StoryLink(webUri=body.link_url, **posicao)]
-        except Exception as e:
-            raise HTTPException(
-                status_code=422,
-                detail={"code": "INVALID_LINK", "message": f"Link inválido: {e}"},
-            )
+        extra = {
+            "link_type": "web",
+            "url": body.link_url,
+            "tap_state_str_id": "link_sticker_default"
+        }
+        if body.link_text:
+            extra["custom_title"] = body.link_text
+            
+        stickers.append(StorySticker(
+            type="story_link",
+            x=posicao["x"],
+            y=posicao["y"],
+            z=0,
+            width=posicao["width"],
+            height=posicao["height"],
+            rotation=posicao["rotation"],
+            extra=extra
+        ))
 
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
@@ -181,15 +186,15 @@ async def publish_story(body: PublishStoryRequest):
                 try:
                     if is_video:
                         return client.video_upload_to_story(
-                            path=media_path, caption=body.caption or "", links=links
+                            path=media_path, caption=body.caption or "", stickers=stickers
                         )
                     return client.photo_upload_to_story(
-                        path=media_path, caption=body.caption or "", links=links
+                        path=media_path, caption=body.caption or "", stickers=stickers
                     )
                 except Exception as link_err:
-                    if links:
+                    if stickers:
                         logger.warning(
-                            "publish_story: upload com link sticker falhou (%s) — publicando mídia com sticker visual",
+                            "publish_story: upload com link sticker falhou (%s) — publicando mídia sem sticker",
                             link_err,
                         )
                         if is_video:
@@ -209,7 +214,7 @@ async def publish_story(body: PublishStoryRequest):
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)[:300]})
         settings = client.get_settings()
 
-    return {"media_id": str(media.pk), "with_link": bool(links), "settings": settings}
+    return {"media_id": str(media.pk), "with_link": bool(stickers), "settings": settings}
 
 
 @router.post("/post")
@@ -317,3 +322,4 @@ def _midia_ausente(msg: str) -> bool:
         "media not found", "media_not_found", "does not exist",
         "unable to find", "invalid media_id", "media has been deleted",
     ))
+

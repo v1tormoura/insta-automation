@@ -160,6 +160,11 @@ export default function Stories() {
       } else {
         showToast('success', 'Publicado!', `${data.successCount || 0} de ${data.total || selected.length} publicados.`);
       }
+      setMedias([]);
+      setLinkUrl('');
+      setLinkLabel('');
+      setLinkOn(false);
+      setIntervalMin(1);
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
     finally { setLoading(false); }
   }

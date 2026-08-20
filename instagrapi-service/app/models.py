@@ -41,6 +41,7 @@ class PublishStoryRequest(BaseModel):
     media_path: str
     caption: str = ""
     link_url: str | None = None
+    link_text: str | None = None
     # Posição do link sticker em coordenadas normalizadas do story (0 a 1):
     # x/y são o CENTRO do sticker — x=0 é a borda esquerda, y=0 o topo.
     # Ausentes = padrão do StoryLink (centro da tela).

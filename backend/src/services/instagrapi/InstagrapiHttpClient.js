@@ -343,6 +343,7 @@ class InstagrapiHttpClient {
         media_path: _toContainerPath(storyData.media),
         caption:    storyData.caption || '',
         link_url:   storyData.linkUrl || null,
+        link_text:  storyData.linkText || null,
       };
       const posicao = {
         link_x:        storyData.linkX,
