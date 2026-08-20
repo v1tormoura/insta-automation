@@ -210,6 +210,38 @@ export default function Posts() {
   const [libraryMedia, setLibraryMedia]   = useState([]);
   const [showLibPicker, setShowLibPicker] = useState(false);
 
+  const DRAFT_POSTS_KEY = 'posts_form_draft_v1';
+
+  /* ── Restaura rascunho de posts salvo ────────────────────────────────────── */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_POSTS_KEY);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.caption !== undefined) setCaption(d.caption);
+        if (d.postType) setPostType(d.postType);
+        if (d.intervalMins !== undefined) setIntervalMins(d.intervalMins);
+        if (d.simultaneousLimit !== undefined) setSimultaneousLimit(d.simultaneousLimit);
+        if (d.processMode) setProcessMode(d.processMode);
+        if (d.location !== undefined) setLocation(d.location);
+        if (d.ctaComment !== undefined) setCtaComment(d.ctaComment);
+        if (d.engageComment !== undefined) setEngageComment(d.engageComment);
+        if (Array.isArray(d.selectedAccounts) && d.selectedAccounts.length) setSelectedAccounts(d.selectedAccounts);
+        if (d.mediaSource) setMediaSource(d.mediaSource);
+      }
+    } catch {}
+  }, []);
+
+  /* ── Salva rascunho de posts automaticamente ────────────────────────────── */
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_POSTS_KEY, JSON.stringify({
+        caption, postType, intervalMins, simultaneousLimit, processMode,
+        location, ctaComment, engageComment, selectedAccounts, mediaSource,
+      }));
+    } catch {}
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, engageComment, selectedAccounts, mediaSource]);
+
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
   const totalEstimated = activeMediaCount * selectedCount;
@@ -430,7 +462,7 @@ export default function Posts() {
               </div>
               <div style={cardBodyStyle}>
                 {/* Type tabs */}
-                <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 9, padding: 3 }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 9, padding: 3 }}>
                   {['reel', 'post', 'story'].map(t => (
                     <button key={t} type="button"
                       onClick={() => setPostType(t)}
@@ -444,6 +476,37 @@ export default function Posts() {
                       {t.charAt(0).toUpperCase() + t.slice(1)}
                     </button>
                   ))}
+                </div>
+
+                {/* Media Source Buttons (Upload vs Biblioteca) */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                  <button type="button"
+                    onClick={() => setMediaSource('upload')}
+                    style={{
+                      padding: '10px 12px', borderRadius: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      border: `1.5px solid ${mediaSource === 'upload' ? 'var(--cyan)' : 'oklch(1 0 0 / 0.08)'}`,
+                      background: mediaSource === 'upload' ? 'rgba(0,212,255,0.12)' : 'oklch(0.12 0.04 235)',
+                      color: mediaSource === 'upload' ? 'var(--cyan)' : 'var(--text2)',
+                      fontWeight: mediaSource === 'upload' ? 700 : 500, fontSize: '.82rem', transition: '.15s',
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload de arquivos
+                  </button>
+
+                  <button type="button"
+                    onClick={() => { setMediaSource('library'); setShowLibPicker(true); }}
+                    style={{
+                      padding: '10px 12px', borderRadius: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      border: `1.5px solid ${mediaSource === 'library' ? 'var(--cyan)' : 'oklch(1 0 0 / 0.08)'}`,
+                      background: mediaSource === 'library' ? 'rgba(0,212,255,0.12)' : 'oklch(0.12 0.04 235)',
+                      color: mediaSource === 'library' ? 'var(--cyan)' : 'var(--text2)',
+                      fontWeight: mediaSource === 'library' ? 700 : 500, fontSize: '.82rem', transition: '.15s',
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                    Abrir biblioteca
+                  </button>
                 </div>
 
                 {mediaSource === 'upload' ? (
@@ -462,9 +525,12 @@ export default function Posts() {
                           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
                       </div>
-                      <strong>Arraste ou envie seus vídeos</strong>
+                      <strong>Arraste ou envie seus vídeos / fotos</strong>
                       <span>MP4, MOV, JPG, PNG — sem limite de quantidade</span>
-                      <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}>Selecionar arquivos</button>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <button type="button" className="btn btn-primary btn-sm">Selecionar arquivos</button>
+                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLibPicker(true); setMediaSource('library'); }} className="btn btn-ghost btn-sm">Usar da biblioteca</button>
+                      </div>
                     </label>
                     {media.length > 0 && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginTop: 12 }}>
@@ -502,7 +568,7 @@ export default function Posts() {
                               <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 8, overflow: 'hidden', border: '1px solid oklch(1 0 0 / 0.1)', background: 'oklch(0.12 0.04 235)' }}>
                                 <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
                                 <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
-                                  style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 4, background: 'rgba(239,68,68,.85)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                   style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 4, background: 'rgba(239,68,68,.85)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 3px' }}>
                                   <div style={{ fontSize: 8, color: '#fff', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{i+1} {m.originalName || m.filename}</div>
                                 </div>

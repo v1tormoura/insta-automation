@@ -4,8 +4,10 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
+import useServerEvents from '../services/useServerEvents';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const DRAFT_KEY = 'stories_form_draft_v1';
 
 function fmt(bytes) {
   if (!bytes) return '';
@@ -29,6 +31,7 @@ export default function Stories() {
   const [interval, setIntervalMin]    = useState(3);
   const [loading, setLoading]         = useState(false);
   const [results, setResults]         = useState(null);
+  const [bgStatus, setBgStatus]       = useState(null);
   const [toast, setToast]             = useState(null);
   const fileRef = useRef();
 
@@ -49,13 +52,56 @@ export default function Stories() {
     { rotulo: 'Rodapé', x: 0.5, y: 0.8  },
   ];
 
+  /* ── Recupera rascunho salvo ao abrir ou voltar para a página ────────────── */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.linkUrl !== undefined) setLinkUrl(d.linkUrl);
+        if (d.linkLabel !== undefined) setLinkLabel(d.linkLabel);
+        if (d.linkOn !== undefined) setLinkOn(d.linkOn);
+        if (d.linkPos) setLinkPos(d.linkPos);
+        if (d.interval !== undefined) setIntervalMin(d.interval);
+        if (Array.isArray(d.medias) && d.medias.length) setMedias(d.medias);
+        if (Array.isArray(d.selected) && d.selected.length) setSelected(d.selected);
+      }
+    } catch {}
+
+    // Verifica status de envio em segundo plano
+    api.get('/api/stories/status').then(r => {
+      if (r.data?.running) setBgStatus(r.data);
+    }).catch(() => {});
+  }, []);
+
+  /* ── Salva rascunho automaticamente a cada alteração ───────────────────── */
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected
+      }));
+    } catch {}
+  }, [linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected]);
+
   useEffect(() => {
     api.get('/accounts').then(r => {
       const accs = r.data.accounts || r.data || [];
       setAccounts(accs);
-      setSelected(accs.filter(a => a.accessToken || a.igSession).map(a => a._id));
+      if (!selected.length) {
+        setSelected(accs.filter(a => a.accessToken || a.igSession).map(a => a._id));
+      }
     }).catch(() => {});
   }, []);
+
+  // Escuta eventos SSE em tempo real de stories
+  useServerEvents(['stories', 'posts'], (ev) => {
+    if (ev?.action === 'progress') {
+      setBgStatus(prev => ({ ...(prev || {}), running: true, completed: ev.completed, total: ev.total, lastUser: ev.username }));
+    } else if (ev?.action === 'completed') {
+      setBgStatus(null);
+      showToast('success', 'Stories Concluídos!', 'Todos os stories agendados foram publicados.');
+    }
+  });
 
   async function addFiles(files) {
     const list = Array.from(files);
@@ -104,7 +150,12 @@ export default function Stories() {
         intervalMinutes: interval,
       });
       setResults(data);
-      showToast('success', 'Publicado!', `${data.successCount || 0} de ${data.total || selected.length} publicados.`);
+      if (data.inBackground) {
+        setBgStatus({ running: true, total: selected.length, completed: 0 });
+        showToast('success', 'Publicação iniciada!', data.message || 'Stories em execução em segundo plano.');
+      } else {
+        showToast('success', 'Publicado!', `${data.successCount || 0} de ${data.total || selected.length} publicados.`);
+      }
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
     finally { setLoading(false); }
   }
@@ -125,7 +176,7 @@ export default function Stories() {
       {loading ? (
         <>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
-          Publicando...
+          Iniciando...
         </>
       ) : (
         <>
@@ -147,6 +198,19 @@ export default function Stories() {
         accent="purple"
         actions={pageActions}
       >
+        {/* Banner de status em segundo plano */}
+        {bgStatus?.running && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderRadius: 10, background: 'rgba(0, 212, 255, 0.1)', border: '1px solid rgba(0, 212, 255, 0.3)', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--cyan)' }}>
+                Publicação de stories em segundo plano ativa ({bgStatus.completed || 0}/{bgStatus.total || selected.length})
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>Você pode navegar livremente</span>
+          </div>
+        )}
+
         {/* Stats row */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
           {[

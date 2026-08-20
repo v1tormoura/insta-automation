@@ -272,7 +272,15 @@ export default function CampaignWizard() {
 
   function Stepper() {
     return (
-      <div style={{ display:'flex', gap:6, overflowX:'auto', paddingBottom:6, marginBottom:16 }}>
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        overflowX: 'auto',
+        padding: '6px 2px 14px',
+        marginBottom: 16,
+        alignItems: 'stretch',
+        scrollbarWidth: 'thin',
+      }}>
         {ETAPAS.map((e, i) => {
           const atual = i === etapa;
           const feito = i < etapa;
@@ -280,17 +288,18 @@ export default function CampaignWizard() {
             <button key={e.id} onClick={() => i <= etapa && setEtapa(i)}
               title={e.desc}
               style={{
-                flex:'1 1 0', minWidth:96, textAlign:'left', padding:'9px 11px', borderRadius:10,
-                cursor: i <= etapa ? 'pointer' : 'default', transition:'all .18s',
-                background: atual ? 'rgba(0,212,255,.12)' : feito ? 'rgba(16,185,129,.08)' : 'oklch(1 0 0 / 0.03)',
-                border: `1px solid ${atual ? 'rgba(0,212,255,.4)' : feito ? 'rgba(16,185,129,.25)' : 'oklch(1 0 0 / 0.07)'}`,
+                flex: '1 1 0', minWidth: 102, textAlign: 'left', padding: '10px 12px', borderRadius: 10,
+                cursor: i <= etapa ? 'pointer' : 'default', transition: 'all .18s',
+                background: atual ? 'rgba(0,212,255,.14)' : feito ? 'rgba(16,185,129,.10)' : 'oklch(0.12 0.04 235)',
+                border: `1px solid ${atual ? 'rgba(0,212,255,.45)' : feito ? 'rgba(16,185,129,.3)' : 'oklch(1 0 0 / 0.09)'}`,
                 color: atual ? 'var(--cyan)' : feito ? '#34d399' : 'var(--text3)',
+                boxShadow: atual ? '0 0 14px rgba(0,212,255,.18)' : 'none',
               }}>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, opacity:.75 }}>
-                {feito ? '✓' : String(i + 1).padStart(2, '0')}
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 750, opacity: .9 }}>
+                {feito ? '✓ FEITO' : `ETAPA ${String(i + 1).padStart(2, '0')}`}
               </div>
-              <div style={{ fontSize:11.5, fontWeight:700, marginTop:2, whiteSpace:'nowrap',
-                overflow:'hidden', textOverflow:'ellipsis' }}>{e.titulo}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, whiteSpace: 'nowrap',
+                overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.titulo}</div>
             </button>
           );
         })}
@@ -697,43 +706,45 @@ export default function CampaignWizard() {
         </button>
       }
     >
-      <Stepper />
+      <div style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Stepper />
 
-      <AnimatePresence mode="wait">
-        <motion.div key={ETAPAS[etapa].id}
-          initial={{ opacity:0, x:12 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-12 }}
-          transition={{ duration:.18, ease:[.4,0,.2,1] }}>
-          {/* Chamada, não `<Atual />`: como as funções de etapa são recriadas a
-              cada render, usá-las como componente daria a elas uma identidade
-              nova toda vez e o React remontaria a subárvore inteira — a prévia
-              refaria o POST em laço e os filtros seriam zerados a cada tecla.
-              Nenhuma etapa usa hooks, então chamá-las direto é seguro. */}
-          {Atual()}
-        </motion.div>
-      </AnimatePresence>
+        <AnimatePresence mode="wait">
+          <motion.div key={ETAPAS[etapa].id}
+            initial={{ opacity:0, x:12 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-12 }}
+            transition={{ duration:.18, ease:[.4,0,.2,1] }}>
+            {/* Chamada, não `<Atual />`: como as funções de etapa são recriadas a
+                cada render, usá-las como componente daria a elas uma identidade
+                nova toda vez e o React remontaria a subárvore inteira — a prévia
+                refaria o POST em laço e os filtros seriam zerados a cada tecla.
+                Nenhuma etapa usa hooks, então chamá-las direto é seguro. */}
+            {Atual()}
+          </motion.div>
+        </AnimatePresence>
 
-      {/* ── Navegação ── */}
-      <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginTop:6, flexWrap:'wrap' }}>
-        <button className="btn btn-ghost" disabled={etapa === 0 || enviando}
-          onClick={() => setEtapa(e => Math.max(0, e - 1))}>Voltar</button>
+        {/* ── Navegação ── */}
+        <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginTop:6, flexWrap:'wrap' }}>
+          <button className="btn btn-ghost" disabled={etapa === 0 || enviando}
+            onClick={() => setEtapa(e => Math.max(0, e - 1))}>Voltar</button>
 
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          {/* Na revisão o número real vem da prévia; repetir a estimativa aqui
-              mostraria dois totais diferentes na mesma tela. */}
-          {totalPublicacoes > 0 && !ultima && (
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text3)' }}>
-              até {totalPublicacoes} publicações
-            </span>
-          )}
-          {ultima ? (
-            <button className="btn btn-primary" onClick={publicar}
-              disabled={enviando || previaValida !== true}
-              title={previaValida === false ? 'Corrija as publicações com erro' : undefined}>
-              {enviando ? 'Criando...' : previaValida === null ? 'Gerando plano...' : 'Publicar campanha'}
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={avancar} disabled={enviando}>Continuar</button>
-          )}
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            {/* Na revisão o número real vem da prévia; repetir a estimativa aqui
+                mostraria dois totais diferentes na mesma tela. */}
+            {totalPublicacoes > 0 && !ultima && (
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text3)' }}>
+                até {totalPublicacoes} publicações
+              </span>
+            )}
+            {ultima ? (
+              <button className="btn btn-primary" onClick={publicar}
+                disabled={enviando || previaValida !== true}
+                title={previaValida === false ? 'Corrija as publicações com erro' : undefined}>
+                {enviando ? 'Criando...' : previaValida === null ? 'Gerando plano...' : 'Publicar campanha'}
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={avancar} disabled={enviando}>Continuar</button>
+            )}
+          </div>
         </div>
       </div>
 

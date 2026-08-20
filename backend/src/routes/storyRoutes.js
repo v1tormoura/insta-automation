@@ -46,6 +46,27 @@ router.post('/upload', upload.single('image'), (req, res) => {
  *   linkText?:  string,     // Texto da figurinha (opcional, default "Clique Aqui")
  * }
  */
+const { broadcast } = require('../events/broadcaster');
+
+// Memória em runtime dos últimos envios de stories para histórico/status
+let _lastStoryJob = { running: false, total: 0, completed: 0, errors: 0, results: [], startedAt: null };
+
+router.get('/status', (req, res) => {
+  res.json(_lastStoryJob);
+});
+
+/**
+ * POST /api/stories
+ * Body: {
+ *   accountIds: string[],   // IDs das contas
+ *   imageUrl:   string,     // URL pública da imagem do story
+ *   linkUrl?:   string,     // URL do link sticker (opcional)
+ *   linkText?:  string,     // Texto da figurinha (opcional)
+ *   intervalMinutes?: number,
+ *   linkX?:     number,
+ *   linkY?:     number,
+ * }
+ */
 router.post('/', async (req, res) => {
   const { accountIds, imageUrl, linkUrl, linkText, intervalMinutes, linkX, linkY } = req.body;
 
@@ -57,67 +78,120 @@ router.post('/', async (req, res) => {
   }
 
   const intervalMs = Math.max(0, Number(intervalMinutes) || 0) * 60 * 1000;
-  const results = [];
 
-  for (let i = 0; i < accountIds.length; i++) {
-    // Aplica intervalo entre contas (exceto antes da primeira)
-    if (i > 0 && intervalMs > 0) {
-      await new Promise(r => setTimeout(r, intervalMs));
-    }
+  // Processador em segundo plano que não trava o navegador
+  const runStoryBatch = async () => {
+    _lastStoryJob = {
+      running: true,
+      total: accountIds.length,
+      completed: 0,
+      errors: 0,
+      results: [],
+      startedAt: new Date(),
+    };
+    broadcast('stories', { action: 'started', total: accountIds.length });
 
-    const account = await Account.findById(accountIds[i]).catch(() => null);
-    if (!account) {
-      results.push({ accountId: accountIds[i], status: 'error', error: 'Conta não encontrada' });
-      continue;
-    }
+    for (let i = 0; i < accountIds.length; i++) {
+      // Aplica intervalo entre contas (com jitter orgânico de ±10%)
+      if (i > 0) {
+        let waitMs = intervalMs;
+        if (waitMs <= 0) {
+          // Delay humanizado padrão entre contas (12s a 25s)
+          waitMs = Math.floor(Math.random() * 13000) + 12000;
+        } else {
+          const jitter = 1 + ((Math.random() * 0.20) - 0.10);
+          waitMs = Math.round(waitMs * jitter);
+        }
+        console.log(`[Stories] Aguardando ${(waitMs / 1000).toFixed(1)}s antes de postar na próxima conta...`);
+        await new Promise(r => setTimeout(r, waitMs));
+      }
 
-    // Tenta postar com 1 retry automático em caso de "too many actions"
-    let lastErr;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        const info = await postStory(account, {
-          imageUrl,
-          linkUrl:  linkUrl  || null,
-          linkText: linkText || 'Clique Aqui',
-          // Posição da figurinha (0..1, x/y = centro). Ausente → padrão da lib.
-          linkX:    linkX !== undefined ? Number(linkX) : undefined,
-          linkY:    linkY !== undefined ? Number(linkY) : undefined,
-        });
-        results.push({
+      const account = await Account.findById(accountIds[i]).catch(() => null);
+      if (!account) {
+        _lastStoryJob.errors++;
+        _lastStoryJob.results.push({ accountId: accountIds[i], status: 'error', error: 'Conta não encontrada' });
+        continue;
+      }
+
+      let lastErr;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const info = await postStory(account, {
+            imageUrl,
+            linkUrl:  linkUrl  || null,
+            linkText: linkText || 'Clique Aqui',
+            linkX:    linkX !== undefined ? Number(linkX) : undefined,
+            linkY:    linkY !== undefined ? Number(linkY) : undefined,
+          });
+          _lastStoryJob.completed++;
+          _lastStoryJob.results.push({
+            accountId: accountIds[i],
+            username:  account.username,
+            status:    'success',
+            method:    info.method,
+            withLink:  info.withLink,
+          });
+          lastErr = null;
+          broadcast('stories', { action: 'progress', completed: _lastStoryJob.completed, total: accountIds.length, username: account.username });
+          break;
+        } catch (err) {
+          lastErr = err;
+          const isTooMany = /too many actions|please wait|rate limit|feedback_required/i.test(err.message);
+          if (isTooMany && attempt === 1) {
+            console.log(`⏳ [Story] @${account.username} — rate limit, aguardando 25s antes de tentar novamente...`);
+            await new Promise(r => setTimeout(r, 25_000));
+          }
+        }
+      }
+
+      if (lastErr) {
+        _lastStoryJob.errors++;
+        console.error(`❌ Story @${account.username}:`, lastErr.message);
+        _lastStoryJob.results.push({
           accountId: accountIds[i],
           username:  account.username,
-          status:    'success',
-          method:    info.method,
-          withLink:  info.withLink,
+          status:    'error',
+          error:     lastErr.message,
         });
-        lastErr = null;
-        break;
-      } catch (err) {
-        lastErr = err;
-        const isTooMany = /too many actions|please wait|rate limit|feedback_required/i.test(err.message);
-        if (isTooMany && attempt === 1) {
-          console.log(`⏳ [Story] @${account.username} — rate limit, aguardando 30s antes de tentar novamente...`);
-          await new Promise(r => setTimeout(r, 30_000));
-        }
+        broadcast('stories', { action: 'error', username: account.username, error: lastErr.message });
       }
     }
 
-    if (lastErr) {
-      console.error(`❌ Story @${account.username}:`, lastErr.message);
-      results.push({
-        accountId: accountIds[i],
-        username:  account.username,
-        status:    'error',
-        error:     lastErr.message,
+    _lastStoryJob.running = false;
+    broadcast('stories', { action: 'completed', results: _lastStoryJob.results });
+    broadcast('posts', { action: 'created' });
+  };
+
+  // Se for apenas 1 conta sem intervalo configurado, executa rápido síncrono
+  if (accountIds.length === 1 && intervalMs === 0) {
+    const account = await Account.findById(accountIds[0]).catch(() => null);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+    try {
+      const info = await postStory(account, {
+        imageUrl,
+        linkUrl:  linkUrl  || null,
+        linkText: linkText || 'Clique Aqui',
+        linkX:    linkX !== undefined ? Number(linkX) : undefined,
+        linkY:    linkY !== undefined ? Number(linkY) : undefined,
       });
+      return res.json({
+        success: true,
+        results: [{ accountId: account._id, username: account.username, status: 'success', method: info.method, withLink: info.withLink }],
+        successCount: 1,
+        total: 1,
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
     }
   }
 
-  const successCount = results.filter(r => r.status === 'success').length;
+  // Para múltiplas contas ou com intervalo, inicia em segundo plano imediatamente
+  runStoryBatch().catch(err => console.error('[Stories Background] Erro fatal:', err));
 
-  res.json({
-    results,
-    successCount,
+  return res.json({
+    success: true,
+    inBackground: true,
+    message: `Publicação de stories iniciada para ${accountIds.length} conta(s) em segundo plano.`,
     total: accountIds.length,
   });
 });

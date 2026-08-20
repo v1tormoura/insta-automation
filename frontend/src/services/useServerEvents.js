@@ -81,3 +81,5 @@ export function useServerEvents(events, callback, { retryMs = 2000 } = {}) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
+
+export default useServerEvents;
