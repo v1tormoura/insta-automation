@@ -148,6 +148,10 @@ async def publish_story(body: PublishStoryRequest):
     from instagrapi.types import StorySticker
     stickers = []
     if body.link_url:
+        link_url = body.link_url
+        if not link_url.startswith("http://") and not link_url.startswith("https://"):
+            link_url = "https://" + link_url
+
         posicao = {
             "x": body.link_x if body.link_x is not None else 0.5,
             "y": body.link_y if body.link_y is not None else 0.5,
@@ -157,11 +161,12 @@ async def publish_story(body: PublishStoryRequest):
         }
         extra = {
             "link_type": "web",
-            "url": body.link_url,
+            "url": link_url,
             "tap_state_str_id": "link_sticker_default"
         }
         if body.link_text:
             extra["custom_title"] = body.link_text
+            extra["link_title"] = body.link_text
             
         stickers.append(StorySticker(
             id="link_sticker_default",
@@ -187,7 +192,7 @@ async def publish_story(body: PublishStoryRequest):
                     client.private_request(
                         "media/validate_reel_url/",
                         {
-                            "url": body.link_url,
+                            "url": link_url,
                             "_uid": str(client.user_id),
                             "_uuid": str(client.uuid),
                         }
