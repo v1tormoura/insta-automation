@@ -497,13 +497,34 @@ async function processarPublicacao(publicationId, deps = {}) {
 
 /* ── Comentário ────────────────────────────────────────────────────────────── */
 
+/**
+ * Atraso do comentário, sorteado na faixa configurada.
+ *
+ * Atraso fixo faz o comentário sair sempre no mesmo delta da publicação — em
+ * dezenas de publicações isso é um padrão exato. O sorteio é por publicação, e
+ * teto <= piso mantém o comportamento fixo de quem configurou assim.
+ */
+function _atrasoDoComentario(comments = {}) {
+  // Valor não numérico cai no padrão em vez de virar NaN: NaN chegaria à fila
+  // como `Number(NaN) || 0`, ou seja, comentário imediato sem ninguém perceber.
+  const minutos = (valor, padrao) => {
+    const n = Number(valor);
+    return Number.isFinite(n) ? Math.max(0, n) : padrao;
+  };
+
+  const piso = minutos(comments.delayMinutes, 2);
+  const teto = minutos(comments.delayMaxMinutes, 6);
+  if (!(teto > piso)) return piso;
+  return piso + Math.random() * (teto - piso);
+}
+
 /** Agenda o comentário de uma publicação recém-publicada, se houver texto. */
 async function agendarComentarioDe(pub, campanha) {
   if (campanha.commentMode === 'disabled') return null;
   if (!String(pub.resolvedComment || '').trim()) return null;
 
   const { jobId, criado } = await fila.agendarComentario(
-    pub, campanha.comments?.delayMinutes ?? 2,
+    pub, _atrasoDoComentario(campanha.comments),
   );
 
   await CampaignPublication.updateOne(
@@ -787,6 +808,9 @@ module.exports = {
   processarPublicacao,
   agendarComentarioDe,
   processarComentario,
+  // Exportado para teste: a faixa do atraso do comentário é regra de
+  // humanização e precisa ser verificável sem subir fila nem banco.
+  _atrasoDoComentario,
   pausarCampanha,
   retomarCampanha,
   cancelarCampanha,

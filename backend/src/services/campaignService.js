@@ -462,7 +462,10 @@ async function preverCampanha(dados, agora = new Date()) {
       resolvedCaption: legenda.text,
       commentTemplate: comentando ? item.commentTemplate : '',
       resolvedComment: comentando ? comentario.text : '',
-      commentDelayMinutes: comentando ? Number(dados.comments?.delayMinutes ?? 2) : null,
+      // Faixa do atraso — o valor real é sorteado na execução, então a prévia
+      // mostra o intervalo em vez de um número que não vai se confirmar.
+      commentDelayMinutes:    comentando ? Number(dados.comments?.delayMinutes ?? 2) : null,
+      commentDelayMaxMinutes: comentando ? Number(dados.comments?.delayMaxMinutes ?? 6) : null,
       problemas,
     };
   });

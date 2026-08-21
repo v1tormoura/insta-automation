@@ -136,7 +136,10 @@ exports.republishPost = async (req, res) => {
       // Com intervalo: um post por conta, cada um agendado com delay crescente
       const posts = [];
       for (let i = 0; i < accounts.length; i++) {
-        const accountDelay = Math.max(baseDate.getTime() + i * intervalMs - Date.now(), 0);
+        // Jitter de ±12%: sem ele os posts caem em múltiplos exatos do
+        // intervalo, uma cadência perfeita que nenhuma pessoa produz.
+        const comJitter    = i === 0 ? 0 : i * intervalMs * (1 + (Math.random() * 0.24 - 0.12));
+        const accountDelay = Math.max(baseDate.getTime() + comJitter - Date.now(), 0);
         const p = await Post.create({
           media:       filename,
           mediaType:   isVideo ? 'video' : 'image',

@@ -12,6 +12,9 @@ const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
 const traduzirErro        = require('../utils/traduzirErro');
 const { runPromoAfterPost, postCTACommentForPost, postEngageCommentForPost } = require('../jobs/promoJob');
+// Ordenação humanizada — as mesmas regras da campanha, para Postar e Loop não
+// terem uma segunda implementação que divirja com o tempo.
+const { criarRandom, embaralhar, espacarPorConta } = require('../services/publicationPlanner');
 
 connectDB();
 
@@ -341,9 +344,12 @@ async function processLegacyPost(postId) {
   }
 
   console.log(`[Legacy] Publicando para ${post.accounts.length} conta(s)...`);
+  // Ordem sorteada, como nas rodadas do Job Engine: publicar sempre na ordem
+  // gravada repete a mesma sequência de contas a cada post.
+  const contasEmbaralhadas = embaralhar(post.accounts, criarRandom(`legacy:${post._id}`));
   const results = [];
-  for (let i = 0; i < post.accounts.length; i++) {
-    const acc = post.accounts[i];
+  for (let i = 0; i < contasEmbaralhadas.length; i++) {
+    const acc = contasEmbaralhadas[i];
     if (i > 0) {
       // Fase 16: Intercalação orgânica real de 3 a 7 minutos (180s a 420s)
       const humanDelayMs = Math.floor(Math.random() * 240000) + 180000;
@@ -362,7 +368,7 @@ async function processLegacyPost(postId) {
     if (r.status === 'fulfilled') successCount++;
     else {
       errorCount++;
-      errors.push(`@${post.accounts[i].username}: ${r.reason?.message || 'Erro'}`);
+      errors.push(`@${contasEmbaralhadas[i].username}: ${r.reason?.message || 'Erro'}`);
     }
   });
 
@@ -452,7 +458,27 @@ async function processJobRound(jobId) {
   let roundSuccess = 0;
   let roundErrors  = 0;
 
-  await Promise.allSettled(roundMedia.map(async (mediaFile) => {
+  // ── Sequência da rodada ────────────────────────────────────────────────
+  //
+  // Antes: as mídias da rodada rodavam em paralelo e cada uma percorria as
+  // contas com intervalo humano. O intervalo só existia ENTRE contas de uma
+  // mesma mídia — a mesma conta recebia as N mídias do lote emendadas, sem
+  // pausa nenhuma, serializadas só pela disputa do lock isBusy. Era o padrão
+  // mais robotizado do sistema, e ainda arriscava estourar os 5 min de espera
+  // do lock quando várias mídias caíam na mesma conta.
+  //
+  // Agora a rodada é uma sequência ÚNICA de (mídia × conta): ordem das contas
+  // sorteada por rodada, espaçada para a mesma conta não aparecer duas vezes
+  // seguidas, e intervalo humano entre TODAS as publicações.
+  //
+  // A seed é `jobId:rodada` — muda a cada rodada (a ordem não se repete) e é
+  // reproduzível quando se precisa investigar o que saiu em que ordem.
+  const rand           = criarRandom(`${jobDoc._id}:${round}`);
+  const contasDaRodada = embaralhar(jobDoc.accounts, rand);
+
+  // O preparo (documento Post e pré-processamento de vídeo) não fala com o
+  // Instagram — segue em paralelo, antes de qualquer publicação.
+  const preparadas = await Promise.all(roundMedia.map(async (mediaFile) => {
     const isVideo   = /\.(mp4|mov|webm|avi|mkv)$/i.test(mediaFile);
     const mediaType = isVideo ? 'video' : 'image';
     let   postType  = jobDoc.postType || 'reel';
@@ -469,7 +495,6 @@ async function processJobRound(jobId) {
       }
     }
 
-    // Cria Post document para esta mídia
     const post = await Post.create({
       media:         mediaFile,
       mediaType,
@@ -485,43 +510,56 @@ async function processJobRound(jobId) {
       scheduledAt:   new Date(),
     });
 
-    // Publica para as contas com espaçamento e intercalação humanizada (anti-detecção Meta)
-    const results = [];
-    for (let accIdx = 0; accIdx < jobDoc.accounts.length; accIdx++) {
-      const acc = jobDoc.accounts[accIdx];
-      // Fase 16: Aumentando intervalo humanizado de segundos para 2 a 5 minutos (120s a 300s) para simular troca real de conta
-      if (accIdx > 0) {
-        const humanDelayMs = Math.floor(Math.random() * 180000) + 120000;
-        console.log(`[Job] Intervalo humanizado de ${(humanDelayMs / 1000).toFixed(1)}s antes de postar em @${acc.username}...`);
-        await delay(humanDelayMs);
-      }
-      try {
-        const res = await publishOneAccount(acc, post, preProcessedVideoUrl);
-        results.push({ status: 'fulfilled', value: res });
-      } catch (err) {
-        results.push({ status: 'rejected', reason: err });
-      }
+    return { mediaFile, post, preProcessedVideoUrl, sucessos: 0, erros: [] };
+  }));
+
+  const pares = [];
+  for (const conta of contasDaRodada) {
+    for (const preparada of preparadas) {
+      pares.push({ accountId: String(conta._id), conta, preparada });
+    }
+  }
+  const sequencia = espacarPorConta(embaralhar(pares, rand));
+
+  for (let indice = 0; indice < sequencia.length; indice++) {
+    const { conta, preparada } = sequencia[indice];
+
+    if (indice > 0) {
+      const humanDelayMs = Math.floor(Math.random() * 180000) + 120000;  // 2 a 5 min
+      console.log(`[Job] Intervalo humanizado de ${(humanDelayMs / 1000).toFixed(1)}s antes de postar em @${conta.username}...`);
+      await delay(humanDelayMs);
     }
 
-    let postSuccess = 0;
-    const postErrorMsgs = [];
-    results.forEach((r, i) => {
-      if (r.status === 'fulfilled') { postSuccess++; roundSuccess++; }
-      else {
-        roundErrors++;
-        postErrorMsgs.push(`@${jobDoc.accounts[i].username}: ${r.reason?.message || 'Erro'}`);
-      }
-    });
+    // Pause e cancel emitidos durante a rodada param a sequência: sem esta
+    // checagem o job continuaria publicando por mais dezenas de minutos.
+    const statusAtual = (await Job.findById(jobDoc._id).select('status').lean())?.status;
+    if (['paused', 'cancelled'].includes(statusAtual)) {
+      console.log(`[Job] "${jobDoc.name}" foi ${statusAtual} — sequência interrompida em ${indice}/${sequencia.length}`);
+      break;
+    }
 
-    post.status = postSuccess === results.length ? 'concluido'
-                : postSuccess > 0               ? 'parcial'
-                :                                 'erro';
-    post.error  = postErrorMsgs.join(' | ');
-    await post.save();
+    try {
+      await publishOneAccount(conta, preparada.post, preparada.preProcessedVideoUrl);
+      preparada.sucessos++;
+      roundSuccess++;
+    } catch (err) {
+      preparada.erros.push(`@${conta.username}: ${err?.message || 'Erro'}`);
+      roundErrors++;
+    }
+  }
+
+  for (const preparada of preparadas) {
+    const publicadas = preparada.sucessos + preparada.erros.length;
+    preparada.post.status = publicadas === 0                     ? 'erro'
+                          : preparada.sucessos === publicadas    ? 'concluido'
+                          : preparada.sucessos > 0               ? 'parcial'
+                          :                                        'erro';
+    preparada.post.error  = preparada.erros.join(' | ');
+    await preparada.post.save();
 
     // Registra post no Job (push atômico para evitar conflito)
-    await Job.findByIdAndUpdate(jobDoc._id, { $push: { postIds: post._id } });
-  }));
+    await Job.findByIdAndUpdate(jobDoc._id, { $push: { postIds: preparada.post._id } });
+  }
 
   // Atualiza contadores
   const nextRound     = round + 1;
@@ -555,15 +593,17 @@ async function processJobRound(jobId) {
     return;
   }
 
-  // Agenda próxima rodada com micro-variação (jitter humanizado de ±10%) para não bater em minutos fixos no relógio
-  const rawIntervalMs = (jobDoc.intervalMinutes || 0) * 60 * 1000;
-  let intervalMs = rawIntervalMs;
-  if (intervalMs > 0) {
-    const jitterFactor = 1 + ((Math.random() * 0.20) - 0.08); // variação de -8% a +12%
-    intervalMs = Math.max(30_000, Math.round(rawIntervalMs * jitterFactor));
-  } else if (jobDoc.type === 'loop') {
-    intervalMs = 60_000 + Math.floor(Math.random() * 15000);
-  }
+  // Agenda a próxima rodada com jitter simétrico de ±12%, para as rodadas não
+  // caírem sempre no mesmo minuto do relógio.
+  //
+  // Piso de 1 minuto mesmo com intervalMinutes = 0: jobs antigos (e o caminho
+  // de repost dos insights) foram criados com 0 e emendavam uma rodada na
+  // outra sem pausa nenhuma. O controller já recusa 0 na criação; este piso
+  // cobre o que já está gravado no banco.
+  const PISO_INTERVALO_MS = 60_000;
+  const rawIntervalMs = Math.max(PISO_INTERVALO_MS, (jobDoc.intervalMinutes || 0) * 60 * 1000);
+  const jitterFactor  = 1 + ((Math.random() * 0.24) - 0.12);
+  const intervalMs    = Math.max(PISO_INTERVALO_MS, Math.round(rawIntervalMs * jitterFactor));
 
   const isLoopCycling = jobDoc.type === 'loop' && nextStartIdx >= totalMedia;
 
@@ -579,14 +619,14 @@ async function processJobRound(jobId) {
   );
 
   await Job.findByIdAndUpdate(jobDoc._id, {
-    status:       intervalMs > 0 ? 'waiting_interval' : 'running',
+    status:       'waiting_interval',
     nextRoundAt:  new Date(Date.now() + intervalMs),
     bullMqJobId:  String(bullJob.id),
     ...(isLoopCycling ? { currentRound: 0, roundsCompleted: 0 } : {}),
   });
 
   broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
-  console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída (✓${roundSuccess} ✗${roundErrors}). Próxima ${intervalMs > 0 ? `em ${(intervalMs / 60000).toFixed(1)}min (jitter humanizado)` : 'imediatamente'}`);
+  console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} concluída (✓${roundSuccess} ✗${roundErrors}). Próxima em ${(intervalMs / 60000).toFixed(1)}min (jitter humanizado)`);
 }
 
 // ── Processamento de campanha (fase 8) ────────────────────────────────────

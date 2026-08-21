@@ -274,7 +274,11 @@ export default function CampaignPreview({ payload, onValidChange }) {
                     <div>
                       <div style={{ fontSize:9.5, color:'var(--text3)', textTransform:'uppercase',
                         letterSpacing:'.05em', marginBottom:3 }}>
-                        Comentário{p.commentDelayMinutes != null && ` · ${p.commentDelayMinutes} min depois`}
+                        Comentário{p.commentDelayMinutes != null && (
+                          p.commentDelayMaxMinutes > p.commentDelayMinutes
+                            ? ` · ${p.commentDelayMinutes} a ${p.commentDelayMaxMinutes} min depois`
+                            : ` · ${p.commentDelayMinutes} min depois`
+                        )}
                       </div>
                       <div style={{ fontSize:11.5, color:'var(--text2)', lineHeight:1.55,
                         whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{p.resolvedComment}</div>

@@ -79,25 +79,52 @@ export default function CommentEditor({
             <label style={{ display:'block', fontSize:12, fontWeight:700, marginBottom:6 }}>
               Publicar o comentário depois de
             </label>
+            {/* Faixa, não valor fixo: o atraso é sorteado entre o mínimo e o
+                máximo a cada publicação. Um número fixo faz o comentário sair
+                sempre no mesmo delta do post — padrão exato em série. */}
             <div style={{ display:'flex', alignItems:'center', gap:9, flexWrap:'wrap' }}>
+              <span style={{ fontSize:12, color:'var(--text3)' }}>entre</span>
               <input
                 className="input"
                 type="number"
                 min={0}
                 max={1440}
-                style={{ width:100 }}
+                style={{ width:88 }}
                 value={comments.delayMinutes ?? 2}
                 onChange={e => {
                   // Campo vazio vira 0 em vez de NaN, que o backend rejeitaria.
                   const n = parseInt(e.target.value, 10);
-                  onChange({ ...comments, delayMinutes: Number.isFinite(n) ? Math.max(0, n) : 0 });
+                  const piso = Number.isFinite(n) ? Math.max(0, n) : 0;
+                  const teto = Number(comments.delayMaxMinutes ?? 6);
+                  onChange({
+                    ...comments,
+                    delayMinutes: piso,
+                    // Teto abaixo do piso vira atraso fixo no backend; subir o
+                    // teto junto evita a faixa invertida sem avisar.
+                    delayMaxMinutes: teto < piso ? piso : teto,
+                  });
+                }}
+              />
+              <span style={{ fontSize:12, color:'var(--text3)' }}>e</span>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={1440}
+                style={{ width:88 }}
+                value={comments.delayMaxMinutes ?? 6}
+                onChange={e => {
+                  const n = parseInt(e.target.value, 10);
+                  const piso = Number(comments.delayMinutes ?? 2);
+                  const teto = Number.isFinite(n) ? Math.max(0, n) : 0;
+                  onChange({ ...comments, delayMaxMinutes: Math.max(piso, teto) });
                 }}
               />
               <span style={{ fontSize:12, color:'var(--text2)' }}>minutos</span>
             </div>
             <div style={{ fontSize:10.5, color:'var(--text3)', marginTop:8, lineHeight:1.5 }}>
-              Contado a partir da publicação do post. Zero comenta logo em seguida —
-              um intervalo de poucos minutos se parece mais com uso normal.
+              Contado a partir da publicação do post. O atraso é sorteado dentro da faixa
+              a cada publicação — máximo igual ao mínimo deixa o atraso fixo.
             </div>
           </div>
         </>

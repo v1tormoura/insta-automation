@@ -514,6 +514,27 @@ function generatePlan({
 module.exports = {
   generatePlan,
   PlannerError,
+
+  /* ── Helpers compartilhados ───────────────────────────────────────────────
+   *
+   * Postar, Loop e Stories usam as MESMAS regras de ordenação da campanha. Sem
+   * isto cada fluxo reimplementaria embaralhamento e espaçamento, e as três
+   * cópias divergiriam com o tempo — foi por isso que o planner nasceu como
+   * serviço compartilhado (ver cabeçalho do arquivo).
+   */
+
+  /** PRNG semeado. Mesma seed = mesma sequência, o que torna a rodada auditável. */
+  criarRandom: _criarRandom,
+
+  /** Fisher–Yates com PRNG semeado. */
+  embaralhar: _embaralhar,
+
+  /**
+   * Reordena para a mesma conta não aparecer em publicações consecutivas.
+   * Os itens podem carregar qualquer carga extra — só `accountId` é lido.
+   */
+  espacarPorConta: _espacarContas,
+
   // Exportados para teste — permitem verificar as peças isoladamente sem
   // precisar montar um plano inteiro.
   _internals: {

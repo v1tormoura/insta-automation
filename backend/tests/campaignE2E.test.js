@@ -692,6 +692,21 @@ describe('PARTES 5 e 6 — comentário usa o media_id exato', () => {
     await executor.processarPublicacao(db.publications[0]._id, { publicarNaConta: publicador() });
     expect(Date.now() - inicio).toBeLessThan(1000);
 
+    // O atraso é sorteado na faixa [delayMinutes, delayMaxMinutes] — sem teto
+    // configurado vale o padrão do model (6 min). Valor fixo faria o comentário
+    // sair sempre no mesmo delta da publicação.
+    const job = mockFila.get(filaCamp.idComentario(db.publications[0]._id));
+    expect(job.delay).toBeGreaterThanOrEqual(3 * 60_000);
+    expect(job.delay).toBeLessThanOrEqual(6 * 60_000);
+  });
+
+  test('teto igual ao piso volta ao atraso exato', async () => {
+    await criarCampanha({
+      commentMode: 'global',
+      comments: { global: 'Link na bio, {username}', delayMinutes: 3, delayMaxMinutes: 3 },
+    });
+    await executor.processarPublicacao(db.publications[0]._id, { publicarNaConta: publicador() });
+
     const job = mockFila.get(filaCamp.idComentario(db.publications[0]._id));
     expect(job.delay).toBe(3 * 60_000);
   });

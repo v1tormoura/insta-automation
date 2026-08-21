@@ -183,7 +183,7 @@ export default function Posts() {
   const [showCoverPicker, setShowCoverPicker] = useState(false);
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [scheduledAt, setScheduledAt] = useState('');
-  const [intervalMins, setIntervalMins] = useState(0);
+  const [intervalMins, setIntervalMins] = useState(3);   // backend exige >= 1
   const [simultaneousLimit, setSimultaneousLimit] = useState(1);
   const [processMode, setProcessMode] = useState('limpeza_leve');
   const [toast, setToast] = useState(null);
@@ -761,7 +761,8 @@ export default function Posts() {
               </div>
               <div style={cardBodyStyle}>
                 <p style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12 }}>
-                  Quantos reels são enviados juntos em cada lote para todas as contas
+                  Quantos reels entram em cada rodada. Dentro da rodada as publicações saem
+                  uma a uma, com 2 a 5 min entre elas e ordem de contas sorteada.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>LOTE</span>
@@ -776,8 +777,8 @@ export default function Posts() {
                 </div>
                 <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.15)', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
                   {simultaneousLimit === 1
-                    ? 'Sequencial — 1 reel por vez. Todas as contas recebem cada reel em paralelo, depois aguarda o intervalo.'
-                    : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} vão juntos para todas as contas em paralelo, depois aguarda o intervalo.`
+                    ? 'Sequencial — 1 reel por rodada, enviado conta a conta com intervalo humano entre cada publicação.'
+                    : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} entram na mesma rodada, mas as publicações saem uma de cada vez: nenhuma conta recebe dois posts seguidos.`
                   }
                 </div>
               </div>
@@ -790,11 +791,11 @@ export default function Posts() {
                 <span style={{ fontSize: '.83rem', color: '#60a5fa', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{intervalMins} min</span>
               </div>
               <div style={cardBodyStyle}>
-                <input type="range" min="0" max="120" step="1" value={intervalMins}
+                <input type="range" min="1" max="120" step="1" value={Math.max(1, intervalMins)}
                   onChange={e => setIntervalMins(Number(e.target.value))}
                   style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer', marginBottom: 6 }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
-                  <span>Sem intervalo</span><span>120 min</span>
+                  <span>1 min</span><span>120 min</span>
                 </div>
                 <div style={{ marginTop: 10 }}>
                   <label style={{ fontSize: 12, color: 'var(--text2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>

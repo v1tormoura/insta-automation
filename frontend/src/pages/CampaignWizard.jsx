@@ -59,7 +59,7 @@ const estadoInicial = {
   accountIds: [], contentIds: [],
   captionMode: 'global',
   captions: { global: '', byAccount: {}, byContent: {}, byAccountContent: {} },
-  commentMode: 'disabled', comments: { global: '', delayMinutes: 2 },
+  commentMode: 'disabled', comments: { global: '', delayMinutes: 2, delayMaxMinutes: 6 },
   strategy: { mode: 'interleaved_random' },
   schedule: {
     startAt: '',
@@ -705,7 +705,11 @@ export default function CampaignWizard() {
         {linha('Dias', s.weekdays.length ? DIAS.filter(d => s.weekdays.includes(d.n)).map(d => d.r).join(', ') : 'Todos')}
         {linha('Tipo', form.settings.postType)}
         {linha('Limite diário', form.settings.respectDailyLimit ? 'Respeitado no plano' : 'Ignorado no plano')}
-        {linha('Comentário', form.commentMode === 'disabled' ? 'Desativado' : `${form.comments.delayMinutes ?? 2} min após o post`)}
+        {linha('Comentário', form.commentMode === 'disabled'
+          ? 'Desativado'
+          : (form.comments.delayMaxMinutes ?? 6) > (form.comments.delayMinutes ?? 2)
+            ? `${form.comments.delayMinutes ?? 2} a ${form.comments.delayMaxMinutes ?? 6} min após o post`
+            : `${form.comments.delayMinutes ?? 2} min após o post`)}
       </>)}
 
       <div style={{ fontSize:11.5, lineHeight:1.7, color:'var(--text3)', background:'rgba(0,212,255,.05)',

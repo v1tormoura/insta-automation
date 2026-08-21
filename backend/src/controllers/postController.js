@@ -37,7 +37,12 @@ exports.createPost = async (req, res) => {
     const accounts = JSON.parse(req.body.accounts || '[]');
     if (!accounts.length) return res.status(400).json({ error: 'Nenhuma conta selecionada' });
 
+    // Piso de 1 minuto, igual ao Loop. Com 0 as rodadas emendavam uma na outra
+    // sem pausa nenhuma — o padrão mais robotizado que o Postar produzia.
     const intervalMinutes    = Number(req.body.intervalMinutes || 0);
+    if (!intervalMinutes || intervalMinutes < 1) {
+      return res.status(400).json({ error: 'Intervalo mínimo entre rodadas: 1 minuto' });
+    }
     const simultaneousLimit  = Math.max(1, Number(req.body.simultaneousLimit) || 1);
     const requestedPostType  = req.body.postType || 'reel';
 

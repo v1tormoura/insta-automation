@@ -79,6 +79,12 @@ router.post('/', async (req, res) => {
 
   const intervalMs = Math.max(0, Number(intervalMinutes) || 0) * 60 * 1000;
 
+  // Ordem das contas sorteada a cada lote. Publicar sempre na ordem em que as
+  // contas aparecem na tela repete a mesma sequência todo dia — padrão fixo.
+  // A seed inclui o instante do lote, então cada envio tem sua própria ordem.
+  const { criarRandom, embaralhar } = require('../services/publicationPlanner');
+  const ordemDoLote = embaralhar(accountIds, criarRandom(`stories:${Date.now()}`));
+
   // Processador em segundo plano que não trava o navegador
   const runStoryBatch = async () => {
     _lastStoryJob = {
@@ -91,13 +97,15 @@ router.post('/', async (req, res) => {
     };
     broadcast('stories', { action: 'started', total: accountIds.length });
 
-    for (let i = 0; i < accountIds.length; i++) {
+    for (let i = 0; i < ordemDoLote.length; i++) {
       // Aplica intervalo entre contas (com jitter orgânico de ±10%)
       if (i > 0) {
         let waitMs = intervalMs;
         if (waitMs <= 0) {
-          // Delay humanizado padrão entre contas (12s a 25s)
-          waitMs = Math.floor(Math.random() * 13000) + 12000;
+          // Padrão de 2 a 5 min, a mesma faixa do Postar. Os 12–25s anteriores
+          // eram uma ordem de grandeza mais rápidos do que qualquer pessoa
+          // trocando de conta no celular.
+          waitMs = Math.floor(Math.random() * 180000) + 120000;
         } else {
           const jitter = 1 + ((Math.random() * 0.20) - 0.10);
           waitMs = Math.round(waitMs * jitter);
@@ -106,10 +114,10 @@ router.post('/', async (req, res) => {
         await new Promise(r => setTimeout(r, waitMs));
       }
 
-      const account = await Account.findById(accountIds[i]).catch(() => null);
+      const account = await Account.findById(ordemDoLote[i]).catch(() => null);
       if (!account) {
         _lastStoryJob.errors++;
-        _lastStoryJob.results.push({ accountId: accountIds[i], status: 'error', error: 'Conta não encontrada' });
+        _lastStoryJob.results.push({ accountId: ordemDoLote[i], status: 'error', error: 'Conta não encontrada' });
         continue;
       }
 
@@ -125,7 +133,7 @@ router.post('/', async (req, res) => {
           });
           _lastStoryJob.completed++;
           _lastStoryJob.results.push({
-            accountId: accountIds[i],
+            accountId: ordemDoLote[i],
             username:  account.username,
             status:      'success',
             method:      info.method,
@@ -149,7 +157,7 @@ router.post('/', async (req, res) => {
         _lastStoryJob.errors++;
         console.error(`❌ Story @${account.username}:`, lastErr.message);
         _lastStoryJob.results.push({
-          accountId: accountIds[i],
+          accountId: ordemDoLote[i],
           username:  account.username,
           status:    'error',
           error:     lastErr.message,

@@ -77,7 +77,13 @@ const commentsSchema = new mongoose.Schema({
   byAccountContent: { type: Map, of: String, default: () => new Map() },
   // Atraso entre a publicação e o comentário. A execução (fase 8) deve agendar
   // um job com este atraso, nunca dormir dentro do worker.
-  delayMinutes: { type: Number, default: 2, min: 0 },
+  //
+  // `delayMinutes` é o piso e `delayMaxMinutes` o teto: o atraso real é sorteado
+  // na faixa. Um valor fixo faria o comentário sair sempre no mesmo delta da
+  // publicação — em dezenas de publicações, um padrão exato e detectável.
+  // delayMaxMinutes <= delayMinutes volta ao comportamento fixo.
+  delayMinutes:    { type: Number, default: 2, min: 0 },
+  delayMaxMinutes: { type: Number, default: 6, min: 0 },
 }, { _id: false });
 
 /* ── Configurações gerais ──────────────────────────────────────────────────── */
