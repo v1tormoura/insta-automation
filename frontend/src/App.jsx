@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
+import DashboardV2 from './pages/DashboardV2';
 import Accounts from './pages/Accounts';
 import Posts from './pages/Posts';
 import Scheduler from './pages/Scheduler';
@@ -68,6 +69,8 @@ export default function App() {
       <Route path="/termos" element={<Termos />} />
       <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />
+
+      <Route path="/v2" element={<DashboardV2 />} />
 
       <Route path="/*" element={
         <PrivateRoute>
