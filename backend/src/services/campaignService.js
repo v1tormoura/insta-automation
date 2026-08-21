@@ -173,6 +173,28 @@ function validarConfiguracao({ name, strategy = {}, schedule = {}, captionMode, 
  * EXATAMENTE o que será criado, e duplicar a montagem faria as duas divergirem
  * na primeira alteração.
  */
+/**
+ * Mantém só as capas cujo conteúdo continua na campanha.
+ *
+ * Sem esta limpeza, tirar um vídeo da seleção deixaria a capa dele gravada — e
+ * ela voltaria a valer se o mesmo vídeo fosse re-selecionado depois, sem que
+ * ninguém tivesse pedido.
+ */
+function _filtrarCapas(covers = {}, contentIds = []) {
+  const fonte = covers?.byContent || {};
+  const validos = new Set(contentIds.map(String));
+  const saida = {};
+
+  const entradas = typeof fonte.entries === 'function'
+    ? [...fonte.entries()]
+    : Object.entries(fonte);
+
+  for (const [contentId, mediaId] of entradas) {
+    if (validos.has(String(contentId)) && mediaId) saida[String(contentId)] = String(mediaId);
+  }
+  return saida;
+}
+
 async function montarPlano(dados, agora = new Date()) {
   const {
     name,
@@ -239,7 +261,7 @@ async function criarCampanha(dados, agora = new Date()) {
     name, description = '',
     accountIds = [], contentIds = [],
     strategy = {}, schedule = {}, settings = {},
-    captions = {}, comments = {},
+    captions = {}, comments = {}, covers = {},
     captionMode = 'global', commentMode = 'disabled',
   } = dados;
 
@@ -261,6 +283,9 @@ async function criarCampanha(dados, agora = new Date()) {
     settings,
     captions,
     comments,
+    // Capa por conteúdo: só entra o que aponta para uma mídia da campanha, para
+    // não guardar referência a arquivo que foi retirado da seleção.
+    covers: { byContent: _filtrarCapas(covers, contentIds) },
     captionMode,
     commentMode,
     totalPublications:     plano.length,
@@ -428,6 +453,14 @@ async function preverCampanha(dados, agora = new Date()) {
   const porMidia   = new Map(midias.map(m => [String(m._id), m]));
   const comentando = dados.commentMode && dados.commentMode !== 'disabled';
 
+  // Capas escolhidas: uma consulta só para todas, em vez de uma por publicação.
+  const capasPorConteudo = _filtrarCapas(dados.covers, dados.contentIds || []);
+  const idsDasCapas = [...new Set(Object.values(capasPorConteudo))];
+  const capas = idsDasCapas.length
+    ? new Map((await Media.find({ _id: { $in: idsDasCapas } }).select('filename url').lean())
+        .map(m => [String(m._id), m]))
+    : new Map();
+
   const publicacoes = plano.map(item => {
     const conta = porConta.get(String(item.accountId));
     const midia = porMidia.get(String(item.contentId));
@@ -460,6 +493,14 @@ async function preverCampanha(dados, agora = new Date()) {
       content: { id: String(item.contentId), name: midia?.originalName || midia?.filename || '', url: midia?.url || '' },
       captionTemplate: item.captionTemplate,
       resolvedCaption: legenda.text,
+      // Capa só aparece onde ela vale: o Instagram ignora cover em foto.
+      cover: (() => {
+        const ehVideo = midia?.type === 'video'
+          || /\.(mp4|mov|webm|avi|mkv)$/i.test(midia?.filename || '');
+        if (!ehVideo) return null;
+        const capa = capas.get(String(capasPorConteudo[String(item.contentId)] || ''));
+        return capa ? { id: String(capa._id), url: capa.url || '' } : null;
+      })(),
       commentTemplate: comentando ? item.commentTemplate : '',
       resolvedComment: comentando ? comentario.text : '',
       // Faixa do atraso — o valor real é sorteado na execução, então a prévia
@@ -494,6 +535,9 @@ async function preverCampanha(dados, agora = new Date()) {
 }
 
 module.exports = {
+  // Exportado para teste: a limpeza das capas decide o que é gravado.
+  _filtrarCapas,
+
   CampaignError,
   ESTRATEGIAS_VALIDAS,
   LIMITE_TEXTO,

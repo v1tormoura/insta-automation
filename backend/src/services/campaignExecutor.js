@@ -436,10 +436,15 @@ async function processarPublicacao(publicationId, deps = {}) {
     let   postType  = campanha.settings?.postType || 'reel';
     if (postType === 'reel' && !ehVideo) postType = 'post';
 
+    // Capa do vídeo (opcional). Só faz sentido em vídeo: o Instagram ignora
+    // cover em foto, e mandar mesmo assim gastaria uma consulta por publicação.
+    const capa = ehVideo ? await _arquivoDaCapa(campanha, pub.contentId) : '';
+
     const post = await Post.create({
       media:       arquivo,
       mediaType:   ehVideo ? 'video' : 'image',
       postType,
+      cover:       capa,
       // Legenda resolvida AGORA, a partir do template que o planner escolheu
       // para este par conta+conteúdo. A escolha de QUAL template usar continua
       // sendo só do planner — aqui só as variáveis são substituídas, pelo
@@ -496,6 +501,31 @@ async function processarPublicacao(publicationId, deps = {}) {
 }
 
 /* ── Comentário ────────────────────────────────────────────────────────────── */
+
+/**
+ * Nome do arquivo da capa escolhida para este conteúdo, ou '' se não houver.
+ *
+ * A capa é guardada como id de Media (não como nome de arquivo) para sobreviver
+ * a renomeações; a conversão para arquivo acontece aqui, na hora de publicar.
+ * Capa apagada da biblioteca não derruba a publicação — o vídeo sai com o frame
+ * que o Instagram escolher, que é o comportamento de quem não configurou capa.
+ */
+async function _arquivoDaCapa(campanha, contentId) {
+  const mapa = campanha?.covers?.byContent;
+  if (!mapa) return '';
+
+  const capaId = typeof mapa.get === 'function'
+    ? mapa.get(String(contentId))
+    : mapa[String(contentId)];
+  if (!capaId) return '';
+
+  try {
+    const midia = await Media.findById(capaId).select('filename').lean();
+    return midia?.filename || '';
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Atraso do comentário, sorteado na faixa configurada.
@@ -808,9 +838,10 @@ module.exports = {
   processarPublicacao,
   agendarComentarioDe,
   processarComentario,
-  // Exportado para teste: a faixa do atraso do comentário é regra de
-  // humanização e precisa ser verificável sem subir fila nem banco.
+  // Exportados para teste: regras que precisam ser verificáveis sem subir fila
+  // nem banco — a faixa do atraso do comentário e a resolução da capa.
   _atrasoDoComentario,
+  _arquivoDaCapa,
   pausarCampanha,
   retomarCampanha,
   cancelarCampanha,

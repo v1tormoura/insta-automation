@@ -255,6 +255,12 @@ export default function CampaignPreview({ payload, onValidChange }) {
                 <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', flexShrink:0 }}>
                   {horario(p.scheduledAt)}
                 </span>
+                {p.cover && (
+                  <img src={p.cover.url} alt="capa"
+                    title="Capa configurada para este vídeo"
+                    style={{ width:16, height:22, objectFit:'cover', borderRadius:3,
+                      border:'1px solid rgba(139,92,246,.6)', flexShrink:0 }} />
+                )}
                 {falhou && <span style={{ color:'#f87171', fontSize:11, flexShrink:0 }}>⚠</span>}
               </button>
 

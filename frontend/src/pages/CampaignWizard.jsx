@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
@@ -7,6 +7,7 @@ import PageShell from '../components/PageShell';
 import CaptionEditor from '../components/campaign/CaptionEditor';
 import CommentEditor from '../components/campaign/CommentEditor';
 import CampaignPreview from '../components/campaign/CampaignPreview';
+import ContentPicker from '../components/campaign/ContentPicker';
 
 /**
  * Wizard de criação de campanha (fase 5).
@@ -68,6 +69,8 @@ const estadoInicial = {
     windowStart: '', windowEnd: '', weekdays: [],
   },
   settings: { respectDailyLimit: true, postType: 'reel' },
+  // contentId -> mediaId da imagem usada como capa do Reel
+  covers: { byContent: {} },
 };
 
 export default function CampaignWizard() {
@@ -115,6 +118,18 @@ export default function CampaignWizard() {
         setMidias(lista);
       })
       .catch(() => aviso('error', 'Erro', 'Não foi possível carregar a biblioteca.'));
+  }, []);
+
+  /* Mescla, não substitui: o wizard carrega a biblioteca uma vez para conseguir
+     rotular os conteúdos de um rascunho, e o ContentPicker devolve só o que ele
+     próprio já viu. Trocar a lista perderia o rótulo do que veio do rascunho.
+     useCallback porque a função é dependência de efeito lá dentro. */
+  const registrarMidias = useCallback((lista) => {
+    setMidias(prev => {
+      const mapa = new Map(prev.map(m => [String(m._id), m]));
+      for (const m of lista) mapa.set(String(m._id), m);
+      return [...mapa.values()];
+    });
   }, []);
 
   const mudar  = (campo, valor) => setForm(f => ({ ...f, [campo]: valor }));
@@ -406,117 +421,26 @@ export default function CampaignWizard() {
     </>);
   }
 
+  // A etapa de conteúdos é um componente de verdade (ContentPicker), não uma
+  // função chamada no render como as demais: ela precisa de estado próprio
+  // (busca, filtro, upload, capa) e hooks só são legais dentro de um componente.
   function EtapaConteudos() {
-    const alternar = id => setForm(f => ({
-      ...f,
-      contentIds: f.contentIds.includes(id)
-        ? f.contentIds.filter(x => x !== id)
-        : [...f.contentIds, id],
-    }));
-
-    // Fase 16: Função de upload direto no Wizard
-    const [uploadingMedia, setUploadingMedia] = useState(false);
-    const handleUpload = async (e) => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
-      setUploadingMedia(true);
-      const formData = new FormData();
-      files.forEach(f => formData.append('files', f));
-      try {
-        const { data } = await api.post('/media/upload', formData);
-        const novosIds = data.files.map(f => f._id);
-        // Recarrega mídias
-        const res = await api.get('/media');
-        const lista = Array.isArray(res.data) ? res.data : (res.data.medias || res.data.files || []);
-        setMidias(lista);
-        // Auto-seleciona os que acabaram de subir
-        setForm(f => ({ ...f, contentIds: [...new Set([...f.contentIds, ...novosIds])] }));
-        aviso('success', 'Upload concluído', `${files.length} arquivo(s) enviado(s) e selecionado(s).`);
-      } catch (err) {
-        aviso('error', 'Erro no upload', 'Não foi possível enviar os arquivos.');
-      } finally {
-        setUploadingMedia(false);
-      }
-    };
-
-    return painel(null, <>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-        <div style={{ fontSize:12, color:'var(--cyan)', fontWeight:700 }}>
-          {form.contentIds.length} conteúdo(s) selecionado(s)
-        </div>
-        
-        <div style={{ display:'flex', gap:8 }}>
-          <label style={{
-            padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor: uploadingMedia ? 'default' : 'pointer',
-            background:'rgba(16,185,129,.12)', color:'#34d399', border:'1px solid rgba(16,185,129,.28)',
-            display:'flex', alignItems:'center', gap:5
-          }}>
-            {uploadingMedia ? 'Enviando...' : (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Upload na hora
-              </>
-            )}
-            <input type="file" multiple accept="video/*,image/*" style={{ display:'none' }} disabled={uploadingMedia} onChange={handleUpload} />
-          </label>
-
-          <button onClick={() => setForm(f => ({
-            ...f,
-            contentIds: f.contentIds.length === midias.length ? [] : midias.map(m => m._id),
-          }))} style={{
-            padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-            background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)',
-          }}>{form.contentIds.length === midias.length ? 'Desmarcar todos' : 'Selecionar todos'}</button>
-        </div>
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))', gap:10 }}>
-        {midias.map(m => {
-          const marcado = form.contentIds.includes(m._id);
-          const ordem   = form.contentIds.indexOf(m._id) + 1;
-          const video   = m.type === 'video' || /\.(mp4|mov|webm|m4v)$/i.test(m.filename || '');
-          return (
-            <button key={m._id} onClick={() => alternar(m._id)} style={{
-              position:'relative', padding:0, borderRadius:12, overflow:'hidden', cursor:'pointer',
-              aspectRatio:'3/4', textAlign:'left', transition:'all .2s cubic-bezier(0.4, 0, 0.2, 1)',
-              background:'oklch(0.16 0.05 235)',
-              border: `2px solid ${marcado ? 'var(--cyan)' : 'transparent'}`,
-              boxShadow: marcado ? '0 4px 14px rgba(0,212,255,0.2)' : 'none',
-              transform: marcado ? 'translateY(-2px)' : 'none'
-            }}>
-              {m.url && !video && (
-                <img src={m.url} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', filter: marcado ? 'brightness(1.1)' : 'brightness(0.8)' }} />
-              )}
-              {m.url && video && (
-                <video src={m.url} muted playsInline style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', filter: marcado ? 'brightness(1.1)' : 'brightness(0.8)' }} />
-              )}
-              <div style={{ position:'absolute', inset:0, background: marcado ? 'linear-gradient(to top, rgba(0,212,255,0.2), transparent)' : 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }} />
-              
-              {marcado && (
-                <span style={{ position:'absolute', top:8, left:8, width:24, height:24, borderRadius:'50%',
-                  background:'var(--cyan)', color:'#04121c', display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:12, fontWeight:800, boxShadow:'0 2px 5px rgba(0,0,0,0.3)' }}>{ordem}</span>
-              )}
-              <div style={{ position:'absolute', left:0, right:0, bottom:0, padding:'20px 10px 8px',
-                background:'linear-gradient(to top, rgba(0,0,0,0.9), transparent)',
-                fontSize:10, fontWeight:600, color:'#fff',
-                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,0.8)' }}>
-                {video ? (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ display:'inline-block', verticalAlign:'-1px', marginRight:4 }}><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                ) : ''}{m.originalName || m.filename}
-              </div>
-            </button>
-          );
+    return painel(null, (
+      <ContentPicker
+        selecionados={form.contentIds}
+        onSelecionar={ids => mudar('contentIds', ids)}
+        capas={form.covers?.byContent || {}}
+        onCapa={(contentId, mediaId) => setForm(f => {
+          const byContent = { ...(f.covers?.byContent || {}) };
+          if (mediaId) byContent[contentId] = mediaId;
+          else delete byContent[contentId];
+          return { ...f, covers: { byContent } };
         })}
-        {!midias.length && (
-          <div style={{ gridColumn:'1/-1', padding:'30px 0', textAlign:'center', color:'var(--text3)', fontSize:13, background:'rgba(255,255,255,0.02)', borderRadius:12 }}>
-            Nenhuma mídia encontrada.<br/>Clique em <strong>Upload na hora</strong> acima para enviar seus vídeos.
-          </div>
-        )}
-      </div>
-    </>);
+        onMidiasConhecidas={registrarMidias}
+        aviso={aviso}
+      />
+    ));
   }
-
   function EtapaLegendas() {
     return (<>
       <CaptionEditor
@@ -769,7 +693,13 @@ export default function CampaignWizard() {
                 cada render, usá-las como componente daria a elas uma identidade
                 nova toda vez e o React remontaria a subárvore inteira — a prévia
                 refaria o POST em laço e os filtros seriam zerados a cada tecla.
-                Nenhuma etapa usa hooks, então chamá-las direto é seguro. */}
+
+                ⚠️ NENHUMA função Etapa* pode chamar hook. Elas são executadas
+                dentro do render DESTE componente, então um useState lá dentro
+                vira hook do wizard e a contagem muda ao trocar de etapa — o
+                React derruba a tela inteira. Já aconteceu com o upload da etapa
+                de conteúdos. Etapa que precisa de estado próprio vira componente
+                de verdade, como ContentPicker. */}
             {Atual()}
           </motion.div>
         </AnimatePresence>

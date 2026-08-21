@@ -8,16 +8,44 @@ function getMediaType(mimeType = '') {
   return 'other';
 }
 
-// GET /media?folder=X
+// GET /media?folder=X&search=&type=&limit=&skip=
+//
+// Filtro e paginação existem porque a biblioteca cresce indefinidamente: sem
+// eles, toda tela que lista mídia (o wizard de campanha inclusive) baixava o
+// acervo inteiro e o usuário tinha de caçar o arquivo no meio de centenas.
+// Os parâmetros são opcionais — sem nenhum, o comportamento antigo continua.
 exports.getMedia = async (req, res) => {
   try {
     const query = {};
     if (req.query.folder) query.folder = req.query.folder;
-    const media = await Media.find(query).sort({ createdAt: -1 });
+
+    // 'video' | 'image' | 'other'
+    if (['image', 'video', 'other'].includes(req.query.type)) query.type = req.query.type;
+
+    const busca = String(req.query.search || '').trim();
+    if (busca) {
+      // Escapa a entrada: um '(' digitado na busca quebraria a regex inteira.
+      const seguro = busca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(seguro, 'i');
+      query.$or = [{ originalName: re }, { filename: re }];
+    }
+
+    const limite = Math.min(500, Math.max(0, Number(req.query.limit) || 0));
+    const pular  = Math.max(0, Number(req.query.skip) || 0);
+
+    let consulta = Media.find(query).sort({ createdAt: -1 }).skip(pular);
+    if (limite) consulta = consulta.limit(limite);
+
+    const [media, total] = await Promise.all([
+      consulta,
+      limite || pular || busca ? Media.countDocuments(query) : null,
+    ]);
+
     // derive unique folder list
     const allMedia = await Media.find({}, 'folder').lean();
     const folders = [...new Set(allMedia.map(m => m.folder || 'default'))].sort();
-    res.json({ files: media, folders });
+
+    res.json({ files: media, folders, total: total ?? media.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -26,7 +54,10 @@ exports.getMedia = async (req, res) => {
 // POST /media/upload  (body: folder)
 exports.uploadMedia = async (req, res) => {
   try {
-    const files = (req.files || []).filter(f => f.fieldname === 'media' || !f.fieldname);
+    // Aceita qualquer nome de campo. O filtro antigo só deixava passar 'media',
+    // então quem enviasse com outro nome (o wizard de campanha manda 'files')
+    // recebia 200 com zero mídias criadas — upload que "não funciona" sem erro.
+    const files = req.files || [];
     const folder = req.body.folder || 'default';
     const created = [];
     for (const file of files) {
@@ -42,7 +73,9 @@ exports.uploadMedia = async (req, res) => {
       });
       created.push(media);
     }
-    res.json({ success: true, total: created.length, media: created });
+    // `files` é alias de `media`: as duas telas que consomem esta rota leem
+    // chaves diferentes, e devolver as duas evita quebrar qualquer uma.
+    res.json({ success: true, total: created.length, media: created, files: created });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

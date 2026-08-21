@@ -158,6 +158,15 @@ const campaignSchema = new mongoose.Schema({
   comments: { type: commentsSchema, default: () => ({}) },
   settings: { type: settingsSchema, default: () => ({}) },
 
+  // Capa dos vídeos: contentId → _id da Media (imagem) usada como thumbnail.
+  //
+  // Fica por conteúdo, não por publicação: a capa é característica do vídeo, e
+  // repetir a escolha para cada conta seria trabalho manual sem ganho. Reels
+  // sem capa continuam usando o frame que o Instagram escolhe.
+  covers: {
+    byContent: { type: Map, of: String, default: () => new Map() },
+  },
+
   // Contadores desnormalizados — evitam contar CampaignPublication a cada
   // abertura do painel. A execução (fase 8) mantém em dia.
   totalPublications:     { type: Number, default: 0, min: 0 },

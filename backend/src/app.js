@@ -76,6 +76,7 @@ app.use('/proxy',        auth, require('./routes/proxyRoutes'));
 app.use('/campaigns',    auth, require('./routes/campaignRoutes'));
 app.use('/posts',        auth, require('./routes/postRoutes'));
 app.use('/legends',      auth, require('./routes/legendRoutes'));
+app.use('/ai',           auth, require('./routes/aiRoutes'));
 app.use('/media',        auth, require('./routes/mediaRoutes'));
 app.use('/api/stories',  auth, require('./routes/storyRoutes'));
 app.use('/warmup',       auth, require('./routes/warmupRoutes'));
