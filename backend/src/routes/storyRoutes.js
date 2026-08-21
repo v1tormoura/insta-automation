@@ -43,7 +43,7 @@ router.post('/upload', upload.single('image'), (req, res) => {
  *   accountIds: string[],   // IDs das contas
  *   imageUrl:   string,     // URL pública da imagem do story
  *   linkUrl?:   string,     // URL do link sticker (opcional)
- *   linkText?:  string,     // Texto da figurinha (opcional, default "Clique Aqui")
+ *   linkText?:  string,     // Texto da figurinha (opcional; vazio = domínio do link)
  * }
  */
 const { broadcast } = require('../events/broadcaster');
@@ -119,7 +119,7 @@ router.post('/', async (req, res) => {
           const info = await postStory(account, {
             imageUrl,
             linkUrl:  linkUrl  || null,
-            linkText: linkText || 'Clique Aqui',
+            linkText: linkText || null,
             linkX:    linkX !== undefined ? Number(linkX) : undefined,
             linkY:    linkY !== undefined ? Number(linkY) : undefined,
           });
@@ -127,9 +127,10 @@ router.post('/', async (req, res) => {
           _lastStoryJob.results.push({
             accountId: accountIds[i],
             username:  account.username,
-            status:    'success',
-            method:    info.method,
-            withLink:  info.withLink,
+            status:      'success',
+            method:      info.method,
+            withLink:    info.withLink,
+            linkVisible: info.linkVisible,
           });
           lastErr = null;
           broadcast('stories', { action: 'progress', completed: _lastStoryJob.completed, total: accountIds.length, username: account.username });
@@ -170,13 +171,13 @@ router.post('/', async (req, res) => {
       const info = await postStory(account, {
         imageUrl,
         linkUrl:  linkUrl  || null,
-        linkText: linkText || 'Clique Aqui',
+        linkText: linkText || null,
         linkX:    linkX !== undefined ? Number(linkX) : undefined,
         linkY:    linkY !== undefined ? Number(linkY) : undefined,
       });
       return res.json({
         success: true,
-        results: [{ accountId: account._id, username: account.username, status: 'success', method: info.method, withLink: info.withLink }],
+        results: [{ accountId: account._id, username: account.username, status: 'success', method: info.method, withLink: info.withLink, linkVisible: info.linkVisible }],
         successCount: 1,
         total: 1,
       });

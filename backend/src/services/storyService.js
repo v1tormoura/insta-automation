@@ -160,32 +160,146 @@ async function _resolveLocalMedia(media) {
   return `tmp/${nome}`;
 }
 
-async function postStory(account, options) {
-  if (options.linkUrl) {
-    // Fase 16: Desativamos a queima visual do link sticker para evitar sobreposição
-    // com o nativo desenhado pelo Instagram.
+/**
+ * Modo da figurinha de link, por ambiente (STORY_LINK_MODE):
+ *
+ *   burned (padrão) — a pílula é queimada nos pixels e o serviço Python manda
+ *                     só a área de toque nativa. Visível sem depender de o
+ *                     Instagram desenhar nada.
+ *   native          — nada é queimado; o Python manda `story_link_stickers`
+ *                     para o Instagram desenhar a figurinha dele.
+ *   both            — os dois, para comparar. Pode sair figurinha duplicada.
+ */
+function _modoFigurinha() {
+  const modo = String(process.env.STORY_LINK_MODE || 'burned').trim().toLowerCase();
+  return ['burned', 'native', 'both'].includes(modo) ? modo : 'burned';
+}
+
+/**
+ * Queima a figurinha de link nos pixels da mídia e devolve a geometria usada.
+ *
+ * O Instagram não desenha figurinhas no servidor — o `tap_models` que a
+ * instagrapi envia cria só a área clicável, por isso o link saía invisível.
+ * A pílula é queimada aqui e a MESMA caixa vai como área de toque, então o que
+ * se vê e o que se toca são o mesmo retângulo.
+ *
+ * @returns {Promise<{media:string, box:Object|null, rendered:boolean, engine:string|null}>}
+ */
+async function _aplicarFigurinhaDeLink(mediaRel, options) {
+  if (!options.linkUrl) {
+    return { media: mediaRel, box: null, rendered: false, engine: null };
   }
 
+  const path = require('path');
+  const {
+    renderStoryWithLinkSticker, computeStickerBox, formatStickerLabel,
+  } = require('./storyStickerRenderer');
+
+  // Modo nativo: nada é queimado, mas a caixa continua sendo calculada aqui —
+  // é ela que dimensiona a figurinha que o Instagram vai desenhar.
+  if (_modoFigurinha() === 'native') {
+    const label = formatStickerLabel(options.linkUrl, options.linkText);
+    return {
+      media: mediaRel,
+      box: computeStickerBox({ label, ...options }),
+      rendered: false,
+      engine: null,
+    };
+  }
+
+  const raizUploads = path.resolve(__dirname, '../../uploads');
+  const absoluto = path.isAbsolute(mediaRel) ? mediaRel : path.join(raizUploads, mediaRel);
+
+  const r = await renderStoryWithLinkSticker(absoluto, {
+    linkUrl:    options.linkUrl,
+    linkText:   options.linkText,
+    linkX:      options.linkX,
+    linkY:      options.linkY,
+    linkWidth:  options.linkWidth,
+    linkHeight: options.linkHeight,
+  });
+
+  if (!r.rendered) {
+    console.warn(
+      `⚠️ [Story] Figurinha visual não pôde ser queimada (${r.error || 'motivo desconhecido'}) — ` +
+      'o story sai com o link nativo, que o Instagram não desenha.'
+    );
+    // Mesmo sem queimar, a caixa calculada é a melhor área de toque disponível.
+    return { media: mediaRel, box: r.box, rendered: false, engine: r.engine };
+  }
+
+  // O HttpClient prefixa caminhos relativos com UPLOADS_DIR do container; um
+  // caminho fora da raiz de uploads só pode seguir absoluto, ou viraria um
+  // "../.." que o serviço Python não resolve.
+  const relativo = path.relative(raizUploads, r.path).split(path.sep).join('/');
+  const media = relativo.startsWith('..') ? r.path : relativo;
+  return { media, box: r.box, rendered: true, engine: r.engine };
+}
+
+/**
+ * Apaga a cópia da mídia com a figurinha queimada, depois que o upload terminou.
+ * A mídia ORIGINAL nunca é tocada — só o arquivo derivado em uploads/processed.
+ */
+function _descartarQueimada(figurinha) {
+  if (!figurinha.rendered) return;
+  try {
+    const path = require('path');
+    const fs   = require('fs');
+    const raizUploads = path.resolve(__dirname, '../../uploads');
+    const alvo = path.isAbsolute(figurinha.media)
+      ? figurinha.media
+      : path.join(raizUploads, figurinha.media);
+    if (path.resolve(alvo).startsWith(path.join(raizUploads, 'processed'))) {
+      fs.unlinkSync(alvo);
+    }
+  } catch { /* arquivo já sumiu ou está em uso — não é motivo para falhar o story */ }
+}
+
+async function postStory(account, options) {
   // 0. Sessão instagrapi — método principal quando existe.
   // Vem antes da Graph API porque suporta link sticker em qualquer conta: a Graph
   // API responde 9007 (link_sticker sem permissão) e cai em story sem link.
   if (account.provider === 'instagrapi' || account.instagrapiSession) {
     const { getProvider } = require('../providers/ProviderFactory');
     const provider = getProvider(account);
-    const media = await _resolveLocalMedia(options.imagePath || options.imageUrl);
-    const res = await provider.publishStory(account, {
-      media:        media,
-      caption:      options.caption || '',
-      linkUrl:      options.linkUrl || null,
-      // Posição do sticker (0..1, x/y = centro). Ausentes → centralizado.
-      linkX:        options.linkX,
-      linkY:        options.linkY,
-      linkWidth:    options.linkWidth,
-      linkHeight:   options.linkHeight,
-      linkRotation: options.linkRotation,
-    });
-    console.log(`✅ [Story instagrapi] @${account.username} — id ${res.media_id}${res.with_link ? ' (com link)' : ''}`);
-    return { id: res.media_id, method: 'instagrapi', withLink: !!res.with_link };
+    const midiaOriginal = await _resolveLocalMedia(options.imagePath || options.imageUrl);
+    const figurinha = await _aplicarFigurinhaDeLink(midiaOriginal, options);
+
+    let res;
+    try {
+      res = await provider.publishStory(account, {
+        media:        figurinha.media,
+        caption:      options.caption || '',
+        linkUrl:      options.linkUrl || null,
+        linkText:     options.linkText || null,
+        // Área de toque: a caixa que acabou de ser desenhada, para o toque cair
+        // exatamente sobre a pílula. Sem queima, cai no padrão do posicionador.
+        linkX:        figurinha.box ? figurinha.box.x      : options.linkX,
+        linkY:        figurinha.box ? figurinha.box.y      : options.linkY,
+        linkWidth:    figurinha.box ? figurinha.box.width  : options.linkWidth,
+        linkHeight:   figurinha.box ? figurinha.box.height : options.linkHeight,
+        linkRotation: options.linkRotation,
+        linkStickerMode: _modoFigurinha(),
+      });
+    } finally {
+      // A cópia queimada serviu só para o upload. Sem isto, uploads/processed
+      // cresce um arquivo por story publicado, para sempre.
+      _descartarQueimada(figurinha);
+    }
+
+    const marca = options.linkUrl
+      ? ` (link ${figurinha.rendered ? `visível via ${figurinha.engine}` : 'apenas nativo'}` +
+        `${res.link_native ? ', nativo confirmado' : ''})`
+      : '';
+    console.log(`✅ [Story instagrapi] @${account.username} — id ${res.media_id}${marca}`);
+    return {
+      id:           res.media_id,
+      method:       'instagrapi',
+      withLink:     !!res.with_link,
+      linkVisible:  figurinha.rendered,
+      linkNative:   !!res.link_native,
+      stickerEngine: figurinha.engine,
+    };
   }
 
   // 1. Graph API (OAuth) — conta conectada via Meta API

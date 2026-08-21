@@ -52,6 +52,41 @@ export default function Stories() {
     { rotulo: 'Rodapé', x: 0.5, y: 0.8  },
   ];
 
+  /* Geometria da figurinha — espelha computeStickerBox() em
+     backend/src/services/storyStickerRenderer.js. Mesma conta dos dois lados
+     para o preview mostrar exatamente a pílula que será queimada na mídia.
+     Ao mexer em uma, mexa na outra. */
+  function caixaSticker(label, x, y) {
+    const STORY_W = 1080, STORY_H = 1920, ALTURA = 96, MARGEM = 28;
+    const texto = String(label || 'ACESSAR LINK');
+    /* Largura do texto medida no Chromium com a fonte da pílula: maiúsculas
+       ~23px, minúsculas ~18px, espaço ~12px. Mais o cromo fixo (ícone,
+       chevron, paddings) = 165. */
+    const larguraTexto = [...texto].reduce((acc, c) => {
+      if (c === ' ') return acc + 12;
+      const minuscula = c === c.toLowerCase() && c !== c.toUpperCase();
+      return acc + (minuscula ? 18 : 23);
+    }, 0);
+    const larg  = Math.min(900, Math.max(360, Math.round(larguraTexto + 165)));
+    const cx = Math.min(STORY_W - larg / 2 - MARGEM, Math.max(larg / 2 + MARGEM, x * STORY_W));
+    const cy = Math.min(STORY_H - ALTURA / 2 - MARGEM, Math.max(ALTURA / 2 + MARGEM, y * STORY_H));
+    return {
+      x: cx / STORY_W, y: cy / STORY_H,
+      width: larg / STORY_W, height: ALTURA / STORY_H,
+    };
+  }
+
+  /* Mesmo rótulo que o backend usa quando o texto não é preenchido. */
+  function rotuloSticker(url, texto) {
+    if (texto && texto.trim()) return texto.trim().slice(0, 35);
+    try {
+      const u = new URL(String(url).startsWith('http') ? url : `https://${url}`);
+      const host = u.hostname.replace(/^www\./i, '');
+      const rota = u.pathname.replace(/\/$/, '');
+      return (rota && rota.length <= 18 ? `${host}${rota}` : host).toUpperCase();
+    } catch { return 'ACESSAR LINK'; }
+  }
+
   /* ── Recupera rascunho salvo ao abrir ou voltar para a página ────────────── */
   useEffect(() => {
     try {
@@ -494,26 +529,31 @@ export default function Stories() {
                           'linear-gradient(to bottom, transparent 33.3%, oklch(1 0 0 / .12) 33.3%, oklch(1 0 0 / .12) 33.5%, transparent 33.5%,' +
                           ' transparent 66.6%, oklch(1 0 0 / .12) 66.6%, oklch(1 0 0 / .12) 66.8%, transparent 66.8%)' }} />
 
-                      {/* Sticker no tamanho REAL */}
-                      <div style={{
-                        position: 'absolute',
-                        left: `${linkPos.x * 100}%`, top: `${linkPos.y * 100}%`,
-                        width: '56%', height: '20%',
-                        transform: 'translate(-50%, -50%)',
-                        display: 'grid', placeItems: 'center', pointerEvents: 'none',
-                        border: '1px dashed oklch(1 0 0 / 0.35)', borderRadius: 8,
-                      }}>
-                        <span style={{
-                          maxWidth: '96%', padding: '4px 10px', borderRadius: 999,
-                          background: '#FFFFFF', color: '#111827',
-                          fontSize: 9, fontWeight: 800, whiteSpace: 'nowrap',
-                          overflow: 'hidden', textOverflow: 'ellipsis',
-                          boxShadow: '0 3px 12px rgba(0,0,0,.35)',
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                        }}>
-                          <span style={{ color: '#2563eb' }}>🔗</span> {linkLabel ? linkLabel : 'Acessar link ›'}
-                        </span>
-                      </div>
+                      {/* Figurinha no tamanho REAL — mesma caixa que o backend
+                          queima na mídia (caixaSticker espelha o cálculo dele). */}
+                      {(() => {
+                        const rotulo = rotuloSticker(linkUrl, linkLabel);
+                        const cx = caixaSticker(rotulo, linkPos.x, linkPos.y);
+                        return (
+                          <div style={{
+                            position: 'absolute',
+                            left: `${cx.x * 100}%`, top: `${cx.y * 100}%`,
+                            width: `${cx.width * 100}%`, height: `${cx.height * 100}%`,
+                            transform: 'translate(-50%, -50%)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            gap: 3, padding: '0 5px 0 4px', pointerEvents: 'none',
+                            background: '#FFFFFF', color: '#111827', borderRadius: 999,
+                            boxShadow: '0 3px 12px rgba(0,0,0,.35)',
+                          }}>
+                            <span style={{
+                              flex: 1, minWidth: 0, fontSize: 7, fontWeight: 800,
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              textAlign: 'center',
+                            }}>{rotulo}</span>
+                            <span style={{ color: '#6B7280', fontSize: 7, flexShrink: 0 }}>›</span>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -535,7 +575,7 @@ export default function Stories() {
                         x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.5 }}>
-                        Clique no preview para posicionar. A figurinha visual oficial do Instagram será renderizada e aplicada na posição exata de toque.
+                        Clique no preview para posicionar. A figurinha é desenhada na própria mídia nesse tamanho e nessa posição, e a área de toque do link vai exatamente em cima dela.
                       </div>
                     </div>
                   </div>

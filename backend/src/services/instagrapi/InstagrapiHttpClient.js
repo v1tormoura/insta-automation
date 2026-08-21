@@ -344,6 +344,8 @@ class InstagrapiHttpClient {
         caption:    storyData.caption || '',
         link_url:   storyData.linkUrl || null,
         link_text:  storyData.linkText || null,
+        // burned = a pílula já está nos pixels e aqui vai só a área de toque.
+        link_sticker_mode: storyData.linkStickerMode || 'burned',
       };
       const posicao = {
         link_x:        storyData.linkX,

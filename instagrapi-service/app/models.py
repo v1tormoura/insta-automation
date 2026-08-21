@@ -50,6 +50,12 @@ class PublishStoryRequest(BaseModel):
     link_width: float | None = None
     link_height: float | None = None
     link_rotation: float | None = None
+    # Como a figurinha de link fica visível:
+    #   burned (padrão) — pílula já queimada nos pixels pelo Node; aqui só a
+    #                     área de toque nativa.
+    #   native          — manda `story_link_stickers` para o Instagram desenhar.
+    #   both            — os dois (pode duplicar a figurinha).
+    link_sticker_mode: str | None = "burned"
 
 
 class ProfileEditRequest(BaseModel):

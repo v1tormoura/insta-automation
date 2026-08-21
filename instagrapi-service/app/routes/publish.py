@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from contextlib import contextmanager
+from json import dumps
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
@@ -121,13 +122,121 @@ def _tolerate_link_validation(client):
         client.private_request = original
 
 
+def _normalizar_url(bruta: str) -> str:
+    if not bruta.startswith("http://") and not bruta.startswith("https://"):
+        return "https://" + bruta
+    return bruta
+
+
+def _geometria_link(body) -> dict:
+    """
+    Caixa do link em coordenadas normalizadas (x/y = centro), como o Instagram usa.
+
+    Quando o Node queima a figurinha na mídia, manda aqui a caixa exata que
+    desenhou — assim a área de toque cai em cima da pílula que aparece.
+    """
+    return {
+        "x":        body.link_x      if body.link_x      is not None else 0.5,
+        "y":        body.link_y      if body.link_y      is not None else 0.8,
+        "width":    body.link_width  if body.link_width  is not None else 0.5,
+        "height":   body.link_height if body.link_height is not None else 0.06,
+        "rotation": body.link_rotation if body.link_rotation is not None else 0.0,
+    }
+
+
+def _payload_sticker_nativo(link_url: str, link_text: str | None, caixa: dict) -> dict:
+    """
+    Figurinha de link no formato que o PRÓPRIO Instagram devolve ao ler um story.
+
+    A instagrapi 2.18.16 escreve o link só em `tap_models` (mixins/photo.py,
+    bloco `if links:`) — isso cria a área clicável, mas não é o campo que o app
+    de quem assiste usa para desenhar. O campo de leitura é `story_link_stickers`
+    (extractors.py:640, `sticker["story_link"]["url"]`), e é ele que montamos
+    aqui, com a mesma forma do modelo StorySticker/StoryStickerLink.
+
+    Só é enviado nos modos "native"/"both" — em "burned" a pílula já está nos
+    pixels e mandar isto renderizaria uma segunda figurinha por cima.
+    """
+    display = link_url.split("://", 1)[-1].split("/", 1)[0]
+    return {
+        "x": caixa["x"],
+        "y": caixa["y"],
+        "z": 0,
+        "width": caixa["width"],
+        "height": caixa["height"],
+        "rotation": caixa["rotation"],
+        "type": "story_link",
+        "is_sticker": True,
+        "tap_state": 0,
+        "tap_state_str_id": "link_sticker_default",
+        "story_link": {
+            "url": link_url,
+            "link_title": (link_text or display)[:35],
+            "link_type": "web",
+            "display_url": display,
+        },
+    }
+
+
+_SINAIS_DE_LINK = (
+    "link", "sticker", "url", "cta", "not eligible", "swipe",
+)
+_SINAIS_DE_CONTA = (
+    "challenge", "checkpoint", "login_required", "feedback_required",
+    "please wait", "rate limit", "too many", "spam", "consent",
+)
+
+
+def _falha_por_causa_do_link(erro: Exception) -> bool:
+    """
+    Diz se vale republicar sem o metadado do link.
+
+    Republicar é um upload a mais na conta — só compensa quando o problema foi
+    o link. Bloqueio de conta, desafio ou limite de ação vão falhar de novo e
+    ainda contam como mais uma ação para o Instagram, então esses propagam.
+    """
+    msg = str(erro).lower()
+    if any(s in msg for s in _SINAIS_DE_CONTA):
+        return False
+    return any(s in msg for s in _SINAIS_DE_LINK)
+
+
+def _conferir_link_nativo(client, media_pk: str) -> bool | None:
+    """
+    Relê o story publicado e diz se o Instagram registrou uma figurinha de link
+    de verdade (`story_link_stickers`) ou só a área de toque.
+
+    É diagnóstico: nunca derruba a publicação. `None` = não deu para conferir.
+    """
+    try:
+        resposta = client.private_request(f"media/{media_pk}/info/")
+        itens = (resposta or {}).get("items") or []
+        if not itens:
+            return None
+        item = itens[0]
+        stickers = item.get("story_link_stickers") or []
+        logger.info(
+            "publish_story: releitura de %s — story_link_stickers=%d, story_cta=%d",
+            media_pk, len(stickers), len(item.get("story_cta") or []),
+        )
+        return bool(stickers)
+    except Exception as e:  # noqa: BLE001
+        logger.info("publish_story: não foi possível reler o story (%s)", type(e).__name__)
+        return None
+
+
 @router.post("/story")
 async def publish_story(body: PublishStoryRequest):
     """
-    Publica um story — foto ou vídeo — opcionalmente com link sticker.
-    Utiliza uma interceptação no client.private_request para garantir que o 
-    texto customizado (custom_title) seja injetado corretamente no payload do Instagram,
-    contornando limitações da biblioteca instagrapi.
+    Publica um story — foto ou vídeo — opcionalmente com figurinha de link.
+
+    Modos (`link_sticker_mode`):
+      • burned (padrão) — a pílula já vem queimada nos pixels pelo Node; aqui só
+        vai a área de toque nativa (`tap_models` da instagrapi). Visível e
+        clicável, sem depender de o Instagram desenhar coisa alguma.
+      • native — não há pílula queimada; mandamos `story_link_stickers` para o
+        Instagram desenhar a figurinha dele.
+      • both — os dois, para comparar. Pode sair figurinha duplicada.
     """
     if not session_pool.is_loaded(body.account_id):
         raise HTTPException(
@@ -138,54 +247,88 @@ async def publish_story(body: PublishStoryRequest):
     media_path = _resolve_file(body.media_path)
     is_video   = media_path.suffix.lower() in _VIDEO_SUFFIXES
 
-    from instagrapi.types import StoryLink
-    links = []
-    if body.link_url:
-        link_url = body.link_url
-        if not link_url.startswith("http://") and not link_url.startswith("https://"):
-            link_url = "https://" + link_url
+    modo  = (body.link_sticker_mode or "burned").strip().lower()
+    if modo not in ("burned", "native", "both"):
+        modo = "burned"
 
-        posicao = {
-            "x": body.link_x if body.link_x is not None else 0.5,
-            "y": body.link_y if body.link_y is not None else 0.5,
-            "width": body.link_width if body.link_width is not None else 0.5,
-            "height": body.link_height if body.link_height is not None else 0.2,
-            "rotation": body.link_rotation if body.link_rotation is not None else 0.0,
-        }
-        
+    links: list[StoryLink] = []
+    extra_data: dict = {}
+    if body.link_url:
+        link_url = _normalizar_url(body.link_url)
+        caixa    = _geometria_link(body)
+
         links.append(StoryLink(
             webUri=link_url,
-            x=posicao["x"],
-            y=posicao["y"],
+            x=caixa["x"],
+            y=caixa["y"],
             z=0,
-            width=posicao["width"],
-            height=posicao["height"],
-            rotation=posicao["rotation"]
+            width=caixa["width"],
+            height=caixa["height"],
+            rotation=caixa["rotation"],
         ))
+
+        if modo in ("native", "both"):
+            extra_data["story_link_stickers"] = dumps(
+                [_payload_sticker_nativo(link_url, body.link_text, caixa)]
+            )
 
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
         loop   = asyncio.get_running_loop()
 
-        def _upload():
+        def _enviar(com_link: bool):
+            usar_links = links if com_link else []
+            usar_extra = extra_data if com_link else {}
             if is_video:
                 return client.video_upload_to_story(
-                    path=media_path, caption=body.caption or "", links=links
+                    path=media_path, caption=body.caption or "",
+                    links=usar_links, extra_data=usar_extra,
                 )
             return client.photo_upload_to_story(
-                path=media_path, caption=body.caption or "", links=links
+                path=media_path, caption=body.caption or "",
+                links=usar_links, extra_data=usar_extra,
             )
 
+        def _upload():
+            # A validação de URL do Instagram não pode derrubar o story: a
+            # resposta é descartada pela biblioteca de qualquer forma.
+            with _tolerate_link_validation(client):
+                try:
+                    return _enviar(com_link=True), True
+                except Exception as erro_link:  # noqa: BLE001
+                    if not links or not _falha_por_causa_do_link(erro_link):
+                        raise
+                    # A pílula queimada continua na imagem — publicar sem o
+                    # metadado é melhor do que perder o story inteiro.
+                    logger.warning(
+                        "publish_story: envio com link falhou (%s) — republicando sem o metadado do link",
+                        erro_link,
+                    )
+                    return _enviar(com_link=False), False
+
         try:
-            media = await loop.run_in_executor(None, _upload)
+            media, com_link = await loop.run_in_executor(None, _upload)
         except Exception as e:
             logger.exception("publish_story: failed for account %s", body.account_id)
             code = session_pool.classify_error(e)
-            raise HTTPException(status_code=422, detail={"code": code, "message": f"Link Sticker Error: {str(e)[:300]}"})
+            raise HTTPException(status_code=422, detail={"code": code, "message": str(e)[:300]})
+
+        link_nativo = None
+        if com_link and links:
+            link_nativo = await loop.run_in_executor(
+                None, _conferir_link_nativo, client, str(media.pk)
+            )
+
         settings = client.get_settings()
 
-    return {"media_id": str(media.pk), "with_link": bool(links), "settings": settings}
+    return {
+        "media_id":    str(media.pk),
+        "with_link":   bool(links) and com_link,
+        "link_mode":   modo,
+        "link_native": link_nativo,
+        "settings":    settings,
+    }
 
 
 @router.post("/post")
