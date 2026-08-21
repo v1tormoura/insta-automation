@@ -208,7 +208,7 @@ class InstagrapiHttpClient {
     const result = await this._post('/session/verify-2fa', {
       account_id:        accountId,
       verification_code: verificationCode,
-    });
+    }, TIMEOUT_LOGIN);
 
     if (result.settings) {
       await this._sm.save(accountId, result.settings);

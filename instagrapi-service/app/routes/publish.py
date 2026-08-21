@@ -125,16 +125,9 @@ def _tolerate_link_validation(client):
 async def publish_story(body: PublishStoryRequest):
     """
     Publica um story — foto ou vídeo — opcionalmente com link sticker.
-
-    O tipo é decidido pela extensão do arquivo. O link vira um StorySticker do
-    tipo "story_link", montado pela própria biblioteca a partir de StoryLink.
-
-    O Instagram exige elegibilidade da conta para o link sticker (em geral 10 mil
-    seguidores ou verificação). Sem isso ele recusa — o erro é propagado em vez de
-    publicar silenciosamente sem o link, para o usuário saber o que aconteceu.
-
-    Requer sessão carregada via POST /session/load.
-    Devolve { media_id, with_link, settings }.
+    Utiliza uma interceptação no client.private_request para garantir que o 
+    texto customizado (custom_title) seja injetado corretamente no payload do Instagram,
+    contornando limitações da biblioteca instagrapi.
     """
     if not session_pool.is_loaded(body.account_id):
         raise HTTPException(
@@ -145,8 +138,8 @@ async def publish_story(body: PublishStoryRequest):
     media_path = _resolve_file(body.media_path)
     is_video   = media_path.suffix.lower() in _VIDEO_SUFFIXES
 
-    from instagrapi.types import StorySticker
-    stickers = []
+    from instagrapi.types import StoryLink
+    links = []
     if body.link_url:
         link_url = body.link_url
         if not link_url.startswith("http://") and not link_url.startswith("https://"):
@@ -159,25 +152,15 @@ async def publish_story(body: PublishStoryRequest):
             "height": body.link_height if body.link_height is not None else 0.2,
             "rotation": body.link_rotation if body.link_rotation is not None else 0.0,
         }
-        extra = {
-            "link_type": "web",
-            "url": link_url,
-            "tap_state_str_id": "link_sticker_default"
-        }
-        if body.link_text:
-            extra["custom_title"] = body.link_text
-            extra["link_title"] = body.link_text
-            
-        stickers.append(StorySticker(
-            id="link_sticker_default",
-            type="story_link",
+        
+        links.append(StoryLink(
+            webUri=link_url,
             x=posicao["x"],
             y=posicao["y"],
             z=0,
             width=posicao["width"],
             height=posicao["height"],
-            rotation=posicao["rotation"],
-            extra=extra
+            rotation=posicao["rotation"]
         ))
 
     entry = await session_pool.get_entry(body.account_id)
@@ -186,44 +169,52 @@ async def publish_story(body: PublishStoryRequest):
         loop   = asyncio.get_running_loop()
 
         def _upload():
-            # Validate reel URL if link sticker is present
-            if body.link_url:
-                try:
-                    client.private_request(
-                        "media/validate_reel_url/",
-                        {
-                            "url": link_url,
-                            "_uid": str(client.user_id),
-                            "_uuid": str(client.uuid),
-                        }
-                    )
-                except Exception as e:
-                    logger.warning("publish_story: validate_reel_url failed, ignoring. Err: %s", e)
-            # Upload é I/O de rede longo — vai para thread, senão congela o event
-            # loop e o serviço para de responder durante a publicação.
-            with _tolerate_link_validation(client):
-                try:
-                    if is_video:
-                        return client.video_upload_to_story(
-                            path=media_path, caption=body.caption or "", stickers=stickers
-                        )
-                    return client.photo_upload_to_story(
-                        path=media_path, caption=body.caption or "", stickers=stickers
-                    )
-                except Exception as link_err:
-                    if stickers:
-                        logger.warning(
-                            "publish_story: upload com link sticker falhou (%s) — publicando mídia sem sticker",
-                            link_err,
-                        )
+            import json
+            
+            # Monkey-patch private_request to inject custom_title right before Instagram sees it
+            original_private_request = client.private_request
+            
+            def patched_private_request(endpoint, data=None, *args, **kwargs):
+                if endpoint == "media/configure_to_story/" and data and "tap_models" in data and body.link_text:
+                    try:
+                        tap_models = json.loads(data["tap_models"])
+                        for tm in tap_models:
+                            if tm.get("type") == "story_link":
+                                tm["custom_title"] = body.link_text
+                                tm["link_title"] = body.link_text
+                        data["tap_models"] = json.dumps(tap_models)
+                    except Exception as e:
+                        logger.warning("publish_story: Falha ao injetar custom_title no tap_models: %s", e)
+                return original_private_request(endpoint, data, *args, **kwargs)
+                
+            client.private_request = patched_private_request
+
+            try:
+                with _tolerate_link_validation(client):
+                    try:
                         if is_video:
                             return client.video_upload_to_story(
-                                path=media_path, caption=body.caption or ""
+                                path=media_path, caption=body.caption or "", links=links
                             )
                         return client.photo_upload_to_story(
-                            path=media_path, caption=body.caption or ""
+                            path=media_path, caption=body.caption or "", links=links
                         )
-                    raise
+                    except Exception as link_err:
+                        if links:
+                            logger.warning(
+                                "publish_story: upload com link sticker falhou (%s) — publicando mídia sem sticker",
+                                link_err,
+                            )
+                            if is_video:
+                                return client.video_upload_to_story(
+                                    path=media_path, caption=body.caption or ""
+                                )
+                            return client.photo_upload_to_story(
+                                path=media_path, caption=body.caption or ""
+                            )
+                        raise
+            finally:
+                client.private_request = original_private_request
 
         try:
             media = await loop.run_in_executor(None, _upload)
@@ -233,7 +224,7 @@ async def publish_story(body: PublishStoryRequest):
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)[:300]})
         settings = client.get_settings()
 
-    return {"media_id": str(media.pk), "with_link": bool(stickers), "settings": settings}
+    return {"media_id": str(media.pk), "with_link": bool(links), "settings": settings}
 
 
 @router.post("/post")
