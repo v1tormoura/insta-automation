@@ -1,7 +1,7 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, BookOpen, CheckCircle2, XCircle, Clock, Eye, Heart, Instagram,
+  Bell, BookOpen, CheckCircle2, XCircle, Clock, Eye, Heart, Camera,
   LayoutDashboard, Layers, LogOut, Menu, Plus, RefreshCw, Search, Send,
   Settings, Shield, Star, TrendingUp, Users, Zap, ArrowUp, ArrowDown,
   BarChart3, Target, Download, AlertTriangle,
@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 
 const T={bg:'#07101e',cyan:'#00d4ff',cyan2:'#00aacc',green:'#10b981',red:'#f43f5e',amber:'#f59e0b',purple:'#8b5cf6',indigo:'#6366f1',text:'#e2edfd',text2:'#7f9ab5',text3:'#3a5268'};
-const chartData=Array.from({length:24},(_,i)=>({h:${i}h,stories:Math.floor(20+Math.sin(i*.5)*15+Math.random()*10),posts:Math.floor(12+Math.cos(i*.4)*8+Math.random()*6)}));
+const chartData=Array.from({length:24},(_,i)=>({h:`${i}h`,stories:Math.floor(20+Math.sin(i*.5)*15+Math.random()*10),posts:Math.floor(12+Math.cos(i*.4)*8+Math.random()*6)}));
 const weekData=['Seg','Ter','Qua','Qui','Sex','Sab','Dom'].map(d=>({d,pub:Math.floor(30+Math.random()*50)}));
 const pieData=[{name:'Stories',value:58,color:'#00d4ff'},{name:'Posts',value:28,color:'#8b5cf6'},{name:'Reel',value:14,color:'#6366f1'}];
 const accounts=[
@@ -57,12 +57,12 @@ function Dot({s}){const c={online:'#10b981',warning:'#f59e0b',offline:'#f43f5e',
 function Mc({icon:Icon,label,value,sub,trend,color='#00d4ff',delay=0}){
   const[count,setCount]=useState(0);
   useEffect(()=>{const n=parseFloat(String(value).replace(/[^0-9.]/g,''));let s=0;const step=n/40;const t=setTimeout(()=>{const iv=setInterval(()=>{s=Math.min(s+step,n);setCount(s);if(s>=n)clearInterval(iv);},20);return()=>clearInterval(iv);},delay*120);return()=>clearTimeout(t);},[value,delay]);
-  const fmt=(v,o)=>{if(String(o).includes('K'))return v>=1000?${(v/1000).toFixed(1)}K:Math.floor(v).toString();if(String(o).includes('%'))return${Math.floor(v)}%;return Math.floor(v).toLocaleString('pt-BR');};
+  const fmt=(v,o)=>{if(String(o).includes('K'))return v>=1000?`${(v/1000).toFixed(1)}K`:Math.floor(v).toString();if(String(o).includes('%'))return`${Math.floor(v)}%`;return Math.floor(v).toLocaleString('pt-BR');};
   return(<motion.div initial={{opacity:0,y:20}}animate={{opacity:1,y:0}}transition={{delay:delay*.08,duration:.5}}whileHover={{y:-2}}style={{background:'oklch(0.16 0.05 235 / 0.90)',border:'1px solid oklch(1 0 0 / 0.07)',borderRadius:16,padding:'20px 22px',position:'relative',overflow:'hidden',cursor:'default'}}>
-    <div style={{position:'absolute',top:0,left:'15%',right:'15%',height:1,background:linear-gradient(90deg,transparent,44,transparent)}}/>
-    <div style={{position:'absolute',top:-30,right:-30,width:100,height:100,borderRadius:'50%',background:adial-gradient(circle,14 0%,transparent 70%),pointerEvents:'none'}}/>
+    <div style={{position:'absolute',top:0,left:'15%',right:'15%',height:1,background:`linear-gradient(90deg,transparent,${color}44,transparent)`}}/>
+    <div style={{position:'absolute',top:-30,right:-30,width:100,height:100,borderRadius:'50%',background:`radial-gradient(circle,${color}14 0%,transparent 70%)`,pointerEvents:'none'}}/>
     <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
-      <div style={{width:36,height:36,borderRadius:10,background:${color}18,border:1px solid 30,display:'grid',placeItems:'center'}}><Icon size={16} style={{color}}/></div>
+      <div style={{width:36,height:36,borderRadius:10,background:`${color}18`,border:`1px solid ${color}30`,display:'grid',placeItems:'center'}}><Icon size={16} style={{color}}/></div>
       {trend!==undefined&&(<span style={{display:'flex',alignItems:'center',gap:3,fontSize:11,fontWeight:600,color:trend>=0?'#10b981':'#f43f5e',background:trend>=0?'#10b98118':'#f43f5e18',padding:'3px 8px',borderRadius:20}}>{trend>=0?<ArrowUp size={10}/>:<ArrowDown size={10}/>}{Math.abs(trend)}%</span>)}
     </div>
     <div style={{fontSize:26,fontWeight:700,color:'#e2edfd',letterSpacing:'-.5px',lineHeight:1}}>{fmt(count,value)}</div>
@@ -104,7 +104,7 @@ function Notifs({open,onClose}){
     <motion.div initial={{opacity:0,scale:.95,y:-8}}animate={{opacity:1,scale:1,y:0}}exit={{opacity:0,scale:.95,y:-8}}transition={{duration:.15}}style={{position:'fixed',top:64,right:24,width:360,zIndex:900,background:'oklch(0.14 0.05 235 / 0.98)',border:'1px solid oklch(1 0 0 / 0.1)',borderRadius:16,boxShadow:'0 24px 60px rgba(0,0,0,.4)',overflow:'hidden'}}>
       <div style={{padding:'14px 16px',borderBottom:'1px solid oklch(1 0 0 / 0.07)',display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontSize:13,fontWeight:600,color:'#e2edfd'}}>Notificacoes</span><span style={{fontSize:11,color:'#00d4ff',cursor:'pointer'}}>Marcar lidas</span></div>
       {ns.map((n,i)=>(<motion.div key={i}initial={{x:20,opacity:0}}animate={{x:0,opacity:1}}transition={{delay:i*.05}}whileHover={{background:'oklch(1 0 0 / 0.03)'}}style={{display:'flex',gap:12,padding:'12px 16px',borderBottom:'1px solid oklch(1 0 0 / 0.05)',cursor:'pointer'}}>
-        <div style={{width:32,height:32,borderRadius:10,background:${n.c}18,display:'grid',placeItems:'center',flexShrink:0}}><n.icon size={14} style={{color:n.c}}/></div>
+        <div style={{width:32,height:32,borderRadius:10,background:`${n.c}18`,display:'grid',placeItems:'center',flexShrink:0}}><n.icon size={14} style={{color:n.c}}/></div>
         <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:'#e2edfd'}}>{n.title}</div><div style={{fontSize:11,color:'#7f9ab5',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{n.sub}</div></div>
         <div style={{fontSize:10,color:'#3a5268',flexShrink:0}}>{n.time}</div>
       </motion.div>))}
@@ -130,7 +130,7 @@ export default function DashboardV2(){
       <Notifs open={notifOpen} onClose={()=>setNotifOpen(false)}/>
       <motion.aside animate={{width:SW}}transition={{duration:.25,ease:[.21,.47,.32,.98]}}style={{flexShrink:0,height:'100vh',background:'oklch(0.13 0.045 235 / 0.95)',borderRight:'1px solid oklch(1 0 0 / 0.06)',display:'flex',flexDirection:'column',overflow:'hidden',backdropFilter:'blur(20px)'}}>
         <div style={{padding:'18px 16px',borderBottom:'1px solid oklch(1 0 0 / 0.06)',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-          <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:'linear-gradient(135deg,#00d4ff,#8b5cf6)',display:'grid',placeItems:'center',boxShadow:'0 0 20px #00d4ff40'}}><Instagram size={16} style={{color:'#fff'}}/></div>
+          <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:'linear-gradient(135deg,#00d4ff,#8b5cf6)',display:'grid',placeItems:'center',boxShadow:'0 0 20px #00d4ff40'}}><Camera size={16} style={{color:'#fff'}}/></div>
           <AnimatePresence>{sidebarOpen&&(<motion.div initial={{opacity:0,x:-10}}animate={{opacity:1,x:0}}exit={{opacity:0,x:-10}}transition={{duration:.18}}style={{overflow:'hidden'}}><div style={{fontSize:14,fontWeight:700,color:'#e2edfd',whiteSpace:'nowrap'}}>InstaFlow</div><div style={{fontSize:10,color:'#3a5268',whiteSpace:'nowrap'}}>SaaS Automacao</div></motion.div>)}</AnimatePresence>
         </div>
         <nav style={{flex:1,padding:'12px 8px',overflowY:'auto',overflowX:'hidden'}}>
@@ -221,13 +221,13 @@ export default function DashboardV2(){
               </div>
               {fa.map((acc,i)=>(<motion.div key={acc.id}initial={{opacity:0,x:-10}}animate={{opacity:1,x:0}}transition={{delay:.5+i*.06}}whileHover={{background:'oklch(1 0 0 / 0.025)'}}style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 80px',padding:'12px 20px',borderBottom:'1px solid oklch(1 0 0 / 0.04)',alignItems:'center',transition:'background .15s',cursor:'pointer'}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}>
-                  <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:linear-gradient(135deg,40,40),display:'grid',placeItems:'center',fontSize:11,fontWeight:700,color:'#e2edfd'}}>{acc.av}</div>
+                  <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:`linear-gradient(135deg,${colors[i%5]}40,${colors[(i+1)%5]}40)`,display:'grid',placeItems:'center',fontSize:11,fontWeight:700,color:'#e2edfd'}}>{acc.av}</div>
                   <div><div style={{fontSize:13,fontWeight:600,color:'#e2edfd'}}>{acc.username}</div><div style={{fontSize:10,color:'#3a5268'}}>{acc.followers}</div></div>
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:6}}><Dot s={acc.status}/><span style={{fontSize:11,color:'#7f9ab5',textTransform:'capitalize'}}>{acc.status}</span></div>
                 <div style={{fontSize:13,color:'#e2edfd',fontWeight:600}}>{acc.stories}</div>
                 <div style={{fontSize:13,color:'#e2edfd',fontWeight:600}}>{acc.posts}</div>
-                <div>{acc.health>0?(<div><div style={{marginBottom:3}}><span style={{fontSize:10,color:acc.health>80?'#10b981':acc.health>50?'#f59e0b':'#f43f5e',fontWeight:700}}>{acc.health}%</span></div><div style={{height:4,background:'oklch(1 0 0 / 0.08)',borderRadius:4,overflow:'hidden'}}><motion.div initial={{width:0}}animate={{width:${acc.health}%}}transition={{delay:.6+i*.1,duration:.6,ease:'easeOut'}}style={{height:'100%',background:acc.health>80?'#10b981':acc.health>50?'#f59e0b':'#f43f5e',borderRadius:4}}/></div></div>):<span style={{fontSize:10,color:'#3a5268'}}>offline</span>}</div>
+                <div>{acc.health>0?(<div><div style={{marginBottom:3}}><span style={{fontSize:10,color:acc.health>80?'#10b981':acc.health>50?'#f59e0b':'#f43f5e',fontWeight:700}}>{acc.health}%</span></div><div style={{height:4,background:'oklch(1 0 0 / 0.08)',borderRadius:4,overflow:'hidden'}}><motion.div initial={{width:0}}animate={{width:`${acc.health}%`}}transition={{delay:.6+i*.1,duration:.6,ease:'easeOut'}}style={{height:'100%',background:acc.health>80?'#10b981':acc.health>50?'#f59e0b':'#f43f5e',borderRadius:4}}/></div></div>):<span style={{fontSize:10,color:'#3a5268'}}>offline</span>}</div>
               </motion.div>))}
               {fa.length===0&&<div style={{textAlign:'center',padding:'32px 20px',color:'#3a5268',fontSize:13}}>Nenhuma conta encontrada</div>}
             </motion.div>
@@ -245,7 +245,7 @@ export default function DashboardV2(){
               <div style={{padding:'16px 20px',borderTop:'1px solid oklch(1 0 0 / 0.07)'}}>
                 <div style={{fontSize:11,fontWeight:600,color:'#3a5268',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>Acoes Rapidas</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  {[{icon:Send,label:'Story',color:'#00d4ff',action:()=>setCmdOpen(true)},{icon:BookOpen,label:'Post',color:'#8b5cf6',action:()=>{}},{icon:Layers,label:'Campanha',color:'#6366f1',action:()=>{}},{icon:RefreshCw,label:'Reconectar',color:'#f59e0b',action:()=>{}}].map(btn=>(<motion.button key={btn.label}whileHover={{scale:1.02,y:-1}}whileTap={{scale:.97}}onClick={btn.action}style={{display:'flex',alignItems:'center',gap:6,padding:'8px 10px',background:${btn.color}10,border:1px solid 28,borderRadius:10,color:btn.color,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}><btn.icon size={13}/>{btn.label}</motion.button>))}
+                  {[{icon:Send,label:'Story',color:'#00d4ff',action:()=>setCmdOpen(true)},{icon:BookOpen,label:'Post',color:'#8b5cf6',action:()=>{}},{icon:Layers,label:'Campanha',color:'#6366f1',action:()=>{}},{icon:RefreshCw,label:'Reconectar',color:'#f59e0b',action:()=>{}}].map(btn=>(<motion.button key={btn.label}whileHover={{scale:1.02,y:-1}}whileTap={{scale:.97}}onClick={btn.action}style={{display:'flex',alignItems:'center',gap:6,padding:'8px 10px',background:`${btn.color}10`,border:`1px solid ${btn.color}28`,borderRadius:10,color:btn.color,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}><btn.icon size={13}/>{btn.label}</motion.button>))}
                 </div>
               </div>
             </motion.div>
@@ -253,7 +253,7 @@ export default function DashboardV2(){
           <div style={{height:24}}/>
         </div>
       </div>
-      <style>{@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(2);opacity:0}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:oklch(1 0 0 / 0.08);border-radius:4px}}</style>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(2);opacity:0}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:oklch(1 0 0 / 0.08);border-radius:4px}`}</style>
     </div>
   );
 }
