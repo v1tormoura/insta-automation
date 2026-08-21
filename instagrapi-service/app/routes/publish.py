@@ -190,14 +190,13 @@ async def publish_story(body: PublishStoryRequest):
             client.private_request = patched_private_request
 
             try:
-                with _tolerate_link_validation(client):
-                    if is_video:
-                        return client.video_upload_to_story(
-                            path=media_path, caption=body.caption or "", links=links
-                        )
-                    return client.photo_upload_to_story(
+                if is_video:
+                    return client.video_upload_to_story(
                         path=media_path, caption=body.caption or "", links=links
                     )
+                return client.photo_upload_to_story(
+                    path=media_path, caption=body.caption or "", links=links
+                )
             finally:
                 client.private_request = original_private_request
 
