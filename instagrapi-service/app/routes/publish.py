@@ -169,36 +169,13 @@ async def publish_story(body: PublishStoryRequest):
         loop   = asyncio.get_running_loop()
 
         def _upload():
-            import json
-            
-            # Monkey-patch private_request to inject custom_title right before Instagram sees it
-            original_private_request = client.private_request
-            
-            def patched_private_request(endpoint, data=None, *args, **kwargs):
-                if endpoint == "media/configure_to_story/" and data and "tap_models" in data and body.link_text:
-                    try:
-                        tap_models = json.loads(data["tap_models"])
-                        for tm in tap_models:
-                            if tm.get("type") == "story_link":
-                                tm["custom_title"] = body.link_text
-                                tm["link_title"] = body.link_text
-                        data["tap_models"] = json.dumps(tap_models)
-                    except Exception as e:
-                        logger.warning("publish_story: Falha ao injetar custom_title no tap_models: %s", e)
-                return original_private_request(endpoint, data, *args, **kwargs)
-                
-            client.private_request = patched_private_request
-
-            try:
-                if is_video:
-                    return client.video_upload_to_story(
-                        path=media_path, caption=body.caption or "", links=links
-                    )
-                return client.photo_upload_to_story(
+            if is_video:
+                return client.video_upload_to_story(
                     path=media_path, caption=body.caption or "", links=links
                 )
-            finally:
-                client.private_request = original_private_request
+            return client.photo_upload_to_story(
+                path=media_path, caption=body.caption or "", links=links
+            )
 
         try:
             media = await loop.run_in_executor(None, _upload)
