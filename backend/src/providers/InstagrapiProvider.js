@@ -59,6 +59,17 @@ class InstagrapiProvider extends InstagramProvider {
   }
 
   /**
+   * Audiência dos stories ativos da conta.
+   *
+   * Existe só no provider instagrapi: a Graph API tem caminho próprio para isso
+   * (edge /stories + /insights), tratado em storyInsightSync.
+   */
+  async storyInsights(account) {
+    if (!this._http) throw this._notReady('storyInsights');
+    return this._http.storyInsights(account);
+  }
+
+  /**
    * Comenta via serviço Python (Client.media_comment).
    *
    * O media_id vem da publicação correspondente — a mídia mais recente da conta

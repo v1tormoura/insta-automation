@@ -11,6 +11,7 @@ const { cleanProcessedFiles } = require('./services/videoProcessor');
 const { startHealthCheck } = require('./jobs/healthCheck');
 // loopJob desativado — novos loops usam exclusivamente a arquitetura Job-based (processJobRound)
 const { startInsightAutoSync } = require('./services/insightSyncService');
+const { startStoryInsightAutoSync } = require('./services/storyInsightSync');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
 const { startRepostJob }      = require('./jobs/repostJob');
 const { startProxyHealthCheck } = require('./jobs/proxyHealthCheck');
@@ -170,6 +171,9 @@ startSessionKeepAlive();
 startHealthCheck();
 // startLoopJob() — desativado; loops antigos foram arquivados, novos usam Job Engine
 startInsightAutoSync();
+// Stories vivem 24h — o ciclo precisa passar dentro dessa janela, senão a
+// audiência some junto com o story e nunca chega ao painel.
+startStoryInsightAutoSync();
 startTokenRefreshJob();
 startRepostJob();
 startProxyHealthCheck();

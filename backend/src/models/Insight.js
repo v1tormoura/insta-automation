@@ -4,7 +4,10 @@ const insightSchema = new mongoose.Schema({
   accountId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Account', required: true, index: true },
   username:     { type: String, default: '' },
   igMediaId:    { type: String, required: true, unique: true },
-  mediaType:    { type: String, default: 'IMAGE' }, // IMAGE, VIDEO, CAROUSEL_ALBUM
+  // IMAGE, VIDEO, CAROUSEL_ALBUM e STORY. STORY nao vem do sync de feed (a
+  // borda /media do Graph nunca devolve story) — quem grava e o
+  // storyInsightSync, dentro da janela de 24h em que o story existe.
+  mediaType:    { type: String, default: 'IMAGE' },
   mediaUrl:     { type: String, default: '' },
   thumbnailUrl: { type: String, default: '' },
   permalink:    { type: String, default: '' },

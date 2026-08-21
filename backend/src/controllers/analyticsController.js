@@ -154,7 +154,10 @@ exports.getGlobalMetrics = async (req, res) => {
     // 3. Agregação de Alcance e Visualizações do período
     const [totalsAgg, topPosts, bestPerAccountAgg, storyViewsAgg] = await Promise.all([
       Insight.aggregate([
-        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since } } },
+        // STORY fica de fora: agora que a audiência de story é gravada como
+        // Insight, incluí-la aqui mudaria o significado de "alcance do feed" e
+        // poderia eleger um story como "melhor post".
+        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since }, mediaType: { $ne: 'STORY' } } },
         { $group: {
           _id: null,
           totalReach:       { $sum: '$reach' },
@@ -167,15 +170,21 @@ exports.getGlobalMetrics = async (req, res) => {
           totalPosts:       { $sum: 1 },
         }},
       ]),
+      // Mesmo motivo do pipeline acima: sem o filtro, um story com muita
+      // audiência viraria o "melhor post" do painel.
       Insight.find({
         accountId: { $in: connectedIds },
         postedAt: { $gte: since },
+        mediaType: { $ne: 'STORY' },
       })
         .sort({ videoViews: -1, impressions: -1, reach: -1, engagementScore: -1 })
         .limit(1)
         .lean(),
       Insight.aggregate([
-        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since } } },
+        // STORY fica de fora: agora que a audiência de story é gravada como
+        // Insight, incluí-la aqui mudaria o significado de "alcance do feed" e
+        // poderia eleger um story como "melhor post".
+        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since }, mediaType: { $ne: 'STORY' } } },
         { $sort: { videoViews: -1, impressions: -1, reach: -1, engagementScore: -1 } },
         { $group: {
           _id: '$accountId',

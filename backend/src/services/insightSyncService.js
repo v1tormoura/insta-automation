@@ -230,4 +230,10 @@ function startInsightAutoSync(intervalMs = 30 * 60 * 1000) {
   setInterval(() => syncAllInsights().catch(() => {}), intervalMs);
 }
 
-module.exports = { syncAllInsights, syncAccountInsights, startInsightAutoSync };
+module.exports = {
+  syncAllInsights, syncAccountInsights, startInsightAutoSync,
+  // Compartilhados com o sync de stories: uma segunda implementação de chamada
+  // ao Graph divergiria na escolha da base (graph.instagram vs graph.facebook),
+  // que é justamente a parte que quebra em silêncio.
+  gGet, graphBase,
+};

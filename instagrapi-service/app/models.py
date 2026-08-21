@@ -58,6 +58,14 @@ class PublishStoryRequest(BaseModel):
     link_sticker_mode: str | None = "burned"
 
 
+class StoryInsightsRequest(BaseModel):
+    account_id: str
+    # Quando o feed de stories nao traz a audiencia, buscar na lista de quem viu
+    # (uma requisicao a mais POR story). Ligado por padrao: sem isso a metrica
+    # simplesmente nao existe para quem cai nesse caso.
+    detalhar_faltantes: bool = True
+
+
 class ProfileEditRequest(BaseModel):
     account_id: str
     # Campos ausentes (None) não são alterados — account_edit sobrescreve o que

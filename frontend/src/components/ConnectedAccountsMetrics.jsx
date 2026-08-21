@@ -23,6 +23,7 @@ export default function ConnectedAccountsMetrics() {
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState('30d');
   const [showAccountsDetail, setShowAccountsDetail] = useState(false);
+  const [coletandoStories, setColetandoStories] = useState(false);
 
   const loadMetrics = useCallback(async (force = false) => {
     try {
@@ -40,6 +41,26 @@ export default function ConnectedAccountsMetrics() {
       setRefreshing(false);
     }
   }, [period]);
+
+  /**
+   * Coleta a audiência dos stories AGORA e recarrega o painel.
+   *
+   * O ciclo automático roda a cada 30 min, mas story vive 24h e some sem aviso.
+   * Quem acabou de publicar precisa conseguir puxar o número na hora, em vez de
+   * esperar a próxima volta sem saber se funcionou.
+   */
+  const coletarStories = useCallback(async () => {
+    setColetandoStories(true);
+    try {
+      await api.post('/analytics/story-insights/sync');
+      await loadMetrics(true);
+    } catch (err) {
+      console.error('[StoryInsights]', err);
+      setError('Não foi possível coletar as visualizações dos stories.');
+    } finally {
+      setColetandoStories(false);
+    }
+  }, [loadMetrics]);
 
   useEffect(() => {
     loadMetrics();
@@ -313,13 +334,28 @@ export default function ConnectedAccountsMetrics() {
                 <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--text3)', textTransform: 'uppercase' }}>
                   Stories
                 </span>
-                <Eye size={16} style={{ color: '#a78bfa', opacity: 0.9 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={coletarStories}
+                    disabled={coletandoStories}
+                    title="Coletar as visualizações dos stories ativos agora"
+                    style={{
+                      background: 'transparent', border: 'none', padding: 0,
+                      cursor: coletandoStories ? 'default' : 'pointer',
+                      color: '#a78bfa', opacity: coletandoStories ? 0.5 : 0.75,
+                      display: 'flex', alignItems: 'center',
+                    }}>
+                    <RefreshCw size={12} style={coletandoStories
+                      ? { animation: 'spin 1s linear infinite' } : undefined} />
+                  </button>
+                  <Eye size={16} style={{ color: '#a78bfa', opacity: 0.9 }} />
+                </div>
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: '#a78bfa', fontFamily: 'var(--font-mono)', letterSpacing: '-.02em' }}>
                 {fmt(d.totalStoryViews)}
               </div>
               <div style={{ fontSize: 10.5, color: 'var(--text3)', marginTop: 4 }}>
-                Visualizações estimadas
+                {coletandoStories ? 'Coletando…' : 'Visualizações nos stories'}
               </div>
             </div>
           </div>

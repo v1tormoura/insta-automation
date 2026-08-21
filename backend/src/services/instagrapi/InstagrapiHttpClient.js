@@ -13,6 +13,12 @@ const LOCK_TTL_PUBLISH = 210_000;  // ms — 3.5 min
 // Comentar é uma requisição só, não um upload — não precisa do TTL do publish.
 // Um TTL curto também libera a conta mais cedo se o processo morrer no meio.
 const TIMEOUT_COMMENT  = 30_000;   // ms
+
+// Insights de story: uma conta com muitos stories ativos pode precisar de uma
+// requisicao por story quando o feed nao traz a audiencia, entao o teto e maior
+// que o do comentario. O lock fica acima do timeout, para nunca expirar antes.
+const TIMEOUT_STORY_INSIGHTS  = 60_000;   // ms
+const LOCK_TTL_STORY_INSIGHTS = 90_000;   // ms
 const LOCK_TTL_COMMENT = 45_000;   // ms — acima do timeout, para o lock nunca
                                    // expirar com a requisição ainda em voo
 
@@ -360,6 +366,30 @@ class InstagrapiHttpClient {
         }
       }
       const result = await this._post('/publish/story', body, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /**
+   * Audiência dos stories ativos da conta (janela de 24h do Instagram).
+   *
+   * Leitura, não publicação: usa o lock curto do comentário, não o de upload.
+   * Segurar o lock de publicação por 3,5 min para ler uma métrica atrasaria as
+   * publicações da conta sem motivo.
+   *
+   * @param {Object} account
+   * @returns {Promise<{stories: Array, total: number, viewers: number}>}
+   */
+  async storyInsights(account) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_STORY_INSIGHTS, async () => {
+      await this.ensureSession(account);
+      const result = await this._post(
+        '/insights/stories',
+        { account_id: accountId },
+        TIMEOUT_STORY_INSIGHTS,
+      );
       if (result.settings) await this._sm.save(accountId, result.settings);
       return result;
     });
