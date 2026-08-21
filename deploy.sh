@@ -23,11 +23,11 @@ if [ "$PKG_CHANGED" = true ]; then
   docker compose up --build -d
 elif [ "$BACKEND_CHANGED" = true ] && [ "$FRONTEND_CHANGED" = true ]; then
   echo "?? Backend + Frontend mudaram"
-  docker compose restart backend worker python-service
+  docker compose restart backend worker instagrapi-svc
   docker compose up --build -d frontend
 elif [ "$BACKEND_CHANGED" = true ]; then
   echo "?? S� backend mudou � reiniciando (sem rebuild)..."
-  docker compose restart backend worker python-service
+  docker compose restart backend worker instagrapi-svc
 elif [ "$FRONTEND_CHANGED" = true ]; then
   echo "🎨 Só frontend mudou — rebuild frontend..."
   docker compose up --build -d frontend
@@ -39,4 +39,5 @@ fi
 echo ""
 echo "✅ Deploy concluído!"
 docker compose ps
+
 
