@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, BookOpen, CheckCircle2, XCircle, Clock, Eye, Heart, Camera,
@@ -113,7 +113,22 @@ function Notifs({open,onClose}){
 
 function TT({active,payload,label}){if(!active||!payload?.length)return null;return(<div style={{background:'oklch(0.16 0.05 235 / 0.98)',border:'1px solid oklch(1 0 0 / 0.12)',borderRadius:10,padding:'10px 14px',fontSize:12}}><div style={{color:'#7f9ab5',marginBottom:6,fontWeight:600}}>{label}</div>{payload.map(p=>(<div key={p.dataKey}style={{display:'flex',justifyContent:'space-between',gap:16}}><span style={{color:'#7f9ab5'}}>{p.name||p.dataKey}</span><span style={{fontWeight:700,color:p.color}}>{p.value?.toLocaleString('pt-BR')}</span></div>))}</div>);}
 
-export default function DashboardV2(){
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  render() {
+    if (this.state.hasError) {
+      return <div style={{padding:50,color:'red',background:'#000'}}><pre>{this.state.error?.toString()}</pre><pre>{this.state.error?.stack}</pre></div>;
+    }
+    return this.props.children;
+  }
+}
+
+export default function DashboardV2Wrapper() {
+  return <ErrorBoundary><DashboardV2 /></ErrorBoundary>;
+}
+
+function DashboardV2(){
   const[sidebarOpen,setSidebarOpen]=useState(true);
   const[cmdOpen,setCmdOpen]=useState(false);
   const[notifOpen,setNotifOpen]=useState(false);
