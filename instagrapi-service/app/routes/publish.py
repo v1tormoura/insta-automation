@@ -164,6 +164,7 @@ async def publish_story(body: PublishStoryRequest):
             extra["custom_title"] = body.link_text
             
         stickers.append(StorySticker(
+            id="link_sticker_default",
             type="story_link",
             x=posicao["x"],
             y=posicao["y"],
@@ -180,6 +181,19 @@ async def publish_story(body: PublishStoryRequest):
         loop   = asyncio.get_running_loop()
 
         def _upload():
+            # Validate reel URL if link sticker is present
+            if body.link_url:
+                try:
+                    client.private_request(
+                        "media/validate_reel_url/",
+                        {
+                            "url": body.link_url,
+                            "_uid": str(client.user_id),
+                            "_uuid": str(client.uuid),
+                        }
+                    )
+                except Exception as e:
+                    logger.warning("publish_story: validate_reel_url failed, ignoring. Err: %s", e)
             # Upload é I/O de rede longo — vai para thread, senão congela o event
             # loop e o serviço para de responder durante a publicação.
             with _tolerate_link_validation(client):
