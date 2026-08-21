@@ -191,28 +191,13 @@ async def publish_story(body: PublishStoryRequest):
 
             try:
                 with _tolerate_link_validation(client):
-                    try:
-                        if is_video:
-                            return client.video_upload_to_story(
-                                path=media_path, caption=body.caption or "", links=links
-                            )
-                        return client.photo_upload_to_story(
+                    if is_video:
+                        return client.video_upload_to_story(
                             path=media_path, caption=body.caption or "", links=links
                         )
-                    except Exception as link_err:
-                        if links:
-                            logger.warning(
-                                "publish_story: upload com link sticker falhou (%s) — publicando mídia sem sticker",
-                                link_err,
-                            )
-                            if is_video:
-                                return client.video_upload_to_story(
-                                    path=media_path, caption=body.caption or ""
-                                )
-                            return client.photo_upload_to_story(
-                                path=media_path, caption=body.caption or ""
-                            )
-                        raise
+                    return client.photo_upload_to_story(
+                        path=media_path, caption=body.caption or "", links=links
+                    )
             finally:
                 client.private_request = original_private_request
 
@@ -221,7 +206,7 @@ async def publish_story(body: PublishStoryRequest):
         except Exception as e:
             logger.exception("publish_story: failed for account %s", body.account_id)
             code = session_pool.classify_error(e)
-            raise HTTPException(status_code=422, detail={"code": code, "message": str(e)[:300]})
+            raise HTTPException(status_code=422, detail={"code": code, "message": f"Link Sticker Error: {str(e)[:300]}"})
         settings = client.get_settings()
 
     return {"media_id": str(media.pk), "with_link": bool(links), "settings": settings}
