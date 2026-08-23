@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import MainLayout from './layouts/MainLayout';
 import Dashboard from './pages/Dashboard';
 import DashboardV2 from './pages/DashboardV2';
+import PrototipoApp from './prototipo/PrototipoApp';
 import Accounts from './pages/Accounts';
 import Posts from './pages/Posts';
 import Scheduler from './pages/Scheduler';
@@ -71,6 +72,11 @@ export default function App() {
       <Route path="/oauth-callback" element={<OAuthCallback />} />
 
       <Route path="/v2" element={<DashboardV2 />} />
+
+      {/* Protótipo do redesign — rota isolada, dados ficticios, sem backend.
+          Fica fora do PrivateRoute e do MainLayout de proposito: ele traz a
+          propria casca, e assim nada da interface atual interfere na avaliacao. */}
+      <Route path="/prototipo" element={<PrototipoApp />} />
 
       <Route path="/*" element={
         <PrivateRoute>

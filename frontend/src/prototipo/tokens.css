@@ -1,0 +1,153 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   MOURAFLOW — DESIGN SYSTEM (proposta)
+   ══════════════════════════════════════════════════════════════════════════
+
+   Tudo aqui vive sob [data-mf], e isso é deliberado: o protótipo precisa
+   coexistir com a interface atual sem encostar nela. Nenhuma regra vaza, e a
+   aprovação (ou o descarte) não custa uma reversão.
+
+   As cores são declaradas em oklch por um motivo prático, não por moda: nesse
+   espaço, mudar só a luminosidade preserva a percepção de matiz. É o que
+   permite gerar uma escala inteira a partir de uma cor e ter todos os degraus
+   parecendo a mesma família — em hex, isso exige acertar cada degrau na mão.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf] {
+  /* ── Marca ──────────────────────────────────────────────────────────────
+     Violeta elétrico como identidade e ciano como acento de dado. A dupla
+     evita o azul corporativo genérico e ainda separa por função: violeta é
+     ação, ciano é informação. */
+  --mf-primary-100: oklch(0.92 0.05 285);
+  --mf-primary-300: oklch(0.78 0.14 285);
+  --mf-primary-500: oklch(0.62 0.24 285);   /* cor da marca */
+  --mf-primary-600: oklch(0.55 0.23 285);
+  --mf-primary-700: oklch(0.46 0.20 285);
+  --mf-primary-fg:  oklch(0.98 0.01 285);
+
+  --mf-accent-300:  oklch(0.88 0.10 200);
+  --mf-accent-500:  oklch(0.80 0.15 200);   /* ciano — dado, destaque */
+  --mf-accent-700:  oklch(0.58 0.13 200);
+
+  /* Magenta em dose pequena: só para o que é excepcional (campanha ativa,
+     item premium). Usado em área grande, vira ruído. */
+  --mf-flare-500:   oklch(0.68 0.26 350);
+
+  /* ── Semântica de estado ───────────────────────────────────────────────
+     Uma cor por significado. Componente nenhum escolhe verde por conta
+     própria: pede "sucesso" e recebe o verde do sistema. */
+  --mf-success-500: oklch(0.72 0.17 155);
+  --mf-success-bg:  oklch(0.72 0.17 155 / 0.12);
+  --mf-warning-500: oklch(0.80 0.16 78);
+  --mf-warning-bg:  oklch(0.80 0.16 78 / 0.12);
+  --mf-danger-500:  oklch(0.64 0.22 20);
+  --mf-danger-bg:   oklch(0.64 0.22 20 / 0.12);
+  --mf-info-500:    oklch(0.72 0.14 240);
+  --mf-info-bg:     oklch(0.72 0.14 240 / 0.12);
+
+  /* ── Cor por módulo ────────────────────────────────────────────────────
+     Cada área do produto tem um matiz fixo. O usuário aprende o lugar pela
+     cor antes de ler o título — e o ícone da barra lateral, o cabeçalho da
+     página e o gráfico daquele módulo passam a concordar entre si. */
+  --mf-mod-contas:    oklch(0.80 0.15 200);   /* ciano   */
+  --mf-mod-publicar:  oklch(0.62 0.24 285);   /* violeta */
+  --mf-mod-campanhas: oklch(0.68 0.26 350);   /* magenta */
+  --mf-mod-jobs:      oklch(0.80 0.16 78);    /* âmbar   */
+  --mf-mod-metricas:  oklch(0.72 0.17 155);   /* verde   */
+  --mf-mod-sistema:   oklch(0.70 0.03 275);   /* neutro  */
+
+  /* ── Superfícies ───────────────────────────────────────────────────────
+     Escuro com um viés violeta mínimo (croma 0.012–0.02), não cinza puro.
+     Preto absoluto achata a hierarquia: sem diferença entre camadas, todo
+     card parece estar no mesmo plano. */
+  --mf-bg:          oklch(0.145 0.018 275);
+  --mf-surface-1:   oklch(0.178 0.020 275);
+  --mf-surface-2:   oklch(0.208 0.022 275);
+  --mf-surface-3:   oklch(0.245 0.024 275);
+  --mf-overlay:     oklch(0.10 0.02 275 / 0.72);
+
+  --mf-border:        oklch(1 0 0 / 0.08);
+  --mf-border-strong: oklch(1 0 0 / 0.14);
+  --mf-border-focus:  var(--mf-primary-500);
+
+  /* ── Texto ─────────────────────────────────────────────────────────────
+     Três níveis bastam. Um quarto tom vira decisão sem critério, e o texto
+     terciário já é o limite de contraste aceitável sobre --mf-surface-1. */
+  --mf-text:      oklch(0.97 0.008 275);
+  --mf-text-2:    oklch(0.76 0.020 275);
+  --mf-text-3:    oklch(0.58 0.022 275);
+
+  /* ── Espaçamento ───────────────────────────────────────────────────────
+     Escala de 4. Valor fora dela é acidente, não decisão. */
+  --mf-1:  4px;   --mf-2:  8px;   --mf-3: 12px;  --mf-4: 16px;
+  --mf-5: 20px;   --mf-6: 24px;   --mf-8: 32px;  --mf-10: 40px;
+  --mf-12: 48px;  --mf-16: 64px;
+
+  /* ── Raio ──────────────────────────────────────────────────────────────*/
+  --mf-r-sm: 6px;  --mf-r-md: 10px;  --mf-r-lg: 14px;
+  --mf-r-xl: 20px; --mf-r-full: 999px;
+
+  /* ── Elevação ──────────────────────────────────────────────────────────
+     No escuro, sombra sozinha quase não aparece. Cada nível combina sombra
+     (profundidade) com um filete claro no topo (luz incidindo na borda
+     superior) — é isso que faz a superfície parecer levantada, não pintada. */
+  --mf-shadow-1: 0 1px 2px oklch(0 0 0 / 0.4),
+                 inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --mf-shadow-2: 0 4px 12px -2px oklch(0 0 0 / 0.5),
+                 inset 0 1px 0 oklch(1 0 0 / 0.05);
+  --mf-shadow-3: 0 12px 32px -8px oklch(0 0 0 / 0.6),
+                 inset 0 1px 0 oklch(1 0 0 / 0.06);
+  --mf-glow-primary: 0 0 0 1px oklch(0.62 0.24 285 / 0.35),
+                     0 8px 24px -6px oklch(0.62 0.24 285 / 0.45);
+
+  /* ── Movimento ─────────────────────────────────────────────────────────
+     Curvas nomeadas por intenção. `out` para o que entra (rápido no começo,
+     parece imediato); `spring` só onde o exagero comunica algo. */
+  --mf-ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --mf-ease-inout:  cubic-bezier(0.65, 0, 0.35, 1);
+  --mf-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --mf-fast:   120ms;
+  --mf-normal: 200ms;
+  --mf-slow:   320ms;
+
+  /* ── Camadas ───────────────────────────────────────────────────────────
+     Nomeadas, para ninguém precisar chutar 9999. */
+  --mf-z-base: 0;    --mf-z-sticky: 20;  --mf-z-drawer: 40;
+  --mf-z-modal: 60;  --mf-z-toast: 80;   --mf-z-command: 100;
+
+  /* ── Tipografia ────────────────────────────────────────────────────────
+     Geist já está no projeto, self-hosted e variável. GeistMono carrega todo
+     número: em fonte com largura tabular, um contador que muda de 9 para 10
+     não empurra o texto ao lado. */
+  --mf-font: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --mf-mono: 'GeistMono', ui-monospace, monospace;
+
+  /* Fluido: o título acompanha a viewport sem breakpoint, então não existe
+     largura em que ele fique grande demais ou pequeno demais. */
+  --mf-t-display: clamp(1.55rem, 1.1rem + 1.6vw, 2.25rem);
+  --mf-t-h1:      clamp(1.15rem, 0.95rem + 0.8vw, 1.5rem);
+  --mf-t-h2:      clamp(0.95rem, 0.88rem + 0.3vw, 1.075rem);
+  --mf-t-body:    0.875rem;
+  --mf-t-sm:      0.8125rem;
+  --mf-t-xs:      0.75rem;
+  --mf-t-micro:   0.6875rem;
+
+  /* ── Layout ────────────────────────────────────────────────────────────*/
+  --mf-sidebar:   264px;
+  --mf-sidebar-c: 68px;
+  --mf-topbar:    56px;
+  --mf-container: 1560px;
+}
+
+/* Quem pediu menos movimento recebe menos movimento. Não é opcional: para
+   quem tem sensibilidade vestibular, animação de entrada causa mal-estar
+   físico. O layout continua idêntico — só as transições somem. */
+@media (prefers-reduced-motion: reduce) {
+  [data-mf] *,
+  [data-mf] *::before,
+  [data-mf] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
