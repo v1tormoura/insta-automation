@@ -46,6 +46,9 @@ export default function CampaignPreview({ payload, onValidChange }) {
   const [carregando, setCarregando] = useState(true);
   const [previa, setPrevia] = useState(null);
   const [erro, setErro]     = useState(null);
+  // Falha de rede e reinício do backend são transitórios — sem um botão, a
+  // única saída era recarregar a página e refazer o wizard inteiro.
+  const [tentativa, setTentativa] = useState(0);
 
   const [filtro, setFiltro]   = useState('todas');
   const [porConta, setPorConta]       = useState('');
@@ -62,8 +65,30 @@ export default function CampaignPreview({ payload, onValidChange }) {
       .then(({ data }) => { if (!cancelado) { setPrevia(data); setErro(null); } })
       .catch(err => {
         if (cancelado) return;
-        const d = err?.response?.data;
-        setErro(d?.message || d?.error || 'Não foi possível gerar a prévia.');
+        // O diagnóstico não pode ser descartado. A versão anterior lia só
+        // `message` e `error` e, quando a resposta não tinha nenhum dos dois
+        // (página HTML de erro do proxy, corpo grande demais, falha de rede),
+        // mostrava "Não foi possível gerar a prévia" — uma frase que não diz
+        // status, nem código, nem causa, e deixa quem está usando sem saída.
+        const r = err?.response;
+        const d = r?.data;
+
+        const detalhe = d?.message
+          || d?.error
+          || (typeof d === 'string' ? d.replace(/<[^>]*>/g, ' ').trim().slice(0, 200) : '')
+          || err?.message
+          || 'sem detalhe';
+
+        const partes = [
+          r?.status ? `HTTP ${r.status}` : 'sem resposta do servidor',
+          d?.code || '',
+          detalhe,
+        ].filter(Boolean);
+
+        setErro(partes.join(' · '));
+        // O objeto inteiro no console: às vezes a pista está numa chave que a
+        // tela não mostra.
+        console.error('[CampaignPreview] falha ao gerar a prévia', { status: r?.status, data: d, err });
         setPrevia(null);
       })
       .finally(() => { if (!cancelado) setCarregando(false); });
@@ -74,7 +99,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
     // payload é serializado pelo pai; comparar por referência recarregaria a
     // cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(payload)]);
+  }, [JSON.stringify(payload), tentativa]);
 
   const publicacoes = previa?.publications || [];
 
@@ -137,7 +162,14 @@ export default function CampaignPreview({ payload, onValidChange }) {
       <div style={{ background:'rgba(248,113,113,.08)', border:'1px solid rgba(248,113,113,.3)',
         borderRadius:12, padding:'14px 16px', fontSize:12, color:'#f87171', lineHeight:1.6 }}>
         <strong>Não foi possível gerar a prévia.</strong>
-        <div style={{ marginTop:5, color:'var(--text2)' }}>{erro}</div>
+        <div style={{ marginTop:5, color:'var(--text2)', fontFamily:'var(--font-mono)', fontSize:11 }}>{erro}</div>
+        <button
+          onClick={() => setTentativa(t => t + 1)}
+          style={{ marginTop:10, padding:'6px 14px', borderRadius:7, fontSize:11, fontWeight:700,
+            cursor:'pointer', background:'rgba(248,113,113,.14)', color:'#fca5a5',
+            border:'1px solid rgba(248,113,113,.35)' }}>
+          Tentar de novo
+        </button>
       </div>
     );
   }

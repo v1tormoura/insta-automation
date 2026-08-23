@@ -57,7 +57,11 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+// Limite do corpo: o padrão do Express é 100 KB, e ninguém escolheu esse número.
+// O corpo da campanha cresce com a quantidade de conteúdos e com as legendas por
+// conta — passando de 100 KB, o body-parser rejeita e a resposta sai como erro
+// genérico, sem relação visível com o tamanho. O nginx à frente já aceita 500 MB.
+app.use(express.json({ limit: '10mb' }));
 
 // Rotas públicas — sem autenticação
 app.use('/uploads', express.static('uploads'));
@@ -101,9 +105,34 @@ app.get('/', (req, res) => {
 });
 
 // Global error handler — garante JSON em vez de HTML em erros inesperados
+/**
+ * Tratador global.
+ *
+ * Fica aqui, e não no fim do arquivo, porque precisa vir DEPOIS das rotas que
+ * ele protege — o Express só entrega o erro a um handler registrado adiante.
+ *
+ * `code` entra na resposta junto com a mensagem: o painel mostra o código ao
+ * usuário, e um erro sem nenhum campo reconhecível vira "não foi possível",
+ * que não diz nada a ninguém. Erro de corpo grande demais ganha texto próprio,
+ * porque "request entity too large" não sugere a causa para quem está usando.
+ */
 app.use((err, req, res, next) => {
-  console.error('[Express] erro global:', err.message);
-  res.status(err.status || 500).json({ error: err.message || 'Erro interno do servidor' });
+  console.error('[Express] erro global:', err?.message || err);
+
+  const status = err.status || err.statusCode || 500;
+  const corpo  = { error: err.message || 'Erro interno do servidor' };
+
+  if (err.type === 'entity.too.large' || status === 413) {
+    corpo.code  = 'PAYLOAD_TOO_LARGE';
+    corpo.error = 'O conteúdo enviado é grande demais para uma requisição só.';
+  } else if (err.type === 'entity.parse.failed') {
+    corpo.code  = 'INVALID_JSON';
+    corpo.error = 'O corpo da requisição não é um JSON válido.';
+  } else if (err.code) {
+    corpo.code = String(err.code);
+  }
+
+  res.status(status).json(corpo);
 });
 
 // Diagnostico do Multilogin -- GET /multilogin/status
