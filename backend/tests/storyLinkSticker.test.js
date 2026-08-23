@@ -58,6 +58,13 @@ describe('computeStickerBox', () => {
       .toBeLessThan(computeStickerBox({ label: 'A'.repeat(30) }).wPx);
   });
 
+  test('emoji alarga a pílula — são quadrados, não letras', () => {
+    // Contar emoji como letra encolhia a pílula e o texto saía com reticências.
+    const comEmoji = computeStickerBox({ label: 'Oferta 🔥🔥🔥🔥🔥🔥' });
+    const soLetras = computeStickerBox({ label: 'Oferta aaaaaa' });
+    expect(comEmoji.wPx).toBeGreaterThan(soLetras.wPx);
+  });
+
   test('largura/altura explícitas mandam sobre o cálculo automático', () => {
     const box = computeStickerBox({ label: 'OI', linkWidth: 0.6, linkHeight: 0.05 });
     expect(box.wPx).toBe(Math.round(0.6 * STORY_W));
@@ -82,6 +89,21 @@ describe('formatStickerLabel', () => {
     expect(formatStickerLabel('https://x.com', 'Ver oferta')).toBe('Ver oferta');
     expect(formatStickerLabel('https://x.com', 'A'.repeat(80))).toHaveLength(35);
   });
+  test('emoji não é cortado ao meio no limite de 35', () => {
+    // `.slice()` conta unidades UTF-16 e partiria o par substituto, deixando
+    // meio caractere quebrado no fim da pílula.
+    const rotulo = formatStickerLabel('https://x.com', 'A'.repeat(34) + '🔥');
+    expect(rotulo).not.toMatch(/[\uD800-\uDBFF]$/);
+    expect(rotulo.endsWith('🔥')).toBe(true);
+  });
+
+  test('emoji composto conta como um caractere só', () => {
+    // 👨‍👩‍👧 são vários code points unidos por ZWJ — cortar por code point
+    // desmontaria a família em pessoas soltas.
+    const rotulo = formatStickerLabel('https://x.com', '👨‍👩‍👧 familia');
+    expect(rotulo).toContain('👨‍👩‍👧');
+  });
+
   test('URL inválida não quebra a publicação', () => {
     expect(formatStickerLabel('nada disso :: aqui')).toBeTruthy();
   });

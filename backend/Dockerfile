@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     python3 \
     fonts-noto \
     fonts-liberation \
+    # Emoji colorido: sem esta fonte o Chromium desenha uma caixa vazia no lugar
+    # de cada emoji do texto da figurinha de link.
+    fonts-noto-color-emoji \
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \

@@ -76,7 +76,9 @@ function ensureDirs() {
  */
 function formatStickerLabel(linkUrl, customText) {
   if (customText && String(customText).trim()) {
-    return String(customText).trim().slice(0, 35);
+    // Corte por grafema: `.slice()` conta unidades UTF-16 e parte um emoji ao
+    // meio, deixando meio caractere quebrado no fim da pílula.
+    return grafemas(String(customText).trim()).slice(0, 35).join('');
   }
   try {
     const parsed = new URL(String(linkUrl).startsWith('http') ? linkUrl : `https://${linkUrl}`);
@@ -93,19 +95,40 @@ function clamp(valor, minimo, maximo) {
   return Math.min(maximo, Math.max(minimo, valor));
 }
 
+/** Reconhece emoji e pictogramas — eles ocupam quase o dobro de uma letra. */
+const EMOJI = /\p{Extended_Pictographic}/u;
+
+/**
+ * Divide o texto em grafemas (o que a pessoa enxerga como "um caractere").
+ *
+ * `[...texto]` quebra por code point, o que separa emoji compostos: bandeiras,
+ * tons de pele e sequências com ZWJ (👨‍👩‍👧) viram vários pedaços e, no corte
+ * por tamanho, sairiam partidos ao meio. `Intl.Segmenter` agrupa corretamente.
+ */
+function grafemas(texto) {
+  const s = String(texto);
+  try {
+    const seg = new Intl.Segmenter('pt-BR', { granularity: 'grapheme' });
+    return [...seg.segment(s)].map(g => g.segment);
+  } catch {
+    return [...s];
+  }
+}
+
 /**
  * Largura estimada do texto em pixels do story, para a pílula nascer do
  * tamanho do rótulo.
  *
- * Os coeficientes vêm de medição no próprio Chromium com a fonte da pílula
- * (800, 0.36*altura): maiúsculas e dígitos ficam em ~23px, minúsculas em ~18px
- * e o espaço em ~12px. Estimar por média de caractere subdimensionava rótulos
- * em CAIXA ALTA e o texto saía cortado com reticências.
+ * Os coeficientes vêm de medição no próprio Chromium com a fonte da pílula:
+ * maiúsculas e dígitos ficam em ~23px, minúsculas em ~18px e o espaço em ~12px.
+ * Emoji são quadrados e ocupam ~40px — contá-los como letra encolhia a pílula e
+ * o texto saía cortado com reticências.
  */
 function larguraTextoPx(texto, hPx) {
   const escala = hPx / PILL_H_DEFAULT;
-  const soma = [...String(texto)].reduce((acc, c) => {
+  const soma = grafemas(texto).reduce((acc, c) => {
     if (c === ' ') return acc + 12;
+    if (EMOJI.test(c)) return acc + 40;
     const minuscula = c === c.toLowerCase() && c !== c.toUpperCase();
     return acc + (minuscula ? 18 : 23);
   }, 0);
@@ -130,7 +153,7 @@ function computeStickerBox({ label = '', linkX, linkY, linkWidth, linkHeight } =
     ? Math.round(clamp(Number(linkHeight) * STORY_H, PILL_H_MIN, PILL_H_MAX))
     : PILL_H_DEFAULT;
 
-  // Texto medido + o cromo fixo da pílula (ícone, gaps, chevron e paddings).
+  // Texto medido + o cromo fixo da pílula (glifo de corrente, gap e paddings).
   const larguraAuto = Math.round(larguraTextoPx(texto, hPx) + 165 * (hPx / PILL_H_DEFAULT));
   const wPx = Number.isFinite(Number(linkWidth)) && Number(linkWidth) > 0
     ? Math.round(clamp(Number(linkWidth) * STORY_W, PILL_W_MIN, PILL_W_MAX))
@@ -178,38 +201,45 @@ async function gerarPngChromium(label, wPx, hPx) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+  // ── Proporções da figurinha ──────────────────────────────────────────────
+  //
+  // Copiadas do sticker de link do app: pílula branca totalmente arredondada,
+  // glifo de corrente escuro em linha com o texto e CAIXA ALTA com peso médio.
+  // A versão anterior tinha um ícone dentro de um círculo azul e um chevron à
+  // direita — dois elementos que o Instagram não desenha, e que era justamente
+  // o que fazia a figurinha parecer "de outro app".
   const raio     = Math.round(hPx / 2);
-  const fonte    = Math.round(hPx * 0.36);
-  const icone    = Math.round(hPx * 0.44);
-  const padEsq   = Math.round(hPx * 0.20);
-  const padDir   = Math.round(hPx * 0.26);
-  const maxTexto = wPx - icone - padEsq - padDir - Math.round(hPx * 0.55);
+  const fonte    = Math.round(hPx * 0.34);
+  const glifo    = Math.round(fonte * 1.02);
+  const gap      = Math.round(hPx * 0.11);
+  const padLado  = Math.round(hPx * 0.30);
+  const maxTexto = wPx - glifo - gap - padLado * 2;
 
   const html = [
     '<!DOCTYPE html><html><head><meta charset="utf-8"><style>',
     '* { margin:0; padding:0; box-sizing:border-box; }',
     `html, body { width:${wPx}px; height:${hPx}px; background:transparent; overflow:hidden;`,
-    '  display:flex; align-items:center; justify-content:center;',
-    '  font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans",Helvetica,Arial,sans-serif; }',
-    `.pill { width:${wPx - 6}px; height:${hPx - 6}px; background:#FFFFFF; border-radius:${raio}px;`,
-    '  display:flex; align-items:center; justify-content:space-between;',
-    `  padding:0 ${padDir}px 0 ${padEsq}px;`,
-    '  box-shadow:0 6px 22px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.18); }',
-    `.esq { display:flex; align-items:center; gap:${Math.round(hPx * 0.13)}px; overflow:hidden; }`,
-    `.ic { width:${icone}px; height:${icone}px; border-radius:50%; background:#EFF6FF;`,
-    '  display:flex; align-items:center; justify-content:center; flex-shrink:0; }',
-    `.ic svg { width:${Math.round(icone * 0.55)}px; height:${Math.round(icone * 0.55)}px; stroke:#2563EB; }`,
-    `.tx { font-size:${fonte}px; font-weight:800; letter-spacing:-.01em; color:#111827;`,
-    `  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:${maxTexto}px; }`,
-    '.ch { display:flex; align-items:center; flex-shrink:0; }',
-    `.ch svg { width:${Math.round(hPx * 0.24)}px; height:${Math.round(hPx * 0.24)}px; stroke:#6B7280; }`,
-    '</style></head><body><div class="pill"><div class="esq"><div class="ic">',
-    '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">',
+    '  display:flex; align-items:center; justify-content:center; }',
+    // "Noto Color Emoji" precisa estar na pilha: sem ela o Chromium desenha uma
+    // caixa vazia no lugar do emoji, mesmo com a fonte instalada no sistema.
+    `.pill { display:inline-flex; align-items:center; gap:${gap}px;`,
+    `  max-width:${wPx - 4}px; height:${hPx - 4}px; padding:0 ${padLado}px;`,
+    `  background:#FFFFFF; border-radius:${raio}px;`,
+    '  box-shadow:0 2px 12px rgba(0,0,0,.16), 0 1px 3px rgba(0,0,0,.10);',
+    '  font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Noto Sans",',
+    '    Helvetica,Arial,"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif; }',
+    `.ic { width:${glifo}px; height:${glifo}px; flex-shrink:0; display:block; }`,
+    `.tx { font-size:${fonte}px; font-weight:600; letter-spacing:.005em; color:#0B0B0B;`,
+    `  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:${maxTexto}px;`,
+    '  line-height:1; }',
+    '</style></head><body><div class="pill">',
+    // Glifo de corrente do próprio sticker: dois elos inclinados, traço redondo.
+    '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#0B0B0B" stroke-width="2.1"',
+    ' stroke-linecap="round" stroke-linejoin="round">',
     '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>',
     '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
-    `</div><span class="tx">${safeText}</span></div><div class="ch">`,
-    '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">',
-    '<polyline points="9 18 15 12 9 6"></polyline></svg></div></div></body></html>',
+    `<span class="tx">${safeText}</span>`,
+    '</div></body></html>',
   ].join('\n');
 
   const puppeteer = require('puppeteer');
@@ -268,7 +298,14 @@ function acharFonte() {
 
 /** drawtext trata `:` como separador e `'`/`\` como escape — precisam sair. */
 function escaparDrawtext(txt) {
-  return String(txt).replace(/\\/g, '').replace(/'/g, '').replace(/:/g, ' -').replace(/%/g, '');
+  return String(txt)
+    // O drawtext usa libfreetype, que não desenha emoji colorido: cada emoji
+    // sairia como um quadrado vazio. Sem emoji é melhor do que com tofu — e
+    // este é só o motor reserva, quando o Chromium não sobe.
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .replace(/\\/g, '').replace(/'/g, '').replace(/:/g, ' -').replace(/%/g, '');
 }
 
 /**
