@@ -201,16 +201,25 @@ async function syncAllStoryInsights() {
 
     let totalStories = 0;
     let totalViewers = 0;
+    let comErro      = 0;
+    let ativos       = 0;
     for (const conta of contas) {
       const r = await syncAccountStoryInsights(conta);
       totalStories += r.gravados || 0;
       totalViewers += r.viewers  || 0;
+      ativos       += r.stories  || 0;
+      if (r.error) comErro++;
     }
 
-    if (totalStories > 0) {
-      console.log(`[StoryInsights] ciclo concluído — ${totalStories} story(s), ${totalViewers} visualizações`);
-    }
-    return { contas: contas.length, stories: totalStories, viewers: totalViewers };
+    // Loga SEMPRE, mesmo sem story ativo. Silêncio em caso de sucesso torna
+    // "rodou e não havia story" indistinguível de "nunca rodou" — e a primeira
+    // pergunta de quem acabou de configurar isto é exatamente essa.
+    console.log(
+      `[StoryInsights] ciclo — ${contas.length} conta(s), ${ativos} story(s) ativo(s), ` +
+      `${totalStories} com audiência, ${totalViewers} visualizações` +
+      (comErro ? `, ${comErro} com erro` : '')
+    );
+    return { contas: contas.length, ativos, stories: totalStories, viewers: totalViewers, erros: comErro };
   } finally {
     _rodando = false;
   }
