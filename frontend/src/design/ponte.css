@@ -1,0 +1,111 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PONTE DE COMPATIBILIDADE
+
+   A migração acontece uma tela por vez, mas todas elas já vivem dentro do
+   `[data-mf]` da casca. Este arquivo redefine ali as variáveis do tema antigo
+   apontando para os tokens novos.
+
+   O efeito prático: um painel ainda escrito com `color: var(--text3)` passa a
+   desenhar na cor do sistema novo sem uma linha de JSX alterada. Cada tela
+   migrada de verdade troca essas referências pelos tokens `--mf-*`; até lá,
+   nenhuma fica com a paleta antiga em volta da nova.
+
+   Ganho colateral que motivou fazer isso antes das telas: `--text3` era
+   #3a5268 sobre um fundo #07101e — contraste na casa de 2:1, abaixo do
+   mínimo de 4.5:1 do WCAG AA para texto. Ele carregava rótulo de tabela,
+   legenda de métrica e timestamp da fila, ou seja, o texto pequeno da
+   interface inteira. `--mf-text-3` é calibrado para passar sobre
+   `--mf-surface-1`, então a ponte corrige isso em todas as telas de uma vez.
+
+   Este arquivo é temporário: some quando a última tela sair da lista.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf] {
+  /* ── Fundos ─────────────────────────────────────────────────────────────
+     Os cinco níveis antigos comprimem nos três do sistema novo: --bg4/--bg5
+     existiam para hover e estado ativo, que agora saem de color-mix. */
+  --bg:  var(--mf-bg);
+  --bg2: var(--mf-surface-1);
+  --bg3: var(--mf-surface-2);
+  --bg4: var(--mf-surface-3);
+  --bg5: var(--mf-surface-3);
+
+  /* ── Acento ─────────────────────────────────────────────────────────────
+     O ciano vira a cor do módulo quando há uma definida no contexto, e cai
+     no ciano do sistema quando não há. Assim um painel legado dentro de um
+     bloco de campanhas já acompanha o magenta sem saber que existe módulo. */
+  --cyan:  var(--mf-mod, var(--mf-accent-500));
+  --cyan2: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 78%, black);
+  --cyan3: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 12%, transparent);
+  --cyan4: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 6%, transparent);
+
+  /* ── Cores nomeadas → intenção semântica ────────────────────────────────
+     Onde a cor antiga já indicava um estado, ela passa a apontar para o
+     token de estado. Verde/vermelho/âmbar tinham significado; roxo, rosa e
+     índigo eram decorativos e viram cores de módulo. */
+  --green:  var(--mf-success-500);
+  --red:    var(--mf-danger-500);
+  --amber:  var(--mf-warning-500);
+  --orange: var(--mf-warning-500);
+  --blue:   var(--mf-info-500);
+  --blue2:  color-mix(in oklch, var(--mf-info-500) 80%, black);
+  --blue3:  var(--mf-info-bg);
+  --indigo: var(--mf-primary-500);
+  --purple: var(--mf-mod-publicar);
+  --pink:   var(--mf-mod-campanhas);
+
+  /* ── Texto ──────────────────────────────────────────────────────────────
+     A correção de contraste descrita no topo do arquivo. --text4 era usado
+     só para texto desativado e não precisa passar em AA. */
+  --text:  var(--mf-text);
+  --text2: var(--mf-text-2);
+  --text3: var(--mf-text-3);
+  --text4: var(--mf-text-4, oklch(0.44 0.020 275));
+
+  /* ── Bordas ─────────────────────────────────────────────────────────── */
+  --border:  var(--mf-border);
+  --border2: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 26%, transparent);
+  --border3: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 45%, transparent);
+
+  /* ── Tipografia ─────────────────────────────────────────────────────── */
+  --font-mono: var(--mf-mono);
+}
+
+/* Utilitários do tema antigo que continuam sendo usados pelas telas ainda
+   não migradas. Reescritos sobre os tokens novos para que a aparência do
+   hover seja a mesma de um `.mf-card--hover`, e não duas linguagens de
+   elevação convivendo na mesma página. */
+[data-mf] .lift {
+  transition: transform var(--mf-normal) var(--mf-ease-out),
+              border-color var(--mf-normal) var(--mf-ease-out),
+              box-shadow var(--mf-normal) var(--mf-ease-out);
+}
+[data-mf] .lift:hover {
+  transform: translateY(-2px);
+  border-color: var(--mf-border-strong);
+  box-shadow: var(--mf-shadow-2);
+}
+
+/* O brilho diagonal do tema antigo. Mantido porque é assinatura do produto,
+   mas amarrado à cor do módulo em vez do ciano fixo. */
+[data-mf] .sheen::after {
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 7%, transparent) 50%,
+    transparent 60%
+  );
+}
+
+/* Respeita quem pediu menos movimento no sistema operacional. As telas
+   antigas animavam sem essa checagem. */
+@media (prefers-reduced-motion: reduce) {
+  [data-mf] .lift:hover { transform: none; }
+  [data-mf] *,
+  [data-mf] *::before,
+  [data-mf] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

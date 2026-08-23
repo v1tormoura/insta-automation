@@ -36,14 +36,15 @@ const spring  = { type:'spring', stiffness:260, damping:22 };
 const ease    = [0.21, 0.47, 0.32, 0.98];
 
 /* ── design tokens (inline) — oklch dark-first navy */
+/* Superfície única de painel. Todo card da dashboard herda daqui, então a
+   troca de tema/densidade acontece nos tokens e não em ~20 objetos inline. */
 const card = {
-  background: 'oklch(0.16 0.05 235 / 0.88)',
-  border: '1px solid oklch(1 0 0 / 0.07)',
-  borderRadius: 18,
-  backdropFilter: 'blur(14px)',
-  WebkitBackdropFilter: 'blur(14px)',
+  background: 'var(--mf-surface-1)',
+  border: '1px solid var(--mf-border)',
+  borderRadius: 'var(--mf-r-lg)',
   position: 'relative',
   overflow: 'hidden',
+  containerType: 'inline-size',
 };
 const topLine = {
   content: '""',
@@ -124,18 +125,26 @@ function AvatarChip({ username, avatar, size = 32 }) {
 }
 
 /* ── StatusBadge ── */
+/* ══════════════════════════════════════════════════════════════════════════
+   PRIMITIVAS VISUAIS — migradas para o design system (src/design/*.css)
+   As props e o comportamento são exatamente os de antes: só a apresentação
+   mudou, então nenhum consumidor precisou ser alterado.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Estado da conta no vocabulário semântico do sistema. Antes cada status
+   trazia o próprio hex; agora pede uma intenção e o sistema resolve. */
 const STATUS_CFG = {
-  connected:     { label: 'CONNECTED',     bg:'rgba(52,211,153,.12)', color:'#34d399', border:'rgba(52,211,153,.25)'  },
-  token_expired: { label: 'TOKEN_EXPIRED', bg:'rgba(251,191,36,.12)', color:'#fbbf24', border:'rgba(251,191,36,.25)'  },
-  banida:        { label: 'BANIDA',        bg:'rgba(239,68,68,.12)',  color:'#ef4444', border:'rgba(239,68,68,.25)'   },
-  restrita:      { label: 'RESTRITA',      bg:'rgba(249,115,22,.12)', color:'#f97316', border:'rgba(249,115,22,.25)'  },
-  ativa:         { label: 'ATIVA',         bg:'rgba(96,165,250,.12)', color:'#60a5fa', border:'rgba(96,165,250,.25)'  },
+  connected:     { label: 'Conectada',     tom: 'success' },
+  token_expired: { label: 'Token expirado', tom: 'warning' },
+  banida:        { label: 'Banida',        tom: 'danger'  },
+  restrita:      { label: 'Restrita',      tom: 'warning' },
+  ativa:         { label: 'Ativa',         tom: 'info'    },
 };
 function StatusBadge({ status }) {
   const c = STATUS_CFG[status] || STATUS_CFG.ativa;
   return (
-    <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:6, fontSize:10, fontWeight:700, letterSpacing:'.06em', background:c.bg, color:c.color, border:`1px solid ${c.border}`, whiteSpace:'nowrap' }}>
-      {c.label}
+    <span className="mf-badge" data-tone={c.tom}>
+      <span className="mf-badge__dot" aria-hidden="true" />{c.label}
     </span>
   );
 }
@@ -143,74 +152,146 @@ function StatusBadge({ status }) {
 /* ── PanelHeader ── */
 function PanelHeader({ title, icon: Icon, right }) {
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.05)', flexShrink:0 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        {Icon && <Icon size={14} style={{ color:'var(--cyan)', opacity:.8 }} />}
-        <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--text2)', textTransform:'uppercase' }}>{title}</span>
+    <div className="mf-card__head">
+      <div className="mf-row" style={{ gap: 'var(--mf-2)', minWidth: 0 }}>
+        {Icon && <Icon size={14} style={{ color: 'var(--mf-mod, var(--mf-accent-500))', flexShrink: 0 }} />}
+        <span className="mf-trunc" style={{
+          fontSize: 'var(--mf-t-micro)', fontWeight: 700, letterSpacing: '.09em',
+          color: 'var(--mf-text-3)', textTransform: 'uppercase',
+        }}>{title}</span>
       </div>
       {right}
     </div>
   );
 }
 
-/* ── SelectBtn ── */
-function SelectBtn({ active, onClick, children }) {
+/* ── Seletor de período ───────────────────────────────────────────────────
+   Controle segmentado com indicador deslizante. A versão anterior eram três
+   botões soltos: o usuário lia três opções independentes em vez de um único
+   controle com um valor. O indicador único deixa óbvio que a escolha é
+   exclusiva, e a transição mostra de onde para onde ela foi. */
+function SegPeriodo({ opcoes, valor, onChange, mod = 'metricas' }) {
+  const idx = Math.max(0, opcoes.findIndex(o => o.value === valor));
+  /* gap: 0 e minWidth: 0 nos botões são propositais. Com `flex:1` (base 0) e
+     sem largura mínima de conteúdo, cada botão mede exatamente
+     (100% - 6px)/n — a mesma conta que posiciona o indicador. Com gap, ou
+     deixando "30 dias" ditar a própria largura, os dois desalinham. */
   return (
-    <button onClick={onClick} style={{
-      padding:'3px 9px', borderRadius:6, fontSize:10, fontWeight:600, cursor:'pointer',
-      background: active ? 'rgba(0,212,255,.12)' : 'rgba(255,255,255,.04)',
-      color: active ? 'var(--cyan)' : 'var(--text3)',
-      border: `1px solid ${active ? 'rgba(0,212,255,.22)' : 'rgba(255,255,255,.07)'}`,
-      transition:'all .15s',
-    }}>{children}</button>
+    <div style={{
+      position: 'relative', display: 'inline-flex', padding: 3, gap: 0,
+      background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)',
+      borderRadius: 'var(--mf-r-md)', '--mf-mod': `var(--mf-mod-${mod})`,
+    }}>
+      {/* O indicador desliza por `transform`, não por `left`. Duas razões:
+          translateX em porcentagem resolve contra a própria caixa do
+          indicador — que já mede exatamente uma fração — em vez de contra a
+          largura do contêiner, o que dispensa recalcular a conta do padding;
+          e transform anima no compositor, sem relayout a cada quadro. */}
+      <span aria-hidden="true" style={{
+        position: 'absolute', top: 3, bottom: 3, left: 3,
+        width: `calc((100% - 6px) / ${opcoes.length})`,
+        transform: `translateX(${idx * 100}%)`,
+        borderRadius: 'calc(var(--mf-r-md) - 3px)',
+        background: 'color-mix(in oklch, var(--mf-mod) 16%, transparent)',
+        border: '1px solid color-mix(in oklch, var(--mf-mod) 34%, transparent)',
+        transition: 'transform var(--mf-normal) var(--mf-ease-out)',
+      }} />
+      {opcoes.map(o => (
+        <button key={o.value} onClick={() => onChange(o.value)}
+          aria-pressed={valor === o.value}
+          style={{
+            position: 'relative', zIndex: 1, flex: '1 1 0', minWidth: 0,
+            padding: '4px 10px', border: 'none', background: 'none', cursor: 'pointer',
+            borderRadius: 'calc(var(--mf-r-md) - 3px)',
+            fontSize: 'var(--mf-t-micro)', fontWeight: 700, whiteSpace: 'nowrap',
+            /* No tom neutro a cor do módulo é um cinza de luminância 0.70,
+               perto demais do 0.58 do rótulo inativo para comunicar seleção.
+               Ali o texto ativo sobe para --mf-text e o contraste volta. */
+            color: valor === o.value
+              ? (mod === 'sistema' ? 'var(--mf-text)' : 'var(--mf-mod)')
+              : 'var(--mf-text-3)',
+            transition: 'color var(--mf-fast) var(--mf-ease-out)',
+          }}>{o.label}</button>
+      ))}
+    </div>
   );
 }
 
-/* ── MetricCard ── */
+/* Mantido para o resto da página, agora no vocabulário novo. */
+function SelectBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} className="mf-btn mf-btn--sm"
+      style={{
+        height: 26, padding: '0 10px', fontSize: 'var(--mf-t-micro)',
+        background: active ? 'color-mix(in oklch, var(--mf-accent-500) 14%, transparent)' : 'oklch(1 0 0 / 0.04)',
+        color: active ? 'var(--mf-accent-500)' : 'var(--mf-text-3)',
+        border: `1px solid ${active ? 'color-mix(in oklch, var(--mf-accent-500) 30%, transparent)' : 'var(--mf-border)'}`,
+      }}>{children}</button>
+  );
+}
+
+/* ── MetricCard ───────────────────────────────────────────────────────────
+   Continua recebendo title/value/meta/orbType/spark. O que mudou:
+   • a cor sai do módulo, não de um hex por card;
+   • o número usa fonte tabular — sem isso, um contador que vai de 9 para 10
+     empurra o texto ao lado a cada atualização;
+   • a linha ganha o ponto final destacado, que é onde o olho procura "agora";
+   • o tamanho do número responde ao PRÓPRIO card (cqw), então o mesmo
+     componente serve a uma coluna estreita e a um bloco largo. */
 function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 0 }) {
-  const sparkColor = orbType === 'warm' ? '#ff9a35' : orbType === 'violet' ? '#a78bfa' : '#00d4ff';
-  const gradId = `sg-${title.replace(/\s+/g,'').toLowerCase()}`;
+  const mod = orbType === 'warm' ? 'jobs' : orbType === 'violet' ? 'publicar' : 'contas';
+  const nums = spark.length ? spark : [0, 0];
+  const mx = Math.max(...nums), mn = Math.min(...nums), faixa = mx - mn || 1;
+  const pontos = nums.map((p, i) => `${(i / Math.max(1, nums.length - 1)) * 100},${34 - ((p - mn) / faixa) * 26}`);
+  const d = pontos.join(' L ');
+  const gid = `mg-${String(title).replace(/\W+/g, '')}`;
+
   return (
     <motion.article
-      variants={fadeUp} transition={{ duration:.4, ease, delay }}
-      whileHover={{ y:-3, borderColor:'oklch(0.82 0.19 196 / 0.22)', boxShadow:'0 16px 44px rgba(0,0,0,.52), 0 0 0 1px oklch(0.82 0.19 196 / 0.12)' }}
-      style={{ ...card, display:'flex', flexDirection:'column', minHeight:154 }}
-      className="sheen"
+      variants={fadeUp} transition={{ duration: .4, ease, delay }}
+      className="mf-card mf-card--hover"
+      style={{ '--mf-mod': `var(--mf-mod-${mod})`, display: 'flex', flexDirection: 'column' }}
     >
-      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:`linear-gradient(90deg,transparent,${sparkColor}55,transparent)` }} />
-      <div style={{ position:'absolute', inset:0, backgroundImage:`linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px)`, backgroundSize:'26px 26px', maskImage:'radial-gradient(at left top,black 20%,transparent 80%)', pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:-18, right:-12, width:70, height:70, borderRadius:'50%', background:`radial-gradient(circle,${sparkColor}12 0%,transparent 70%)`, pointerEvents:'none' }} />
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'16px 16px 10px', position:'relative', zIndex:1, flex:1 }}>
-        <div>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:600, letterSpacing:'.22em', color:`${sparkColor}bb`, textTransform:'uppercase', marginBottom:6 }}>{title}</div>
-          <div style={{ fontSize:36, fontWeight:800, lineHeight:1, letterSpacing:'-1.5px', color:'#fff', fontVariantNumeric:'tabular-nums' }}>
-            <NumberTicker value={Number(String(value).replace(/\D/g,'')) || 0} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        gap: 'var(--mf-3)', padding: 'var(--mf-4) var(--mf-5) var(--mf-3)', flex: 1 }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700,
+            letterSpacing: '.08em', color: 'var(--mf-text-3)', textTransform: 'uppercase', marginBottom: 8 }}>{title}</div>
+          <div className="mf-mono" style={{
+            fontSize: 'clamp(1.6rem, 1.15rem + 1.4cqw, 2.15rem)', fontWeight: 650,
+            lineHeight: 1, letterSpacing: '-.03em', color: 'var(--mf-text)',
+          }}>
+            <NumberTicker value={Number(String(value).replace(/\D/g, '')) || 0} />
           </div>
-          <div style={{ fontSize:11, color:'var(--text3)', marginTop:5 }}>{meta}</div>
+          <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 6 }}>{meta}</div>
         </div>
-        <div className={`kpi-orb kpi-orb-${orbType}`} style={{ width:62, height:62, flexShrink:0 }} />
+        <div className={`kpi-orb kpi-orb-${orbType}`} style={{ width: 54, height: 54, flexShrink: 0, opacity: .9 }} />
       </div>
-      <div style={{ height:42, position:'relative', zIndex:1 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={spark.map((y,i) => ({ i, y }))}>
-            <defs>
-              <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%"   stopColor={sparkColor} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={sparkColor} stopOpacity={0}    />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="y" stroke={sparkColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"
+        style={{ width: '100%', height: 42, display: 'block' }}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--mf-mod)" stopOpacity=".30" />
+            <stop offset="100%" stopColor="var(--mf-mod)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={`M ${d} L 100,40 L 0,40 Z`} fill={`url(#${gid})`} />
+        <path d={`M ${d}`} fill="none" stroke="var(--mf-mod)" strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="100" cy={pontos[pontos.length - 1]?.split(',')[1] || 20} r="2.4" fill="var(--mf-mod)" />
+      </svg>
     </motion.article>
   );
 }
 
-/* ── Visual ── */
+/* ── Visual ───────────────────────────────────────────────────────────────
+   As ilustrações (ampulheta, orbe, cristal, gelo) permanecem: são a
+   assinatura visual que o produto já tinha, e trocá-las seria descartar
+   identidade em nome de padronização. */
 function Visual({ kind, compact = false }) {
   return (
-    <div className={`visual visual-${kind} ${compact?'compact':''}`} aria-hidden="true">
+    <div className={`visual visual-${kind} ${compact ? 'compact' : ''}`} aria-hidden="true">
       {kind === 'orb' && <div className="orb"><span className="orb-core"/><span className="orb-ring ring-one"/><span className="orb-ring ring-two"/><span className="orb-latitude lat-a"/><span className="orb-latitude lat-b"/></div>}
       {kind === 'crystal' && <div className="crystal"><span className="facet facet-a"/><span className="facet facet-b"/><span className="facet facet-c"/><span className="crystal-core"/></div>}
       {kind === 'ice' && <div className="ice"><span className="ice-shard shard-a"/><span className="ice-shard shard-b"/><span className="ice-shard shard-c"/><span className="ice-shard shard-d"/></div>}
@@ -221,31 +302,39 @@ function Visual({ kind, compact = false }) {
 
 /* ── WideMetric ── */
 function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange, chip, tone = 'cyan', spark = [] }) {
-  const lineColor = tone === 'muted' ? 'rgba(146,182,217,.6)' : 'rgba(34,200,255,.8)';
+  const mod = tone === 'muted' ? 'sistema' : 'metricas';
+  const nums = spark.length ? spark : [0, 0];
+  const mx = Math.max(...nums), mn = Math.min(...nums), faixa = mx - mn || 1;
+  const d = nums.map((p, i) => `${(i / Math.max(1, nums.length - 1)) * 100},${26 - ((p - mn) / faixa) * 22}`).join(' L ');
+  const negativo = String(chip || '').startsWith('-');
+
   return (
-    <motion.article whileHover={{ y:-2, borderColor:'oklch(0.82 0.19 196 / 0.18)' }} transition={spring} style={{ ...card, minHeight:104, padding:'14px 16px' }} className="sheen">
-      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,rgba(0,212,255,.28),transparent)' }} />
-      <div style={{ display:'flex', justifyContent:'space-between', gap:12, position:'relative', zIndex:1 }}>
-        <div>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:600, letterSpacing:'.22em', color:'rgba(0,212,255,.7)', textTransform:'uppercase', display:'block', marginBottom:4 }}>{title}</span>
-          <div style={{ fontSize:28, fontWeight:750, letterSpacing:'-1px', color:'#fff' }}>{value}</div>
-          <small style={{ fontSize:11, color:'var(--text3)' }}>{subtitle}</small>
+    <motion.article transition={spring} className="mf-card mf-card--hover"
+      style={{ '--mf-mod': `var(--mf-mod-${mod})`, padding: 'var(--mf-4) var(--mf-5)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--mf-4)',
+        flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+        <div style={{ minWidth: 0 }}>
+          <span className="mf-trunc" style={{ display: 'block', fontSize: 'var(--mf-t-micro)', fontWeight: 700,
+            letterSpacing: '.08em', color: 'var(--mf-text-3)', textTransform: 'uppercase', marginBottom: 5 }}>{title}</span>
+          <div className="mf-mono" style={{ fontSize: 'clamp(1.4rem, 1.1rem + 0.9cqw, 1.85rem)',
+            fontWeight: 650, letterSpacing: '-.03em', color: 'var(--mf-text)', lineHeight: 1 }}>{value}</div>
+          <small style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)' }}>{subtitle}</small>
         </div>
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-          <div style={{ display:'flex', gap:4 }}>
-            {PERIODS.map(p => <SelectBtn key={p.value} active={activePeriod===p.value} onClick={() => onPeriodChange(p.value)}>{p.label}</SelectBtn>)}
-            <button style={{ width:24, height:24, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.07)', borderRadius:6, color:'var(--text3)', cursor:'pointer' }}><MoreHorizontal size={13} /></button>
-          </div>
-          <span style={{ fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:20, background: chip?.startsWith('-') ? 'rgba(255,255,255,.05)' : 'rgba(0,212,255,.08)', color: chip?.startsWith('-') ? 'var(--text2)' : 'var(--cyan)', border: `1px solid ${chip?.startsWith('-') ? 'rgba(255,255,255,.07)' : 'rgba(0,212,255,.18)'}` }}>{chip}</span>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--mf-2)' }}>
+          <SegPeriodo opcoes={PERIODS} valor={activePeriod} onChange={onPeriodChange} mod={mod} />
+          {chip && (
+            <span className="mf-badge" data-tone={negativo ? undefined : 'info'}>{chip}</span>
+          )}
         </div>
       </div>
-      <div style={{ height:28, marginTop:8, position:'relative', zIndex:1 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <RechartLineChart data={spark.map((y,i) => ({ i, y }))}>
-            <Line type="monotone" dataKey="y" stroke={lineColor} strokeWidth={1.8} dot={false} />
-          </RechartLineChart>
-        </ResponsiveContainer>
-      </div>
+
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"
+        style={{ width: '100%', height: 30, marginTop: 'var(--mf-3)', display: 'block', position: 'relative', zIndex: 1 }}>
+        <path d={`M ${d}`} fill="none" stroke="var(--mf-mod)" strokeWidth="1.6"
+          vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+      </svg>
+
       <Visual kind={kind} compact />
     </motion.article>
   );
@@ -269,11 +358,14 @@ function QueuePanel({ d, accountStats }) {
   const pausedCount = accountStats.filter(a => a.autoPaused || a.pausedByLimit).length;
   const proximoItem = queueItems[0];
 
+  /* Cada métrica recebe uma cor do sistema em vez de um hex próprio: a mesma
+     cor que identifica o módulo na barra lateral reaparece aqui, então o
+     usuário liga "roxo = publicar" sem precisar aprender uma legenda nova. */
   const stats4 = [
-    { label:'Na fila',      value:naFila,      color:'#00d4ff', bg:'rgba(0,212,255,.08)',   border:'rgba(0,212,255,.16)',   icon:Layers3   },
-    { label:'Processando',  value:processando, color:'#10b981', bg:'rgba(16,185,129,.08)',  border:'rgba(16,185,129,.16)',  icon:RefreshCw },
-    { label:'Próx. 24h',   value:proximas24h, color:'#a78bfa', bg:'rgba(139,92,246,.08)',  border:'rgba(139,92,246,.16)',  icon:Timer     },
-    { label:'Cooldown',    value:emCooldown,  color:'#f59e0b', bg:'rgba(245,158,11,.08)',  border:'rgba(245,158,11,.16)',  icon:Clock3    },
+    { label:'Na fila',     value:naFila,      cor:'var(--mf-mod-contas)',   icon:Layers3   },
+    { label:'Processando', value:processando, cor:'var(--mf-success-500)',  icon:RefreshCw },
+    { label:'Próx. 24h',   value:proximas24h, cor:'var(--mf-mod-publicar)', icon:Timer     },
+    { label:'Cooldown',    value:emCooldown,  cor:'var(--mf-warning-500)',  icon:Clock3    },
   ];
 
   const fmtTime = v => {
@@ -289,23 +381,23 @@ function QueuePanel({ d, accountStats }) {
   const STATUS_COLOR = { pendente:'var(--amber)', processando:'var(--cyan)', concluido:'var(--green)', agendado:'var(--text2)', parcial:'#f59e0b', erro:'var(--red)' };
 
   return (
-    <div style={{ ...card, display:'flex', flexDirection:'column' }} className="lift">
-      {/* cyan ambient orb */}
-      <div style={{ position:'absolute', top:-60, right:-40, width:180, height:180, borderRadius:'50%', background:'radial-gradient(circle,rgba(0,212,255,.07),transparent 70%)', pointerEvents:'none' }} />
-      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,oklch(0.82 0.19 196 / 0.45),transparent)' }} />
+    <div className="mf-card mf-card--hover" style={{ ...card, '--mf-mod':'var(--mf-mod-publicar)', display:'flex', flexDirection:'column' }}>
+      <span aria-hidden="true" style={{ position:'absolute', inset:'-60px -40px auto auto', width:180, height:180, borderRadius:'var(--mf-r-full)',
+        background:'radial-gradient(circle, color-mix(in oklch, var(--mf-mod) 9%, transparent), transparent 70%)', pointerEvents:'none' }} />
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.05)', flexShrink:0 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'rgba(0,212,255,.1)', border:'1px solid rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Send size={13} style={{ color:'var(--cyan)' }} />
-          </div>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--text2)', textTransform:'uppercase' }}>Fila de postagens</span>
+      <div className="mf-card__head">
+        <div className="mf-row" style={{ gap:'var(--mf-2)', minWidth:0 }}>
+          <span style={{ width:26, height:26, borderRadius:'var(--mf-r-sm)', display:'grid', placeItems:'center', flexShrink:0,
+            background:'color-mix(in oklch, var(--mf-mod) 12%, transparent)',
+            border:'1px solid color-mix(in oklch, var(--mf-mod) 26%, transparent)' }}>
+            <Send size={12} style={{ color:'var(--mf-mod)' }} />
+          </span>
+          <span className="mf-trunc" style={{ fontSize:'var(--mf-t-micro)', fontWeight:700, letterSpacing:'.09em', color:'var(--mf-text-3)', textTransform:'uppercase' }}>Fila de postagens</span>
         </div>
-        <Link to="/scheduler" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--text3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid rgba(255,255,255,.07)', background:'rgba(255,255,255,.03)', transition:'all .15s' }}
-          onMouseEnter={e => { e.currentTarget.style.color='var(--cyan)'; e.currentTarget.style.borderColor='rgba(0,212,255,.2)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color='var(--text3)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)'; }}
-        >Ver agenda <ChevronRight size={12} /></Link>
+        <Link to="/scheduler" className="mf-btn mf-btn--ghost mf-btn--sm" style={{ textDecoration:'none', flexShrink:0 }}>
+          Ver agenda <ChevronRight size={12} />
+        </Link>
       </div>
 
       {/* 2×2 stat grid */}
@@ -314,15 +406,19 @@ function QueuePanel({ d, accountStats }) {
           const Icon = s.icon;
           return (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.06, duration:.3 }}
-              style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:12, padding:'11px 13px', position:'relative', overflow:'hidden' }}>
-              <div style={{ position:'absolute', bottom:-10, right:-8, width:44, height:44, borderRadius:'50%', background:`${s.color}15`, boxShadow:`0 0 16px ${s.color}22` }} />
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                <Icon size={13} style={{ color:s.color, opacity:.85 }} />
-              </div>
-              <div style={{ fontSize:26, fontWeight:800, color:s.color, lineHeight:1, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums', textShadow:`0 0 18px ${s.color}55` }}>
+              style={{ '--c':s.cor, position:'relative', overflow:'hidden', minWidth:0,
+                background:'color-mix(in oklch, var(--c) 8%, transparent)',
+                border:'1px solid color-mix(in oklch, var(--c) 20%, transparent)',
+                borderRadius:'var(--mf-r-md)', padding:'var(--mf-3)' }}>
+              <span aria-hidden="true" style={{ position:'absolute', inset:'auto -8px -10px auto', width:44, height:44, borderRadius:'var(--mf-r-full)',
+                background:'radial-gradient(circle, color-mix(in oklch, var(--c) 16%, transparent), transparent 70%)' }} />
+              <Icon size={12} style={{ color:'var(--c)', opacity:.9, display:'block', marginBottom:6 }} />
+              {/* mono + tabular: o valor troca a cada poll, e um dígito mais
+                  largo empurraria o rótulo logo abaixo a cada atualização */}
+              <div className="mf-mono" style={{ fontSize:'clamp(1.25rem, 1rem + 1.6cqw, 1.6rem)', fontWeight:650, color:'var(--c)', lineHeight:1, letterSpacing:'-.03em' }}>
                 <NumberTicker value={s.value} />
               </div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:`${s.color}99`, marginTop:4, letterSpacing:'.05em', textTransform:'uppercase' }}>{s.label}</div>
+              <div className="mf-trunc" style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:5, letterSpacing:'.05em', textTransform:'uppercase', fontWeight:600 }}>{s.label}</div>
             </motion.div>
           );
         })}
@@ -331,35 +427,39 @@ function QueuePanel({ d, accountStats }) {
       {/* Progress bar */}
       {metaHoje > 0 && (
         <div style={{ padding:'0 14px 10px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:'.06em', textTransform:'uppercase' }}>Progresso de hoje</span>
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', fontVariantNumeric:'tabular-nums' }}>
-              {postsHoje}/{metaHoje} · <span style={{ color:'var(--cyan)', fontWeight:700 }}>{progresso}%</span>
+          <div style={{ display:'flex', justifyContent:'space-between', gap:'var(--mf-2)', marginBottom:6 }}>
+            <span style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', letterSpacing:'.06em', textTransform:'uppercase', fontWeight:600 }}>Progresso de hoje</span>
+            <span className="mf-mono" style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
+              {postsHoje}/{metaHoje} · <span style={{ color:'var(--mf-mod)', fontWeight:700 }}>{progresso}%</span>
             </span>
           </div>
-          <div style={{ height:4, background:'rgba(255,255,255,.06)', borderRadius:4, overflow:'hidden' }}>
-            <motion.div initial={{ width:0 }} animate={{ width:`${progresso}%` }} transition={{ duration:.9, ease }}
-              style={{ height:'100%', borderRadius:4, background:'linear-gradient(90deg,var(--cyan2),var(--cyan))', boxShadow:'0 0 10px rgba(0,212,255,.5)' }} />
+          <div className="mf-prog" role="progressbar" aria-valuenow={progresso} aria-valuemin={0} aria-valuemax={100}
+            aria-label={`Progresso de hoje: ${postsHoje} de ${metaHoje}`}>
+            <motion.div className="mf-prog__fill" initial={{ width:0 }} animate={{ width:`${progresso}%` }} transition={{ duration:.9, ease }} />
           </div>
         </div>
       )}
 
       {/* Próximo disparo */}
       {proximoItem && (
-        <div style={{ margin:'0 14px 10px', padding:'8px 12px', background:'linear-gradient(90deg,rgba(0,212,255,.05),rgba(0,212,255,.02))', border:'1px solid rgba(0,212,255,.14)', borderRadius:10, display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-          <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)', boxShadow:'0 0 8px var(--green)', flexShrink:0, animation:'blink 1.8s infinite' }} />
-          <span style={{ fontSize:11, color:'var(--text2)' }}>Próximo</span>
-          <span style={{ fontSize:11, fontWeight:700, color:'var(--cyan)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{(() => { const a = (proximoItem.accounts||[]).find(x => x && typeof x === 'object' && x.username); return a?.username || '—'; })()}</span>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', marginLeft:'auto', flexShrink:0 }}>{fmtTime(proximoItem.scheduledAt)}</span>
+        <div style={{ margin:'0 var(--mf-4) var(--mf-3)', padding:'var(--mf-2) var(--mf-3)', display:'flex', alignItems:'center', gap:'var(--mf-2)', flexShrink:0, minWidth:0,
+          background:'color-mix(in oklch, var(--mf-mod) 7%, transparent)',
+          border:'1px solid color-mix(in oklch, var(--mf-mod) 18%, transparent)',
+          borderRadius:'var(--mf-r-md)' }}>
+          <span style={{ width:7, height:7, borderRadius:'var(--mf-r-full)', background:'var(--mf-success-500)', flexShrink:0, animation:'mf-pulse 1.8s var(--mf-ease-inout) infinite' }} />
+          <span style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-2)', flexShrink:0 }}>Próximo</span>
+          <span className="mf-trunc" style={{ fontSize:'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-mod)' }}>@{(() => { const a = (proximoItem.accounts||[]).find(x => x && typeof x === 'object' && x.username); return a?.username || '—'; })()}</span>
+          <span className="mf-mono" style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', marginLeft:'auto', flexShrink:0 }}>{fmtTime(proximoItem.scheduledAt)}</span>
         </div>
       )}
 
       {/* Queue list */}
       <div style={{ flex:1, overflow:'hidden', padding:'0 10px' }}>
         {queueItems.length === 0 ? (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:90, color:'var(--text3)', gap:8 }}>
-            <Layers3 size={22} opacity={.25} />
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'.06em' }}>FILA VAZIA</span>
+          <div className="mf-empty" style={{ minHeight:110, padding:'var(--mf-4)' }}>
+            <span className="mf-empty__ico"><Layers3 size={18} /></span>
+            <span className="mf-empty__t">Fila vazia</span>
+            <span className="mf-empty__d">Nada agendado no momento.</span>
           </div>
         ) : (
           <div>
@@ -367,8 +467,8 @@ function QueuePanel({ d, accountStats }) {
               const acc = (item.accounts||[]).find(a => a && typeof a === 'object' && a.username);
               return (
               <motion.div key={item._id || i} initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*.04 }}
-                style={{ display:'flex', alignItems:'center', gap:9, padding:'7px 6px', borderRadius:8, borderBottom:'1px solid rgba(255,255,255,.03)', transition:'background .15s' }}
-                onMouseEnter={e => e.currentTarget.style.background='rgba(0,212,255,.03)'}
+                style={{ display:'flex', alignItems:'center', gap:'var(--mf-2)', padding:'7px 6px', minWidth:0, borderRadius:'var(--mf-r-sm)', borderBottom:'1px solid var(--mf-border-subtle)', transition:'background var(--mf-fast) var(--mf-ease-out)' }}
+                onMouseEnter={e => e.currentTarget.style.background='var(--mf-surface-2)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
                 <AvatarChip username={acc?.username} avatar={acc?.avatar} size={26} />

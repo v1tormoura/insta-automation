@@ -67,14 +67,27 @@
 
   --mf-border:        oklch(1 0 0 / 0.08);
   --mf-border-strong: oklch(1 0 0 / 0.14);
+  /* divisória interna: mais fraca que a borda do próprio card, senão cada
+     linha de tabela compete com o contorno do painel que a contém */
+  --mf-border-subtle: oklch(1 0 0 / 0.045);
   --mf-border-focus:  var(--mf-primary-500);
 
   /* ── Texto ─────────────────────────────────────────────────────────────
-     Três níveis bastam. Um quarto tom vira decisão sem critério, e o texto
-     terciário já é o limite de contraste aceitável sobre --mf-surface-1. */
+     Três níveis bastam; um quarto tom vira decisão sem critério.
+
+     A luminância do terciário foi medida, não escolhida no olho. Ele carrega
+     rótulo de tabela, legenda de métrica e timestamp — texto pequeno, onde o
+     mínimo do WCAG AA é 4.5:1. Contra --mf-surface-2 (fundo de controle e de
+     linha em hover, o mais claro dos dois em que ele aparece):
+
+         L=0.58 → 4.17   L=0.59 → 4.35   L=0.60 → 4.49   L=0.61 → 4.67
+
+     Ou seja, 0.61 é o primeiro passo que passa nas duas superfícies — 4.97
+     sobre --mf-surface-1 e 4.67 sobre --mf-surface-2. Abaixar daqui reprova
+     o texto pequeno da interface inteira. */
   --mf-text:      oklch(0.97 0.008 275);
   --mf-text-2:    oklch(0.76 0.020 275);
-  --mf-text-3:    oklch(0.58 0.022 275);
+  --mf-text-3:    oklch(0.61 0.022 275);
 
   /* ── Espaçamento ───────────────────────────────────────────────────────
      Escala de 4. Valor fora dela é acidente, não decisão. */
