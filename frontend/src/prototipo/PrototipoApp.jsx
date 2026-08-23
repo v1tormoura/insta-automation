@@ -9,10 +9,12 @@
  * no roteador da aplicação e continua um único ponto de entrada.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PanelLeftClose, PanelLeft, Search, Menu, Bell, Check } from 'lucide-react';
+import { flushSync } from 'react-dom';
+import { PanelLeftClose, PanelLeft, Search, Menu, Bell, Check, Sun, Moon, Rows3, Rows2 } from 'lucide-react';
 
 import './tokens.css';
 import './prototipo.css';
+import './avancado.css';
 import { TELAS } from './telas';
 import { MODULOS } from './dados';
 
@@ -23,7 +25,7 @@ const GRUPOS = [
   { titulo: 'Principal', itens: ['dashboard'] },
   { titulo: 'Operação',  itens: ['contas', 'publicar', 'campanhas', 'jobs'] },
   { titulo: 'Analytics', itens: ['metricas'] },
-  { titulo: 'Sistema',   itens: ['config'] },
+  { titulo: 'Sistema',   itens: ['config', 'sistema'] },
 ];
 
 export default function PrototipoApp() {
@@ -32,6 +34,8 @@ export default function PrototipoApp() {
   const [gaveta, setGaveta]       = useState(false);
   const [paleta, setPaleta]       = useState(false);
   const [avisos, setAvisos]       = useState([]);
+  const [tema, setTema]           = useState('escuro');
+  const [densidade, setDensidade] = useState('confortavel');
 
   const Atual = TELAS[tela].Comp;
 
@@ -50,10 +54,27 @@ export default function PrototipoApp() {
     return () => window.removeEventListener('keydown', aoTeclar);
   }, []);
 
+  /**
+   * Troca de tela com View Transitions API.
+   *
+   * `flushSync` é obrigatório aqui: o navegador tira a foto do estado NOVO
+   * assim que o callback retorna. Com o React em modo concorrente, a
+   * atualização poderia ser agendada para depois — e a foto sairia igual à
+   * anterior, sem transição nenhuma.
+   *
+   * Sem suporte, a troca acontece direto. Nada quebra, só não anima.
+   */
   const irPara = (id) => {
-    setTela(id);
-    setGaveta(false);
-    setPaleta(false);
+    const trocar = () => {
+      setTela(id);
+      setGaveta(false);
+      setPaleta(false);
+    };
+    if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.startViewTransition(() => flushSync(trocar));
+    } else {
+      trocar();
+    }
   };
 
   const avisar = (titulo, descricao, tom = 'primary') => {
@@ -63,7 +84,7 @@ export default function PrototipoApp() {
   };
 
   return (
-    <div data-mf>
+    <div data-mf data-tema={tema} data-densidade={densidade}>
       <div className="mf-app" data-collapsed={recolhida} data-drawer={gaveta}>
 
         {gaveta && <div className="mf-scrim" onClick={() => setGaveta(false)} aria-hidden="true" />}
@@ -125,6 +146,19 @@ export default function PrototipoApp() {
 
             <div className="mf-top__spacer" />
 
+            {/* Densidade e tema mexem SÓ em tokens da raiz. Nenhum componente
+                sabe que algo mudou — é a prova prática do design system. */}
+            <button className="mf-btn mf-btn--ghost mf-btn--icon"
+              onClick={() => setDensidade(d => d === 'compacta' ? 'confortavel' : 'compacta')}
+              aria-label="Alternar densidade"
+              title={densidade === 'compacta' ? 'Densidade compacta' : 'Densidade confortável'}>
+              {densidade === 'compacta' ? <Rows3 size={17} /> : <Rows2 size={17} />}
+            </button>
+            <button className="mf-btn mf-btn--ghost mf-btn--icon"
+              onClick={() => setTema(t => t === 'claro' ? 'escuro' : 'claro')}
+              aria-label="Alternar tema">
+              {tema === 'claro' ? <Moon size={17} /> : <Sun size={17} />}
+            </button>
             <button className="mf-btn mf-btn--ghost mf-btn--icon"
               onClick={() => avisar('Publicação concluída', 'Reel enviado para 3 contas.', 'success')}
               aria-label="Notificações">

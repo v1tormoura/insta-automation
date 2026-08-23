@@ -6,6 +6,7 @@
  * valor. É o que impede o problema atual, em que cada tela inventou o próprio
  * verde e a interface passou a parecer feita por gente diferente.
  */
+import { useMemo, useState } from 'react';
 import { MODULOS, STATUS } from './dados';
 
 /* ── Cabeçalho de página ─────────────────────────────────────────────────*/
@@ -43,9 +44,11 @@ export function Botao({
 }
 
 /* ── Card ────────────────────────────────────────────────────────────────*/
-export function Card({ titulo, sub, acoes, children, hover, semCorpo }) {
+export function Card({ titulo, sub, acoes, children, hover, semCorpo, destaque }) {
+  // `destaque` liga a borda em gradiente animado. Reservada a UM card por
+  // tela: usada em vários, deixa de destacar e vira poluição.
   return (
-    <section className={`mf-card${hover ? ' mf-card--hover' : ''}`}>
+    <section className={`mf-card${hover ? ' mf-card--hover' : ''}${destaque ? ' mf-card--live' : ''}`}>
       {(titulo || acoes) && (
         <div className="mf-card__head">
           <div className="mf-trunc">
@@ -214,5 +217,115 @@ export function Etapas({ etapas, atual }) {
         );
       })}
     </nav>
+  );
+}
+
+/* ── Tabela com ordenação e seleção ──────────────────────────────────────
+   Estado mínimo em React: a linha selecionada muda de aparência por `:has()`
+   no CSS, não por classe calculada aqui. O componente guarda só o que o CSS
+   não tem como saber — qual coluna ordena e para que lado. */
+export function Tabela({ colunas, linhas, chave = 'id', selecionavel, acoesEmLote }) {
+  const [ordem, setOrdem] = useState({ col: null, asc: true });
+  const [marcadas, setMarcadas] = useState(() => new Set());
+
+  const ordenadas = useMemo(() => {
+    if (!ordem.col) return linhas;
+    const c = colunas.find(x => x.id === ordem.col);
+    const valor = l => (c?.valor ? c.valor(l) : l[ordem.col]);
+    return [...linhas].sort((a, b) => {
+      const va = valor(a), vb = valor(b);
+      const n = typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'pt-BR');
+      return ordem.asc ? n : -n;
+    });
+  }, [linhas, ordem, colunas]);
+
+  const alternarOrdem = (id) =>
+    setOrdem(o => ({ col: id, asc: o.col === id ? !o.asc : true }));
+
+  const alternarLinha = (id) => setMarcadas(s => {
+    const p = new Set(s);
+    p.has(id) ? p.delete(id) : p.add(id);
+    return p;
+  });
+
+  const todas = marcadas.size > 0 && marcadas.size === linhas.length;
+
+  return (
+    <>
+      {/* Barra de ações em lote: aparece só quando há seleção, e ocupa o lugar
+          do cabeçalho em vez de empurrar a tabela para baixo. */}
+      {selecionavel && marcadas.size > 0 && (
+        <div className="mf-row" style={{
+          justifyContent: 'space-between', padding: 'var(--mf-3) var(--mf-4)',
+          borderBottom: '1px solid var(--mf-border)',
+          background: 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)',
+        }}>
+          <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600 }}>
+            {marcadas.size} selecionada{marcadas.size > 1 ? 's' : ''}
+          </span>
+          <div className="mf-row" style={{ gap: 'var(--mf-2)' }}>
+            {acoesEmLote}
+            <Botao tamanho="sm" variante="ghost" onClick={() => setMarcadas(new Set())}>Limpar</Botao>
+          </div>
+        </div>
+      )}
+
+      <div className="mf-table-wrap">
+        <table className="mf-table mf-table--stack">
+          <thead>
+            <tr>
+              {selecionavel && (
+                <th style={{ width: 40 }}>
+                  <input type="checkbox" checked={todas}
+                    aria-label="Selecionar todas"
+                    onChange={e => setMarcadas(e.target.checked ? new Set(linhas.map(l => l[chave])) : new Set())}
+                    style={{ accentColor: 'var(--mf-primary-500)' }} />
+                </th>
+              )}
+              {colunas.map(c => (
+                <th key={c.id}>
+                  {c.ordenavel === false ? c.rotulo : (
+                    <button onClick={() => alternarOrdem(c.id)}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                        font: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
+                        color: ordem.col === c.id ? 'var(--mf-text-2)' : 'inherit',
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                      }}
+                      aria-sort={ordem.col === c.id ? (ordem.asc ? 'ascending' : 'descending') : 'none'}>
+                      {c.rotulo}
+                      <span style={{ opacity: ordem.col === c.id ? 1 : 0.25 }}>
+                        {ordem.col === c.id && !ordem.asc ? '↓' : '↑'}
+                      </span>
+                    </button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ordenadas.map(l => (
+              <tr key={l[chave]}>
+                {selecionavel && (
+                  <td data-label="">
+                    <input type="checkbox" checked={marcadas.has(l[chave])}
+                      aria-label={`Selecionar ${l[chave]}`}
+                      onChange={() => alternarLinha(l[chave])}
+                      style={{ accentColor: 'var(--mf-primary-500)' }} />
+                  </td>
+                )}
+                {colunas.map(c => (
+                  <td key={c.id} data-label={c.rotulo} style={c.estilo}>
+                    {c.render ? c.render(l) : l[c.id]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

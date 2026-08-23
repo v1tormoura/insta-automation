@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import {
   Users, Send, Megaphone, Cpu, BarChart3, Settings, Plus, Filter,
-  Search, Upload, Image as ImageIcon, Play, RefreshCw, Zap, Eye,
+  Search, Upload, Image as ImageIcon, Play, RefreshCw, Zap, Eye, Palette,
 } from 'lucide-react';
 
 import { PageHeader, Botao, Card, KpiCard, Selo, Vazio, Skel, KpiSkeleton, Progresso, Avatar, Etapas } from './ui';
@@ -71,9 +71,9 @@ export function Dashboard() {
       </div>
 
       {/* Analytics 2:1 + atividade */}
-      <div className="mf-split mf-sec">
+      <div className="mf-split mf-sec mf-reveal">
         <Card titulo="Alcance nos últimos 14 dias" sub="Somatório de todas as contas conectadas"
-          acoes={<Selo tom="info">tempo real</Selo>}>
+          acoes={<Selo tom="info">tempo real</Selo>} destaque>
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={SERIE} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
@@ -113,7 +113,7 @@ export function Dashboard() {
       </div>
 
       {/* Contas + jobs, mesma linha */}
-      <div className="mf-split">
+      <div className="mf-split mf-reveal mf-defer">
         <Card titulo="Contas" sub={`${CONTAS.length} cadastradas`}
           acoes={<Botao tamanho="sm" variante="ghost">Ver todas</Botao>} semCorpo>
           <div className="mf-table-wrap">
@@ -450,7 +450,7 @@ export function Metricas() {
         ))}
       </div>
 
-      <div className="mf-split mf-sec">
+      <div className="mf-split mf-sec mf-reveal mf-defer">
         <Card titulo="Publicações por dia">
           <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -563,4 +563,88 @@ export const TELAS = {
   jobs:       { titulo: 'Jobs',          modulo: 'jobs',      icone: Cpu,       Comp: Jobs },
   metricas:   { titulo: 'Métricas',      modulo: 'metricas',  icone: BarChart3, Comp: Metricas },
   config:     { titulo: 'Configurações', modulo: 'sistema',   icone: Settings,  Comp: Configuracoes },
+  sistema:    { titulo: 'Design System',  modulo: 'sistema',   icone: Palette,   Comp: Sistema },
 };
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — o mostruário
+   Existe para a aprovação não depender de imaginar: os tokens e os estados
+   aparecem aqui como são, e mudam junto quando o tema ou a densidade muda.
+   ═══════════════════════════════════════════════════════════════════════════ */
+export function Sistema() {
+  const CORES = [
+    ['primary-500', 'Marca'], ['accent-500', 'Acento'], ['flare-500', 'Destaque'],
+    ['success-500', 'Sucesso'], ['warning-500', 'Atenção'], ['danger-500', 'Erro'],
+    ['info-500', 'Info'], ['mod-contas', 'Contas'], ['mod-publicar', 'Publicar'],
+    ['mod-campanhas', 'Campanhas'], ['mod-jobs', 'Jobs'], ['mod-metricas', 'Métricas'],
+  ];
+  const TIPOS = [
+    ['--mf-t-display', 'Display', 'Alcance total'],
+    ['--mf-t-h1', 'Título', 'Central de controle'],
+    ['--mf-t-h2', 'Seção', 'Campanhas ativas'],
+    ['--mf-t-body', 'Corpo', 'Texto padrão da interface'],
+    ['--mf-t-sm', 'Pequeno', 'Rótulos e apoio'],
+    ['--mf-t-micro', 'Micro', 'ETIQUETAS E METADADOS'],
+  ];
+
+  return (
+    <>
+      <PageHeader titulo="Design System" modulo="sistema"
+        sub="Tokens, componentes e estados — a fonte única da identidade" />
+
+      <Card titulo="Paleta" sub="Trocar um token repercute em toda a interface" className="mf-sec">
+        <div className="mf-grid" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,140px),1fr))' }}>
+          {CORES.map(([t, n]) => (
+            <div key={t} className="mf-swatch">
+              <div className="mf-swatch__chip" style={{ background: `var(--mf-${t})` }} />
+              <div className="mf-swatch__n">{n}</div>
+              <div className="mf-swatch__v">--mf-{t}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div style={{ height: 'var(--mf-6)' }} />
+
+      <div className="mf-split mf-sec">
+        <Card titulo="Tipografia" sub="Geist · escala fluida com clamp()">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)' }}>
+            {TIPOS.map(([v, n, ex]) => (
+              <div key={v} style={{ minWidth: 0 }}>
+                <div className="mf-mono mf-muted" style={{ fontSize: 'var(--mf-t-micro)' }}>{n} · {v}</div>
+                <div className="mf-trunc" style={{ fontSize: `var(${v})`, fontWeight: 650, letterSpacing: '-0.02em' }}>{ex}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card titulo="Estados">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)' }}>
+            <div className="mf-row" style={{ flexWrap: 'wrap', gap: 'var(--mf-2)' }}>
+              {['conectado', 'processando', 'atencao', 'desconectado', 'agendado', 'publicado', 'pausado', 'erro']
+                .map(e => <Selo key={e} estado={e} />)}
+            </div>
+            <div className="mf-row" style={{ flexWrap: 'wrap', gap: 'var(--mf-2)' }}>
+              <Botao variante="primary">Primário</Botao>
+              <Botao>Secundário</Botao>
+              <Botao variante="ghost">Fantasma</Botao>
+              <Botao variante="danger">Destrutivo</Botao>
+              <Botao carregando>Carregando</Botao>
+              <Botao disabled>Desativado</Botao>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-2)' }}>
+              <Skel h={12} w="70%" /><Skel h={12} w="45%" /><Skel h={12} w="60%" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card titulo="Estado vazio" sub="Sempre com contexto e próximo passo">
+        <Vazio modulo="campanhas" icone={<Megaphone size={24} />}
+          titulo="Nenhuma campanha criada"
+          descricao="Crie sua primeira campanha para distribuir conteúdo entre várias contas com intervalo humanizado."
+          acao={<Botao variante="primary" tamanho="sm"><Plus size={14} /> Criar campanha</Botao>} />
+      </Card>
+    </>
+  );
+}

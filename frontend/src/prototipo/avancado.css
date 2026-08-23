@@ -1,0 +1,270 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   CAMADA AVANÇADA — recursos nativos da plataforma web
+   ══════════════════════════════════════════════════════════════════════════
+
+   Tudo aqui é progressivo: cada bloco está atrás de @supports ou de uma
+   propriedade que navegador antigo simplesmente ignora. Nenhum recurso é
+   requisito para a interface funcionar — eles acrescentam acabamento onde o
+   navegador consegue entregar, e somem em silêncio onde não consegue.
+
+   A escolha de usar plataforma em vez de biblioteca é deliberada: borda
+   animada com @property custa zero KB e roda na thread de composição;
+   a mesma coisa em JS custa dependência, bundle e trabalho na main thread.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Propriedades tipadas ────────────────────────────────────────────────
+   Custom property comum é string para o navegador — e string não interpola,
+   então `transition` nela salta do valor A para o B. Declarando o tipo com
+   @property, o ângulo vira número animável e o gradiente gira de verdade. */
+@property --mf-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@property --mf-glow {
+  syntax: '<percentage>';
+  initial-value: 0%;
+  inherits: false;
+}
+
+/* ── Borda viva ──────────────────────────────────────────────────────────
+   Reservada ao card em destaque. Duas camadas de fundo com `padding-box` e
+   `border-box` desenham o gradiente APENAS na borda, sem pseudo-elemento
+   extra e sem recorte por máscara. */
+@supports (background: conic-gradient(from 0deg, red, blue)) {
+  [data-mf] .mf-card--live {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--mf-surface-1), var(--mf-surface-1)) padding-box,
+      conic-gradient(from var(--mf-angle),
+        color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 70%, transparent),
+        transparent 25%, transparent 75%,
+        color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 70%, transparent)
+      ) border-box;
+    animation: mf-rotate 6s linear infinite;
+  }
+  @keyframes mf-rotate { to { --mf-angle: 360deg; } }
+}
+
+/* ── Transição de tela nativa ────────────────────────────────────────────
+   View Transitions API: o navegador tira uma foto do estado anterior, do
+   novo, e faz a transferência entre os dois. É o mesmo efeito que antes
+   exigia AnimatePresence com clone de árvore — agora sem nó duplicado, sem
+   remontagem e sem risco de a saída travar com a aba em segundo plano.
+
+   O container recebe view-transition-name próprio para o conteúdo cruzar
+   sozinho, enquanto barra lateral e topo permanecem parados. */
+@supports (view-transition-name: none) {
+  [data-mf] .mf-main   { view-transition-name: mf-conteudo; }
+  [data-mf] .mf-side   { view-transition-name: mf-lateral;  }
+
+  ::view-transition-old(mf-conteudo) {
+    animation: mf-vt-out 160ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+  ::view-transition-new(mf-conteudo) {
+    animation: mf-vt-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  /* A lateral não anima: ela é o ponto fixo da navegação. Animar junto daria
+     a sensação de a página inteira ter recarregado. */
+  ::view-transition-old(mf-lateral),
+  ::view-transition-new(mf-lateral) { animation: none; mix-blend-mode: normal; }
+
+  @keyframes mf-vt-out { to { opacity: 0; transform: translateY(-6px); } }
+  @keyframes mf-vt-in  { from { opacity: 0; transform: translateY(8px); } }
+}
+
+/* ── Revelação ao rolar, sem JS ──────────────────────────────────────────
+   `animation-timeline: view()` amarra a animação à posição do elemento na
+   janela. O IntersectionObserver que isso substitui rodava em JS a cada
+   quadro de rolagem; aqui a interpolação acontece no compositor. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-mf] .mf-reveal {
+      animation: mf-reveal-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 42%;
+    }
+    @keyframes mf-reveal-in {
+      from { opacity: 0; transform: translateY(20px) scale(0.985); }
+      to   { opacity: 1; transform: none; }
+    }
+  }
+}
+
+/* ── Consultas de container ──────────────────────────────────────────────
+   O componente responde à largura do PRÓPRIO container, não à da janela. É
+   o que permite o mesmo KpiCard servir a uma coluna estreita da barra
+   lateral e a um bloco largo do dashboard sem variante nova — impossível de
+   fazer com media query, que só enxerga a viewport. */
+[data-mf] .mf-card { container-type: inline-size; container-name: card; }
+
+@container card (max-width: 230px) {
+  .mf-kpi { padding: var(--mf-3) var(--mf-4); gap: var(--mf-2); }
+  .mf-kpi__ico { display: none; }
+  .mf-kpi__vs  { display: none; }
+}
+@container card (min-width: 380px) {
+  .mf-kpi { padding: var(--mf-5) var(--mf-6) var(--mf-4); }
+}
+
+/* Consulta de ESTILO: o card muda de tratamento conforme o próprio token de
+   densidade, sem precisar de classe condicional em cada componente. */
+@supports (container-type: inline-size) {
+  [data-mf] { container-name: app; }
+}
+
+/* ── Seletor de pai ──────────────────────────────────────────────────────
+   `:has()` resolve em CSS o que antes exigia estado no React: a linha inteira
+   reage ao checkbox marcado, o campo reage ao input inválido. Menos estado em
+   JS significa menos render. */
+[data-mf] .mf-table tbody tr:has(input:checked) {
+  background: color-mix(in oklch, var(--mf-primary-500) 10%, transparent);
+  box-shadow: inset 3px 0 0 var(--mf-primary-500);
+}
+[data-mf] .mf-field:has(.mf-input:focus) .mf-label { color: var(--mf-primary-300); }
+[data-mf] .mf-field:has(.mf-input:invalid:not(:placeholder-shown)) .mf-input {
+  border-color: var(--mf-danger-500);
+}
+/* Card que contém um selo de erro ganha a borda do erro — a regra vive num
+   lugar só, em vez de repetida em cada tela que exibe estado. */
+[data-mf] .mf-card:has(.mf-badge[data-tone='danger']) { border-color: oklch(0.64 0.22 20 / 0.28); }
+
+/* ── Subgrid ─────────────────────────────────────────────────────────────
+   Os KPIs herdam as trilhas do pai, então rótulo, número e rodapé de todos os
+   cards ficam na MESMA linha de base — mesmo quando um deles tem texto de
+   duas linhas. Sem subgrid, isso só se resolveria com altura fixa, que quebra
+   assim que o conteúdo muda. */
+@supports (grid-template-rows: subgrid) {
+  [data-mf] .mf-grid--kpi { grid-auto-rows: auto; }
+  [data-mf] .mf-grid--kpi > .mf-card {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 2;
+  }
+}
+
+/* ── Tipografia ──────────────────────────────────────────────────────────
+   `balance` distribui as palavras do título entre as linhas, eliminando a
+   órfã solta na última. `pretty` faz o mesmo, mais barato, para parágrafo. */
+[data-mf] .mf-page-head__t,
+[data-mf] .mf-card__title,
+[data-mf] .mf-empty__t { text-wrap: balance; }
+[data-mf] .mf-empty__d,
+[data-mf] .mf-page-head__s { text-wrap: pretty; }
+
+/* Campo que cresce com o conteúdo, sem medir altura em JS. */
+@supports (field-sizing: content) {
+  [data-mf] textarea.mf-input { field-sizing: content; min-height: 5lh; max-height: 14lh; }
+}
+
+/* ── Desempenho ──────────────────────────────────────────────────────────
+   `content-visibility` faz o navegador pular a renderização do que está fora
+   da tela. `contain-intrinsic-size` reserva a altura estimada para a barra de
+   rolagem não pular quando o conteúdo finalmente é pintado. */
+[data-mf] .mf-defer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+
+/* ── Cor derivada ────────────────────────────────────────────────────────
+   Sintaxe de cor relativa: as variações saem da PRÓPRIA cor da marca. Trocar
+   --mf-primary-500 recalcula hover, pressionado e anel de foco juntos — não
+   existe degrau para esquecer de atualizar. */
+@supports (color: oklch(from red l c h)) {
+  [data-mf] .mf-btn--primary:hover:not(:disabled) {
+    background: linear-gradient(180deg,
+      oklch(from var(--mf-primary-500) calc(l + 0.05) c h),
+      var(--mf-primary-500));
+  }
+  [data-mf] .mf-btn--primary:active:not(:disabled) {
+    background: oklch(from var(--mf-primary-500) calc(l - 0.06) c h);
+  }
+}
+
+/* ── Rolagem ─────────────────────────────────────────────────────────────*/
+[data-mf] .mf-side__nav,
+[data-mf] .mf-cmd__list { scrollbar-width: thin; overscroll-behavior: contain; }
+[data-mf] .mf-steps { scroll-snap-type: x proximity; }
+[data-mf] .mf-step  { scroll-snap-align: start; }
+
+/* ── Popover nativo ──────────────────────────────────────────────────────
+   O atributo `popover` entrega camada superior, fechar ao clicar fora e Esc
+   pelo próprio navegador. Substitui um menu em portal com listener global e
+   gestão de z-index na mão. */
+@supports selector(:popover-open) {
+  [data-mf] [popover] {
+    margin: 0; padding: var(--mf-2); inset: auto;
+    background: var(--mf-surface-2);
+    border: 1px solid var(--mf-border-strong);
+    border-radius: var(--mf-r-lg);
+    box-shadow: var(--mf-shadow-3);
+    color: var(--mf-text);
+    min-width: 200px;
+  }
+  [data-mf] [popover]::backdrop { background: transparent; }
+  [data-mf] [popover]:popover-open { animation: mf-rise 180ms var(--mf-ease-out); }
+}
+
+/* ── Densidade ───────────────────────────────────────────────────────────
+   Um atributo na raiz reescala o espaçamento inteiro. É a prova de que o
+   sistema de tokens funciona: nenhum componente sabe que a densidade mudou. */
+[data-mf][data-densidade='compacta'] {
+  --mf-3: 9px;  --mf-4: 12px; --mf-5: 15px;
+  --mf-6: 18px; --mf-8: 24px; --mf-10: 30px; --mf-12: 36px;
+  --mf-t-body: 0.8125rem;
+}
+
+/* ── Tema claro ──────────────────────────────────────────────────────────
+   Não é o escuro invertido. As superfícies sobem em vez de descer, a sombra
+   deixa de contar com filete de luz (que só existe no escuro) e as cores de
+   marca escurecem para manter contraste sobre fundo claro. */
+[data-mf][data-tema='claro'] {
+  --mf-bg:        oklch(0.985 0.003 275);
+  --mf-surface-1: oklch(1 0 0);
+  --mf-surface-2: oklch(0.972 0.004 275);
+  --mf-surface-3: oklch(0.945 0.006 275);
+  --mf-overlay:   oklch(0.30 0.02 275 / 0.35);
+
+  --mf-border:        oklch(0.20 0.02 275 / 0.10);
+  --mf-border-strong: oklch(0.20 0.02 275 / 0.18);
+
+  --mf-text:   oklch(0.22 0.02 275);
+  --mf-text-2: oklch(0.44 0.02 275);
+  --mf-text-3: oklch(0.60 0.02 275);
+
+  --mf-primary-500: oklch(0.52 0.24 285);
+  --mf-primary-300: oklch(0.62 0.20 285);
+  --mf-accent-500:  oklch(0.62 0.14 200);
+  --mf-success-500: oklch(0.55 0.16 155);
+  --mf-warning-500: oklch(0.62 0.15 70);
+  --mf-danger-500:  oklch(0.55 0.21 20);
+  --mf-info-500:    oklch(0.55 0.15 240);
+
+  --mf-mod-contas:    oklch(0.60 0.14 200);
+  --mf-mod-publicar:  oklch(0.52 0.24 285);
+  --mf-mod-campanhas: oklch(0.58 0.24 350);
+  --mf-mod-jobs:      oklch(0.62 0.15 70);
+  --mf-mod-metricas:  oklch(0.55 0.16 155);
+  --mf-mod-sistema:   oklch(0.50 0.02 275);
+
+  --mf-shadow-1: 0 1px 2px oklch(0.30 0.02 275 / 0.08);
+  --mf-shadow-2: 0 4px 12px -2px oklch(0.30 0.02 275 / 0.12);
+  --mf-shadow-3: 0 16px 40px -12px oklch(0.30 0.02 275 / 0.22);
+}
+/* O filete de luz do topo do card é fenômeno de superfície escura. No claro
+   ele aparece como um risco branco sem sentido. */
+[data-mf][data-tema='claro'] .mf-card::before { display: none; }
+[data-mf][data-tema='claro'] .mf-top { background: oklch(1 0 0 / 0.82); }
+
+/* ── Mostruário do sistema ───────────────────────────────────────────────*/
+[data-mf] .mf-swatch {
+  display: flex; flex-direction: column; gap: var(--mf-2);
+  padding: var(--mf-3); border-radius: var(--mf-r-md);
+  border: 1px solid var(--mf-border); background: var(--mf-surface-2);
+}
+[data-mf] .mf-swatch__chip { height: 44px; border-radius: var(--mf-r-sm); border: 1px solid var(--mf-border); }
+[data-mf] .mf-swatch__n { font-size: var(--mf-t-xs); font-weight: 650; }
+[data-mf] .mf-swatch__v {
+  font-family: var(--mf-mono); font-size: var(--mf-t-micro);
+  color: var(--mf-text-3); word-break: break-all;
+}
