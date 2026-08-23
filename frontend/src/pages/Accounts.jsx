@@ -889,15 +889,28 @@ export default function Accounts() {
   const isLinked = a => !!(a?.hasApiToken || a?.hasInstagrapiSession || a?.hasIgSession);
 
   /* ── health helpers ── */
-  const hBg    = s => ({ ativa:'rgba(16,185,129,.09)', restrita:'rgba(245,158,11,.09)', banida:'rgba(244,63,94,.09)', token_invalido:'rgba(244,63,94,.09)', sessao_expirada:'rgba(245,158,11,.09)', erro_login:'rgba(244,63,94,.09)', desconectada:'rgba(100,116,139,.09)' }[s] || 'rgba(16,185,129,.09)');
-  const hBorder= s => ({ ativa:'rgba(16,185,129,.25)', restrita:'rgba(245,158,11,.25)', banida:'rgba(244,63,94,.25)', token_invalido:'rgba(244,63,94,.25)', sessao_expirada:'rgba(245,158,11,.25)', erro_login:'rgba(244,63,94,.25)', desconectada:'rgba(100,116,139,.2)' }[s] || 'rgba(16,185,129,.25)');
+  /* Saúde da conta no vocabulário do sistema. Antes cada estado carregava o
+     próprio rgba de fundo e de borda — sete estados x duas cores, mantidos
+     em sincronia na mão. Agora cada estado declara só a intenção, e fundo e
+     borda saem dela por color-mix. */
+  const hTom = s => ({
+    ativa: 'var(--mf-success-500)', restrita: 'var(--mf-warning-500)',
+    banida: 'var(--mf-danger-500)', token_invalido: 'var(--mf-danger-500)',
+    sessao_expirada: 'var(--mf-warning-500)', erro_login: 'var(--mf-danger-500)',
+    desconectada: 'var(--mf-text-3)',
+  }[s] || 'var(--mf-success-500)');
+  const hBg     = s => `color-mix(in oklch, ${hTom(s)} 10%, transparent)`;
+  const hBorder = s => `color-mix(in oklch, ${hTom(s)} 26%, transparent)`;
 
+  /* Rótulos em caixa alta viraram caixa normal: "PUBLICAÇÕES" em versalete
+     lê-se letra a letra, "Publicações" lê-se de uma vez. A distinção de
+     hierarquia já vem do tamanho e da cor. */
   const STAT_DEFS = [
-    { label:'CONECTADAS',  value:fmt(safeAccounts.filter(isLinked).length), color:'var(--purple)',  bg:'rgba(139,92,246,.09)',  border:'rgba(139,92,246,.18)',  Icon:IcoUsers  },
-    { label:'SAUDÁVEIS',   value:fmt(activeAccounts),      color:'var(--cyan)',    bg:'rgba(0,212,255,.09)',   border:'rgba(0,212,255,.18)',   Icon:IcoShield },
-    { label:'COM ERRO',    value:fmt(errorAccounts),       color:'var(--red)',     bg:'rgba(244,63,94,.09)',   border:'rgba(244,63,94,.18)',   Icon:IcoWarn   },
-    { label:'SEGUIDORES',  value:fmt(totalFollowers),      color:'var(--amber)',   bg:'rgba(245,158,11,.09)',  border:'rgba(245,158,11,.18)',  Icon:IcoTrend  },
-    { label:'PUBLICAÇÕES', value:fmt(totalPosts),          color:'var(--orange)',  bg:'rgba(249,115,22,.09)',  border:'rgba(249,115,22,.18)',  Icon:IcoGrid   },
+    { label:'Conectadas',  value:fmt(safeAccounts.filter(isLinked).length), cor:'var(--mf-mod-publicar)', Icon:IcoUsers  },
+    { label:'Saudáveis',   value:fmt(activeAccounts),  cor:'var(--mf-success-500)', Icon:IcoShield },
+    { label:'Com erro',    value:fmt(errorAccounts),   cor:'var(--mf-danger-500)',  Icon:IcoWarn   },
+    { label:'Seguidores',  value:fmt(totalFollowers),  cor:'var(--mf-warning-500)', Icon:IcoTrend  },
+    { label:'Publicações', value:fmt(totalPosts),      cor:'var(--mf-mod-contas)',  Icon:IcoGrid   },
   ];
 
   const PageIcon = () => (
@@ -932,17 +945,21 @@ export default function Accounts() {
         accent="cyan"
         actions={
           <>
-            <button onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }} className="btn-ghost" style={{ padding:'7px 12px', fontSize:12 }}>
+            <button onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }} className="btn-ghost">
               <IcoSignal /> Proxies em massa
             </button>
-            <button onClick={syncAll} disabled={syncing} className="btn-ghost" style={{ padding:'7px 14px', fontSize:12 }}>
-              <IcoSync /> {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            <button onClick={syncAll} disabled={syncing} className="btn-ghost">
+              {syncing ? <span className="mf-spin" /> : <IcoSync />} {syncing ? 'Sincronizando…' : 'Sincronizar'}
             </button>
-            <button onClick={() => openInstaModal(null)} className="btn-ghost" style={{ padding:'7px 14px', fontSize:12, background:'rgba(139,92,246,.1)', color:'#a78bfa', borderColor:'rgba(139,92,246,.3)' }}>
+            {/* Conectar pelo app e conectar pela API são as duas ações que
+                criam conta. Ficam juntas e com a cor do módulo publicar para
+                se distinguirem das ações de manutenção à esquerda. */}
+            <button onClick={() => openInstaModal(null)} className="btn-ghost"
+              style={{ background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 30%, transparent)' }}>
               <IcoPhone /> Conectar Instagram
             </button>
-            <button onClick={() => openOAuthConnect(null)} disabled={!!connecting['new']} className="btn-primary" style={{ fontSize:13 }}>
-              <IcoLink /> {connecting['new'] ? 'Aguarde...' : 'Conectar via API'}
+            <button onClick={() => openOAuthConnect(null)} disabled={!!connecting['new']} className="btn-primary">
+              {connecting['new'] ? <span className="mf-spin" /> : <IcoLink />} {connecting['new'] ? 'Aguarde…' : 'Conectar via API'}
             </button>
           </>
         }
@@ -951,12 +968,19 @@ export default function Accounts() {
         <div className="accounts-stats-grid" style={{ gap:10 }}>
           {STAT_DEFS.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.05, duration:.28 }}
-              style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:'14px 16px', position:'relative', overflow:'hidden' }}
+              style={{ '--c':s.cor, position:'relative', overflow:'hidden', minWidth:0,
+                containerType:'inline-size',
+                background:'color-mix(in oklch, var(--c) 9%, transparent)',
+                border:'1px solid color-mix(in oklch, var(--c) 20%, transparent)',
+                borderRadius:'var(--mf-r-lg)', padding:'var(--mf-4)' }}
             >
-              <div style={{ position:'absolute', bottom:-12, right:-8, width:52, height:52, borderRadius:'50%', background:`${s.bg}`, boxShadow:`0 0 24px ${s.border}` }} />
-              <s.Icon />
-              <div style={{ fontSize:28, fontWeight:800, color:s.color, lineHeight:1, letterSpacing:'-1.5px', fontVariantNumeric:'tabular-nums', marginTop:10 }}>{s.value}</div>
-              <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:`${s.color}`, opacity:.65, marginTop:5, letterSpacing:'.07em', textTransform:'uppercase' }}>{s.label}</div>
+              <span aria-hidden="true" style={{ position:'absolute', inset:'auto -8px -12px auto', width:52, height:52, borderRadius:'var(--mf-r-full)',
+                background:'radial-gradient(circle, color-mix(in oklch, var(--c) 18%, transparent), transparent 70%)' }} />
+              <span style={{ color:'var(--c)', display:'block' }}><s.Icon /></span>
+              {/* mono e tabular porque o número muda ao sincronizar: sem
+                  largura fixa de dígito, o rótulo abaixo dança a cada troca */}
+              <div className="mf-mono" style={{ fontSize:'clamp(1.35rem, 1.05rem + 1.6cqw, 1.75rem)', fontWeight:650, color:'var(--c)', lineHeight:1, letterSpacing:'-.03em', marginTop:'var(--mf-3)' }}>{s.value}</div>
+              <div className="mf-trunc" style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-3)', marginTop:5, fontWeight:600 }}>{s.label}</div>
             </motion.div>
           ))}
         </div>

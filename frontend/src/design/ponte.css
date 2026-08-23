@@ -109,3 +109,182 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENTES GLOBAIS
+
+   A parte de cima deste arquivo remapeia cores. Esta remapeia os componentes
+   que as telas antigas usam por classe: `.btn`, `.inp`, `.modal`. Contando as
+   ocorrências no código, são 86 usos de `.btn-ghost`, 66 de `.inp` e 46 de
+   `.btn-primary` espalhados pelas páginas — reescrever aqui alcança todas
+   elas de uma vez, e cada tela migrada depois troca a classe pela `.mf-*`
+   equivalente sem que a aparência mude no meio do caminho.
+
+   Só o que está dentro de `[data-mf]` é afetado, então o /login e o
+   /oauth-callback, que ficam fora da casca, seguem com o visual antigo até
+   serem migrados de propósito.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Botões ───────────────────────────────────────────────────────────────
+   A altura fixa é a diferença que mais aparece. Antes cada botão media o
+   próprio conteúdo (`padding: 7px 15px`), então um botão com ícone ficava
+   alguns pixels mais alto que o vizinho sem ícone e a linha de ação ficava
+   irregular. `height: 36px` alinha todos, e a altura casa com a do `.inp`
+   — que é o que permite pôr campo e botão lado a lado sem calço. */
+[data-mf] .btn,
+[data-mf] .btn-primary,
+[data-mf] .btn-ghost,
+[data-mf] .btn-danger,
+[data-mf] .btn-cyan {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--mf-2);
+  height: 36px; padding: 0 var(--mf-4);
+  border-radius: var(--mf-r-md);
+  border: 1px solid transparent;
+  font-family: var(--mf-font);
+  font-size: var(--mf-t-sm); font-weight: 600;
+  white-space: nowrap; cursor: pointer;
+  transition: background var(--mf-fast) var(--mf-ease-out),
+              border-color var(--mf-fast) var(--mf-ease-out),
+              color var(--mf-fast) var(--mf-ease-out),
+              box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+
+[data-mf] .btn-primary {
+  background: linear-gradient(180deg, var(--mf-primary-500), var(--mf-primary-600));
+  color: var(--mf-primary-fg);
+  border-color: transparent;
+  box-shadow: var(--mf-shadow-1);
+}
+[data-mf] .btn-primary:hover:not(:disabled) {
+  box-shadow: var(--mf-glow-primary);
+  /* sem translateY: o botão primário costuma abrir modal, e mover o alvo
+     sob o cursor no hover atrapalha quem tem pouca precisão de mouse */
+  transform: none;
+}
+
+/* `.btn-ghost` tinha `border: … !important` no tema antigo, então a borda
+   precisa da mesma força para não perder para a regra original. */
+[data-mf] .btn-ghost {
+  background: var(--mf-surface-2);
+  color: var(--mf-text-2);
+  border: 1px solid var(--mf-border) !important;
+}
+[data-mf] .btn-ghost:hover:not(:disabled) {
+  background: var(--mf-surface-3);
+  color: var(--mf-text);
+  border-color: var(--mf-border-strong) !important;
+}
+
+[data-mf] .btn-danger {
+  background: var(--mf-danger-bg);
+  color: var(--mf-danger-500);
+  border-color: oklch(0.64 0.22 20 / 0.3);
+}
+[data-mf] .btn-danger:hover:not(:disabled) { background: oklch(0.64 0.22 20 / 0.2); }
+
+[data-mf] .btn-cyan {
+  background: color-mix(in oklch, var(--mf-accent-500) 14%, transparent);
+  color: var(--mf-accent-500);
+  border-color: color-mix(in oklch, var(--mf-accent-500) 30%, transparent);
+}
+
+[data-mf] .btn-sm { height: 30px; padding: 0 var(--mf-3); font-size: var(--mf-t-xs); }
+[data-mf] .btn-lg { height: 42px; padding: 0 var(--mf-5); font-size: var(--mf-t-h2); }
+
+[data-mf] .btn:disabled,
+[data-mf] .btn-primary:disabled,
+[data-mf] .btn-ghost:disabled,
+[data-mf] .btn-danger:disabled {
+  opacity: .45; cursor: not-allowed;
+  transform: none !important; box-shadow: none !important;
+}
+
+/* ── Campos ───────────────────────────────────────────────────────────────
+   O anel de foco vira um `box-shadow` de 3px em vez do brilho difuso antigo.
+   Um brilho de 10px espalhado marca menos onde está o cursor do que um anel
+   nítido, e o anel é o mesmo de `:focus-visible` no resto do sistema. */
+[data-mf] .inp,
+[data-mf] .input {
+  width: 100%; box-sizing: border-box;
+  height: 36px; padding: 0 var(--mf-3);
+  border-radius: var(--mf-r-md);
+  background: var(--mf-surface-2);
+  border: 1px solid var(--mf-border);
+  color: var(--mf-text);
+  font-family: var(--mf-font);
+  font-size: var(--mf-t-sm);
+  outline: none;
+  transition: border-color var(--mf-fast) var(--mf-ease-out),
+              box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+/* textarea e select não têm altura fixa: o primeiro cresce com o texto, o
+   segundo já vem com altura própria do agente de usuário */
+[data-mf] textarea.inp,
+[data-mf] textarea.input { height: auto; min-height: 84px; padding: var(--mf-3); line-height: 1.5; }
+
+[data-mf] .inp:focus,
+[data-mf] .input:focus {
+  border-color: var(--mf-primary-500);
+  box-shadow: 0 0 0 3px oklch(0.62 0.24 285 / 0.18);
+}
+[data-mf] .inp::placeholder,
+[data-mf] .input::placeholder { color: var(--mf-text-3); }
+[data-mf] .inp:disabled,
+[data-mf] .input:disabled { opacity: .5; cursor: not-allowed; }
+
+[data-mf] .input-label,
+[data-mf] .lm-label {
+  font-family: var(--mf-font);
+  font-size: var(--mf-t-xs); font-weight: 600;
+  color: var(--mf-text-2);
+  text-transform: none; letter-spacing: 0;
+}
+
+/* ── Modais ───────────────────────────────────────────────────────────────
+   `min-width: 480px` no tema antigo estourava a viewport abaixo desse valor,
+   e havia uma media query com `!important` consertando isso só no celular.
+   `min(480px, 100vw - 2rem)` resolve em qualquer largura sem exceção: nunca
+   passa da tela, e nunca fica menor que a tela quando há espaço. */
+[data-mf] .modal-overlay {
+  background: oklch(0.145 0.018 275 / 0.72);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+[data-mf] .modal {
+  background: var(--mf-surface-1);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-r-lg);
+  box-shadow: var(--mf-shadow-3);
+  min-width: min(480px, 100vw - 2rem);
+  max-width: min(92vw, 720px);
+  max-height: min(85vh, 100dvh - 2rem);
+}
+[data-mf] .modal-header { padding: var(--mf-4) var(--mf-5); border-bottom: 1px solid var(--mf-border); }
+[data-mf] .modal-header h3 { font-size: var(--mf-t-h2); font-weight: 650; color: var(--mf-text); }
+[data-mf] .modal-body   { padding: var(--mf-5); }
+[data-mf] .modal-footer { padding: var(--mf-4) var(--mf-5); border-top: 1px solid var(--mf-border); gap: var(--mf-2); }
+
+/* ── Cartões do tema antigo ─────────────────────────────────────────────── */
+[data-mf] .card {
+  background: var(--mf-surface-1);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-r-lg);
+}
+
+/* ── Tabelas ──────────────────────────────────────────────────────────────
+   Cabeçalho grudado no topo ao rolar. Uma tabela de contas passa da altura
+   da tela com facilidade, e sem isso o usuário perde de vista qual coluna
+   está lendo. */
+[data-mf] table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--mf-surface-1);
+}
+
+/* ── PageShell ────────────────────────────────────────────────────────────
+   O `.mf-container` da casca já dá o respiro lateral e o limite de largura.
+   O padding que o tema antigo punha no cabeçalho e no conteúdo da página
+   somava ao dele, então a margem ficava com o dobro do previsto num nível e
+   com o valor certo no outro. Aqui o horizontal zera e sobra só o vertical,
+   que é o que separa o cabeçalho do conteúdo. */
+[data-mf] .ps-header { padding: 0; }
+[data-mf] .ps-content { padding: var(--mf-5) 0 var(--mf-10); }

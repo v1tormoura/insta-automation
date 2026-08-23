@@ -1,87 +1,77 @@
 import { motion } from 'framer-motion';
 
 /**
- * PageShell — header consistente para todas as páginas.
+ * PageShell — cabeçalho comum às páginas.
  *
- * Props:
- *  icon       — elemento React (ícone Lucide)
- *  title      — string, título da página
- *  subtitle   — string, descrição breve
- *  accent     — 'cyan' | 'purple' | 'gold' | 'green' (cor do icon badge)
- *  actions    — ReactNode (botões de ação no canto direito)
- *  children   — conteúdo abaixo do header
+ * Props (inalteradas — 33 páginas dependem desta assinatura):
+ *  icon      — elemento React
+ *  title     — string
+ *  subtitle  — string
+ *  accent    — 'cyan' | 'purple' | 'gold' | 'green' | 'pink' | 'orange'
+ *  actions   — ReactNode, botões à direita
+ *  children  — conteúdo abaixo do cabeçalho
  */
 
-const ACCENT = {
-  cyan:   { bg:'rgba(0,212,255,.1)',   border:'rgba(0,212,255,.2)',   color:'#00d4ff',  glow:'rgba(0,212,255,.35)'   },
-  purple: { bg:'rgba(139,92,246,.1)',  border:'rgba(139,92,246,.2)',  color:'#a78bfa',  glow:'rgba(139,92,246,.35)'  },
-  gold:   { bg:'rgba(251,191,36,.1)',  border:'rgba(251,191,36,.2)',  color:'#fbbf24',  glow:'rgba(251,191,36,.35)'  },
-  green:  { bg:'rgba(16,185,129,.1)',  border:'rgba(16,185,129,.2)',  color:'#10b981',  glow:'rgba(16,185,129,.35)'  },
-  pink:   { bg:'rgba(236,72,153,.1)',  border:'rgba(236,72,153,.2)',  color:'#f472b6',  glow:'rgba(236,72,153,.35)'  },
-  orange: { bg:'rgba(249,115,22,.1)',  border:'rgba(249,115,22,.2)',  color:'#fb923c',  glow:'rgba(249,115,22,.35)'  },
+/* O `accent` do tema antigo era uma cor solta por página, escolhida no olho.
+   Aqui cada valor passa a apontar para o módulo correspondente do sistema, o
+   que faz a cor do cabeçalho bater com a do item aceso na barra lateral. As
+   chaves antigas continuam válidas para não obrigar as 33 páginas a mudar. */
+const MODULO = {
+  cyan:   'contas',
+  purple: 'publicar',
+  pink:   'campanhas',
+  gold:   'jobs',
+  orange: 'jobs',
+  green:  'metricas',
 };
 
 export default function PageShell({ icon, title, subtitle, accent = 'cyan', actions, children }) {
-  const a = ACCENT[accent] || ACCENT.cyan;
+  const mod = MODULO[accent] || 'contas';
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', minHeight:0 }}>
-      {/* ── Sticky header ── */}
-      <motion.div
-        initial={{ opacity:0, y:8 }}
-        animate={{ opacity:1, y:0 }}
-        transition={{ duration:.3, ease:[.4,0,.2,1] }}
-        className="ps-header"
+    /* Sem `height:100%` e sem contêiner de rolagem próprio. A versão anterior
+       criava um segundo eixo de rolagem dentro da página, então a barra
+       lateral ficava parada enquanto o conteúdo rolava por dentro — e no
+       celular isso deixava a página com duas barras concorrentes. Agora quem
+       rola é a janela, que é o comportamento que o usuário espera do gesto. */
+    <div style={{ '--mf-mod': `var(--mf-mod-${mod})`, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+      <motion.header
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: .3, ease: [.4, 0, .2, 1] }}
+        className="mf-page-head"
+        /* Continua fixo ao rolar, como antes — mas agora ancorado abaixo da
+           barra superior, que também é sticky. Sem esse deslocamento os dois
+           disputariam a mesma faixa e o título sumiria atrás dela. */
         style={{
-          display:'flex', flexDirection:'column', gap:8,
-          borderBottom:'1px solid oklch(1 0 0 / 0.06)',
-          background:'oklch(0.10 0.03 235 / 0.90)',
-          backdropFilter:'blur(20px)',
-          WebkitBackdropFilter:'blur(20px)',
-          flexShrink:0, position:'sticky', top:0, zIndex:20,
+          position: 'sticky', top: 'var(--mf-topbar)', zIndex: 20,
+          background: 'color-mix(in oklch, var(--mf-bg) 88%, transparent)',
+          backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid var(--mf-border)',
         }}
       >
-        {/* icon + title row */}
-        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-          {/* icon badge */}
-          {icon && (
-            <div style={{
-              width:36, height:36, borderRadius:10, flexShrink:0,
-              background:a.bg, border:`1px solid ${a.border}`,
-              display:'flex', alignItems:'center', justifyContent:'center',
-              boxShadow:`0 0 16px ${a.glow}`,
-            }}>
-              <span style={{ color:a.color, display:'flex' }}>{icon}</span>
-            </div>
-          )}
+        {icon && (
+          <span style={{
+            width: 38, height: 38, borderRadius: 'var(--mf-r-md)', flexShrink: 0,
+            display: 'grid', placeItems: 'center',
+            color: 'var(--mf-mod)',
+            background: 'color-mix(in oklch, var(--mf-mod) 12%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--mf-mod) 26%, transparent)',
+          }}>{icon}</span>
+        )}
 
-          {/* title + subtitle */}
-          <div style={{ flex:1, minWidth:0 }}>
-            <h1 style={{
-              fontSize:'var(--fs-md)', fontWeight:700, color:'var(--text)',
-              letterSpacing:'-.3px', lineHeight:1.2,
-              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-            }}>{title}</h1>
-            {subtitle && (
-              <p style={{
-                fontFamily:'var(--font-mono)', fontSize:'var(--fs-2xs)', color:'var(--text3)',
-                marginTop:3, letterSpacing:'.04em',
-                overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
-              }}>{subtitle}</p>
-            )}
-          </div>
+        <div className="mf-page-head__txt">
+          {/* `text-wrap: balance` reparte um título de duas linhas em partes
+              parecidas, em vez de deixar uma palavra órfã na segunda. */}
+          <h1 className="mf-page-head__t" style={{ textWrap: 'balance' }}>{title}</h1>
+          {subtitle && <p className="mf-page-head__s" style={{ textWrap: 'pretty' }}>{subtitle}</p>}
         </div>
 
-        {/* actions row — full width, wraps naturally */}
-        {actions && (
-          <div className="ps-actions" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-            {actions}
-          </div>
-        )}
-      </motion.div>
+        {actions && <div className="mf-page-head__acts">{actions}</div>}
+      </motion.header>
 
-      {/* ── Page content ── */}
-      <div className="ps-content" style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column', gap:16 }}>
+      <div className="ps-content" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-5)', minWidth: 0 }}>
         {children}
       </div>
     </div>
