@@ -220,11 +220,19 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
-        # Proxy do painel (conta ou global) — o Node não repassa proxy neste
-        # endpoint, então aqui só vale o do ambiente.
-        global_proxy = os.getenv('GLOBAL_PROXY')
-        if global_proxy:
-            client.set_proxy(global_proxy)
+        # O proxy NÃO é redefinido aqui de propósito.
+        #
+        # Este client é o mesmo do /session/login que abriu o desafio — ele já
+        # está com o proxy resolvido pelo painel (o da conta, ou o global).
+        # Sobrescrever com GLOBAL_PROXY do ambiente, como se fazia antes,
+        # trocava o IP no meio do fluxo justamente para as contas que TÊM proxy
+        # próprio: o login saía por um IP e a confirmação do 2FA por outro.
+        # Para o Instagram isso é sinal de sequestro de sessão, e a resposta
+        # costuma ser recusar o código ou devolver bad_password.
+        #
+        # Se o serviço tivesse reiniciado entre uma etapa e outra, o desafio
+        # pendente também teria sumido e o login recomeçaria do zero — então
+        # aqui o client sempre carrega o proxy correto.
 
         loop = asyncio.get_running_loop()
         try:
