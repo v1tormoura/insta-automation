@@ -1,6 +1,7 @@
 import '../dashboard.css';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import Segmentado from '../components/Segmentado';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, AlertTriangle, ChevronDown, ChevronRight,
@@ -165,58 +166,6 @@ function PanelHeader({ title, icon: Icon, right }) {
   );
 }
 
-/* ── Seletor de período ───────────────────────────────────────────────────
-   Controle segmentado com indicador deslizante. A versão anterior eram três
-   botões soltos: o usuário lia três opções independentes em vez de um único
-   controle com um valor. O indicador único deixa óbvio que a escolha é
-   exclusiva, e a transição mostra de onde para onde ela foi. */
-function SegPeriodo({ opcoes, valor, onChange, mod = 'metricas' }) {
-  const idx = Math.max(0, opcoes.findIndex(o => o.value === valor));
-  /* gap: 0 e minWidth: 0 nos botões são propositais. Com `flex:1` (base 0) e
-     sem largura mínima de conteúdo, cada botão mede exatamente
-     (100% - 6px)/n — a mesma conta que posiciona o indicador. Com gap, ou
-     deixando "30 dias" ditar a própria largura, os dois desalinham. */
-  return (
-    <div style={{
-      position: 'relative', display: 'inline-flex', padding: 3, gap: 0,
-      background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)',
-      borderRadius: 'var(--mf-r-md)', '--mf-mod': `var(--mf-mod-${mod})`,
-    }}>
-      {/* O indicador desliza por `transform`, não por `left`. Duas razões:
-          translateX em porcentagem resolve contra a própria caixa do
-          indicador — que já mede exatamente uma fração — em vez de contra a
-          largura do contêiner, o que dispensa recalcular a conta do padding;
-          e transform anima no compositor, sem relayout a cada quadro. */}
-      <span aria-hidden="true" style={{
-        position: 'absolute', top: 3, bottom: 3, left: 3,
-        width: `calc((100% - 6px) / ${opcoes.length})`,
-        transform: `translateX(${idx * 100}%)`,
-        borderRadius: 'calc(var(--mf-r-md) - 3px)',
-        background: 'color-mix(in oklch, var(--mf-mod) 16%, transparent)',
-        border: '1px solid color-mix(in oklch, var(--mf-mod) 34%, transparent)',
-        transition: 'transform var(--mf-normal) var(--mf-ease-out)',
-      }} />
-      {opcoes.map(o => (
-        <button key={o.value} onClick={() => onChange(o.value)}
-          aria-pressed={valor === o.value}
-          style={{
-            position: 'relative', zIndex: 1, flex: '1 1 0', minWidth: 0,
-            padding: '4px 10px', border: 'none', background: 'none', cursor: 'pointer',
-            borderRadius: 'calc(var(--mf-r-md) - 3px)',
-            fontSize: 'var(--mf-t-micro)', fontWeight: 700, whiteSpace: 'nowrap',
-            /* No tom neutro a cor do módulo é um cinza de luminância 0.70,
-               perto demais do 0.58 do rótulo inativo para comunicar seleção.
-               Ali o texto ativo sobe para --mf-text e o contraste volta. */
-            color: valor === o.value
-              ? (mod === 'sistema' ? 'var(--mf-text)' : 'var(--mf-mod)')
-              : 'var(--mf-text-3)',
-            transition: 'color var(--mf-fast) var(--mf-ease-out)',
-          }}>{o.label}</button>
-      ))}
-    </div>
-  );
-}
-
 /* Mantido para o resto da página, agora no vocabulário novo. */
 function SelectBtn({ active, onClick, children }) {
   return (
@@ -322,7 +271,7 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--mf-2)' }}>
-          <SegPeriodo opcoes={PERIODS} valor={activePeriod} onChange={onPeriodChange} mod={mod} />
+          <Segmentado opcoes={PERIODS} valor={activePeriod} onChange={onPeriodChange} mod={mod} rotulo="Período" />
           {chip && (
             <span className="mf-badge" data-tone={negativo ? undefined : 'info'}>{chip}</span>
           )}

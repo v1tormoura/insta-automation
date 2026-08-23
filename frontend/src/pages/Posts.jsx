@@ -5,6 +5,7 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
@@ -382,20 +383,25 @@ export default function Posts() {
   );
 
   /* ── Premium card style ── */
+  /* Superfícies do formulário sobre os tokens do sistema. O backdrop-filter
+     saiu: a tela tem oito cards empilhados, e desfocar o que está atrás de
+     cada um custa uma camada de composição por card sem nada por baixo que
+     valha a pena ver desfocado. */
   const cardStyle = {
-    background: 'oklch(0.16 0.05 235 / 0.85)',
-    border: '1px solid oklch(1 0 0 / 0.07)',
-    borderRadius: 14,
-    backdropFilter: 'blur(12px)',
+    background: 'var(--mf-surface-1)',
+    border: '1px solid var(--mf-border)',
+    borderRadius: 'var(--mf-r-lg)',
     overflow: 'hidden',
+    containerType: 'inline-size',
   };
   const cardHdStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)',
-    flexWrap: 'wrap', rowGap: 4,
+    gap: 'var(--mf-3)', padding: 'var(--mf-3) var(--mf-4)',
+    borderBottom: '1px solid var(--mf-border)',
+    flexWrap: 'wrap', rowGap: 'var(--mf-2)',
   };
-  const cardH3Style = { fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 };
-  const cardBodyStyle = { padding: '14px 16px' };
+  const cardH3Style = { fontSize: 'var(--mf-t-h2)', fontWeight: 650, color: 'var(--mf-text)', margin: 0 };
+  const cardBodyStyle = { padding: 'var(--mf-4)' };
 
   return (
     <>
@@ -445,37 +451,31 @@ export default function Posts() {
                 <h3 style={cardH3Style}>Mídia</h3>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   {/* Source toggle */}
-                  <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 7, padding: 2, gap: 2 }}>
-                    {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
-                      <button key={src} type="button"
-                        onClick={() => setMediaSource(src)}
-                        style={{ padding: '4px 10px', borderRadius: 5, fontSize: '.72rem', fontWeight: mediaSource === src ? 700 : 500, cursor: 'pointer', border: 'none', transition: '.15s',
-                          background: mediaSource === src ? 'oklch(0.60 0.22 295)' : 'transparent',
-                          color: mediaSource === src ? '#fff' : 'var(--text3)',
-                        }}>{lbl}</button>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: '.72rem', fontFamily: 'var(--font-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--cyan)', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 100, padding: '2px 10px' }}>
-                    {activeMediaCount} arquivo(s)
+                  <Segmentado
+                    rotulo="Origem da mídia"
+                    opcoes={[{ value:'upload', label:'Upload' }, { value:'library', label:'Biblioteca' }]}
+                    valor={mediaSource} onChange={setMediaSource} mod="publicar"
+                  />
+                  <span className="mf-mono" style={{ fontSize:'var(--mf-t-micro)', borderRadius:'var(--mf-r-full)', padding:'3px 10px', whiteSpace:'nowrap',
+                    background:'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)',
+                    color:'var(--mf-mod-contas)',
+                    border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 26%, transparent)' }}>
+                    {activeMediaCount} {activeMediaCount === 1 ? 'arquivo' : 'arquivos'}
                   </span>
                 </div>
               </div>
               <div style={cardBodyStyle}>
                 {/* Type tabs */}
-                <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 9, padding: 3 }}>
-                  {['reel', 'post', 'story'].map(t => (
-                    <button key={t} type="button"
-                      onClick={() => setPostType(t)}
-                      style={{
-                        flex: 1, padding: '7px 4px', borderRadius: 7, fontSize: '.78rem', fontWeight: postType === t ? 700 : 500,
-                        cursor: 'pointer', border: 'none', transition: '.15s',
-                        background: postType === t ? 'oklch(0.60 0.22 295)' : 'transparent',
-                        color: postType === t ? '#fff' : 'var(--text3)',
-                        boxShadow: postType === t ? '0 2px 8px oklch(0.60 0.22 295 / 0.3)' : 'none',
-                      }}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </button>
-                  ))}
+                <div style={{ marginBottom: 'var(--mf-3)' }}>
+                  <Segmentado
+                    full rotulo="Tipo de publicação"
+                    opcoes={[
+                      { value:'reel',  label:'Reel'  },
+                      { value:'post',  label:'Post'  },
+                      { value:'story', label:'Story' },
+                    ]}
+                    valor={postType} onChange={setPostType} mod="publicar"
+                  />
                 </div>
 
                 {/* Media Source Buttons (Upload vs Biblioteca) */}
@@ -670,7 +670,7 @@ export default function Posts() {
                       onChange={e => updateCtaSuffix({ text: e.target.value })}
                       rows={2}
                       placeholder={`Ex: \n\n🔗 Link na bio`}
-                      style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid oklch(1 0 0 / 0.09)', background: 'oklch(0.10 0.03 235 / 0.8)', color: 'var(--text)', fontSize: 12, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      style={{ width:'100%', padding:'var(--mf-3)', borderRadius:'var(--mf-r-md)', border:'1px solid var(--mf-border)', background:'var(--mf-surface-2)', color:'var(--mf-text)', fontSize:'var(--mf-t-sm)', lineHeight:1.5, resize:'vertical', fontFamily:'inherit', boxSizing:'border-box', outline:'none' }}
                     />
                   )}
                 </div>
@@ -850,7 +850,7 @@ export default function Posts() {
                 {/* Summary */}
                 <div className="g3" style={{ gap: 6, marginTop: 12 }}>
                   {[['Mídias', media.length, '#60a5fa'], ['Contas', selectedCount, '#a78bfa'], ['Total', totalEstimated, 'var(--cyan)']].map(([l, v, c]) => (
-                    <div key={l} style={{ textAlign: 'center', background: 'oklch(0.10 0.03 235 / 0.8)', borderRadius: 8, padding: '8px 4px', border: '1px solid oklch(1 0 0 / 0.07)' }}>
+                    <div key={l} style={{ textAlign:'center', background:'var(--mf-surface-2)', borderRadius:'var(--mf-r-md)', padding:'var(--mf-2) var(--mf-1)', border:'1px solid var(--mf-border)', minWidth:0 }}>
                       <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: -1, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
                       <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{l}</div>
                     </div>
