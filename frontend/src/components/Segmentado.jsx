@@ -23,18 +23,29 @@ export default function Segmentado({
   const n = opcoes.length;
 
   return (
-    /* gap: 0 e minWidth: 0 nos botões são propositais. Com `flex: 1 1 0` e
-       sem largura mínima de conteúdo, cada botão mede exatamente
-       (100% - 6px)/n — a mesma conta que dimensiona o indicador. Com gap,
-       ou deixando o rótulo mais longo ditar a própria largura, os dois
-       desalinham. */
+    /* O grupo é uma grade de colunas iguais, não um flex de itens que
+       encolhem. A diferença aparece quando as opções não cabem: com
+       `flex: 1 1 0` os botões espremiam abaixo do próprio rótulo e o texto
+       era cortado no meio — em 320px "Agendadas" virava 60px de texto numa
+       caixa de 56px. Com `grid-auto-columns: 1fr` sob `width: max-content`,
+       toda coluna mede o mesmo e nenhuma fica menor que o rótulo mais longo;
+       `min-width: 100%` faz o grupo ocupar a linha quando há espaço. Se
+       ainda assim não couber, quem rola é o invólucro — o controle sai da
+       tela de lado, mas continua legível.
+
+       As colunas iguais também são o que sustenta a conta do indicador:
+       (100% - 6px)/n só descreve a posição do botão ativo porque todos os
+       botões medem igual. */
+    <div style={{ overflowX: 'auto', maxWidth: '100%', minWidth: 0, scrollbarWidth: 'thin' }}>
     <div
       role="group" aria-label={rotulo}
       style={{
         '--mf-mod': `var(--mf-mod-${mod})`,
-        position: 'relative', display: full ? 'flex' : 'inline-flex',
-        width: full ? '100%' : undefined,
-        padding: 3, gap: 0, minWidth: 0,
+        position: 'relative',
+        display: 'grid', gridAutoFlow: 'column', gridAutoColumns: '1fr',
+        width: full ? '100%' : 'max-content',
+        minWidth: full ? undefined : '100%',
+        padding: 3,
         background: 'var(--mf-surface-2)',
         border: '1px solid var(--mf-border)',
         borderRadius: 'var(--mf-r-md)',
@@ -61,7 +72,7 @@ export default function Segmentado({
             onClick={() => onChange(o.value)}
             aria-pressed={ativo}
             style={{
-              position: 'relative', zIndex: 1, flex: '1 1 0', minWidth: 0,
+              position: 'relative', zIndex: 1, minWidth: 0,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--mf-1)',
               padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer',
               borderRadius: 'calc(var(--mf-r-md) - 3px)',
@@ -79,6 +90,7 @@ export default function Segmentado({
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

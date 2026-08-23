@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import Segmentado from '../components/Segmentado';
 
 /**
  * Listagem de campanhas (fase 5).
@@ -12,16 +13,23 @@ import PageShell from '../components/PageShell';
  * lista, os filtros e as ações que a API já expõe: pausar, retomar e cancelar.
  */
 
+/* Nove estados, cada um declarando só a cor — o fundo sai dela por
+   color-mix. Antes eram dezoito valores mantidos em sincronia na mão, e
+   'rodando' e 'concluída' compartilhavam o mesmo verde apesar de quererem
+   dizer coisas diferentes: uma está em movimento, a outra terminou. Agora
+   'rodando' usa o verde de sucesso com o ponto pulsando, e 'concluída' fica
+   sóbria — o que está acontecendo agora chama mais atenção que o que já
+   passou. */
 const STATUS = {
-  draft:     { rotulo: 'Rascunho',   cor: '#94a3b8', bg: 'rgba(148,163,184,.12)' },
-  planning:  { rotulo: 'Planejando', cor: '#60a5fa', bg: 'rgba(59,130,246,.12)' },
-  scheduled: { rotulo: 'Agendada',   cor: 'var(--cyan)', bg: 'rgba(0,212,255,.12)' },
-  running:   { rotulo: 'Rodando',    cor: '#34d399', bg: 'rgba(16,185,129,.12)' },
-  paused:    { rotulo: 'Pausada',    cor: '#fbbf24', bg: 'rgba(245,158,11,.12)' },
-  completed: { rotulo: 'Concluída',  cor: '#34d399', bg: 'rgba(16,185,129,.12)' },
-  partial:   { rotulo: 'Parcial',    cor: '#fbbf24', bg: 'rgba(245,158,11,.12)' },
-  failed:    { rotulo: 'Falhou',     cor: '#f87171', bg: 'rgba(244,63,94,.12)' },
-  cancelled: { rotulo: 'Cancelada',  cor: '#94a3b8', bg: 'rgba(148,163,184,.12)' },
+  draft:     { rotulo: 'Rascunho',   cor: 'var(--mf-text-3)' },
+  planning:  { rotulo: 'Planejando', cor: 'var(--mf-info-500)' },
+  scheduled: { rotulo: 'Agendada',   cor: 'var(--mf-mod-contas)' },
+  running:   { rotulo: 'Rodando',    cor: 'var(--mf-success-500)', vivo: true },
+  paused:    { rotulo: 'Pausada',    cor: 'var(--mf-warning-500)' },
+  completed: { rotulo: 'Concluída',  cor: 'var(--mf-text-2)' },
+  partial:   { rotulo: 'Parcial',    cor: 'var(--mf-warning-500)' },
+  failed:    { rotulo: 'Falhou',     cor: 'var(--mf-danger-500)' },
+  cancelled: { rotulo: 'Cancelada',  cor: 'var(--mf-text-3)' },
 };
 
 const FILTROS = [
@@ -93,7 +101,7 @@ export default function Campaigns() {
       icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>}
       title="Campanhas"
       subtitle="Planeje publicações distribuídas entre contas e conteúdos"
-      accent="cyan"
+      accent="pink"
       actions={
         <button className="btn btn-primary" onClick={() => navigate('/campaigns/nova')}>
           Nova campanha
@@ -101,30 +109,35 @@ export default function Campaigns() {
       }
     >
       {/* ── Filtros ── */}
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginBottom:14 }}>
-        <input className="input" style={{ flex:1, minWidth:180 }} placeholder="Buscar campanha..."
+      <div style={{ display:'flex', gap:'var(--mf-3)', flexWrap:'wrap', alignItems:'center', marginBottom:'var(--mf-4)' }}>
+        <input className="input" style={{ flex:'1 1 200px', minWidth:0 }} placeholder="Buscar campanha…"
+          aria-label="Buscar campanha"
           value={busca} onChange={e => setBusca(e.target.value)} />
-        {FILTROS.map(([id, rotulo]) => (
-          <button key={id || 'todas'} onClick={() => { setStatus(id); setPagina(1); }} style={{
-            padding:'7px 13px', borderRadius:8, fontSize:11.5, fontWeight:700, cursor:'pointer',
-            background: status === id ? 'rgba(0,212,255,.12)' : 'oklch(1 0 0 / 0.04)',
-            color:      status === id ? 'var(--cyan)' : 'var(--text3)',
-            border:     `1px solid ${status === id ? 'rgba(0,212,255,.3)' : 'oklch(1 0 0 / 0.08)'}`,
-          }}>{rotulo}</button>
-        ))}
+        {/* Os filtros são exclusivos — só um status por vez. Como botões
+            soltos liam-se como cinco ações; como segmentado, lê-se como um
+            controle com um valor. */}
+        <Segmentado
+          rotulo="Filtrar por status" mod="campanhas"
+          opcoes={FILTROS.map(([value, label]) => ({ value, label }))}
+          valor={status} onChange={id => { setStatus(id); setPagina(1); }}
+        />
       </div>
 
       {/* ── Lista ── */}
       {carregando ? (
-        <div style={{ padding:'50px 0', textAlign:'center', color:'var(--text3)', fontSize:12 }}>
-          Carregando...
+        /* Esqueletos com a forma dos cards que vão chegar, em vez da palavra
+           "Carregando": o layout não salta quando os dados entram. */
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(320px,100%),1fr))', gap:'var(--mf-3)' }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="mf-skel" style={{ height:158, borderRadius:'var(--mf-r-lg)' }} />
+          ))}
         </div>
       ) : !campanhas.length ? (
-        <div style={{ padding:'56px 20px', textAlign:'center', color:'var(--text3)' }}>
-          <div style={{ fontSize:14, fontWeight:600, color:'var(--text2)', marginBottom:6 }}>
+        <div className="mf-empty" style={{ padding:'var(--mf-12) var(--mf-5)' }}>
+          <div style={{ fontSize:'var(--mf-t-h2)', fontWeight:650, color:'var(--mf-text)', marginBottom:'var(--mf-2)' }}>
             Nenhuma campanha ainda
           </div>
-          <div style={{ fontSize:12, marginBottom:16 }}>
+          <div style={{ fontSize:'var(--mf-t-sm)', color:'var(--mf-text-3)', marginBottom:'var(--mf-5)', maxWidth:'46ch', textWrap:'pretty' }}>
             Uma campanha distribui seus conteúdos entre várias contas, com horários planejados.
           </div>
           <button className="btn btn-primary" onClick={() => navigate('/campaigns/nova')}>
@@ -143,9 +156,13 @@ export default function Campaigns() {
               <motion.div key={c._id}
                 initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
                 transition={{ delay: i * .03, duration:.24 }}
+                /* A faixa colorida à esquerda repete a cor do selo de estado.
+                   É redundante de propósito: numa grade de vinte campanhas o
+                   olho encontra "a que falhou" pela faixa, sem ler selo algum. */
                 style={{
-                  background:'oklch(0.16 0.05 235 / 0.7)', borderRadius:14, overflow:'hidden',
-                  border:'1px solid oklch(1 0 0 / 0.08)', borderLeft:`3px solid ${st.cor}`,
+                  background:'var(--mf-surface-1)', borderRadius:'var(--mf-r-lg)', overflow:'hidden',
+                  border:'1px solid var(--mf-border)', borderLeft:`3px solid ${st.cor}`,
+                  containerType:'inline-size', minWidth:0,
                 }}>
                 <div style={{ padding:'13px 14px 11px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:9, alignItems:'flex-start' }}>
@@ -153,57 +170,73 @@ export default function Campaigns() {
                         clicável porque já contém os botões de pausar/cancelar —
                         um clique perdido dispararia a ação errada. */}
                     <div style={{ minWidth:0 }}>
-                      <div onClick={() => navigate(`/campaigns/${c._id}`)}
+                      {/* Era uma <div> com onClick: invisível para teclado e
+                          para leitor de tela, que não têm como saber que
+                          aquilo abre alguma coisa. Como <button> entra na
+                          ordem de tabulação e responde a Enter. */}
+                      <button type="button" onClick={() => navigate(`/campaigns/${c._id}`)}
                         title="Abrir a campanha"
-                        style={{ fontSize:13, fontWeight:700, overflow:'hidden', cursor:'pointer',
-                          textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</div>
+                        style={{ display:'block', width:'100%', textAlign:'left', padding:0,
+                          background:'none', border:'none', cursor:'pointer', color:'var(--mf-text)',
+                          fontSize:'var(--mf-t-sm)', fontWeight:650, overflow:'hidden',
+                          textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</button>
                       {c.description && (
-                        <div style={{ fontSize:11, color:'var(--text3)', marginTop:3, overflow:'hidden',
+                        <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-3)', marginTop:3, overflow:'hidden',
                           textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.description}</div>
                       )}
                     </div>
-                    <span style={{ flexShrink:0, fontSize:10, fontWeight:700, padding:'3px 9px',
-                      borderRadius:20, background:st.bg, color:st.cor }}>{st.rotulo}</span>
+                    <span style={{ flexShrink:0, display:'inline-flex', alignItems:'center', gap:6,
+                      fontSize:'var(--mf-t-micro)', fontWeight:600, padding:'3px 9px',
+                      borderRadius:'var(--mf-r-full)', color:st.cor,
+                      background:`color-mix(in oklch, ${st.cor} 12%, transparent)`,
+                      border:`1px solid color-mix(in oklch, ${st.cor} 26%, transparent)` }}>
+                      <span aria-hidden="true" style={{ width:6, height:6, borderRadius:'var(--mf-r-full)',
+                        background:'currentColor', flexShrink:0,
+                        animation: st.vivo ? 'mf-pulse 1.6s var(--mf-ease-inout) infinite' : 'none' }} />
+                      {st.rotulo}
+                    </span>
                   </div>
 
-                  <div style={{ display:'flex', gap:14, marginTop:11, fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--text3)' }}>
+                  <div className="mf-mono" style={{ display:'flex', gap:'var(--mf-3)', flexWrap:'wrap', marginTop:'var(--mf-3)', fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
                     <span>{(c.accountIds || []).length} contas</span>
                     <span>{(c.contentIds || []).length} conteúdos</span>
                     <span>{total} publicações</span>
                   </div>
 
                   {/* Progresso */}
-                  <div style={{ marginTop:11 }}>
-                    <div style={{ height:5, borderRadius:20, background:'oklch(1 0 0 / 0.06)', overflow:'hidden' }}>
-                      <div style={{ width:`${pct}%`, height:'100%', background:st.cor, transition:'width .3s' }} />
+                  <div style={{ marginTop:'var(--mf-3)' }}>
+                    <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
+                      aria-label={`${publicadas} de ${total} publicações`}
+                      style={{ height:5, borderRadius:'var(--mf-r-full)', background:'var(--mf-surface-2)', overflow:'hidden' }}>
+                      <div style={{ width:`${pct}%`, height:'100%', background:st.cor, borderRadius:'inherit', transition:'width var(--mf-slow) var(--mf-ease-out)' }} />
                     </div>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginTop:5,
-                      fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)' }}>
+                    <div className="mf-mono" style={{ display:'flex', justifyContent:'space-between', gap:'var(--mf-2)', marginTop:5,
+                      fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
                       <span>{publicadas} / {total}</span>
                       <span>criada {fmt(c.createdAt)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ height:1, background:'oklch(1 0 0 / 0.06)' }} />
-                <div style={{ padding:'8px 10px', display:'flex', gap:6, flexWrap:'wrap' }}>
+                <div style={{ height:1, background:'var(--mf-border-subtle)' }} />
+                <div style={{ padding:'var(--mf-2)', display:'flex', gap:'var(--mf-2)', flexWrap:'wrap' }}>
                   {['scheduled', 'running'].includes(c.status) && (
-                    <button onClick={() => acao(c._id, 'pause', 'Pausada')} style={botao('#fbbf24', 'rgba(245,158,11,.12)')}>
+                    <button onClick={() => acao(c._id, 'pause', 'Pausada')} style={botao('var(--mf-warning-500)')}>
                       Pausar
                     </button>
                   )}
                   {c.status === 'paused' && (
-                    <button onClick={() => acao(c._id, 'resume', 'Retomada')} style={botao('#34d399', 'rgba(16,185,129,.12)')}>
+                    <button onClick={() => acao(c._id, 'resume', 'Retomada')} style={botao('var(--mf-success-500)')}>
                       Retomar
                     </button>
                   )}
                   {!['cancelled', 'completed'].includes(c.status) && (
-                    <button onClick={() => acao(c._id, 'cancel', 'Cancelada')} style={botao('#f87171', 'rgba(244,63,94,.1)')}>
+                    <button onClick={() => acao(c._id, 'cancel', 'Cancelada')} style={botao('var(--mf-danger-500)')}>
                       Cancelar
                     </button>
                   )}
                   {(c.failedPublications > 0) && (
-                    <button onClick={() => acao(c._id, 'retry-failed', 'Falhas reprogramadas')} style={botao('#a78bfa', 'rgba(139,92,246,.12)')}>
+                    <button onClick={() => acao(c._id, 'retry-failed', 'Falhas reprogramadas')} style={botao('var(--mf-mod-publicar)')}>
                       Reexecutar falhas
                     </button>
                   )}
@@ -219,7 +252,7 @@ export default function Campaigns() {
         <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:10, marginTop:16 }}>
           <button className="btn btn-ghost" disabled={pagina <= 1}
             onClick={() => setPagina(p => p - 1)}>Anterior</button>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--text3)' }}>
+          <span className="mf-mono" style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-3)' }}>
             {pagina} / {paginacao.pages}
           </span>
           <button className="btn btn-ghost" disabled={pagina >= paginacao.pages}
@@ -232,7 +265,12 @@ export default function Campaigns() {
   );
 }
 
-const botao = (cor, fundo) => ({
-  padding:'6px 11px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-  background: fundo, color: cor, border: `1px solid ${cor}44`,
+/* Uma cor por botão: o fundo e a borda saem dela. Antes cada chamada
+   passava fundo e cor separados, e a borda vinha de concatenar '44' no hex
+   — o que só funcionava para cor em hexadecimal de seis dígitos. */
+const botao = (cor) => ({
+  padding:'5px 11px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-micro)',
+  fontWeight:600, cursor:'pointer', color: cor,
+  background: `color-mix(in oklch, ${cor} 12%, transparent)`,
+  border: `1px solid color-mix(in oklch, ${cor} 28%, transparent)`,
 });
