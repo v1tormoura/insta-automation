@@ -42,6 +42,10 @@ export default function ContentPicker({
   const [carregando, setCarregando] = useState(false);
   const [enviando, setEnviando]   = useState(false);
   const [modalCapa, setModalCapa] = useState(null);   // contentId aguardando capa
+  // Duas frentes separadas: escolher o que já existe e trazer coisa nova são
+  // tarefas diferentes, e misturá-las na mesma barra escondia as duas.
+  const [aba, setAba]             = useState('biblioteca');   // 'biblioteca' | 'upload'
+  const [arrastando, setArrastando] = useState(false);
   const arquivoRef = useRef(null);
 
   /* Conhecidos: acumula tudo que já passou pela tela, para conseguir mostrar o
@@ -180,7 +184,66 @@ export default function ContentPicker({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+      {/* ── Abas ───────────────────────────────────────────────────────────
+          Escolher o que já existe e trazer arquivo novo são tarefas
+          diferentes. Na mesma barra, o botão de enviar competia com os filtros
+          e nenhuma das duas ficava óbvia. */}
+      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 10,
+        background: 'oklch(0.10 0.03 235)', border: '1px solid oklch(1 0 0 / 0.08)' }}>
+        {[
+          ['biblioteca', 'Biblioteca', `${total} arquivo(s) salvos`],
+          ['upload',     'Enviar novos', 'Do seu computador'],
+        ].map(([id, titulo, sub]) => (
+          <button key={id} onClick={() => setAba(id)} style={{
+            flex: 1, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+            border: 'none',
+            background: aba === id ? 'rgba(0,212,255,.13)' : 'transparent',
+            color:      aba === id ? 'var(--cyan)'         : 'var(--text3)',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>{titulo}</div>
+            <div style={{ fontSize: 9.5, opacity: .75, marginTop: 1 }}>{sub}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Envio de arquivos ──────────────────────────────────────────────── */}
+      {aba === 'upload' && (
+        <label
+          onDragOver={e => { e.preventDefault(); setArrastando(true); }}
+          onDragLeave={() => setArrastando(false)}
+          onDrop={e => {
+            e.preventDefault();
+            setArrastando(false);
+            enviar(e.dataTransfer?.files);
+          }}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 10, padding: '38px 20px', borderRadius: 14, textAlign: 'center',
+            cursor: enviando ? 'default' : 'pointer',
+            border: `1.5px dashed ${arrastando ? 'var(--cyan)' : 'oklch(1 0 0 / 0.18)'}`,
+            background: arrastando ? 'rgba(0,212,255,.06)' : 'oklch(1 0 0 / 0.02)',
+            transition: 'all .15s',
+          }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={arrastando ? 'var(--cyan)' : 'var(--text3)'}
+            strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <div style={{ fontSize: 13, fontWeight: 700, color: enviando ? 'var(--text3)' : 'var(--text)' }}>
+            {enviando ? 'Enviando…' : 'Arraste os arquivos aqui ou clique para escolher'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.6 }}>
+            Vídeos e imagens. O que subir entra na biblioteca e já fica
+            selecionado para esta campanha.
+            {pasta && <><br />Será salvo na pasta <strong>{pasta}</strong>.</>}
+          </div>
+          <input ref={arquivoRef} type="file" multiple accept="video/*,image/*"
+            style={{ display: 'none' }} disabled={enviando}
+            onChange={e => enviar(e.target.files)} />
+        </label>
+      )}
+
       {/* ── Barra de controle ─────────────────────────────────────────────── */}
+      {aba === 'biblioteca' && (
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           value={busca}
@@ -204,20 +267,8 @@ export default function ContentPicker({
           </select>
         )}
 
-        <label style={{
-          ...botao(false), display: 'flex', alignItems: 'center', gap: 6,
-          background: 'rgba(16,185,129,.12)', color: '#34d399', border: '1px solid rgba(16,185,129,.28)',
-          cursor: enviando ? 'default' : 'pointer', opacity: enviando ? .6 : 1,
-        }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          {enviando ? 'Enviando…' : 'Enviar arquivos'}
-          <input ref={arquivoRef} type="file" multiple accept="video/*,image/*"
-            style={{ display: 'none' }} disabled={enviando}
-            onChange={e => enviar(e.target.files)} />
-        </label>
       </div>
+      )}
 
       {/* ── Selecionados ──────────────────────────────────────────────────────
           Fica no topo e fora do filtro: é o único lugar onde dá para conferir a
@@ -281,6 +332,7 @@ export default function ContentPicker({
       </div>
 
       {/* ── Biblioteca ────────────────────────────────────────────────────── */}
+      {aba === 'biblioteca' && (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: 'var(--text3)' }}>
           {carregando ? 'Carregando…' : `Mostrando ${itens.length} de ${total} na biblioteca`}
@@ -353,7 +405,7 @@ export default function ContentPicker({
           }}>
             {buscaAtiva || tipo || pasta
               ? <>Nenhuma mídia bate com esse filtro.<br />Ajuste a busca ou envie um arquivo novo.</>
-              : <>A biblioteca está vazia.<br />Clique em <strong>Enviar arquivos</strong> para começar.</>}
+              : <>A biblioteca está vazia.<br />Use a aba <strong>Enviar novos</strong> para começar.</>}
           </div>
         )}
       </div>
@@ -364,6 +416,7 @@ export default function ContentPicker({
           {carregando ? 'Carregando…' : `Carregar mais (${total - itens.length} restantes)`}
         </button>
       )}
+      </>)}
 
       {/* ── Modal de capa ─────────────────────────────────────────────────── */}
       {modalCapa && (

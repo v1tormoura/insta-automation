@@ -1619,3 +1619,95 @@ describe('FASE 11 — validações pontuais', () => {
     expect(await rodar()).toEqual(await rodar());
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* PARTE 12 — payload real do wizard                                          */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * O wizard monta o corpo com `...form`, então ele manda TODOS os campos do
+ * estado — inclusive os vazios e os que o backend não conhecia até ontem.
+ * Testes anteriores enviavam só o essencial, e foi assim que a criação real
+ * passou a falhar sem nenhum teste ficar vermelho.
+ */
+describe('PARTE 12 — o corpo que o wizard realmente envia', () => {
+  const payloadWizard = (over = {}) => ({
+    name: 'Campanha do painel',
+    description: '',
+    accountIds: CONTAS.map(c => String(c._id)),
+    contentIds: MIDIAS.map(m => String(m._id)),
+    captionMode: 'global',
+    captions: { global: '', byAccount: {}, byContent: {}, byAccountContent: {} },
+    commentMode: 'disabled',
+    comments: { global: '', delayMinutes: 2, delayMaxMinutes: 6 },
+    strategy: { mode: 'interleaved_random' },
+    schedule: {
+      startAt: undefined,
+      intervalMinMinutes: 12,
+      intervalMaxMinutes: 28,
+      useFixedInterval: false,
+      windowStart: '',
+      windowEnd: '',
+      weekdays: [],
+    },
+    settings: { respectDailyLimit: true, postType: 'reel' },
+    covers: { byContent: {} },
+    ...over,
+  });
+
+  test('a prévia aceita o corpo do wizard', async () => {
+    const res = await chamar(ctrl.preview, { body: payloadWizard() });
+    expect(res.statusCode).toBe(200);
+    expect(res.corpo.publications.length).toBeGreaterThan(0);
+  });
+
+  test('a criação aceita o corpo do wizard', async () => {
+    const res = await chamar(ctrl.create, { body: payloadWizard() });
+    expect(res.statusCode).toBe(201);
+  });
+
+  test('legenda vazia não impede criar — o campo é opcional na tela', async () => {
+    const res = await chamar(ctrl.create, { body: payloadWizard() });
+    expect(res.statusCode).toBe(201);
+  });
+
+  test('sem seed na estratégia o serviço gera uma', async () => {
+    const res = await chamar(ctrl.create, { body: payloadWizard() });
+    expect(res.statusCode).toBe(201);
+    expect(res.corpo.campaign.strategy.seed).toBeTruthy();
+  });
+
+  test('capa por conteúdo é aceita e gravada', async () => {
+    const capaId = String(MIDIAS[0]._id);
+    const res = await chamar(ctrl.create, {
+      body: payloadWizard({ covers: { byContent: { [String(MIDIAS[1]._id)]: capaId } } }),
+    });
+    expect(res.statusCode).toBe(201);
+  });
+
+  test('a prévia aceita capa por conteúdo', async () => {
+    const res = await chamar(ctrl.preview, {
+      body: payloadWizard({ covers: { byContent: { [String(MIDIAS[1]._id)]: String(MIDIAS[0]._id) } } }),
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  test('janela e dias vazios não viram filtro impossível', async () => {
+    const res = await chamar(ctrl.create, {
+      body: payloadWizard({
+        schedule: {
+          startAt: undefined, intervalMinMinutes: 12, intervalMaxMinutes: 28,
+          useFixedInterval: false, windowStart: '', windowEnd: '', weekdays: [],
+        },
+      }),
+    });
+    expect(res.statusCode).toBe(201);
+  });
+
+  test('comentário desativado com texto vazio não quebra', async () => {
+    const res = await chamar(ctrl.create, {
+      body: payloadWizard({ commentMode: 'disabled', comments: { global: '', delayMinutes: 2, delayMaxMinutes: 6 } }),
+    });
+    expect(res.statusCode).toBe(201);
+  });
+});
