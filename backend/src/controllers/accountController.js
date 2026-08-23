@@ -546,42 +546,43 @@ exports.testAllProxies = async (req, res) => {
   }
 };
 
+/**
+ * Aplica uma lista de proxies às contas — UM proxy por conta.
+ *
+ * A versão anterior distribuía com `proxies[i % proxies.length]`: com 2 proxies
+ * e 10 contas, cinco contas ficavam com cada IP. Isso recria exatamente o
+ * problema que o proxy existe para resolver — várias contas saindo do mesmo
+ * lugar — só que num IP diferente do da VPS. Também gravava sem testar, então
+ * um proxy morto virava conta que não publica.
+ *
+ * Agora delega para services/proxyAssignment, que testa cada proxy, recusa os
+ * mortos e os rotativos, e nunca repete um proxy entre contas.
+ */
 exports.bulkApplyProxies = async (req, res) => {
   try {
-    const proxiesText = req.body.proxiesText || '';
+    const { distribuirProxies } = require('../services/proxyAssignment');
+    // `proxiesText` é o nome que a tela de Proxies já enviava — mantido para
+    // não quebrar o painel publicado.
+    const texto = String(req.body.proxiesText || req.body.texto || '').trim();
+    if (!texto) return res.status(400).json({ error: 'Nenhum proxy informado' });
 
-    const proxies = proxiesText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const relatorio = await distribuirProxies({
+      texto,
+      accountIds:       Array.isArray(req.body.accountIds) ? req.body.accountIds : null,
+      substituir:       !!req.body.substituir,
+      permitirRotativo: !!req.body.permitirRotativo,
+    });
 
-    if (!proxies.length) {
-      return res.status(400).json({ error: 'Nenhum proxy informado' });
-    }
-
-    const accounts = await Account.find().sort({ createdAt: -1 });
-
-    if (!accounts.length) {
-      return res.status(400).json({ error: 'Nenhuma conta encontrada' });
-    }
-
-    let applied = 0;
-
-    for (let i = 0; i < accounts.length; i++) {
-      const proxy = proxies[i % proxies.length];
-
-      accounts[i].proxy = proxy;
-      accounts[i].proxyStatus = 'nao_testado';
-      accounts[i].proxyLastCheck = null;
-
-      await accounts[i].save();
-
-      applied++;
+    if (relatorio.erro && !relatorio.atribuidos) {
+      return res.status(422).json({ error: relatorio.erro, ...relatorio });
     }
 
     res.json({
-      success: true,      applied,
-      message: `${applied} conta(s) atualizada(s) com proxies`,
+      success: true,
+      // `applied` mantido pelo mesmo motivo de `proxiesText`.
+      applied: relatorio.atribuidos,
+      message: `${relatorio.atribuidos} conta(s) receberam proxy próprio`,
+      ...relatorio,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

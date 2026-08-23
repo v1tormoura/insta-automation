@@ -21,6 +21,9 @@ export default function Proxies() {
   const [proxyValue, setProxyValue]     = useState('');
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkText, setBulkText]   = useState('');
+  const [bulkSubstituir, setBulkSubstituir] = useState(false);
+  const [bulkRelatorio, setBulkRelatorio]   = useState(null);
+  const [bulkAplicando, setBulkAplicando]   = useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
 
@@ -59,12 +62,28 @@ export default function Proxies() {
   }
 
   async function applyBulkProxies() {
+    if (!bulkText.trim()) return showToast('warning', 'Atenção', 'Cole pelo menos um proxy.');
+    setBulkAplicando(true);
+    setBulkRelatorio(null);
     try {
-      if (!bulkText.trim()) return showToast('warning', 'Atenção', 'Cole pelo menos um proxy.');
-      const res = await api.post('/accounts/proxies/bulk-apply', { proxiesText: bulkText });
-      await loadAccounts(); setBulkText(''); setBulkModal(false);
-      showToast('success', 'Proxies aplicados', `${res.data.applied} conta(s) receberam proxy.`);
-    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao aplicar proxies.'); }
+      // Cada proxy é testado duas vezes no servidor antes de ser gravado — a
+      // resposta demora proporcionalmente ao tamanho da lista.
+      const res = await api.post('/accounts/proxies/bulk-apply', {
+        proxiesText: bulkText,
+        substituir: bulkSubstituir,
+      });
+      await loadAccounts();
+      // O modal NÃO fecha sozinho: o relatório é a parte útil — o que sobrou,
+      // o que foi reprovado e quais contas continuaram sem proxy.
+      setBulkRelatorio(res.data);
+      showToast('success', 'Proxies aplicados', `${res.data.applied} conta(s) receberam proxy próprio.`);
+    } catch (err) {
+      const d = err.response?.data;
+      if (d && (d.reprovados || d.invalidas)) setBulkRelatorio(d);
+      showToast('error', 'Erro', d?.error || 'Erro ao aplicar proxies.');
+    } finally {
+      setBulkAplicando(false);
+    }
   }
 
   function fmtDate(d) { if (!d) return 'Nunca'; return new Date(d).toLocaleString('pt-BR'); }
@@ -222,17 +241,70 @@ export default function Proxies() {
                 <h3 style={{ margin:0, fontSize:'.95rem', fontWeight:800 }}>Importar proxies em massa</h3>
                 <button onClick={() => setBulkModal(false)} style={{ background:'none', border:'none', color:'var(--text3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
               </div>
-              <p style={{ fontSize:12, color:'var(--text3)', marginBottom:12 }}>Cole um proxy por linha. Eles serão distribuídos nas contas.</p>
+              <p style={{ fontSize:12, color:'var(--text3)', marginBottom:6, lineHeight:1.6 }}>
+                Um proxy por linha. Cada conta recebe um <strong>proxy exclusivo</strong> —
+                repetir o mesmo IP em duas contas é o que se está tentando evitar.
+              </p>
+              <p style={{ fontSize:11, color:'var(--text3)', marginBottom:12, lineHeight:1.6 }}>
+                Aceita <code>host:porta</code>, <code>host:porta:usuário:senha</code>,
+                <code> usuário:senha@host:porta</code> e URL completa. Cada proxy é testado
+                antes de ser gravado, então listas grandes demoram.
+              </p>
               <textarea
                 rows={7}
                 value={bulkText}
                 onChange={e => setBulkText(e.target.value)}
-                placeholder={"http://usuario:senha@host:porta\nhttp://usuario:senha@host:porta"}
+                placeholder={"1.2.3.4:9000:usuario:senha\nhttp://usuario:senha@host:porta"}
                 style={{ ...inputStyle, height:'auto', padding:'10px 12px', resize:'vertical', lineHeight:1.6 }}
               />
+
+              <label style={{ display:'flex', alignItems:'center', gap:7, marginTop:10, fontSize:11.5, color:'var(--text2)', cursor:'pointer' }}>
+                <input type="checkbox" checked={bulkSubstituir} onChange={e => setBulkSubstituir(e.target.checked)} />
+                Trocar também o proxy das contas que já têm um
+              </label>
+
+              {bulkRelatorio && (
+                <div style={{ marginTop:14, padding:12, borderRadius:10, background:'oklch(1 0 0 / 0.03)', border:'1px solid oklch(1 0 0 / 0.08)', fontSize:11.5, lineHeight:1.8 }}>
+                  <div style={{ fontWeight:800, marginBottom:6 }}>Resultado</div>
+                  <div>✅ {bulkRelatorio.atribuidos ?? 0} conta(s) receberam proxy exclusivo</div>
+                  {bulkRelatorio.contasSemProxy > 0 && (
+                    <div style={{ color:'#fbbf24' }}>
+                      ⚠️ {bulkRelatorio.contasSemProxy} conta(s) ficaram sem — faltou proxy na lista
+                    </div>
+                  )}
+                  {bulkRelatorio.proxiesSobrando > 0 && (
+                    <div style={{ color:'var(--text3)' }}>{bulkRelatorio.proxiesSobrando} proxy(s) sobraram</div>
+                  )}
+                  {bulkRelatorio.rotativos?.length > 0 && (
+                    <div style={{ color:'#fbbf24' }}>
+                      ⚠️ {bulkRelatorio.rotativos.length} recusado(s) por trocar de IP entre requisições —
+                      isso quebra o login do Instagram
+                    </div>
+                  )}
+                  {bulkRelatorio.reprovados?.length > 0 && (
+                    <div style={{ color:'#fca5a5' }}>
+                      ❌ {bulkRelatorio.reprovados.length} não responderam:{' '}
+                      {bulkRelatorio.reprovados.slice(0, 3).map(r => r.url).join(', ')}
+                      {bulkRelatorio.reprovados.length > 3 ? '…' : ''}
+                    </div>
+                  )}
+                  {bulkRelatorio.invalidas?.length > 0 && (
+                    <div style={{ color:'#fca5a5' }}>
+                      ❌ {bulkRelatorio.invalidas.length} linha(s) em formato não reconhecido
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
-                <button className="btn-ghost" style={{ borderRadius:8, padding:'8px 16px' }} onClick={() => setBulkModal(false)}>Cancelar</button>
-                <button className="btn-primary" style={{ borderRadius:8, padding:'8px 16px' }} onClick={applyBulkProxies}>Aplicar proxies</button>
+                <button className="btn-ghost" style={{ borderRadius:8, padding:'8px 16px' }}
+                  onClick={() => { setBulkModal(false); setBulkRelatorio(null); }}>
+                  {bulkRelatorio ? 'Fechar' : 'Cancelar'}
+                </button>
+                <button className="btn-primary" style={{ borderRadius:8, padding:'8px 16px', opacity: bulkAplicando ? .6 : 1 }}
+                  disabled={bulkAplicando} onClick={applyBulkProxies}>
+                  {bulkAplicando ? 'Testando proxies…' : 'Aplicar proxies'}
+                </button>
               </div>
             </div>
           </div>

@@ -142,4 +142,56 @@ router.post('/configure', async (req, res) => {
   }
 });
 
+/* ── Distribuição em massa ──────────────────────────────────────────────────
+ *
+ * O proxy global resolve "sair da VPS", mas não resolve "cada conta num IP" —
+ * com ele, todas as contas passam a compartilhar o IP do proxy, que é o mesmo
+ * problema de novo. Estas rotas atribuem UM proxy por conta.
+ */
+
+const {
+  distribuirProxies, listarAtribuicoes,
+} = require('../services/proxyAssignment');
+
+/**
+ * GET /proxy/atribuicoes — quem sai por onde.
+ * Aponta explicitamente as contas ainda sem proxy e os IPs compartilhados.
+ */
+router.get('/atribuicoes', async (req, res) => {
+  try {
+    res.json(await listarAtribuicoes());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /proxy/distribuir — cola a lista, testa e atribui uma por conta.
+ * Body: { texto, accountIds?, substituir?, permitirRotativo? }
+ *
+ * Cada proxy é testado antes: atribuir um proxy morto troca "conta saindo pelo
+ * IP errado" por "conta que não publica". O relatório devolve o que sobrou e o
+ * que foi reprovado, em vez de dizer só quantos entraram.
+ */
+router.post('/distribuir', async (req, res) => {
+  try {
+    const texto = String(req.body?.texto || '').trim();
+    if (!texto) return res.status(400).json({ error: 'Cole a lista de proxies.' });
+
+    const relatorio = await distribuirProxies({
+      texto,
+      accountIds:       Array.isArray(req.body?.accountIds) ? req.body.accountIds : null,
+      substituir:       !!req.body?.substituir,
+      permitirRotativo: !!req.body?.permitirRotativo,
+    });
+
+    if (relatorio.erro && !relatorio.atribuidos) {
+      return res.status(422).json(relatorio);
+    }
+    res.json({ ok: true, ...relatorio });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
