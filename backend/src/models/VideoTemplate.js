@@ -65,6 +65,31 @@ const videoTemplateSchema = new mongoose.Schema({
     opacity:   { type: Number,  default: 1.0 },
   },
 
+  // Ajuste de imagem, aplicado sobre o quadro já composto.
+  //
+  // Serve a dois propósitos que costumam andar juntos: corrigir um vídeo escuro
+  // ou lavado, e alterar os pixels para o arquivo deixar de ser byte a byte
+  // igual ao original.
+  //
+  // Os valores são -100..100 (0 = sem alteração) para o usuário não precisar
+  // saber a escala de cada filtro do ffmpeg, que é diferente para cada um.
+  ajustes: {
+    enabled:     { type: Boolean, default: false },
+    brilho:      { type: Number,  default: 0, min: -100, max: 100 },
+    contraste:   { type: Number,  default: 0, min: -100, max: 100 },
+    saturacao:   { type: Number,  default: 0, min: -100, max: 100 },
+    // 0..100 — sem lado negativo: nitidez e ruído só somam.
+    nitidez:     { type: Number,  default: 0, min: 0, max: 100 },
+    ruido:       { type: Number,  default: 0, min: 0, max: 100 },
+    // Micro-zoom: corta a borda e reescala, mudando o enquadramento de um jeito
+    // que praticamente não se nota mas altera todos os pixels.
+    zoom:        { type: Number,  default: 0, min: 0, max: 100 },
+    espelhar:    { type: Boolean, default: false },
+    // Aplica variações mínimas e ALEATÓRIAS a cada render, para dois envios do
+    // mesmo vídeo nunca gerarem arquivos idênticos.
+    quebrarHash: { type: Boolean, default: false },
+  },
+
   trim: {
     startTime: { type: Number,                         default: 0    },
     endTime:   { type: mongoose.Schema.Types.Mixed,    default: null },

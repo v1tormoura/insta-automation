@@ -13,6 +13,7 @@ const DEFAULT_TMPL = {
   elements:    [{ id: 'vid0', type: 'video', source: '{{VIDEO}}', fit: 'cover', label: 'Vídeo', zIndex: 0, x: 0, y: 0, width: 0, height: 0 }],
   audio:       { keepOriginal: true, originalVolume: 1.0, musicTrack: '', musicVolume: 0.3 },
   border:      { enabled: false, thickness: 4, color: '#FFFFFF', opacity: 1.0 },
+  ajustes:     { enabled: false, brilho: 0, contraste: 0, saturacao: 0, nitidez: 0, ruido: 0, zoom: 0, espelhar: false, quebrarHash: false },
   trim:        { startTime: 0, endTime: null },
   templatePng: { enabled: false, templates: [], videoX: 0, videoY: 0, videoW: 540, videoH: 960, videoFit: 'cover' },
 };
@@ -348,7 +349,7 @@ export default function VideoEditorPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [tmpl,       setTmpl]       = useState(() => ({ ...DEFAULT_TMPL, elements: [{ ...DEFAULT_TMPL.elements[0], id: uid() }] }));
   const [batchName,  setBatchName]  = useState('');
-  const [sections,   setSections]   = useState({ canvas: false, enquadramento: true, reels: false, moldura: false, borda: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: true, metadados: false });
+  const [sections,   setSections]   = useState({ canvas: false, enquadramento: true, reels: false, moldura: false, borda: false, ajustes: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: true, metadados: false });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [toast,   setToast]   = useState(null);
@@ -500,7 +501,7 @@ export default function VideoEditorPage() {
     try {
       const r = await api.get(`/video-templates/${id}`);
       const t = r.data;
-      setTmpl({ _id: t._id, name: t.name, canvas: t.canvas || DEFAULT_TMPL.canvas, output: t.output || DEFAULT_TMPL.output, elements: t.elements?.length ? t.elements : DEFAULT_TMPL.elements, audio: t.audio || DEFAULT_TMPL.audio, border: t.border || DEFAULT_TMPL.border, trim: t.trim || DEFAULT_TMPL.trim, templatePng: t.templatePng || DEFAULT_TMPL.templatePng });
+      setTmpl({ _id: t._id, name: t.name, canvas: t.canvas || DEFAULT_TMPL.canvas, output: t.output || DEFAULT_TMPL.output, elements: t.elements?.length ? t.elements : DEFAULT_TMPL.elements, audio: t.audio || DEFAULT_TMPL.audio, border: t.border || DEFAULT_TMPL.border, ajustes: t.ajustes || DEFAULT_TMPL.ajustes, trim: t.trim || DEFAULT_TMPL.trim, templatePng: t.templatePng || DEFAULT_TMPL.templatePng });
       toast3('success', 'Carregado', t.name);
     } catch { toast3('error', 'Erro', 'Falha ao carregar template.'); }
   }
@@ -581,6 +582,18 @@ export default function VideoEditorPage() {
                 ['Qualidade', currentQ.label],
                 ['Enquadramento', videoEl?.fit || 'cover'],
                 ['Borda', tmpl.border?.enabled ? `${tmpl.border.thickness}px ${tmpl.border.color}` : 'desativada'],
+                ['Ajustes', tmpl.ajustes?.enabled
+                  ? [
+                      tmpl.ajustes.brilho    ? `brilho ${tmpl.ajustes.brilho > 0 ? '+' : ''}${tmpl.ajustes.brilho}` : '',
+                      tmpl.ajustes.contraste ? `contraste ${tmpl.ajustes.contraste > 0 ? '+' : ''}${tmpl.ajustes.contraste}` : '',
+                      tmpl.ajustes.saturacao ? `saturação ${tmpl.ajustes.saturacao > 0 ? '+' : ''}${tmpl.ajustes.saturacao}` : '',
+                      tmpl.ajustes.nitidez   ? `nitidez ${tmpl.ajustes.nitidez}` : '',
+                      tmpl.ajustes.ruido     ? `ruído ${tmpl.ajustes.ruido}` : '',
+                      tmpl.ajustes.zoom      ? `zoom ${tmpl.ajustes.zoom}` : '',
+                      tmpl.ajustes.espelhar  ? 'espelhado' : '',
+                      tmpl.ajustes.quebrarHash ? 'hash novo' : '',
+                    ].filter(Boolean).join(', ') || 'ativado, sem alteração'
+                  : 'desativados'],
                 ['Corte', (tmpl.trim?.startTime||0) > 0 || tmpl.trim?.endTime ? `${tmpl.trim.startTime||0}s → ${tmpl.trim.endTime ?? 'fim'}` : 'sem corte'],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.8rem', gap: 8 }}>
@@ -839,6 +852,64 @@ export default function VideoEditorPage() {
                     <input className="inp" value={tmpl.border.color || '#FFFFFF'} onChange={e => setT('border.color', e.target.value)} style={{ flex: 1 }} />
                   </div>
                 </Fld>
+              </div>
+            )}
+          </Acc>
+
+          {/* AJUSTES DE IMAGEM */}
+          <Acc title="Ajustes de imagem" id="ajustes" open={sections.ajustes} toggle={toggleSection}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.8rem', color: 'var(--text)', marginBottom: 10 }}>
+              <input type="checkbox" checked={tmpl.ajustes?.enabled || false} onChange={e => setT('ajustes.enabled', e.target.checked)} style={{ accentColor: '#60a5fa' }} />
+              Ativar ajustes
+            </label>
+
+            {tmpl.ajustes?.enabled && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  ['brilho',    'Brilho',     -100, 100],
+                  ['contraste', 'Contraste',  -100, 100],
+                  ['saturacao', 'Saturação',  -100, 100],
+                  ['nitidez',   'Nitidez',       0, 100],
+                  ['ruido',     'Ruído / grão', 0, 100],
+                  ['zoom',      'Micro-zoom',   0, 100],
+                ].map(([campo, rotulo, min, max]) => (
+                  <div key={campo}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.72rem', color: 'var(--text3)', marginBottom: 3 }}>
+                      <span>{rotulo}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: (tmpl.ajustes[campo] || 0) !== 0 ? '#60a5fa' : 'var(--text3)' }}>
+                        {(tmpl.ajustes[campo] || 0) > 0 ? '+' : ''}{tmpl.ajustes[campo] || 0}
+                      </span>
+                    </div>
+                    <input
+                      type="range" min={min} max={max} step="1"
+                      value={tmpl.ajustes[campo] || 0}
+                      onChange={e => setT(`ajustes.${campo}`, Number(e.target.value))}
+                      style={{ width: '100%', accentColor: '#60a5fa', cursor: 'pointer' }}
+                    />
+                  </div>
+                ))}
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.78rem', color: 'var(--text)' }}>
+                  <input type="checkbox" checked={tmpl.ajustes.espelhar || false} onChange={e => setT('ajustes.espelhar', e.target.checked)} style={{ accentColor: '#60a5fa' }} />
+                  Espelhar horizontalmente
+                </label>
+
+                <div style={{ borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.78rem', color: 'var(--text)' }}>
+                    <input type="checkbox" checked={tmpl.ajustes.quebrarHash || false} onChange={e => setT('ajustes.quebrarHash', e.target.checked)} style={{ accentColor: '#22c55e' }} />
+                    Gerar arquivo novo a cada render
+                  </label>
+                  <div style={{ fontSize: '.68rem', color: 'var(--text3)', lineHeight: 1.6, marginTop: 5 }}>
+                    Aplica variações mínimas e aleatórias em cada processamento, então
+                    dois envios do mesmo vídeo nunca saem com os bytes iguais. É
+                    imperceptível na tela.
+                  </div>
+                  <div style={{ fontSize: '.68rem', color: '#fbbf24', lineHeight: 1.6, marginTop: 6 }}>
+                    Muda o arquivo, não o conteúdo. O Instagram compara vídeos por
+                    semelhança visual e por áudio, não pelo hash — repostar o mesmo
+                    vídeo continua sendo reconhecível para ele.
+                  </div>
+                </div>
               </div>
             )}
           </Acc>

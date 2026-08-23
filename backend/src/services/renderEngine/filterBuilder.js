@@ -61,7 +61,80 @@ function buildMainVideoScale(fit, W, H, bgHex) {
  *
  * Returns { inputs, filterComplex, videoMap, audioMap }
  */
-function buildFilterComplex(template, resolvedVars) {
+/**
+ * Cadeia de ajuste de imagem, a partir dos valores -100..100 da interface.
+ *
+ * Cada filtro do ffmpeg tem uma escala própria e nada intuitiva: `eq` usa
+ * brilho em [-1,1] mas contraste e saturação em torno de 1.0, `unsharp` usa
+ * intensidade, `noise` usa 0..100 numa curva diferente. Traduzir aqui deixa a
+ * tela com um único vocabulário (-100 a 100, 0 = sem alteração) e concentra a
+ * conversão num lugar só.
+ *
+ * As faixas são deliberadamente conservadoras — ±0.3 de brilho, ±0.5 de
+ * contraste. Um slider no máximo precisa entregar um vídeo publicável, não um
+ * vídeo destruído.
+ *
+ * @param {Object}   ajustes
+ * @param {number}   W
+ * @param {number}   H
+ * @param {Function} rand  injetável para o teste ser determinístico
+ * @returns {string} cadeia pronta para concatenar, ou '' quando não há ajuste
+ */
+function buildAjustes(ajustes = {}, W = 1080, H = 1920, rand = Math.random) {
+  if (!ajustes.enabled) return '';
+
+  const num = (v, min, max) => Math.min(max, Math.max(min, Number(v) || 0));
+
+  let brilho    = num(ajustes.brilho,    -100, 100) / 100;
+  let contraste = num(ajustes.contraste, -100, 100) / 100;
+  let saturacao = num(ajustes.saturacao, -100, 100) / 100;
+  let zoom      = num(ajustes.zoom,         0, 100) / 100;
+  const nitidez = num(ajustes.nitidez,      0, 100) / 100;
+  const ruido   = num(ajustes.ruido,        0, 100) / 100;
+
+  // Quebra de hash: variação minúscula e aleatória A CADA render. Sozinha ela é
+  // imperceptível — o objetivo não é mudar o visual, é garantir que dois envios
+  // do mesmo arquivo não produzam bytes idênticos.
+  if (ajustes.quebrarHash) {
+    brilho    += (rand() - 0.5) * 0.02;
+    contraste += (rand() - 0.5) * 0.02;
+    saturacao += (rand() - 0.5) * 0.02;
+    zoom      = Math.max(zoom, 0.004 + rand() * 0.006);
+  }
+
+  const partes = [];
+
+  // Zoom antes da cor: cortar depois de ajustar desperdiçaria processamento em
+  // pixels que serão descartados.
+  if (zoom > 0) {
+    const fator = 1 - Math.min(0.2, zoom * 0.10);
+    partes.push(`crop=iw*${fator.toFixed(4)}:ih*${fator.toFixed(4)}`);
+    partes.push(`scale=${W}:${H}`);
+  }
+
+  if (ajustes.espelhar) partes.push('hflip');
+
+  const b = brilho * 0.3;                 // eq: -1..1, neutro 0
+  const c = 1 + contraste * 0.5;          // eq: 0..3,  neutro 1
+  const s = 1 + saturacao * 0.6;          // eq: 0..3,  neutro 1
+  if (Math.abs(b) > 0.0005 || Math.abs(c - 1) > 0.0005 || Math.abs(s - 1) > 0.0005) {
+    partes.push(`eq=brightness=${b.toFixed(4)}:contrast=${c.toFixed(4)}:saturation=${s.toFixed(4)}`);
+  }
+
+  if (nitidez > 0) {
+    partes.push(`unsharp=5:5:${(nitidez * 1.5).toFixed(3)}:5:5:0`);
+  }
+
+  if (ruido > 0) {
+    // `allf=t+u`: temporal e uniforme — grão que muda a cada quadro, como o de
+    // câmera. Ruído fixo aparece como sujeira parada na imagem.
+    partes.push(`noise=alls=${Math.round(ruido * 20)}:allf=t+u`);
+  }
+
+  return partes.join(',');
+}
+
+function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {}) {
   const { canvas = {}, elements = [], audio = {} } = template;
   const W = canvas.width  || 1080;
   const H = canvas.height || 1920;
@@ -209,6 +282,17 @@ function buildFilterComplex(template, resolvedVars) {
     audioMap = '[a_out]';
   }
 
+  // ── Ajuste de imagem ─────────────────────────────────────────────
+  //
+  // Entra depois da composição e ANTES da borda: brilho e contraste devem valer
+  // para o quadro inteiro (vídeo, imagens e textos sobrepostos), mas a borda é
+  // moldura — escurecer ou saturar a moldura junto seria efeito colateral.
+  const cadeiaAjustes = buildAjustes(template.ajustes, W, H, rand);
+  if (cadeiaAjustes) {
+    filters.push(`[${curLabel}]${cadeiaAjustes}[ajus]`);
+    curLabel = 'ajus';
+  }
+
   // ── Border (drawbox) ─────────────────────────────────────────────
   const border = template.border;
   if (border?.enabled && (border.thickness || 0) > 0) {
@@ -228,4 +312,4 @@ function buildFilterComplex(template, resolvedVars) {
   };
 }
 
-module.exports = { buildFilterComplex, DETECTED_FONT };
+module.exports = { buildFilterComplex, buildAjustes, DETECTED_FONT };
