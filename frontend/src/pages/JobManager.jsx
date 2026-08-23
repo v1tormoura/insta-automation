@@ -30,24 +30,32 @@ const ICONS = {
 };
 
 // ── Status config ────────────────────────────────────────────────────────────
+/* Sete estados. Antes cada um trazia cor e fundo separados — catorze valores
+   mantidos em sincronia na mão — e 'postando' e 'concluído' usavam dois
+   verdes quase idênticos (#34d399 e #22c55e) para dizer coisas opostas: um
+   está em movimento, o outro terminou. Agora 'postando' fica com o verde e o
+   ponto pulsando, e 'concluído' fica sóbrio: o que está acontecendo agora
+   chama mais atenção que o que já passou. */
 const STATUS = {
-  queued:           { label: 'Na Fila',      color: '#60a5fa', bg: 'rgba(96,165,250,.12)', icon: ICONS.clock     },
-  running:          { label: 'Postando',     color: '#34d399', bg: 'rgba(52,211,153,.12)', icon: ICONS.running   },
-  waiting_interval: { label: 'Aguardando',   color: '#fbbf24', bg: 'rgba(251,191,36,.12)', icon: ICONS.clock     },
-  paused:           { label: 'Pausado',      color: '#a78bfa', bg: 'rgba(167,139,250,.12)', icon: ICONS.pause   },
-  completed:        { label: 'Concluído',    color: '#22c55e', bg: 'rgba(34,197,94,.12)',  icon: ICONS.check     },
-  cancelled:        { label: 'Cancelado',    color: '#94a3b8', bg: 'rgba(148,163,184,.12)',icon: ICONS.x         },
-  failed:           { label: 'Falhou',       color: '#f87171', bg: 'rgba(248,113,113,.12)',icon: ICONS.warn      },
+  queued:           { label: 'Na fila',    cor: 'var(--mf-info-500)',    icon: ICONS.clock   },
+  running:          { label: 'Postando',   cor: 'var(--mf-success-500)', icon: ICONS.running, vivo: true },
+  waiting_interval: { label: 'Aguardando', cor: 'var(--mf-warning-500)', icon: ICONS.clock   },
+  paused:           { label: 'Pausado',    cor: 'var(--mf-mod-publicar)',icon: ICONS.pause   },
+  completed:        { label: 'Concluído',  cor: 'var(--mf-text-2)',      icon: ICONS.check   },
+  cancelled:        { label: 'Cancelado',  cor: 'var(--mf-text-3)',      icon: ICONS.x       },
+  failed:           { label: 'Falhou',     cor: 'var(--mf-danger-500)',  icon: ICONS.warn    },
 };
 
 function StatusBadge({ status }) {
   const s = STATUS[status] || STATUS.queued;
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '3px 9px', borderRadius: 99, fontSize: 11, fontWeight: 600,
-      color: s.color, background: s.bg, border: `1px solid ${s.color}33`,
-      letterSpacing: '.03em',
+      display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+      padding: '3px 9px', borderRadius: 'var(--mf-r-full)',
+      fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: s.cor,
+      background: `color-mix(in oklch, ${s.cor} 12%, transparent)`,
+      border: `1px solid color-mix(in oklch, ${s.cor} 26%, transparent)`,
+      animation: s.vivo ? 'mf-pulse 1.8s var(--mf-ease-inout) infinite' : 'none',
     }}>
       {s.icon}
       {s.label}
@@ -60,10 +68,15 @@ function ProgressBar({ published, total, errors }) {
   const pct     = Math.min(100, Math.round((published / total) * 100));
   const errPct  = Math.min(100 - pct, Math.round((errors / total) * 100));
   return (
-    <div style={{ background: 'rgba(255,255,255,.06)', borderRadius: 99, height: 5, overflow: 'hidden', marginTop: 6 }}>
+    /* Duas faixas na mesma barra: publicado e com erro. O rótulo acessível
+       diz os dois números, senão quem usa leitor de tela ouve só uma
+       porcentagem e perde a parte que interessa — a que falhou. */
+    <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
+      aria-label={`${published} de ${total} publicados${errors ? `, ${errors} com erro` : ''}`}
+      style={{ background: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-full)', height: 5, overflow: 'hidden', marginTop: 6 }}>
       <div style={{ display: 'flex', height: '100%' }}>
-        <div style={{ width: `${pct}%`, background: 'var(--cyan)', borderRadius: 99, transition: 'width .4s' }} />
-        <div style={{ width: `${errPct}%`, background: '#f87171', transition: 'width .4s' }} />
+        <div style={{ width: `${pct}%`, background: 'var(--mf-mod-metricas)', transition: 'width var(--mf-slow) var(--mf-ease-out)' }} />
+        <div style={{ width: `${errPct}%`, background: 'var(--mf-danger-500)', transition: 'width var(--mf-slow) var(--mf-ease-out)' }} />
       </div>
     </div>
   );
@@ -153,30 +166,36 @@ function JobCard({ job, onAction }) {
   const extraAccounts  = (job.accounts?.length || 0) - 1;
 
   return (
-    <div style={{
-      background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14,
-      padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10,
-      transition: 'border-color .15s',
-      borderLeft: `3px solid ${STATUS[job.status]?.color || 'var(--border)'}`,
+    /* A faixa à esquerda repete a cor do selo. É redundante de propósito:
+       numa grade de vinte jobs o olho encontra "o que falhou" pela faixa,
+       sem precisar ler selo nenhum. */
+    <div className="mf-card--hover" style={{
+      background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
+      borderRadius: 'var(--mf-r-lg)', minWidth: 0, containerType: 'inline-size',
+      padding: 'var(--mf-4)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-3)',
+      borderLeft: `3px solid ${STATUS[job.status]?.cor || 'var(--mf-border)'}`,
     }}>
       {/* Header: nome + badges */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, justifyContent: 'space-between' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ color: isLoop ? 'var(--cyan)' : 'var(--text3)' }}>
+            <span style={{ color: isLoop ? 'var(--mf-mod-jobs)' : 'var(--mf-text-3)', display: 'flex', flexShrink: 0 }}>
               {isLoop ? ICONS.loop : ICONS.post}
             </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {job.name || 'Sem nome'}
             </span>
             <StatusBadge status={job.status} />
             {isLoop && (
-              <span style={{ fontSize: 10, color: 'var(--cyan)', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.2)', borderRadius: 99, padding: '2px 7px', fontWeight: 600 }}>
-                LOOP
+              <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--mf-r-full)',
+                color: 'var(--mf-mod-jobs)',
+                background: 'color-mix(in oklch, var(--mf-mod-jobs) 10%, transparent)',
+                border: '1px solid color-mix(in oklch, var(--mf-mod-jobs) 24%, transparent)' }}>
+                Loop
               </span>
             )}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+          <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 4 }}>
             Criado em {new Date(job.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
             {job.intervalMinutes > 0 && <span style={{ marginLeft: 8 }}>· intervalo {job.intervalMinutes}min</span>}
           </div>
@@ -185,19 +204,23 @@ function JobCard({ job, onAction }) {
 
       {/* Conta principal */}
       {mainAccount && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,.03)', borderRadius: 10, padding: '8px 10px' }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '1.5px solid rgba(255,255,255,.1)', background: 'var(--bg3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', minWidth: 0, background: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-md)', padding: 'var(--mf-2) var(--mf-3)' }}>
+          <div style={{ width: 36, height: 36, borderRadius: 'var(--mf-r-full)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--mf-border-strong)', background: 'var(--mf-surface-3)' }}>
             {mainAccount.avatar
               ? <img src={mainAccount.avatar.startsWith('/uploads') ? `${API}${mainAccount.avatar}` : mainAccount.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display='none'; }} />
               : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--text2)' }}>{mainAccount.username?.[0]?.toUpperCase()}</div>
             }
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {mainAccount.name || mainAccount.username}
-              {extraAccounts > 0 && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text3)', fontWeight: 400 }}>+{extraAccounts} conta(s)</span>}
+              {extraAccounts > 0 && (
+                <span style={{ marginLeft: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontWeight: 400 }}>
+                  +{extraAccounts} {extraAccounts === 1 ? 'conta' : 'contas'}
+                </span>
+              )}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>@{mainAccount.username}</div>
+            <div className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>@{mainAccount.username}</div>
           </div>
           <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
             {[
@@ -386,50 +409,68 @@ export default function JobManager() {
       icon={jobIcon}
       title="Gerenciador de Jobs"
       subtitle="Acompanhe e controle suas postagens em tempo real"
-      accent="cyan"
+      accent="gold"
     >
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {filters.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            style={{
-              padding: '5px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              border: filter === f.key ? '1px solid var(--cyan)' : '1px solid var(--border)',
-              background: filter === f.key ? 'rgba(0,212,255,.12)' : 'transparent',
-              color: filter === f.key ? 'var(--cyan)' : 'var(--text2)',
-              transition: 'all .15s',
-            }}
-          >
-            {f.label}
-            {counts[f.key] > 0 && (
-              <span style={{ marginLeft: 6, background: filter === f.key ? 'rgba(0,212,255,.2)' : 'rgba(255,255,255,.06)', borderRadius: 99, padding: '1px 6px' }}>
-                {counts[f.key]}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Continuam pastilhas em vez de um segmentado porque cada uma carrega
+          um contador: seis rótulos com número ao lado formariam um controle
+          largo demais para caber. O que faltava era o estado — a escolha só
+          existia na cor, invisível para leitor de tela. `role="group"` mais
+          `aria-pressed` dizem qual filtro está ativo. */}
+      <div role="group" aria-label="Filtrar jobs por estado"
+        style={{ display: 'flex', gap: 'var(--mf-2)', flexWrap: 'wrap', alignItems: 'center', marginBottom: 'var(--mf-4)' }}>
+        {filters.map(f => {
+          const ativo = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              aria-pressed={ativo}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                height: 30, padding: '0 var(--mf-3)', borderRadius: 'var(--mf-r-full)',
+                fontSize: 'var(--mf-t-xs)', fontWeight: 600, cursor: 'pointer',
+                color: ativo ? 'var(--mf-mod-jobs)' : 'var(--mf-text-2)',
+                background: ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 13%, transparent)' : 'var(--mf-surface-2)',
+                border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 32%, transparent)' : 'var(--mf-border)'}`,
+                transition: 'background var(--mf-fast) var(--mf-ease-out), border-color var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out)',
+              }}
+            >
+              {f.label}
+              {counts[f.key] > 0 && (
+                <span className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', borderRadius: 'var(--mf-r-full)', padding: '1px 6px',
+                  background: ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 20%, transparent)' : 'var(--mf-surface-3)' }}>
+                  {counts[f.key]}
+                </span>
+              )}
+            </button>
+          );
+        })}
 
-        <button
-          onClick={load}
-          style={{ padding: '5px 12px', borderRadius: 99, fontSize: 12, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text3)', cursor: 'pointer', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}
-        >
+        <button onClick={load} className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }}>
           {ICONS.refresh} Atualizar
         </button>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div style={{ background: 'rgba(248,113,113,.08)', border: '1px solid rgba(248,113,113,.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#f87171', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {ICONS.warn} {error}
-          <button onClick={load} style={{ marginLeft: 'auto', background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.25)', borderRadius: 6, cursor: 'pointer', color: '#f87171', padding: '3px 8px', fontSize: 11 }}>Tentar novamente</button>
+        /* `role="alert"` para o leitor de tela anunciar a falha assim que
+           ela aparece — antes o texto surgia em silêncio. */
+        <div role="alert" style={{ background: 'var(--mf-danger-bg)', border: '1px solid oklch(0.64 0.22 20 / 0.28)', borderRadius: 'var(--mf-r-md)',
+          padding: 'var(--mf-3) var(--mf-4)', marginBottom: 'var(--mf-4)', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-danger-500)',
+          display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', flexWrap: 'wrap' }}>
+          {ICONS.warn} <span style={{ minWidth: 0 }}>{error}</span>
+          <button onClick={load} style={{ marginLeft: 'auto', flexShrink: 0, background: 'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
+            border: '1px solid oklch(0.64 0.22 20 / 0.28)', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer',
+            color: 'var(--mf-danger-500)', padding: '4px 10px', fontSize: 'var(--mf-t-xs)', fontWeight: 600 }}>Tentar novamente</button>
         </div>
       )}
 
       {/* Confirm banner */}
       {confirming && (
-        <div style={{ background: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div role="status" style={{ background: 'var(--mf-warning-bg)', border: '1px solid oklch(0.80 0.16 78 / 0.3)', borderRadius: 'var(--mf-r-md)',
+          padding: 'var(--mf-3) var(--mf-4)', marginBottom: 'var(--mf-4)', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-warning-500)',
+          display: 'flex', alignItems: 'center', gap: 'var(--mf-2)', flexWrap: 'wrap' }}>
           {ICONS.warn}
           Clique novamente em <b>{confirming.action === 'delete' ? 'Excluir' : 'Cancelar'}</b> para confirmar.
           <button onClick={() => setConfirming(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 2 }}>{ICONS.x}</button>
@@ -438,23 +479,25 @@ export default function JobManager() {
 
       {/* Job list */}
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 60, color: 'var(--text3)', fontSize: 13 }}>
-          {ICONS.refresh} Carregando jobs...
+        /* Esqueletos com a forma dos cards que vão chegar: o layout não
+           salta quando os dados entram. */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px,100%), 1fr))', gap: 'var(--mf-4)' }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="mf-skel" style={{ height: 208, borderRadius: 'var(--mf-r-lg)' }} />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text3)' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,212,255,.06)', border: '1px solid rgba(0,212,255,.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', color: 'var(--cyan)', opacity: .6 }}>
-            {ICONS.running}
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>Nenhum job encontrado</div>
-          <div style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+        <div className="mf-empty" style={{ padding: 'var(--mf-12) var(--mf-5)' }}>
+          <span className="mf-empty__ico" style={{ color: 'var(--mf-mod-jobs)' }}>{ICONS.running}</span>
+          <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 650, color: 'var(--mf-text)' }}>Nenhum job encontrado</div>
+          <div style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text-3)', marginTop: 6, maxWidth: '46ch', textWrap: 'pretty' }}>
             {filter === 'all'
               ? 'Crie uma postagem na página "Postar" ou ative um Loop para começar.'
               : `Nenhum job com filtro "${filters.find(f => f.key === filter)?.label}".`}
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px,100%), 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px,100%), 1fr))', gap: 'var(--mf-4)' }}>
           {filtered.map(job => (
             <JobCard
               key={job._id}
