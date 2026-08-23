@@ -12,9 +12,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { PanelLeftClose, PanelLeft, Search, Menu, Bell, Check, Sun, Moon, Rows3, Rows2 } from 'lucide-react';
 
-import './tokens.css';
-import './prototipo.css';
-import './avancado.css';
+// O design system vive em src/design — o protótipo e o app real consomem
+// o MESMO arquivo. Duas cópias divergiriam na primeira correção.
+import '../design/tokens.css';
+import '../design/sistema.css';
+import '../design/avancado.css';
 import { TELAS } from './telas';
 import { MODULOS } from './dados';
 

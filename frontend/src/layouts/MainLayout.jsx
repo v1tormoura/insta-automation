@@ -1,6 +1,8 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import '../design/tokens.css';
+import '../design/sistema.css';
+import '../design/avancado.css';
 import { removeToken } from '../services/auth';
 import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification, clearNotifications, markRead, useNotifications } from '../services/useNotifications';
@@ -28,6 +30,9 @@ const ICONS = {
   topposts:  ic(<><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 3z"/></>),
   logs:      ic(<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></>),
   settings:  ic(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>),
+  menu:      ic(<><path d="M3 12h18M3 6h18M3 18h18"/></>),
+  search:    ic(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>, 15),
+  chevron:   ic(<><path d="m15 18-6-6 6-6"/></>),
   logout:    ic(<><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>),
   besttimes: ic(<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>),
   audio:     ic(<><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></>),
@@ -52,58 +57,58 @@ const NAV_GROUPS = [
   {
     title: 'VISÃO GERAL',
     items: [
-      { to: '/',            label: 'Dashboard',   sub: 'Visão geral',          icon: ICONS.dashboard   },
-      { to: '/ranking',     label: 'Ranking',     sub: 'Posts do mês',         icon: ICONS.ranking     },
-      { to: '/faturamento', label: 'Faturamento', sub: 'Meta de vendas',       icon: ICONS.faturamento },
+      { to: '/', mod: 'metricas',            label: 'Dashboard',   sub: 'Visão geral',          icon: ICONS.dashboard   },
+      { to: '/ranking', mod: 'metricas',     label: 'Ranking',     sub: 'Posts do mês',         icon: ICONS.ranking     },
+      { to: '/faturamento', mod: 'metricas', label: 'Faturamento', sub: 'Meta de vendas',       icon: ICONS.faturamento },
     ],
   },
   {
     title: 'PUBLICAÇÃO',
     items: [
-      { to: '/posts',        label: 'Postar',       sub: 'Criar e agendar',    icon: ICONS.posts     },
-      { to: '/loop',         label: 'Loop',         sub: 'Ciclos contínuos',   icon: ICONS.loop      },
-      { to: '/jobs',         label: 'Jobs',         sub: 'Gerenciar execuções', icon: ICONS.jobs      },
-      { to: '/campaigns',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking  },
-      { to: '/stories',      label: 'Stories',      sub: 'Publicar em massa',  icon: ICONS.stories   },
-      { to: '/scheduler',    label: 'Agendamentos', sub: 'Fila e calendário',  icon: ICONS.scheduler },
-      { to: '/smart-repost', label: 'Automatizar',  sub: 'Regras automáticas', icon: ICONS.repost    },
+      { to: '/posts', mod: 'publicar',        label: 'Postar',       sub: 'Criar e agendar',    icon: ICONS.posts     },
+      { to: '/loop', mod: 'publicar',         label: 'Loop',         sub: 'Ciclos contínuos',   icon: ICONS.loop      },
+      { to: '/jobs', mod: 'jobs',         label: 'Jobs',         sub: 'Gerenciar execuções', icon: ICONS.jobs      },
+      { to: '/campaigns', mod: 'campanhas',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking  },
+      { to: '/stories', mod: 'publicar',      label: 'Stories',      sub: 'Publicar em massa',  icon: ICONS.stories   },
+      { to: '/scheduler', mod: 'jobs',    label: 'Agendamentos', sub: 'Fila e calendário',  icon: ICONS.scheduler },
+      { to: '/smart-repost', mod: 'jobs', label: 'Automatizar',  sub: 'Regras automáticas', icon: ICONS.repost    },
     ],
   },
   {
     title: 'CONTEÚDO',
     items: [
-      { to: '/biblioteca',  label: 'Biblioteca',  sub: 'Mídias e pastas',       icon: ICONS.media       },
-      { to: '/legends',     label: 'Legendas',    sub: 'Textos salvos',         icon: ICONS.legends     },
-      { to: '/limpador',    label: 'Limpador',    sub: 'Remover metadados',     icon: ICONS.limpador    },
-      { to: '/performance', label: 'Performance', sub: 'Insights gerais',       icon: ICONS.performance },
-      { to: '/warmup',      label: 'Engajamento', sub: 'Interações por conta',  icon: ICONS.warmup      },
-      { to: '/top-posts',   label: 'Top Posts',   sub: 'Republique os melhores',icon: ICONS.topposts    },
+      { to: '/biblioteca', mod: 'publicar',  label: 'Biblioteca',  sub: 'Mídias e pastas',       icon: ICONS.media       },
+      { to: '/legends', mod: 'publicar',     label: 'Legendas',    sub: 'Textos salvos',         icon: ICONS.legends     },
+      { to: '/limpador', mod: 'sistema',    label: 'Limpador',    sub: 'Remover metadados',     icon: ICONS.limpador    },
+      { to: '/performance', mod: 'metricas', label: 'Performance', sub: 'Insights gerais',       icon: ICONS.performance },
+      { to: '/warmup', mod: 'contas',      label: 'Engajamento', sub: 'Interações por conta',  icon: ICONS.warmup      },
+      { to: '/top-posts', mod: 'metricas',   label: 'Top Posts',   sub: 'Republique os melhores',icon: ICONS.topposts    },
     ],
   },
   {
     title: 'VÍDEO',
     items: [
-      { to: '/video-editor',    label: 'Editor',        sub: 'Editor de vídeos',      icon: ICONS.videoeditor },
-      { to: '/video-templates', label: 'Templates',     sub: 'Modelos de vídeo',      icon: ICONS.videotpl    },
-      { to: '/video-batches',   label: 'Processamentos', sub: 'Lotes e resultados',   icon: ICONS.videobatch  },
+      { to: '/video-editor', mod: 'publicar',    label: 'Editor',        sub: 'Editor de vídeos',      icon: ICONS.videoeditor },
+      { to: '/video-templates', mod: 'publicar', label: 'Templates',     sub: 'Modelos de vídeo',      icon: ICONS.videotpl    },
+      { to: '/video-batches', mod: 'publicar',   label: 'Processamentos', sub: 'Lotes e resultados',   icon: ICONS.videobatch  },
     ],
   },
   {
     title: 'CONFIGURAÇÃO',
     items: [
-      { to: '/accounts',  label: 'Contas',   sub: 'Gerenciar contas',  icon: ICONS.accounts },
-      { to: '/health',    label: 'Saúde',    sub: 'Status das contas', icon: ICONS.health   },
-      { to: '/proxies',   label: 'Proxies',  sub: 'Gerenciar proxies', icon: ICONS.proxies  },
-      { to: '/api-meta',    label: 'API Meta',  sub: 'Apps Meta / OAuth',  icon: ICONS.apimeta },
-      { to: '/oauth-contas', label: 'OAuth',    sub: 'Conexões por conta', icon: ICONS.oauth   },
+      { to: '/accounts', mod: 'contas',  label: 'Contas',   sub: 'Gerenciar contas',  icon: ICONS.accounts },
+      { to: '/health', mod: 'contas',    label: 'Saúde',    sub: 'Status das contas', icon: ICONS.health   },
+      { to: '/proxies', mod: 'contas',   label: 'Proxies',  sub: 'Gerenciar proxies', icon: ICONS.proxies  },
+      { to: '/api-meta', mod: 'sistema',    label: 'API Meta',  sub: 'Apps Meta / OAuth',  icon: ICONS.apimeta },
+      { to: '/oauth-contas', mod: 'contas', label: 'OAuth',    sub: 'Conexões por conta', icon: ICONS.oauth   },
     ],
   },
   {
     title: 'MAIS',
     items: [
-      { to: '/best-times', label: 'Melhores Horários', sub: 'Quando postar',        icon: ICONS.besttimes },
-      { to: '/promo',      label: 'Divulgação',        sub: 'Captação de clientes', icon: ICONS.promo     },
-      { to: '/logs',       label: 'Histórico',         sub: 'Logs de atividade',    icon: ICONS.logs      },
+      { to: '/best-times', mod: 'metricas', label: 'Melhores Horários', sub: 'Quando postar',        icon: ICONS.besttimes },
+      { to: '/promo', mod: 'campanhas',      label: 'Divulgação',        sub: 'Captação de clientes', icon: ICONS.promo     },
+      { to: '/logs', mod: 'sistema',       label: 'Histórico',         sub: 'Logs de atividade',    icon: ICONS.logs      },
     ],
   },
 ];
@@ -151,7 +156,11 @@ function NotificationBell() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef(null);
 
-  const typeColor = { success: '#22c55e', error: '#f87171', warn: '#fbbf24', info: '#60a5fa' };
+  // Cores semânticas do sistema — o sino deixa de ter a própria paleta.
+  const typeColor = {
+    success: 'var(--mf-success-500)', error: 'var(--mf-danger-500)',
+    warn: 'var(--mf-warning-500)', info: 'var(--mf-info-500)',
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -165,20 +174,18 @@ function NotificationBell() {
       <button
         onClick={() => { setOpen(v => !v); if (!open) markRead(); }}
         aria-label="Notificações"
-        style={{
-          position: 'relative', background: 'none', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'var(--text2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'border-color .15s, color .15s',
-        }}
+        className="mf-btn mf-btn--ghost mf-btn--icon"
+        style={{ position: 'relative' }}
       >
         {ICONS.bell}
         {unread > 0 && (
           <span style={{
             position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16,
-            fontSize: 9, fontWeight: 800, background: '#f43f5e', color: '#fff',
-            borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '0 3px', lineHeight: 1, boxShadow: '0 0 8px rgba(244,63,94,.6)',
+            fontSize: 9, fontWeight: 800,
+            background: 'var(--mf-danger-500)', color: 'var(--mf-primary-fg)',
+            borderRadius: 'var(--mf-r-full)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '0 3px', lineHeight: 1,
+            boxShadow: '0 0 8px color-mix(in oklch, var(--mf-danger-500) 60%, transparent)',
           }}>
             {unread > 99 ? '99+' : unread}
           </span>
@@ -189,13 +196,13 @@ function NotificationBell() {
         <div className="notif-panel" style={{
           position: 'absolute', top: 'calc(100% + 10px)', right: 0, zIndex: 9999,
           width: 340, maxHeight: 440, overflowY: 'auto',
-          background: 'var(--bg2)', border: '1px solid var(--border)',
-          borderRadius: 12, boxShadow: '0 16px 60px rgba(0,0,0,.5)', backdropFilter: 'blur(12px)',
+          background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border-strong)',
+          borderRadius: 'var(--mf-r-lg)', boxShadow: 'var(--mf-shadow-3)',
         }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 14px 10px', borderBottom: '1px solid var(--border)',
-            position: 'sticky', top: 0, background: 'var(--bg2)',
+            padding: '12px 14px 10px', borderBottom: '1px solid var(--mf-border)',
+            position: 'sticky', top: 0, background: 'var(--mf-surface-1)',
           }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', letterSpacing: '.08em' }}>
               NOTIFICAÇÕES {unread > 0 && <span style={{ color: '#f43f5e' }}>({unread})</span>}
@@ -213,7 +220,7 @@ function NotificationBell() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {notifs.map(n => (
-                <div key={n.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div key={n.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--mf-border)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: typeColor[n.type] || '#60a5fa', flexShrink: 0, marginTop: 4, boxShadow: `0 0 6px ${typeColor[n.type] || '#60a5fa'}` }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.4, wordBreak: 'break-word' }}>{n.msg}</div>
@@ -231,24 +238,74 @@ function NotificationBell() {
   );
 }
 
+/* ── Paleta de comandos ────────────────────────────────────────────────────
+   Navega para as rotas REAIS do NAV_GROUPS — não é uma lista paralela que
+   precisaria ser mantida em sincronia com a barra lateral. */
+function PaletaComandos({ aberta, aoFechar }) {
+  const navigate = useNavigate();
+  const [busca, setBusca] = useState('');
+  const [ativo, setAtivo] = useState(0);
+  const campoRef = useRef(null);
+
+  const itens = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const todos = NAV_GROUPS.flatMap(g => g.items.map(i => ({ ...i, grupo: g.title })));
+    return termo
+      ? todos.filter(i => `${i.label} ${i.sub || ''}`.toLowerCase().includes(termo))
+      : todos;
+  }, [busca]);
+
+  useEffect(() => { if (aberta) { setBusca(''); setAtivo(0); campoRef.current?.focus(); } }, [aberta]);
+  useEffect(() => { setAtivo(0); }, [busca]);
+
+  if (!aberta) return null;
+
+  const escolher = (item) => { navigate(item.to); aoFechar(); };
+
+  const aoTeclar = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setAtivo(i => Math.min(itens.length - 1, i + 1)); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setAtivo(i => Math.max(0, i - 1)); }
+    if (e.key === 'Enter' && itens[ativo]) escolher(itens[ativo]);
+  };
+
+  return (
+    <div className="mf-cmd-backdrop" onClick={e => { if (e.target === e.currentTarget) aoFechar(); }}>
+      <div className="mf-cmd" role="dialog" aria-modal="true" aria-label="Paleta de comandos">
+        <input ref={campoRef} className="mf-cmd__input" autoComplete="off"
+          placeholder="Ir para uma página…"
+          value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={aoTeclar} />
+        <div className="mf-cmd__list">
+          {itens.length === 0 && (
+            <div style={{ padding: 'var(--mf-6)', textAlign: 'center', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)' }}>
+              Nada encontrado para “{busca}”.
+            </div>
+          )}
+          {itens.map((i, idx) => (
+            <button key={i.to} className="mf-cmd__item" data-active={idx === ativo}
+              style={{ '--mf-mod': `var(--mf-mod-${i.mod || 'sistema'})` }}
+              onMouseEnter={() => setAtivo(idx)} onClick={() => escolher(i)}>
+              <span className="mf-nav-item__ico">{i.icon}</span>
+              <span className="mf-trunc" style={{ flex: 1 }}>{i.label}</span>
+              <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{i.grupo}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MainLayout({ children }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [hoverOpen,  setHoverOpen]  = useState(false);
-  const hoverTimer = useRef(null);
+  const [gaveta, setGaveta]       = useState(false);
+  const [recolhida, setRecolhida] = useState(false);
+  const [paleta, setPaleta]       = useState(false);
   const location   = useLocation();
   const navigate   = useNavigate();
 
-  const handleSidebarEnter = () => {
-    clearTimeout(hoverTimer.current);
-    setHoverOpen(true);
-  };
-  const handleSidebarLeave = () => {
-    hoverTimer.current = setTimeout(() => setHoverOpen(false), 120);
-  };
+  useEffect(() => { setGaveta(false); }, [location]);
 
-  useEffect(() => { setDrawerOpen(false); }, [location]);
-
-  /* SSE events → global notifications */
+  /* SSE → notificações globais. Lógica preservada integralmente do layout
+     anterior: só a apresentação foi trocada nesta migração. */
   useServerEvents(
     ['posts', 'accounts', 'loop', 'insights', 'warmup'],
     (data, event) => {
@@ -257,140 +314,102 @@ export default function MainLayout({ children }) {
     }
   );
 
-  const isDash = location.pathname === '/' || location.pathname === '/video-editor';
+  useEffect(() => {
+    const aoTeclar = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaleta(p => !p);
+      }
+      if (e.key === 'Escape') { setPaleta(false); setGaveta(false); }
+    };
+    window.addEventListener('keydown', aoTeclar);
+    return () => window.removeEventListener('keydown', aoTeclar);
+  }, []);
+
   function logout() { removeToken(); navigate('/login'); }
 
   return (
-    <div className="appShell">
-      {/* Drawer overlay */}
-      <AnimatePresence>
-        {drawerOpen && (
-          <motion.div
-            key="overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: .2 }}
-            onClick={() => setDrawerOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 99, backdropFilter: 'blur(4px)' }}
-          />
-        )}
-      </AnimatePresence>
+    <div data-mf>
+      <div className="mf-app" data-collapsed={recolhida} data-drawer={gaveta}>
 
-      {/* Drawer sidebar */}
-      <aside
-        className={`drawer${drawerOpen ? ' drawer-open' : ''}${(!hoverOpen && !drawerOpen) ? ' collapsed' : ''}`}
-        onMouseEnter={handleSidebarEnter}
-        onMouseLeave={handleSidebarLeave}
-      >
-        {/* Header inside drawer */}
-        <div className="drawer-header">
-          <button
-            onClick={() => navigate('/')}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0 }}
-          >
-            <img src="/mouraflow-icon.svg?v=2" alt="MouraFlow" style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }} />
-            <span className="logo-text" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--text)', whiteSpace: 'nowrap' }}>MouraFlow</span>
-          </button>
-          {/* Mobile close button */}
-          <button
-            className="drawer-close-btn"
-            onClick={() => setDrawerOpen(false)}
-            style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', padding: 4 }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
+        {gaveta && <div className="mf-scrim" onClick={() => setGaveta(false)} aria-hidden="true" />}
 
-        {/* Nav */}
-        <nav className="drawer-nav">
-          {NAV_GROUPS.map(group => (
-            <div className="drawer-group" key={group.title}>
-              <div className="drawer-group-label">{group.title}</div>
-              {group.items.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  className={({ isActive }) => `drawer-item${isActive ? ' active' : ''}`}
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <motion.span
-                          layoutId="nav-pill"
-                          className="nav-pill-bg"
-                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                        />
-                      )}
-                      {item.icon}
-                      <span>
-                        {item.label}
-                        {item.sub && <em className="drawer-item-sub">{item.sub}</em>}
-                      </span>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </nav>
-
-        {/* Footer / user */}
-        <div className="drawer-footer">
-          <div className="drawer-user">
-            <div className="drawer-avatar">VM</div>
-            <div className="drawer-user-info" style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Vitor Marcelo Moura</div>
-              <div style={{ fontSize: 11, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', boxShadow: '0 0 5px var(--green)' }} />
-                Online
-              </div>
-            </div>
-            <button onClick={logout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text2)', padding: 4, display: 'flex', flexShrink: 0 }}>
-              {ICONS.logout}
+        <aside className="mf-side" aria-label="Navegação principal">
+          <div className="mf-side__brand">
+            <button onClick={() => navigate('/')}
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0 }}>
+              <img src="/mouraflow-icon.svg?v=2" alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+              <span className="mf-side__name">MouraFlow</span>
             </button>
           </div>
+
+          <nav className="mf-side__nav">
+            {NAV_GROUPS.map(grupo => (
+              <div className="mf-side__group" key={grupo.title}>
+                <div className="mf-side__label">{grupo.title}</div>
+                {grupo.items.map(item => (
+                  <NavLink key={item.to} to={item.to} end={item.to === '/'}
+                    className="mf-nav-item"
+                    title={recolhida ? item.label : undefined}
+                    style={{ '--mf-mod': `var(--mf-mod-${item.mod || 'sistema'})`, textDecoration: 'none' }}>
+                    <span className="mf-nav-item__ico">{item.icon}</span>
+                    <span className="mf-nav-item__txt">
+                      <span className="mf-nav-item__t">{item.label}</span>
+                      {item.sub && <span className="mf-nav-item__s">{item.sub}</span>}
+                    </span>
+                  </NavLink>
+                ))}
+              </div>
+            ))}
+          </nav>
+
+          <div style={{ padding: 'var(--mf-3)', borderTop: '1px solid var(--mf-border)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-1)' }}>
+            <button className="mf-nav-item" onClick={() => setRecolhida(r => !r)}>
+              <span className="mf-nav-item__ico">{ICONS.chevron}</span>
+              <span className="mf-nav-item__txt"><span className="mf-nav-item__t">Recolher</span></span>
+            </button>
+            <button className="mf-nav-item" onClick={logout}>
+              <span className="mf-nav-item__ico">{ICONS.logout}</span>
+              <span className="mf-nav-item__txt"><span className="mf-nav-item__t">Sair</span></span>
+            </button>
+          </div>
+        </aside>
+
+        <div className="mf-main">
+          <header className="mf-top">
+            <button className="mf-btn mf-btn--ghost mf-btn--icon mf-only-mobile"
+              onClick={() => setGaveta(v => !v)} aria-label="Abrir menu">
+              {ICONS.menu}
+            </button>
+
+            <button className="mf-cmd-trigger" onClick={() => setPaleta(true)}>
+              {ICONS.search}
+              <span className="mf-trunc" style={{ flex: 1, textAlign: 'left' }}>Buscar página…</span>
+              <kbd className="mf-kbd">Ctrl K</kbd>
+            </button>
+
+            <div className="mf-top__spacer" />
+
+            <NotificationBell />
+
+            <div style={{
+              width: 30, height: 30, borderRadius: 'var(--mf-r-full)', flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500))',
+              display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700,
+              color: 'var(--mf-primary-fg)',
+            }} title="Vitor Marcelo Moura">VM</div>
+          </header>
+
+          {/* `mf-container` centraliza e limita a largura; as páginas ainda não
+              migradas continuam com o próprio espaçamento interno, então a
+              migração pode seguir uma tela por vez sem quebrar as demais. */}
+          <main className="mf-container" style={{ flex: 1, minWidth: 0, paddingBottom: 'var(--mf-10)' }}>
+            {children}
+          </main>
         </div>
-      </aside>
+      </div>
 
-      {/* Top header bar — always visible */}
-      <header className="topbar">
-        <button
-          onClick={() => setDrawerOpen(v => !v)}
-          className="topbar-hamburger"
-          aria-label="Menu"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <path d="M3 12h18M3 6h18M3 18h18"/>
-          </svg>
-        </button>
-
-        <button
-          onClick={() => navigate('/')}
-          className="topbar-logo"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8 }}
-        >
-          <img src="/mouraflow-icon.svg?v=2" alt="MouraFlow" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-          <span>MouraFlow</span>
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          <NotificationBell />
-          <button className="topbar-cmd" aria-label="Atalhos">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      {/* Page content */}
-      <main className="mainContent">
-        {isDash ? children : <div className="padded-page">{children}</div>}
-      </main>
+      <PaletaComandos aberta={paleta} aoFechar={() => setPaleta(false)} />
     </div>
   );
 }
