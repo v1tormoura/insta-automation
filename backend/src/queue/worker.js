@@ -299,17 +299,29 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
       lastError: traduzirErro(err.message),
     };
     const provider = account?.provider || acc.provider;
-    if (provider === 'instagrapi') {
-      const igCode = err?.code || '';
-      const igHealth = _IG_HEALTH[igCode];
-      // Only update healthStatus for session/auth errors — not for infra/config issues
-      if (igHealth) healthUpdate.healthStatus = igHealth;
-      else if (!['INSTAGRAPI_SERVICE_UNAVAILABLE', 'UNSUPPORTED_TYPE'].includes(igCode)) {
-        healthUpdate.healthStatus = classifyError(err) || 'sessao_expirada';
-      }
-    } else {
-      const classified = classifyError(err);
-      if (classified) healthUpdate.healthStatus = classified;
+    const classificado = provider === 'instagrapi'
+      ? (_IG_HEALTH[err?.code || ''] || classifyError(err))
+      : classifyError(err);
+
+    /* Só mexe na saúde da conta quando o erro foi RECONHECIDO como problema
+       de sessão, de bloqueio ou de banimento. `classifyError` devolve null de
+       propósito para o que é transitório — e o comentário dela diz isso com
+       todas as letras.
+       
+       Antes existia um `|| 'sessao_expirada'` aqui, que descartava essa
+       decisão: qualquer erro não mapeado — timeout de rede, ffmpeg falhando,
+       arquivo grande demais, o serviço Python reiniciando — marcava a conta
+       como sessão expirada. Bastava um tropeço para a conta ser dada como
+       morta logo depois de conectar, que é exatamente o "conecto e já cai".
+       
+       Falha de publicação e saúde de conta são coisas diferentes: a
+       publicação falha e é reprocessada; a conta só muda de estado quando o
+       Instagram diz alguma coisa sobre ELA. */
+    if (classificado) healthUpdate.healthStatus = classificado;
+    else {
+      console.log(
+        `[worker] erro não classificado em @${acc.username} — saúde preservada. code=${err?.code || '-'} msg=${String(err?.message || '').slice(0, 120)}`
+      );
     }
     await Account.findByIdAndUpdate(acc._id, healthUpdate);
     broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: healthUpdate.healthStatus || acc.healthStatus });
