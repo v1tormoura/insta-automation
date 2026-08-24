@@ -1,4 +1,5 @@
-﻿import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
+import { useServerEvents } from '../services/useServerEvents';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Globe, Users, Flame, Eye, RefreshCw, ChevronDown, ChevronUp, ExternalLink, Play } from 'lucide-react';
 import api from '../services/api';
@@ -24,8 +25,16 @@ export default function ConnectedAccountsMetrics() {
   const [period, setPeriod] = useState('30d');
   const [showAccountsDetail, setShowAccountsDetail] = useState(false);
   const [coletandoStories, setColetandoStories] = useState(false);
+  const [atualizadoEm, setAtualizadoEm] = useState(null);
+  const carregandoRef = useRef(false);
 
+  /* `carregandoRef` impede chamadas sobrepostas. Sem ele, uma rajada de
+     eventos do servidor — publicar em oito contas dispara oito — abriria
+     oito requisições da mesma métrica, e a última a responder venceria, que
+     não é necessariamente a mais recente. */
   const loadMetrics = useCallback(async (force = false) => {
+    if (carregandoRef.current && !force) return;
+    carregandoRef.current = true;
     try {
       if (force) setRefreshing(true);
       setError(null);
@@ -33,10 +42,12 @@ export default function ConnectedAccountsMetrics() {
         params: { period, force: force ? 'true' : undefined },
       });
       setMetrics(res.data);
+      setAtualizadoEm(Date.now());
     } catch (err) {
       console.error('[ConnectedAccountsMetrics]', err);
       setError('Não foi possível carregar as métricas das contas conectadas.');
     } finally {
+      carregandoRef.current = false;
       setLoading(false);
       setRefreshing(false);
     }
@@ -64,6 +75,44 @@ export default function ConnectedAccountsMetrics() {
 
   useEffect(() => {
     loadMetrics();
+  }, [loadMetrics]);
+
+  /* ── Atualização contínua ────────────────────────────────────────────────
+     Duas fontes, porque nenhuma das duas basta sozinha.
+
+     Os eventos do servidor chegam no instante em que algo acontece — uma
+     publicação sai, uma conta conecta — e são o que faz o número mudar na
+     frente do usuário sem ele pedir. Mas eles só falam de fatos NOSSOS: a
+     visualização de um post subir de 900 para 1200 acontece no Instagram, e
+     nenhum evento nosso avisa.
+
+     Daí o intervalo: ele cobre justamente o que muda fora daqui. Um minuto
+     é curto para o número parecer parado e longo o bastante para não pesar —
+     a rota agrega várias coleções por chamada.
+
+     `document.hidden` para a aba em segundo plano. Sem isso, dez abas
+     esquecidas abertas viram dez agregações por minuto no servidor, e
+     ninguém está olhando para nenhuma delas. */
+  useServerEvents(['insights', 'posts', 'accounts'], () => {
+    if (document.hidden) return;
+    loadMetrics();
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      loadMetrics();
+    }, 60_000);
+
+    /* Ao voltar para a aba, atualiza na hora: quem volta depois de um tempo
+       encontraria números velhos até o próximo intervalo. */
+    const aoVoltar = () => { if (!document.hidden) loadMetrics(); };
+    document.addEventListener('visibilitychange', aoVoltar);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
   }, [loadMetrics]);
 
   if (loading && !metrics) {
@@ -125,6 +174,17 @@ export default function ConnectedAccountsMetrics() {
           <span style={{ fontSize: 10.5, fontFamily: 'var(--mf-mono)', padding: '2px 8px', borderRadius: 6, background: 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)' }}>
             {d.periodLabel || 'Últimos 30 dias'}
           </span>
+          {/* Diz que o painel se atualiza sozinho. Sem isso o usuário fica
+              clicando em atualizar por não ter como saber que não precisa. */}
+          {atualizadoEm && (
+            <span title={`Atualizado às ${new Date(atualizadoEm).toLocaleTimeString('pt-BR')}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10,
+                color: 'var(--mf-text-3)', whiteSpace: 'nowrap' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mf-success-500)',
+                animation: 'mf-pulse 2s var(--mf-ease-inout) infinite' }} />
+              ao vivo
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -189,6 +249,35 @@ export default function ConnectedAccountsMetrics() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
             gap: 10,
           }}>
+            {/* Visualizações somadas de todas as contas conectadas.
+                Alcance conta PESSOAS, visualização conta REPRODUÇÕES — a
+                mesma pessoa vendo três vezes soma um no primeiro e três no
+                segundo. Mostrar só o alcance escondia o número que responde
+                "quanto o conteúdo rodou". */}
+            <div style={{
+              background: 'var(--mf-surface-1)',
+              border: '1px solid var(--mf-border)',
+              borderRadius: 14,
+              padding: '14px 16px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <span aria-hidden="true" style={{ position: 'absolute', inset: 'auto -10px -14px auto', width: 58, height: 58,
+                borderRadius: '50%', background: 'radial-gradient(circle, color-mix(in oklch, var(--mf-mod-metricas) 16%, transparent), transparent 70%)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
+                  Visualizações
+                </span>
+                <Eye size={16} style={{ color: 'var(--mf-mod-metricas)', opacity: 0.9 }} />
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--mf-mod-metricas)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>
+                {fmt(d.totalViews)}
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--mf-text-3)', marginTop: 4 }}>
+                Reproduções somadas de todas as contas
+              </div>
+            </div>
+
             {/* Card 1: Alcance Total */}
             <div style={{
               background: 'oklch(0.15 0.05 235 / 0.8)',
