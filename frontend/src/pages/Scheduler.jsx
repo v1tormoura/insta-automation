@@ -78,16 +78,16 @@ export default function Scheduler() {
   );
 
   const pageActions = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 28, padding: '0 10px', borderRadius: 8, background: 'rgba(34,197,94,.08)', border: '1px solid rgba(34,197,94,.2)', fontSize: 11, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'sched-pulse 1.5s infinite' }} />
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 28, padding: '0 10px', borderRadius: 8, background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 11, color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)' }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mf-success-500)', display: 'inline-block', animation: 'sched-pulse 1.5s infinite' }} />
       Scheduler ativo
     </span>
   );
 
   const statDefs = [
-    { label: 'Posts na fila', value: posts.length,   color: '#818cf8', bg: 'rgba(99,102,241,.1)',  border: 'rgba(99,102,241,.2)'  },
-    { label: 'Agendados',    value: agendados,        color: '#fbbf24', bg: 'rgba(251,191,36,.1)',  border: 'rgba(251,191,36,.2)'  },
-    { label: 'Executando',   value: pendentes,        color: '#34d399', bg: 'rgba(52,211,153,.1)',  border: 'rgba(52,211,153,.2)'  },
+    { label: 'Posts na fila', value: posts.length,   color: 'var(--mf-primary-300)', bg: 'color-mix(in oklch, var(--mf-primary-500) 10%, transparent)',  border: 'color-mix(in oklch, var(--mf-primary-500) 20%, transparent)'  },
+    { label: 'Agendados',    value: agendados,        color: 'var(--mf-warning-500)', bg: 'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)',  border: 'color-mix(in oklch, var(--mf-warning-500) 20%, transparent)'  },
+    { label: 'Executando',   value: pendentes,        color: 'var(--mf-success-500)', bg: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',  border: 'color-mix(in oklch, var(--mf-success-500) 20%, transparent)'  },
   ];
 
   return (
@@ -116,7 +116,7 @@ export default function Scheduler() {
               }}
             >
               <div style={{ fontSize: 28, fontWeight: 800, color: s.color, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
             </motion.div>
           ))}
         </div>
@@ -129,7 +129,7 @@ export default function Scheduler() {
             transition={{ duration: 0.25 }}
             style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 14, padding: '16px', backdropFilter: 'blur(12px)' }}
           >
-            <h3 style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>Filtro por data</h3>
+            <h3 style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 12 }}>Filtro por data</h3>
             <input
               className="inp"
               type="date"
@@ -143,8 +143,8 @@ export default function Scheduler() {
               </button>
             )}
             <div style={{ marginTop: 16, borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--cyan)', fontVariantNumeric: 'tabular-nums' }}>{filteredPosts.length}</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>Resultados</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--mf-mod, var(--mf-accent-500))', fontVariantNumeric: 'tabular-nums' }}>{filteredPosts.length}</div>
+              <div style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>Resultados</div>
             </div>
           </motion.div>
 
@@ -156,13 +156,13 @@ export default function Scheduler() {
             style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 14, overflow: 'hidden', backdropFilter: 'blur(12px)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
-              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Fila de publicação</h3>
-              <span style={{ fontSize: '.72rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 100, padding: '2px 8px' }}>{filteredPosts.length} itens</span>
+              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
+              <span style={{ fontSize: '.72rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 100, padding: '2px 8px' }}>{filteredPosts.length} itens</span>
             </div>
 
             <div style={{ padding: 12 }}>
               {filteredPosts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text3)', fontSize: '.85rem' }}>Nenhum agendamento encontrado</div>
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: '.85rem' }}>Nenhum agendamento encontrado</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {filteredPosts.map((post, i) => (
@@ -175,21 +175,21 @@ export default function Scheduler() {
                         display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
                         background: 'oklch(0.12 0.04 235 / 0.6)', borderRadius: 10,
                         border: '1px solid oklch(1 0 0 / 0.07)',
-                        borderLeft: `3px solid ${post.status === 'agendado' ? '#fbbf24' : '#34d399'}`,
+                        borderLeft: `3px solid ${post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)'}`,
                       }}
                     >
                       <div style={{ textAlign: 'center', flexShrink: 0, width: 52 }}>
                         {post.scheduledAt ? (
                           <>
-                            <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{new Date(post.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                            <div style={{ fontSize: 10, color: post.status === 'agendado' ? '#fbbf24' : '#34d399', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{countdown(post.scheduledAt)}</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text)' }}>{new Date(post.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div style={{ fontSize: 10, color: post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)', marginTop: 2, fontFamily: 'var(--mf-mono)' }}>{countdown(post.scheduledAt)}</div>
                           </>
                         ) : <div style={{ fontSize: 20 }}>📤</div>}
                       </div>
                       <div style={{ width: 1, height: 40, background: 'oklch(1 0 0 / 0.08)', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3, color: 'var(--text)' }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 12, fontFamily: 'var(--font-mono)', flexWrap: 'wrap', rowGap: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3, color: 'var(--mf-text)' }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
+                        <div style={{ fontSize: 11, color: 'var(--mf-text-3)', display: 'flex', gap: 12, fontFamily: 'var(--mf-mono)', flexWrap: 'wrap', rowGap: 2 }}>
                           <span>{post.postType === 'reel' ? 'Reel' : 'Post'}</span>
                           {post.scheduledAt && <span>{fmtDate(post.scheduledAt)}</span>}
                           {post.accounts?.length && <span>{post.accounts.map(a => `@${a.username}`).join(', ')}</span>}
@@ -197,9 +197,9 @@ export default function Scheduler() {
                       </div>
                       <span style={{
                         fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
-                        fontFamily: 'var(--font-mono)',
-                        background: post.status === 'agendado' ? 'rgba(251,191,36,.1)' : 'rgba(52,211,153,.1)',
-                        color: post.status === 'agendado' ? '#fbbf24' : '#34d399',
+                        fontFamily: 'var(--mf-mono)',
+                        background: post.status === 'agendado' ? 'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',
+                        color: post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)',
                       }}>{post.status}</span>
                     </motion.div>
                   ))}
