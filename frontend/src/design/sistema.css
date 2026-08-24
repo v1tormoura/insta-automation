@@ -106,11 +106,22 @@
   box-shadow: 0 0 12px var(--mf-mod, var(--mf-primary-500));
 }
 .mf-nav-item__ico { width: 18px; height: 18px; flex-shrink: 0; color: var(--mf-mod, currentColor); }
-.mf-nav-item__txt { min-width: 0; }
-.mf-nav-item__t { font-size: var(--mf-t-sm); font-weight: 600; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; }
-.mf-nav-item__s { font-size: var(--mf-t-micro); color: var(--mf-text-3); white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; }
+
+/* O rótulo e a descrição são dois <span>, que por padrão são inline — sem
+   esta coluna eles saem na mesma linha e grudados ("PostarCriar e agendar").
+   `line-height` apertado porque são duas linhas dentro de um item de 34px:
+   o padrão de 1.5 empurraria a descrição para fora do item. */
+.mf-nav-item__txt {
+  min-width: 0; display: flex; flex-direction: column; gap: 1px;
+}
+.mf-nav-item__t {
+  display: block; font-size: var(--mf-t-sm); font-weight: 600; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mf-nav-item__s {
+  display: block; font-size: var(--mf-t-micro); color: var(--mf-text-3); line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .mf-app[data-collapsed='true'] .mf-nav-item__txt,
 .mf-app[data-collapsed='true'] .mf-side__label,

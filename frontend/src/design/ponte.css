@@ -288,3 +288,85 @@
    que é o que separa o cabeçalho do conteúdo. */
 [data-mf] .ps-header { padding: 0; }
 [data-mf] .ps-content { padding: var(--mf-5) 0 var(--mf-10); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BARRA DE ROLAGEM
+
+   A barra nativa do Windows é larga, clara e vem com setas nas pontas — num
+   fundo escuro ela é a coisa mais brilhante da tela, e o olho vai para ela
+   antes de ir para o conteúdo.
+
+   Duas sintaxes de propósito, e não por precaução: `scrollbar-width` e
+   `scrollbar-color` são o padrão e o que o Firefox entende, mas dão controle
+   só de espessura e de duas cores. O `::-webkit-scrollbar` permite o
+   polegar arredondado, a margem interna e o hover — e ganha do padrão nos
+   navegadores que suportam os dois. Onde só o padrão existe, a barra já sai
+   fina e escura; onde os dois existem, sai acabada.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf],
+[data-mf] * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mf-border-strong) transparent;
+}
+
+[data-mf] ::-webkit-scrollbar,
+[data-mf]::-webkit-scrollbar {
+  width: 10px; height: 10px;
+}
+
+/* Trilho transparente: a barra aparece sobre o próprio fundo do painel em
+   vez de abrir uma faixa cinza que corta o layout ao meio. */
+[data-mf] ::-webkit-scrollbar-track,
+[data-mf]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* A borda transparente com `background-clip: content-box` é o que afina o
+   polegar sem afinar a área clicável: visualmente ele tem 6px, mas o alvo
+   do ponteiro continua com os 10px da barra. */
+[data-mf] ::-webkit-scrollbar-thumb,
+[data-mf]::-webkit-scrollbar-thumb {
+  background-color: var(--mf-border-strong);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--mf-r-full);
+  transition: background-color var(--mf-fast) var(--mf-ease-out);
+}
+[data-mf] ::-webkit-scrollbar-thumb:hover,
+[data-mf]::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 55%, var(--mf-border-strong));
+}
+[data-mf] ::-webkit-scrollbar-thumb:active,
+[data-mf]::-webkit-scrollbar-thumb:active {
+  background-color: var(--mf-mod, var(--mf-accent-500));
+}
+
+/* As setas das pontas somem. Elas rolam três pixels por clique, ninguém as
+   usa, e ocupam os dois cantos onde as barras horizontal e vertical se
+   encontram. */
+[data-mf] ::-webkit-scrollbar-button,
+[data-mf]::-webkit-scrollbar-button { display: none; }
+
+[data-mf] ::-webkit-scrollbar-corner,
+[data-mf]::-webkit-scrollbar-corner { background: transparent; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DASHBOARD
+
+   A tela da visão geral tem estrutura própria — não passa pelo PageShell — e
+   por isso trazia o próprio `<main>`, o próprio padding e o próprio
+   `max-width`. Dentro da casca nova isso vira: um <main> dentro de outro
+   <main>, 32px do contêiner somados a 26px da tela em cada lado, e dois
+   limites de largura concorrendo (1560px contra 1600px).
+
+   O resultado visível era o conteúdo espremido: 1016px de contêiner viravam
+   952px de conteúdo útil. Aqui a tela devolve o enquadramento para o
+   contêiner e fica só com o espaçamento vertical, que é dela.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf] .dashboard {
+  max-width: none;
+  padding-inline: 0;
+  padding-block: var(--mf-5) var(--mf-4);
+}

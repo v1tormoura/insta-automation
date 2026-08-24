@@ -1163,7 +1163,11 @@ export default function Dashboard() {
       <div className="ambient-glow glow-one" aria-hidden="true" />
       <div className="ambient-glow glow-two" aria-hidden="true" />
 
-      <main className="dashboard">
+      {/* Era <main>, mas a casca já fornece o <main> da página. Dois deles
+          aninhados são HTML inválido e criam duas regiões de conteúdo
+          principal, o que faz o leitor de tela anunciar a mesma área duas
+          vezes. A classe fica: é dela que vem todo o layout desta tela. */}
+      <div className="dashboard">
 
         {/* ── Header ── */}
         <BlurFade delay={0}>
@@ -1514,7 +1518,7 @@ export default function Dashboard() {
           <span>Posts <b>{fmt(d.totalPosts)}</b></span>
           <button onClick={() => showToast('Versão 2.4.7 — MouraFlow Pulse')}>Novidades</button>
         </footer>
-      </main>
+      </div>
 
       {/* Toast */}
       <AnimatePresence>
