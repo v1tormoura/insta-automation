@@ -20,6 +20,12 @@ class LoginRequest(BaseModel):
     proxy: Optional[str] = None
 
 
+class DiagnosticoRequest(BaseModel):
+    """Diagnóstico de saída de rede. Não recebe senha — não faz login."""
+    account_id: str
+    proxy: Optional[str] = None
+
+
 class TwoFactorVerifyRequest(BaseModel):
     account_id: str
     verification_code: str

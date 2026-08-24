@@ -116,6 +116,20 @@ class InstagrapiHttpClient {
    * @param {string}  password         — never stored
    * @param {string}  [verificationCode=''] — TOTP or SMS/email 2FA code (optional on first try)
    */
+  /**
+   * Diagnóstico de saída de rede — não faz login e não recebe senha.
+   *
+   * Serve para separar duas causas que produzem a MESMA mensagem na tela:
+   * senha errada e IP recusado pelo Instagram. Ver o comentário do endpoint
+   * /session/diagnostico no serviço Python para como interpretar a resposta.
+   */
+  async diagnosticar(account) {
+    return this._post('/session/diagnostico', {
+      account_id: String(account._id),
+      proxy:      (await resolveProxyFor(account)) || null,
+    }, 30000);
+  }
+
   async login(account, username, password, verificationCode = '') {
     const accountId = String(account._id);
     const result = await this._post('/session/login', {

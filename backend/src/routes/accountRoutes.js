@@ -1311,6 +1311,52 @@ async function _handleInstagrapiError(err, res, accountId = null) {
  *   428 { error, code: 'CHALLENGE_REQUIRED' }
  *   401 { error, code: 'BAD_PASSWORD' | ... }
  */
+/**
+ * Diagnóstico de conexão — de onde as requisições saem e se o Instagram
+ * responde ao handshake. Não faz login e não recebe senha.
+ *
+ * Existe porque `bad_password` em TODAS as contas ao mesmo tempo tem duas
+ * causas possíveis com a mesma aparência: as senhas realmente erradas, ou o
+ * Instagram recusando o nosso IP e disfarçando a recusa de erro de
+ * credencial. Sem separar as duas, depura-se a hipótese errada.
+ */
+router.get('/:id/diagnostico', async (req, res) => {
+  try {
+    const account = await Account.findById(req.params.id);
+    if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+    const http = _getHttp();
+    const dados = await http.diagnosticar(account);
+
+    // O veredito fica aqui, não no serviço Python: ele conhece uma conta por
+    // vez, e a conclusão depende de saber se a falha atinge todas.
+    const handshakeOk = !!(dados?.handshake?.tem_chave);
+    const identidadeOk = !!(dados?.identidade?.ua_concorda);
+    res.json({
+      ...dados,
+      conta: account.username,
+      leitura: {
+        handshake_ok:  handshakeOk,
+        identidade_ok: identidadeOk,
+        proximo_passo: !handshakeOk
+          ? 'O Instagram não devolveu a chave de criptografia. Sem ela a senha vai cifrada com chave inválida e ele responde bad_password mesmo com a senha certa. Verifique conectividade e proxy.'
+          : !identidadeOk
+            ? 'O User-Agent e o device_settings divergem. Toda tentativa de login sai se contradizendo.'
+            : dados?.proxy_aplicado
+              ? 'Saída pelo proxy e handshake OK. Se só algumas contas falham, é credencial. Se todas falham, troque o proxy.'
+              : 'Saída direta pelo IP do servidor, sem proxy. Se todas as contas falham com bad_password, este IP é o suspeito principal — atribua proxies por conta.',
+      },
+    });
+  } catch (err) {
+    const code = err?.response?.data?.detail?.code || err?.code || 'ERRO';
+    res.status(502).json({
+      error: 'Não foi possível diagnosticar',
+      code,
+      detalhe: String(err?.response?.data?.detail?.message || err?.message || '').slice(0, 300),
+    });
+  }
+});
+
 router.post('/instagrapi-direct', async (req, res) => {
   const { username, password, totp = '', accountId: bodyAccountId } = req.body;
   console.log(`[IG-LOGIN] request received — username=${String(username || '').slice(0, 30)} bodyAccountId=${bodyAccountId || 'none'}`);

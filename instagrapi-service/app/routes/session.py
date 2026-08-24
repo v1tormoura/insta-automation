@@ -27,6 +27,7 @@ from ..models import (
     TwoFactorVerifyRequest,
     SessionIdLoginRequest,
     ChallengeCodeRequest,
+    DiagnosticoRequest,
 )
 from .. import session_pool
 
@@ -197,6 +198,114 @@ async def login(body: LoginRequest):
 
     session_pool._slog("LOGIN_SUCCESS", body.account_id)
     return {"status": "AUTHENTICATED", "settings": settings}
+
+
+# ── /session/diagnostico ───────────────────────────────────────────────────────
+
+@router.post("/diagnostico")
+async def diagnostico(body: DiagnosticoRequest):
+    """
+    De onde as nossas requisições estão saindo, e o Instagram fala com a gente?
+
+    Existe para separar duas causas que produzem o MESMO erro na tela. Quando
+    o login falha com `bad_password` em todas as contas ao mesmo tempo, ou as
+    senhas estão erradas, ou o Instagram está recusando o nosso IP e
+    disfarçando a recusa de erro de credencial. A mensagem é idêntica nos dois
+    casos, então não dá para decidir olhando a tela — e depurar a hipótese
+    errada custa horas.
+
+    O que este endpoint responde, sem tocar em senha e sem gastar uma
+    tentativa de login:
+
+    - `ip_de_saida`: o IP que o Instagram enxerga. Se for o do servidor
+      mesmo com proxy configurado, o proxy não está sendo aplicado.
+    - `proxy_aplicado`: se o cliente desta conta está com proxy (mascarado).
+    - `handshake`: se `qe/sync` devolve a chave de criptografia de senha. Sem
+      ela o `enc_password` sai inválido e o Instagram responde `bad_password`
+      com a senha certa.
+    - `identidade`: build e aparelho que estamos anunciando, para conferir de
+      fora que o User-Agent e o corpo concordam.
+
+    Interpretação: handshake OK + IP do servidor + falha em todas as contas
+    aponta para bloqueio de IP, e a saída é proxy por conta. Handshake OK +
+    IP de proxy + falha só em algumas contas aponta para credencial.
+    """
+    entry = await session_pool.get_entry(body.account_id)
+    async with entry["lock"]:
+        client = entry["client"]
+        proxy = body.proxy or os.getenv("GLOBAL_PROXY")
+        if proxy:
+            client.set_proxy(proxy)
+
+        loop = asyncio.get_running_loop()
+        resultado = await loop.run_in_executor(None, lambda: _coletar_diagnostico(client, proxy))
+
+    session_pool._slog("DIAGNOSTICO", body.account_id, **{
+        k: v for k, v in resultado.items() if k != "identidade"
+    })
+    return resultado
+
+
+def _mascarar_proxy(url: str | None) -> str | None:
+    """Esconde usuário e senha, preserva host e porta — que é o que interessa."""
+    if not url:
+        return None
+    try:
+        autoridade = url.split("://", 1)[-1].split("/")[0]
+        if "@" in autoridade:
+            autoridade = autoridade[autoridade.rfind("@") + 1:]
+        return autoridade
+    except Exception:  # noqa: BLE001
+        return "(ilegível)"
+
+
+def _coletar_diagnostico(client, proxy: str | None) -> dict:
+    import requests
+
+    saida = {
+        "proxy_aplicado": _mascarar_proxy(proxy),
+        "ip_de_saida":    None,
+        "handshake":      None,
+        "identidade":     None,
+        "erros":          [],
+    }
+
+    # IP visto de fora, pela MESMA sessão que o login usaria — não por uma
+    # requisição solta. Uma sessão nova poderia sair por outra rota e a
+    # resposta seria sobre um caminho que o login não percorre.
+    try:
+        r = client.public.get("https://api.ipify.org?format=json", timeout=15)
+        saida["ip_de_saida"] = r.json().get("ip")
+    except Exception as e:  # noqa: BLE001
+        saida["erros"].append(f"ip: {type(e).__name__}: {e}"[:200])
+
+    # A chave de criptografia de senha. `qe/sync` responde 405 ao GET, mas os
+    # cabeçalhos vêm junto — é deles que o instagrapi tira a chave, então 405
+    # aqui é normal e o que importa é o par id/chave estar presente.
+    try:
+        r = client.public.get("https://i.instagram.com/api/v1/qe/sync/", timeout=15)
+        kid = r.headers.get("ig-set-password-encryption-key-id")
+        pub = r.headers.get("ig-set-password-encryption-pub-key")
+        saida["handshake"] = {
+            "status":        r.status_code,
+            "key_id":        kid,
+            "tem_chave":     bool(pub),
+            "key_id_cabe_em_1_byte": (kid is not None and kid.isdigit() and int(kid) <= 255),
+        }
+    except Exception as e:  # noqa: BLE001
+        saida["erros"].append(f"handshake: {type(e).__name__}: {e}"[:200])
+
+    d = getattr(client, "device_settings", {}) or {}
+    ua = getattr(client, "user_agent", "") or ""
+    saida["identidade"] = {
+        "app_version":  d.get("app_version"),
+        "version_code": d.get("version_code"),
+        "tem_bloks":    bool(d.get("bloks_versioning_id")),
+        "modelo":       d.get("model"),
+        "ua_concorda":  bool(d.get("app_version") and d["app_version"] in ua
+                             and d.get("version_code") and d["version_code"] in ua),
+    }
+    return saida
 
 
 # ── /session/verify-2fa ────────────────────────────────────────────────────────
