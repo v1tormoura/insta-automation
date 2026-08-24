@@ -230,9 +230,11 @@ def _device_uuids(account_id: str) -> dict:
     }
 
 
+# Só HARDWARE aqui. A build do app (app_version + version_code +
+# bloks_versioning_id) é um trio que precisa ser coerente entre si, e vem de
+# `_build_do_app()` — ver o comentário lá para o porquê.
 _REAL_ANDROID_DEVICES = [
     {
-        "app_version": "361.0.0.39.109",
         "android_version": 33,
         "android_release": "13.0",
         "dpi": "480dpi",
@@ -243,7 +245,6 @@ _REAL_ANDROID_DEVICES = [
         "cpu": "qcom",
     },
     {
-        "app_version": "361.0.0.39.109",
         "android_version": 34,
         "android_release": "14.0",
         "dpi": "480dpi",
@@ -254,7 +255,6 @@ _REAL_ANDROID_DEVICES = [
         "cpu": "tensor",
     },
     {
-        "app_version": "361.0.0.39.109",
         "android_version": 33,
         "android_release": "13.0",
         "dpi": "480dpi",
@@ -265,7 +265,6 @@ _REAL_ANDROID_DEVICES = [
         "cpu": "qcom",
     },
     {
-        "app_version": "361.0.0.39.109",
         "android_version": 33,
         "android_release": "13.0",
         "dpi": "560dpi",
@@ -276,7 +275,6 @@ _REAL_ANDROID_DEVICES = [
         "cpu": "qcom",
     },
     {
-        "app_version": "361.0.0.39.109",
         "android_version": 34,
         "android_release": "14.0",
         "dpi": "480dpi",
@@ -289,21 +287,73 @@ _REAL_ANDROID_DEVICES = [
 ]
 
 
+def _build_do_app() -> dict:
+    """
+    Trio coerente {app_version, version_code, bloks_versioning_id}.
+
+    Os três descrevem a MESMA build do app do Instagram e não podem ser
+    escolhidos separadamente. O `app_version` vai no User-Agent, o
+    `version_code` vai no fim do mesmo User-Agent, e o `bloks_versioning_id`
+    vai no corpo da requisição. Se não combinarem, o pedido de login se
+    contradiz e o Instagram trata como cliente forjado.
+
+    Por isso o valor sai sempre de `config.APP_SETTINGS`, que é o dicionário
+    onde a biblioteca guarda as builds reais com os três campos casados.
+    Inventar uma combinação é o que quebrou este login antes.
+    """
+    from instagrapi import config as ig_config
+    disponiveis = getattr(ig_config, "APP_SETTINGS", {}) or {}
+
+    desejada = (os.getenv("INSTAGRAPI_APP_VERSION") or "").strip()
+    if desejada:
+        if desejada in disponiveis:
+            return dict(disponiveis[desejada])
+        logger.warning(
+            "INSTAGRAPI_APP_VERSION='%s' não existe em APP_SETTINGS (%s) — "
+            "usando a build padrão da biblioteca",
+            desejada, ", ".join(sorted(disponiveis)) or "vazio",
+        )
+
+    padrao = getattr(ig_config, "DEFAULT_APP_VERSION", None)
+    if padrao and padrao in disponiveis:
+        return dict(disponiveis[padrao])
+
+    if disponiveis:
+        # última linha de defesa: qualquer entrada serve, desde que completa
+        return dict(next(iter(disponiveis.values())))
+
+    raise RuntimeError(
+        "instagrapi.config.APP_SETTINGS está vazio — não há build de app válida "
+        "para montar o cliente"
+    )
+
+
 def apply_deterministic_device(client: Client, account_id: str) -> None:
     """
     Associa deterministicamente cada conta a um modelo de smartphone Android real.
     Garante que a Meta identifique sempre o mesmo aparelho móvel para aquela conta.
+
+    O perfil de hardware é combinado com a build do app antes de ir para
+    `set_device()`. Isso importa porque `set_device()` SUBSTITUI o
+    `device_settings` inteiro em vez de atualizar campo a campo: passar um
+    dicionário sem `version_code` apagava o valor que a biblioteca tinha posto
+    ali, e `set_user_agent()` logo em seguida estourava KeyError ao formatar o
+    User-Agent. Como a exceção era engolida, o cliente seguia em frente
+    anunciando um aparelho no cabeçalho e outro no corpo — e o Instagram
+    respondia `invalid_user` para toda conta, como se ela não existisse.
     """
     idx = int(hashlib.sha256(account_id.encode()).hexdigest(), 16) % len(_REAL_ANDROID_DEVICES)
-    chosen = dict(_REAL_ANDROID_DEVICES[idx])
-    custom_app_version = (os.getenv("INSTAGRAPI_APP_VERSION") or "").strip()
-    if custom_app_version:
-        chosen["app_version"] = custom_app_version
-    try:
-        client.set_device(chosen)
-        client.set_user_agent()
-    except Exception as e:
-        logger.debug("apply_deterministic_device fallback: %s", e)
+    escolhido = dict(_REAL_ANDROID_DEVICES[idx])
+    escolhido.update(_build_do_app())
+
+    # Sem `try` mudo aqui. Se esta montagem falhar, TODO login desta instância
+    # sai com identidade inconsistente; falhar alto na criação do cliente é
+    # muito melhor que descobrir isso conta por conta na tela do usuário.
+    client.set_device(escolhido)
+    client.set_user_agent()
+
+    if escolhido.get("bloks_versioning_id"):
+        client.bloks_versioning_id = escolhido["bloks_versioning_id"]
 
 
 def apply_app_version(client: Client) -> str:
@@ -321,36 +371,31 @@ def apply_app_version(client: Client) -> str:
     Sem a variável definida, mantém o padrão da biblioteca.
     Devolve a app_version efetiva, para registro.
     """
-    desejada = (os.getenv("INSTAGRAPI_APP_VERSION") or "").strip()
     settings = getattr(client, "device_settings", None)
     if not isinstance(settings, dict):
         return "desconhecida"
 
-    if desejada:
-        try:
-            from instagrapi import config as ig_config
-            entry = (getattr(ig_config, "APP_SETTINGS", {}) or {}).get(desejada)
-        except Exception:
-            entry = None
+    # A build já foi aplicada por apply_deterministic_device(), inclusive a
+    # preferência de INSTAGRAPI_APP_VERSION. O que resta aqui é conferir que os
+    # três campos sobreviveram e que o User-Agent concorda com eles — foi
+    # exatamente essa divergência que fez todo login ser recusado.
+    faltando = [c for c in ("app_version", "version_code", "bloks_versioning_id")
+                if not settings.get(c)]
+    if faltando:
+        logger.error(
+            "device_settings incompleto (%s ausente) — o login vai sair com "
+            "identidade inconsistente", ", ".join(faltando),
+        )
 
-        if entry:
-            settings["app_version"] = desejada
-            for key in ("version_code", "bloks_versioning_id"):
-                if entry.get(key):
-                    settings[key] = entry[key]
-            if entry.get("bloks_versioning_id"):
-                client.bloks_versioning_id = entry["bloks_versioning_id"]
-            try:
-                client.set_user_agent()  # reconstrói o UA a partir de device_settings
-            except Exception as e:  # noqa: BLE001
-                logger.warning("apply_app_version: set_user_agent falhou — %s", e)
-        else:
-            logger.warning(
-                "apply_app_version: '%s' não está em APP_SETTINGS — mantendo o padrão",
-                desejada,
-            )
+    versao = settings.get("app_version") or "desconhecida"
+    ua = getattr(client, "user_agent", "") or ""
+    if versao != "desconhecida" and versao not in ua:
+        logger.error(
+            "User-Agent anuncia build diferente do device_settings "
+            "(device=%s, ua=%r)", versao, ua,
+        )
 
-    return settings.get("app_version") or "desconhecida"
+    return versao
 
 
 async def get_entry(account_id: str) -> dict:

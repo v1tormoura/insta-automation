@@ -300,3 +300,97 @@ def test_slog_strips_verification_code(caplog):
         session_pool._slog("TEST_EVENT", "acc-vc", verification_code="123456", event_type="login")
     assert "123456" not in caplog.text
     assert "event_type" in caplog.text
+
+
+# ── identidade do aparelho ─────────────────────────────────────────────────────
+#
+# Estes testes existem por causa de uma regressão real: os perfis de aparelho
+# traziam `app_version: "361.0.0.39.109"`, uma build que não está em
+# `config.APP_SETTINGS`. Como `set_device()` SUBSTITUI o device_settings inteiro,
+# o dicionário passado sem `version_code` apagava o valor da biblioteca e
+# `set_user_agent()` estourava KeyError — engolido por um `except` mudo. O
+# cliente seguia anunciando um aparelho no User-Agent e outro no corpo, e o
+# Instagram respondia `invalid_user` para toda conta.
+
+_CAMPOS_DA_BUILD = ("app_version", "version_code", "bloks_versioning_id")
+
+
+def _montar(account_id):
+    from instagrapi import Client
+    from app import session_pool
+    client = Client()
+    session_pool.apply_deterministic_device(client, account_id)
+    session_pool.apply_app_version(client)
+    return client
+
+
+def test_device_settings_tem_a_build_completa():
+    """Os três campos da build precisam sobreviver ao set_device()."""
+    d = _montar("conta-teste").device_settings
+    ausentes = [c for c in _CAMPOS_DA_BUILD if not d.get(c)]
+    assert not ausentes, f"campos da build ausentes: {ausentes}"
+
+
+def test_user_agent_concorda_com_device_settings():
+    """
+    O User-Agent e o corpo da requisição descrevem o mesmo aparelho. Divergir
+    aqui é assinatura de cliente forjado — foi o que derrubou todos os logins.
+    """
+    client = _montar("conta-teste")
+    d, ua = client.device_settings, client.user_agent
+    for campo in ("app_version", "version_code", "model", "resolution"):
+        assert d[campo] in ua, f"{campo}={d[campo]!r} não aparece no User-Agent {ua!r}"
+
+
+def test_build_vem_de_app_settings():
+    """Nenhuma build inventada: o valor tem de existir no dicionário da lib."""
+    from instagrapi import config as ig_config
+    d = _montar("conta-teste").device_settings
+    disponiveis = getattr(ig_config, "APP_SETTINGS", {})
+    assert d["app_version"] in disponiveis
+    esperado = disponiveis[d["app_version"]]
+    assert d["version_code"] == esperado["version_code"]
+    assert d["bloks_versioning_id"] == esperado["bloks_versioning_id"]
+
+
+def test_perfis_de_hardware_nao_fixam_build():
+    """
+    A tabela de aparelhos descreve só hardware. Se alguém voltar a pôr
+    `app_version` ali, o trio volta a poder ficar incoerente.
+    """
+    from app import session_pool
+    for perfil in session_pool._REAL_ANDROID_DEVICES:
+        vazando = [c for c in _CAMPOS_DA_BUILD if c in perfil]
+        assert not vazando, f"perfil de hardware não deve fixar {vazando}: {perfil}"
+
+
+def test_mesmo_account_id_gera_o_mesmo_aparelho():
+    """Aparelho estável por conta — trocar a cada tentativa parece invasão."""
+    a = _montar("conta-estavel").device_settings
+    b = _montar("conta-estavel").device_settings
+    assert a == b
+
+
+def test_app_version_invalida_no_env_cai_no_padrao(monkeypatch):
+    """
+    Build inexistente na variável de ambiente não pode produzir um cliente
+    quebrado — cai no padrão da biblioteca, que é coerente.
+    """
+    from instagrapi import config as ig_config
+    monkeypatch.setenv("INSTAGRAPI_APP_VERSION", "361.0.0.39.109")
+    client = _montar("conta-teste")
+    d = client.device_settings
+    assert d["app_version"] in getattr(ig_config, "APP_SETTINGS", {})
+    assert all(d.get(c) for c in _CAMPOS_DA_BUILD)
+    assert d["app_version"] in client.user_agent
+
+
+def test_app_version_valida_no_env_e_respeitada(monkeypatch):
+    from instagrapi import config as ig_config
+    disponiveis = getattr(ig_config, "APP_SETTINGS", {})
+    alvo = next(v for v in disponiveis if v != ig_config.DEFAULT_APP_VERSION)
+    monkeypatch.setenv("INSTAGRAPI_APP_VERSION", alvo)
+    client = _montar("conta-teste")
+    assert client.device_settings["app_version"] == alvo
+    assert client.device_settings["version_code"] == disponiveis[alvo]["version_code"]
+    assert alvo in client.user_agent
