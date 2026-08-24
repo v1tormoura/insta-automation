@@ -188,7 +188,21 @@ function SelectBtn({ active, onClick, children }) {
    • o tamanho do número responde ao PRÓPRIO card (cqw), então o mesmo
      componente serve a uma coluna estreita e a um bloco largo. */
 function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 0 }) {
-  const mod = orbType === 'warm' ? 'jobs' : orbType === 'violet' ? 'publicar' : 'contas';
+  /* `orbType` nomeava um matiz ("violet"), não um significado — e por isso o
+     contador de ERROS aparecia em violeta, a cor de publicação, sem nada
+     que dissesse "isto é um problema". Os nomes de intenção entram aqui e
+     os antigos continuam valendo, então nenhuma chamada quebra. */
+  const POR_TIPO = {
+    erro:      'var(--mf-danger-500)',
+    alerta:    'var(--mf-warning-500)',
+    sucesso:   'var(--mf-success-500)',
+    fila:      'var(--mf-mod-publicar)',
+    // nomes antigos, por matiz
+    warm:      'var(--mf-mod-jobs)',
+    violet:    'var(--mf-mod-publicar)',
+    cyan:      'var(--mf-mod-contas)',
+  };
+  const cor = POR_TIPO[orbType] || 'var(--mf-mod-contas)';
   const nums = spark.length ? spark : [0, 0];
   const mx = Math.max(...nums), mn = Math.min(...nums), faixa = mx - mn || 1;
   const pontos = nums.map((p, i) => `${(i / Math.max(1, nums.length - 1)) * 100},${34 - ((p - mn) / faixa) * 26}`);
@@ -196,29 +210,61 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
   const gid = `mg-${String(title).replace(/\W+/g, '')}`;
 
   return (
+    /* As quatro camadas decorativas — filete no topo, textura de grade,
+       brilho no canto e o brilho diagonal do `.sheen` — não são enfeite
+       gratuito: são a assinatura visual do produto. Numa primeira passagem
+       eu as removi junto com os hexadecimais, e o card ficou correto e sem
+       personalidade. Voltam aqui amarradas à cor do módulo, então mudam de
+       matiz com a área em vez de serem sempre cianas. */
     <motion.article
       variants={fadeUp} transition={{ duration: .4, ease, delay }}
-      className="mf-card mf-card--hover"
-      style={{ '--mf-mod': `var(--mf-mod-${mod})`, display: 'flex', flexDirection: 'column' }}
+      whileHover={{ y: -3 }}
+      className="mf-card mf-card--hover sheen"
+      style={{ '--mf-mod': cor, display: 'flex', flexDirection: 'column', minHeight: 154 }}
     >
+      {/* Filete de luz no topo: sugere a borda superior pegando luz, que é o
+          que faz a superfície parecer levantada e não pintada. */}
+      <span aria-hidden="true" style={{ position: 'absolute', top: 0, left: 20, right: 20, height: 1,
+        background: 'linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-mod) 45%, transparent), transparent)' }} />
+
+      {/* Textura de grade com máscara radial: densa no canto superior
+          esquerdo e dissolvendo para o resto, para não competir com o
+          número — que é o que o olho vem buscar. */}
+      <span aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'linear-gradient(color-mix(in oklch, var(--mf-mod) 4%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklch, var(--mf-mod) 4%, transparent) 1px, transparent 1px)',
+        backgroundSize: '26px 26px',
+        maskImage: 'radial-gradient(at left top, black 20%, transparent 80%)',
+        WebkitMaskImage: 'radial-gradient(at left top, black 20%, transparent 80%)' }} />
+
+      {/* Halo no canto inferior direito, atrás do fim da linha do gráfico. */}
+      <span aria-hidden="true" style={{ position: 'absolute', inset: 'auto -12px -18px auto', width: 70, height: 70,
+        borderRadius: 'var(--mf-r-full)', pointerEvents: 'none',
+        background: 'radial-gradient(circle, color-mix(in oklch, var(--mf-mod) 14%, transparent) 0%, transparent 70%)' }} />
+
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-        gap: 'var(--mf-3)', padding: 'var(--mf-4) var(--mf-5) var(--mf-3)', flex: 1 }}>
+        gap: 'var(--mf-3)', padding: 'var(--mf-4) var(--mf-5) var(--mf-3)', flex: 1,
+        position: 'relative', zIndex: 1 }}>
         <div style={{ minWidth: 0 }}>
-          <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700,
-            letterSpacing: '.08em', color: 'var(--mf-text-3)', textTransform: 'uppercase', marginBottom: 8 }}>{title}</div>
+          {/* O rótulo usa a cor do módulo, não o cinza: é ele que diz de que
+              área é o número, e em cinza essa informação se perdia. */}
+          <div className="mf-mono mf-trunc" style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600,
+            letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 8,
+            color: 'color-mix(in oklch, var(--mf-mod) 78%, var(--mf-text-3))' }}>{title}</div>
           <div className="mf-mono" style={{
-            fontSize: 'clamp(1.6rem, 1.15rem + 1.4cqw, 2.15rem)', fontWeight: 650,
-            lineHeight: 1, letterSpacing: '-.03em', color: 'var(--mf-text)',
+            fontSize: 'clamp(1.9rem, 1.3rem + 1.8cqw, 2.5rem)', fontWeight: 700,
+            lineHeight: 1, letterSpacing: '-.04em', color: 'var(--mf-text)',
           }}>
             <NumberTicker value={Number(String(value).replace(/\D/g, '')) || 0} />
           </div>
           <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 6 }}>{meta}</div>
         </div>
-        <div className={`kpi-orb kpi-orb-${orbType}`} style={{ width: 54, height: 54, flexShrink: 0, opacity: .9 }} />
+        {/* Sem sufixo por matiz: o orbe monta a esfera a partir de --mf-mod,
+            que este card já define pela intenção da métrica. */}
+        <div className="kpi-orb" style={{ width: 62, height: 62 }} />
       </div>
 
       <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"
-        style={{ width: '100%', height: 42, display: 'block' }}>
+        style={{ width: '100%', height: 42, display: 'block', position: 'relative', zIndex: 1 }}>
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--mf-mod)" stopOpacity=".30" />
@@ -258,8 +304,11 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
   const negativo = String(chip || '').startsWith('-');
 
   return (
-    <motion.article transition={spring} className="mf-card mf-card--hover"
+    <motion.article transition={spring} whileHover={{ y: -2 }}
+      className="mf-card mf-card--hover sheen"
       style={{ '--mf-mod': `var(--mf-mod-${mod})`, padding: 'var(--mf-4) var(--mf-5)' }}>
+      <span aria-hidden="true" style={{ position: 'absolute', top: 0, left: 20, right: 20, height: 1,
+        background: 'linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-mod) 40%, transparent), transparent)' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--mf-4)',
         flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
         <div style={{ minWidth: 0 }}>
@@ -330,7 +379,9 @@ function QueuePanel({ d, accountStats }) {
   const STATUS_COLOR = { pendente:'var(--mf-warning-500)', processando:'var(--mf-mod, var(--mf-accent-500))', concluido:'var(--mf-success-500)', agendado:'var(--mf-text-2)', parcial:'var(--mf-warning-500)', erro:'var(--mf-danger-500)' };
 
   return (
-    <div className="mf-card mf-card--hover" style={{ ...card, '--mf-mod':'var(--mf-mod-publicar)', display:'flex', flexDirection:'column' }}>
+    <div className="mf-card mf-card--hover sheen" style={{ ...card, '--mf-mod':'var(--mf-mod-publicar)', display:'flex', flexDirection:'column' }}>
+      <span aria-hidden="true" style={{ position:'absolute', top:0, left:20, right:20, height:1,
+        background:'linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-mod) 45%, transparent), transparent)' }} />
       <span aria-hidden="true" style={{ position:'absolute', inset:'-60px -40px auto auto', width:180, height:180, borderRadius:'var(--mf-r-full)',
         background:'radial-gradient(circle, color-mix(in oklch, var(--mf-mod) 9%, transparent), transparent 70%)', pointerEvents:'none' }} />
 
@@ -1202,8 +1253,8 @@ export default function Dashboard() {
         <motion.section variants={stagger} initial="hidden" animate="show" className="metric-grid">
           <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={[]}         delay={0}    />
           <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit>0?fmt(d.dailyPostLimit):'—'}`}   orbType="warm"   spark={sparkDaily} delay={.06}  />
-          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="violet" spark={sparkErrors} delay={.12}  />
-          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="warm" spark={[]}         delay={.18} />
+          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="erro"   spark={sparkErrors} delay={.12}  />
+          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="fila" spark={[]}         delay={.18} />
         </motion.section>
 
         {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
