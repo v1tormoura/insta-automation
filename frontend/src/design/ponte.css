@@ -423,3 +423,49 @@
 @media (prefers-reduced-motion: reduce) {
   [data-mf] .kpi-orb { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   QUEM ROLA A PÁGINA
+
+   O tema antigo prendia a janela — `html`, `body` e `#root` com
+   `height: 100%` e `body { overflow: hidden }` — porque a rolagem acontecia
+   dentro do `.ps-content`, um contêiner interno com `overflow: auto`.
+
+   Ao tirar esse contêiner interno (ele criava um segundo eixo de rolagem,
+   com a barra lateral parada enquanto o conteúdo corria por dentro), a
+   trava do body virou o que impede QUALQUER rolagem: a dashboard tem
+   3147px de conteúdo dentro de uma caixa de 810px, e os 2337px restantes
+   ficavam simplesmente cortados. Os painéis existiam no DOM, ocupavam
+   altura e não apareciam para ninguém.
+
+   Pior: as seções usam revelação por rolagem — ficam em `opacity: 0` até
+   entrarem na viewport. Sem rolagem elas nunca entravam, então mesmo o
+   pedaço que caberia na tela permanecia invisível. Dois defeitos que se
+   escondiam um atrás do outro.
+
+   `:has()` limita a correção às páginas que montam a casca nova. O /login
+   e as páginas públicas ficam com o comportamento antigo até serem
+   migradas de propósito.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html:has([data-mf]) {
+  height: auto;
+  min-height: 100%;
+}
+
+body:has([data-mf]) {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;   /* mantém a trava lateral, que continua correta */
+  overflow-y: visible;  /* devolve a rolagem vertical à janela */
+}
+
+body:has([data-mf]) > #root {
+  height: auto;
+  min-height: 100%;
+}
+
+/* A barra fininha de 4px do tema antigo perdia para a nossa por ordem de
+   carga, mas declarar aqui evita depender disso. */
+html:has([data-mf])::-webkit-scrollbar,
+body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
