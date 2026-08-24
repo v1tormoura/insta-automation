@@ -469,3 +469,91 @@ body:has([data-mf]) > #root {
    carga, mas declarar aqui evita depender disso. */
 html:has([data-mf])::-webkit-scrollbar,
 body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENQUADRAMENTO DOS PAINÉIS LADO A LADO
+
+   `align-items: start` deixava cada painel com a própria altura. Numa fila
+   de três, o mais curto — o ranking, que costuma estar vazio — ficava
+   grudado no topo com um vão embaixo, e a linha lia-se como três cartões
+   soltos em vez de uma faixa.
+
+   `stretch` iguala as alturas, e o `display: flex` interno faz o conteúdo
+   de cada painel ocupar o espaço que sobrou: o estado vazio centraliza em
+   vez de encostar no topo.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf] .dash-main-panels,
+[data-mf] .operations-grid,
+[data-mf] .bottom-grid {
+  align-items: stretch;
+}
+
+[data-mf] .dash-main-panels > *,
+[data-mf] .operations-grid > * {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* O corpo do painel cresce e empurra o rodapé para baixo; o estado vazio
+   passa a ocupar o miolo em vez de ficar pendurado no topo. */
+[data-mf] .dash-main-panels .panel-body,
+[data-mf] .dash-main-panels .mf-empty,
+[data-mf] .operations-grid .panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEXTURA DE FUNDO
+
+   Uma grade fina atrás de tudo. Ela dá ao fundo uma escala de referência —
+   sem nada, um escuro chapado não diz se a área é grande ou pequena, e os
+   cartões parecem boiar. Com a grade, eles se apoiam em alguma coisa.
+
+   Fica em `::before` fixo, não no `background` do elemento: assim o padrão
+   não rola junto com o conteúdo. Grade que acompanha a rolagem vira ruído
+   em movimento e cansa; parada, ela some da consciência e só sustenta.
+
+   A máscara vertical apaga a grade no rodapé da tela. Sem isso a última
+   linha de conteúdo compete com a textura bem onde o olho descansa.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf] .mf-app { position: relative; isolation: isolate; }
+
+[data-mf] .mf-app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--mf-bg);
+  background-image:
+    linear-gradient(var(--mf-grade) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mf-grade) 1px, transparent 1px);
+  background-size: var(--mf-grade-tam) var(--mf-grade-tam);
+  mask-image: linear-gradient(180deg, black 0%, black 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, black 0%, black 55%, transparent 100%);
+}
+
+/* Um halo grande e difuso no topo, na cor da marca. É o que impede o fundo
+   de ler como cinza morto — dá temperatura sem clarear a superfície. */
+[data-mf] .mf-app::after {
+  content: '';
+  position: fixed;
+  inset: -20% 0 auto 0;
+  height: 60vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 20% 0%, color-mix(in oklch, var(--mf-primary-500) 10%, transparent), transparent 70%),
+    radial-gradient(50% 40% at 85% 5%, color-mix(in oklch, var(--mf-accent-500) 7%, transparent), transparent 70%);
+  filter: blur(20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-mf] .mf-app::after { filter: none; }
+}

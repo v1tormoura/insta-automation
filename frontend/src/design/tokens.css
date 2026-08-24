@@ -56,38 +56,62 @@
   --mf-mod-sistema:   oklch(0.70 0.03 275);   /* neutro  */
 
   /* ── Superfícies ───────────────────────────────────────────────────────
-     Escuro com um viés violeta mínimo (croma 0.012–0.02), não cinza puro.
-     Preto absoluto achata a hierarquia: sem diferença entre camadas, todo
-     card parece estar no mesmo plano. */
-  --mf-bg:          oklch(0.145 0.018 275);
-  --mf-surface-1:   oklch(0.178 0.020 275);
-  --mf-surface-2:   oklch(0.208 0.022 275);
-  --mf-surface-3:   oklch(0.245 0.024 275);
-  --mf-overlay:     oklch(0.10 0.02 275 / 0.72);
+     Azul-noite: matiz 250, que é azul-marinho, no lugar do 275 arroxeado da
+     primeira proposta. Duas consequências práticas — o ciano do acento
+     brilha mais sobre azul do que sobre violeta, porque estão mais próximos
+     na roda e a superfície deixa de disputar; e o conjunto fica mais perto
+     do que o produto já era antes do redesign.
 
-  --mf-border:        oklch(1 0 0 / 0.08);
-  --mf-border-strong: oklch(1 0 0 / 0.14);
+     Croma 0.030, quase o dobro do anterior. Num fundo mais claro, croma
+     baixo lê como cinza sujo; é a saturação que faz o azul continuar sendo
+     azul quando a luminosidade sobe.
+
+     As quatro camadas sobem juntas (0.20 → 0.24 → 0.28 → 0.32) mantendo o
+     passo de 0.04 entre elas. O passo é o que carrega a hierarquia: com
+     diferença menor, card e fundo se confundem; com maior, cada camada
+     parece um material diferente. */
+  --mf-bg:          oklch(0.20 0.030 250);
+  --mf-surface-1:   oklch(0.24 0.032 250);
+  --mf-surface-2:   oklch(0.28 0.034 250);
+  --mf-surface-3:   oklch(0.32 0.036 250);
+  --mf-overlay:     oklch(0.14 0.03 250 / 0.72);
+
+  /* Traço da grade de fundo. Fraco de propósito: ela precisa dar escala ao
+     fundo sem ser lida como conteúdo. Acima de 0.03 vira quadriculado
+     visível e começa a competir com os cartões. */
+  --mf-grade:      oklch(1 0 0 / 0.030);
+  --mf-grade-tam:  32px;
+
+  /* Subiram junto com as superfícies. Branco translúcido rende menos quanto
+     mais claro é o que está atrás: os mesmos 8% que desenhavam uma borda
+     nítida sobre 0.145 quase somem sobre 0.24. */
+  --mf-border:        oklch(1 0 0 / 0.10);
+  --mf-border-strong: oklch(1 0 0 / 0.18);
   /* divisória interna: mais fraca que a borda do próprio card, senão cada
      linha de tabela compete com o contorno do painel que a contém */
-  --mf-border-subtle: oklch(1 0 0 / 0.045);
+  --mf-border-subtle: oklch(1 0 0 / 0.06);
   --mf-border-focus:  var(--mf-primary-500);
 
   /* ── Texto ─────────────────────────────────────────────────────────────
-     Três níveis bastam; um quarto tom vira decisão sem critério.
+     Três níveis bastam; um quarto tom vira decisão sem critério. O matiz
+     acompanha o das superfícies (250): texto com viés violeta sobre fundo
+     azul lê como cinza sujo, mesmo com croma baixo.
 
-     A luminância do terciário foi medida, não escolhida no olho. Ele carrega
-     rótulo de tabela, legenda de métrica e timestamp — texto pequeno, onde o
-     mínimo do WCAG AA é 4.5:1. Contra --mf-surface-2 (fundo de controle e de
-     linha em hover, o mais claro dos dois em que ele aparece):
+     A luminância do terciário é medida, não escolhida no olho. Ele carrega
+     rótulo de tabela, legenda de métrica e timestamp — texto pequeno, onde
+     o mínimo do WCAG AA é 4.5:1. E ela precisou subir junto com a paleta:
+     clarear o fundo custa contraste, e o valor antigo passou a reprovar.
 
-         L=0.58 → 4.17   L=0.59 → 4.35   L=0.60 → 4.49   L=0.61 → 4.67
+     Contra --mf-surface-2, que é o mais claro dos fundos em que ele aparece:
 
-     Ou seja, 0.61 é o primeiro passo que passa nas duas superfícies — 4.97
-     sobre --mf-surface-1 e 4.67 sobre --mf-surface-2. Abaixar daqui reprova
-     o texto pequeno da interface inteira. */
-  --mf-text:      oklch(0.97 0.008 275);
-  --mf-text-2:    oklch(0.76 0.020 275);
-  --mf-text-3:    oklch(0.61 0.022 275);
+         L=0.61 → 3.88   L=0.64 → 4.36   L=0.66 → 4.72   L=0.68 → 5.09
+
+     0.66 é o primeiro passo que volta a passar. Fica registrado porque a
+     conta muda toda vez que a paleta muda — o valor não é transportável de
+     um tema para o outro. */
+  --mf-text:      oklch(0.97 0.008 250);
+  --mf-text-2:    oklch(0.76 0.020 250);
+  --mf-text-3:    oklch(0.66 0.022 250);
 
   /* ── Espaçamento ───────────────────────────────────────────────────────
      Escala de 4. Valor fora dela é acidente, não decisão. */
