@@ -22,30 +22,30 @@ function FileThumb({ file, selected, onClick }) {
       onClick={onClick}
       style={{
         position: 'relative', aspectRatio: '9/16', borderRadius: 8, overflow: 'hidden',
-        border: selected ? '2px solid var(--cyan)' : '2px solid oklch(1 0 0 / 0.08)',
+        border: selected ? '2px solid var(--mf-mod, var(--mf-accent-500))' : '2px solid var(--mf-border)',
         background: 'oklch(0.12 0.04 235)',
         cursor: 'pointer', padding: 0, display: 'block',
-        boxShadow: selected ? '0 0 0 1px var(--cyan)' : 'none',
+        boxShadow: selected ? '0 0 0 1px var(--mf-mod, var(--mf-accent-500))' : 'none',
         transition: 'border-color .15s, box-shadow .15s',
       }}
     >
       {src && !imgFailed
         ? <img src={src} alt="" loading="lazy" onError={() => setImgFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', opacity: .5, fontSize: 22 }}>
+        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)', opacity: .5, fontSize: 22 }}>
             {isVideo ? '🎬' : '🖼️'}
           </div>
       }
       {isVideo && !imgFailed && src && (
-        <div style={{ position: 'absolute', bottom: 4, left: 4, background: 'oklch(0 0 0 / 0.65)', borderRadius: 4, padding: '1px 5px', fontSize: 9, color: '#fff', fontFamily: 'var(--font-mono)' }}>▶</div>
+        <div style={{ position: 'absolute', bottom: 4, left: 4, background: 'oklch(0 0 0 / 0.65)', borderRadius: 4, padding: '1px 5px', fontSize: 9, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>▶</div>
       )}
       {selected && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,212,255,.12)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 5 }}>
-          <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#040e1c" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div style={{ position: 'absolute', inset: 0, background: 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 5 }}>
+          <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--mf-bg)" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </div>
       )}
-      <div style={{ position: 'absolute', top: 3, left: 3, fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-mono)', background: 'oklch(0 0 0 / 0.65)', color: '#fff', borderRadius: 3, padding: '1px 4px', maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ position: 'absolute', top: 3, left: 3, fontSize: 8, fontWeight: 700, fontFamily: 'var(--mf-mono)', background: 'oklch(0 0 0 / 0.65)', color: 'var(--mf-text)', borderRadius: 3, padding: '1px 4px', maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {file.originalName || file.filename}
       </div>
     </button>
@@ -138,39 +138,39 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
       >
         <motion.div
           initial={{ opacity: 0, y: 24, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }}
-          style={{ background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid oklch(1 0 0 / 0.1)', borderRadius: 16, width: 'min(820px, 100%)', maxHeight: 'min(90dvh,90vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px oklch(0 0 0 / .6)' }}
+          style={{ background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid var(--mf-border)', borderRadius: 16, width: 'min(820px, 100%)', maxHeight: 'min(90dvh,90vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px oklch(0 0 0 / .6)' }}
         >
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid oklch(1 0 0 / 0.08)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>📁</span>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>Biblioteca de Mídias</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{selected.size > 0 ? `${selected.size} selecionado(s)` : 'Clique para selecionar'}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--mf-text)' }}>Biblioteca de Mídias</div>
+                <div style={{ fontSize: 11, color: 'var(--mf-text-3)' }}>{selected.size > 0 ? `${selected.size} selecionado(s)` : 'Clique para selecionar'}</div>
               </div>
             </div>
-            <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: 'oklch(1 0 0 / 0.06)', border: '1px solid oklch(1 0 0 / 0.08)', color: 'var(--text3)', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--mf-border)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-3)', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           </div>
 
           {/* Body */}
           <div className="lib-picker-body">
             {/* Sidebar pastas */}
             <div className="lib-picker-sidebar">
-              <div className="lib-picker-sidebar-label" style={{ padding: '10px 10px 6px', fontSize: 9, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', fontFamily: 'var(--font-mono)' }}>Pastas</div>
+              <div className="lib-picker-sidebar-label" style={{ padding: '10px 10px 6px', fontSize: 9, fontWeight: 700, color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.06em', fontFamily: 'var(--mf-mono)' }}>Pastas</div>
               {allFoldersForSidebar.map(f => (
                 <button key={f} type="button" onClick={() => setActive(f)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', margin: '0 6px 2px', borderRadius: 7, cursor: 'pointer', border: 'none', textAlign: 'left',
                     background: activeFolder === f ? 'oklch(0.68 0.18 270 / 0.15)' : 'transparent',
-                    color: activeFolder === f ? 'oklch(0.80 0.16 270)' : 'var(--text2)',
+                    color: activeFolder === f ? 'oklch(0.80 0.16 270)' : 'var(--mf-text-2)',
                     fontWeight: activeFolder === f ? 600 : 400, fontSize: 12, transition: '.15s',
                   }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📁 {f === 'default' ? 'Geral' : f}</span>
-                  <span style={{ fontSize: 10, color: 'var(--text3)', background: 'oklch(0.10 0.03 235 / 0.5)', borderRadius: 8, padding: '1px 5px', flexShrink: 0, marginLeft: 4 }}>{folderCounts[f] || 0}</span>
+                  <span style={{ fontSize: 10, color: 'var(--mf-text-3)', background: 'oklch(0.10 0.03 235 / 0.5)', borderRadius: 8, padding: '1px 5px', flexShrink: 0, marginLeft: 4 }}>{folderCounts[f] || 0}</span>
                 </button>
               ))}
               {/* Upload na sidebar */}
-              <div className="lib-picker-sidebar-upload" style={{ marginTop: 'auto', padding: '10px 8px', borderTop: '1px solid oklch(1 0 0 / 0.07)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 8, cursor: uploading ? 'wait' : 'pointer', background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.2)', color: 'var(--cyan)', fontSize: 11, fontWeight: 600 }}>
+              <div className="lib-picker-sidebar-upload" style={{ marginTop: 'auto', padding: '10px 8px', borderTop: '1px solid var(--mf-border)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', borderRadius: 8, cursor: uploading ? 'wait' : 'pointer', background: 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', fontSize: 11, fontWeight: 600 }}>
                   <input type="file" multiple accept="image/*,video/*" hidden onChange={e => uploadFiles(e.target.files)} />
                   {uploading ? '⏳ Enviando...' : '⬆ Upload'}
                 </label>
@@ -181,18 +181,18 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Toolbar de seleção */}
               {!loading && shown.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
                     {shown.length} arquivo{shown.length !== 1 ? 's' : ''}
                     {shownSelected > 0 && (
-                      <> · <span style={{ color: 'var(--cyan)', fontWeight: 700 }}>{shownSelected} sel.</span></>
+                      <> · <span style={{ color: 'var(--mf-mod, var(--mf-accent-500))', fontWeight: 700 }}>{shownSelected} sel.</span></>
                     )}
                   </span>
                   <button type="button" onClick={toggleSelectAll}
                     style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', transition: 'all .15s',
-                      border: `1px solid ${allShownSel ? 'rgba(248,113,113,.3)' : 'oklch(1 0 0 / 0.1)'}`,
-                      background: allShownSel ? 'rgba(248,113,113,.08)' : 'oklch(1 0 0 / 0.05)',
-                      color: allShownSel ? '#f87171' : 'var(--text2)',
+                      border: `1px solid ${allShownSel ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'var(--mf-border)'}`,
+                      background: allShownSel ? 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)' : 'var(--mf-border-subtle)',
+                      color: allShownSel ? 'var(--mf-danger-500)' : 'var(--mf-text-2)',
                     }}>
                     {allShownSel ? 'Desmarcar todos' : 'Selecionar todos'}
                   </button>
@@ -203,16 +203,16 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
                 onDragLeave={() => setDragOver(false)}
                 onDrop={e => { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files); }}
               >
-                {loading && <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 40 }}>Carregando...</div>}
+                {loading && <div style={{ textAlign: 'center', color: 'var(--mf-text-3)', padding: 40 }}>Carregando...</div>}
                 {!loading && shown.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: 40 }}>
+                  <div style={{ textAlign: 'center', color: 'var(--mf-text-3)', padding: 40 }}>
                     <div style={{ fontSize: 32, marginBottom: 10 }}>📂</div>
                     <div style={{ fontSize: 13 }}>Nenhuma mídia nesta pasta.</div>
                     <div style={{ fontSize: 11, marginTop: 6 }}>Use o botão "Upload" para adicionar arquivos.</div>
                   </div>
                 )}
                 {dragOver && (
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,212,255,.1)', border: '2px dashed var(--cyan)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'var(--cyan)', pointerEvents: 'none', zIndex: 10 }}>
+                  <div style={{ position: 'absolute', inset: 0, background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border: '2px dashed var(--mf-mod, var(--mf-accent-500))', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'var(--mf-mod, var(--mf-accent-500))', pointerEvents: 'none', zIndex: 10 }}>
                     Solte para fazer upload
                   </div>
                 )}
@@ -226,14 +226,14 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
           </div>
 
           {/* Footer */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '1px solid oklch(1 0 0 / 0.08)', flexShrink: 0 }}>
-            <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: 'var(--mf-text-3)' }}>
               {files.filter(f => !f.filename?.startsWith('__folder_')).length} mídia(s) na biblioteca
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={onClose} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid oklch(1 0 0 / 0.09)', background: 'transparent', color: 'var(--text3)', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+              <button type="button" onClick={onClose} style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--mf-border)', background: 'transparent', color: 'var(--mf-text-3)', cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
               <button type="button" onClick={confirm} disabled={selected.size === 0}
-                style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: selected.size > 0 ? 'var(--cyan)' : 'oklch(1 0 0 / 0.08)', color: selected.size > 0 ? '#040e1c' : 'var(--text3)', cursor: selected.size > 0 ? 'pointer' : 'default', fontSize: 13, fontWeight: 700, transition: '.15s' }}>
+                style={{ padding: '7px 20px', borderRadius: 8, border: 'none', background: selected.size > 0 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)', color: selected.size > 0 ? 'var(--mf-bg)' : 'var(--mf-text-3)', cursor: selected.size > 0 ? 'pointer' : 'default', fontSize: 13, fontWeight: 700, transition: '.15s' }}>
                 {selected.size > 0 ? `Adicionar ${selected.size} arquivo(s)` : 'Selecione arquivos'}
               </button>
             </div>

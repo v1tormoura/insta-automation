@@ -8,37 +8,37 @@ import PageShell from '../components/PageShell';
 
 const CARD = {
   background: 'oklch(0.16 0.05 235 / 0.85)',
-  border: '1px solid oklch(1 0 0 / 0.07)',
+  border: '1px solid var(--mf-border)',
   borderRadius: 14,
   backdropFilter: 'blur(12px)',
   overflow: 'hidden',
 };
 
 const STATUS_META = {
-  pending:    { label: 'Aguardando',  color: '#94a3b8', icon: '○' },
-  queued:     { label: 'Na fila',     color: '#60a5fa', icon: '⋯' },
-  processing: { label: 'Processando', color: '#f59e0b', icon: '◌' },
-  completed:  { label: 'Concluído',   color: '#4ade80', icon: '✓' },
-  failed:     { label: 'Falhou',      color: '#f87171', icon: '✗' },
-  cancelled:  { label: 'Cancelado',   color: '#94a3b8', icon: '⊘' },
+  pending:    { label: 'Aguardando',  color: 'var(--mf-text-3)', icon: '○' },
+  queued:     { label: 'Na fila',     color: 'var(--mf-info-500)', icon: '⋯' },
+  processing: { label: 'Processando', color: 'var(--mf-warning-500)', icon: '◌' },
+  completed:  { label: 'Concluído',   color: 'var(--mf-success-500)', icon: '✓' },
+  failed:     { label: 'Falhou',      color: 'var(--mf-danger-500)', icon: '✗' },
+  cancelled:  { label: 'Cancelado',   color: 'var(--mf-text-3)', icon: '⊘' },
 };
 
 const BATCH_STATUS = {
-  pending:    { label: 'Aguardando',  color: '#94a3b8' },
-  processing: { label: 'Processando', color: '#60a5fa' },
-  completed:  { label: 'Concluído',   color: '#4ade80' },
-  failed:     { label: 'Falhou',      color: '#f87171' },
-  cancelled:  { label: 'Cancelado',   color: '#94a3b8' },
+  pending:    { label: 'Aguardando',  color: 'var(--mf-text-3)' },
+  processing: { label: 'Processando', color: 'var(--mf-info-500)' },
+  completed:  { label: 'Concluído',   color: 'var(--mf-success-500)' },
+  failed:     { label: 'Falhou',      color: 'var(--mf-danger-500)' },
+  cancelled:  { label: 'Cancelado',   color: 'var(--mf-text-3)' },
 };
 
 function ProgressBar({ completed, failed, total }) {
   const okPct  = total > 0 ? (completed / total) * 100 : 0;
   const errPct = total > 0 ? (failed   / total) * 100 : 0;
   return (
-    <div style={{ height: 6, background: 'oklch(1 0 0 / 0.08)', borderRadius: 99, overflow: 'hidden' }}>
+    <div style={{ height: 6, background: 'var(--mf-border)', borderRadius: 99, overflow: 'hidden' }}>
       <div style={{ height: '100%', display: 'flex' }}>
-        <div style={{ width: `${okPct}%`,  background: '#4ade80', transition: 'width .4s' }} />
-        <div style={{ width: `${errPct}%`, background: '#f87171', transition: 'width .4s' }} />
+        <div style={{ width: `${okPct}%`,  background: 'var(--mf-success-500)', transition: 'width .4s' }} />
+        <div style={{ width: `${errPct}%`, background: 'var(--mf-danger-500)', transition: 'width .4s' }} />
       </div>
     </div>
   );
@@ -155,7 +155,7 @@ export default function VideoBatchDetail() {
   if (loading) {
     return (
       <PageShell title="Lote de Vídeo" accent="green">
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)' }}>Carregando…</div>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--mf-text-3)' }}>Carregando…</div>
       </PageShell>
     );
   }
@@ -189,13 +189,13 @@ export default function VideoBatchDetail() {
         Lotes
       </button>
       {completedCount > 0 && (
-        <button className="btn-ghost" onClick={downloadAll} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', color: '#4ade80', borderColor: '#4ade8030', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <button className="btn-ghost" onClick={downloadAll} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', color: 'var(--mf-success-500)', borderColor: '#4ade8030', display: 'flex', alignItems: 'center', gap: 5 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Baixar todos ({completedCount})
         </button>
       )}
       {batch.status === 'processing' && (
-        <button className="btn-ghost" onClick={cancel} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', color: '#f87171' }}>
+        <button className="btn-ghost" onClick={cancel} style={{ padding: '5px 12px', borderRadius: 8, fontSize: '.82rem', color: 'var(--mf-danger-500)' }}>
           Cancelar lote
         </button>
       )}
@@ -211,16 +211,16 @@ export default function VideoBatchDetail() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={() => { setLogsJob(null); setLogs(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ ...CARD, width: '100%', maxWidth: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', flexShrink: 0 }}>
-              <strong style={{ fontSize: '.88rem', color: 'var(--text)' }}>Logs do render</strong>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
+              <strong style={{ fontSize: '.88rem', color: 'var(--mf-text)' }}>Logs do render</strong>
               <button className="btn-ghost" onClick={() => { setLogsJob(null); setLogs(null); }} style={{ padding: '3px 8px', borderRadius: 6, fontSize: 18 }}>×</button>
             </div>
             <div style={{ overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
               {(logs || []).length === 0 ? (
-                <p style={{ color: 'var(--text3)', fontSize: '.82rem', textAlign: 'center', padding: 20 }}>Sem logs disponíveis.</p>
+                <p style={{ color: 'var(--mf-text-3)', fontSize: '.82rem', textAlign: 'center', padding: 20 }}>Sem logs disponíveis.</p>
               ) : (logs || []).map((log, i) => (
-                <div key={i} style={{ fontSize: '.78rem', fontFamily: 'var(--font-mono)', color: log.level === 'error' ? '#f87171' : log.level === 'warn' ? '#f59e0b' : 'var(--text3)', display: 'flex', gap: 8 }}>
-                  <span style={{ flexShrink: 0, color: 'oklch(1 0 0 / 0.3)' }}>{new Date(log.timestamp).toLocaleTimeString('pt-BR')}</span>
+                <div key={i} style={{ fontSize: '.78rem', fontFamily: 'var(--mf-mono)', color: log.level === 'error' ? 'var(--mf-danger-500)' : log.level === 'warn' ? 'var(--mf-warning-500)' : 'var(--mf-text-3)', display: 'flex', gap: 8 }}>
+                  <span style={{ flexShrink: 0, color: 'var(--mf-border-strong)' }}>{new Date(log.timestamp).toLocaleTimeString('pt-BR')}</span>
                   <span>{log.message}</span>
                 </div>
               ))}
@@ -237,18 +237,18 @@ export default function VideoBatchDetail() {
             <div style={{ padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 700, color: bMeta.color, fontFamily: 'var(--font-mono)' }}>{pct}%</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 700, color: bMeta.color, fontFamily: 'var(--mf-mono)' }}>{pct}%</span>
                   <span style={{ fontSize: '.78rem', borderRadius: 100, padding: '3px 10px', background: `${bMeta.color}15`, color: bMeta.color, border: `1px solid ${bMeta.color}30` }}>{bMeta.label}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 16, fontSize: '.78rem', fontFamily: 'var(--font-mono)' }}>
-                  <span style={{ color: '#4ade80' }}>✓ {batch.completedJobs} concluídos</span>
-                  {batch.failedJobs > 0 && <span style={{ color: '#f87171' }}>✗ {batch.failedJobs} falhos</span>}
-                  {batch.pendingJobs > 0 && <span style={{ color: 'var(--text3)' }}>⋯ {batch.pendingJobs} pendentes</span>}
-                  <span style={{ color: 'var(--text3)' }}>Total: {batch.totalJobs}</span>
+                <div style={{ display: 'flex', gap: 16, fontSize: '.78rem', fontFamily: 'var(--mf-mono)' }}>
+                  <span style={{ color: 'var(--mf-success-500)' }}>✓ {batch.completedJobs} concluídos</span>
+                  {batch.failedJobs > 0 && <span style={{ color: 'var(--mf-danger-500)' }}>✗ {batch.failedJobs} falhos</span>}
+                  {batch.pendingJobs > 0 && <span style={{ color: 'var(--mf-text-3)' }}>⋯ {batch.pendingJobs} pendentes</span>}
+                  <span style={{ color: 'var(--mf-text-3)' }}>Total: {batch.totalJobs}</span>
                 </div>
               </div>
               <ProgressBar completed={batch.completedJobs} failed={batch.failedJobs} total={batch.totalJobs} />
-              <div style={{ marginTop: 8, display: 'flex', gap: 14, fontSize: '.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text3)' }}>
+              <div style={{ marginTop: 8, display: 'flex', gap: 14, fontSize: '.72rem', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)' }}>
                 <span>Criado: {new Date(batch.createdAt).toLocaleString('pt-BR')}</span>
                 {batch.completedAt && <span>Concluído: {new Date(batch.completedAt).toLocaleString('pt-BR')}</span>}
                 <span>Qualidade: {batch.quality}</span>
@@ -258,15 +258,15 @@ export default function VideoBatchDetail() {
 
           {/* Render jobs */}
           <div style={CARD}>
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
-              <h3 style={{ margin: 0, fontSize: '.88rem', fontWeight: 700, color: 'var(--text)' }}>Renders ({renderJobs.length})</h3>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--mf-border)' }}>
+              <h3 style={{ margin: 0, fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)' }}>Renders ({renderJobs.length})</h3>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.8rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid oklch(1 0 0 / 0.06)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--mf-border)' }}>
                     {['Arquivo', 'Status', 'Duração', 'Tamanho', 'Ações'].map(h => (
-                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text3)', fontWeight: 600, letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '.7rem', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', fontWeight: 600, letterSpacing: '.04em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -279,9 +279,9 @@ export default function VideoBatchDetail() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: i * 0.02 }}
-                        style={{ borderBottom: '1px solid oklch(1 0 0 / 0.04)' }}
+                        style={{ borderBottom: '1px solid var(--mf-border-subtle)' }}
                       >
-                        <td style={{ padding: '9px 12px', color: 'var(--text)', maxWidth: 220 }}>
+                        <td style={{ padding: '9px 12px', color: 'var(--mf-text)', maxWidth: 220 }}>
                           <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rj.originalName}>{rj.originalName || '—'}</span>
                         </td>
                         <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
@@ -289,25 +289,25 @@ export default function VideoBatchDetail() {
                             {sm.icon} {sm.label}
                           </span>
                         </td>
-                        <td style={{ padding: '9px 12px', color: 'var(--text3)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '9px 12px', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', whiteSpace: 'nowrap' }}>
                           {fmtDuration(rj.duration)}
                         </td>
-                        <td style={{ padding: '9px 12px', color: 'var(--text3)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '9px 12px', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', whiteSpace: 'nowrap' }}>
                           {fmtSize(rj.metrics?.outputSize)}
                         </td>
                         <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button className="btn-ghost" onClick={() => showLogs(rj._id)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem' }}>Logs</button>
                             {rj.status === 'completed' && (
-                              <button className="btn-ghost" onClick={() => downloadRender(rj._id, rj.originalName, renderJobs.indexOf(rj))} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: '#4ade80', borderColor: '#4ade8030' }}>
+                              <button className="btn-ghost" onClick={() => downloadRender(rj._id, rj.originalName, renderJobs.indexOf(rj))} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: 'var(--mf-success-500)', borderColor: '#4ade8030' }}>
                                 Download
                               </button>
                             )}
                             {['failed', 'cancelled'].includes(rj.status) && (
-                              <button className="btn-ghost" onClick={() => retry(rj._id)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: '#60a5fa' }}>Retentar</button>
+                              <button className="btn-ghost" onClick={() => retry(rj._id)} style={{ padding: '3px 8px', borderRadius: 6, fontSize: '.72rem', color: 'var(--mf-info-500)' }}>Retentar</button>
                             )}
                             {rj.error && (
-                              <span style={{ fontSize: '.72rem', color: '#f87171', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rj.error}>{rj.error}</span>
+                              <span style={{ fontSize: '.72rem', color: 'var(--mf-danger-500)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rj.error}>{rj.error}</span>
                             )}
                           </div>
                         </td>
@@ -315,7 +315,7 @@ export default function VideoBatchDetail() {
                     );
                   })}
                   {!renderJobs.length && (
-                    <tr><td colSpan={5} style={{ padding: '30px 12px', textAlign: 'center', color: 'var(--text3)', fontSize: '.85rem' }}>Nenhum render ainda.</td></tr>
+                    <tr><td colSpan={5} style={{ padding: '30px 12px', textAlign: 'center', color: 'var(--mf-text-3)', fontSize: '.85rem' }}>Nenhum render ainda.</td></tr>
                   )}
                 </tbody>
               </table>

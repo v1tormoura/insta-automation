@@ -116,12 +116,12 @@ function HourBars({ hours, peakHour }) {
                       boxShadow:'0 8px 24px rgba(0,0,0,.4)',
                     }}
                   >
-                    <div style={{fontWeight:800,color:isPeak?'var(--cyan)':'var(--text)',fontSize:12,fontVariantNumeric:'tabular-nums'}}>{padH(h.hour)}:00</div>
-                    <div style={{color:'var(--text3)',marginTop:2}}>
+                    <div style={{fontWeight:800,color:isPeak?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)',fontSize:12,fontVariantNumeric:'tabular-nums'}}>{padH(h.hour)}:00</div>
+                    <div style={{color:'var(--mf-text-3)',marginTop:2}}>
                       {h.avgEngagement>0?`eng. ${h.avgEngagement}`:'sem dados'}
                       {h.count>0&&` · ${h.count} post${h.count>1?'s':''}`}
                     </div>
-                    {isPeak&&<div style={{color:'var(--cyan)',fontSize:9,marginTop:3,fontWeight:700,letterSpacing:'.04em'}}>★ MELHOR HORÁRIO</div>}
+                    {isPeak&&<div style={{color:'var(--mf-mod, var(--mf-accent-500))',fontSize:9,marginTop:3,fontWeight:700,letterSpacing:'.04em'}}>★ MELHOR HORÁRIO</div>}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -141,7 +141,7 @@ function HourBars({ hours, peakHour }) {
       {/* x-axis */}
       <div style={{display:'flex',justifyContent:'space-between',marginTop:6,padding:'0 1px'}}>
         {['00h','04h','08h','12h','16h','20h','23h'].map(h=>(
-          <span key={h} style={{fontSize:9,color:'var(--text3)',fontFamily:'var(--font-mono)'}}>{h}</span>
+          <span key={h} style={{fontSize:9,color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{h}</span>
         ))}
       </div>
     </div>
@@ -159,7 +159,7 @@ function HeatRow({ hours, peakHour }) {
         return (
           <div key={h.hour} title={`${padH(h.hour)}h · eng.${h.avgEngagement}`} style={{
             height:6,borderRadius:2,
-            background: isPeak?'var(--cyan)':h.count===0?'oklch(1 0 0/0.05)':`oklch(0.68 0.18 196/${0.06+i*0.45})`,
+            background: isPeak?'var(--mf-mod, var(--mf-accent-500))':h.count===0?'oklch(1 0 0/0.05)':`oklch(0.68 0.18 196/${0.06+i*0.45})`,
             boxShadow: isPeak?'0 0 6px oklch(0.72 0.19 196/0.7)':'none',
             transition:'transform .15s',cursor:'default',
           }}/>
@@ -207,27 +207,27 @@ function AccountCard({ a, idx }) {
           }}>
             {src
               ?<img src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
-              :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:22,color:'var(--cyan)'}}>{a.username?.[0]?.toUpperCase()}</div>
+              :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:22,color:'var(--mf-mod, var(--mf-accent-500))'}}>{a.username?.[0]?.toUpperCase()}</div>
             }
           </div>
         </div>
 
         {/* Info */}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:800,fontSize:15,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',letterSpacing:-.2}}>
+          <div style={{fontWeight:800,fontSize:15,color:'var(--mf-text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',letterSpacing:-.2}}>
             @{a.username}
           </div>
           {a.name&&a.name!==a.username&&(
-            <div style={{fontSize:11,color:'var(--text3)',marginTop:1}}>{a.name}</div>
+            <div style={{fontSize:11,color:'var(--mf-text-3)',marginTop:1}}>{a.name}</div>
           )}
           <div style={{display:'flex',gap:12,marginTop:7,flexWrap:'wrap'}}>
             {a.followers!=null&&(
-              <span style={{fontSize:11,color:'var(--text3)'}}>
-                <span style={{fontWeight:700,color:'var(--text)',fontFamily:'var(--font-mono)'}}>{fmtK(a.followers)}</span> seguidores
+              <span style={{fontSize:11,color:'var(--mf-text-3)'}}>
+                <span style={{fontWeight:700,color:'var(--mf-text)',fontFamily:'var(--mf-mono)'}}>{fmtK(a.followers)}</span> seguidores
               </span>
             )}
-            <span style={{fontSize:11,color:'var(--text3)'}}>
-              <span style={{fontWeight:700,color:'var(--text)',fontFamily:'var(--font-mono)'}}>{totalPosts}</span> posts analisados
+            <span style={{fontSize:11,color:'var(--mf-text-3)'}}>
+              <span style={{fontWeight:700,color:'var(--mf-text)',fontFamily:'var(--mf-mono)'}}>{totalPosts}</span> posts analisados
             </span>
           </div>
         </div>
@@ -245,15 +245,15 @@ function AccountCard({ a, idx }) {
             background:'radial-gradient(circle at 50% 0%,oklch(0.72 0.19 196/0.08),transparent 70%)',
             pointerEvents:'none',
           }}/>
-          <div style={{fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>Melhor hora</div>
-          <div style={{fontSize:30,fontWeight:900,color:'var(--cyan)',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-1}}>
+          <div style={{fontSize:10,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>Melhor hora</div>
+          <div style={{fontSize:30,fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-1}}>
             {padH(a.peakHour)}h
           </div>
-          <div style={{fontSize:10,color:'var(--text3)',marginTop:5}}>eng. {peakEng}</div>
+          <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:5}}>eng. {peakEng}</div>
           {isPeakNow&&(
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginTop:5}}>
-              <span style={{width:5,height:5,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
-              <span style={{fontSize:9,color:'#22c55e',fontWeight:700}}>AGORA</span>
+              <span style={{width:5,height:5,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
+              <span style={{fontSize:9,color:'var(--mf-success-500)',fontWeight:700}}>AGORA</span>
             </div>
           )}
         </div>
@@ -262,13 +262,13 @@ function AccountCard({ a, idx }) {
       {/* Quick metrics */}
       <div style={{margin:'0 22px',padding:'10px 14px',borderRadius:10,background:'oklch(0.10 0.04 235/0.5)',display:'flex',gap:0,marginBottom:14}}>
         {[
-          {label:'Janela ideal',value:bestWindow,color:'#a78bfa'},
-          {label:'Pico eng.',value:String(peakEng),color:'var(--cyan)'},
-          {label:'Posts',value:String(totalPosts),color:'var(--text2)'},
+          {label:'Janela ideal',value:bestWindow,color:'var(--mf-mod-publicar)'},
+          {label:'Pico eng.',value:String(peakEng),color:'var(--mf-mod, var(--mf-accent-500))'},
+          {label:'Posts',value:String(totalPosts),color:'var(--mf-text-2)'},
         ].map((m,i)=>(
           <div key={m.label} style={{flex:1,textAlign:'center',borderRight:i<2?'1px solid oklch(1 0 0/0.07)':'none',padding:'2px 8px'}}>
             <div style={{fontWeight:700,fontSize:13,color:m.color,fontVariantNumeric:'tabular-nums'}}>{m.value}</div>
-            <div style={{fontSize:9,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em',marginTop:2}}>{m.label}</div>
+            <div style={{fontSize:9,color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.05em',marginTop:2}}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -285,12 +285,12 @@ function AccountCard({ a, idx }) {
 
       {/* Top hours footer */}
       <div style={{borderTop:'1px solid oklch(1 0 0/0.07)',padding:'10px 22px',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
-        <span style={{fontSize:9,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginRight:2}}>Top:</span>
+        <span style={{fontSize:9,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginRight:2}}>Top:</span>
         {topHours.map((h,i)=>(
           <span key={h.hour} style={{
             fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:20,
             background:i===0?'oklch(0.72 0.19 196/0.14)':'oklch(0.11 0.04 235/0.7)',
-            color:i===0?'var(--cyan)':'var(--text3)',
+            color:i===0?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)',
             border:`1px solid ${i===0?'oklch(0.72 0.19 196/0.3)':'oklch(1 0 0/0.07)'}`,
             boxShadow:i===0?'0 0 8px oklch(0.72 0.19 196/0.15)':'none',
           }}>
@@ -346,22 +346,22 @@ function HeroCard({ data, period }) {
       <div style={{display:'flex',gap:28,alignItems:'stretch',flexWrap:'wrap',position:'relative'}}>
         {/* Feature KPI */}
         <div style={{display:'flex',flexDirection:'column',justifyContent:'center',minWidth:140}}>
-          <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>
+          <div style={{fontSize:10,fontWeight:700,color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>
             Pico global
           </div>
           <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-            <div style={{fontSize:56,fontWeight:900,color:'var(--cyan)',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-2,textShadow:'0 0 40px oklch(0.72 0.19 196/0.4)'}}>
+            <div style={{fontSize:56,fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-2,textShadow:'0 0 40px oklch(0.72 0.19 196/0.4)'}}>
               {padH(peakNum)}
             </div>
-            <div style={{fontSize:22,fontWeight:700,color:'var(--cyan)',opacity:.7}}>h</div>
+            <div style={{fontSize:22,fontWeight:700,color:'var(--mf-mod, var(--mf-accent-500))',opacity:.7}}>h</div>
           </div>
           {isPeakNow?(
-            <div style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,padding:'4px 10px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.25)',width:'fit-content'}}>
-              <span style={{width:5,height:5,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
-              <span style={{fontSize:10,color:'#22c55e',fontWeight:700}}>AGORA É O PICO</span>
+            <div style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,padding:'4px 10px',borderRadius:20,background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',width:'fit-content'}}>
+              <span style={{width:5,height:5,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
+              <span style={{fontSize:10,color:'var(--mf-success-500)',fontWeight:700}}>AGORA É O PICO</span>
             </div>
           ):(
-            <div style={{fontSize:10,color:'var(--text3)',marginTop:6}}>hora de maior engajamento</div>
+            <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:6}}>hora de maior engajamento</div>
           )}
         </div>
 
@@ -371,13 +371,13 @@ function HeroCard({ data, period }) {
         {/* Stats grid */}
         <div style={{flex:1,display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:'14px 20px',alignContent:'center'}}>
           {[
-            {label:'Janela ideal',  value:globalWindow,  color:'#a78bfa', icon:'⏰'},
-            {label:'Contas',        value:`${accNum}`,   color:'var(--text)', icon:'📱'},
-            {label:'Confiança',     value:`${confNum}%`, color:'#22c55e',     icon:'✓'},
-            {label:'Fonte',         value:'API oficial', color:'var(--text3)', icon:'🔗'},
+            {label:'Janela ideal',  value:globalWindow,  color:'var(--mf-mod-publicar)', icon:'⏰'},
+            {label:'Contas',        value:`${accNum}`,   color:'var(--mf-text)', icon:'📱'},
+            {label:'Confiança',     value:`${confNum}%`, color:'var(--mf-success-500)',     icon:'✓'},
+            {label:'Fonte',         value:'API oficial', color:'var(--mf-text-3)', icon:'🔗'},
           ].map(s=>(
             <div key={s.label}>
-              <div style={{fontSize:9,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5,display:'flex',alignItems:'center',gap:4}}>
+              <div style={{fontSize:9,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5,display:'flex',alignItems:'center',gap:4}}>
                 <span style={{fontSize:11}}>{s.icon}</span>{s.label}
               </div>
               <div style={{fontSize:s.value.length>5?16:20,fontWeight:800,color:s.color,fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
@@ -401,7 +401,7 @@ function HeroCard({ data, period }) {
           }}
         >
           <span style={{fontSize:14,flexShrink:0}}>💡</span>
-          <span style={{fontSize:12,color:'var(--text2)',lineHeight:1.55}}>{insight}</span>
+          <span style={{fontSize:12,color:'var(--mf-text-2)',lineHeight:1.55}}>{insight}</span>
         </motion.div>
       )}
     </motion.div>
@@ -451,8 +451,8 @@ export default function BestTimes() {
           <button key={p} onClick={()=>setPeriod(p)} style={{
             height:26,padding:'0 12px',borderRadius:7,fontSize:'.75rem',fontWeight:600,
             border:'none',cursor:'pointer',transition:'all .15s',
-            background:period===p?'var(--cyan)':'transparent',
-            color:period===p?'#040e1c':'var(--text3)',
+            background:period===p?'var(--mf-mod, var(--mf-accent-500))':'transparent',
+            color:period===p?'var(--mf-bg)':'var(--mf-text-3)',
           }}>{l}</button>
         ))}
       </div>
@@ -477,7 +477,7 @@ export default function BestTimes() {
       )}
 
       {error&&(
-        <div style={{background:'oklch(0.18 0.06 15/0.4)',border:'1px solid oklch(0.38 0.12 15/0.35)',borderRadius:12,padding:'14px 18px',color:'#f87171',fontSize:13}}>
+        <div style={{background:'oklch(0.18 0.06 15/0.4)',border:'1px solid oklch(0.38 0.12 15/0.35)',borderRadius:12,padding:'14px 18px',color:'var(--mf-danger-500)',fontSize:13}}>
           {error}
         </div>
       )}
@@ -487,8 +487,8 @@ export default function BestTimes() {
           <div style={{fontSize:40,marginBottom:14,opacity:.5}}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{display:'block',margin:'0 auto'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <div style={{fontWeight:700,fontSize:16,color:'var(--text)',marginBottom:7}}>Sem dados suficientes</div>
-          <div style={{fontSize:13,color:'var(--text3)'}}>Sincronize os insights das contas para análise dos melhores horários.</div>
+          <div style={{fontWeight:700,fontSize:16,color:'var(--mf-text)',marginBottom:7}}>Sem dados suficientes</div>
+          <div style={{fontSize:13,color:'var(--mf-text-3)'}}>Sincronize os insights das contas para análise dos melhores horários.</div>
         </div>
       )}
 

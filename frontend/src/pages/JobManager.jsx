@@ -32,7 +32,7 @@ const ICONS = {
 // ── Status config ────────────────────────────────────────────────────────────
 /* Sete estados. Antes cada um trazia cor e fundo separados — catorze valores
    mantidos em sincronia na mão — e 'postando' e 'concluído' usavam dois
-   verdes quase idênticos (#34d399 e #22c55e) para dizer coisas opostas: um
+   verdes quase idênticos (var(--mf-success-500) e var(--mf-success-500)) para dizer coisas opostas: um
    está em movimento, o outro terminou. Agora 'postando' fica com o verde e o
    ponto pulsando, e 'concluído' fica sóbrio: o que está acontecendo agora
    chama mais atenção que o que já passou. */
@@ -98,7 +98,7 @@ function Countdown({ nextRoundAt }) {
   if (!nextRoundAt || secs <= 0) return null;
   const m = Math.floor(secs / 60), s = secs % 60;
   return (
-    <span style={{ fontSize: 11, color: '#fbbf24', fontVariantNumeric: 'tabular-nums' }}>
+    <span style={{ fontSize: 11, color: 'var(--mf-warning-500)', fontVariantNumeric: 'tabular-nums' }}>
       {ICONS.clock} próxima em {m > 0 ? `${m}m ` : ''}{String(s).padStart(2, '0')}s
     </span>
   );
@@ -123,7 +123,7 @@ function AvatarStack({ accounts = [] }) {
           }}>
             {src
               ? <img src={src} alt={a.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display='none'; }} />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--text2)' }}>
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--mf-text-2)' }}>
                   {a.username?.[0]?.toUpperCase() || '?'}
                 </div>
             }
@@ -131,7 +131,7 @@ function AvatarStack({ accounts = [] }) {
         );
       })}
       {rest > 0 && (
-        <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--bg3)', border: '1.5px solid var(--border)', marginLeft: -6, fontSize: 9, fontWeight: 700, color: 'var(--text3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--bg3)', border: '1.5px solid var(--border)', marginLeft: -6, fontSize: 9, fontWeight: 700, color: 'var(--mf-text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           +{rest}
         </div>
       )}
@@ -208,7 +208,7 @@ function JobCard({ job, onAction }) {
           <div style={{ width: 36, height: 36, borderRadius: 'var(--mf-r-full)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--mf-border-strong)', background: 'var(--mf-surface-3)' }}>
             {mainAccount.avatar
               ? <img src={mainAccount.avatar.startsWith('/uploads') ? `${API}${mainAccount.avatar}` : mainAccount.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display='none'; }} />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--text2)' }}>{mainAccount.username?.[0]?.toUpperCase()}</div>
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--mf-text-2)' }}>{mainAccount.username?.[0]?.toUpperCase()}</div>
             }
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -229,8 +229,8 @@ function JobCard({ job, onAction }) {
               { label: 'posts', value: fmtN(mainAccount.postsCount) },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
-                <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{s.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+                <div style={{ fontSize: 9, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -239,27 +239,27 @@ function JobCard({ job, onAction }) {
 
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--mf-text-2)' }}>
           {ICONS.media}
           <span>{mediaLen} mídia(s)</span>
         </div>
         {job.totalRounds > 0 && (
-          <div style={{ fontSize: 12, color: 'var(--text2)' }}>
+          <div style={{ fontSize: 12, color: 'var(--mf-text-2)' }}>
             Rodada {Math.min(job.roundsCompleted + (isActive ? 1 : 0), job.totalRounds)}/{isLoop ? '∞' : job.totalRounds}
           </div>
         )}
         {job.postsPublished > 0 && (
-          <div style={{ fontSize: 12, color: '#22c55e' }}>✓ {job.postsPublished} publicado(s)</div>
+          <div style={{ fontSize: 12, color: 'var(--mf-success-500)' }}>✓ {job.postsPublished} publicado(s)</div>
         )}
         {job.postsErrors > 0 && (
-          <div style={{ fontSize: 12, color: '#f87171' }}>✗ {job.postsErrors} erro(s)</div>
+          <div style={{ fontSize: 12, color: 'var(--mf-danger-500)' }}>✗ {job.postsErrors} erro(s)</div>
         )}
       </div>
 
       {/* Barra de progresso — post comum: absoluta; loop: ciclo atual */}
       {!isLoop && totalProgress > 0 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginBottom: 3 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--mf-text-3)', marginBottom: 3 }}>
             <span>Progresso</span><span>{pct}%</span>
           </div>
           <ProgressBar published={job.postsPublished} total={totalProgress} errors={job.postsErrors} />
@@ -267,7 +267,7 @@ function JobCard({ job, onAction }) {
       )}
       {isLoop && mediaLen > 0 && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginBottom: 3 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--mf-text-3)', marginBottom: 3 }}>
             <span>Ciclo atual</span><span>{cyclePos}/{mediaLen} ({cyclePct}%)</span>
           </div>
           <ProgressBar published={cyclePos} total={mediaLen} errors={0} />
@@ -276,14 +276,14 @@ function JobCard({ job, onAction }) {
 
       {/* Countdown for waiting_interval */}
       {job.status === 'waiting_interval' && job.nextRoundAt && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#fbbf24' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--mf-warning-500)' }}>
           <Countdown nextRoundAt={job.nextRoundAt} />
         </div>
       )}
 
       {/* Error */}
       {job.lastError && (
-        <div style={{ fontSize: 11, color: '#f87171', background: 'rgba(248,113,113,.08)', border: '1px solid rgba(248,113,113,.2)', borderRadius: 8, padding: '6px 10px' }}>
+        <div style={{ fontSize: 11, color: 'var(--mf-danger-500)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius: 8, padding: '6px 10px' }}>
           {job.lastError.slice(0, 120)}
         </div>
       )}
@@ -292,30 +292,30 @@ function JobCard({ job, onAction }) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
         {(isActive || isPaused) && !isPaused && (
           <button onClick={() => onAction(job._id, 'pause')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'rgba(167,139,250,.1)', color: '#a78bfa', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color: 'var(--mf-mod-publicar)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.pause} Pausar
           </button>
         )}
         {isPaused && (
           <button onClick={() => onAction(job._id, 'resume')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid rgba(52,211,153,.3)', background: 'rgba(52,211,153,.1)', color: '#34d399', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', color: 'var(--mf-success-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.play} Retomar
           </button>
         )}
         {isActive && (
           <button onClick={() => onAction(job._id, 'cancel')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.08)', color: '#f87171', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color: 'var(--mf-danger-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.stop} Cancelar
           </button>
         )}
         {(isCompleted || isCancelled) && (
           <button onClick={() => onAction(job._id, 'rerun')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'rgba(96,165,250,.08)', color: '#60a5fa', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)', color: 'var(--mf-info-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.refresh} Reexecutar
           </button>
         )}
         <button onClick={() => onAction(job._id, 'delete')}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text3)', cursor: 'pointer', marginLeft: 'auto' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-3)', cursor: 'pointer', marginLeft: 'auto' }}>
           {ICONS.trash}
         </button>
       </div>
@@ -473,7 +473,7 @@ export default function JobManager() {
           display: 'flex', alignItems: 'center', gap: 'var(--mf-2)', flexWrap: 'wrap' }}>
           {ICONS.warn}
           Clique novamente em <b>{confirming.action === 'delete' ? 'Excluir' : 'Cancelar'}</b> para confirmar.
-          <button onClick={() => setConfirming(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 2 }}>{ICONS.x}</button>
+          <button onClick={() => setConfirming(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mf-text-3)', padding: 2 }}>{ICONS.x}</button>
         </div>
       )}
 

@@ -69,14 +69,14 @@ export default function Legends() {
   );
 
   const pageActions = (
-    <span style={{ fontSize: '.78rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 8, padding: '4px 10px' }}>
+    <span style={{ fontSize: '.78rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 8, padding: '4px 10px' }}>
       {legends.length} legendas
     </span>
   );
 
   const cardStyle = {
     background: 'oklch(0.16 0.05 235 / 0.85)',
-    border: '1px solid oklch(1 0 0 / 0.07)',
+    border: '1px solid var(--mf-border)',
     borderRadius: 14,
     backdropFilter: 'blur(12px)',
     overflow: 'hidden',
@@ -100,24 +100,24 @@ export default function Legends() {
             onSubmit={submit}
             style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 0, position: 'sticky', top: 16, alignSelf: 'start' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
-              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
+              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {editId ? (
                   <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-primary-300)" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Editando legenda
                   </>
                 ) : 'Nova legenda'}
               </h3>
-              <span style={{ fontSize: 11, color: text.length > 2000 ? '#f87171' : 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{text.length} chars</span>
+              <span style={{ fontSize: 11, color: text.length > 2000 ? 'var(--mf-danger-500)' : 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{text.length} chars</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
               {editId && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,.08)', border: '1px solid rgba(99,102,241,.2)', fontSize: 12, color: '#a5b4fc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', fontSize: 12, color: 'var(--mf-primary-300)' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   Modo edição ativo
-                  <button type="button" onClick={cancelEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#818cf8', cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: 0 }}>Cancelar</button>
+                  <button type="button" onClick={cancelEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--mf-primary-300)', cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: 0 }}>Cancelar</button>
                 </div>
               )}
 
@@ -149,14 +149,14 @@ export default function Legends() {
 
           {/* ── Lista ── */}
           <div style={cardStyle}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)', flexWrap: 'wrap', gap: 8 }}>
-              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Legendas salvas</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', flexWrap: 'wrap', gap: 8 }}>
+              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Legendas salvas</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.09)', borderRadius: 8, padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color .15s' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontSize: 12, width: '100%' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 8, padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color .15s' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--mf-text)', fontSize: 12, width: '100%' }} />
                 </div>
-                <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{filtered.length} total</span>
+                <span style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{filtered.length} total</span>
               </div>
             </div>
 
@@ -169,17 +169,17 @@ export default function Legends() {
                   transition={{ delay: i * 0.03, duration: 0.2 }}
                   style={{
                     background: 'oklch(0.12 0.04 235 / 0.7)',
-                    border: `1px solid ${editId === legend._id ? 'rgba(99,102,241,.5)' : 'oklch(1 0 0 / 0.07)'}`,
+                    border: `1px solid ${editId === legend._id ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
                     borderRadius: 11, overflow: 'hidden',
-                    boxShadow: editId === legend._id ? '0 0 0 2px rgba(99,102,241,.2)' : 'none',
+                    boxShadow: editId === legend._id ? '0 0 0 2px color-mix(in oklch, var(--mf-primary-500) 20%, transparent)' : 'none',
                   }}
                 >
-                  <div className="legend-card-top" style={{ padding: '10px 12px', borderBottom: '1px solid oklch(1 0 0 / 0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '.83rem', color: 'var(--text)' }}>{legend.title}</strong>
-                    <span style={{ fontSize: '.65rem', fontFamily: 'var(--font-mono)', background: 'rgba(139,92,246,.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,.2)', borderRadius: 100, padding: '1px 7px', flexShrink: 0 }}>{legend.category}</span>
+                  <div className="legend-card-top" style={{ padding: '10px 12px', borderBottom: '1px solid var(--mf-border)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '.83rem', color: 'var(--mf-text)' }}>{legend.title}</strong>
+                    <span style={{ fontSize: '.65rem', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color: 'var(--mf-mod-publicar)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)', borderRadius: 100, padding: '1px 7px', flexShrink: 0 }}>{legend.category}</span>
                   </div>
-                  <p style={{ margin: 0, padding: '8px 12px', fontSize: '.78rem', color: 'var(--text3)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{legend.text}</p>
-                  <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid oklch(1 0 0 / 0.06)' }}>
+                  <p style={{ margin: 0, padding: '8px 12px', fontSize: '.78rem', color: 'var(--mf-text-3)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{legend.text}</p>
+                  <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid var(--mf-border)' }}>
                     <button
                       className="btn-ghost"
                       onClick={() => startEdit(legend)}
@@ -199,7 +199,7 @@ export default function Legends() {
                 </motion.div>
               ))}
               {!filtered.length && (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--text3)', fontSize: '.85rem' }}>
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: '.85rem' }}>
                   {search ? 'Nenhuma legenda encontrada.' : 'Nenhuma legenda salva ainda.'}
                 </div>
               )}

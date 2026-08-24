@@ -41,36 +41,36 @@ export default function TrendingAudio() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
+    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:9, padding:3 }}>
       {PERIODS.map(p => (
         <button key={p} onClick={() => setPeriod(p)} style={{
           height:26, padding:'0 14px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
           border:'none', cursor:'pointer', transition:'.15s',
           background: period === p ? 'oklch(0.70 0.22 330)' : 'transparent',
-          color: period === p ? '#fff' : 'var(--text3)',
+          color: period === p ? 'var(--mf-text)' : 'var(--mf-text-3)',
         }}>{p}</button>
       ))}
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <PageShell icon={pageIcon} title="Áudio Trending" subtitle="Reels com melhor desempenho do período — rankeados por visualizações" accent="pink" actions={pageActions}>
 
       {loading && (
-        <div style={{ ...cardStyle, textAlign:'center', color:'var(--text3)', padding:40 }}>Carregando reels em alta...</div>
+        <div style={{ ...cardStyle, textAlign:'center', color:'var(--mf-text-3)', padding:40 }}>Carregando reels em alta...</div>
       )}
 
       {error && (
-        <div style={{ ...cardStyle, color:'#f87171', textAlign:'center', padding:32 }}>{error}</div>
+        <div style={{ ...cardStyle, color:'var(--mf-danger-500)', textAlign:'center', padding:32 }}>{error}</div>
       )}
 
       {!loading && !error && items.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius:14 }}>
           <div style={{ fontSize:40, marginBottom:12 }}>🎵</div>
-          <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Sem Reels sincronizados</div>
-          <div style={{ fontSize:13, color:'var(--text3)' }}>Sincronize os insights das contas para ver os melhores Reels.</div>
+          <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-text)', marginBottom:6 }}>Sem Reels sincronizados</div>
+          <div style={{ fontSize:13, color:'var(--mf-text-3)' }}>Sincronize os insights das contas para ver os melhores Reels.</div>
         </div>
       )}
 
@@ -94,27 +94,27 @@ export default function TrendingAudio() {
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <div style={{ width:44, height:44, borderRadius:11, background:`${color}1a`, border:`1px solid ${color}38`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🎬</div>
                       <div>
-                        <div style={{ fontWeight:700, fontSize:13, color:'var(--text)', lineHeight:1.3 }}>@{item.username}</div>
-                        <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{age !== null ? `${age}d atrás` : ''}</div>
+                        <div style={{ fontWeight:700, fontSize:13, color:'var(--mf-text)', lineHeight:1.3 }}>@{item.username}</div>
+                        <div style={{ fontSize:11, color:'var(--mf-text-3)', marginTop:2 }}>{age !== null ? `${age}d atrás` : ''}</div>
                       </div>
                     </div>
-                    <span style={{ fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:99, background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.2)' : 'oklch(0.18 0.02 240 / 0.6)', color: idx < 3 ? 'var(--cyan)' : 'var(--text3)', border:`1px solid ${idx < 3 ? 'oklch(0.72 0.19 196 / 0.35)' : 'oklch(1 0 0 / 0.06)'}`, flexShrink:0, marginLeft:6 }}>#{idx + 1}</span>
+                    <span style={{ fontSize:10, fontWeight:800, padding:'2px 8px', borderRadius:99, background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.2)' : 'oklch(0.18 0.02 240 / 0.6)', color: idx < 3 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', border:`1px solid ${idx < 3 ? 'oklch(0.72 0.19 196 / 0.35)' : 'var(--mf-border)'}`, flexShrink:0, marginLeft:6 }}>#{idx + 1}</span>
                   </div>
 
                   {item.caption && (
-                    <div style={{ fontSize:11, color:'var(--text2)', marginBottom:12, lineHeight:1.5, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                    <div style={{ fontSize:11, color:'var(--mf-text-2)', marginBottom:12, lineHeight:1.5, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
                       {item.caption}
                     </div>
                   )}
 
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
                     <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', borderRadius:9, padding:'8px 10px', textAlign:'center' }}>
-                      <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.videoViews)}</div>
-                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>Views</div>
+                      <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.videoViews)}</div>
+                      <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:2 }}>Views</div>
                     </div>
                     <div style={{ background:'oklch(0.72 0.18 150 / 0.08)', border:'1px solid oklch(0.72 0.18 150 / 0.18)', borderRadius:9, padding:'8px 10px', textAlign:'center' }}>
-                      <div style={{ fontWeight:700, fontSize:15, color:'var(--green)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.likeCount)}</div>
-                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:2 }}>Likes</div>
+                      <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-success-500)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.likeCount)}</div>
+                      <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:2 }}>Likes</div>
                     </div>
                   </div>
 

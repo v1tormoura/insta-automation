@@ -7,9 +7,9 @@ import PageShell from '../components/PageShell';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const BADGE = {
-  online:      { bg:'oklch(0.22 0.06 150 / 0.6)', color:'#4ade80', border:'oklch(0.38 0.12 150 / 0.35)', label:'Online' },
-  offline:     { bg:'oklch(0.22 0.06 15 / 0.6)',  color:'#f87171', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Offline' },
-  nao_testado: { bg:'oklch(0.18 0.02 240 / 0.6)', color:'#94a3b8', border:'oklch(0.28 0.04 240 / 0.35)', label:'Não testado' },
+  online:      { bg:'oklch(0.22 0.06 150 / 0.6)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Online' },
+  offline:     { bg:'oklch(0.22 0.06 15 / 0.6)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Offline' },
+  nao_testado: { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'Não testado' },
 };
 
 export default function Proxies() {
@@ -114,15 +114,15 @@ export default function Proxies() {
     </div>
   );
 
-  const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
   const modalStyle = { position:'fixed', inset:0, background:'oklch(0.06 0.02 235 / 0.85)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
-  const modalBoxStyle = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid oklch(1 0 0 / 0.1)', borderRadius:16, padding:'20px 24px', minWidth:380, boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
-  const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid oklch(1 0 0 / 0.09)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--text)', fontSize:13, boxSizing:'border-box', outline:'none' };
-  const thStyle    = { padding:'10px 14px', fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--font-mono)', borderBottom:'1px solid oklch(1 0 0 / 0.07)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
-  const tdStyle    = { padding:'11px 14px', fontSize:12, color:'var(--text2)', borderBottom:'1px solid oklch(1 0 0 / 0.05)', verticalAlign:'middle' };
+  const modalBoxStyle = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid var(--mf-border)', borderRadius:16, padding:'20px 24px', minWidth:380, boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
+  const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize:13, boxSizing:'border-box', outline:'none' };
+  const thStyle    = { padding:'10px 14px', fontSize:10, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
+  const tdStyle    = { padding:'11px 14px', fontSize:12, color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
 
   function ProxyBadge({ status }) {
-    const b = BADGE[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--text3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'—' };
+    const b = BADGE[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'—' };
     return <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99, background:b.bg, color:b.color, border:`1px solid ${b.border}` }}>{b.label}</span>;
   }
 
@@ -137,16 +137,16 @@ export default function Proxies() {
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
               style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
               <div style={{ fontSize:24, fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-              <div style={{ fontSize:10, color:'var(--text3)', marginTop:3, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
+              <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:3, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
             </motion.div>
           ))}
         </div>
 
         {/* Table card */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
-            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Proxies por conta</h3>
-            <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>Atualiza a cada 30s</span>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Proxies por conta</h3>
+            <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>Atualiza a cada 30s</span>
           </div>
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -169,13 +169,13 @@ export default function Proxies() {
                           : <div style={{ width:32, height:32, borderRadius:8, background:'oklch(0.68 0.18 270 / 0.15)', border:'1px solid oklch(0.68 0.18 270 / 0.25)', display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'oklch(0.68 0.18 270)' }}>{account.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                         }
                         <div>
-                          <div style={{ fontWeight:700, color:'var(--text)', fontSize:12 }}>@{account.username}</div>
-                          <div style={{ fontSize:10, color:'var(--text3)' }}>{account.name || 'Sem nome'}</div>
+                          <div style={{ fontWeight:700, color:'var(--mf-text)', fontSize:12 }}>@{account.username}</div>
+                          <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{account.name || 'Sem nome'}</div>
                         </div>
                       </div>
                     </td>
                     <td style={tdStyle}>
-                      <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color: account.proxy ? 'var(--text)' : 'var(--text3)' }}>
+                      <span style={{ fontFamily:'var(--mf-mono)', fontSize:11, color: account.proxy ? 'var(--mf-text)' : 'var(--mf-text-3)' }}>
                         {account.proxy || '—'}
                       </span>
                     </td>
@@ -185,16 +185,16 @@ export default function Proxies() {
                           <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                             <ProxyBadge status={account.proxyStatus} />
                             {account.proxyStatus === 'online' && account.proxyIp && (
-                              <span style={{ fontFamily:'var(--font-mono)', fontSize:11, fontWeight:700, color:'#34d399' }}>
+                              <span style={{ fontFamily:'var(--mf-mono)', fontSize:11, fontWeight:700, color:'var(--mf-success-500)' }}>
                                 {account.proxyIp}
                               </span>
                             )}
                           </div>
                         )
-                        : <span style={{ color:'var(--text3)', fontSize:11 }}>—</span>
+                        : <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>—</span>
                       }
                     </td>
-                    <td style={{ ...tdStyle, fontFamily:'var(--font-mono)', fontSize:11 }}>{fmtDate(account.proxyLastCheck)}</td>
+                    <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11 }}>{fmtDate(account.proxyLastCheck)}</td>
                     <td style={tdStyle}>
                       <div style={{ display:'flex', gap:6 }}>
                         <button className="btn-ghost" style={{ fontSize:11, padding:'4px 10px', borderRadius:6 }} onClick={() => openProxyModal(account)}>Editar</button>
@@ -209,7 +209,7 @@ export default function Proxies() {
               </tbody>
             </table>
             {!accounts.length && (
-              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--text3)', fontSize:13 }}>Nenhuma conta encontrada.</div>
+              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--mf-text-3)', fontSize:13 }}>Nenhuma conta encontrada.</div>
             )}
           </div>
         </motion.div>
@@ -220,10 +220,10 @@ export default function Proxies() {
             <div style={modalBoxStyle}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                 <h3 style={{ margin:0, fontSize:'.95rem', fontWeight:800 }}>Editar Proxy</h3>
-                <button onClick={() => setProxyModal(false)} style={{ background:'none', border:'none', color:'var(--text3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
+                <button onClick={() => setProxyModal(false)} style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
               </div>
-              <p style={{ fontSize:12, color:'var(--text3)', marginBottom:14 }}>Conta: <strong style={{ color:'var(--text)' }}>@{proxyAccount?.username}</strong></p>
-              <label style={{ fontSize:11, color:'var(--text3)', display:'block', marginBottom:6, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Proxy URL</label>
+              <p style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:14 }}>Conta: <strong style={{ color:'var(--mf-text)' }}>@{proxyAccount?.username}</strong></p>
+              <label style={{ fontSize:11, color:'var(--mf-text-3)', display:'block', marginBottom:6, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Proxy URL</label>
               <input style={inputStyle} value={proxyValue} onChange={e => setProxyValue(e.target.value)} placeholder="http://usuario:senha@host:porta" />
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:20 }}>
                 <button className="btn-ghost" style={{ borderRadius:8, padding:'8px 16px' }} onClick={() => setProxyModal(false)}>Cancelar</button>
@@ -239,13 +239,13 @@ export default function Proxies() {
             <div style={{ ...modalBoxStyle, minWidth:440 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                 <h3 style={{ margin:0, fontSize:'.95rem', fontWeight:800 }}>Importar proxies em massa</h3>
-                <button onClick={() => setBulkModal(false)} style={{ background:'none', border:'none', color:'var(--text3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
+                <button onClick={() => setBulkModal(false)} style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
               </div>
-              <p style={{ fontSize:12, color:'var(--text3)', marginBottom:6, lineHeight:1.6 }}>
+              <p style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:6, lineHeight:1.6 }}>
                 Um proxy por linha. Cada conta recebe um <strong>proxy exclusivo</strong> —
                 repetir o mesmo IP em duas contas é o que se está tentando evitar.
               </p>
-              <p style={{ fontSize:11, color:'var(--text3)', marginBottom:12, lineHeight:1.6 }}>
+              <p style={{ fontSize:11, color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6 }}>
                 Aceita <code>host:porta</code>, <code>host:porta:usuário:senha</code>,
                 <code> usuário:senha@host:porta</code> e URL completa. Cada proxy é testado
                 antes de ser gravado, então listas grandes demoram.
@@ -258,38 +258,38 @@ export default function Proxies() {
                 style={{ ...inputStyle, height:'auto', padding:'10px 12px', resize:'vertical', lineHeight:1.6 }}
               />
 
-              <label style={{ display:'flex', alignItems:'center', gap:7, marginTop:10, fontSize:11.5, color:'var(--text2)', cursor:'pointer' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:7, marginTop:10, fontSize:11.5, color:'var(--mf-text-2)', cursor:'pointer' }}>
                 <input type="checkbox" checked={bulkSubstituir} onChange={e => setBulkSubstituir(e.target.checked)} />
                 Trocar também o proxy das contas que já têm um
               </label>
 
               {bulkRelatorio && (
-                <div style={{ marginTop:14, padding:12, borderRadius:10, background:'oklch(1 0 0 / 0.03)', border:'1px solid oklch(1 0 0 / 0.08)', fontSize:11.5, lineHeight:1.8 }}>
+                <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', fontSize:11.5, lineHeight:1.8 }}>
                   <div style={{ fontWeight:800, marginBottom:6 }}>Resultado</div>
                   <div>✅ {bulkRelatorio.atribuidos ?? 0} conta(s) receberam proxy exclusivo</div>
                   {bulkRelatorio.contasSemProxy > 0 && (
-                    <div style={{ color:'#fbbf24' }}>
+                    <div style={{ color:'var(--mf-warning-500)' }}>
                       ⚠️ {bulkRelatorio.contasSemProxy} conta(s) ficaram sem — faltou proxy na lista
                     </div>
                   )}
                   {bulkRelatorio.proxiesSobrando > 0 && (
-                    <div style={{ color:'var(--text3)' }}>{bulkRelatorio.proxiesSobrando} proxy(s) sobraram</div>
+                    <div style={{ color:'var(--mf-text-3)' }}>{bulkRelatorio.proxiesSobrando} proxy(s) sobraram</div>
                   )}
                   {bulkRelatorio.rotativos?.length > 0 && (
-                    <div style={{ color:'#fbbf24' }}>
+                    <div style={{ color:'var(--mf-warning-500)' }}>
                       ⚠️ {bulkRelatorio.rotativos.length} recusado(s) por trocar de IP entre requisições —
                       isso quebra o login do Instagram
                     </div>
                   )}
                   {bulkRelatorio.reprovados?.length > 0 && (
-                    <div style={{ color:'#fca5a5' }}>
+                    <div style={{ color:'var(--mf-danger-500)' }}>
                       ❌ {bulkRelatorio.reprovados.length} não responderam:{' '}
                       {bulkRelatorio.reprovados.slice(0, 3).map(r => r.url).join(', ')}
                       {bulkRelatorio.reprovados.length > 3 ? '…' : ''}
                     </div>
                   )}
                   {bulkRelatorio.invalidas?.length > 0 && (
-                    <div style={{ color:'#fca5a5' }}>
+                    <div style={{ color:'var(--mf-danger-500)' }}>
                       ❌ {bulkRelatorio.invalidas.length} linha(s) em formato não reconhecido
                     </div>
                   )}

@@ -8,15 +8,15 @@ import PageShell from '../components/PageShell';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const STATUS_MAP = {
-  ok:        { bg:'oklch(0.22 0.06 150 / 0.6)', color:'#4ade80', border:'oklch(0.38 0.12 150 / 0.35)', label:'Sessão OK'  },
-  em_uso:    { bg:'oklch(0.22 0.06 270 / 0.6)', color:'#a78bfa', border:'oklch(0.38 0.12 270 / 0.35)', label:'Em uso'     },
-  expirada:  { bg:'oklch(0.22 0.06 60 / 0.6)',  color:'#fbbf24', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Expirada'   },
-  sem_sessao:{ bg:'oklch(0.22 0.06 60 / 0.6)',  color:'#fbbf24', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Sem sessão' },
-  erro_login:{ bg:'oklch(0.22 0.06 15 / 0.6)',  color:'#f87171', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Erro login' },
+  ok:        { bg:'oklch(0.22 0.06 150 / 0.6)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Sessão OK'  },
+  em_uso:    { bg:'oklch(0.22 0.06 270 / 0.6)', color:'var(--mf-mod-publicar)', border:'oklch(0.38 0.12 270 / 0.35)', label:'Em uso'     },
+  expirada:  { bg:'oklch(0.22 0.06 60 / 0.6)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Expirada'   },
+  sem_sessao:{ bg:'oklch(0.22 0.06 60 / 0.6)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Sem sessão' },
+  erro_login:{ bg:'oklch(0.22 0.06 15 / 0.6)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Erro login' },
 };
 
 function StatusBadge({ status }) {
-  const s = STATUS_MAP[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'#94a3b8', border:'oklch(0.28 0.04 240 / 0.35)', label:'Sessão OK' };
+  const s = STATUS_MAP[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'Sessão OK' };
   return <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:s.bg, color:s.color, border:`1px solid ${s.border}`, whiteSpace:'nowrap' }}>{s.label}</span>;
 }
 
@@ -64,16 +64,16 @@ export default function Sessions() {
 
   const pageActions = (
     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'#4ade80', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
-        <span style={{ width:6, height:6, borderRadius:'50%', background:'#4ade80', display:'inline-block', boxShadow:'0 0 6px #4ade80' }} />
+      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+        <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
         Monitoramento ativo
       </div>
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
-  const thStyle   = { padding:'10px 14px', fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--font-mono)', borderBottom:'1px solid oklch(1 0 0 / 0.07)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
-  const tdStyle   = { padding:'11px 14px', fontSize:12, color:'var(--text2)', borderBottom:'1px solid oklch(1 0 0 / 0.05)', verticalAlign:'middle' };
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const thStyle   = { padding:'10px 14px', fontSize:10, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
+  const tdStyle   = { padding:'11px 14px', fontSize:12, color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
 
   return (
     <>
@@ -86,16 +86,16 @@ export default function Sessions() {
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
               style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
               <div style={{ fontSize:24, fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-              <div style={{ fontSize:10, color:'var(--text3)', marginTop:3, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
+              <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:3, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
             </motion.div>
           ))}
         </div>
 
         {/* Table card */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
-            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Contas conectadas</h3>
-            <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>Atualiza a cada 30s</span>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Contas conectadas</h3>
+            <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>Atualiza a cada 30s</span>
           </div>
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -118,13 +118,13 @@ export default function Sessions() {
                           : <div style={{ width:32, height:32, borderRadius:8, background:'oklch(0.72 0.2 270 / 0.15)', border:'1px solid oklch(0.72 0.2 270 / 0.25)', display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'oklch(0.72 0.2 270)' }}>{session.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                         }
                         <div>
-                          <div style={{ fontWeight:700, color:'var(--text)', fontSize:12 }}>@{session.username}</div>
-                          <div style={{ fontSize:10, color:'var(--text3)' }}>{session.name || 'Sem nome'}</div>
+                          <div style={{ fontWeight:700, color:'var(--mf-text)', fontSize:12 }}>@{session.username}</div>
+                          <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{session.name || 'Sem nome'}</div>
                         </div>
                       </div>
                     </td>
                     <td style={tdStyle}><StatusBadge status={session.sessionStatus} /></td>
-                    <td style={{ ...tdStyle, fontFamily:'var(--font-mono)', fontSize:11 }}>
+                    <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11 }}>
                       {session.lastSync ? new Date(session.lastSync).toLocaleString('pt-BR') : 'Nunca'}
                     </td>
                     <td style={{ ...tdStyle, maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -144,7 +144,7 @@ export default function Sessions() {
               </tbody>
             </table>
             {!sessions.length && (
-              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--text3)', fontSize:13 }}>Nenhuma conta encontrada.</div>
+              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--mf-text-3)', fontSize:13 }}>Nenhuma conta encontrada.</div>
             )}
           </div>
         </motion.div>

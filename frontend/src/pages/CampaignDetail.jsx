@@ -219,8 +219,8 @@ export default function CampaignDetail() {
   if (erroCarga || !resumo?.campaign) {
     return (
       <PageShell title="Campanha" subtitle="Não foi possível carregar" accent="cyan">
-        <div className="rounded-[13px] border border-[rgba(244,63,94,.26)] bg-[rgba(244,63,94,.05)] p-5 text-center">
-          <p className="text-[12.5px] font-semibold text-[var(--red)]">
+        <div className="rounded-[13px] border border-[color-mix(in oklch, var(--mf-danger-500) 26%, transparent)] bg-[color-mix(in oklch, var(--mf-danger-500) 5%, transparent)] p-5 text-center">
+          <p className="text-[12.5px] font-semibold text-[var(--mf-danger-500)]">
             {erroCarga || 'Campanha não encontrada.'}
           </p>
           <div className="mt-3 flex justify-center gap-2">

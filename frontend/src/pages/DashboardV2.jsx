@@ -22,10 +22,10 @@ const chartData = Array.from({length: 14}, (_, i) => ({
 }));
 
 const activityFeed = [
-  { id: 1, type: 'success', title: 'Campanha "Black Friday" concluída', time: 'Há 2 min', icon: CheckCircle2, color: '#10b981' },
-  { id: 2, type: 'warning', title: 'Conta @thinkflix instável', time: 'Há 15 min', icon: Zap, color: '#f59e0b' },
-  { id: 3, type: 'info', title: 'Novo pico de engajamento', time: 'Há 1 hora', icon: TrendingUp, color: '#00d4ff' },
-  { id: 4, type: 'error', title: 'Falha de postagem em @devstream', time: 'Há 3 horas', icon: XCircle, color: '#f43f5e' },
+  { id: 1, type: 'success', title: 'Campanha "Black Friday" concluída', time: 'Há 2 min', icon: CheckCircle2, color: 'var(--mf-success-500)' },
+  { id: 2, type: 'warning', title: 'Conta @thinkflix instável', time: 'Há 15 min', icon: Zap, color: 'var(--mf-warning-500)' },
+  { id: 3, type: 'info', title: 'Novo pico de engajamento', time: 'Há 1 hora', icon: TrendingUp, color: 'var(--mf-mod-contas)' },
+  { id: 4, type: 'error', title: 'Falha de postagem em @devstream', time: 'Há 3 horas', icon: XCircle, color: 'var(--mf-danger-500)' },
 ];
 
 const connectedAccounts = [
@@ -44,7 +44,7 @@ const GlassCard = ({ children, className = '', delay = 0, noPad = false }) => (
       className={`relative overflow-hidden rounded-3xl backdrop-blur-xl border shadow-2xl transition-all hover:border-white/10 ${className}`}
       style={{ 
         background: 'oklch(0.14 0.04 235 / 0.85)', 
-        borderColor: 'oklch(1 0 0 / 0.05)',
+        borderColor: 'var(--mf-border-subtle)',
         boxShadow: '0 20px 40px -10px rgba(0,0,0,0.5)',
         padding: noPad ? 0 : '24px'
       }}
@@ -70,7 +70,7 @@ const MetricCard = ({ title, value, prefix = "", suffix = "", trend, icon: Icon,
         className="px-2.5 py-1 rounded-full flex items-center gap-1 text-xs font-bold"
         style={{ 
           background: trend > 0 ? '#10b98115' : '#f43f5e15', 
-          color: trend > 0 ? '#10b981' : '#f43f5e' 
+          color: trend > 0 ? 'var(--mf-success-500)' : 'var(--mf-danger-500)' 
         }}
       >
         {trend > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
@@ -79,7 +79,7 @@ const MetricCard = ({ title, value, prefix = "", suffix = "", trend, icon: Icon,
     </div>
     
     <div>
-      <div className="text-sm font-medium mb-1" style={{ color: 'var(--text2, #7f9ab5)' }}>{title}</div>
+      <div className="text-sm font-medium mb-1" style={{ color: 'var(--text2, var(--mf-text-2))' }}>{title}</div>
       <div className="text-4xl font-extrabold tracking-tight text-white flex items-baseline gap-1">
         {prefix}
         <NumberTicker value={value} />
@@ -93,8 +93,8 @@ const MetricCard = ({ title, value, prefix = "", suffix = "", trend, icon: Icon,
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border backdrop-blur-xl p-4 shadow-2xl" style={{ background: 'oklch(0.16 0.05 235 / 0.95)', borderColor: 'oklch(1 0 0 / 0.1)' }}>
-      <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#7f9ab5' }}>{label}</div>
+    <div className="rounded-xl border backdrop-blur-xl p-4 shadow-2xl" style={{ background: 'oklch(0.16 0.05 235 / 0.95)', borderColor: 'var(--mf-border)' }}>
+      <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--mf-text-2)' }}>{label}</div>
       <div className="flex flex-col gap-2">
         {payload.map((entry, index) => (
           <div key={index} className="flex items-center justify-between gap-6">
@@ -123,10 +123,10 @@ function DashboardV2() {
         animate={{ x: 0, opacity: 1 }} 
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="w-[84px] h-full flex flex-col items-center py-6 border-r relative z-10"
-        style={{ background: '#050b14', borderColor: 'oklch(1 0 0 / 0.05)' }}
+        style={{ background: '#050b14', borderColor: 'var(--mf-border-subtle)' }}
       >
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-8 relative group cursor-pointer"
-             style={{ background: 'linear-gradient(135deg, #00d4ff, #8b5cf6)', boxShadow: '0 0 24px rgba(0,212,255,0.3)' }}>
+             style={{ background: 'linear-gradient(135deg, var(--mf-mod-contas), var(--mf-mod-publicar))', boxShadow: '0 0 24px color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' }}>
           <Sparkles size={20} className="text-white relative z-10" />
           <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
@@ -143,7 +143,7 @@ function DashboardV2() {
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className="relative w-12 h-12 flex items-center justify-center rounded-xl cursor-pointer group transition-colors"
-              style={{ color: activeTab === item.id ? '#00d4ff' : '#7f9ab5' }}
+              style={{ color: activeTab === item.id ? 'var(--mf-mod-contas)' : 'var(--mf-text-2)' }}
             >
               {activeTab === item.id && (
                 <motion.div 
@@ -166,8 +166,8 @@ function DashboardV2() {
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 h-full overflow-y-auto overflow-x-hidden relative">
         {/* Background glow effects */}
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#00d4ff]/10 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[50%] bg-[#8b5cf6]/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[var(--mf-mod-contas)]/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[50%] bg-[var(--mf-mod-publicar)]/10 blur-[120px] rounded-full pointer-events-none" />
         
         <div className="max-w-[1440px] mx-auto p-8 relative z-10">
           
@@ -177,9 +177,9 @@ function DashboardV2() {
               <div>
                 <h1 className="text-4xl font-black text-white tracking-tight mb-2">
                   Visão Global
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00d4ff] to-[#8b5cf6] ml-2">V2</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--mf-mod-contas)] to-[var(--mf-mod-publicar)] ml-2">V2</span>
                 </h1>
-                <p className="text-sm font-medium" style={{ color: '#7f9ab5' }}>Monitoramento em tempo real da infraestrutura</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--mf-text-2)' }}>Monitoramento em tempo real da infraestrutura</p>
               </div>
               
               <div className="flex items-center gap-4">
@@ -194,7 +194,7 @@ function DashboardV2() {
                 </button>
                 
                 <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm text-white cursor-pointer hover:scale-105 transition-transform shadow-lg"
-                     style={{ background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)' }}>
+                     style={{ background: 'linear-gradient(135deg, var(--mf-mod-publicar), var(--mf-info-500))' }}>
                   VM
                 </div>
               </div>
@@ -203,10 +203,10 @@ function DashboardV2() {
 
           {/* BENTO GRID - 1ST ROW (METRICS) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <MetricCard title="Alcance Total" value={2.8} suffix="M" trend={14.2} icon={Eye} color="#00d4ff" delay={0.2} />
-            <MetricCard title="Stories Publicados" value={1458} trend={5.1} icon={Send} color="#8b5cf6" delay={0.3} />
-            <MetricCard title="Taxa de Sucesso" value={98.4} suffix="%" trend={0.8} icon={Target} color="#10b981" delay={0.4} />
-            <MetricCard title="Ações na Fila" value={342} trend={-12.5} icon={Layers} color="#f59e0b" delay={0.5} />
+            <MetricCard title="Alcance Total" value={2.8} suffix="M" trend={14.2} icon={Eye} color="var(--mf-mod-contas)" delay={0.2} />
+            <MetricCard title="Stories Publicados" value={1458} trend={5.1} icon={Send} color="var(--mf-mod-publicar)" delay={0.3} />
+            <MetricCard title="Taxa de Sucesso" value={98.4} suffix="%" trend={0.8} icon={Target} color="var(--mf-success-500)" delay={0.4} />
+            <MetricCard title="Ações na Fila" value={342} trend={-12.5} icon={Layers} color="var(--mf-warning-500)" delay={0.5} />
           </div>
 
           {/* BENTO GRID - 2ND ROW (CHARTS & ACCOUNTS) */}
@@ -217,11 +217,11 @@ function DashboardV2() {
               <div className="flex justify-between items-center mb-8">
                 <div>
                   <h2 className="text-xl font-bold text-white tracking-tight">Desempenho de Tráfego</h2>
-                  <p className="text-xs font-medium mt-1" style={{ color: '#7f9ab5' }}>Volume de posts x stories nos últimos 14 dias</p>
+                  <p className="text-xs font-medium mt-1" style={{ color: 'var(--mf-text-2)' }}>Volume de posts x stories nos últimos 14 dias</p>
                 </div>
                 <div className="flex p-1 rounded-xl bg-black/30 border border-white/5">
                   {['7D', '14D', '30D'].map(t => (
-                    <button key={t} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${t === '14D' ? 'bg-[#00d4ff]/20 text-[#00d4ff] shadow-sm' : 'text-white/50 hover:text-white'}`}>
+                    <button key={t} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${t === '14D' ? 'bg-[var(--mf-mod-contas)]/20 text-[var(--mf-mod-contas)] shadow-sm' : 'text-white/50 hover:text-white'}`}>
                       {t}
                     </button>
                   ))}
@@ -233,20 +233,20 @@ function DashboardV2() {
                   <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorStories" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="var(--mf-mod-contas)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--mf-mod-contas)" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorPosts" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="var(--mf-mod-publicar)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--mf-mod-publicar)" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#7f9ab5' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#7f9ab5' }} />
-                    <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <RechartsTooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2, strokeDasharray: '4 4' }} />
-                    <Area type="monotone" dataKey="stories" name="Stories" stroke="#00d4ff" strokeWidth={3} fillOpacity={1} fill="url(#colorStories)" />
-                    <Area type="monotone" dataKey="posts" name="Posts" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorPosts)" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--mf-text-2)' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--mf-text-2)' }} />
+                    <CartesianGrid strokeDasharray="4 4" stroke="var(--mf-border-subtle)" vertical={false} />
+                    <RechartsTooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--mf-border)', strokeWidth: 2, strokeDasharray: '4 4' }} />
+                    <Area type="monotone" dataKey="stories" name="Stories" stroke="var(--mf-mod-contas)" strokeWidth={3} fillOpacity={1} fill="url(#colorStories)" />
+                    <Area type="monotone" dataKey="posts" name="Posts" stroke="var(--mf-mod-publicar)" strokeWidth={3} fillOpacity={1} fill="url(#colorPosts)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -256,7 +256,7 @@ function DashboardV2() {
             <GlassCard delay={0.7} className="flex flex-col">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-bold text-white tracking-tight">Atividade do Sistema</h2>
-                <button className="text-xs font-bold text-[#00d4ff] hover:text-white transition-colors">Ver tudo</button>
+                <button className="text-xs font-bold text-[var(--mf-mod-contas)] hover:text-white transition-colors">Ver tudo</button>
               </div>
               
               <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2" style={{ scrollbarWidth: 'none' }}>
@@ -274,7 +274,7 @@ function DashboardV2() {
                     </div>
                     <div>
                       <h4 className="text-sm font-semibold text-white/90 group-hover:text-white leading-tight mb-1">{item.title}</h4>
-                      <p className="text-xs font-medium" style={{ color: '#7f9ab5' }}>{item.time}</p>
+                      <p className="text-xs font-medium" style={{ color: 'var(--mf-text-2)' }}>{item.time}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -292,12 +292,12 @@ function DashboardV2() {
             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20">
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-bold text-white tracking-tight">Status das Contas</h2>
-                <div className="px-2.5 py-1 rounded-full bg-[#00d4ff]/10 text-[#00d4ff] text-xs font-bold border border-[#00d4ff]/20">
+                <div className="px-2.5 py-1 rounded-full bg-[var(--mf-mod-contas)]/10 text-[var(--mf-mod-contas)] text-xs font-bold border border-[var(--mf-mod-contas)]/20">
                   {connectedAccounts.length} Ativas
                 </div>
               </div>
-              <button className="px-5 py-2.5 rounded-xl text-sm font-bold text-black flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,212,255,0.4)]"
-                      style={{ background: 'linear-gradient(135deg, #00d4ff, #00aacc)' }}>
+              <button className="px-5 py-2.5 rounded-xl text-sm font-bold text-black flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_color-mix(in oklch, var(--mf-mod-contas) 40%, transparent)]"
+                      style={{ background: 'linear-gradient(135deg, var(--mf-mod-contas), #00aacc)' }}>
                 <Plus size={16} /> Conectar Conta
               </button>
             </div>
@@ -306,11 +306,11 @@ function DashboardV2() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[#7f9ab5]">Conta</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[#7f9ab5]">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[#7f9ab5]">Saúde (API)</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[#7f9ab5]">Crescimento</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[#7f9ab5] text-right">Ações</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[var(--mf-text-2)]">Conta</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[var(--mf-text-2)]">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[var(--mf-text-2)]">Saúde (API)</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[var(--mf-text-2)]">Crescimento</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-[var(--mf-text-2)] text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -325,12 +325,12 @@ function DashboardV2() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-xs shadow-inner"
-                               style={{ background: `linear-gradient(135deg, ${['#00d4ff','#8b5cf6','#10b981','#f59e0b'][i%4]}40, transparent)` }}>
+                               style={{ background: `linear-gradient(135deg, ${['var(--mf-mod-contas)','var(--mf-mod-publicar)','var(--mf-success-500)','var(--mf-warning-500)'][i%4]}40, transparent)` }}>
                             {acc.handle.substring(1,3).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-bold text-white text-sm group-hover:text-[#00d4ff] transition-colors">{acc.handle}</div>
-                            <div className="text-xs font-medium text-[#7f9ab5]">{acc.followers} seguidores</div>
+                            <div className="font-bold text-white text-sm group-hover:text-[var(--mf-mod-contas)] transition-colors">{acc.handle}</div>
+                            <div className="text-xs font-medium text-[var(--mf-text-2)]">{acc.followers} seguidores</div>
                           </div>
                         </div>
                       </td>
@@ -338,10 +338,10 @@ function DashboardV2() {
                         <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
                               style={{ 
                                 background: acc.status === 'online' ? '#10b98115' : '#f59e0b15',
-                                color: acc.status === 'online' ? '#10b981' : '#f59e0b',
+                                color: acc.status === 'online' ? 'var(--mf-success-500)' : 'var(--mf-warning-500)',
                                 border: `1px solid ${acc.status === 'online' ? '#10b98130' : '#f59e0b30'}`
                               }}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${acc.status === 'online' ? 'bg-[#10b981] animate-pulse' : 'bg-[#f59e0b]'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full ${acc.status === 'online' ? 'bg-[var(--mf-success-500)] animate-pulse' : 'bg-[var(--mf-warning-500)]'}`} />
                           {acc.status === 'online' ? 'Online' : 'Instável'}
                         </span>
                       </td>
@@ -354,18 +354,18 @@ function DashboardV2() {
                               animate={{ width: `${acc.health}%` }} 
                               transition={{ duration: 1, delay: 1.2 + (i * 0.1) }}
                               className="h-full rounded-full"
-                              style={{ background: acc.health > 80 ? '#10b981' : acc.health > 50 ? '#f59e0b' : '#f43f5e' }}
+                              style={{ background: acc.health > 80 ? 'var(--mf-success-500)' : acc.health > 50 ? 'var(--mf-warning-500)' : 'var(--mf-danger-500)' }}
                             />
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-sm font-bold ${acc.trend.startsWith('+') ? 'text-[#10b981]' : 'text-[#f43f5e]'}`}>
+                        <span className={`text-sm font-bold ${acc.trend.startsWith('+') ? 'text-[var(--mf-success-500)]' : 'text-[var(--mf-danger-500)]'}`}>
                           {acc.trend}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 rounded-lg text-[#7f9ab5] hover:text-white hover:bg-white/10 transition-colors">
+                        <button className="p-2 rounded-lg text-[var(--mf-text-2)] hover:text-white hover:bg-white/10 transition-colors">
                           <MoreHorizontal size={18} />
                         </button>
                       </td>

@@ -17,20 +17,20 @@ function timeAgo(d) {
 }
 
 function statusCfg(level, healthStatus) {
-  if (healthStatus === 'banida')        return { label: 'Banida',        bg: 'rgba(239,68,68,.15)',  color: '#f87171', dot: '#ef4444' };
-  if (healthStatus === 'token_invalido') return { label: 'Reconectar',   bg: 'rgba(239,68,68,.15)',  color: '#f87171', dot: '#ef4444' };
-  if (healthStatus === 'restrita')      return { label: 'Restrita',      bg: 'rgba(245,158,11,.12)', color: '#fbbf24', dot: '#f59e0b' };
-  if (level === 'atencao')              return { label: 'Atenção',       bg: 'rgba(245,158,11,.12)', color: '#fbbf24', dot: '#f59e0b' };
-  if (level === 'risco')                return { label: 'Risco',         bg: 'rgba(239,68,68,.12)',  color: '#f87171', dot: '#ef4444' };
-  return                                       { label: 'Saudável',      bg: 'rgba(16,185,129,.12)', color: '#34d399', dot: '#10b981' };
+  if (healthStatus === 'banida')        return { label: 'Banida',        bg: 'color-mix(in oklch, var(--mf-danger-500) 15%, transparent)',  color: 'var(--mf-danger-500)', dot: 'var(--mf-danger-500)' };
+  if (healthStatus === 'token_invalido') return { label: 'Reconectar',   bg: 'color-mix(in oklch, var(--mf-danger-500) 15%, transparent)',  color: 'var(--mf-danger-500)', dot: 'var(--mf-danger-500)' };
+  if (healthStatus === 'restrita')      return { label: 'Restrita',      bg: 'color-mix(in oklch, var(--mf-warning-500) 12%, transparent)', color: 'var(--mf-warning-500)', dot: 'var(--mf-warning-500)' };
+  if (level === 'atencao')              return { label: 'Atenção',       bg: 'color-mix(in oklch, var(--mf-warning-500) 12%, transparent)', color: 'var(--mf-warning-500)', dot: 'var(--mf-warning-500)' };
+  if (level === 'risco')                return { label: 'Risco',         bg: 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)',  color: 'var(--mf-danger-500)', dot: 'var(--mf-danger-500)' };
+  return                                       { label: 'Saudável',      bg: 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)', color: 'var(--mf-success-500)', dot: 'var(--mf-success-500)' };
 }
 
 function tokenBarColor(days) {
-  if (days === null || days === undefined) return '#334155';
-  if (days < 0)  return '#ef4444';
-  if (days < 7)  return '#f59e0b';
-  if (days < 20) return '#06b6d4';
-  return '#06b6d4';
+  if (days === null || days === undefined) return 'var(--mf-border-strong)';
+  if (days < 0)  return 'var(--mf-danger-500)';
+  if (days < 7)  return 'var(--mf-warning-500)';
+  if (days < 20) return 'var(--mf-mod-contas)';
+  return 'var(--mf-mod-contas)';
 }
 
 function tokenBarPct(days) {
@@ -53,14 +53,14 @@ function AccountCard({ account }) {
 
   return (
     <div style={{
-      background: 'rgba(10,18,36,.85)',
-      border: `1px solid rgba(51,65,85,.5)`,
+      background: 'var(--mf-surface-1)',
+      border: `1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)`,
       borderRadius: 16,
       overflow: 'hidden',
       transition: 'border-color .2s',
     }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(6,182,212,.3)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(51,65,85,.5)'}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = 'color-mix(in oklch, var(--mf-border-strong) 50%, transparent)'}
     >
       {/* ── Cabeçalho ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px 14px' }}>
@@ -72,24 +72,24 @@ function AccountCard({ account }) {
                 : `${API}${account.avatar}`}
               alt=""
               onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-              style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', border: '2px solid rgba(6,182,212,.3)' }}
+              style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', border: '2px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' }}
             />
           ) : null}
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#1e40af,#6366f1)', border: '2px solid rgba(99,102,241,.4)', display: account.avatar ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 800, color: '#c7d2fe' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,var(--mf-info-500),var(--mf-primary-500))', border: '2px solid color-mix(in oklch, var(--mf-primary-500) 40%, transparent)', display: account.avatar ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 800, color: 'var(--mf-primary-300)' }}>
             {account.username?.charAt(0)?.toUpperCase() || 'I'}
           </div>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>@{account.username}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mf-text)' }}>@{account.username}</span>
             {account.accountType && (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: 'rgba(6,182,212,.15)', color: '#67e8f9', border: '1px solid rgba(6,182,212,.25)', textTransform: 'uppercase', letterSpacing: .5 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: 'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', color: 'var(--mf-mod-contas)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', textTransform: 'uppercase', letterSpacing: .5 }}>
                 {account.accountType}
               </span>
             )}
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name || '—'}</div>
+          <div style={{ fontSize: 12, color: 'var(--mf-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{account.name || '—'}</div>
         </div>
 
         {/* Badge status */}
@@ -107,10 +107,10 @@ function AccountCard({ account }) {
         return (
           <div style={{ padding: '0 18px 14px', display: 'flex', gap: 8 }}>
             {apiOk ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.25)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', flexShrink: 0, display: 'inline-block' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mf-success-500)', boxShadow: '0 0 6px var(--mf-success-500)', flexShrink: 0, display: 'inline-block' }} />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mf-success-500)' }}>
                     {isMobileAccount ? 'API Mobile Ativa' : 'API Conectada'}
                   </div>
                   <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>
@@ -121,10 +121,10 @@ function AccountCard({ account }) {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 10, background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mf-danger-500)', flexShrink: 0, display: 'inline-block' }} />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#f87171' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mf-danger-500)' }}>
                     {account.hasApiToken ? 'Token Expirado / Inválido' : 'API Desconectada'}
                   </div>
                   <div style={{ fontSize: 10, color: '#475569', marginTop: 1 }}>
@@ -144,20 +144,20 @@ function AccountCard({ account }) {
         <div style={{ padding: '0 18px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}>Validade do token</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: account.healthStatus === 'token_invalido' ? '#ef4444' : tokenColor }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: account.healthStatus === 'token_invalido' ? 'var(--mf-danger-500)' : tokenColor }}>
               {account.healthStatus === 'token_invalido' ? 'Expirado / inválido' :
                account.tokenDaysLeft === null ? 'Sem data' :
                account.tokenDaysLeft <= 0    ? 'Expirado' :
                `${account.tokenDaysLeft} dias`}
             </span>
           </div>
-          <div style={{ height: 3, background: 'rgba(51,65,85,.5)', borderRadius: 3, overflow: 'hidden' }}>
+          <div style={{ height: 3, background: 'color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 3, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
               width: account.healthStatus === 'token_invalido' ? '100%' : `${tokenPct}%`,
               borderRadius: 3,
               background: account.healthStatus === 'token_invalido'
-                ? 'linear-gradient(90deg, #ef444499, #ef4444)'
+                ? 'linear-gradient(90deg, #ef444499, var(--mf-danger-500))'
                 : `linear-gradient(90deg, ${tokenColor}99, ${tokenColor})`,
               boxShadow: tokenPct > 0 ? `0 0 8px ${tokenColor}66` : 'none',
               transition: 'width .4s ease',
@@ -167,7 +167,7 @@ function AccountCard({ account }) {
       )}
 
       {/* ── Separador ── */}
-      <div style={{ height: 1, background: 'rgba(51,65,85,.3)', margin: '0 18px' }} />
+      <div style={{ height: 1, background: 'color-mix(in oklch, var(--mf-border-strong) 30%, transparent)', margin: '0 18px' }} />
 
       {/* ── Linhas de info ── */}
       <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 9 }}>
@@ -177,7 +177,7 @@ function AccountCard({ account }) {
           <span style={{ fontSize: 12, color: '#475569' }}>
             {isMobileAccount ? 'Último login' : 'Última sincronização'}
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--mf-text-3)' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
             </svg>
@@ -191,19 +191,19 @@ function AccountCard({ account }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontSize: 12, color: '#475569', flexShrink: 0 }}>Último erro da API</span>
           {recentError ? (
-            <span style={{ fontSize: 11, color: '#fb923c', textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }} title={account.lastError}>
+            <span style={{ fontSize: 11, color: 'var(--mf-warning-500)', textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }} title={account.lastError}>
               {account.lastError.length > 60 ? account.lastError.slice(0, 60) + '…' : account.lastError}
             </span>
           ) : (
-            <span style={{ fontSize: 12, color: '#22c55e' }}>Nenhum nas últimas 24h</span>
+            <span style={{ fontSize: 12, color: 'var(--mf-success-500)' }}>Nenhum nas últimas 24h</span>
           )}
         </div>
 
         {/* Sinal de atividade */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12, color: '#475569' }}>Sinal de atividade</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#64748b' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round">
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--mf-text-3)' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod-contas)" strokeWidth="2.5" strokeLinecap="round">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
             Polling a cada minuto
@@ -256,8 +256,8 @@ export default function Health() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#475569', gap: 10 }}>
       {error ? (
         <>
-          <span style={{ color: '#f87171', fontSize: 13 }}>Erro: {error}</span>
-          <button onClick={load} style={{ marginTop: 8, padding: '6px 16px', borderRadius: 8, background: 'rgba(6,182,212,.15)', border: '1px solid rgba(6,182,212,.3)', color: '#67e8f9', cursor: 'pointer', fontSize: 13 }}>Tentar novamente</button>
+          <span style={{ color: 'var(--mf-danger-500)', fontSize: 13 }}>Erro: {error}</span>
+          <button onClick={load} style={{ marginTop: 8, padding: '6px 16px', borderRadius: 8, background: 'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', color: 'var(--mf-mod-contas)', cursor: 'pointer', fontSize: 13 }}>Tentar novamente</button>
         </>
       ) : (
         <>
@@ -280,12 +280,12 @@ export default function Health() {
       );
 
   const summaryItems = [
-    { label: 'Total',       value: data.summary.total,    color: '#6366f1' },
-    { label: 'Saudáveis',   value: data.summary.saudavel, color: '#10b981' },
-    { label: 'Atenção',     value: data.summary.atencao,  color: '#f59e0b' },
-    { label: 'Risco',       value: data.summary.risco,    color: '#ef4444' },
-    { label: 'Banidas',     value: data.summary.banida,   color: '#ef4444' },
-    { label: 'Restritas',    value: data.accounts.filter(a => a.healthStatus === 'restrita').length, color: '#f59e0b' },
+    { label: 'Total',       value: data.summary.total,    color: 'var(--mf-primary-500)' },
+    { label: 'Saudáveis',   value: data.summary.saudavel, color: 'var(--mf-success-500)' },
+    { label: 'Atenção',     value: data.summary.atencao,  color: 'var(--mf-warning-500)' },
+    { label: 'Risco',       value: data.summary.risco,    color: 'var(--mf-danger-500)' },
+    { label: 'Banidas',     value: data.summary.banida,   color: 'var(--mf-danger-500)' },
+    { label: 'Restritas',    value: data.accounts.filter(a => a.healthStatus === 'restrita').length, color: 'var(--mf-warning-500)' },
   ];
 
   const pageIcon = (
@@ -296,8 +296,8 @@ export default function Health() {
 
   const pageActions = (
     <>
-      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:8, background:'rgba(34,197,94,.08)', border:'1px solid rgba(34,197,94,.2)', fontSize:11, color:'#22c55e', fontWeight:700 }}>
-        <span style={{ width:6, height:6, borderRadius:'50%', background:'#22c55e', display:'inline-block', boxShadow:'0 0 6px #22c55e' }} />
+      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:8, background:'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize:11, color:'var(--mf-success-500)', fontWeight:700 }}>
+        <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
         Automação ativa
       </span>
       <button onClick={checkNow} disabled={checking} className="btn-primary" style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, fontSize:'.83rem' }}>
@@ -332,7 +332,7 @@ export default function Health() {
             }}
           >
             <div style={{ fontSize:24, fontWeight:800, color:s.color, letterSpacing:-1, lineHeight:1, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-            <div style={{ fontSize:11, color:'var(--text3)', marginTop:4, fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
+            <div style={{ fontSize:11, color:'var(--mf-text-3)', marginTop:4, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
           </motion.div>
         ))}
       </div>
@@ -340,7 +340,7 @@ export default function Health() {
       {/* Filters */}
       <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:18, flexWrap:'wrap' }}>
         <div className="pill-scroll-x" style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', gap:4, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3, width:'max-content' }}>
+          <div style={{ display:'flex', gap:4, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:9, padding:3, width:'max-content' }}>
             {[
               { v:'all',      l:'Todas' },
               { v:'saudavel', l:'Saudáveis' },
@@ -350,14 +350,14 @@ export default function Health() {
             ].map(f => (
               <button key={f.v} onClick={() => setFilter(f.v)} style={{
                 height:28, padding:'0 12px', borderRadius:7, border:'none', cursor:'pointer', fontWeight:600, fontSize:'.78rem',
-                background: filter === f.v ? '#6366f1' : 'transparent',
-                color:      filter === f.v ? '#fff'    : 'var(--text3)',
+                background: filter === f.v ? 'var(--mf-primary-500)' : 'transparent',
+                color:      filter === f.v ? 'var(--mf-text)'    : 'var(--mf-text-3)',
                 transition: 'all .15s',
               }}>{f.l}</button>
             ))}
           </div>
         </div>
-        <span style={{ flexShrink:0, fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
+        <span style={{ flexShrink:0, fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
           {filtered.length}/{data.accounts.length} · 10s
         </span>
       </div>
@@ -368,9 +368,9 @@ export default function Health() {
           {filtered.map(acc => <AccountCard key={acc._id} account={acc} />)}
         </div>
       ) : (
-        <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--text3)', background:'oklch(0.16 0.05 235 / 0.5)', borderRadius:14, border:'1px dashed oklch(1 0 0 / 0.08)' }}>
+        <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--mf-text-3)', background:'oklch(0.16 0.05 235 / 0.5)', borderRadius:14, border:'1px dashed var(--mf-border)' }}>
           <div style={{ fontSize:36, marginBottom:10 }}>🩺</div>
-          <div style={{ fontSize:14, fontWeight:600, color:'var(--text3)' }}>Nenhuma conta nesse filtro</div>
+          <div style={{ fontSize:14, fontWeight:600, color:'var(--mf-text-3)' }}>Nenhuma conta nesse filtro</div>
         </div>
       )}
     </PageShell>

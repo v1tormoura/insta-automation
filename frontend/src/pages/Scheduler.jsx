@@ -127,7 +127,7 @@ export default function Scheduler() {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 14, padding: '16px', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 14, padding: '16px', backdropFilter: 'blur(12px)' }}
           >
             <h3 style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 12 }}>Filtro por data</h3>
             <input
@@ -142,7 +142,7 @@ export default function Scheduler() {
                 Limpar filtro
               </button>
             )}
-            <div style={{ marginTop: 16, borderTop: '1px solid oklch(1 0 0 / 0.07)', paddingTop: 16, textAlign: 'center' }}>
+            <div style={{ marginTop: 16, borderTop: '1px solid var(--mf-border)', paddingTop: 16, textAlign: 'center' }}>
               <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--mf-mod, var(--mf-accent-500))', fontVariantNumeric: 'tabular-nums' }}>{filteredPosts.length}</div>
               <div style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>Resultados</div>
             </div>
@@ -153,11 +153,11 @@ export default function Scheduler() {
             initial={{ opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 14, overflow: 'hidden', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 14, overflow: 'hidden', backdropFilter: 'blur(12px)' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--mf-border)' }}>
               <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
-              <span style={{ fontSize: '.72rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 100, padding: '2px 8px' }}>{filteredPosts.length} itens</span>
+              <span style={{ fontSize: '.72rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 100, padding: '2px 8px' }}>{filteredPosts.length} itens</span>
             </div>
 
             <div style={{ padding: 12 }}>
@@ -174,7 +174,7 @@ export default function Scheduler() {
                       style={{
                         display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
                         background: 'oklch(0.12 0.04 235 / 0.6)', borderRadius: 10,
-                        border: '1px solid oklch(1 0 0 / 0.07)',
+                        border: '1px solid var(--mf-border)',
                         borderLeft: `3px solid ${post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)'}`,
                       }}
                     >
@@ -186,7 +186,7 @@ export default function Scheduler() {
                           </>
                         ) : <div style={{ fontSize: 20 }}>📤</div>}
                       </div>
-                      <div style={{ width: 1, height: 40, background: 'oklch(1 0 0 / 0.08)', flexShrink: 0 }} />
+                      <div style={{ width: 1, height: 40, background: 'var(--mf-border)', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3, color: 'var(--mf-text)' }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
                         <div style={{ fontSize: 11, color: 'var(--mf-text-3)', display: 'flex', gap: 12, fontFamily: 'var(--mf-mono)', flexWrap: 'wrap', rowGap: 2 }}>

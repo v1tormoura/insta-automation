@@ -3,14 +3,14 @@ import { useState, useMemo } from 'react';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const STATUS_COLOR = {
-  ativa:           '#34d399',
-  ativo:           '#34d399',
-  restrita:        '#fbbf24',
-  banida:          '#f87171',
-  banido:          '#f87171',
-  sessao_expirada: '#fb923c',
-  erro_login:      '#fb923c',
-  token_invalido:  '#f87171',
+  ativa:           'var(--mf-success-500)',
+  ativo:           'var(--mf-success-500)',
+  restrita:        'var(--mf-warning-500)',
+  banida:          'var(--mf-danger-500)',
+  banido:          'var(--mf-danger-500)',
+  sessao_expirada: 'var(--mf-warning-500)',
+  erro_login:      'var(--mf-warning-500)',
+  token_invalido:  'var(--mf-danger-500)',
 };
 
 function avatarUrl(acc) {
@@ -83,8 +83,8 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               width: '100%', boxSizing: 'border-box',
               padding: '6px 10px 6px 28px',
               background: 'oklch(0.10 0.03 235 / 0.8)',
-              border: '1px solid oklch(1 0 0 / 0.1)',
-              borderRadius: 8, fontSize: 12, color: 'var(--text)', outline: 'none',
+              border: '1px solid var(--mf-border)',
+              borderRadius: 8, fontSize: 12, color: 'var(--mf-text)', outline: 'none',
             }}
           />
         </div>
@@ -93,10 +93,10 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
           onClick={toggleFiltered}
           style={{
             flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '5px 11px', borderRadius: 7,
-            background:   allSel ? 'rgba(248,113,113,.1)' : 'rgba(59,130,246,.1)',
-            color:        allSel ? '#f87171'               : '#60a5fa',
-            border:       `1px solid ${allSel ? 'rgba(248,113,113,.3)' : 'rgba(59,130,246,.3)'}`,
-            cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)',
+            background:   allSel ? 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-info-500) 10%, transparent)',
+            color:        allSel ? 'var(--mf-danger-500)'               : 'var(--mf-info-500)',
+            border:       `1px solid ${allSel ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'color-mix(in oklch, var(--mf-info-500) 30%, transparent)'}`,
+            cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--mf-mono)',
             transition: '.15s',
           }}
         >
@@ -114,17 +114,17 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
             onClick={() => setStatusTab(t.key)}
             style={{
               fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-              border:       `1px solid ${statusTab === t.key ? 'rgba(99,102,241,.5)' : 'oklch(1 0 0 / 0.08)'}`,
-              background:   statusTab === t.key ? 'rgba(99,102,241,.15)' : 'transparent',
-              color:        statusTab === t.key ? '#818cf8' : 'var(--text3)',
-              cursor: 'pointer', transition: '.15s', fontFamily: 'var(--font-mono)',
+              border:       `1px solid ${statusTab === t.key ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
+              background:   statusTab === t.key ? 'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)' : 'transparent',
+              color:        statusTab === t.key ? 'var(--mf-primary-300)' : 'var(--mf-text-3)',
+              cursor: 'pointer', transition: '.15s', fontFamily: 'var(--mf-mono)',
             }}
           >
             {t.label}
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
-          <strong style={{ color: 'var(--cyan)' }}>{selected.length}</strong> sel.
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
+          <strong style={{ color: 'var(--mf-mod, var(--mf-accent-500))' }}>{selected.length}</strong> sel.
         </span>
       </div>
 
@@ -140,14 +140,14 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
         WebkitOverflowScrolling: 'touch',
       }}>
         {filtered.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px 0', color: 'var(--text3)', fontSize: 12 }}>
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px 0', color: 'var(--mf-text-3)', fontSize: 12 }}>
             {search ? 'Nenhuma conta encontrada' : 'Nenhuma conta disponível'}
           </div>
         )}
 
         {filtered.map(acc => {
           const isSel  = selSet.has(String(acc._id));
-          const dotClr = STATUS_COLOR[acc.healthStatus] || '#6b7280';
+          const dotClr = STATUS_COLOR[acc.healthStatus] || 'var(--mf-text-3)';
           const init   = (acc.username || '?').slice(0, 2).toUpperCase();
           const src    = avatarUrl(acc);
 
@@ -159,10 +159,10 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 gap: 5, padding: '10px 6px 8px', borderRadius: 10, position: 'relative',
-                border:     `1px solid ${isSel ? 'rgba(99,102,241,.5)' : 'oklch(1 0 0 / 0.08)'}`,
-                background: isSel ? 'rgba(99,102,241,.12)' : 'oklch(0.10 0.03 235 / 0.6)',
+                border:     `1px solid ${isSel ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
+                background: isSel ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'oklch(0.10 0.03 235 / 0.6)',
                 cursor: 'pointer', transition: 'all .15s', textAlign: 'center', outline: 'none',
-                boxShadow: isSel ? '0 0 0 1px rgba(99,102,241,.25)' : 'none',
+                boxShadow: isSel ? '0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 25%, transparent)' : 'none',
               }}
             >
               {/* Badge de seleção */}
@@ -170,9 +170,9 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                 <div style={{
                   position: 'absolute', top: 5, right: 5,
                   width: 14, height: 14, borderRadius: '50%',
-                  background: '#818cf8', display: 'grid', placeItems: 'center',
+                  background: 'var(--mf-primary-300)', display: 'grid', placeItems: 'center',
                 }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text)" strokeWidth="3.5" strokeLinecap="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 </div>
@@ -185,7 +185,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                     src={src} alt=""
                     style={{
                       width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', display: 'block',
-                      border: `2px solid ${isSel ? '#818cf8' : 'oklch(1 0 0 / 0.1)'}`,
+                      border: `2px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border)'}`,
                     }}
                     onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }}
                   />
@@ -194,8 +194,8 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                   width: 38, height: 38, borderRadius: '50%',
                   background: 'oklch(0.45 0.22 295)',
                   display: src ? 'none' : 'grid',
-                  placeItems: 'center', fontSize: 13, fontWeight: 800, color: '#fff',
-                  border: `2px solid ${isSel ? '#818cf8' : 'oklch(1 0 0 / 0.08)'}`,
+                  placeItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--mf-text)',
+                  border: `2px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border)'}`,
                 }}>{init}</div>
                 {/* Dot de status */}
                 <div style={{
@@ -208,7 +208,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               {/* Username */}
               <div style={{
                 fontSize: 11, fontWeight: 600, lineHeight: 1.2,
-                color: isSel ? '#c7d2fe' : 'var(--text)',
+                color: isSel ? 'var(--mf-primary-300)' : 'var(--mf-text)',
                 width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>@{acc.username}</div>
             </button>

@@ -51,28 +51,28 @@ const topLine = {
   content: '""',
   position: 'absolute',
   top: 0, left: 20, right: 20, height: 1,
-  background: 'linear-gradient(90deg,transparent,rgba(0,212,255,.32),transparent)',
+  background: 'linear-gradient(90deg,transparent,color-mix(in oklch, var(--mf-mod-contas) 32%, transparent),transparent)',
 };
 
 /* ── InsightThumb ── */
 function InsightThumb({ ins, rank }) {
   const [err, setErr] = useState(false);
   const src = !err ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : null;
-  const color = ['#a855f7','#3b82f6','#06b6d4','#10b981','#f59e0b','#f43f5e'][rank] || '#22d7ff';
+  const color = ['var(--mf-mod-publicar)','var(--mf-info-500)','var(--mf-mod-contas)','var(--mf-success-500)','var(--mf-warning-500)','var(--mf-danger-500)'][rank] || 'var(--mf-mod, var(--mf-accent-500))';
   return (
     <motion.div whileHover={{ scale:1.03, y:-3 }} transition={spring}
-      style={{ position:'relative', aspectRatio:'9/16', borderRadius:11, overflow:'hidden', background:'rgba(10,20,38,.9)', border:'1px solid rgba(255,255,255,.07)', cursor:'pointer' }}>
+      style={{ position:'relative', aspectRatio:'9/16', borderRadius:11, overflow:'hidden', background:'var(--mf-surface-1)', border:'1px solid var(--mf-border)', cursor:'pointer' }}>
       {src
         ? <img src={src} alt="" onError={() => setErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-        : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.1)' }}><Flame size={24} /></div>
+        : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--mf-border)' }}><Flame size={24} /></div>
       }
       <div style={{ position:'absolute', inset:0, background:'linear-gradient(to bottom,rgba(0,0,0,.3) 0%,transparent 40%,rgba(0,0,0,.7) 100%)' }} />
-      <div style={{ position:'absolute', top:7, right:7, background:color, color:'#fff', fontSize:9, fontWeight:800, width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
+      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-text)', fontSize:9, fontWeight:800, width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
         #{rank+1}
       </div>
       <div style={{ position:'absolute', bottom:7, left:7, right:7 }}>
-        <div style={{ fontSize:10, color:'rgba(255,255,255,.85)', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{ins.username}</div>
-        <div style={{ fontSize:9, color:'rgba(255,255,255,.5)', display:'flex', gap:6, marginTop:2 }}>
+        <div style={{ fontSize:10, color:'var(--mf-surface-3)', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{ins.username}</div>
+        <div style={{ fontSize:9, color:'var(--mf-surface-3)', display:'flex', gap:6, marginTop:2 }}>
           <span>👁 {fmtK(ins.videoViews || ins.impressions)}</span>
           <span>❤️ {fmtK(ins.likeCount)}</span>
         </div>
@@ -82,10 +82,10 @@ function InsightThumb({ ins, rank }) {
 }
 
 const tooltipStyle = {
-  background: 'rgba(9,9,15,.97)',
-  border: '1px solid rgba(0,212,255,.2)',
+  background: 'var(--mf-surface-1)',
+  border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)',
   borderRadius: 10,
-  color: '#e2edfd',
+  color: 'var(--mf-text)',
   boxShadow: '0 10px 35px rgba(0,0,0,.5)',
   fontSize: 12,
 };
@@ -119,7 +119,7 @@ function AvatarChip({ username, avatar, size = 32 }) {
   const src = avatar && !err ? proxyImg(avatar) : null;
   if (src) return <img src={src} alt={username} onError={() => setErr(true)} style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />;
   return (
-    <span style={{ width:size, height:size, borderRadius:'50%', background:'linear-gradient(135deg,rgba(99,102,241,.4),rgba(139,92,246,.4))', color:'#c4b5fd', fontSize:Math.floor(size/2.5), fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+    <span style={{ width:size, height:size, borderRadius:'50%', background:'linear-gradient(135deg,color-mix(in oklch, var(--mf-primary-500) 40%, transparent),color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent))', color:'var(--mf-mod-publicar)', fontSize:Math.floor(size/2.5), fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
       {(username||'?').slice(0,2).toUpperCase()}
     </span>
   );
@@ -172,7 +172,7 @@ function SelectBtn({ active, onClick, children }) {
     <button onClick={onClick} className="mf-btn mf-btn--sm"
       style={{
         height: 26, padding: '0 10px', fontSize: 'var(--mf-t-micro)',
-        background: active ? 'color-mix(in oklch, var(--mf-accent-500) 14%, transparent)' : 'oklch(1 0 0 / 0.04)',
+        background: active ? 'color-mix(in oklch, var(--mf-accent-500) 14%, transparent)' : 'var(--mf-border-subtle)',
         color: active ? 'var(--mf-accent-500)' : 'var(--mf-text-3)',
         border: `1px solid ${active ? 'color-mix(in oklch, var(--mf-accent-500) 30%, transparent)' : 'var(--mf-border)'}`,
       }}>{children}</button>
@@ -327,7 +327,7 @@ function QueuePanel({ d, accountStats }) {
   };
 
   const STATUS_LABEL = { pendente:'PENDENTE', processando:'PROCESSANDO', concluido:'CONCLUÍDO', agendado:'AGENDADO', parcial:'PARCIAL', erro:'ERRO' };
-  const STATUS_COLOR = { pendente:'var(--amber)', processando:'var(--cyan)', concluido:'var(--green)', agendado:'var(--text2)', parcial:'#f59e0b', erro:'var(--red)' };
+  const STATUS_COLOR = { pendente:'var(--mf-warning-500)', processando:'var(--mf-mod, var(--mf-accent-500))', concluido:'var(--mf-success-500)', agendado:'var(--mf-text-2)', parcial:'var(--mf-warning-500)', erro:'var(--mf-danger-500)' };
 
   return (
     <div className="mf-card mf-card--hover" style={{ ...card, '--mf-mod':'var(--mf-mod-publicar)', display:'flex', flexDirection:'column' }}>
@@ -422,12 +422,12 @@ function QueuePanel({ d, accountStats }) {
               >
                 <AvatarChip username={acc?.username} avatar={acc?.avatar} size={26} />
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{acc?.username || '—'}</div>
-                  <div style={{ fontSize:10, color:'var(--text3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{item.postType || 'Reels'}</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{acc?.username || '—'}</div>
+                  <div style={{ fontSize:10, color:'var(--mf-text-3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{item.postType || 'Reels'}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)' }}>{fmtTime(item.scheduledAt)}</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, color: STATUS_COLOR[item.status] || 'var(--text3)', marginTop:2, letterSpacing:'.04em' }}>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)' }}>{fmtTime(item.scheduledAt)}</div>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700, color: STATUS_COLOR[item.status] || 'var(--mf-text-3)', marginTop:2, letterSpacing:'.04em' }}>
                     {STATUS_LABEL[item.status] || String(item.status||'PENDENTE').toUpperCase()}
                   </div>
                 </div>
@@ -442,7 +442,7 @@ function QueuePanel({ d, accountStats }) {
       <AnimatePresence>
         {pausedCount > 0 && (
           <motion.div initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
-            style={{ margin:'8px 14px 14px', padding:'8px 12px', background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.18)', borderRadius:10, display:'flex', alignItems:'center', gap:7, fontSize:11, color:'var(--amber)' }}>
+            style={{ margin:'8px 14px 14px', padding:'8px 12px', background:'color-mix(in oklch, var(--mf-warning-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 18%, transparent)', borderRadius:10, display:'flex', alignItems:'center', gap:7, fontSize:11, color:'var(--mf-warning-500)' }}>
             <AlertTriangle size={13} style={{ flexShrink:0 }} />
             {pausedCount} conta(s) em pausa automática.
           </motion.div>
@@ -489,41 +489,41 @@ function LoopsPanel({ loops }) {
   };
 
   return (
-    <div style={{ ...card, display:'flex', flexDirection:'column', borderColor:'rgba(139,92,246,.12)' }} className="lift">
+    <div style={{ ...card, display:'flex', flexDirection:'column', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)' }} className="lift">
       {/* purple ambient orb */}
-      <div style={{ position:'absolute', top:-60, right:-40, width:180, height:180, borderRadius:'50%', background:'radial-gradient(circle,rgba(139,92,246,.08),transparent 70%)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:-60, right:-40, width:180, height:180, borderRadius:'50%', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent),transparent 70%)', pointerEvents:'none' }} />
       <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,oklch(0.65 0.22 295 / 0.55),transparent)' }} />
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.05)', flexShrink:0 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid var(--mf-border-subtle)', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'rgba(139,92,246,.1)', border:'1px solid rgba(139,92,246,.22)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Repeat2 size={13} style={{ color:'#a78bfa' }} />
+          <div style={{ width:28, height:28, borderRadius:8, background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Repeat2 size={13} style={{ color:'var(--mf-mod-publicar)' }} />
           </div>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--text2)', textTransform:'uppercase' }}>Loops em execução</span>
+          <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase' }}>Loops em execução</span>
         </div>
-        <Link to="/loop" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--text3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid rgba(255,255,255,.07)', background:'rgba(255,255,255,.03)', transition:'all .15s' }}
-          onMouseEnter={e => { e.currentTarget.style.color='#a78bfa'; e.currentTarget.style.borderColor='rgba(139,92,246,.25)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color='var(--text3)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)'; }}
+        <Link to="/loop" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--mf-text-3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', transition:'all .15s' }}
+          onMouseEnter={e => { e.currentTarget.style.color='var(--mf-mod-publicar)'; e.currentTarget.style.borderColor='color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color='var(--mf-text-3)'; e.currentTarget.style.borderColor='var(--mf-border)'; }}
         >Gerenciar <ChevronRight size={12} /></Link>
       </div>
 
       {/* Summary hero */}
-      <div style={{ padding:'14px 16px 12px', borderBottom:'1px solid rgba(255,255,255,.04)', flexShrink:0, position:'relative' }}>
+      <div style={{ padding:'14px 16px 12px', borderBottom:'1px solid var(--mf-border-subtle)', flexShrink:0, position:'relative' }}>
         <div style={{ display:'flex', alignItems:'baseline', gap:10 }}>
-          <div style={{ fontSize:42, fontWeight:800, letterSpacing:'-2px', lineHeight:1, background:'linear-gradient(135deg,#c4b5fd,#a78bfa,#7c3aed)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontVariantNumeric:'tabular-nums' }}>
+          <div style={{ fontSize:42, fontWeight:800, letterSpacing:'-2px', lineHeight:1, background:'linear-gradient(135deg,var(--mf-mod-publicar),var(--mf-mod-publicar),var(--mf-primary-500))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontVariantNumeric:'tabular-nums' }}>
             <NumberTicker value={totalRemaining} />
           </div>
-          <div style={{ fontSize:12, color:'var(--text3)', lineHeight:1.4 }}>
+          <div style={{ fontSize:12, color:'var(--mf-text-3)', lineHeight:1.4 }}>
             reels<br/>restantes
           </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8 }}>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:'rgba(139,92,246,.1)', border:'1px solid rgba(139,92,246,.22)', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, color:'#a78bfa' }}>
-            <Play size={9} style={{ fill:'#a78bfa' }} />{activeLoops.length} loop(s) ativo(s)
+          <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, color:'var(--mf-mod-publicar)' }}>
+            <Play size={9} style={{ fill:'var(--mf-mod-publicar)' }} />{activeLoops.length} loop(s) ativo(s)
           </span>
           {grouped.length > 0 && (
-            <span style={{ fontSize:11, color:'var(--text3)' }}>{grouped.length} conta(s)</span>
+            <span style={{ fontSize:11, color:'var(--mf-text-3)' }}>{grouped.length} conta(s)</span>
           )}
         </div>
       </div>
@@ -531,9 +531,9 @@ function LoopsPanel({ loops }) {
       {/* Per-account list */}
       <div style={{ flex:1, overflow:'auto', padding:'4px 0' }}>
         {grouped.length === 0 ? (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:120, color:'var(--text3)', gap:8 }}>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:120, color:'var(--mf-text-3)', gap:8 }}>
             <Repeat2 size={24} opacity={.2} />
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'.06em' }}>NENHUM LOOP ATIVO</span>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, letterSpacing:'.06em' }}>NENHUM LOOP ATIVO</span>
           </div>
         ) : (
           grouped.slice(0, 8).map(({ account, loops: al }, gi) => {
@@ -548,33 +548,33 @@ function LoopsPanel({ loops }) {
 
             return (
               <motion.div key={account._id || gi} initial={{ opacity:0, x:6 }} animate={{ opacity:1, x:0 }} transition={{ delay:gi*.04 }}
-                style={{ padding:'9px 16px', borderBottom:'1px solid rgba(255,255,255,.04)', transition:'background .15s' }}
-                onMouseEnter={e => e.currentTarget.style.background='rgba(139,92,246,.03)'}
+                style={{ padding:'9px 16px', borderBottom:'1px solid var(--mf-border-subtle)', transition:'background .15s' }}
+                onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 3%, transparent)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:32, height:32, borderRadius:'50%', overflow:'hidden', border:`1.5px solid ${isDone?'rgba(16,185,129,.35)':'rgba(139,92,246,.3)'}`, flexShrink:0, background:'rgba(14,20,34,1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <div style={{ width:32, height:32, borderRadius:'50%', overflow:'hidden', border:`1.5px solid ${isDone?'color-mix(in oklch, var(--mf-success-500) 35%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 30%, transparent)'}`, flexShrink:0, background:'var(--mf-surface-1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                     {avatarSrc
                       ? <img src={avatarSrc} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
-                      : <span style={{ fontSize:12, fontWeight:700, color: isDone?'var(--green)':'#a78bfa' }}>{(account.username||'?')[0].toUpperCase()}</span>
+                      : <span style={{ fontSize:12, fontWeight:700, color: isDone?'var(--mf-success-500)':'var(--mf-mod-publicar)' }}>{(account.username||'?')[0].toUpperCase()}</span>
                     }
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{account.username}</div>
-                      <div style={{ fontFamily:'var(--font-mono)', fontSize:12, fontWeight:800, color: isDone?'var(--green)':'#a78bfa', flexShrink:0, fontVariantNumeric:'tabular-nums' }}>{cyclePos}/{total}</div>
+                      <div style={{ fontSize:12, fontWeight:700, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{account.username}</div>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:12, fontWeight:800, color: isDone?'var(--mf-success-500)':'var(--mf-mod-publicar)', flexShrink:0, fontVariantNumeric:'tabular-nums' }}>{cyclePos}/{total}</div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:2 }}>
-                      <span style={{ fontSize:10, color:'var(--text3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'60%' }}>{loop.name}</span>
-                      <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color: isDone?'var(--green)':'rgba(167,139,250,.7)' }}>
+                      <span style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'60%' }}>{loop.name}</span>
+                      <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, color: isDone?'var(--mf-success-500)':'color-mix(in oklch, var(--mf-mod-publicar) 70%, transparent)' }}>
                         {isDone ? 'ciclo concluído' : `${remaining} · ${fmtNext(loop)}`}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div style={{ marginTop:7, height:3, background:'rgba(255,255,255,.06)', borderRadius:3, overflow:'hidden' }}>
+                <div style={{ marginTop:7, height:3, background:'var(--mf-border)', borderRadius:3, overflow:'hidden' }}>
                   <motion.div initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.7, ease }}
-                    style={{ height:'100%', borderRadius:3, background: isDone ? 'linear-gradient(90deg,var(--green),#34d399)' : 'linear-gradient(90deg,#6d28d9,#a78bfa)', boxShadow: isDone ? '0 0 8px rgba(16,185,129,.5)' : '0 0 8px rgba(139,92,246,.5)' }} />
+                    style={{ height:'100%', borderRadius:3, background: isDone ? 'linear-gradient(90deg,var(--mf-success-500),var(--mf-success-500))' : 'linear-gradient(90deg,#6d28d9,var(--mf-mod-publicar))', boxShadow: isDone ? '0 0 8px color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : '0 0 8px color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }} />
                 </div>
               </motion.div>
             );
@@ -596,34 +596,34 @@ function TopViewsRanking({ d }) {
   const totalV   = useMemo(() => list.reduce((s,a) => s+(a.totalViews||0), 0), [list]);
 
   if (list.length === 0) return (
-    <div style={{ ...card, padding:'32px', textAlign:'center', color:'var(--text3)' }}>
+    <div style={{ ...card, padding:'32px', textAlign:'center', color:'var(--mf-text-3)' }}>
       <Eye size={28} style={{ marginBottom:10, opacity:.18 }} />
       <div style={{ fontSize:13 }}>Nenhum dado. Faça Sync em Top Posts.</div>
     </div>
   );
 
-  const rankColor = i => ['#fbbf24','#94a3b8','#cd7c3a'][i] || 'rgba(255,255,255,.2)';
+  const rankColor = i => ['var(--mf-warning-500)','var(--mf-text-3)','#cd7c3a'][i] || 'var(--mf-border-strong)';
 
   return (
-    <div style={{ ...card, overflow:'hidden', borderColor:'rgba(251,191,36,.1)' }} className="lift">
+    <div style={{ ...card, overflow:'hidden', borderColor:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)' }} className="lift">
       {/* gold ambient */}
-      <div style={{ position:'absolute', top:-50, right:-40, width:160, height:160, borderRadius:'50%', background:'radial-gradient(circle,rgba(251,191,36,.07),transparent 70%)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:-50, right:-40, width:160, height:160, borderRadius:'50%', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-warning-500) 7%, transparent),transparent 70%)', pointerEvents:'none' }} />
       <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,oklch(0.85 0.15 80 / 0.5),transparent)' }} />
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.05)' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid var(--mf-border-subtle)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'rgba(251,191,36,.1)', border:'1px solid rgba(251,191,36,.22)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Eye size={13} style={{ color:'#fbbf24' }} />
+          <div style={{ width:28, height:28, borderRadius:8, background:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Eye size={13} style={{ color:'var(--mf-warning-500)' }} />
           </div>
           <div>
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--text2)', textTransform:'uppercase', display:'block' }}>Top Contas · Views</span>
-            <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', letterSpacing:'.04em' }}>30 DIAS · {fmtK(totalV)} TOTAL</span>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase', display:'block' }}>Top Contas · Views</span>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-text-3)', letterSpacing:'.04em' }}>30 DIAS · {fmtK(totalV)} TOTAL</span>
           </div>
         </div>
-        <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--text3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid rgba(255,255,255,.07)', background:'rgba(255,255,255,.03)', transition:'all .15s' }}
-          onMouseEnter={e => { e.currentTarget.style.color='#fbbf24'; e.currentTarget.style.borderColor='rgba(251,191,36,.25)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color='var(--text3)'; e.currentTarget.style.borderColor='rgba(255,255,255,.07)'; }}
+        <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--mf-text-3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', transition:'all .15s' }}
+          onMouseEnter={e => { e.currentTarget.style.color='var(--mf-warning-500)'; e.currentTarget.style.borderColor='color-mix(in oklch, var(--mf-warning-500) 25%, transparent)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color='var(--mf-text-3)'; e.currentTarget.style.borderColor='var(--mf-border)'; }}
         >Top posts <ChevronRight size={12} /></Link>
       </div>
 
@@ -641,13 +641,13 @@ function TopViewsRanking({ d }) {
 
           return (
             <motion.div key={acc.accountId || i}
-              whileHover={{ background: isTop ? 'rgba(251,191,36,.03)' : 'rgba(255,255,255,.02)' }}
+              whileHover={{ background: isTop ? 'color-mix(in oklch, var(--mf-warning-500) 3%, transparent)' : 'var(--mf-border-subtle)' }}
               transition={{ duration:.15 }}
               style={{
                 padding: isTop ? '11px 16px 9px' : '9px 16px 7px',
-                borderBottom: i < list.length-1 ? '1px solid rgba(255,255,255,.04)' : 'none',
-                borderLeft: isTop ? '2px solid rgba(251,191,36,.5)' : isTop3 ? `2px solid ${rc}40` : '2px solid transparent',
-                background: isTop ? 'linear-gradient(90deg,rgba(251,191,36,.03),transparent)' : 'transparent',
+                borderBottom: i < list.length-1 ? '1px solid var(--mf-border-subtle)' : 'none',
+                borderLeft: isTop ? '2px solid color-mix(in oklch, var(--mf-warning-500) 50%, transparent)' : isTop3 ? `2px solid ${rc}40` : '2px solid transparent',
+                background: isTop ? 'linear-gradient(90deg,color-mix(in oklch, var(--mf-warning-500) 3%, transparent),transparent)' : 'transparent',
               }}
             >
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -655,29 +655,29 @@ function TopViewsRanking({ d }) {
                 <div style={{ width:22, textAlign:'center', flexShrink:0 }}>
                   {isTop3
                     ? <span style={{ fontSize:14, lineHeight:1 }}>{MEDALS[i]}</span>
-                    : <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, color:'rgba(255,255,255,.2)' }}>{String(i+1).padStart(2,'0')}</span>
+                    : <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, color:'var(--mf-border-strong)' }}>{String(i+1).padStart(2,'0')}</span>
                   }
                 </div>
 
                 {/* avatar */}
                 <div style={{ width: isTop?34:28, height: isTop?34:28, borderRadius:'50%', overflow:'hidden', flexShrink:0,
-                  border:`${isTop?'2px':'1.5px'} solid ${isTop?'rgba(251,191,36,.5)':'rgba(255,255,255,.12)'}`,
-                  background:'rgba(10,20,38,1)', display:'flex', alignItems:'center', justifyContent:'center',
-                  boxShadow: isTop ? '0 0 12px rgba(251,191,36,.3)' : 'none',
+                  border:`${isTop?'2px':'1.5px'} solid ${isTop?'color-mix(in oklch, var(--mf-warning-500) 50%, transparent)':'var(--mf-border-strong)'}`,
+                  background:'var(--mf-surface-1)', display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow: isTop ? '0 0 12px color-mix(in oklch, var(--mf-warning-500) 30%, transparent)' : 'none',
                   transition:'all .2s',
                 }}>
                   {avatarUrl
                     ? <img src={avatarUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
-                    : <span style={{ fontSize: isTop?13:11, fontWeight:700, color: isTop?'#fbbf24':'var(--cyan)' }}>{(acc.username||'?')[0].toUpperCase()}</span>
+                    : <span style={{ fontSize: isTop?13:11, fontWeight:700, color: isTop?'var(--mf-warning-500)':'var(--mf-mod, var(--mf-accent-500))' }}>{(acc.username||'?')[0].toUpperCase()}</span>
                   }
                 </div>
 
                 {/* info */}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize: isTop?13:12, fontWeight:700, color: isTop?'#ffe9a0':'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  <div style={{ fontSize: isTop?13:12, fontWeight:700, color: isTop?'#ffe9a0':'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                     @{acc.username}
                   </div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', marginTop:2, letterSpacing:'.03em' }}>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-text-3)', marginTop:2, letterSpacing:'.03em' }}>
                     {acc.totalPosts} posts · {fmtK(acc.avgViews)}/post
                   </div>
                 </div>
@@ -685,19 +685,19 @@ function TopViewsRanking({ d }) {
                 {/* views */}
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   <div style={{ fontSize: isTop?18:14, fontWeight:800, letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums',
-                    color: isTop?'#fbbf24':'var(--cyan)',
-                    textShadow: isTop ? '0 0 16px rgba(251,191,36,.5)' : '0 0 10px rgba(0,212,255,.3)',
+                    color: isTop?'var(--mf-warning-500)':'var(--mf-mod, var(--mf-accent-500))',
+                    textShadow: isTop ? '0 0 16px color-mix(in oklch, var(--mf-warning-500) 50%, transparent)' : '0 0 10px color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)',
                   }}>{fmtK(views)}</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--text3)', marginTop:1 }}>views</div>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-text-3)', marginTop:1 }}>views</div>
                 </div>
               </div>
 
               {/* bar */}
-              <div style={{ marginTop:6, height: isTop?3:2, background:'rgba(255,255,255,.05)', borderRadius:3, overflow:'hidden', marginLeft:22+10+(isTop?34:28)+10 }}>
+              <div style={{ marginTop:6, height: isTop?3:2, background:'var(--mf-border-subtle)', borderRadius:3, overflow:'hidden', marginLeft:22+10+(isTop?34:28)+10 }}>
                 <motion.div initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.65, delay:i*.04, ease }}
                   style={{ height:'100%', borderRadius:3,
-                    background: isTop ? 'linear-gradient(90deg,#f59e0b,#fbbf24,var(--cyan))' : isTop3 ? `${rc}` : 'rgba(0,212,255,.45)',
-                    boxShadow: isTop ? '0 0 8px rgba(251,191,36,.5)' : 'none',
+                    background: isTop ? 'linear-gradient(90deg,var(--mf-warning-500),var(--mf-warning-500),var(--mf-mod, var(--mf-accent-500)))' : isTop3 ? `${rc}` : 'color-mix(in oklch, var(--mf-mod-contas) 45%, transparent)',
+                    boxShadow: isTop ? '0 0 8px color-mix(in oklch, var(--mf-warning-500) 50%, transparent)' : 'none',
                   }} />
               </div>
             </motion.div>
@@ -717,7 +717,7 @@ function PostagensTable({ stats }) {
     return vb-va;
   }), [stats, col]);
   const totals = useMemo(() => stats.reduce((acc,s) => ({ hoje:acc.hoje+s.postsToday,'7d':acc['7d']+s.posts7d,'30d':acc['30d']+s.posts30d }), { hoje:0,'7d':0,'30d':0 }), [stats]);
-  const thS = { fontSize:10, color:'var(--text3)', fontWeight:600, letterSpacing:'.08em', padding:'8px 12px', textAlign:'right', borderBottom:'1px solid rgba(255,255,255,.05)', cursor:'pointer', whiteSpace:'nowrap' };
+  const thS = { fontSize:10, color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.08em', padding:'8px 12px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', cursor:'pointer', whiteSpace:'nowrap' };
   return (
     <div style={{ ...card }} className="lift">
       <PanelHeader title="Postagens por conta" icon={Send} right={
@@ -725,11 +725,11 @@ function PostagensTable({ stats }) {
           {PERIODS.map(p => <SelectBtn key={p.value} active={col===p.value} onClick={() => setCol(p.value)}>{p.label}</SelectBtn>)}
         </div>
       } />
-      <div style={{ padding:'8px 14px 6px', fontSize:11, color:'var(--text3)', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+      <div style={{ padding:'8px 14px 6px', fontSize:11, color:'var(--mf-text-3)', borderBottom:'1px solid var(--mf-border-subtle)' }}>
         {stats.length} conta(s) ·&nbsp;
-        <span style={{ color:'var(--cyan)', fontWeight:700 }}>{fmt(totals.hoje)}</span> hoje ·&nbsp;
-        <span style={{ color:'var(--cyan)', fontWeight:700 }}>{fmt(totals['7d'])}</span> em 7d ·&nbsp;
-        <span style={{ color:'var(--cyan)', fontWeight:700 }}>{fmt(totals['30d'])}</span> em 30d
+        <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals.hoje)}</span> hoje ·&nbsp;
+        <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals['7d'])}</span> em 7d ·&nbsp;
+        <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals['30d'])}</span> em 30d
       </div>
       <div className="tbl-sticky-first">
         <table style={{ width:'100%', borderCollapse:'collapse', minWidth:520 }}>
@@ -737,31 +737,31 @@ function PostagensTable({ stats }) {
             <tr>
               <th style={{ ...thS, textAlign:'left' }}>CONTA</th>
               {[{ label:'HOJE',value:'hoje' },{ label:'7 DIAS',value:'7d' },{ label:'30 DIAS',value:'30d' }].map(p => (
-                <th key={p.value} style={{ ...thS, color:col===p.value?'var(--cyan)':'var(--text3)' }} onClick={() => setCol(p.value)}>{p.label}</th>
+                <th key={p.value} style={{ ...thS, color:col===p.value?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)' }} onClick={() => setCol(p.value)}>{p.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding:'20px 12px', color:'var(--text3)', fontSize:12 }}>Nenhuma postagem no período.</td></tr>
+              <tr><td colSpan={4} style={{ padding:'20px 12px', color:'var(--mf-text-3)', fontSize:12 }}>Nenhuma postagem no período.</td></tr>
             ) : sorted.map((acc, i) => (
               <motion.tr key={acc._id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:i*.03 }}
-                style={{ borderBottom:'1px solid rgba(255,255,255,.04)' }}
-                onMouseEnter={e => e.currentTarget.style.background='rgba(0,180,255,.025)'}
+                style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
+                onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
                 <td style={{ padding:'9px 12px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:9 }}>
                     <AvatarChip username={acc.username} avatar={acc.avatar} />
                     <div>
-                      <div style={{ fontWeight:600, fontSize:13, color:'var(--text)' }}>@{acc.username}</div>
-                      <div style={{ fontSize:10, color:'var(--text3)' }}>{fmtK(acc.followers)} seguidores</div>
+                      <div style={{ fontWeight:600, fontSize:13, color:'var(--mf-text)' }}>@{acc.username}</div>
+                      <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{fmtK(acc.followers)} seguidores</div>
                     </div>
                   </div>
                 </td>
-                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='hoje'?'var(--cyan)':'var(--text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsToday)}</td>
-                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='7d'?'var(--cyan)':'var(--text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts7d)}</td>
-                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='30d'?'var(--cyan)':'var(--text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
+                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='hoje'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsToday)}</td>
+                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='7d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts7d)}</td>
+                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='30d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
               </motion.tr>
             ))}
           </tbody>
@@ -776,16 +776,16 @@ function PerformanceTable({ stats }) {
   const agg = useMemo(() => stats.reduce((acc,a) => ({ followers:acc.followers+a.followers, published:acc.published+a.posts30d, failures:acc.failures+a.failures30d, growth:acc.growth+(a.growth30d||0) }), { followers:0, published:0, failures:0, growth:0 }), [stats]);
   const successRate = (agg.published+agg.failures)>0 ? Math.round(agg.published/(agg.published+agg.failures)*100) : 0;
   const fmtDate = d => { if (!d) return '—'; const dt=new Date(d); return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; };
-  const thS = { fontSize:10, color:'var(--text3)', fontWeight:600, letterSpacing:'.07em', padding:'8px 10px', textAlign:'right', borderBottom:'1px solid rgba(255,255,255,.05)', whiteSpace:'nowrap' };
+  const thS = { fontSize:10, color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.07em', padding:'8px 10px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', whiteSpace:'nowrap' };
   return (
     <div style={{ ...card }} className="lift">
       <PanelHeader title="Performance por conta" icon={TrendingUp} right={
         <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:11, flexWrap:'wrap' }}>
-          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:6, height:6, borderRadius:'50%', background:'var(--green)', boxShadow:'0 0 6px var(--green)', display:'inline-block' }} /><span style={{ color:'var(--green)', fontWeight:700, fontSize:10 }}>LIVE</span></span>
-          <span style={{ color:'var(--text3)', fontSize:11 }}>Seg <strong style={{ color:'var(--cyan)' }}>{fmtK(agg.followers)}</strong></span>
-          <span style={{ color:'var(--text3)', fontSize:11 }}>Pub <strong style={{ color:'var(--cyan)' }}>{fmt(agg.published)}</strong></span>
-          <span style={{ color:'var(--text3)', fontSize:11 }}>Falhas <strong style={{ color:'var(--red)' }}>{fmt(agg.failures)}</strong></span>
-          <span style={{ color:'var(--text3)', fontSize:11 }}>Sucesso <strong style={{ color:'var(--green)' }}>{successRate}%</strong></span>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:6, height:6, borderRadius:'50%', background:'var(--mf-success-500)', boxShadow:'0 0 6px var(--mf-success-500)', display:'inline-block' }} /><span style={{ color:'var(--mf-success-500)', fontWeight:700, fontSize:10 }}>LIVE</span></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Seg <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmtK(agg.followers)}</strong></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Pub <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmt(agg.published)}</strong></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Falhas <strong style={{ color:'var(--mf-danger-500)' }}>{fmt(agg.failures)}</strong></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Sucesso <strong style={{ color:'var(--mf-success-500)' }}>{successRate}%</strong></span>
         </div>
       } />
       <div className="tbl-scroll-wrap">
@@ -806,33 +806,33 @@ function PerformanceTable({ stats }) {
           </thead>
           <tbody>
             {stats.length===0 ? (
-              <tr><td colSpan={10} style={{ padding:'20px 10px', color:'var(--text3)', fontSize:12 }}>Nenhuma conta encontrada.</td></tr>
+              <tr><td colSpan={10} style={{ padding:'20px 10px', color:'var(--mf-text-3)', fontSize:12 }}>Nenhuma conta encontrada.</td></tr>
             ) : stats.map((acc,idx) => {
               const growth = acc.growth30d||0;
               return (
                 <motion.tr key={acc._id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:idx*.025 }}
-                  style={{ borderBottom:'1px solid rgba(255,255,255,.04)' }}
-                  onMouseEnter={e => e.currentTarget.style.background='rgba(0,180,255,.025)'}
+                  style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
                   onMouseLeave={e => e.currentTarget.style.background='transparent'}
                 >
-                  <td style={{ padding:'9px 10px', fontSize:11, color:'var(--text3)', fontWeight:600 }}>{String(idx+1).padStart(2,'0')}</td>
+                  <td style={{ padding:'9px 10px', fontSize:11, color:'var(--mf-text-3)', fontWeight:600 }}>{String(idx+1).padStart(2,'0')}</td>
                   <td style={{ padding:'9px 10px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <AvatarChip username={acc.username} avatar={acc.avatar} size={28} />
                       <div>
-                        <div style={{ fontWeight:600, fontSize:12, color:'var(--text)', whiteSpace:'nowrap' }}>@{acc.username}</div>
-                        <div style={{ fontSize:10, color:'var(--text3)' }}>{acc.following} seguindo</div>
+                        <div style={{ fontWeight:600, fontSize:12, color:'var(--mf-text)', whiteSpace:'nowrap' }}>@{acc.username}</div>
+                        <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{acc.following} seguindo</div>
                       </div>
                     </div>
                   </td>
                   <td style={{ padding:'9px 10px', textAlign:'right' }}><StatusBadge status={acc.status} /></td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.followers)}</td>
-                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:growth>0?'var(--green)':growth<0?'var(--red)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--cyan)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.failures30d>10?'var(--red)':acc.failures30d>0?'var(--amber)':'var(--text3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.posts30d===0?'var(--text3)':acc.successRate>=80?'var(--green)':acc.successRate>=60?'var(--amber)':'var(--red)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
-                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
-                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontSize:11, color:'var(--text3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.followers)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:growth>0?'var(--mf-success-500)':growth<0?'var(--mf-danger-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-mod, var(--mf-accent-500))', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.failures30d>10?'var(--mf-danger-500)':acc.failures30d>0?'var(--mf-warning-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.posts30d===0?'var(--mf-text-3)':acc.successRate>=80?'var(--mf-success-500)':acc.successRate>=60?'var(--mf-warning-500)':'var(--mf-danger-500)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontSize:11, color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
                 </motion.tr>
               );
             })}
@@ -853,11 +853,11 @@ function InsightCard({ icon, title, value, sub, detail, color }) {
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
         <span style={{ width:34, height:34, borderRadius:10, background:`${color}15`, border:`1px solid ${color}28`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0, color }}>{icon}</span>
         <div>
-          <div style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700, color:'var(--text3)', letterSpacing:'.1em', textTransform:'uppercase' }}>{title}</div>
+          <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.1em', textTransform:'uppercase' }}>{title}</div>
           <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1.1, marginTop:2 }}>{value}</div>
         </div>
       </div>
-      <div style={{ fontSize:12, color:'var(--text2)', lineHeight:1.55 }}>{sub}</div>
+      <div style={{ fontSize:12, color:'var(--mf-text-2)', lineHeight:1.55 }}>{sub}</div>
       {detail && <div style={{ fontSize:11, color:`${color}cc`, fontWeight:600, borderTop:`1px solid ${color}15`, paddingTop:8 }}>{detail}</div>}
     </motion.div>
   );
@@ -882,24 +882,24 @@ function SmartInsights({ accountStats, data: d }) {
     { icon:<TrendingUp size={17}/>, title:'CRESCIMENTO 30 DIAS', value:growth30d>=0?`+${fmtK(growth30d)}`:fmtK(growth30d),
       sub:`${totalAccounts} conta(s) geraram ${growth30d>=0?'+':''}${growthPct}% de crescimento no total de seguidores nos últimos 30 dias.`,
       detail:growth30d>0?`Melhor conta: @${bestAccount?.username||'—'} com ${fmtK(bestAccount?.followers)} seguidores`:totalAccounts===0?'Adicione contas para ver o crescimento.':'Nenhum crescimento registrado ainda.',
-      color:growth30d>=0?'var(--cyan)':'var(--red)' },
+      color:growth30d>=0?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-danger-500)' },
     { icon:<HeartPulse size={17}/>, title:'SAÚDE DAS CONTAS', value:`${successRate}%`,
       sub:`${healthy} de ${totalAccounts} conta(s) saudáveis. ${banned>0?`${banned} banida(s)`:'Nenhuma banida'}. ${tokenFailed>0?`${tokenFailed} com token expirado.`:''}`.trim(),
       detail:banned>0?`Conta banida: @${worstAccount?.username||'—'}`:tokenFailed>0?`${tokenFailed} token(s) precisam ser renovados`:'Todas as contas em perfeita saúde',
-      color:successRate>=80?'var(--green)':successRate>=60?'var(--amber)':'var(--red)' },
+      color:successRate>=80?'var(--mf-success-500)':successRate>=60?'var(--mf-warning-500)':'var(--mf-danger-500)' },
     { icon:<Zap size={17}/>, title:'TAXA DE PUBLICAÇÃO', value:`${postSuccessRate}%`,
       sub:`${posts30d} postagens concluídas e ${failures30d} falhas nos últimos 30 dias.`,
       detail:postSuccessRate<80?'Taxa abaixo do ideal — verifique os logs':failures30d>0?`${failures30d} falha(s) detectada(s)`:'Publicações perfeitas sem falhas',
-      color:postSuccessRate>=90?'var(--green)':postSuccessRate>=70?'var(--amber)':'var(--red)' },
+      color:postSuccessRate>=90?'var(--mf-success-500)':postSuccessRate>=70?'var(--mf-warning-500)':'var(--mf-danger-500)' },
     { icon:<Layers3 size={17}/>, title:'FILA E AGENDAMENTOS', value:fmtK((d.pendingPosts||0)+(d.scheduledPosts||0)),
       sub:`${d.pendingPosts||0} na fila + ${d.scheduledPosts||0} agendadas. ${d.processingPosts>0?`${d.processingPosts} publicando agora.`:''}`.trim(),
       detail:(d.pendingPosts||0)+(d.scheduledPosts||0)===0?'Fila vazia — adicione conteúdo':(d.pendingPosts||0)>10?`Ótima fila — ${d.pendingPosts} posts prontos`:'Fila ativa com posts programados',
-      color:'#a78bfa' },
+      color:'var(--mf-mod-publicar)' },
   ];
 
   return (
     <motion.section variants={stagger} initial="hidden" animate="show" style={{ padding:'0 0 4px' }}>
-      <div style={{ fontFamily:'var(--font-mono)', display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--cyan)', marginBottom:12, textTransform:'uppercase' }}>
+      <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', marginBottom:12, textTransform:'uppercase' }}>
         <TrendingUp size={13} /> Insights inteligentes
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
@@ -913,15 +913,15 @@ function SmartInsights({ accountStats, data: d }) {
    ── PAINEL DE POSTAGENS EM TEMPO REAL
    ══════════════════════════════════════════════════════ */
 const LIVE_TABS = [
-  { key:'processing', label:'Processando', color:'#00d4ff',  emptyText:'Nenhuma publicação em andamento.' },
-  { key:'queue',      label:'Fila',        color:'#a78bfa',  emptyText:'Fila vazia.' },
-  { key:'errors',     label:'Erros (1h)',  color:'#f43f5e',  emptyText:'Nenhum erro na última hora.' },
-  { key:'completed',  label:'Concluídos (1h)', color:'#10b981', emptyText:'Nenhuma publicação concluída na última hora.' },
+  { key:'processing', label:'Processando', color:'var(--mf-mod-contas)',  emptyText:'Nenhuma publicação em andamento.' },
+  { key:'queue',      label:'Fila',        color:'var(--mf-mod-publicar)',  emptyText:'Fila vazia.' },
+  { key:'errors',     label:'Erros (1h)',  color:'var(--mf-danger-500)',  emptyText:'Nenhum erro na última hora.' },
+  { key:'completed',  label:'Concluídos (1h)', color:'var(--mf-success-500)', emptyText:'Nenhuma publicação concluída na última hora.' },
 ];
 
 const LIVE_STATUS_COLOR = {
-  processando:'#00d4ff', pendente:'#a78bfa', agendado:'#f59e0b',
-  concluido:'#10b981',   parcial:'#f59e0b',  erro:'#f43f5e',
+  processando:'var(--mf-mod-contas)', pendente:'var(--mf-mod-publicar)', agendado:'var(--mf-warning-500)',
+  concluido:'var(--mf-success-500)',   parcial:'var(--mf-warning-500)',  erro:'var(--mf-danger-500)',
 };
 const LIVE_STATUS_LABEL = {
   processando:'PROCESSANDO', pendente:'NA FILA', agendado:'AGENDADO',
@@ -943,24 +943,24 @@ function LivePostRow({ post, API_BASE }) {
 
   return (
     <motion.div initial={{ opacity:0, x:-4 }} animate={{ opacity:1, x:0 }}
-      style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,.04)', transition:'background .15s' }}
-      onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,.025)'}
+      style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px solid var(--mf-border-subtle)', transition:'background .15s' }}
+      onMouseEnter={e => e.currentTarget.style.background='var(--mf-border-subtle)'}
       onMouseLeave={e => e.currentTarget.style.background='transparent'}
     >
       {acc && <AvatarChip username={acc.username} avatar={acc.avatar} size={28} />}
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
           {acc ? `@${acc.username}` : '—'}
           {(post.accounts||[]).length > 1 && (
-            <span style={{ marginLeft:5, fontSize:10, color:'var(--text3)' }}>+{post.accounts.length-1}</span>
+            <span style={{ marginLeft:5, fontSize:10, color:'var(--mf-text-3)' }}>+{post.accounts.length-1}</span>
           )}
         </div>
-        {caption && <div style={{ fontSize:10, color:'var(--text3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{caption}</div>}
-        {post.error && <div style={{ fontSize:10, color:'#f43f5e', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{post.error.slice(0,80)}</div>}
+        {caption && <div style={{ fontSize:10, color:'var(--mf-text-3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{caption}</div>}
+        {post.error && <div style={{ fontSize:10, color:'var(--mf-danger-500)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{post.error.slice(0,80)}</div>}
       </div>
       <div style={{ textAlign:'right', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
-        <span style={{ fontFamily:'var(--font-mono)', fontSize:9, fontWeight:800, color:sc, background:`${sc}14`, border:`1px solid ${sc}30`, padding:'2px 6px', borderRadius:5, letterSpacing:'.05em' }}>{sl}</span>
-        <span style={{ fontSize:9, color:'var(--text3)' }}>{fmtAgo(post.updatedAt)}</span>
+        <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:800, color:sc, background:`${sc}14`, border:`1px solid ${sc}30`, padding:'2px 6px', borderRadius:5, letterSpacing:'.05em' }}>{sl}</span>
+        <span style={{ fontSize:9, color:'var(--mf-text-3)' }}>{fmtAgo(post.updatedAt)}</span>
       </div>
     </motion.div>
   );
@@ -984,20 +984,20 @@ function LivePostsPanel() {
 
   return (
     <div style={{ ...card, display:'flex', flexDirection:'column', minHeight:340 }} className="lift">
-      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,rgba(0,212,255,.32),transparent)' }} />
+      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,color-mix(in oklch, var(--mf-mod-contas) 32%, transparent),transparent)' }} />
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.05)', flexWrap:'wrap', gap:8, flexShrink:0 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid var(--mf-border-subtle)', flexWrap:'wrap', gap:8, flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'rgba(0,212,255,.1)', border:'1px solid rgba(0,212,255,.2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <ListVideo size={13} style={{ color:'var(--cyan)' }} />
+          <div style={{ width:28, height:28, borderRadius:8, background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <ListVideo size={13} style={{ color:'var(--mf-mod, var(--mf-accent-500))' }} />
           </div>
-          <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--text2)', textTransform:'uppercase' }}>Postagens em tempo real</span>
+          <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase' }}>Postagens em tempo real</span>
         </div>
         {/* Dot pulse when processing */}
         {counts.processing > 0 && (
-          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, color:'var(--cyan)', fontWeight:700 }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--cyan)', boxShadow:'0 0 8px var(--cyan)', animation:'blink 1.4s infinite', display:'inline-block' }} />
+          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--mf-mod, var(--mf-accent-500))', boxShadow:'0 0 8px var(--mf-mod, var(--mf-accent-500))', animation:'blink 1.4s infinite', display:'inline-block' }} />
             {counts.processing} publicando agora
           </span>
         )}
@@ -1011,14 +1011,14 @@ function LivePostsPanel() {
           return (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding:'4px 12px', borderRadius:7, fontSize:10, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
-              background: isActive ? `${t.color}18` : 'rgba(255,255,255,.04)',
-              color:      isActive ? t.color : 'var(--text3)',
-              border:     `1px solid ${isActive ? `${t.color}35` : 'rgba(255,255,255,.07)'}`,
+              background: isActive ? `${t.color}18` : 'var(--mf-border-subtle)',
+              color:      isActive ? t.color : 'var(--mf-text-3)',
+              border:     `1px solid ${isActive ? `${t.color}35` : 'var(--mf-border)'}`,
               transition:'all .15s',
             }}>
               {t.label}
               {cnt > 0 && (
-                <span style={{ marginLeft:5, background:isActive?`${t.color}28`:'rgba(255,255,255,.08)', color:isActive?t.color:'var(--text3)', borderRadius:10, padding:'1px 6px', fontSize:9, fontWeight:800 }}>{cnt}</span>
+                <span style={{ marginLeft:5, background:isActive?`${t.color}28`:'var(--mf-border)', color:isActive?t.color:'var(--mf-text-3)', borderRadius:10, padding:'1px 6px', fontSize:9, fontWeight:800 }}>{cnt}</span>
               )}
             </button>
           );
@@ -1028,7 +1028,7 @@ function LivePostsPanel() {
       {/* Rows */}
       <div style={{ flex:1, overflowY:'auto' }}>
         {rows.length === 0 ? (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:120, color:'var(--text3)', fontSize:12, gap:8 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:120, color:'var(--mf-text-3)', fontSize:12, gap:8 }}>
             <Eye size={18} opacity={.2} />{active?.emptyText}
           </div>
         ) : (
@@ -1127,12 +1127,12 @@ export default function Dashboard() {
   }, [d.dailyPosts, d.upcomingPosts, period]);
 
   const queueItems = [
-    { label:'Postados hoje',   value:d.postsToday     ||0, color:'var(--cyan)'   },
-    { label:'Erros hoje',      value:d.errorsToday    ||0, color:'var(--red)'    },
-    { label:'Na fila',         value:d.pendingPosts   ||0, color:'var(--amber)'  },
-    { label:'Processando',     value:d.processingPosts||0, color:'var(--green)'  },
-    { label:'Agendados',       value:d.scheduledPosts ||0, color:'#a78bfa'       },
-    { label:'Taxa de sucesso', value:`${d.successRate ||0}%`, color:'var(--cyan)'},
+    { label:'Postados hoje',   value:d.postsToday     ||0, color:'var(--mf-mod, var(--mf-accent-500))'   },
+    { label:'Erros hoje',      value:d.errorsToday    ||0, color:'var(--mf-danger-500)'    },
+    { label:'Na fila',         value:d.pendingPosts   ||0, color:'var(--mf-warning-500)'  },
+    { label:'Processando',     value:d.processingPosts||0, color:'var(--mf-success-500)'  },
+    { label:'Agendados',       value:d.scheduledPosts ||0, color:'var(--mf-mod-publicar)'       },
+    { label:'Taxa de sucesso', value:`${d.successRate ||0}%`, color:'var(--mf-mod, var(--mf-accent-500))'},
   ];
 
   const logs = useMemo(() => (d.activities||[]).slice(0,5).map(a => ({
@@ -1151,7 +1151,7 @@ export default function Dashboard() {
 
   const sysLoaded    = data !== null;
   const sysOk        = sysLoaded && d.system?.backend && d.system?.mongo;
-  const sysDotColor  = !sysLoaded ? 'var(--text3)' : sysOk ? 'var(--green)' : 'var(--red)';
+  const sysDotColor  = !sysLoaded ? 'var(--mf-text-3)' : sysOk ? 'var(--mf-success-500)' : 'var(--mf-danger-500)';
   const bannedCount  = useMemo(() => accountStats.filter(a => a.healthStatus==='banida').length, [accountStats]);
   const fallenCount  = useMemo(() => accountStats.filter(a => ['token_invalido','sessao_expirada'].includes(a.healthStatus)).length, [accountStats]);
 
@@ -1237,9 +1237,9 @@ export default function Dashboard() {
         <section className="quick-grid">
           {quickActions.map(({ title, subtitle, icon: Icon, to }, i) => (
             <motion.div key={title} variants={fadeUp} initial="hidden" animate="show" transition={{ delay:.1+i*.05, duration:.35, ease }}
-              whileHover={{ y:-2, borderColor:'rgba(0,212,255,.22)', boxShadow:'0 10px 32px rgba(0,0,0,.45)' }}
+              whileHover={{ y:-2, borderColor:'color-mix(in oklch, var(--mf-mod-contas) 22%, transparent)', boxShadow:'0 10px 32px rgba(0,0,0,.45)' }}
             >
-              <Link to={to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:14, background:'oklch(0.16 0.05 235 / 0.88)', border:'1px solid oklch(1 0 0 / 0.07)', backdropFilter:'blur(14px)', cursor:'pointer', width:'100%', transition:'all .22s cubic-bezier(.4,0,.2,1)' }} className="sheen">
+              <Link to={to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:14, background:'oklch(0.16 0.05 235 / 0.88)', border:'1px solid var(--mf-border)', backdropFilter:'blur(14px)', cursor:'pointer', width:'100%', transition:'all .22s cubic-bezier(.4,0,.2,1)' }} className="sheen">
                 <span className="quick-icon"><Icon size={22} /></span>
                 <span className="quick-copy"><strong>{title}</strong><small>{subtitle}</small></span>
                 <ChevronRight className="quick-chevron" size={18} />
@@ -1269,36 +1269,36 @@ export default function Dashboard() {
                               <stop offset="100%" stopColor="#26c7ff" stopOpacity={0}  />
                             </linearGradient>
                             <linearGradient id="fg-chart-amber" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%"   stopColor="#f59e0b" stopOpacity={.35} />
-                              <stop offset="100%" stopColor="#f59e0b" stopOpacity={0}   />
+                              <stop offset="0%"   stopColor="var(--mf-warning-500)" stopOpacity={.35} />
+                              <stop offset="100%" stopColor="var(--mf-warning-500)" stopOpacity={0}   />
                             </linearGradient>
                           </defs>
-                          <XAxis dataKey="day" tick={{ fontSize:10, fill:'var(--text3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                          <YAxis allowDecimals={false} tick={{ fontSize:10, fill:'var(--text3)' }} tickLine={false} axisLine={false} />
-                          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--text)' }} formatter={(v, name) => [v, name === 'published' ? 'Publicado' : 'Previsto']} />
-                          <Area type="monotone" dataKey="published"  stroke="var(--cyan)" strokeWidth={2} fill="url(#fg-chart)"       dot={false} activeDot={{ r:4, fill:'var(--cyan)' }} connectNulls={false} />
-                          <Area type="monotone" dataKey="forecasted" stroke="#f59e0b"      strokeWidth={2} fill="url(#fg-chart-amber)" dot={false} activeDot={{ r:4, fill:'#f59e0b'      }} connectNulls={false} strokeDasharray="5 3" />
+                          <XAxis dataKey="day" tick={{ fontSize:10, fill:'var(--mf-text-3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                          <YAxis allowDecimals={false} tick={{ fontSize:10, fill:'var(--mf-text-3)' }} tickLine={false} axisLine={false} />
+                          <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--mf-text)' }} formatter={(v, name) => [v, name === 'published' ? 'Publicado' : 'Previsto']} />
+                          <Area type="monotone" dataKey="published"  stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth={2} fill="url(#fg-chart)"       dot={false} activeDot={{ r:4, fill:'var(--mf-mod, var(--mf-accent-500))' }} connectNulls={false} />
+                          <Area type="monotone" dataKey="forecasted" stroke="var(--mf-warning-500)"      strokeWidth={2} fill="url(#fg-chart-amber)" dot={false} activeDot={{ r:4, fill:'var(--mf-warning-500)'      }} connectNulls={false} strokeDasharray="5 3" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
                     {forecastData.some(x => x.forecast) && (
-                      <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize:10, color:'var(--text3)' }}>
+                      <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize:10, color:'var(--mf-text-3)' }}>
                         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:2, background:'var(--cyan)', display:'inline-block' }} />Publicado
+                          <span style={{ width:8, height:8, borderRadius:2, background:'var(--mf-mod, var(--mf-accent-500))', display:'inline-block' }} />Publicado
                         </span>
                         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:2, background:'#f59e0b', display:'inline-block' }} />Previsto
+                          <span style={{ width:8, height:8, borderRadius:2, background:'var(--mf-warning-500)', display:'inline-block' }} />Previsto
                         </span>
                       </div>
                     )}
                   </>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:190, gap:10, padding:'16px 20px', textAlign:'center' }}>
-                    <div style={{ color:'var(--cyan)', opacity:.55 }}>
+                    <div style={{ color:'var(--mf-mod, var(--mf-accent-500))', opacity:.55 }}>
                       <FolderOpen size={44} strokeWidth={1.2} />
                     </div>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text2)' }}>Nenhuma postagem no período.</div>
-                    <div style={{ fontSize:11, color:'var(--text3)', lineHeight:1.5, maxWidth:240 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--mf-text-2)' }}>Nenhuma postagem no período.</div>
+                    <div style={{ fontSize:11, color:'var(--mf-text-3)', lineHeight:1.5, maxWidth:240 }}>
                       Ative um loop ou crie uma postagem para visualizar a previsão aqui.
                     </div>
                   </div>
@@ -1345,28 +1345,28 @@ export default function Dashboard() {
         {/* ── Top Posts widget ── */}
         <BlurFade delay={0} inView>
           <div style={{ ...card }} className="lift">
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px 12px', borderBottom:'1px solid oklch(1 0 0 / 0.05)', flexWrap:'wrap', gap:8 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px 12px', borderBottom:'1px solid var(--mf-border-subtle)', flexWrap:'wrap', gap:8 }}>
               <div>
-                <div style={{ fontFamily:'var(--font-mono)', display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--cyan)', textTransform:'uppercase' }}>
+                <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', textTransform:'uppercase' }}>
                   <Flame size={13} /> Posts com mais visualizações
                 </div>
-                <div style={{ fontSize:11, color:'var(--text3)', marginTop:3 }}>Top {topInsights.length||6} dos últimos 30 dias · dados da API do Instagram.</div>
+                <div style={{ fontSize:11, color:'var(--mf-text-3)', marginTop:3 }}>Top {topInsights.length||6} dos últimos 30 dias · dados da API do Instagram.</div>
               </div>
               <div style={{ display:'flex', gap:8 }}>
                 <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.97 }}
                   disabled={syncingIns}
                   onClick={async () => { setSyncingIns(true); try { await api.post('/insights/sync'); await new Promise(r => setTimeout(r,1200)); await loadInsights(); } catch {} finally { setSyncingIns(false); } }}
-                  style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 14px', borderRadius:8, border:'1px solid rgba(0,212,255,.25)', background:'rgba(0,212,255,.08)', color:'var(--cyan)', fontSize:11, fontWeight:700, cursor:syncingIns?'not-allowed':'pointer', opacity:syncingIns?.6:1 }}>
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 14px', borderRadius:8, border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize:11, fontWeight:700, cursor:syncingIns?'not-allowed':'pointer', opacity:syncingIns?.6:1 }}>
                   <RefreshCw size={12} style={{ animation:syncingIns?'dash-spin .8s linear infinite':'none' }} />SYNC
                 </motion.button>
-                <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, border:'1px solid rgba(255,255,255,.07)', background:'rgba(255,255,255,.03)', color:'var(--text2)', fontSize:11, fontWeight:700, textDecoration:'none' }}>
+                <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', fontSize:11, fontWeight:700, textDecoration:'none' }}>
                   VER TUDO <ChevronRight size={12} />
                 </Link>
               </div>
             </div>
             <div style={{ padding:'14px 16px' }}>
               {topInsights.length === 0 ? (
-                <div style={{ padding:'20px 0', textAlign:'center', fontSize:12, color:'var(--text3)' }}>Nenhum insight sincronizado. Clique em SYNC para importar.</div>
+                <div style={{ padding:'20px 0', textAlign:'center', fontSize:12, color:'var(--mf-text-3)' }}>Nenhum insight sincronizado. Clique em SYNC para importar.</div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(130px,100%),1fr))', gap:10 }}>
                   {topInsights.slice(0,6).map((ins,i) => (
@@ -1391,22 +1391,22 @@ export default function Dashboard() {
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {logs.length===0 ? (
-                  <li style={{ color:'var(--text3)', fontSize:11, padding:'16px 0' }}>Nenhum log ainda.</li>
+                  <li style={{ color:'var(--mf-text-3)', fontSize:11, padding:'16px 0' }}>Nenhum log ainda.</li>
                 ) : logs.map((log,i) => (
-                  <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                  <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                     <span className={`log-status ${log.type}`} style={{ flexShrink:0, marginTop:1 }}>
                       {log.type==='success'&&<ShieldCheck size={13}/>}
                       {log.type==='info'&&<Activity size={13}/>}
                       {log.type==='warning'&&<AlertTriangle size={13}/>}
                     </span>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.text}</div>
+                      <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.text}</div>
                       <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                        {log.account&&<span style={{ fontSize:10, color:'var(--cyan)', fontWeight:600 }}>@{log.account}</span>}
-                        {log.caption&&<span style={{ fontSize:10, color:'var(--text3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.caption}</span>}
+                        {log.account&&<span style={{ fontSize:10, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{log.account}</span>}
+                        {log.caption&&<span style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.caption}</span>}
                       </div>
                     </div>
-                    <time style={{ fontSize:10, color:'var(--text3)', flexShrink:0, paddingTop:2 }}>{log.time}</time>
+                    <time style={{ fontSize:10, color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{log.time}</time>
                   </li>
                 ))}
               </ul>
@@ -1419,22 +1419,22 @@ export default function Dashboard() {
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {topAccounts.length===0 ? (
-                  <li style={{ color:'var(--text3)', fontSize:11, padding:'16px 0' }}>Nenhuma conta conectada.</li>
+                  <li style={{ color:'var(--mf-text-3)', fontSize:11, padding:'16px 0' }}>Nenhuma conta conectada.</li>
                 ) : topAccounts.map((acc,i) => {
                   const score    = acc.healthScore??(acc.healthStatus==='ativa'?95:acc.healthStatus==='restrita'?45:10);
                   const isErr    = acc.healthStatus!=='ativa';
-                  const dotColor = isErr?'var(--red)':'var(--green)';
+                  const dotColor = isErr?'var(--mf-danger-500)':'var(--mf-success-500)';
                   return (
-                    <li key={acc.username||i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                    <li key={acc.username||i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                       <div style={{ position:'relative', flexShrink:0 }}>
                         <AvatarChip username={acc.username} avatar={acc.avatar} size={38} />
-                        <span style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderRadius:'50%', background:dotColor, border:'2px solid rgba(9,9,15,.9)', boxShadow:`0 0 6px ${dotColor}` }} />
+                        <span style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderRadius:'50%', background:dotColor, border:'2px solid var(--mf-surface-1)', boxShadow:`0 0 6px ${dotColor}` }} />
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{acc.username}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{acc.username}</div>
                         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                          <span style={{ fontSize:10, color:isErr?'var(--red)':'var(--green)', fontWeight:600 }}>{isErr?acc.healthStatus.replace('_',' '):'Online'}</span>
-                          <span style={{ fontSize:10, color:'var(--text3)' }}>· {fmtK(acc.followers)} seg.</span>
+                          <span style={{ fontSize:10, color:isErr?'var(--mf-danger-500)':'var(--mf-success-500)', fontWeight:600 }}>{isErr?acc.healthStatus.replace('_',' '):'Online'}</span>
+                          <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>· {fmtK(acc.followers)} seg.</span>
                         </div>
                       </div>
                       <span className={`score-ring ${isErr?'low':''}`} style={{ '--score':`${score}%`, flexShrink:0 }}>{score}%</span>
@@ -1447,24 +1447,24 @@ export default function Dashboard() {
             {/* SISTEMA */}
             <div style={{ ...card }} className="lift">
               <PanelHeader title="Sistema" icon={ShieldCheck} right={
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6, background:!sysLoaded?'rgba(255,255,255,.05)':sysOk?'rgba(16,185,129,.1)':'rgba(244,63,94,.1)', color:sysDotColor, border:`1px solid ${!sysLoaded?'rgba(255,255,255,.1)':sysOk?'rgba(16,185,129,.25)':'rgba(244,63,94,.25)'}` }}>
+                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6, background:!sysLoaded?'var(--mf-border-subtle)':sysOk?'color-mix(in oklch, var(--mf-success-500) 10%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color:sysDotColor, border:`1px solid ${!sysLoaded?'var(--mf-border)':sysOk?'color-mix(in oklch, var(--mf-success-500) 25%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 25%, transparent)'}` }}>
                   {!sysLoaded?'...':sysOk?'ONLINE':'ALERTA'}
                 </span>
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {[
-                  { icon:<Zap size={14}/>,          label:'Automações ativas', value:d.activeAccounts||0, color:'var(--cyan)',  sub:`${d.totalAccounts||0} configuradas` },
-                  { icon:<Globe size={14}/>,         label:'Proxies online',    value:proxyCount,           color:'var(--green)', sub:'Todas as regiões' },
-                  { icon:<AlertTriangle size={14}/>, label:'Contas banidas',    value:bannedCount,          color:bannedCount>0?'var(--red)':'var(--text3)', sub:bannedCount>0?'Ação necessária':'Nenhuma banida' },
-                  { icon:<WifiOff size={14}/>,       label:'Contas caídas',     value:fallenCount,          color:fallenCount>0?'var(--amber)':'var(--text3)', sub:fallenCount>0?'Reconectar necessário':'Todas online' },
+                  { icon:<Zap size={14}/>,          label:'Automações ativas', value:d.activeAccounts||0, color:'var(--mf-mod, var(--mf-accent-500))',  sub:`${d.totalAccounts||0} configuradas` },
+                  { icon:<Globe size={14}/>,         label:'Proxies online',    value:proxyCount,           color:'var(--mf-success-500)', sub:'Todas as regiões' },
+                  { icon:<AlertTriangle size={14}/>, label:'Contas banidas',    value:bannedCount,          color:bannedCount>0?'var(--mf-danger-500)':'var(--mf-text-3)', sub:bannedCount>0?'Ação necessária':'Nenhuma banida' },
+                  { icon:<WifiOff size={14}/>,       label:'Contas caídas',     value:fallenCount,          color:fallenCount>0?'var(--mf-warning-500)':'var(--mf-text-3)', sub:fallenCount>0?'Reconectar necessário':'Todas online' },
                 ].map(item => (
-                  <li key={item.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                  <li key={item.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                     <span style={{ width:32, height:32, borderRadius:9, background:`color-mix(in srgb,${item.color} 12%,transparent)`, border:`1px solid color-mix(in srgb,${item.color} 20%,transparent)`, display:'flex', alignItems:'center', justifyContent:'center', color:item.color, flexShrink:0 }}>
                       {item.icon}
                     </span>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:'var(--text2)' }}>{item.label}</div>
-                      <div style={{ fontSize:10, color:'var(--text3)', marginTop:1 }}>{item.sub}</div>
+                      <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text-2)' }}>{item.label}</div>
+                      <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:1 }}>{item.sub}</div>
                     </div>
                     <strong style={{ fontSize:20, fontWeight:800, color:item.color, letterSpacing:-0.5, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{item.value}</strong>
                   </li>
@@ -1479,21 +1479,21 @@ export default function Dashboard() {
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {activities.length===0 ? (
-                  <li style={{ color:'var(--text3)', fontSize:11, padding:'16px 0' }}>Nenhuma atividade ainda.</li>
+                  <li style={{ color:'var(--mf-text-3)', fontSize:11, padding:'16px 0' }}>Nenhuma atividade ainda.</li>
                 ) : activities.map((act,i) => {
                   const Icon      = act.icon;
-                  const toneColor = { cyan:'var(--cyan)', danger:'var(--red)', amber:'var(--amber)' }[act.tone]||'var(--text3)';
+                  const toneColor = { cyan:'var(--mf-mod, var(--mf-accent-500))', danger:'var(--mf-danger-500)', amber:'var(--mf-warning-500)' }[act.tone]||'var(--mf-text-3)';
                   return (
-                    <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                    <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                       <span className={`activity-icon ${act.tone}`} style={{ flexShrink:0, marginTop:1 }}><Icon size={13} /></span>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.text}</div>
+                        <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.text}</div>
                         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                          {act.account&&<span style={{ fontSize:10, color:'var(--cyan)', fontWeight:600 }}>@{act.account}</span>}
-                          {act.caption&&<span style={{ fontSize:10, color:'var(--text3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.caption}</span>}
+                          {act.account&&<span style={{ fontSize:10, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{act.account}</span>}
+                          {act.caption&&<span style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.caption}</span>}
                         </div>
                       </div>
-                      <time style={{ fontSize:10, color:'var(--text3)', flexShrink:0, paddingTop:2 }}>{act.time}</time>
+                      <time style={{ fontSize:10, color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{act.time}</time>
                     </li>
                   );
                 })}
@@ -1507,9 +1507,9 @@ export default function Dashboard() {
         <footer className="system-footer">
           <span><ShieldCheck size={13} />{!sysLoaded?'Carregando...':sysOk?'Sistema operacional':'Verificar sistemas'}</span>
           <span><i style={{ background:sysDotColor, boxShadow:`0 0 8px ${sysDotColor}` }} />{!sysLoaded?'–':sysOk?'Online':'Offline'}</span>
-          <span>MongoDB <b style={{ color:d.system?.mongo?'var(--green)':'var(--red)' }}>{d.system?.mongo?'OK':'Erro'}</b></span>
-          <span>Redis <b style={{ color:d.system?.redis?'var(--green)':'var(--red)' }}>{d.system?.redis?'OK':'Erro'}</b></span>
-          <span>Worker <b style={{ color:d.system?.worker?'var(--green)':'var(--red)' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>
+          <span>MongoDB <b style={{ color:d.system?.mongo?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.mongo?'OK':'Erro'}</b></span>
+          <span>Redis <b style={{ color:d.system?.redis?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.redis?'OK':'Erro'}</b></span>
+          <span>Worker <b style={{ color:d.system?.worker?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>
           <span>Contas <b>{fmt(d.totalAccounts)}</b></span>
           <span>Posts <b>{fmt(d.totalPosts)}</b></span>
           <button onClick={() => showToast('Versão 2.4.7 — MouraFlow Pulse')}>Novidades</button>

@@ -12,22 +12,22 @@ const DEFAULT_COMMENTS = [
 ];
 
 const ACTIONS = [
-  { value:'likes',        label:'Curtir comentários', icon:'❤️', color:'#f43f5e', api:'oficial' },
-  { value:'comments',     label:'Responder posts',    icon:'💬', color:'#3b82f6', api:'oficial' },
-  { value:'scroll_reels', label:'Rolar Reels',        icon:'🎬', color:'#8b5cf6', api:'privada' },
-  { value:'like_posts',   label:'Curtir Explorar',    icon:'🔍', color:'#10b981', api:'privada' },
+  { value:'likes',        label:'Curtir comentários', icon:'❤️', color:'var(--mf-danger-500)', api:'oficial' },
+  { value:'comments',     label:'Responder posts',    icon:'💬', color:'var(--mf-info-500)', api:'oficial' },
+  { value:'scroll_reels', label:'Rolar Reels',        icon:'🎬', color:'var(--mf-mod-publicar)', api:'privada' },
+  { value:'like_posts',   label:'Curtir Explorar',    icon:'🔍', color:'var(--mf-success-500)', api:'privada' },
 ];
 
 const INTENSITY = [
-  { v:'leve',      label:'Leve',      color:'#22c55e', desc:'1–3 ações/ciclo' },
-  { v:'medio',     label:'Médio',     color:'#f59e0b', desc:'3–6 ações/ciclo' },
-  { v:'agressivo', label:'Agressivo', color:'#ef4444', desc:'6–10 ações/ciclo' },
+  { v:'leve',      label:'Leve',      color:'var(--mf-success-500)', desc:'1–3 ações/ciclo' },
+  { v:'medio',     label:'Médio',     color:'var(--mf-warning-500)', desc:'3–6 ações/ciclo' },
+  { v:'agressivo', label:'Agressivo', color:'var(--mf-danger-500)', desc:'6–10 ações/ciclo' },
 ];
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const avatarSrc = av => av ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`) : null;
 const BAD_HEALTH = ['restrita','banida','token_invalido','sessao_expirada','desconectada'];
-const LOG_COLOR  = { like:'#f43f5e',comment:'#3b82f6',follow:'#10b981',scroll:'#8b5cf6',cycle_start:'#f59e0b',cycle_done:'#22c55e',error:'#ef4444' };
+const LOG_COLOR  = { like:'var(--mf-danger-500)',comment:'var(--mf-info-500)',follow:'var(--mf-success-500)',scroll:'var(--mf-mod-publicar)',cycle_start:'var(--mf-warning-500)',cycle_done:'var(--mf-success-500)',error:'var(--mf-danger-500)' };
 const LOG_ICON   = { like:'❤️',comment:'💬',follow:'➕',scroll:'🎬',cycle_start:'🔥',cycle_done:'✅',error:'❌' };
 
 function defaultCfg() {
@@ -43,12 +43,12 @@ function timeAgo(d) {
 }
 
 function healthMeta(s) {
-  if(s==='restrita')        return {label:'Restrita',       color:'#f59e0b',bg:'rgba(245,158,11,.1)'};
-  if(s==='banida')          return {label:'Banida',         color:'#ef4444',bg:'rgba(239,68,68,.1)'};
-  if(s==='token_invalido')  return {label:'Token expirado', color:'#ef4444',bg:'rgba(239,68,68,.1)'};
-  if(s==='sessao_expirada') return {label:'Sessão expirada',color:'#f59e0b',bg:'rgba(245,158,11,.1)'};
-  if(s==='desconectada')    return {label:'Desconectada',   color:'#64748b',bg:'rgba(100,116,139,.1)'};
-  return {label:'Saudável',color:'#22c55e',bg:'rgba(34,197,94,.1)'};
+  if(s==='restrita')        return {label:'Restrita',       color:'var(--mf-warning-500)',bg:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)'};
+  if(s==='banida')          return {label:'Banida',         color:'var(--mf-danger-500)',bg:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)'};
+  if(s==='token_invalido')  return {label:'Token expirado', color:'var(--mf-danger-500)',bg:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)'};
+  if(s==='sessao_expirada') return {label:'Sessão expirada',color:'var(--mf-warning-500)',bg:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)'};
+  if(s==='desconectada')    return {label:'Desconectada',   color:'var(--mf-text-3)',bg:'color-mix(in oklch, var(--mf-text-3) 10%, transparent)'};
+  return {label:'Saudável',color:'var(--mf-success-500)',bg:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)'};
 }
 
 /* ─── AnimCounter ─────────────────────────────────── */
@@ -79,8 +79,8 @@ function KpiTile({label,value,sub,color,bg,border,delay=0,icon}) {
         <div style={{fontSize:24,fontWeight:800,color,lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{value}</div>
         {icon&&<span style={{fontSize:18,opacity:.8}}>{icon}</span>}
       </div>
-      <div style={{fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}}>{label}</div>
-      {sub&&<div style={{fontSize:10,color:'var(--text3)',marginTop:3,opacity:.7}}>{sub}</div>}
+      <div style={{fontSize:10,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}}>{label}</div>
+      {sub&&<div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:3,opacity:.7}}>{sub}</div>}
     </motion.div>
   );
 }
@@ -95,8 +95,8 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
   const tokenDaysLeft=account.tokenExpiresAt?Math.ceil((new Date(account.tokenExpiresAt)-Date.now())/86400000):null;
   const tokenExpiry=account.tokenExpiresAt?new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):null;
 
-  const labelStyle={fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em',marginBottom:5};
-  const inputStyle={width:'100%',boxSizing:'border-box',padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',fontSize:12};
+  const labelStyle={fontSize:10,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em',marginBottom:5};
+  const inputStyle={width:'100%',boxSizing:'border-box',padding:'8px 12px',borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--mf-text)',fontSize:12};
 
   return (
     <motion.div
@@ -104,17 +104,17 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
       transition={{duration:.3,ease:[.22,1,.36,1]}}
       style={{
         borderRadius:18,overflow:'hidden',
-        border:`1px solid ${isActive?'rgba(34,197,94,.35)':'oklch(1 0 0/0.08)'}`,
+        border:`1px solid ${isActive?'color-mix(in oklch, var(--mf-success-500) 35%, transparent)':'oklch(1 0 0/0.08)'}`,
         background:'var(--bg2)',
         boxShadow: isActive
-          ? '0 0 0 1px rgba(34,197,94,.08),0 8px 40px rgba(34,197,94,.1)'
+          ? '0 0 0 1px color-mix(in oklch, var(--mf-success-500) 8%, transparent),0 8px 40px color-mix(in oklch, var(--mf-success-500) 10%, transparent)'
           : '0 2px 12px rgba(0,0,0,.06)',
         transition:'border-color .3s,box-shadow .3s',
       }}
     >
       {/* Active top bar */}
       {isActive&&(
-        <div style={{height:3,background:'linear-gradient(90deg,#22c55e,#16a34a,#22c55e)',backgroundSize:'200% 100%',animation:'wm-slide 2.5s linear infinite'}}/>
+        <div style={{height:3,background:'linear-gradient(90deg,var(--mf-success-500),var(--mf-success-500),var(--mf-success-500))',backgroundSize:'200% 100%',animation:'wm-slide 2.5s linear infinite'}}/>
       )}
 
       {/* ── Main row ── */}
@@ -125,22 +125,22 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
           <div style={{position:'relative',flexShrink:0}}>
             <div style={{
               width:80,height:80,borderRadius:'50%',overflow:'hidden',
-              border:`2.5px solid ${isActive?'#22c55e':'oklch(1 0 0/0.1)'}`,
+              border:`2.5px solid ${isActive?'var(--mf-success-500)':'oklch(1 0 0/0.1)'}`,
               background:'var(--bg3)',
-              boxShadow: isActive?'0 0 0 5px rgba(34,197,94,.08),0 0 20px rgba(34,197,94,.2)':'none',
+              boxShadow: isActive?'0 0 0 5px color-mix(in oklch, var(--mf-success-500) 8%, transparent),0 0 20px color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'none',
               transition:'all .3s',
             }}>
               {src
                 ?<img src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
-                :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:28,color:'var(--cyan)'}}>{account.username?.[0]?.toUpperCase()}</div>
+                :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:28,color:'var(--mf-mod, var(--mf-accent-500))'}}>{account.username?.[0]?.toUpperCase()}</div>
               }
             </div>
             {/* Online dot */}
             <div style={{
               position:'absolute',bottom:4,right:4,width:16,height:16,borderRadius:'50%',
-              background:isActive?'#22c55e':'#374151',
+              background:isActive?'var(--mf-success-500)':'var(--mf-border-strong)',
               border:'2.5px solid var(--bg2)',
-              boxShadow:isActive?'0 0 0 3px rgba(34,197,94,.12),0 0 8px rgba(34,197,94,.4)':'none',
+              boxShadow:isActive?'0 0 0 3px color-mix(in oklch, var(--mf-success-500) 12%, transparent),0 0 8px color-mix(in oklch, var(--mf-success-500) 40%, transparent)':'none',
               transition:'all .25s',
             }}/>
           </div>
@@ -148,10 +148,10 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
           {/* Info */}
           <div style={{flex:1,minWidth:0}}>
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:6}}>
-              <span style={{fontWeight:800,fontSize:16,color:'var(--text)',letterSpacing:-.3}}>@{account.username}</span>
+              <span style={{fontWeight:800,fontSize:16,color:'var(--mf-text)',letterSpacing:-.3}}>@{account.username}</span>
               {isActive&&(
-                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 9px',borderRadius:20,background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.25)',fontSize:10,color:'#22c55e',fontWeight:700}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'wm-pulse 1.4s infinite'}}/>
+                <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 9px',borderRadius:20,background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',fontSize:10,color:'var(--mf-success-500)',fontWeight:700}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'wm-pulse 1.4s infinite'}}/>
                   🔥 {intCfg.label}
                 </span>
               )}
@@ -159,13 +159,13 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                 ● {hlth.label}
               </span>
               {account.hasSession&&(
-                <span style={{padding:'2px 9px',borderRadius:20,fontSize:10,fontWeight:700,color:'#8b5cf6',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.25)'}}>
+                <span style={{padding:'2px 9px',borderRadius:20,fontSize:10,fontWeight:700,color:'var(--mf-mod-publicar)',background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)'}}>
                   🔐 API Privada
                 </span>
               )}
             </div>
             {account.name&&account.name!==account.username&&(
-              <div style={{fontSize:12,color:'var(--text3)',marginBottom:8}}>{account.name}</div>
+              <div style={{fontSize:12,color:'var(--mf-text-3)',marginBottom:8}}>{account.name}</div>
             )}
 
             {/* Stats */}
@@ -176,8 +176,8 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                 {label:'Posts',value:account.postsCount},
               ].map((s,i)=>(
                 <div key={s.label} style={{padding:'7px 12px',textAlign:'center',borderRight:i<2?'1px solid var(--border)':'none'}}>
-                  <div style={{fontWeight:700,fontSize:13,color:'var(--text)',fontVariantNumeric:'tabular-nums'}}>{fmtNum(s.value)}</div>
-                  <div style={{fontSize:9,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.04em',marginTop:1}}>{s.label}</div>
+                  <div style={{fontWeight:700,fontSize:13,color:'var(--mf-text)',fontVariantNumeric:'tabular-nums'}}>{fmtNum(s.value)}</div>
+                  <div style={{fontSize:9,color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.04em',marginTop:1}}>{s.label}</div>
                 </div>
               ))}
             </div>
@@ -193,15 +193,15 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                     </span>
                   ):null;
                 })}
-                <span style={{fontSize:10,color:'var(--text3)',marginLeft:4}}>⏱ {cfg.intervalMinutes}min</span>
+                <span style={{fontSize:10,color:'var(--mf-text-3)',marginLeft:4}}>⏱ {cfg.intervalMinutes}min</span>
               </div>
             )}
 
             {/* Token expiry */}
             {tokenExpiry&&(
-              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:8,fontSize:11,color:tokenDaysLeft<7?'#f59e0b':'var(--text3)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:8,fontSize:11,color:tokenDaysLeft<7?'var(--mf-warning-500)':'var(--mf-text-3)'}}>
                 🔑 Token {tokenExpiry}
-                {tokenDaysLeft<30&&<span style={{fontWeight:700,color:tokenDaysLeft<7?'#ef4444':'#f59e0b'}}>{tokenDaysLeft<0?'· EXPIRADO':`· ${tokenDaysLeft}d`}</span>}
+                {tokenDaysLeft<30&&<span style={{fontWeight:700,color:tokenDaysLeft<7?'var(--mf-danger-500)':'var(--mf-warning-500)'}}>{tokenDaysLeft<0?'· EXPIRADO':`· ${tokenDaysLeft}d`}</span>}
               </div>
             )}
           </div>
@@ -211,28 +211,28 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
             {isActive?(
               <motion.button whileHover={{scale:1.03}} whileTap={{scale:.97}} onClick={()=>onStop(account._id)} style={{
                 padding:'9px 14px',borderRadius:10,cursor:'pointer',whiteSpace:'nowrap',
-                background:'rgba(239,68,68,.1)',color:'#ef4444',fontWeight:700,fontSize:12,
-                border:'1px solid rgba(239,68,68,.3)',
+                background:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)',color:'var(--mf-danger-500)',fontWeight:700,fontSize:12,
+                border:'1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)',
                 transition:'box-shadow .15s',
               }}
-                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 14px rgba(239,68,68,.2)'}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 14px color-mix(in oklch, var(--mf-danger-500) 20%, transparent)'}
                 onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}
               >⏹ Parar</motion.button>
             ):(
               <motion.button whileHover={{scale:1.03}} whileTap={{scale:.97}} onClick={()=>onStart(account._id)} style={{
                 padding:'9px 14px',borderRadius:10,cursor:'pointer',whiteSpace:'nowrap',
-                background:'linear-gradient(135deg,rgba(34,197,94,.15),rgba(22,163,74,.08))',
-                color:'#22c55e',fontWeight:700,fontSize:12,
-                border:'1px solid rgba(34,197,94,.4)',
+                background:'linear-gradient(135deg,color-mix(in oklch, var(--mf-success-500) 15%, transparent),rgba(22,163,74,.08))',
+                color:'var(--mf-success-500)',fontWeight:700,fontSize:12,
+                border:'1px solid color-mix(in oklch, var(--mf-success-500) 40%, transparent)',
                 transition:'box-shadow .15s',
               }}
-                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 16px rgba(34,197,94,.2)'}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 16px color-mix(in oklch, var(--mf-success-500) 20%, transparent)'}
                 onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}
               >🔥 Iniciar</motion.button>
             )}
             <motion.button whileHover={{scale:1.03}} whileTap={{scale:.97}} onClick={()=>onExpand()} style={{
               padding:'7px 12px',borderRadius:10,border:'1px solid var(--border)',
-              background:'var(--bg3)',color:'var(--text3)',cursor:'pointer',fontSize:11,fontWeight:600,
+              background:'var(--bg3)',color:'var(--mf-text-3)',cursor:'pointer',fontSize:11,fontWeight:600,
               transition:'all .15s',
             }}>
               {expanded?'▲ Fechar':'⚙ Config'}
@@ -253,23 +253,23 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
 
               {/* API badges */}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                <div style={{borderRadius:10,padding:'9px 13px',border:'1px solid rgba(99,102,241,.2)',background:'rgba(99,102,241,.05)',display:'flex',alignItems:'center',gap:8}}>
+                <div style={{borderRadius:10,padding:'9px 13px',border:'1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)',background:'color-mix(in oklch, var(--mf-primary-500) 5%, transparent)',display:'flex',alignItems:'center',gap:8}}>
                   <span style={{fontSize:14}}>🔗</span>
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,color:'#818cf8'}}>API Oficial</div>
-                    <div style={{fontSize:10,color:'var(--text3)',marginTop:1}}>Sem senha adicional</div>
+                    <div style={{fontSize:11,fontWeight:700,color:'var(--mf-primary-300)'}}>API Oficial</div>
+                    <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:1}}>Sem senha adicional</div>
                   </div>
                 </div>
-                <div style={{borderRadius:10,padding:'9px 13px',border:`1px solid ${account.hasSession?'rgba(34,197,94,.2)':'rgba(139,92,246,.2)'}`,background:account.hasSession?'rgba(34,197,94,.05)':'rgba(139,92,246,.05)',display:'flex',alignItems:'center',gap:8}}>
+                <div style={{borderRadius:10,padding:'9px 13px',border:`1px solid ${account.hasSession?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)'}`,background:account.hasSession?'color-mix(in oklch, var(--mf-success-500) 5%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 5%, transparent)',display:'flex',alignItems:'center',gap:8}}>
                   <span style={{fontSize:14}}>{account.hasSession?'✅':'🔐'}</span>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:11,fontWeight:700,color:account.hasSession?'#22c55e':'#a78bfa'}}>{account.hasSession?'Sessão ativa':'API Privada'}</div>
-                    <div style={{fontSize:10,color:'var(--text3)',marginTop:1}}>Reels e Explorar</div>
+                    <div style={{fontSize:11,fontWeight:700,color:account.hasSession?'var(--mf-success-500)':'var(--mf-mod-publicar)'}}>{account.hasSession?'Sessão ativa':'API Privada'}</div>
+                    <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:1}}>Reels e Explorar</div>
                   </div>
                   {account.hasSession?(
-                    <button onClick={()=>onLogout(account._id)} style={{fontSize:9,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(239,68,68,.25)',background:'rgba(239,68,68,.07)',color:'#f87171',cursor:'pointer',flexShrink:0}}>Sair</button>
+                    <button onClick={()=>onLogout(account._id)} style={{fontSize:9,padding:'2px 7px',borderRadius:5,border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)',background:'color-mix(in oklch, var(--mf-danger-500) 7%, transparent)',color:'var(--mf-danger-500)',cursor:'pointer',flexShrink:0}}>Sair</button>
                   ):(
-                    <button onClick={()=>onOpenLogin({accountId:account._id,username:account.username})} style={{fontSize:9,padding:'2px 7px',borderRadius:5,border:'1px solid rgba(139,92,246,.25)',background:'rgba(139,92,246,.1)',color:'#a78bfa',cursor:'pointer',flexShrink:0}}>Login</button>
+                    <button onClick={()=>onOpenLogin({accountId:account._id,username:account.username})} style={{fontSize:9,padding:'2px 7px',borderRadius:5,border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)',background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',color:'var(--mf-mod-publicar)',cursor:'pointer',flexShrink:0}}>Login</button>
                   )}
                 </div>
               </div>
@@ -283,12 +283,12 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                       flex:1,padding:'8px 0',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:11,
                       border:`1px solid ${cfg.intensity===v?color:'var(--border)'}`,
                       background:cfg.intensity===v?`${color}18`:'var(--bg3)',
-                      color:cfg.intensity===v?color:'var(--text3)',
+                      color:cfg.intensity===v?color:'var(--mf-text-3)',
                       transition:'all .15s',
                     }}>{label}</button>
                   ))}
                 </div>
-                <div style={{fontSize:10,color:'var(--text3)',marginTop:4}}>{INTENSITY.find(i=>i.v===cfg.intensity)?.desc}</div>
+                <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:4}}>{INTENSITY.find(i=>i.v===cfg.intensity)?.desc}</div>
               </div>
 
               {/* Actions */}
@@ -302,7 +302,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                       <button key={a.value} onClick={()=>toggleAction(account._id,a.value)} style={{
                         padding:'9px 10px',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:11,
                         background:on?`${a.color}18`:'var(--bg3)',
-                        color:on?a.color:'var(--text3)',
+                        color:on?a.color:'var(--mf-text-3)',
                         border:`1px solid ${on?a.color:'var(--border)'}`,
                         transition:'all .15s',textAlign:'left',
                         display:'flex',alignItems:'center',gap:7,
@@ -310,7 +310,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                         <span style={{fontSize:13}}>{a.icon}</span>
                         <div>
                           <div>{a.label}</div>
-                          <div style={{fontSize:9,fontWeight:400,color:noSession&&on?'#f59e0b':'var(--text3)',opacity:.8}}>
+                          <div style={{fontSize:9,fontWeight:400,color:noSession&&on?'var(--mf-warning-500)':'var(--mf-text-3)',opacity:.8}}>
                             {a.api==='privada'?(noSession?'⚠ requer sessão':'✓ sessão ativa'):'API Oficial'}
                           </div>
                         </div>
@@ -319,7 +319,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                   })}
                 </div>
                 {needsPrivate&&!account.hasSession&&(
-                  <div style={{marginTop:8,padding:'8px 12px',borderRadius:8,background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.22)',fontSize:10,color:'#f59e0b'}}>
+                  <div style={{marginTop:8,padding:'8px 12px',borderRadius:8,background:'color-mix(in oklch, var(--mf-warning-500) 7%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)',fontSize:10,color:'var(--mf-warning-500)'}}>
                     ⚠ Clique em <strong>Login</strong> acima para ativar as ações de API Privada.
                   </div>
                 )}
@@ -346,7 +346,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                 <div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
                     <div style={labelStyle}>Comentários (um por linha)</div>
-                    <span style={{fontSize:10,color:'var(--cyan)',fontWeight:600}}>{cfg.commentList.split('\n').filter(s=>s.trim()).length} cadastrados</span>
+                    <span style={{fontSize:10,color:'var(--mf-mod, var(--mf-accent-500))',fontWeight:600}}>{cfg.commentList.split('\n').filter(s=>s.trim()).length} cadastrados</span>
                   </div>
                   <textarea value={cfg.commentList} onChange={e=>updateCfg(account._id,'commentList',e.target.value)} rows={5}
                     style={{...inputStyle,resize:'vertical',fontFamily:'inherit',lineHeight:1.5,fontSize:12}}/>
@@ -356,12 +356,12 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
               {/* Interval */}
               <div>
                 <div style={{...labelStyle,marginBottom:8}}>
-                  Intervalo: <span style={{color:'var(--cyan)',fontWeight:800}}>{cfg.intervalMinutes} min</span>
+                  Intervalo: <span style={{color:'var(--mf-mod, var(--mf-accent-500))',fontWeight:800}}>{cfg.intervalMinutes} min</span>
                 </div>
                 <input type="range" min={10} max={120} step={5} value={cfg.intervalMinutes}
                   onChange={e=>updateCfg(account._id,'intervalMinutes',Number(e.target.value))}
-                  style={{width:'100%',accentColor:'var(--cyan)'}}/>
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:2}}>
+                  style={{width:'100%',accentColor:'var(--mf-mod, var(--mf-accent-500))'}}/>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--mf-text-3)',marginTop:2}}>
                   <span>10 min</span><span>120 min</span>
                 </div>
               </div>
@@ -369,14 +369,14 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
               {/* Duration */}
               <div>
                 <div style={{...labelStyle,marginBottom:8}}>
-                  Duração máxima: <span style={{color:cfg.maxDurationHours===0?'#f59e0b':'var(--cyan)',fontWeight:800}}>
+                  Duração máxima: <span style={{color:cfg.maxDurationHours===0?'var(--mf-warning-500)':'var(--mf-mod, var(--mf-accent-500))',fontWeight:800}}>
                     {cfg.maxDurationHours===0?'Sem limite':`${cfg.maxDurationHours}h`}
                   </span>
                 </div>
                 <input type="range" min={0} max={12} step={1} value={cfg.maxDurationHours}
                   onChange={e=>updateCfg(account._id,'maxDurationHours',Number(e.target.value))}
-                  style={{width:'100%',accentColor:cfg.maxDurationHours===0?'#f59e0b':'var(--cyan)'}}/>
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--text3)',marginTop:2}}>
+                  style={{width:'100%',accentColor:cfg.maxDurationHours===0?'var(--mf-warning-500)':'var(--mf-mod, var(--mf-accent-500))'}}/>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--mf-text-3)',marginTop:2}}>
                   <span>Sem limite</span><span>12h</span>
                 </div>
               </div>
@@ -384,9 +384,9 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
               {/* CTA */}
               <motion.button whileHover={{scale:1.01}} whileTap={{scale:.99}} onClick={()=>onStart(account._id)} style={{
                 width:'100%',padding:'12px 0',borderRadius:10,border:'none',cursor:'pointer',
-                background:account.warmupActive?'linear-gradient(135deg,#f59e0b,#d97706)':'linear-gradient(135deg,#22c55e,#16a34a)',
-                color:'#fff',fontWeight:700,fontSize:13,
-                boxShadow:account.warmupActive?'0 4px 18px rgba(245,158,11,.25)':'0 4px 18px rgba(34,197,94,.25)',
+                background:account.warmupActive?'linear-gradient(135deg,var(--mf-warning-500),#d97706)':'linear-gradient(135deg,var(--mf-success-500),var(--mf-success-500))',
+                color:'var(--mf-text)',fontWeight:700,fontSize:13,
+                boxShadow:account.warmupActive?'0 4px 18px color-mix(in oklch, var(--mf-warning-500) 25%, transparent)':'0 4px 18px color-mix(in oklch, var(--mf-success-500) 25%, transparent)',
               }}>
                 {account.warmupActive?'🔄 Atualizar configuração':'🔥 Iniciar aquecimento'}
               </motion.button>
@@ -412,26 +412,26 @@ function LoginModal({ loginModal, loginPwd, setLoginPwd, loginBusy, onSubmit, on
         style={{background:'oklch(0.15 0.05 235/0.98)',border:'1px solid oklch(0.65 0.18 280/0.3)',borderRadius:20,width:'100%',maxWidth:400,overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5)'}}
       >
         <div style={{padding:'20px 22px 16px',borderBottom:'1px solid oklch(1 0 0/0.07)',display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:42,height:42,borderRadius:12,background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🔐</div>
+          <div style={{width:42,height:42,borderRadius:12,background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 30%, transparent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🔐</div>
           <div>
-            <div style={{fontWeight:800,fontSize:14,color:'var(--text)'}}>Login API Privada</div>
-            <div style={{fontSize:12,color:'var(--text3)',marginTop:1}}>@{loginModal.username}</div>
+            <div style={{fontWeight:800,fontSize:14,color:'var(--mf-text)'}}>Login API Privada</div>
+            <div style={{fontSize:12,color:'var(--mf-text-3)',marginTop:1}}>@{loginModal.username}</div>
           </div>
-          <button onClick={onClose} style={{marginLeft:'auto',background:'none',border:'none',color:'var(--text3)',cursor:'pointer',fontSize:20,lineHeight:1,flexShrink:0}}>×</button>
+          <button onClick={onClose} style={{marginLeft:'auto',background:'none',border:'none',color:'var(--mf-text-3)',cursor:'pointer',fontSize:20,lineHeight:1,flexShrink:0}}>×</button>
         </div>
         <div style={{padding:'16px 22px 20px'}}>
-          <div style={{padding:'10px 14px',borderRadius:10,background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.2)',fontSize:11,color:'#f59e0b',lineHeight:1.6,marginBottom:16}}>
+          <div style={{padding:'10px 14px',borderRadius:10,background:'color-mix(in oklch, var(--mf-warning-500) 7%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-warning-500) 20%, transparent)',fontSize:11,color:'var(--mf-warning-500)',lineHeight:1.6,marginBottom:16}}>
             ⚠ A senha ativa o scroll de reels e curtidas no feed. Recomendado usar 2FA no Instagram.
           </div>
-          <label style={{display:'block',fontSize:10,color:'var(--text3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Senha do Instagram</label>
+          <label style={{display:'block',fontSize:10,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Senha do Instagram</label>
           <input type="password" value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onSubmit()} placeholder="Digite a senha..." autoFocus
-            style={{width:'100%',boxSizing:'border-box',padding:'11px 14px',borderRadius:9,border:'1px solid oklch(0.65 0.18 280/0.3)',background:'oklch(0.11 0.04 235)',color:'var(--text)',fontSize:13,outline:'none'}}/>
+            style={{width:'100%',boxSizing:'border-box',padding:'11px 14px',borderRadius:9,border:'1px solid oklch(0.65 0.18 280/0.3)',background:'oklch(0.11 0.04 235)',color:'var(--mf-text)',fontSize:13,outline:'none'}}/>
           <div style={{display:'flex',gap:8,marginTop:14}}>
-            <button onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius:9,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text3)',cursor:'pointer',fontWeight:600,fontSize:13}}>Cancelar</button>
+            <button onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius:9,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--mf-text-3)',cursor:'pointer',fontWeight:600,fontSize:13}}>Cancelar</button>
             <motion.button whileHover={{scale:1.02}} whileTap={{scale:.98}} onClick={onSubmit} disabled={loginBusy||!loginPwd.trim()} style={{
               flex:2,padding:'10px 0',borderRadius:9,border:'none',
-              background:loginBusy||!loginPwd.trim()?'rgba(139,92,246,.15)':'linear-gradient(135deg,#7c3aed,#a78bfa)',
-              color:loginBusy||!loginPwd.trim()?'rgba(167,139,250,.4)':'#fff',
+              background:loginBusy||!loginPwd.trim()?'color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)':'linear-gradient(135deg,var(--mf-primary-500),var(--mf-mod-publicar))',
+              color:loginBusy||!loginPwd.trim()?'color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)':'var(--mf-text)',
               cursor:loginBusy||!loginPwd.trim()?'not-allowed':'pointer',
               fontWeight:700,fontSize:13,
               display:'flex',alignItems:'center',justifyContent:'center',gap:8,
@@ -541,8 +541,8 @@ export default function Warmup() {
   const pageActions=(
     <>
       {activeCount>0&&(
-        <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:8,background:'rgba(34,197,94,.08)',border:'1px solid rgba(34,197,94,.2)',fontSize:11,color:'#22c55e',fontWeight:700,fontFamily:'var(--font-mono)'}}>
-          <span style={{width:6,height:6,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
+        <span style={{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:8,background:'color-mix(in oklch, var(--mf-success-500) 8%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)',fontSize:11,color:'var(--mf-success-500)',fontWeight:700,fontFamily:'var(--mf-mono)'}}>
+          <span style={{width:6,height:6,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
           {activeCount} aquecendo
         </span>
       )}
@@ -572,10 +572,10 @@ export default function Warmup() {
 
       {/* ── KPI row ── */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:20}}>
-        <KpiTile label="Total contas"    value={n0} color="var(--text)"  bg="oklch(0.14 0.04 235/0.5)" border="oklch(1 0 0/0.08)" delay={0}    icon="📱"/>
-        <KpiTile label="Aquecendo"       value={n1} color="#22c55e"      bg="rgba(34,197,94,.06)"       border="rgba(34,197,94,.2)" delay={.05}  icon="🔥" sub={activeCount>0?accounts.filter(a=>a.warmupActive).map(a=>`@${a.username}`).join(', '):undefined}/>
-        <KpiTile label="Contas saudáveis"value={n2} color="var(--cyan)"  bg="oklch(0.14 0.04 235/0.5)" border="rgba(0,212,255,.15)" delay={.1}  icon="✅"/>
-        <KpiTile label="Ações no log"    value={n3} color="#a78bfa"      bg="rgba(167,139,250,.06)"     border="rgba(167,139,250,.15)" delay={.15} icon="📋"/>
+        <KpiTile label="Total contas"    value={n0} color="var(--mf-text)"  bg="oklch(0.14 0.04 235/0.5)" border="oklch(1 0 0/0.08)" delay={0}    icon="📱"/>
+        <KpiTile label="Aquecendo"       value={n1} color="var(--mf-success-500)"      bg="color-mix(in oklch, var(--mf-success-500) 6%, transparent)"       border="color-mix(in oklch, var(--mf-success-500) 20%, transparent)" delay={.05}  icon="🔥" sub={activeCount>0?accounts.filter(a=>a.warmupActive).map(a=>`@${a.username}`).join(', '):undefined}/>
+        <KpiTile label="Contas saudáveis"value={n2} color="var(--mf-mod, var(--mf-accent-500))"  bg="oklch(0.14 0.04 235/0.5)" border="color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)" delay={.1}  icon="✅"/>
+        <KpiTile label="Ações no log"    value={n3} color="var(--mf-mod-publicar)"      bg="color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)"     border="color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)" delay={.15} icon="📋"/>
       </div>
 
       {/* ── Status banner ── */}
@@ -583,29 +583,29 @@ export default function Warmup() {
         <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{delay:.2,duration:.3}}
           style={{
             marginBottom:20,padding:'14px 20px',borderRadius:14,
-            background:activeCount>0?'rgba(34,197,94,.06)':'oklch(0.15 0.05 235/0.6)',
-            border:`1px solid ${activeCount>0?'rgba(34,197,94,.25)':'oklch(1 0 0/0.07)'}`,
+            background:activeCount>0?'color-mix(in oklch, var(--mf-success-500) 6%, transparent)':'oklch(0.15 0.05 235/0.6)',
+            border:`1px solid ${activeCount>0?'color-mix(in oklch, var(--mf-success-500) 25%, transparent)':'oklch(1 0 0/0.07)'}`,
             display:'flex',alignItems:'center',gap:14,backdropFilter:'blur(12px)',
           }}
         >
           <div style={{fontSize:24,flexShrink:0}}>{activeCount>0?'🔥':'💤'}</div>
           <div style={{flex:1}}>
-            <div style={{fontWeight:700,fontSize:14,color:activeCount>0?'#22c55e':'var(--text)',marginBottom:2}}>
+            <div style={{fontWeight:700,fontSize:14,color:activeCount>0?'var(--mf-success-500)':'var(--mf-text)',marginBottom:2}}>
               {activeCount>0?`${activeCount} conta${activeCount>1?'s':''} aquecendo agora`:'Nenhuma conta em aquecimento'}
             </div>
-            <div style={{fontSize:12,color:'var(--text3)'}}>
+            <div style={{fontSize:12,color:'var(--mf-text-3)'}}>
               {activeCount>0
                 ?`Ações orgânicas ativas · logs atualizando a cada 10s`
                 :'Inicie o aquecimento para evitar shadowban e melhorar o alcance'}
             </div>
           </div>
-          {activeCount>0&&<span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,color:'#22c55e',fontWeight:700}}><span style={{width:7,height:7,borderRadius:'50%',background:'#22c55e',boxShadow:'0 0 8px #22c55e',display:'inline-block',animation:'wm-pulse 1.4s infinite'}}/>ATIVO</span>}
+          {activeCount>0&&<span style={{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,color:'var(--mf-success-500)',fontWeight:700}}><span style={{width:7,height:7,borderRadius:'50%',background:'var(--mf-success-500)',boxShadow:'0 0 8px var(--mf-success-500)',display:'inline-block',animation:'wm-pulse 1.4s infinite'}}/>ATIVO</span>}
         </motion.div>
       )}
 
       {/* ── Account cards ── */}
       {accounts.length===0?(
-        <div style={{textAlign:'center',padding:'60px 0',color:'var(--text3)'}}>Nenhuma conta. Adicione contas primeiro.</div>
+        <div style={{textAlign:'center',padding:'60px 0',color:'var(--mf-text-3)'}}>Nenhuma conta. Adicione contas primeiro.</div>
       ):(
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           {accounts.map(account=>(
@@ -631,7 +631,7 @@ export default function Warmup() {
         <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.4}}
           style={{marginTop:16,padding:'14px 20px',borderRadius:14,background:'oklch(0.15 0.05 235/0.6)',border:'1px solid oklch(1 0 0/0.07)',display:'flex',gap:12,backdropFilter:'blur(12px)'}}>
           <span style={{fontSize:18,flexShrink:0}}>💡</span>
-          <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.7}}>
+          <div style={{fontSize:12,color:'var(--mf-text-2)',lineHeight:1.7}}>
             <strong>Leve</strong> para contas novas · <strong>Médio</strong> para contas estabelecidas · <strong>Agressivo</strong> apenas para contas experientes.
             API Privada (Reels e Explorar) requer login com senha e simula navegação orgânica no app.
           </div>
@@ -642,11 +642,11 @@ export default function Warmup() {
       <div style={{marginTop:20,background:'oklch(0.15 0.05 235/0.9)',border:'1px solid oklch(1 0 0/0.08)',borderRadius:18,overflow:'hidden',backdropFilter:'blur(20px)'}}>
         <div style={{padding:'14px 20px',borderBottom:'1px solid oklch(1 0 0/0.07)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:9}}>
-            <span style={{fontWeight:700,fontSize:'.88rem',color:'var(--text)'}}>Log de Atividade</span>
-            {logs.length>0&&<span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:20,background:'oklch(0.10 0.03 235/0.6)',color:'var(--text3)',fontFamily:'var(--font-mono)'}}>{logs.length}</span>}
+            <span style={{fontWeight:700,fontSize:'.88rem',color:'var(--mf-text)'}}>Log de Atividade</span>
+            {logs.length>0&&<span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:20,background:'oklch(0.10 0.03 235/0.6)',color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{logs.length}</span>}
             {activeCount>0&&(
-              <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,color:'#22c55e',fontWeight:700}}>
-                <span style={{width:5,height:5,borderRadius:'50%',background:'#22c55e',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
+              <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,color:'var(--mf-success-500)',fontWeight:700}}>
+                <span style={{width:5,height:5,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
                 10s
               </span>
             )}
@@ -655,7 +655,7 @@ export default function Warmup() {
         </div>
 
         {logs.length===0?(
-          <div style={{padding:'36px 20px',textAlign:'center',color:'var(--text3)',fontSize:13}}>
+          <div style={{padding:'36px 20px',textAlign:'center',color:'var(--mf-text-3)',fontSize:13}}>
             <div style={{fontSize:32,marginBottom:10,opacity:.5}}>🔥</div>
             Nenhuma ação registrada. Inicie o aquecimento para ver os logs.
           </div>
@@ -669,26 +669,26 @@ export default function Warmup() {
                   padding:'10px 20px',
                   borderBottom:i<logs.length-1?'1px solid oklch(1 0 0/0.05)':'none',
                   display:'flex',alignItems:'flex-start',gap:12,
-                  background:entry.status==='error'?'rgba(239,68,68,.03)':'transparent',
+                  background:entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 3%, transparent)':'transparent',
                   transition:'background .15s',
                 }}
-                onMouseEnter={e=>e.currentTarget.style.background=entry.status==='error'?'rgba(239,68,68,.06)':'oklch(0.12 0.04 235/0.3)'}
-                onMouseLeave={e=>e.currentTarget.style.background=entry.status==='error'?'rgba(239,68,68,.03)':'transparent'}
+                onMouseEnter={e=>e.currentTarget.style.background=entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 6%, transparent)':'oklch(0.12 0.04 235/0.3)'}
+                onMouseLeave={e=>e.currentTarget.style.background=entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 3%, transparent)':'transparent'}
               >
                 {/* Icon */}
-                <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:`${LOG_COLOR[entry.action]||'#64748b'}14`,fontSize:13}}>
+                <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:`${LOG_COLOR[entry.action]||'var(--mf-text-3)'}14`,fontSize:13}}>
                   {LOG_ICON[entry.action]||'•'}
                 </div>
                 {/* Content */}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
-                    <span style={{fontSize:11,fontWeight:700,color:'var(--cyan)',flexShrink:0}}>@{entry.username}</span>
-                    <span style={{fontSize:12,color:entry.status==='error'?'#f87171':'var(--text)',lineHeight:1.4}}>{entry.detail}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--mf-mod, var(--mf-accent-500))',flexShrink:0}}>@{entry.username}</span>
+                    <span style={{fontSize:12,color:entry.status==='error'?'var(--mf-danger-500)':'var(--mf-text)',lineHeight:1.4}}>{entry.detail}</span>
                   </div>
-                  {entry.targetUser&&<div style={{fontSize:10,color:'var(--text3)',marginTop:2}}>→ @{entry.targetUser}</div>}
+                  {entry.targetUser&&<div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:2}}>→ @{entry.targetUser}</div>}
                 </div>
                 {/* Time */}
-                <div style={{flexShrink:0,fontSize:10,color:'var(--text3)',fontFamily:'var(--font-mono)',whiteSpace:'nowrap'}}>{timeAgo(entry.createdAt)}</div>
+                <div style={{flexShrink:0,fontSize:10,color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)',whiteSpace:'nowrap'}}>{timeAgo(entry.createdAt)}</div>
               </motion.div>
             ))}
           </div>

@@ -7,18 +7,18 @@ import PageShell from '../components/PageShell';
 
 const CARD = {
   background: 'oklch(0.16 0.05 235 / 0.85)',
-  border: '1px solid oklch(1 0 0 / 0.07)',
+  border: '1px solid var(--mf-border)',
   borderRadius: 14,
   backdropFilter: 'blur(12px)',
   overflow: 'hidden',
 };
 
 const STATUS_META = {
-  pending:    { label: 'Aguardando', color: '#94a3b8' },
-  processing: { label: 'Processando', color: '#60a5fa' },
-  completed:  { label: 'Concluído',   color: '#4ade80' },
-  failed:     { label: 'Falhou',      color: '#f87171' },
-  cancelled:  { label: 'Cancelado',   color: '#94a3b8' },
+  pending:    { label: 'Aguardando', color: 'var(--mf-text-3)' },
+  processing: { label: 'Processando', color: 'var(--mf-info-500)' },
+  completed:  { label: 'Concluído',   color: 'var(--mf-success-500)' },
+  failed:     { label: 'Falhou',      color: 'var(--mf-danger-500)' },
+  cancelled:  { label: 'Cancelado',   color: 'var(--mf-text-3)' },
 };
 
 const QUALITY_LABEL = { fast: 'Rápido (CRF 26)', balanced: 'Balanceado (CRF 20)', high: 'Alta qualidade (CRF 16)' };
@@ -26,10 +26,10 @@ const QUALITY_LABEL = { fast: 'Rápido (CRF 26)', balanced: 'Balanceado (CRF 20)
 function ProgressBar({ completed, failed, total }) {
   const pct = total > 0 ? Math.round(((completed + failed) / total) * 100) : 0;
   return (
-    <div style={{ height: 4, background: 'oklch(1 0 0 / 0.08)', borderRadius: 99, overflow: 'hidden', margin: '8px 0 4px' }}>
+    <div style={{ height: 4, background: 'var(--mf-border)', borderRadius: 99, overflow: 'hidden', margin: '8px 0 4px' }}>
       <div style={{
         height: '100%', borderRadius: 99, transition: 'width .4s',
-        background: `linear-gradient(90deg, #60a5fa ${completed / (total || 1) * 100}%, #f87171 0%)`,
+        background: `linear-gradient(90deg, var(--mf-info-500) ${completed / (total || 1) * 100}%, var(--mf-danger-500) 0%)`,
         width: `${pct}%`,
       }} />
     </div>
@@ -95,8 +95,8 @@ function NewBatchModal({ onClose, onCreated }) {
         animate={{ scale: 1, y: 0 }}
         style={{ ...CARD, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
-          <h3 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700, color: 'var(--text)' }}>Novo Lote de Vídeo</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--mf-border)' }}>
+          <h3 style={{ margin: 0, fontSize: '.95rem', fontWeight: 700, color: 'var(--mf-text)' }}>Novo Lote de Vídeo</h3>
           <button onClick={onClose} className="btn-ghost" style={{ padding: '4px 8px', borderRadius: 7, fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
 
@@ -104,9 +104,9 @@ function NewBatchModal({ onClose, onCreated }) {
           <div className="form-group">
             <label>Template</label>
             {templates.length === 0 ? (
-              <p style={{ fontSize: '.82rem', color: '#f87171', margin: 0 }}>
+              <p style={{ fontSize: '.82rem', color: 'var(--mf-danger-500)', margin: 0 }}>
                 Nenhum template disponível.{' '}
-                <a href="/video-templates/new" style={{ color: '#818cf8' }}>Criar um template</a>
+                <a href="/video-templates/new" style={{ color: 'var(--mf-primary-300)' }}>Criar um template</a>
               </p>
             ) : (
               <select className="inp" value={templateId} onChange={e => setTemplateId(e.target.value)}>
@@ -138,34 +138,34 @@ function NewBatchModal({ onClose, onCreated }) {
             <div
               onClick={() => fileRef.current?.click()}
               style={{
-                border: '2px dashed oklch(1 0 0 / 0.12)', borderRadius: 10, padding: '18px 14px',
+                border: '2px dashed var(--mf-border-strong)', borderRadius: 10, padding: '18px 14px',
                 textAlign: 'center', cursor: 'pointer', transition: 'border-color .15s',
               }}
-              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#818cf8'; }}
-              onDragLeave={e => { e.currentTarget.style.borderColor = 'oklch(1 0 0 / 0.12)'; }}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--mf-primary-300)'; }}
+              onDragLeave={e => { e.currentTarget.style.borderColor = 'var(--mf-border-strong)'; }}
               onDrop={e => {
                 e.preventDefault();
-                e.currentTarget.style.borderColor = 'oklch(1 0 0 / 0.12)';
+                e.currentTarget.style.borderColor = 'var(--mf-border-strong)';
                 const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/'));
                 setFiles(prev => [...prev, ...dropped]);
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 8px', display: 'block' }}>
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--text3)' }}>Arraste os vídeos aqui ou <span style={{ color: '#818cf8' }}>clique para selecionar</span></p>
-              <p style={{ margin: '4px 0 0', fontSize: '.72rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>MP4, MOV, AVI, MKV — até 500 MB por arquivo</p>
+              <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--mf-text-3)' }}>Arraste os vídeos aqui ou <span style={{ color: 'var(--mf-primary-300)' }}>clique para selecionar</span></p>
+              <p style={{ margin: '4px 0 0', fontSize: '.72rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>MP4, MOV, AVI, MKV — até 500 MB por arquivo</p>
               <input ref={fileRef} type="file" multiple accept="video/*" style={{ display: 'none' }} onChange={e => setFiles(prev => [...prev, ...Array.from(e.target.files)])} />
             </div>
 
             {files.length > 0 && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {files.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.78rem', color: 'var(--text3)', background: 'oklch(1 0 0 / 0.04)', borderRadius: 7, padding: '4px 10px' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round"><path d="M15 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.78rem', color: 'var(--mf-text-3)', background: 'var(--mf-border-subtle)', borderRadius: 7, padding: '4px 10px' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mf-info-500)" strokeWidth="2.5" strokeLinecap="round"><path d="M15 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
-                    <button type="button" onClick={() => setFiles(p => p.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+                    <span style={{ fontFamily: 'var(--mf-mono)', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                    <button type="button" onClick={() => setFiles(p => p.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--mf-text-3)', cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
                   </div>
                 ))}
               </div>
@@ -219,7 +219,7 @@ export default function VideoBatches() {
 
   const pageActions = (
     <>
-      <span style={{ fontSize: '.78rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 8, padding: '4px 10px' }}>
+      <span style={{ fontSize: '.78rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 8, padding: '4px 10px' }}>
         {batches.length} lotes
       </span>
       <button className="btn-primary" onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 9, fontSize: '.83rem' }}>
@@ -237,13 +237,13 @@ export default function VideoBatches() {
       <PageShell icon={pageIcon} title="Lotes de Vídeo" subtitle="Renderize múltiplos vídeos em lote com o mesmo template" accent="green" actions={pageActions}>
         <div style={{ padding: '16px 20px' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text3)', fontSize: '.88rem' }}>Carregando lotes…</div>
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--mf-text-3)', fontSize: '.88rem' }}>Carregando lotes…</div>
           ) : !batches.length ? (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ ...CARD, padding: '60px 20px', textAlign: 'center' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="oklch(1 0 0 / 0.2)" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 16px', display: 'block' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--mf-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 16px', display: 'block' }}>
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
-              <p style={{ color: 'var(--text3)', marginBottom: 16, fontSize: '.88rem' }}>Nenhum lote criado ainda.</p>
+              <p style={{ color: 'var(--mf-text-3)', marginBottom: 16, fontSize: '.88rem' }}>Nenhum lote criado ainda.</p>
               <button className="btn-primary" onClick={() => setShowNew(true)} style={{ padding: '8px 20px', borderRadius: 9, fontSize: '.85rem' }}>Criar primeiro lote</button>
             </motion.div>
           ) : (
@@ -265,20 +265,20 @@ export default function VideoBatches() {
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: '.9rem', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>{batch.name}</strong>
+                            <strong style={{ fontSize: '.9rem', color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>{batch.name}</strong>
                             <span style={{ fontSize: '.72rem', borderRadius: 100, padding: '2px 8px', background: `${meta.color}15`, color: meta.color, border: `1px solid ${meta.color}30`, flexShrink: 0 }}>
                               {meta.label}
                             </span>
                           </div>
                           {batch.templateId?.name && (
-                            <span style={{ fontSize: '.75rem', color: 'var(--text3)', marginTop: 3, display: 'block' }}>
+                            <span style={{ fontSize: '.75rem', color: 'var(--mf-text-3)', marginTop: 3, display: 'block' }}>
                               Template: {batch.templateId.name}
                             </span>
                           )}
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <span style={{ fontSize: '.88rem', fontWeight: 700, color: meta.color, fontFamily: 'var(--font-mono)' }}>{pct}%</span>
-                          <div style={{ fontSize: '.7rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                          <span style={{ fontSize: '.88rem', fontWeight: 700, color: meta.color, fontFamily: 'var(--mf-mono)' }}>{pct}%</span>
+                          <div style={{ fontSize: '.7rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', marginTop: 2 }}>
                             {batch.completedJobs}/{batch.totalJobs}
                           </div>
                         </div>
@@ -287,16 +287,16 @@ export default function VideoBatches() {
                       <ProgressBar completed={batch.completedJobs} failed={batch.failedJobs} total={batch.totalJobs} />
 
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
-                        <div style={{ display: 'flex', gap: 10, fontSize: '.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text3)' }}>
-                          {batch.completedJobs > 0 && <span style={{ color: '#4ade80' }}>✓ {batch.completedJobs}</span>}
-                          {batch.failedJobs    > 0 && <span style={{ color: '#f87171' }}>✗ {batch.failedJobs}</span>}
+                        <div style={{ display: 'flex', gap: 10, fontSize: '.72rem', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)' }}>
+                          {batch.completedJobs > 0 && <span style={{ color: 'var(--mf-success-500)' }}>✓ {batch.completedJobs}</span>}
+                          {batch.failedJobs    > 0 && <span style={{ color: 'var(--mf-danger-500)' }}>✗ {batch.failedJobs}</span>}
                           {batch.pendingJobs   > 0 && <span>⋯ {batch.pendingJobs}</span>}
                           <span>{new Date(batch.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         {batch.status === 'processing' && (
                           <button
                             className="btn-ghost"
-                            style={{ padding: '3px 10px', borderRadius: 6, fontSize: '.72rem', color: '#f87171' }}
+                            style={{ padding: '3px 10px', borderRadius: 6, fontSize: '.72rem', color: 'var(--mf-danger-500)' }}
                             onClick={e => { e.stopPropagation(); cancelBatch(batch._id); }}
                           >
                             Cancelar

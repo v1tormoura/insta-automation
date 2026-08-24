@@ -97,18 +97,18 @@ export default function Performance() {
   const totalTyped = data ? Object.values(data.byType).reduce((a, b) => a + b, 0) : 0;
 
   const kpis = [
-    { label:'Visualizações', val:fmtNum(t.views),    color:'var(--cyan)', border:'rgba(0,212,255,.2)',  bg:'rgba(0,212,255,.07)',   icon:'👁' },
-    { label:'Curtidas',      val:fmtNum(t.likes),    color:'#f43f5e',     border:'rgba(244,63,94,.2)',  bg:'rgba(244,63,94,.07)',   icon:'❤️' },
-    { label:'Salvamentos',   val:fmtNum(t.saves),    color:'#fbbf24',     border:'rgba(251,191,36,.2)', bg:'rgba(251,191,36,.07)',  icon:'🔖' },
-    { label:'Alcance',       val:fmtNum(t.alcance),  color:'#22c55e',     border:'rgba(34,197,94,.2)',  bg:'rgba(34,197,94,.07)',   icon:'📡' },
-    { label:'Comentários',   val:fmtNum(t.comments), color:'#a78bfa',     border:'rgba(167,139,250,.2)',bg:'rgba(167,139,250,.07)', icon:'💬' },
-    { label:'Total Posts',   val:data?.total || 0,   color:'var(--cyan)', border:'rgba(0,212,255,.2)',  bg:'rgba(0,212,255,.07)',   icon:'📄' },
+    { label:'Visualizações', val:fmtNum(t.views),    color:'var(--mf-mod, var(--mf-accent-500))', border:'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)',  bg:'color-mix(in oklch, var(--mf-mod-contas) 7%, transparent)',   icon:'👁' },
+    { label:'Curtidas',      val:fmtNum(t.likes),    color:'var(--mf-danger-500)',     border:'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)',  bg:'color-mix(in oklch, var(--mf-danger-500) 7%, transparent)',   icon:'❤️' },
+    { label:'Salvamentos',   val:fmtNum(t.saves),    color:'var(--mf-warning-500)',     border:'color-mix(in oklch, var(--mf-warning-500) 20%, transparent)', bg:'color-mix(in oklch, var(--mf-warning-500) 7%, transparent)',  icon:'🔖' },
+    { label:'Alcance',       val:fmtNum(t.alcance),  color:'var(--mf-success-500)',     border:'color-mix(in oklch, var(--mf-success-500) 20%, transparent)',  bg:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)',   icon:'📡' },
+    { label:'Comentários',   val:fmtNum(t.comments), color:'var(--mf-mod-publicar)',     border:'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)',bg:'color-mix(in oklch, var(--mf-mod-publicar) 7%, transparent)', icon:'💬' },
+    { label:'Total Posts',   val:data?.total || 0,   color:'var(--mf-mod, var(--mf-accent-500))', border:'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)',  bg:'color-mix(in oklch, var(--mf-mod-contas) 7%, transparent)',   icon:'📄' },
   ];
 
   const types = [
-    { key:'VIDEO',          label:'Reels',     color:'var(--cyan)', icon:'🎬' },
-    { key:'IMAGE',          label:'Fotos',     color:'#a78bfa',     icon:'🖼️' },
-    { key:'CAROUSEL_ALBUM', label:'Carrossel', color:'#fbbf24',     icon:'🗂️' },
+    { key:'VIDEO',          label:'Reels',     color:'var(--mf-mod, var(--mf-accent-500))', icon:'🎬' },
+    { key:'IMAGE',          label:'Fotos',     color:'var(--mf-mod-publicar)',     icon:'🖼️' },
+    { key:'CAROUSEL_ALBUM', label:'Carrossel', color:'var(--mf-warning-500)',     icon:'🗂️' },
   ];
 
   const pageIcon = (
@@ -118,13 +118,13 @@ export default function Performance() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:9, padding:3 }}>
+    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:9, padding:3 }}>
       {[['7d','7 dias'],['30d','30 dias'],['90d','90 dias']].map(([k,l]) => (
         <button key={k} onClick={() => setPeriod(k)} style={{
           height:28, padding:'0 12px', borderRadius:7, fontSize:'.78rem', fontWeight:600,
           border:'none', cursor:'pointer', transition:'.15s',
-          background: period === k ? 'var(--cyan)' : 'transparent',
-          color:      period === k ? '#040e1c'     : 'var(--text3)',
+          background: period === k ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent',
+          color:      period === k ? 'var(--mf-bg)'     : 'var(--mf-text-3)',
         }}>{l}</button>
       ))}
     </div>
@@ -132,7 +132,7 @@ export default function Performance() {
 
   const cardStyle = {
     background:'oklch(0.16 0.05 235 / 0.85)',
-    border:'1px solid oklch(1 0 0 / 0.07)',
+    border:'1px solid var(--mf-border)',
     borderRadius:14, overflow:'hidden',
     backdropFilter:'blur(12px)',
   };
@@ -146,18 +146,18 @@ export default function Performance() {
       actions={pageActions}
     >
       {loading ? (
-        <div style={{ textAlign:'center', padding:60, color:'var(--text3)' }}>
+        <div style={{ textAlign:'center', padding:60, color:'var(--mf-text-3)' }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ animation:'spin 1s linear infinite', display:'block', margin:'0 auto 12px' }}>
             <path d="M21 12a9 9 0 11-6.219-8.56"/>
           </svg>
           Carregando insights...
         </div>
       ) : !data ? (
-        <div style={{ textAlign:'center', padding:60, color:'var(--text3)' }}>
+        <div style={{ textAlign:'center', padding:60, color:'var(--mf-text-3)' }}>
           <div style={{ fontSize:28, marginBottom:10 }}>⚠️</div>
-          <div style={{ fontSize:13, fontWeight:700, color:'var(--text2)', marginBottom:8 }}>Erro ao carregar dados</div>
-          {errMsg && <div style={{ fontSize:11, color:'#f87171', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.18)', borderRadius:8, padding:'8px 14px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
-          <button onClick={load} style={{ padding:'8px 20px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--text2)', cursor:'pointer', fontSize:13, fontWeight:600 }}>↺ Tentar novamente</button>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text-2)', marginBottom:8 }}>Erro ao carregar dados</div>
+          {errMsg && <div style={{ fontSize:11, color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 18%, transparent)', borderRadius:8, padding:'8px 14px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
+          <button onClick={load} style={{ padding:'8px 20px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--mf-text-2)', cursor:'pointer', fontSize:13, fontWeight:600 }}>↺ Tentar novamente</button>
         </div>
       ) : (
         <>
@@ -174,7 +174,7 @@ export default function Performance() {
                   <div style={{ fontSize:24, fontWeight:800, color:k.color, letterSpacing:-1, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{k.val}</div>
                   <span style={{ fontSize:16 }}>{k.icon}</span>
                 </div>
-                <div style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.06em' }}>{k.label}</div>
+                <div style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.06em' }}>{k.label}</div>
               </motion.div>
             ))}
           </div>
@@ -182,16 +182,16 @@ export default function Performance() {
           <div className="layout-2col">
             {/* ── Top Contas ── */}
             <motion.div initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
-                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Top Contas</h3>
-                <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Contas</h3>
+                <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
               </div>
 
               {data.byAccount.length === 0 ? (
                 <div style={{ padding:'28px 20px', textAlign:'center' }}>
                   <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text2)', marginBottom:6 }}>Nenhum insight sincronizado</div>
-                  <div style={{ fontSize:12, color:'var(--text3)', lineHeight:1.6 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--mf-text-2)', marginBottom:6 }}>Nenhum insight sincronizado</div>
+                  <div style={{ fontSize:12, color:'var(--mf-text-3)', lineHeight:1.6 }}>
                     Vá no <strong>Dashboard</strong> e clique em <strong>SYNC</strong> para importar as métricas dos seus posts via Meta Graph API.
                   </div>
                 </div>
@@ -210,7 +210,7 @@ export default function Performance() {
                         style={{
                           display:'flex', alignItems:'center', gap:12,
                           padding:'12px 16px',
-                          borderBottom: i < data.byAccount.length - 1 ? '1px solid oklch(1 0 0 / 0.06)' : 'none',
+                          borderBottom: i < data.byAccount.length - 1 ? '1px solid var(--mf-border)' : 'none',
                           cursor:'pointer', transition:'background .15s',
                         }}
                         onMouseEnter={e => e.currentTarget.style.background = 'oklch(0.12 0.04 235 / 0.4)'}
@@ -220,12 +220,12 @@ export default function Performance() {
                         <div style={{ position:'relative', flexShrink:0 }}>
                           <div style={{
                             width:42, height:42, borderRadius:'50%', overflow:'hidden',
-                            border:`2px solid ${i === 0 ? 'var(--cyan)' : i === 1 ? 'rgba(167,139,250,.5)' : 'oklch(1 0 0 / 0.1)'}`,
+                            border:`2px solid ${i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' : 'var(--mf-border)'}`,
                             background:'oklch(0.10 0.03 235 / 0.6)',
                           }}>
                             {src
                               ? <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
-                              : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:16, color: i === 0 ? 'var(--cyan)' : 'var(--text3)' }}>
+                              : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:16, color: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
                                   {acc.username?.[0]?.toUpperCase()}
                                 </div>
                             }
@@ -234,12 +234,12 @@ export default function Performance() {
                           <div style={{
                             position:'absolute', bottom:-2, right:-4,
                             width:17, height:17, borderRadius:'50%',
-                            background: i === 0 ? 'var(--cyan)' : i === 1 ? '#a78bfa' : 'oklch(0.20 0.05 235)',
+                            background: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'var(--mf-mod-publicar)' : 'oklch(0.20 0.05 235)',
                             border:'2px solid oklch(0.16 0.05 235)',
                             display:'flex', alignItems:'center', justifyContent:'center',
                             fontSize:8, fontWeight:900,
-                            color: i < 2 ? '#040e1c' : 'var(--text3)',
-                            fontFamily:'var(--font-mono)',
+                            color: i < 2 ? 'var(--mf-bg)' : 'var(--mf-text-3)',
+                            fontFamily:'var(--mf-mono)',
                           }}>
                             {i + 1}
                           </div>
@@ -247,35 +247,35 @@ export default function Performance() {
 
                         {/* Info */}
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                             @{acc.username}
                           </div>
                           <div style={{ display:'flex', gap:8, marginTop:3, flexWrap:'wrap' }}>
-                            <span style={{ fontSize:10, color:'var(--text3)' }}>
-                              <span style={{ color:'var(--cyan)', fontWeight:700, fontFamily:'var(--font-mono)' }}>{fmtNum(acc.views)}</span> views
+                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>
+                              <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700, fontFamily:'var(--mf-mono)' }}>{fmtNum(acc.views)}</span> views
                             </span>
-                            <span style={{ fontSize:10, color:'var(--text3)' }}>
-                              <span style={{ color:'#f43f5e', fontWeight:700, fontFamily:'var(--font-mono)' }}>{fmtNum(acc.likes)}</span> curtidas
+                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>
+                              <span style={{ color:'var(--mf-danger-500)', fontWeight:700, fontFamily:'var(--mf-mono)' }}>{fmtNum(acc.likes)}</span> curtidas
                             </span>
-                            <span style={{ fontSize:10, color:'var(--text3)' }}>
-                              <span style={{ color:'#fbbf24', fontWeight:700, fontFamily:'var(--font-mono)' }}>{fmtNum(acc.saves)}</span> salvos
+                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>
+                              <span style={{ color:'var(--mf-warning-500)', fontWeight:700, fontFamily:'var(--mf-mono)' }}>{fmtNum(acc.saves)}</span> salvos
                             </span>
-                            <span style={{ fontSize:10, color:'var(--text3)' }}>{acc.posts} posts</span>
+                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>{acc.posts} posts</span>
                           </div>
                         </div>
 
                         {/* Right: engagement */}
                         <div style={{ flexShrink:0, textAlign:'right' }}>
-                          <div style={{ fontSize:13, fontWeight:800, color:'var(--cyan)', fontFamily:'var(--font-mono)', fontVariantNumeric:'tabular-nums' }}>
+                          <div style={{ fontSize:13, fontWeight:800, color:'var(--mf-mod, var(--mf-accent-500))', fontFamily:'var(--mf-mono)', fontVariantNumeric:'tabular-nums' }}>
                             {fmtNum(acc.views)}
                           </div>
                           {eng && (
-                            <div style={{ fontSize:9, color:'#22c55e', fontWeight:700, marginTop:1 }}>
+                            <div style={{ fontSize:9, color:'var(--mf-success-500)', fontWeight:700, marginTop:1 }}>
                               {eng}% eng.
                             </div>
                           )}
                           {avgViewsPerPost > 0 && (
-                            <div style={{ fontSize:9, color:'var(--text3)', marginTop:1 }}>
+                            <div style={{ fontSize:9, color:'var(--mf-text-3)', marginTop:1 }}>
                               ≈{fmtNum(avgViewsPerPost)}/post
                             </div>
                           )}
@@ -290,9 +290,9 @@ export default function Performance() {
             {/* ── Tipo de conteúdo + Engajamento ── */}
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid oklch(1 0 0 / 0.07)' }}>
-                  <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--text)', margin:0 }}>Tipo de Conteúdo</h3>
-                  <span style={{ fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>{totalTyped} posts</span>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+                  <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Tipo de Conteúdo</h3>
+                  <span style={{ fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{totalTyped} posts</span>
                 </div>
                 <div style={{ padding:'16px 18px' }}>
                   {types.map(tp => {
@@ -301,8 +301,8 @@ export default function Performance() {
                     return (
                       <div key={tp.key} style={{ marginBottom:16 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                          <span style={{ fontSize:12, color:'var(--text2)' }}>{tp.icon} {tp.label}</span>
-                          <span style={{ fontSize:12, fontWeight:700, color:'var(--text)', fontFamily:'var(--font-mono)' }}>{count} <span style={{ color:'var(--text3)', fontWeight:400 }}>({pct}%)</span></span>
+                          <span style={{ fontSize:12, color:'var(--mf-text-2)' }}>{tp.icon} {tp.label}</span>
+                          <span style={{ fontSize:12, fontWeight:700, color:'var(--mf-text)', fontFamily:'var(--mf-mono)' }}>{count} <span style={{ color:'var(--mf-text-3)', fontWeight:400 }}>({pct}%)</span></span>
                         </div>
                         <div style={{ height:5, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden' }}>
                           <motion.div
@@ -319,26 +319,26 @@ export default function Performance() {
               {/* Engagement summary */}
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25, delay:.06 }}
                 style={{ ...cardStyle, padding:'16px 18px' }}>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--text3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Métricas de engajamento</div>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Métricas de engajamento</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
-                    { label:'Eng. médio', value:data.avgEng, color:'var(--cyan)', icon:'📈' },
-                    { label:'Posts analisados', value:data.total, color:'#a78bfa', icon:'📄' },
+                    { label:'Eng. médio', value:data.avgEng, color:'var(--mf-mod, var(--mf-accent-500))', icon:'📈' },
+                    { label:'Posts analisados', value:data.total, color:'var(--mf-mod-publicar)', icon:'📄' },
                     {
                       label:'Taxa curtidas',
                       value: t.views > 0 ? `${(t.likes / t.views * 100).toFixed(1)}%` : '—',
-                      color:'#f43f5e', icon:'❤️',
+                      color:'var(--mf-danger-500)', icon:'❤️',
                     },
                     {
                       label:'Taxa salvamentos',
                       value: t.views > 0 ? `${(t.saves / t.views * 100).toFixed(1)}%` : '—',
-                      color:'#fbbf24', icon:'🔖',
+                      color:'var(--mf-warning-500)', icon:'🔖',
                     },
                   ].map(m => (
-                    <div key={m.label} style={{ background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:10, padding:'10px 12px' }}>
+                    <div key={m.label} style={{ background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:10, padding:'10px 12px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3 }}>
                         <span style={{ fontSize:12 }}>{m.icon}</span>
-                        <span style={{ fontSize:9, color:'var(--text3)', fontFamily:'var(--font-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{m.label}</span>
+                        <span style={{ fontSize:9, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{m.label}</span>
                       </div>
                       <div style={{ fontSize:18, fontWeight:800, color:m.color, fontVariantNumeric:'tabular-nums' }}>{fmtNum(m.value)}</div>
                     </div>

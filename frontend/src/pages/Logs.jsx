@@ -5,15 +5,15 @@ import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
 
 const STATUS_META = {
-  concluido:        { label: 'Concluído',   color: '#22c55e', bg: 'oklch(0.22 0.06 150 / 0.5)' },
-  erro:             { label: 'Erro',        color: '#f87171', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
-  processando:      { label: 'Processando', color: '#818cf8', bg: 'oklch(0.22 0.06 270 / 0.5)' },
-  agendado:         { label: 'Agendado',    color: '#f59e0b', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
-  pendente:         { label: 'Pendente',    color: '#94a3b8', bg: 'oklch(0.18 0.02 240 / 0.5)' },
-  done:             { label: 'Concluído',   color: '#22c55e', bg: 'oklch(0.22 0.06 150 / 0.5)' },
-  done_with_errors: { label: 'Com erros',   color: '#f59e0b', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
-  running:          { label: 'Executando',  color: '#818cf8', bg: 'oklch(0.22 0.06 270 / 0.5)' },
-  error:            { label: 'Erro',        color: '#f87171', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
+  concluido:        { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'oklch(0.22 0.06 150 / 0.5)' },
+  erro:             { label: 'Erro',        color: 'var(--mf-danger-500)', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
+  processando:      { label: 'Processando', color: 'var(--mf-primary-300)', bg: 'oklch(0.22 0.06 270 / 0.5)' },
+  agendado:         { label: 'Agendado',    color: 'var(--mf-warning-500)', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
+  pendente:         { label: 'Pendente',    color: 'var(--mf-text-3)', bg: 'oklch(0.18 0.02 240 / 0.5)' },
+  done:             { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'oklch(0.22 0.06 150 / 0.5)' },
+  done_with_errors: { label: 'Com erros',   color: 'var(--mf-warning-500)', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
+  running:          { label: 'Executando',  color: 'var(--mf-primary-300)', bg: 'oklch(0.22 0.06 270 / 0.5)' },
+  error:            { label: 'Erro',        color: 'var(--mf-danger-500)', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
 };
 
 const svgIcon = (d, w = 16) => (
@@ -46,7 +46,7 @@ function EntryCard({ entry, i }) {
       transition={{ delay: Math.min(i * 0.02, .3), duration:.2 }}
       style={{
         background:'oklch(0.16 0.05 235 / 0.85)',
-        border:'1px solid oklch(1 0 0 / 0.07)',
+        border:'1px solid var(--mf-border)',
         borderLeft:`3px solid ${m.color}`,
         borderRadius:12, padding:'12px 16px',
         backdropFilter:'blur(12px)',
@@ -54,10 +54,10 @@ function EntryCard({ entry, i }) {
     >
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <span style={{ color:'var(--text3)', display:'flex', alignItems:'center' }}>{tm.icon}</span>
+          <span style={{ color:'var(--mf-text-3)', display:'flex', alignItems:'center' }}>{tm.icon}</span>
           <div>
-            <strong style={{ fontSize:13, color:'var(--text)' }}>{tm.label}</strong>
-            <span style={{ fontSize:11, color:'var(--text3)', display:'block', fontFamily:'var(--font-mono)' }}>
+            <strong style={{ fontSize:13, color:'var(--mf-text)' }}>{tm.label}</strong>
+            <span style={{ fontSize:11, color:'var(--mf-text-3)', display:'block', fontFamily:'var(--mf-mono)' }}>
               {['agendado','pendente'].includes(entry.status) && entry.scheduledAt
                 ? `Agendado: ${new Date(entry.scheduledAt).toLocaleString('pt-BR')}`
                 : entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'
@@ -69,18 +69,18 @@ function EntryCard({ entry, i }) {
           {m.label}
         </span>
       </div>
-      <div style={{ fontFamily:'var(--font-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--text3)', minWidth:0 }}>
-        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>conta: </span><span style={{ color:'var(--text2)' }}>{entry.accounts}</span></span>
-        {entry.media   && <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>mídia: </span><span style={{ color:'var(--text2)' }}>{entry.media}</span></span>}
-        {entry.caption && <span><span>legenda: </span><span style={{ color:'var(--text2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
-        {entry.error   && <span style={{ color:'#f87171' }}><span style={{ color:'var(--text3)' }}>erro: </span>{entry.error}</span>}
+      <div style={{ fontFamily:'var(--mf-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--mf-text-3)', minWidth:0 }}>
+        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>conta: </span><span style={{ color:'var(--mf-text-2)' }}>{entry.accounts}</span></span>
+        {entry.media   && <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>mídia: </span><span style={{ color:'var(--mf-text-2)' }}>{entry.media}</span></span>}
+        {entry.caption && <span><span>legenda: </span><span style={{ color:'var(--mf-text-2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
+        {entry.error   && <span style={{ color:'var(--mf-danger-500)' }}><span style={{ color:'var(--mf-text-3)' }}>erro: </span>{entry.error}</span>}
         {entry.results?.length > 0 && entry.results.map((r, j) => {
           const ok = r.status === 'ok';
           let errorMsg = r.error || 'falhou';
           if (!ok && /challenge|checkpoint/i.test(errorMsg)) errorMsg = 'Challenge Instagram — use Reconectar para resolver';
           return (
-            <span key={j} style={{ color: ok ? '#22c55e' : '#f87171' }}>
-              <span style={{ color:'var(--text3)' }}>resultado [{r.username}]: </span>
+            <span key={j} style={{ color: ok ? 'var(--mf-success-500)' : 'var(--mf-danger-500)' }}>
+              <span style={{ color:'var(--mf-text-3)' }}>resultado [{r.username}]: </span>
               {ok ? '✓ ' + (r.message || 'ok') : '✗ ' + errorMsg}
             </span>
           );
@@ -153,9 +153,9 @@ export default function Logs() {
   // Agrupa entries para renderização com cabeçalhos de seção
   const isGrouped = filter === 'atividade';
   const GROUPS = [
-    { key:'concluido',   label:'Concluídos',   color:'#22c55e', statuses:['concluido','done','parcial'] },
-    { key:'erro',        label:'Erros',        color:'#f87171', statuses:['erro','error','done_with_errors'] },
-    { key:'processando', label:'Processando',  color:'#818cf8', statuses:['processando','running'] },
+    { key:'concluido',   label:'Concluídos',   color:'var(--mf-success-500)', statuses:['concluido','done','parcial'] },
+    { key:'erro',        label:'Erros',        color:'var(--mf-danger-500)', statuses:['erro','error','done_with_errors'] },
+    { key:'processando', label:'Processando',  color:'var(--mf-primary-300)', statuses:['processando','running'] },
   ];
   const grouped = isGrouped
     ? GROUPS.map(g => ({ ...g, items: filtered.filter(e => g.statuses.includes(e.status)) })).filter(g => g.items.length > 0)
@@ -168,13 +168,13 @@ export default function Logs() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'#4ade80', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
-      <span style={{ width:6, height:6, borderRadius:'50%', background:'#4ade80', display:'inline-block', boxShadow:'0 0 6px #4ade80' }} />
+    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+      <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
       Tempo real
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <PageShell icon={pageIcon} title="Logs do Sistema" subtitle="Histórico completo de publicações e automações." accent="cyan" actions={pageActions}>
@@ -185,17 +185,17 @@ export default function Logs() {
           <button key={f} onClick={() => setFilter(f)} style={{
             height:28, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
             border:'none', cursor:'pointer', transition:'.15s',
-            background: filter === f ? 'var(--cyan)' : 'transparent',
-            color: filter === f ? '#040e1c' : 'var(--text3)',
+            background: filter === f ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent',
+            color: filter === f ? 'var(--mf-bg)' : 'var(--mf-text-3)',
           }}>{FILTER_LABELS[f]}</button>
         ))}
-        <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>
+        <span style={{ marginLeft:'auto', fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
           {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {loading && (
-        <div style={{ textAlign:'center', color:'var(--text3)', padding:40, fontSize:13 }}>Carregando…</div>
+        <div style={{ textAlign:'center', color:'var(--mf-text-3)', padding:40, fontSize:13 }}>Carregando…</div>
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -205,10 +205,10 @@ export default function Logs() {
               {/* Group header */}
               <div style={{ display:'flex', alignItems:'center', gap:8, margin:'8px 0 6px', paddingLeft:4 }}>
                 <span style={{ width:8, height:8, borderRadius:'50%', background:group.color, flexShrink:0, boxShadow:`0 0 6px ${group.color}` }} />
-                <span style={{ fontFamily:'var(--font-mono)', fontSize:10, fontWeight:700, letterSpacing:'.1em', color:group.color, textTransform:'uppercase' }}>
+                <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.1em', color:group.color, textTransform:'uppercase' }}>
                   {group.label}
                 </span>
-                <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>({group.items.length})</span>
+                <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>({group.items.length})</span>
                 <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${group.color}30,transparent)` }} />
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
@@ -221,12 +221,12 @@ export default function Logs() {
         )}
 
         {!loading && !filtered.length && (
-          <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
-            <div style={{ marginBottom:12, color:'var(--text3)' }}>
+          <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius:14 }}>
+            <div style={{ marginBottom:12, color:'var(--mf-text-3)' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             </div>
-            <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Nenhum registro ainda</div>
-            <div style={{ fontSize:13, color:'var(--text3)' }}>Os logs aparecem aqui assim que você publicar posts ou executar automações.</div>
+            <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-text)', marginBottom:6 }}>Nenhum registro ainda</div>
+            <div style={{ fontSize:13, color:'var(--mf-text-3)' }}>Os logs aparecem aqui assim que você publicar posts ou executar automações.</div>
           </div>
         )}
       </div>

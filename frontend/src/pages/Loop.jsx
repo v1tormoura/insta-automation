@@ -391,7 +391,7 @@ function LoopModal({ onClose, onCreated }) {
                   : <span className="lm-section-count">{form.mediaFiles.length}</span>}
               </div>
               {/* Source toggle */}
-              <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 7, padding: 2, gap: 2, marginRight: 4 }}>
+              <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 7, padding: 2, gap: 2, marginRight: 4 }}>
                 {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
                   <button key={src} type="button"
                     onClick={() => setMediaSource(src)}
@@ -641,7 +641,7 @@ function LoopModal({ onClose, onCreated }) {
                   style={{
                     padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid',
                     background: form.processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
-                    borderColor: form.processMode === m.id ? `${m.color}44` : 'oklch(1 0 0 / 0.07)',
+                    borderColor: form.processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
                     transition: 'all .15s',
                   }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
@@ -970,7 +970,7 @@ export default function LoopPage() {
               <div style={{ display: 'flex', gap: 10, padding: '0 24px 24px' }}>
                 <button
                   onClick={() => setDeleteModal(null)}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid oklch(1 0 0 / 0.12)', background: 'oklch(1 0 0 / 0.05)', color: 'var(--mf-text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid var(--mf-border-strong)', background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
                 >Cancelar</button>
                 <button
                   onClick={confirmDelete}

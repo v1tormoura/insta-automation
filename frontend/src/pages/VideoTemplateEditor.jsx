@@ -44,7 +44,7 @@ const DEFAULT_TEMPLATE = {
 
 const CARD = {
   background: 'oklch(0.16 0.05 235 / 0.85)',
-  border: '1px solid oklch(1 0 0 / 0.07)',
+  border: '1px solid var(--mf-border)',
   borderRadius: 14,
   backdropFilter: 'blur(12px)',
   overflow: 'hidden',
@@ -55,8 +55,8 @@ const INP = { display: 'block', width: '100%', boxSizing: 'border-box' };
 function Section({ title, children }) {
   return (
     <div style={CARD}>
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid oklch(1 0 0 / 0.07)' }}>
-        <h3 style={{ margin: 0, fontSize: '.85rem', fontWeight: 700, color: 'var(--text)' }}>{title}</h3>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--mf-border)' }}>
+        <h3 style={{ margin: 0, fontSize: '.85rem', fontWeight: 700, color: 'var(--mf-text)' }}>{title}</h3>
       </div>
       <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {children}
@@ -87,13 +87,13 @@ function Field({ label, children }) {
 function ImageElementRow({ el, onChange, onRemove }) {
   const upd = (k, v) => onChange({ ...el, [k]: v });
   return (
-    <div style={{ background: 'oklch(0.12 0.04 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 10, padding: 12 }}>
+    <div style={{ background: 'oklch(0.12 0.04 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 10, padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: '.8rem', fontWeight: 600, color: '#60a5fa' }}>
+        <span style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--mf-info-500)' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginRight: 5, verticalAlign: 'middle' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           Imagem {el.label || ''}
         </span>
-        <button type="button" className="btn-ghost" onClick={onRemove} style={{ padding: '2px 8px', borderRadius: 6, fontSize: '.72rem', color: '#f87171' }}>Remover</button>
+        <button type="button" className="btn-ghost" onClick={onRemove} style={{ padding: '2px 8px', borderRadius: 6, fontSize: '.72rem', color: 'var(--mf-danger-500)' }}>Remover</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
         <Field label="Variável (ex: {{LOGO}})">
@@ -130,13 +130,13 @@ function ImageElementRow({ el, onChange, onRemove }) {
 function TextElementRow({ el, onChange, onRemove }) {
   const upd = (k, v) => onChange({ ...el, [k]: v });
   return (
-    <div style={{ background: 'oklch(0.12 0.04 235 / 0.6)', border: '1px solid oklch(1 0 0 / 0.07)', borderRadius: 10, padding: 12 }}>
+    <div style={{ background: 'oklch(0.12 0.04 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 10, padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: '.8rem', fontWeight: 600, color: '#4ade80' }}>
+        <span style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--mf-success-500)' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginRight: 5, verticalAlign: 'middle' }}><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
           Texto {el.label || ''}
         </span>
-        <button type="button" className="btn-ghost" onClick={onRemove} style={{ padding: '2px 8px', borderRadius: 6, fontSize: '.72rem', color: '#f87171' }}>Remover</button>
+        <button type="button" className="btn-ghost" onClick={onRemove} style={{ padding: '2px 8px', borderRadius: 6, fontSize: '.72rem', color: 'var(--mf-danger-500)' }}>Remover</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
         <Field label="Texto ou {{VAR}}">
@@ -156,13 +156,13 @@ function TextElementRow({ el, onChange, onRemove }) {
         </Field>
         <Field label="Cor do texto">
           <div style={{ display: 'flex', gap: 6 }}>
-            <input type="color" value={el.color || '#FFFFFF'} onChange={e => upd('color', e.target.value)} style={{ width: 36, height: 36, padding: 2, borderRadius: 6, border: '1px solid oklch(1 0 0 / 0.12)', background: 'none', cursor: 'pointer' }} />
-            <input className="inp" style={{ flex: 1 }} value={el.color || '#FFFFFF'} onChange={e => upd('color', e.target.value)} />
+            <input type="color" value={el.color || 'var(--mf-text)'} onChange={e => upd('color', e.target.value)} style={{ width: 36, height: 36, padding: 2, borderRadius: 6, border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer' }} />
+            <input className="inp" style={{ flex: 1 }} value={el.color || 'var(--mf-text)'} onChange={e => upd('color', e.target.value)} />
           </div>
         </Field>
         <Field label="Fundo (opcional)">
           <div style={{ display: 'flex', gap: 6 }}>
-            <input type="color" value={el.bgColor || '#000000'} onChange={e => upd('bgColor', e.target.value)} style={{ width: 36, height: 36, padding: 2, borderRadius: 6, border: '1px solid oklch(1 0 0 / 0.12)', background: 'none', cursor: 'pointer' }} />
+            <input type="color" value={el.bgColor || '#000000'} onChange={e => upd('bgColor', e.target.value)} style={{ width: 36, height: 36, padding: 2, borderRadius: 6, border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer' }} />
             <input className="inp" style={{ flex: 1 }} value={el.bgColor || ''} onChange={e => upd('bgColor', e.target.value)} placeholder="vazio = sem fundo" />
           </div>
         </Field>
@@ -195,15 +195,15 @@ function TemplatePreview({ tmpl }) {
   const textEls  = tmpl.elements.filter(el => el.type === 'text');
 
   const fitGrad = {
-    cover:   'linear-gradient(135deg,rgba(99,102,241,.25) 0%,rgba(139,92,246,.18) 100%)',
-    contain: 'linear-gradient(135deg,rgba(16,185,129,.18) 0%,rgba(6,182,212,.15) 100%)',
-    blur:    'linear-gradient(135deg,rgba(251,191,36,.15) 0%,rgba(249,115,22,.12) 100%)',
-    stretch: 'linear-gradient(135deg,rgba(244,63,94,.15)  0%,rgba(168,85,247,.12) 100%)',
+    cover:   'linear-gradient(135deg,color-mix(in oklch, var(--mf-primary-500) 25%, transparent) 0%,color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent) 100%)',
+    contain: 'linear-gradient(135deg,color-mix(in oklch, var(--mf-success-500) 18%, transparent) 0%,color-mix(in oklch, var(--mf-mod-contas) 15%, transparent) 100%)',
+    blur:    'linear-gradient(135deg,color-mix(in oklch, var(--mf-warning-500) 15%, transparent) 0%,color-mix(in oklch, var(--mf-warning-500) 12%, transparent) 100%)',
+    stretch: 'linear-gradient(135deg,color-mix(in oklch, var(--mf-danger-500) 15%, transparent)  0%,color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent) 100%)',
   };
 
   return (
     <div>
-      <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+      <div style={{ fontSize: 9, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
         Preview — {W}×{H}
       </div>
 
@@ -212,7 +212,7 @@ function TemplatePreview({ tmpl }) {
         position: 'relative', width: PREV_W, height: PREV_H,
         background: tmpl.canvas.background || '#000000',
         borderRadius: 8, overflow: 'hidden',
-        border: '1px solid oklch(1 0 0 / 0.14)',
+        border: '1px solid var(--mf-border-strong)',
         boxShadow: '0 8px 28px rgba(0,0,0,.55)',
         userSelect: 'none',
       }}>
@@ -224,11 +224,11 @@ function TemplatePreview({ tmpl }) {
             background: fitGrad[videoEl.fit || 'cover'],
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4,
           }}>
-            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="rgba(139,92,246,.65)" strokeWidth="1.5" strokeLinecap="round">
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="color-mix(in oklch, var(--mf-mod-publicar) 65%, transparent)" strokeWidth="1.5" strokeLinecap="round">
               <path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/>
               <rect x="1" y="8" width="14" height="13" rx="2"/>
             </svg>
-            <span style={{ fontSize: 7, fontFamily: 'var(--font-mono)', color: 'rgba(167,139,250,.8)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+            <span style={{ fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'color-mix(in oklch, var(--mf-mod-publicar) 80%, transparent)', textTransform: 'uppercase', letterSpacing: '.05em' }}>
               {FIT_DESC[videoEl.fit] || 'Cover'}
             </span>
           </div>
@@ -237,7 +237,7 @@ function TemplatePreview({ tmpl }) {
         {/* Grade de referência */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)',
+          backgroundImage: 'linear-gradient(var(--mf-border-subtle) 1px,transparent 1px),linear-gradient(90deg,var(--mf-border-subtle) 1px,transparent 1px)',
           backgroundSize: `${Math.round(W / 6 * scale)}px ${Math.round(H / 6 * scale)}px`,
         }}/>
 
@@ -249,13 +249,13 @@ function TemplatePreview({ tmpl }) {
             top:    Math.round((el.y || 0) * scale),
             width:  Math.max(12, Math.round((el.width || 120) * scale)),
             height: el.height ? Math.max(8, Math.round(el.height * scale)) : Math.max(8, Math.round(40 * scale)),
-            background: 'rgba(96,165,250,.2)',
-            border: '1px solid rgba(96,165,250,.55)',
+            background: 'color-mix(in oklch, var(--mf-info-500) 20%, transparent)',
+            border: '1px solid color-mix(in oklch, var(--mf-info-500) 55%, transparent)',
             borderRadius: 2,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             overflow: 'hidden',
           }}>
-            <span style={{ fontSize: 5, color: '#60a5fa', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>
+            <span style={{ fontSize: 5, color: 'var(--mf-info-500)', fontFamily: 'var(--mf-mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', padding: '0 2px' }}>
               {el.label || 'img'}
             </span>
           </div>
@@ -268,7 +268,7 @@ function TemplatePreview({ tmpl }) {
             left:     Math.round((el.x || 0) * scale),
             top:      Math.round((el.y || 0) * scale),
             fontSize: Math.max(6, Math.round((el.fontSize || 48) * scale)),
-            color:    el.color || '#fff',
+            color:    el.color || 'var(--mf-text)',
             fontWeight: 700, lineHeight: 1.2,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             maxWidth:  Math.round((W - (el.x || 0)) * scale),
@@ -282,7 +282,7 @@ function TemplatePreview({ tmpl }) {
         {/* Dimensões */}
         <div style={{
           position: 'absolute', bottom: 4, right: 4,
-          fontSize: 6, fontFamily: 'var(--font-mono)', color: 'rgba(255,255,255,.28)',
+          fontSize: 6, fontFamily: 'var(--mf-mono)', color: 'var(--mf-border-strong)',
           background: 'rgba(0,0,0,.35)', borderRadius: 3, padding: '1px 5px',
         }}>
           {W}×{H}
@@ -292,27 +292,27 @@ function TemplatePreview({ tmpl }) {
       {/* Legenda de elementos */}
       <div style={{ marginTop: 10, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
         {videoEl && (
-          <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', borderRadius: 4, padding: '2px 7px', background: 'rgba(139,92,246,.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,.22)' }}>
+          <span style={{ fontSize: 9, fontFamily: 'var(--mf-mono)', borderRadius: 4, padding: '2px 7px', background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color: 'var(--mf-mod-publicar)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)' }}>
             {FIT_DESC[videoEl.fit] || 'cover'}
           </span>
         )}
         {imageEls.map(el => (
-          <span key={el.id} style={{ fontSize: 9, fontFamily: 'var(--font-mono)', borderRadius: 4, padding: '2px 7px', background: 'rgba(96,165,250,.1)', color: '#60a5fa', border: '1px solid rgba(96,165,250,.22)' }}>
+          <span key={el.id} style={{ fontSize: 9, fontFamily: 'var(--mf-mono)', borderRadius: 4, padding: '2px 7px', background: 'color-mix(in oklch, var(--mf-info-500) 10%, transparent)', color: 'var(--mf-info-500)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 22%, transparent)' }}>
             🖼 {el.label || 'img'}
           </span>
         ))}
         {textEls.map(el => (
-          <span key={el.id} style={{ fontSize: 9, fontFamily: 'var(--font-mono)', borderRadius: 4, padding: '2px 7px', background: 'rgba(74,222,128,.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,.22)' }}>
+          <span key={el.id} style={{ fontSize: 9, fontFamily: 'var(--mf-mono)', borderRadius: 4, padding: '2px 7px', background: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', color: 'var(--mf-success-500)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)' }}>
             T {el.label || 'text'}
           </span>
         ))}
         {!videoEl && imageEls.length === 0 && textEls.length === 0 && (
-          <span style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>sem elementos</span>
+          <span style={{ fontSize: 9, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>sem elementos</span>
         )}
       </div>
 
       {/* Áudio */}
-      <div style={{ marginTop: 8, fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text3)' }}>
+      <div style={{ marginTop: 8, fontSize: 9, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)' }}>
         {tmpl.audio.keepOriginal ? '🔊 áudio original' : '🔇 sem áudio'}
         {tmpl.audio.musicTrack ? ' + trilha' : ''}
       </div>
@@ -372,7 +372,7 @@ export default function VideoTemplateEditor() {
   }
 
   function addTextElement() {
-    const newEl = { id: uid(), type: 'text', label: `Texto ${textEls.length + 1}`, text: '{{TITULO}}', x: 60, y: 200, fontSize: 64, color: '#FFFFFF', bgColor: '', zIndex: imageEls.length + textEls.length + 2 };
+    const newEl = { id: uid(), type: 'text', label: `Texto ${textEls.length + 1}`, text: '{{TITULO}}', x: 60, y: 200, fontSize: 64, color: 'var(--mf-text)', bgColor: '', zIndex: imageEls.length + textEls.length + 2 };
     setTmpl(prev => ({ ...prev, elements: [...prev.elements, newEl] }));
   }
 
@@ -421,7 +421,7 @@ export default function VideoTemplateEditor() {
   if (loading) {
     return (
       <PageShell title="Carregando template…" accent="purple">
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text3)' }}>Carregando…</div>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--mf-text-3)' }}>Carregando…</div>
       </PageShell>
     );
   }
@@ -466,12 +466,12 @@ export default function VideoTemplateEditor() {
                 </Field>
                 <Field label="Cor de fundo">
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <input type="color" value={tmpl.canvas.background} onChange={e => set('canvas.background', e.target.value)} style={{ width: 36, height: 36, padding: 2, borderRadius: 6, border: '1px solid oklch(1 0 0 / 0.12)', background: 'none', cursor: 'pointer' }} />
+                    <input type="color" value={tmpl.canvas.background} onChange={e => set('canvas.background', e.target.value)} style={{ width: 36, height: 36, padding: 2, borderRadius: 6, border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer' }} />
                     <input className="inp" style={{ flex: 1 }} value={tmpl.canvas.background} onChange={e => set('canvas.background', e.target.value)} />
                   </div>
                 </Field>
               </Row>
-              <div style={{ fontSize: '.75rem', color: 'var(--text3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+              <div style={{ fontSize: '.75rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', marginTop: 2 }}>
                 Presets: Stories / Reels = 1080×1920 · Feed = 1080×1080 · Landscape = 1920×1080
               </div>
             </Section>
@@ -506,8 +506,8 @@ export default function VideoTemplateEditor() {
 
             {/* ── Vídeo principal ── */}
             <Section title="Vídeo principal">
-              <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--text3)' }}>
-                O vídeo principal é sempre fornecido via variável <code style={{ background: 'oklch(1 0 0 / 0.06)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--font-mono)' }}>{'{{VIDEO}}'}</code> ao criar o lote.
+              <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--mf-text-3)' }}>
+                O vídeo principal é sempre fornecido via variável <code style={{ background: 'var(--mf-border)', borderRadius: 4, padding: '1px 5px', fontFamily: 'var(--mf-mono)' }}>{'{{VIDEO}}'}</code> ao criar o lote.
               </p>
               <Field label="Modo de enquadramento">
                 <select className="inp" style={INP} value={videoEl.fit || 'cover'} onChange={e => updateElement(videoEl.id, { ...videoEl, fit: e.target.value })}>
@@ -522,7 +522,7 @@ export default function VideoTemplateEditor() {
             {/* ── Imagens / Overlays ── */}
             <Section title={`Imagens / Overlays (${imageEls.length})`}>
               {imageEls.length === 0 && (
-                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--text3)' }}>Nenhuma imagem adicionada. Use overlays para logos, marcas d'água ou molduras.</p>
+                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--mf-text-3)' }}>Nenhuma imagem adicionada. Use overlays para logos, marcas d'água ou molduras.</p>
               )}
               {imageEls.map(el => (
                 <ImageElementRow key={el.id} el={el} onChange={u => updateElement(el.id, u)} onRemove={() => removeElement(el.id)} />
@@ -536,7 +536,7 @@ export default function VideoTemplateEditor() {
             {/* ── Textos ── */}
             <Section title={`Textos / Legendas (${textEls.length})`}>
               {textEls.length === 0 && (
-                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--text3)' }}>Nenhum texto adicionado. Adicione títulos, hashtags ou legendas.</p>
+                <p style={{ margin: 0, fontSize: '.8rem', color: 'var(--mf-text-3)' }}>Nenhum texto adicionado. Adicione títulos, hashtags ou legendas.</p>
               )}
               {textEls.map(el => (
                 <TextElementRow key={el.id} el={el} onChange={u => updateElement(el.id, u)} onRemove={() => removeElement(el.id)} />
@@ -573,17 +573,17 @@ export default function VideoTemplateEditor() {
             {/* ── Variáveis derivadas ── */}
             {derivedVars.length > 0 && (
               <Section title="Variáveis detectadas automaticamente">
-                <p style={{ margin: 0, fontSize: '.78rem', color: 'var(--text3)' }}>
+                <p style={{ margin: 0, fontSize: '.78rem', color: 'var(--mf-text-3)' }}>
                   Estas variáveis foram extraídas dos elementos e serão solicitadas ao criar um lote.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                   {derivedVars.map(v => (
                     <span key={v.name} style={{
-                      fontSize: '.75rem', fontFamily: 'var(--font-mono)', borderRadius: 100,
+                      fontSize: '.75rem', fontFamily: 'var(--mf-mono)', borderRadius: 100,
                       padding: '3px 10px',
-                      background: v.type === 'video' ? 'rgba(139,92,246,.1)' : v.type === 'image' ? 'rgba(96,165,250,.1)' : 'rgba(74,222,128,.1)',
-                      color: v.type === 'video' ? '#a78bfa' : v.type === 'image' ? '#60a5fa' : '#4ade80',
-                      border: `1px solid ${v.type === 'video' ? 'rgba(139,92,246,.25)' : v.type === 'image' ? 'rgba(96,165,250,.25)' : 'rgba(74,222,128,.25)'}`,
+                      background: v.type === 'video' ? 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)' : v.type === 'image' ? 'color-mix(in oklch, var(--mf-info-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',
+                      color: v.type === 'video' ? 'var(--mf-mod-publicar)' : v.type === 'image' ? 'var(--mf-info-500)' : 'var(--mf-success-500)',
+                      border: `1px solid ${v.type === 'video' ? 'color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)' : v.type === 'image' ? 'color-mix(in oklch, var(--mf-info-500) 25%, transparent)' : 'color-mix(in oklch, var(--mf-success-500) 25%, transparent)'}`,
                     }}>
                       {'{{'}{ v.name }{'}}'}  · {v.type}
                     </span>

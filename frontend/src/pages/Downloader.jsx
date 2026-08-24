@@ -32,8 +32,8 @@ async function dlFile(url, filename) {
   setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
 }
 
-const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
-const inputStyle = { flex:1, minWidth:200, padding:'9px 14px', background:'oklch(0.10 0.03 235 / 0.8)', border:'1px solid oklch(1 0 0 / 0.09)', borderRadius:8, color:'var(--text)', fontSize:13, outline:'none' };
+const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+const inputStyle = { flex:1, minWidth:200, padding:'9px 14px', background:'oklch(0.10 0.03 235 / 0.8)', border:'1px solid var(--mf-border)', borderRadius:8, color:'var(--mf-text)', fontSize:13, outline:'none' };
 
 const IC_DL = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -151,7 +151,7 @@ export default function Downloader() {
           </button>
         </div>
         {error && (
-          <div style={{ marginTop:10, padding:'9px 12px', background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius:8, color:'#f87171', fontSize:12 }}>
+          <div style={{ marginTop:10, padding:'9px 12px', background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius:8, color:'var(--mf-danger-500)', fontSize:12 }}>
             {error}
           </div>
         )}
@@ -161,7 +161,7 @@ export default function Downloader() {
       {profile && (
         <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }}
           style={{ ...cardStyle, padding:'18px 20px', marginBottom:14, display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
-          <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', border:'2px solid var(--cyan)', flexShrink:0, background:'oklch(0.12 0.04 235)' }}>
+          <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', border:'2px solid var(--mf-mod, var(--mf-accent-500))', flexShrink:0, background:'oklch(0.12 0.04 235)' }}>
             <img
               src={proxyImg(profile.profile_pic_url)}
               alt={profile.username}
@@ -171,21 +171,21 @@ export default function Downloader() {
           </div>
           <div style={{ flex:1, minWidth:160 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-              <span style={{ fontWeight:800, fontSize:16, color:'var(--text)' }}>@{profile.username}</span>
-              {profile.is_verified && <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:99, background:'oklch(0.50 0.17 245 / 0.2)', color:'#60a5fa', border:'1px solid oklch(0.50 0.17 245 / 0.3)' }}>✓ verificado</span>}
+              <span style={{ fontWeight:800, fontSize:16, color:'var(--mf-text)' }}>@{profile.username}</span>
+              {profile.is_verified && <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:99, background:'oklch(0.50 0.17 245 / 0.2)', color:'var(--mf-info-500)', border:'1px solid oklch(0.50 0.17 245 / 0.3)' }}>✓ verificado</span>}
             </div>
-            {profile.full_name && <div style={{ fontSize:12, color:'var(--text2)', marginBottom:6 }}>{profile.full_name}</div>}
+            {profile.full_name && <div style={{ fontSize:12, color:'var(--mf-text-2)', marginBottom:6 }}>{profile.full_name}</div>}
             <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
               {[['seguidores', profile.follower_count], ['seguindo', profile.following_count], ['posts', profile.media_count]].map(([lbl, val]) => (
-                <span key={lbl} style={{ fontSize:12, color:'var(--text3)' }}>
-                  <strong style={{ color:'var(--text)', fontVariantNumeric:'tabular-nums' }}>{fmtNum(val)}</strong> {lbl}
+                <span key={lbl} style={{ fontSize:12, color:'var(--mf-text-3)' }}>
+                  <strong style={{ color:'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmtNum(val)}</strong> {lbl}
                 </span>
               ))}
             </div>
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'center', flexShrink:0, flexWrap:'wrap' }}>
-            <span style={{ fontSize:11, color:'var(--text3)', fontFamily:'var(--font-mono)' }}>{media.length} carregados</span>
-            <button className="btn-ghost" style={{ fontSize:12, padding:'6px 12px', borderRadius:8, color: allSel ? '#f87171' : undefined }} onClick={toggleAll}>
+            <span style={{ fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{media.length} carregados</span>
+            <button className="btn-ghost" style={{ fontSize:12, padding:'6px 12px', borderRadius:8, color: allSel ? 'var(--mf-danger-500)' : undefined }} onClick={toggleAll}>
               {allSel ? 'Desmarcar todos' : 'Selecionar todos'}
             </button>
           </div>
@@ -214,18 +214,18 @@ export default function Downloader() {
       )}
 
       {!loading && profile && media.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:14 }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius:14 }}>
           <div style={{ fontSize:40, marginBottom:12 }}>📭</div>
-          <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Nenhuma mídia encontrada</div>
-          <div style={{ fontSize:13, color:'var(--text3)' }}>Este perfil não tem mídias públicas disponíveis.</div>
+          <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-text)', marginBottom:6 }}>Nenhuma mídia encontrada</div>
+          <div style={{ fontSize:13, color:'var(--mf-text-3)' }}>Este perfil não tem mídias públicas disponíveis.</div>
         </div>
       )}
 
       {!profile && !loading && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.4)', border:'1px dashed oklch(1 0 0 / 0.1)', borderRadius:14 }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.4)', border:'1px dashed var(--mf-border)', borderRadius:14 }}>
           <div style={{ fontSize:40, marginBottom:12 }}>⬇️</div>
-          <div style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginBottom:6 }}>Baixe mídias de qualquer perfil</div>
-          <div style={{ fontSize:13, color:'var(--text3)' }}>Digite um username acima e clique em Buscar.</div>
+          <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-text)', marginBottom:6 }}>Baixe mídias de qualquer perfil</div>
+          <div style={{ fontSize:13, color:'var(--mf-text-3)' }}>Digite um username acima e clique em Buscar.</div>
         </div>
       )}
 
@@ -237,21 +237,21 @@ function MediaTile({ item, sel, onToggle, onDownload }) {
   const [hover, setHover] = useState(false);
   return (
     <div onClick={onToggle} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ position:'relative', aspectRatio:'1', borderRadius:9, overflow:'hidden', cursor:'pointer', border:`2px solid ${sel ? 'var(--cyan)' : 'transparent'}`, transition:'border-color .12s', background:'oklch(0.12 0.04 235)' }}>
+      style={{ position:'relative', aspectRatio:'1', borderRadius:9, overflow:'hidden', cursor:'pointer', border:`2px solid ${sel ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent'}`, transition:'border-color .12s', background:'oklch(0.12 0.04 235)' }}>
       {item.thumb && (
         <img src={`${API}/image-proxy?url=${encodeURIComponent(item.thumb)}`} alt="" loading="lazy"
           style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
           onError={e => { e.target.style.display = 'none'; }} />
       )}
       {item.type !== 'image' && (
-        <div style={{ position:'absolute', top:5, right:5, background:'oklch(0 0 0 / 0.72)', backdropFilter:'blur(4px)', borderRadius:5, padding:'2px 6px', fontSize:10, fontWeight:700, color:'#fff' }}>
+        <div style={{ position:'absolute', top:5, right:5, background:'oklch(0 0 0 / 0.72)', backdropFilter:'blur(4px)', borderRadius:5, padding:'2px 6px', fontSize:10, fontWeight:700, color:'var(--mf-text)' }}>
           {item.type === 'video' ? '▶ vídeo' : `⊕ ${item.count}`}
         </div>
       )}
       <div style={{ position:'absolute', inset:0, background: hover ? 'oklch(0 0 0 / 0.42)' : 'oklch(0 0 0 / 0)', display:'flex', alignItems:'flex-end', justifyContent:'flex-end', padding:6, transition:'background .12s' }}>
         {hover && (
           <button onClick={onDownload} title="Baixar"
-            style={{ background:'oklch(1 0 0 / 0.9)', border:'none', borderRadius:7, padding:'5px 7px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            style={{ background:'var(--mf-surface-3)', border:'none', borderRadius:7, padding:'5px 7px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -261,7 +261,7 @@ function MediaTile({ item, sel, onToggle, onDownload }) {
         )}
       </div>
       {sel && (
-        <div style={{ position:'absolute', top:5, left:5, width:22, height:22, borderRadius:'50%', background:'var(--cyan)', display:'flex', alignItems:'center', justifyContent:'center', color:'#000', fontSize:11, fontWeight:900 }}>✓</div>
+        <div style={{ position:'absolute', top:5, left:5, width:22, height:22, borderRadius:'50%', background:'var(--mf-mod, var(--mf-accent-500))', display:'flex', alignItems:'center', justifyContent:'center', color:'#000', fontSize:11, fontWeight:900 }}>✓</div>
       )}
     </div>
   );
