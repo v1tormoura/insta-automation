@@ -182,6 +182,15 @@ export default function Posts() {
   const [cover, setCover] = useState(null);
   const [coverLibFile, setCoverLibFile] = useState(null);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+
+  /* A biblioteca guarda o arquivo em `filename` e o caminho servido em `url`,
+     e nenhum dos dois é obrigatório. Derivar aqui, uma vez, evita repetir a
+     checagem nos três lugares que usam a capa — e foi a falta dela que fez
+     escolher uma capa apagar a tela. */
+  const nomeDaCapa = coverLibFile?.originalName || coverLibFile?.filename || '';
+  const urlDaCapa  = coverLibFile
+    ? (coverLibFile.url ? `${API_URL}${coverLibFile.url}` : `${API_URL}/uploads/${coverLibFile.filename || ''}`)
+    : '';
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [scheduledAt, setScheduledAt] = useState('');
   const [intervalMins, setIntervalMins] = useState(3);   // backend exige >= 1
@@ -310,7 +319,7 @@ export default function Posts() {
       media.forEach(file => form.append('media', file));
     }
     if (cover) form.append('cover', cover);
-    else if (coverLibFile) form.append('coverFilename', coverLibFile.filename);
+    else if (coverLibFile?.filename) form.append('coverFilename', coverLibFile.filename);
     form.append('caption', applyCTASuffix(caption, ctaSuffix));
     if (location) form.append('location', location);
     form.append('postType', postType);
@@ -443,7 +452,15 @@ export default function Posts() {
                 mode="single"
                 accept="image"
                 onClose={() => setShowCoverPicker(false)}
-                onConfirm={items => { if (items[0]) { setCoverLibFile(items[0]); setCover(null); } setShowCoverPicker(false); }}
+                onConfirm={items => {
+                  /* Recusa o item sem arquivo na hora da escolha. Aceitar e
+                     falhar depois, na hora de publicar, esconde o problema
+                     atrás de um passo que o usuário já considerava resolvido. */
+                  const escolhido = items.find(i => i?.filename);
+                  if (escolhido) { setCoverLibFile(escolhido); setCover(null); }
+                  else if (items.length) setToast({ type: 'error', title: 'Capa inválida', message: 'Esse item da biblioteca está sem arquivo. Escolha outro.' });
+                  setShowCoverPicker(false);
+                }}
               />
             )}
             <div style={cardStyle}>
@@ -596,7 +613,11 @@ export default function Posts() {
                     onClick={() => setShowCoverPicker(true)}
                     style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid var(--mf-border)', background: coverLibFile ? 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' : 'var(--mf-border-subtle)', color: coverLibFile ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                    {coverLibFile ? coverLibFile.filename.slice(0, 18) + '…' : 'Da biblioteca'}
+                    {/* `filename` não é obrigatório no modelo de mídia, então
+                        pode chegar vazio. Antes isto era `.slice()` direto num
+                        possível undefined, e a exceção derrubava o render
+                        inteiro — a tela ficava em branco ao escolher a capa. */}
+                    {nomeDaCapa ? nomeDaCapa.slice(0, 18) + (nomeDaCapa.length > 18 ? '…' : '') : 'Da biblioteca'}
                   </button>
                   <label style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid var(--mf-border)', background: cover ? 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)' : 'var(--mf-border-subtle)', color: cover ? 'var(--mf-info-500)' : 'var(--mf-text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}>
                     <input type="file" accept="image/*" style={{ display: 'none' }}
@@ -610,7 +631,7 @@ export default function Posts() {
                   <div style={{ position: 'relative', display: 'inline-block' }}>
                     {cover
                       ? <img src={URL.createObjectURL(cover)} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
-                      : <img src={`${API_URL}/uploads/${coverLibFile.filename}`} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
+                      : <img src={urlDaCapa} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
                     }
                     <button type="button" onClick={() => { setCover(null); setCoverLibFile(null); }}
                       style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--mf-danger-500)', border: 'none', color: 'var(--mf-text)', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>

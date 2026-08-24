@@ -3,6 +3,7 @@ import './App.css';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import MainLayout from './layouts/MainLayout';
+import { LimiteDeRota } from './components/LimiteDeErro';
 import Dashboard from './pages/Dashboard';
 import DashboardV2 from './pages/DashboardV2';
 import PrototipoApp from './prototipo/PrototipoApp';
@@ -81,6 +82,16 @@ export default function App() {
       <Route path="/*" element={
         <PrivateRoute>
           <MainLayout>
+            {/* O limite fica DENTRO do layout, não em volta dele: assim uma
+                tela que quebra perde só a área de conteúdo, e a barra
+                lateral continua servindo para navegar para outro lugar.
+                Em volta do layout, o erro levaria a navegação junto e o
+                usuário ficaria sem saída além de recarregar.
+
+                A chave amarrada ao caminho reinicia o limite a cada
+                navegação — sem ela, uma tela que falhou deixaria o erro
+                preso na tela seguinte, que talvez esteja perfeita. */}
+            <LimiteDeRota titulo="Esta tela encontrou um erro">
             <Routes>
               <Route path="/"             element={<Dashboard />} />
               <Route path="/accounts"     element={<Accounts />} />
@@ -118,6 +129,7 @@ export default function App() {
               <Route path="/video-batches"           element={<VideoBatches />} />
               <Route path="/video-batches/:id"       element={<VideoBatchDetail />} />
             </Routes>
+            </LimiteDeRota>
           </MainLayout>
         </PrivateRoute>
       } />

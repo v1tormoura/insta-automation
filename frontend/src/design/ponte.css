@@ -456,8 +456,19 @@ html:has([data-mf]) {
 body:has([data-mf]) {
   height: auto;
   min-height: 100%;
-  overflow-x: hidden;   /* mantém a trava lateral, que continua correta */
-  overflow-y: visible;  /* devolve a rolagem vertical à janela */
+
+  /* `clip`, não `hidden`. A diferença decide quem rola a página: pela
+     especificação, quando um eixo é `visible` e o outro não é nem `visible`
+     nem `clip`, o `visible` passa a computar como `auto` — e o body vira um
+     contêiner de rolagem. Foi o que aconteceu com `hidden` aqui: a janela
+     deixou de rolar, o body assumiu, e o `position: sticky` da barra lateral
+     — que gruda em relação ao ancestral que rola — perdeu a referência e
+     subiu junto com o conteúdo.
+
+     `clip` corta o transbordo lateral sem criar contêiner de rolagem, então
+     o `visible` continua sendo visible e quem rola volta a ser a janela. */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 body:has([data-mf]) > #root {
@@ -557,3 +568,40 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 @media (prefers-reduced-motion: reduce) {
   [data-mf] .mf-app::after { filter: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPIRO ENTRE OS BLOCOS DA DASHBOARD
+
+   O espaçamento vinha de `margin-top: 12px` declarado em cada grade
+   (.wide-metric-row, .quick-grid, .operations-grid, .bottom-grid). Quem não
+   tinha a margem — as tabelas, que são componentes e não grades — encostava
+   no bloco de cima. Era o caso de "Postagens por conta" logo abaixo de
+   "Previsão", e de "Performance por conta" logo abaixo dela.
+
+   Trocar as margens por `gap` resolve na origem: a distância passa a ser
+   propriedade do contêiner, e vale entre QUAISQUER dois blocos, incluindo
+   os que ainda nem existem. As margens individuais zeram para não somar com
+   o gap e produzir o dobro do previsto em uns lugares e o certo em outros.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-mf] .dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mf-4);
+}
+
+[data-mf] .dashboard > * { margin-top: 0; margin-bottom: 0; }
+
+[data-mf] .dashboard .wide-metric-row,
+[data-mf] .dashboard .quick-grid,
+[data-mf] .dashboard .operations-grid,
+[data-mf] .dashboard .bottom-grid,
+[data-mf] .dashboard .dash-main-panels,
+[data-mf] .dashboard .metric-grid {
+  margin-top: 0;
+}
+
+/* O cabeçalho mantém um respiro maior: ele é a abertura da página, e a
+   mesma distância que separa dois painéis o coloca perto demais do primeiro
+   bloco de conteúdo. */
+[data-mf] .dashboard .dash-header { margin-bottom: var(--mf-2); }
