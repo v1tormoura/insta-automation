@@ -108,6 +108,19 @@ services:
       # caminho quando o Instagram recusa o login com credencial válida
       # (error_type=bad_password no site funcionando).
       INSTAGRAPI_APP_VERSION: ${INSTAGRAPI_APP_VERSION:-}
+      # Contexto regional do cliente. O padrao da biblioteca e dos EUA
+      # (US/1/en_US/UTC-4); rodando daqui isso contradizia o IP e o idioma
+      # das contas, e a contradicao e sinal de automacao para o Instagram.
+      #
+      # COUNTRY_CODE merece atencao: ele entra no payload do login como
+      # `country_codes` e participa de como o Instagram interpreta o
+      # identificador. Se o login passar a responder `invalid_user` para
+      # conta que existe, teste com 1 antes de procurar em outro lugar.
+      INSTAGRAPI_COUNTRY: ${INSTAGRAPI_COUNTRY:-BR}
+      INSTAGRAPI_COUNTRY_CODE: ${INSTAGRAPI_COUNTRY_CODE:-55}
+      INSTAGRAPI_LOCALE: ${INSTAGRAPI_LOCALE:-pt_BR}
+      INSTAGRAPI_TZ_OFFSET_HOURS: ${INSTAGRAPI_TZ_OFFSET_HOURS:--3}
+      INSTAGRAPI_TZ_NAME: ${INSTAGRAPI_TZ_NAME:-America/Sao_Paulo}
       GLOBAL_PROXY: ${GLOBAL_PROXY:-}
     volumes:
       - uploads:/app/uploads
