@@ -50,7 +50,18 @@ const CONCORRENCIA = 6;
  */
 function parseLista(texto) {
   const linhas = String(texto || '')
-    .split(/[\r\n,;]+/)
+    // Separa por quebra de linha e por vírgula — NUNCA por ponto-e-vírgula.
+    //
+    // O ponto-e-vírgula é caractere legítimo dentro do nome de usuário de
+    // proxy, e vários fornecedores o usam para passar parâmetros de
+    // geolocalização. Um usuário como
+    //
+    //     cliente__cr.br;state.saopaulo;city.adamantina
+    //
+    // era quebrado em três "linhas" inválidas, e a lista inteira do
+    // fornecedor era recusada sem que a mensagem dissesse por quê. A vírgula
+    // fica porque não aparece em URL de proxy e é como algumas listas vêm.
+    .split(/[\r\n,]+/)
     .map(l => l.trim())
     .filter(Boolean);
 
@@ -69,6 +80,32 @@ function parseLista(texto) {
   }
 
   return { urls, invalidas };
+}
+
+/**
+ * Escapa apenas o que realmente quebraria a URL.
+ *
+ * `encodeURIComponent` é agressivo demais aqui: ele codifica caracteres que a
+ * RFC 3986 permite em `userinfo`, entre eles o ponto-e-vírgula. Vários
+ * fornecedores de proxy usam `;` para passar geolocalização no nome de
+ * usuário —
+ *
+ *     cliente__cr.br;state.saopaulo;city.adamantina
+ *
+ * — e transformá-lo em `%3B` faz o fornecedor deixar de reconhecer o
+ * parâmetro. O proxy conecta, e o IP sai de outro lugar: falha silenciosa,
+ * do pior tipo.
+ *
+ * Escapamos então só o que é estrutural na URL: a arroba (separa credencial
+ * de host), as barras, `?` e `#` (encerram a autoridade), colchetes
+ * (delimitam IPv6) e espaços. Os dois-pontos entram só no nome de usuário,
+ * onde separam usuário de senha — na senha eles são inofensivos.
+ */
+function _escaparUserinfo(valor, ehUsuario = false) {
+  const perigosos = ehUsuario ? /[@/\?#\[\]\s:]/g : /[@/\?#\[\]\s]/g;
+  return String(valor).replace(perigosos, c =>
+    '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
+  );
 }
 
 function _linhaParaUrl(linha) {
@@ -92,7 +129,7 @@ function _linhaParaUrl(linha) {
   if (partes.length >= 4 && /^\d+$/.test(partes[1])) {
     const [host, porta, usuario, ...restoSenha] = partes;
     const senha = restoSenha.join(':');
-    const url = `http://${encodeURIComponent(usuario)}:${encodeURIComponent(senha)}@${host}:${porta}`;
+    const url = `http://${_escaparUserinfo(usuario, true)}:${_escaparUserinfo(senha)}@${host}:${porta}`;
     return _valida(url) ? url : '';
   }
 

@@ -54,8 +54,19 @@ describe('parseLista — formatos que os provedores entregam', () => {
     expect(() => new URL(urls[0])).not.toThrow();
   });
 
-  test('separa por vírgula e ponto e vírgula, não só quebra de linha', () => {
-    expect(parseLista('1.2.3.4:80, 5.6.7.8:81; 9.9.9.9:82').urls).toHaveLength(3);
+  test('separa por vírgula e quebra de linha, NUNCA por ponto e vírgula', () => {
+    // O ponto-e-vírgula deixou de separar de propósito: ele é caractere
+    // legítimo dentro do nome de usuário de proxy, e fornecedores o usam para
+    // passar geolocalização (`cliente__cr.br;state.saopaulo`). Tratá-lo como
+    // separador quebrava a linha em pedaços inválidos e recusava a lista
+    // inteira sem explicar por quê.
+    //
+    // A troca tem custo: uma lista de proxies simples separada por `;` passa
+    // a virar uma linha só. Vale, porque `;` dentro de usuário é comum e
+    // quebra silenciosamente, enquanto lista separada por `;` é rara e falha
+    // de forma visível.
+    expect(parseLista('1.2.3.4:80, 5.6.7.8:81').urls).toHaveLength(2);
+    expect(parseLista('1.2.3.4:80\n5.6.7.8:81').urls).toHaveLength(2);
   });
 
   test('duplicata sai da lista — dois donos para o mesmo IP é o problema de volta', () => {
@@ -304,5 +315,66 @@ describe('listarAtribuicoes — aponta o que ainda está errado', () => {
 
     const r = await listarAtribuicoes();
     expect(JSON.stringify(r)).not.toContain('segredo');
+  });
+});
+
+describe('formato com parâmetros de geolocalização no usuário', () => {
+  // Vários fornecedores passam país, estado e cidade como parâmetros dentro do
+  // NOME DE USUÁRIO, separados por ponto-e-vírgula:
+  //
+  //     cliente__cr.br;state.saopaulo;city.adamantina
+  //
+  // Dois defeitos apareciam com isso, e os dois em silêncio.
+  const USUARIO = 'b6f6d9ca2694598643d0__cr.br;state.saopaulo;city.adamantina';
+
+  test('ponto-e-vírgula não separa linhas', () => {
+    // Era tratado como separador, e uma linha virava três entradas inválidas —
+    // a lista inteira do fornecedor recusada sem dizer por quê.
+    const { parseLista } = require('../src/services/proxyAssignment');
+    const r = parseLista(`host.axtron.io:11000:${USUARIO}:senha`);
+    expect(r.urls).toHaveLength(1);
+    expect(r.invalidas).toHaveLength(0);
+  });
+
+  test('ponto-e-vírgula chega literal ao fornecedor', () => {
+    // `encodeURIComponent` o transformava em %3B. O proxy conectava e o IP
+    // saía de outro lugar, porque o fornecedor não reconhecia o parâmetro.
+    const { parseLista } = require('../src/services/proxyAssignment');
+    const { urls } = parseLista(`host.axtron.io:11000:${USUARIO}:senha`);
+    expect(urls[0]).toContain(';state.saopaulo;city.adamantina');
+    expect(urls[0]).not.toContain('%3B');
+  });
+
+  test('os dois formatos produzem a mesma URL', () => {
+    const { parseLista } = require('../src/services/proxyAssignment');
+    const a = parseLista(`host.axtron.io:11000:${USUARIO}:senha`).urls[0];
+    const b = parseLista(`http://${USUARIO}:senha@host.axtron.io:11000`).urls[0];
+    expect(a).toBe(b);
+  });
+
+  test('arroba na senha continua escapada', () => {
+    // O escape ficou seletivo, não ausente: a arroba separa credencial de
+    // host e quebraria a URL se passasse crua.
+    const { parseLista } = require('../src/services/proxyAssignment');
+    const { urls } = parseLista(`host.axtron.io:11000:${USUARIO}:se@nha`);
+    expect(urls[0]).toContain('se%40nha');
+    expect(urls[0]).toContain('@host.axtron.io:11000');
+  });
+
+  test('portas diferentes viram proxies diferentes', () => {
+    // No axtron a sessão é definida pela PORTA: uma porta por conta é o que
+    // dá um IP fixo distinto a cada uma.
+    const { parseLista } = require('../src/services/proxyAssignment');
+    const lista = [11000, 11001, 11002]
+      .map(p => `host.axtron.io:${p}:${USUARIO}:senha`).join('\n');
+    const { urls } = parseLista(lista);
+    expect(urls).toHaveLength(3);
+    expect(new Set(urls).size).toBe(3);
+  });
+
+  test('vírgula continua separando', () => {
+    const { parseLista } = require('../src/services/proxyAssignment');
+    const { urls } = parseLista('1.2.3.4:8080, 5.6.7.8:9090');
+    expect(urls).toHaveLength(2);
   });
 });
