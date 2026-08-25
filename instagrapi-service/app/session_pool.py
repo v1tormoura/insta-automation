@@ -460,14 +460,72 @@ _proxies: dict[str, str] = {}
 
 def lembrar_proxy(account_id: str, proxy: str | None) -> None:
     """Guarda (ou esquece) o proxy desta conta para os clientes seguintes."""
+    anterior = _proxies.get(account_id)
     if proxy:
         _proxies[account_id] = proxy
     else:
         _proxies.pop(account_id, None)
+    # Proxy trocado no painel invalida o IP medido: ele descreve um caminho
+    # que não é mais usado, e mantê-lo faria o log afirmar algo falso.
+    if anterior != proxy:
+        _ips_confirmados.clear()
 
 
 def proxy_lembrado(account_id: str) -> str | None:
     return _proxies.get(account_id)
+
+
+# IP de saída já confirmado para cada proxy. A chave é o proxy, não a conta:
+# dez contas pelo mesmo proxy saem pelo mesmo IP, e perguntar dez vezes só
+# gastaria requisição.
+_ips_confirmados: dict[str, str] = {}
+
+
+def conferir_ip_de_saida(client, account_id: str, proxy: str | None) -> str | None:
+    """
+    De qual IP o Instagram enxerga esta sessão — medido, não presumido.
+
+    `set_proxy()` diz o que QUEREMOS que aconteça. Isto verifica o que
+    ACONTECE: a pergunta sai pela mesma sessão `public` que o login usa, com
+    os mesmos proxies aplicados, então a resposta é o endereço que o
+    Instagram vai ver.
+
+    A distinção importa porque as duas falhas mais prováveis são silenciosas:
+    um proxy que aceita a conexão e sai pelo IP do servidor mesmo assim, e um
+    proxy que não é aplicado por engano nosso. Nas duas, o log diria "proxy
+    configurado" e o tráfego sairia pelo endereço errado.
+
+    Mede uma vez por proxy e guarda. Erro aqui nunca derruba o login — sem a
+    medição seguimos sem ela, com o aviso no log.
+    """
+    chave = proxy or "__direto__"
+    if chave in _ips_confirmados:
+        return _ips_confirmados[chave]
+
+    try:
+        resp = client.public.get("https://api.ipify.org", timeout=12)
+        ip = (resp.text or "").strip()
+        if not ip:
+            raise ValueError("resposta vazia")
+        _ips_confirmados[chave] = ip
+        _slog(
+            "IP_DE_SAIDA", account_id,
+            ip=ip,
+            via=("proxy" if proxy else "direto"),
+        )
+        return ip
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "não foi possível confirmar o IP de saída da conta %s (%s) — o login "
+            "segue, mas sem saber por qual endereço", account_id, e,
+        )
+        return None
+
+
+def esquecer_ips_confirmados() -> None:
+    """Zera as medições. Necessário ao trocar de proxy: o IP guardado passa a
+    descrever um caminho que não é mais usado."""
+    _ips_confirmados.clear()
 
 
 async def get_entry(account_id: str) -> dict:

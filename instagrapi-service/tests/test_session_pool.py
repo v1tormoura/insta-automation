@@ -544,3 +544,94 @@ async def test_memoria_sobrevive_ao_despejo_do_pool():
     await session_pool.get_entry("conta-1")
     await session_pool.remove_entry("conta-1")
     assert session_pool.proxy_lembrado("conta-1") == PROXY_A
+
+
+# ── medição do IP de saída ────────────────────────────────────────────────────
+#
+# `set_proxy()` diz o que QUEREMOS. A medição diz o que ACONTECE. As duas
+# falhas mais prováveis são silenciosas: um proxy que aceita a conexão e sai
+# pelo IP do servidor mesmo assim, e um proxy que não foi aplicado por engano
+# nosso. Nas duas o log diria "proxy configurado" e o tráfego sairia errado.
+
+class _RespostaFalsa:
+    def __init__(self, texto): self.text = texto
+
+
+class _ClienteFalso:
+    """Cliente com a sessão `public` trocada por um dublê."""
+    def __init__(self, ip=None, erro=None):
+        self.chamadas = 0
+        self._ip, self._erro = ip, erro
+        cliente = self
+
+        class _Public:
+            def get(self, url, timeout=None):
+                cliente.chamadas += 1
+                if cliente._erro:
+                    raise cliente._erro
+                return _RespostaFalsa(cliente._ip)
+
+        self.public = _Public()
+
+
+@pytest.fixture(autouse=True)
+def _limpa_ips():
+    from app import session_pool
+    session_pool.esquecer_ips_confirmados()
+    yield
+    session_pool.esquecer_ips_confirmados()
+
+
+def test_mede_e_devolve_o_ip():
+    from app import session_pool
+    c = _ClienteFalso(ip="45.182.99.209")
+    assert session_pool.conferir_ip_de_saida(c, "conta-1", "http://p:1") == "45.182.99.209"
+
+
+def test_mede_uma_vez_por_proxy():
+    """
+    Dez contas pelo mesmo proxy saem pelo mesmo IP. Perguntar dez vezes
+    gastaria requisição — e requisição é o recurso escasso aqui.
+    """
+    from app import session_pool
+    c = _ClienteFalso(ip="45.182.99.209")
+    for conta in ("c1", "c2", "c3"):
+        session_pool.conferir_ip_de_saida(c, conta, "http://mesmo:1")
+    assert c.chamadas == 1
+
+
+def test_proxies_diferentes_sao_medidos_separadamente():
+    from app import session_pool
+    a = _ClienteFalso(ip="45.182.99.209")
+    b = _ClienteFalso(ip="177.10.20.30")
+    assert session_pool.conferir_ip_de_saida(a, "c1", "http://um:1") == "45.182.99.209"
+    assert session_pool.conferir_ip_de_saida(b, "c2", "http://dois:2") == "177.10.20.30"
+
+
+def test_trocar_de_proxy_invalida_a_medicao():
+    """
+    O IP guardado descreve um caminho. Trocado o caminho, mantê-lo faria o
+    log afirmar algo falso — pior que não medir.
+    """
+    from app import session_pool
+    c = _ClienteFalso(ip="45.182.99.209")
+    session_pool.lembrar_proxy("c1", "http://antigo:1")
+    session_pool.conferir_ip_de_saida(c, "c1", "http://antigo:1")
+
+    session_pool.lembrar_proxy("c1", "http://novo:2")
+    c2 = _ClienteFalso(ip="177.10.20.30")
+    assert session_pool.conferir_ip_de_saida(c2, "c1", "http://novo:2") == "177.10.20.30"
+    assert c2.chamadas == 1, "deveria medir de novo após a troca"
+
+
+def test_falha_na_medicao_nunca_derruba_o_login():
+    """Sem a medição seguimos sem ela. Um login perdido é pior que um log incompleto."""
+    from app import session_pool
+    c = _ClienteFalso(erro=RuntimeError("proxy fora do ar"))
+    assert session_pool.conferir_ip_de_saida(c, "c1", "http://p:1") is None
+
+
+def test_resposta_vazia_conta_como_falha():
+    from app import session_pool
+    c = _ClienteFalso(ip="   ")
+    assert session_pool.conferir_ip_de_saida(c, "c1", "http://p:1") is None

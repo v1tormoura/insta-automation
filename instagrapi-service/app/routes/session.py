@@ -118,6 +118,13 @@ async def login(body: LoginRequest):
             origem=("conta" if body.proxy else ("global_env" if proxy else "direto")),
         )
 
+        # E de qual IP o Instagram vai enxergar esta sessão. A linha acima diz
+        # o que pedimos; esta diz o que acontece — sai pela MESMA sessão que o
+        # login usa, com os mesmos proxies. Um proxy que aceita a conexão e
+        # ainda assim sai pelo IP do servidor falha em silêncio, e só a
+        # medição separa isso de "configurado corretamente".
+        await loop_ip_de_saida(client, body.account_id, proxy)
+
         # Run the blocking Instagram I/O in a thread so the asyncio event loop
         # stays responsive to other requests during the 20-90 s login round-trip.
         loop = asyncio.get_running_loop()
@@ -261,6 +268,14 @@ async def diagnostico(body: DiagnosticoRequest):
         k: v for k, v in resultado.items() if k != "identidade"
     })
     return resultado
+
+
+async def loop_ip_de_saida(client, account_id: str, proxy: str | None) -> None:
+    """Mede o IP de saída fora do event loop — a chamada é bloqueante."""
+    laco = asyncio.get_running_loop()
+    await laco.run_in_executor(
+        None, lambda: session_pool.conferir_ip_de_saida(client, account_id, proxy)
+    )
 
 
 def _mascarar_proxy(url: str | None) -> str | None:
