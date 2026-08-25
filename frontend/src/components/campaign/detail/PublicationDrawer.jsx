@@ -83,21 +83,21 @@ function Secao({ titulo, children, className = '' }) {
 
 function BlocoErro({ titulo, codigo, mensagem, tentativa, mapa }) {
   return (
-    <div className="rounded-[9px] border border-[rgba(244,63,94,.26)] bg-[rgba(244,63,94,.06)] p-3">
+    <div className="rounded-[9px] border border-[color-mix(in oklch, var(--mf-danger-500) 26%, transparent)] bg-[color-mix(in oklch, var(--mf-danger-500) 6%, transparent)] p-3">
       <div className="flex items-center gap-2">
-        <AlertTriangle size={13} className="shrink-0 text-[var(--red)]" />
-        <span className="text-[11.5px] font-bold text-[var(--red)]">{titulo}</span>
+        <AlertTriangle size={13} className="shrink-0 text-[var(--mf-danger-500)]" />
+        <span className="text-[11.5px] font-bold text-[var(--mf-danger-500)]">{titulo}</span>
       </div>
-      <div className="mt-1.5 font-mono text-[11px] font-bold text-[var(--red)]">
+      <div className="mt-1.5 font-mono text-[11px] font-bold text-[var(--mf-danger-500)]">
         {descreverErro(codigo, mapa)}
       </div>
       {mensagem && (
-        <p className="mt-1.5 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[var(--text3)]">
+        <p className="mt-1.5 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[var(--mf-text-3)]">
           {mensagem}
         </p>
       )}
       {tentativa > 0 && (
-        <div className="mt-1.5 font-mono text-[10px] tabular-nums text-[var(--text3)]">
+        <div className="mt-1.5 font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
           tentativa {tentativa}
         </div>
       )}
@@ -118,7 +118,7 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
       <SheetContent>
         <SheetHeader>
           <SheetTitle>
-            <span className="font-mono text-[var(--text3)]">#{pub.order}</span>{' '}
+            <span className="font-mono text-[var(--mf-text-3)]">#{pub.order}</span>{' '}
             {nomeConta(pub.account)}
           </SheetTitle>
           <SheetDescription>{nomeConteudo(pub.content)}</SheetDescription>
@@ -130,21 +130,21 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
             <div className="flex min-w-0 items-center gap-2">
               <ContaAvatar conta={pub.account} size={32} />
               <div className="min-w-0">
-                <div className="truncate text-[12px] font-bold text-[var(--text)]">
+                <div className="truncate text-[12px] font-bold text-[var(--mf-text)]">
                   {nomeConta(pub.account)}
                 </div>
                 {pub.account?.name && (
-                  <div className="truncate text-[10.5px] text-[var(--text3)]">{pub.account.name}</div>
+                  <div className="truncate text-[10.5px] text-[var(--mf-text-3)]">{pub.account.name}</div>
                 )}
               </div>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <ConteudoThumb conteudo={pub.content} size={32} />
               <div className="min-w-0">
-                <div className="truncate text-[12px] font-semibold text-[var(--text2)]">
+                <div className="truncate text-[12px] font-semibold text-[var(--mf-text-2)]">
                   {nomeConteudo(pub.content)}
                 </div>
-                <div className="truncate font-mono text-[10px] text-[var(--text3)]">
+                <div className="truncate font-mono text-[10px] text-[var(--mf-text-3)]">
                   {pub.content?.filename || ''}
                 </div>
               </div>
@@ -154,18 +154,18 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
           <Secao titulo="Agendamento">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
               <div>
-                <div className="font-mono text-[12px] font-bold tabular-nums text-[var(--text2)]">
+                <div className="font-mono text-[12px] font-bold tabular-nums text-[var(--mf-text-2)]">
                   {dataCurta(pub.scheduledAt)} · {horaCurta(pub.scheduledAt)}
                 </div>
                 {pub.publishedAt && (
-                  <div className="mt-0.5 text-[10.5px] text-[var(--text3)]">
+                  <div className="mt-0.5 text-[10.5px] text-[var(--mf-text-3)]">
                     Publicada {quando(pub.publishedAt)}
                   </div>
                 )}
               </div>
               <StatusBadge status={pub.status} />
               {pub.attempts > 0 && (
-                <span className="font-mono text-[10.5px] tabular-nums text-[var(--text3)]">
+                <span className="font-mono text-[10.5px] tabular-nums text-[var(--mf-text-3)]">
                   {pub.attempts} tentativa{pub.attempts === 1 ? '' : 's'}
                 </span>
               )}
@@ -174,20 +174,20 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
 
           <Secao titulo="Legenda final">
             {pub.resolvedCaption ? (
-              <p className="whitespace-pre-wrap break-words rounded-[8px] border border-[var(--border)] bg-[rgba(255,255,255,.02)] p-3 text-[11.5px] leading-relaxed text-[var(--text2)]">
+              <p className="whitespace-pre-wrap break-words rounded-[8px] border border-[var(--border)] bg-[var(--mf-border-subtle)] p-3 text-[11.5px] leading-relaxed text-[var(--mf-text-2)]">
                 {pub.resolvedCaption}
               </p>
             ) : (
-              <p className="text-[11.5px] italic text-[var(--text3)]">Sem legenda.</p>
+              <p className="text-[11.5px] italic text-[var(--mf-text-3)]">Sem legenda.</p>
             )}
             {/* O template só aparece quando difere — se for igual, repetir o
                 mesmo texto duas vezes só ocupa espaço. */}
             {pub.captionTemplate && pub.captionTemplate !== pub.resolvedCaption && (
               <details className="mt-2">
-                <summary className="cursor-pointer text-[10.5px] text-[var(--text3)] hover:text-[var(--text2)]">
+                <summary className="cursor-pointer text-[10.5px] text-[var(--mf-text-3)] hover:text-[var(--mf-text-2)]">
                   Ver template com as marcações
                 </summary>
-                <p className="mt-1.5 whitespace-pre-wrap break-words font-mono text-[10.5px] leading-relaxed text-[var(--text3)]">
+                <p className="mt-1.5 whitespace-pre-wrap break-words font-mono text-[10.5px] leading-relaxed text-[var(--mf-text-3)]">
                   {pub.captionTemplate}
                 </p>
               </details>
@@ -199,23 +199,23 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={pub.commentStatus} mapa={STATUS_COMENTARIO} />
                 {pub.commentPostedAt && (
-                  <span className="font-mono text-[10.5px] tabular-nums text-[var(--text3)]">
+                  <span className="font-mono text-[10.5px] tabular-nums text-[var(--mf-text-3)]">
                     {quando(pub.commentPostedAt)}
                   </span>
                 )}
                 {pub.commentAttempts > 0 && (
-                  <span className="font-mono text-[10.5px] tabular-nums text-[var(--text3)]">
+                  <span className="font-mono text-[10.5px] tabular-nums text-[var(--mf-text-3)]">
                     {pub.commentAttempts} tentativa{pub.commentAttempts === 1 ? '' : 's'}
                   </span>
                 )}
                 {pub.hasMediaLink && (
-                  <span className="text-[10px] text-[var(--text3)]" title="O comentário vai para a mídia exata desta publicação">
+                  <span className="text-[10px] text-[var(--mf-text-3)]" title="O comentário vai para a mídia exata desta publicação">
                     vinculado à publicação
                   </span>
                 )}
               </div>
               {pub.resolvedComment && (
-                <p className="mt-2 whitespace-pre-wrap break-words rounded-[8px] border border-[var(--border)] bg-[rgba(255,255,255,.02)] p-3 text-[11.5px] leading-relaxed text-[var(--text2)]">
+                <p className="mt-2 whitespace-pre-wrap break-words rounded-[8px] border border-[var(--border)] bg-[var(--mf-border-subtle)] p-3 text-[11.5px] leading-relaxed text-[var(--mf-text-2)]">
                   {pub.resolvedComment}
                 </p>
               )}
@@ -254,27 +254,27 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
                   <div className="flex flex-col items-center">
                     <span
                       className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                        et.erro    ? 'bg-[var(--red)]'
-                        : et.atingida ? 'bg-[var(--green)]'
-                        : 'bg-[rgba(255,255,255,.14)]'
+                        et.erro    ? 'bg-[var(--mf-danger-500)]'
+                        : et.atingida ? 'bg-[var(--mf-success-500)]'
+                        : 'bg-[var(--mf-border-strong)]'
                       }`}
                     />
                     {i < etapas.length - 1 && (
-                      <span className={`w-px flex-1 ${et.atingida ? 'bg-[rgba(16,185,129,.28)]' : 'bg-[rgba(255,255,255,.08)]'}`} />
+                      <span className={`w-px flex-1 ${et.atingida ? 'bg-[color-mix(in oklch, var(--mf-success-500) 28%, transparent)]' : 'bg-[var(--mf-border)]'}`} />
                     )}
                   </div>
                   <div className={`pb-3 ${i === etapas.length - 1 ? 'pb-0' : ''}`}>
                     <div
                       className={`text-[11.5px] font-semibold ${
-                        et.erro    ? 'text-[var(--red)]'
-                        : et.atingida ? 'text-[var(--text2)]'
-                        : 'text-[var(--text3)]'
+                        et.erro    ? 'text-[var(--mf-danger-500)]'
+                        : et.atingida ? 'text-[var(--mf-text-2)]'
+                        : 'text-[var(--mf-text-3)]'
                       }`}
                     >
                       {et.rotulo}
                     </div>
                     {et.em && (
-                      <div className="font-mono text-[10px] tabular-nums text-[var(--text3)]">
+                      <div className="font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
                         {dataCurta(et.em)} · {horaCurta(et.em)}
                       </div>
                     )}

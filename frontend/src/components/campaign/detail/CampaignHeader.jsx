@@ -67,9 +67,9 @@ export default function CampaignHeader({
 
   const linha = (Icone, rotulo, valor) => (
     <div className="flex min-w-0 items-center gap-2">
-      <Icone size={13} className="shrink-0 text-[var(--text3)]" />
-      <span className="shrink-0 text-[10.5px] text-[var(--text3)]">{rotulo}</span>
-      <span className="truncate text-[11.5px] font-semibold text-[var(--text2)]">{valor}</span>
+      <Icone size={13} className="shrink-0 text-[var(--mf-text-3)]" />
+      <span className="shrink-0 text-[10.5px] text-[var(--mf-text-3)]">{rotulo}</span>
+      <span className="truncate text-[11.5px] font-semibold text-[var(--mf-text-2)]">{valor}</span>
     </div>
   );
 
@@ -87,13 +87,13 @@ export default function CampaignHeader({
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-[17px] font-bold leading-tight text-[var(--text)] sm:text-[19px]">
+              <h1 className="truncate text-[17px] font-bold leading-tight text-[var(--mf-text)] sm:text-[19px]">
                 {campanha.name}
               </h1>
               <Badge variant={st.badge}>{st.rotulo}</Badge>
             </div>
             {campanha.description && (
-              <p className="mt-1 line-clamp-2 max-w-[62ch] text-[11.5px] leading-relaxed text-[var(--text3)]">
+              <p className="mt-1 line-clamp-2 max-w-[62ch] text-[11.5px] leading-relaxed text-[var(--mf-text-3)]">
                 {campanha.description}
               </p>
             )}
@@ -108,7 +108,7 @@ export default function CampaignHeader({
               <Button
                 key={acao} variant={b.variant} size="sm" disabled={agindo}
                 onClick={() => onAcao(acao)}
-                className={acao === 'cancel' ? 'text-[var(--red)] hover:text-[var(--red)]' : undefined}
+                className={acao === 'cancel' ? 'text-[var(--mf-danger-500)] hover:text-[var(--mf-danger-500)]' : undefined}
               >
                 <b.Icone size={13} />
                 {b.rotulo}
@@ -135,26 +135,26 @@ export default function CampaignHeader({
       <div className="mt-3.5 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-[var(--border)] pt-3.5">
         <div>
           <Eyebrow>Criada</Eyebrow>
-          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--text2)]">
+          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--mf-text-2)]">
             {dataCurta(campanha.createdAt)}
           </div>
         </div>
         <div>
           <Eyebrow>Iniciada</Eyebrow>
-          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--text2)]">
+          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--mf-text-2)]">
             {campanha.startedAt ? dataCurta(campanha.startedAt) : '—'}
           </div>
         </div>
         <div>
           <Eyebrow>Concluída</Eyebrow>
-          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--text2)]">
+          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--mf-text-2)]">
             {campanha.completedAt ? dataCurta(campanha.completedAt) : '—'}
           </div>
         </div>
         {campanha.strategy?.seed && (
           <div className="min-w-0">
             <Eyebrow>Semente</Eyebrow>
-            <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--text2)]">
+            <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--mf-text-2)]">
               {campanha.strategy.seed}
             </div>
           </div>

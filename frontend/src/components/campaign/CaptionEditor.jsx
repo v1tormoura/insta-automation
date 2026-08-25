@@ -214,11 +214,11 @@ export default function CaptionEditor({
           return (
             <span key={v} title={ok ? 'Será substituída na publicação' : 'Não existe — será publicada como texto'}
               style={{
-                fontFamily:'var(--font-mono)', fontSize:9, fontWeight:700,
+                fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700,
                 padding:'2px 6px', borderRadius:5,
-                background: ok ? 'rgba(0,212,255,.12)' : 'rgba(248,113,113,.14)',
-                color:      ok ? 'var(--cyan)' : '#f87171',
-                border: `1px solid ${ok ? 'rgba(0,212,255,.25)' : 'rgba(248,113,113,.3)'}`,
+                background: ok ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
+                color:      ok ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-danger-500)',
+                border: `1px solid ${ok ? 'color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)'}`,
               }}>
               {ok ? '' : '⚠ '}{`{${v}}`}
             </span>
@@ -230,20 +230,20 @@ export default function CaptionEditor({
 
   const contador = (texto) => (
     <span style={{
-      fontFamily:'var(--font-mono)', fontSize:9.5, flexShrink:0,
-      color: texto.length > LIMITE ? '#f87171' : 'var(--text3)',
+      fontFamily:'var(--mf-mono)', fontSize:9.5, flexShrink:0,
+      color: texto.length > LIMITE ? 'var(--mf-danger-500)' : 'var(--mf-text-3)',
     }}>{texto.length}/{LIMITE}</span>
   );
 
-  const botaoAcao = (rotulo, aoClicar, cor = 'var(--text3)') => (
+  const botaoAcao = (rotulo, aoClicar, cor = 'var(--mf-text-3)') => (
     <button onClick={aoClicar} style={{
       padding:'5px 10px', borderRadius:7, fontSize:10.5, fontWeight:700, cursor:'pointer',
-      background:'oklch(1 0 0 / 0.04)', color: cor, border:'1px solid oklch(1 0 0 / 0.08)',
+      background:'var(--mf-border-subtle)', color: cor, border:'1px solid var(--mf-border)',
     }}>{rotulo}</button>
   );
 
   return (
-    <div style={{ background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid oklch(1 0 0 / 0.08)',
+    <div style={{ background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
       borderRadius:14, padding:16, marginBottom:14 }}>
 
       <h3 style={{ margin:'0 0 12px', fontSize:13, fontWeight:700 }}>{titulo}</h3>
@@ -255,13 +255,13 @@ export default function CaptionEditor({
           return (
             <button key={m.id} onClick={() => onModeChange(m.id)} title={m.desc} style={{
               textAlign:'left', padding:'9px 11px', borderRadius:9, cursor:'pointer', transition:'all .15s',
-              background: ativo ? 'rgba(0,212,255,.1)' : 'oklch(1 0 0 / 0.03)',
-              border: `1px solid ${ativo ? 'rgba(0,212,255,.35)' : 'oklch(1 0 0 / 0.07)'}`,
+              background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)' : 'var(--mf-border-subtle)',
+              border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : 'var(--mf-border)'}`,
             }}>
-              <div style={{ fontSize:11.5, fontWeight:700, color: ativo ? 'var(--cyan)' : 'var(--text2)' }}>
+              <div style={{ fontSize:11.5, fontWeight:700, color: ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)' }}>
                 {m.rotulo}
               </div>
-              <div style={{ fontSize:10, color:'var(--text3)', marginTop:2, lineHeight:1.4 }}>{m.desc}</div>
+              <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:2, lineHeight:1.4 }}>{m.desc}</div>
             </button>
           );
         })}
@@ -280,11 +280,11 @@ export default function CaptionEditor({
               <VariableInserter onInsert={m => inserirVariavel(
                 m, captions.global || '', t => onChange({ ...captions, global: t }))} />
               <button onClick={() => setModalBiblioteca({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
-                style={{ padding:'4px 8px', borderRadius:6, fontSize:10, fontWeight:700, cursor:'pointer', background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+                style={{ padding:'4px 8px', borderRadius:6, fontSize:10, fontWeight:700, cursor:'pointer', background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', border:'1px solid var(--mf-border)' }}>
                 📚 Biblioteca
               </button>
               <button onClick={() => setModalIA({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
-                style={{ padding:'4px 8px', borderRadius:6, fontSize:10, fontWeight:700, cursor:'pointer', background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)' }}>
+                style={{ padding:'4px 8px', borderRadius:6, fontSize:10, fontWeight:700, cursor:'pointer', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)' }}>
                 ✨ Gerar IA
               </button>
             </div>
@@ -300,7 +300,7 @@ export default function CaptionEditor({
           {/* Seletor de conta no modo combinado */}
           {mode === 'per_account_content' && (
             <div style={{ marginBottom:12 }}>
-              <div style={{ fontSize:10.5, color:'var(--text3)', marginBottom:6 }}>
+              <div style={{ fontSize:10.5, color:'var(--mf-text-3)', marginBottom:6 }}>
                 Escolha a conta para editar os textos dos conteúdos dela:
               </div>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -310,12 +310,12 @@ export default function CaptionEditor({
                   return (
                     <button key={a.id} onClick={() => setContaAtiva(a.id)} style={{
                       padding:'6px 11px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-                      background: ativa ? 'rgba(139,92,246,.16)' : 'oklch(1 0 0 / 0.04)',
-                      color:      ativa ? '#a78bfa' : 'var(--text3)',
-                      border:     `1px solid ${ativa ? 'rgba(139,92,246,.35)' : 'oklch(1 0 0 / 0.08)'}`,
+                      background: ativa ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)' : 'var(--mf-border-subtle)',
+                      color:      ativa ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
+                      border:     `1px solid ${ativa ? 'color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)' : 'var(--mf-border)'}`,
                     }}>
                       {a.label}
-                      <span style={{ marginLeft:6, fontFamily:'var(--font-mono)', fontSize:9, opacity:.8 }}>
+                      <span style={{ marginLeft:6, fontFamily:'var(--mf-mono)', fontSize:9, opacity:.8 }}>
                         {feitas}/{contents.length}
                       </span>
                     </button>
@@ -327,10 +327,10 @@ export default function CaptionEditor({
 
           {/* Ações em massa */}
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
-            {botaoAcao('Aplicar a todas', aplicarATodas, 'var(--cyan)')}
-            {botaoAcao('Preencher vazias', duplicarNasVazias, '#a78bfa')}
-            {botaoAcao('Limpar', limpar, '#f87171')}
-            <span style={{ marginLeft:'auto', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)' }}>
+            {botaoAcao('Aplicar a todas', aplicarATodas, 'var(--mf-mod, var(--mf-accent-500))')}
+            {botaoAcao('Preencher vazias', duplicarNasVazias, 'var(--mf-mod-publicar)')}
+            {botaoAcao('Limpar', limpar, 'var(--mf-danger-500)')}
+            <span style={{ marginLeft:'auto', fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)' }}>
               {preenchidas}/{linhas.length} preenchidas
             </span>
           </div>
@@ -341,7 +341,7 @@ export default function CaptionEditor({
               const texto = ler(mapaAtual, l.chave);
               return (
                 <div key={l.chave} style={{
-                  border:'1px solid oklch(1 0 0 / 0.07)', borderRadius:10, padding:'9px 11px',
+                  border:'1px solid var(--mf-border)', borderRadius:10, padding:'9px 11px',
                   background:'oklch(0.12 0.04 235 / 0.5)',
                 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:6 }}>
@@ -360,11 +360,11 @@ export default function CaptionEditor({
                       <VariableInserter compacto onInsert={m => inserirVariavel(
                         m, texto, t => escrever(mapaAtual, l.chave, t))} />
                       <button onClick={() => setModalBiblioteca({ ativa: true, alvo: { mapa: mapaAtual, chave: l.chave } })}
-                        style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+                        style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', border:'1px solid var(--mf-border)' }}>
                         📚 Biblioteca
                       </button>
                       <button onClick={() => setModalIA({ ativa: true, alvo: { mapa: mapaAtual, chave: l.chave } })}
-                        style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)' }}>
+                        style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)' }}>
                         ✨ IA
                       </button>
                     </div>
@@ -375,7 +375,7 @@ export default function CaptionEditor({
             })}
 
             {!linhas.length && (
-              <div style={{ padding:'22px 0', textAlign:'center', color:'var(--text3)', fontSize:11.5 }}>
+              <div style={{ padding:'22px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize:11.5 }}>
                 {mode === 'per_account'
                   ? 'Selecione contas na etapa anterior.'
                   : 'Selecione conteúdos na etapa anterior.'}
@@ -384,8 +384,8 @@ export default function CaptionEditor({
           </div>
 
           {/* Legenda geral como reserva */}
-          <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid oklch(1 0 0 / 0.06)' }}>
-            <div style={{ fontSize:10.5, color:'var(--text3)', marginBottom:6 }}>
+          <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--mf-border)' }}>
+            <div style={{ fontSize:10.5, color:'var(--mf-text-3)', marginBottom:6 }}>
               Legenda geral — usada onde o campo acima ficar vazio
             </div>
             <textarea className="input" rows={2} style={{ width:'100%', resize:'vertical', fontSize:12 }}
@@ -398,11 +398,11 @@ export default function CaptionEditor({
                 <VariableInserter compacto onInsert={m => inserirVariavel(
                   m, captions?.global || '', t => onChange?.({ ...(captions || {}), global: t }))} />
                 <button onClick={() => setModalBiblioteca({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
-                  style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'oklch(1 0 0 / 0.05)', color:'var(--text2)', border:'1px solid oklch(1 0 0 / 0.1)' }}>
+                  style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', border:'1px solid var(--mf-border)' }}>
                   📚 Biblioteca
                 </button>
                 <button onClick={() => setModalIA({ ativa: true, alvo: { mapa: 'global', chave: 'global' } })}
-                  style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'rgba(139,92,246,.12)', color:'#a78bfa', border:'1px solid rgba(139,92,246,.28)' }}>
+                  style={{ padding:'4px 8px', borderRadius:6, fontSize:9.5, fontWeight:700, cursor:'pointer', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)' }}>
                   ✨ IA
                 </button>
               </div>

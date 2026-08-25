@@ -13,15 +13,15 @@ import { Eyebrow, ContaAvatar, nomeConta, nomeConteudo, STATUS_PUB, Vazio } from
  */
 
 const SIMBOLO = {
-  published:  { s: '✓', cor: 'text-[var(--green)] bg-[rgba(16,185,129,.1)]' },
-  scheduled:  { s: '◷', cor: 'text-[var(--cyan)] bg-[rgba(0,212,255,.08)]' },
-  pending:    { s: '◷', cor: 'text-[var(--text3)] bg-[rgba(255,255,255,.03)]' },
-  processing: { s: '⚙', cor: 'text-[#60a5fa] bg-[rgba(96,165,250,.12)]' },
-  failed:     { s: '✕', cor: 'text-[var(--red)] bg-[rgba(244,63,94,.1)]' },
-  cancelled:  { s: '—', cor: 'text-[var(--text3)] bg-[rgba(255,255,255,.02)]' },
+  published:  { s: '✓', cor: 'text-[var(--mf-success-500)] bg-[color-mix(in oklch, var(--mf-success-500) 10%, transparent)]' },
+  scheduled:  { s: '◷', cor: 'text-[var(--mf-mod, var(--mf-accent-500))] bg-[color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)]' },
+  pending:    { s: '◷', cor: 'text-[var(--mf-text-3)] bg-[var(--mf-border-subtle)]' },
+  processing: { s: '⚙', cor: 'text-[var(--mf-info-500)] bg-[color-mix(in oklch, var(--mf-info-500) 12%, transparent)]' },
+  failed:     { s: '✕', cor: 'text-[var(--mf-danger-500)] bg-[color-mix(in oklch, var(--mf-danger-500) 10%, transparent)]' },
+  cancelled:  { s: '—', cor: 'text-[var(--mf-text-3)] bg-[var(--mf-border-subtle)]' },
 };
 
-const NAO_PLANEJADO = { s: '·', cor: 'text-[var(--text3)] opacity-40' };
+const NAO_PLANEJADO = { s: '·', cor: 'text-[var(--mf-text-3)] opacity-40' };
 
 export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
   const { contas, conteudos, porPar } = useMemo(() => {
@@ -55,11 +55,11 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
     <div className="rounded-[13px] border border-[var(--card-border)] bg-[var(--card)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Eyebrow>Matriz de distribuição</Eyebrow>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9.5px] text-[var(--text3)]">
-          <span><span className="text-[var(--green)]">✓</span> publicado</span>
-          <span><span className="text-[var(--cyan)]">◷</span> agendado</span>
-          <span><span className="text-[#60a5fa]">⚙</span> processando</span>
-          <span><span className="text-[var(--red)]">✕</span> falhou</span>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9.5px] text-[var(--mf-text-3)]">
+          <span><span className="text-[var(--mf-success-500)]">✓</span> publicado</span>
+          <span><span className="text-[var(--mf-mod, var(--mf-accent-500))]">◷</span> agendado</span>
+          <span><span className="text-[var(--mf-info-500)]">⚙</span> processando</span>
+          <span><span className="text-[var(--mf-danger-500)]">✕</span> falhou</span>
           <span className="opacity-60">· não planejado</span>
         </div>
       </div>
@@ -72,14 +72,14 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 bg-[var(--card)] pr-2 text-left text-[9.5px] font-bold uppercase tracking-[.06em] text-[var(--text3)]"
+                className="sticky left-0 z-10 bg-[var(--card)] pr-2 text-left text-[9.5px] font-bold uppercase tracking-[.06em] text-[var(--mf-text-3)]"
               >
                 Conta
               </th>
               {conteudos.map(({ id, conteudo }) => (
                 <th key={id} scope="col" className="px-1 pb-1">
                   <div
-                    className="mx-auto max-w-[74px] truncate text-[10px] font-semibold text-[var(--text3)]"
+                    className="mx-auto max-w-[74px] truncate text-[10px] font-semibold text-[var(--mf-text-3)]"
                     title={nomeConteudo(conteudo)}
                   >
                     {nomeConteudo(conteudo)}
@@ -99,7 +99,7 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
                 >
                   <span className="flex items-center gap-1.5">
                     <ContaAvatar conta={conta} size={18} />
-                    <span className="max-w-[110px] truncate text-[11px] font-semibold text-[var(--text2)]">
+                    <span className="max-w-[110px] truncate text-[11px] font-semibold text-[var(--mf-text-2)]">
                       {nomeConta(conta)}
                     </span>
                   </span>
@@ -122,7 +122,7 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
                         aria-label={rotulo}
                         className={`flex h-8 w-full min-w-[52px] items-center justify-center rounded-[6px] text-[13px] font-bold transition-transform ${marca.cor} ${
                           pub
-                            ? 'cursor-pointer hover:scale-[1.12] focus-visible:outline-2 focus-visible:outline-[var(--cyan)]'
+                            ? 'cursor-pointer hover:scale-[1.12] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]'
                             : 'cursor-default'
                         }`}
                       >

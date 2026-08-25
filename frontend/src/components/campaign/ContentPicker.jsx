@@ -365,6 +365,9 @@ export default function ContentPicker({
                       style={{
                         position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: '50%',
                         display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0,
+                        /* Branco literal, não token: isto flutua sobre a FOTO,
+                           não sobre a superfície do app. Um token de texto
+                           seguiria o tema e sumiria sobre a imagem. */
                         background: 'oklch(0 0 0 / .55)', border: '1px solid oklch(1 0 0 / .22)',
                         color: '#fff', fontSize: 12, lineHeight: 1,
                       }}>×</button>
@@ -500,6 +503,8 @@ export default function ContentPicker({
                        nome do arquivo não passar por baixo dele. */
                     padding: video && marcado ? '20px 38px 8px 9px' : '20px 9px 8px',
                     background: 'linear-gradient(to top, oklch(0 0 0 / .9), transparent)',
+                    /* Sobre o gradiente preto da miniatura — branco literal
+                       pelo mesmo motivo do botão de remover. */
                     fontSize: 10, fontWeight: 600, color: '#fff',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
@@ -524,6 +529,8 @@ export default function ContentPicker({
                       width: 26, height: 26, borderRadius: 8, padding: 0, cursor: 'pointer',
                       display: 'grid', placeItems: 'center', overflow: 'hidden',
                       background: capa ? 'transparent' : 'oklch(0 0 0 / .6)',
+                      /* A borda também é branca literal: `--mf-surface-3` é
+                         opaca e escura, e sumiria contra fotos escuras. */
                       border: `1.5px solid ${capa ? 'var(--mf-mod-publicar)' : 'oklch(1 0 0 / .35)'}`,
                       color: '#fff',
                     }}>

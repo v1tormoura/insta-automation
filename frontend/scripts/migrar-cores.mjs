@@ -222,10 +222,24 @@ const FORA_DA_CASCA = new Set([
   'Login.jsx', 'Termos.jsx', 'Privacidade.jsx', 'OAuthCallback.jsx',
 ]);
 
+/* `**` e não `*`: a primeira passagem varreu só o primeiro nível e deixou
+   `components/campaign/` e `components/campaign/detail/` inteiros de fora —
+   catorze arquivos com quase quatrocentas cores literais, que nunca chegaram
+   ao relatório porque nunca foram lidos. */
+/* Arquivos com cor literal DELIBERADA, que uma nova passagem desfaria.
+   No ContentPicker há branco e preto sobre a FOTO da miniatura: o nome do
+   arquivo no gradiente, o botão de remover, a borda do botão de capa. Não são
+   cores da superfície do app — seguir o tema faria o texto sumir contra a
+   imagem. O motivo está comentado em cada um dos três pontos. */
+const PRESERVAM_LITERAL = new Set(['ContentPicker.jsx']);
+
 const arquivos = (alvos.length
   ? alvos
-  : globSync('src/pages/*.jsx').concat(globSync('src/components/*.jsx'))
-).filter(f => !FORA_DA_CASCA.has(f.split(/[\\/]/).pop()));
+  : globSync('src/pages/**/*.jsx').concat(globSync('src/components/**/*.jsx'))
+).filter(f => {
+  const nome = f.split(/[\\/]/).pop();
+  return !FORA_DA_CASCA.has(nome) && !PRESERVAM_LITERAL.has(nome);
+});
 
 let total = 0;
 const relatorio = [];

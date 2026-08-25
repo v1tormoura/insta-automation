@@ -77,9 +77,9 @@ export default function VariableInserter({ onInsert, compacto = false }) {
         style={{
           padding: compacto ? '3px 8px' : '5px 10px',
           borderRadius: 7, fontSize: compacto ? 10 : 10.5, fontWeight: 700, cursor: 'pointer',
-          background: aberto ? 'rgba(0,212,255,.14)' : 'oklch(1 0 0 / 0.04)',
-          color: aberto ? 'var(--cyan)' : 'var(--text3)',
-          border: `1px solid ${aberto ? 'rgba(0,212,255,.35)' : 'oklch(1 0 0 / 0.08)'}`,
+          background: aberto ? 'color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)' : 'var(--mf-border-subtle)',
+          color: aberto ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
+          border: `1px solid ${aberto ? 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : 'var(--mf-border)'}`,
           whiteSpace: 'nowrap',
         }}
       >
@@ -91,7 +91,7 @@ export default function VariableInserter({ onInsert, compacto = false }) {
           position: 'absolute', zIndex: 60, top: 'calc(100% + 6px)', left: 0,
           minWidth: 240, maxHeight: 260, overflowY: 'auto', padding: 6,
           borderRadius: 10, background: 'oklch(0.13 0.04 235 / 0.98)',
-          border: '1px solid oklch(1 0 0 / 0.12)', boxShadow: '0 14px 40px oklch(0 0 0 / .5)',
+          border: '1px solid var(--mf-border-strong)', boxShadow: '0 14px 40px oklch(0 0 0 / .5)',
           backdropFilter: 'blur(12px)',
         }}>
           {variaveis.map(v => (
@@ -103,14 +103,14 @@ export default function VariableInserter({ onInsert, compacto = false }) {
                 display: 'block', width: '100%', textAlign: 'left', padding: '7px 9px',
                 borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'oklch(1 0 0 / 0.06)'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--mf-border)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: 'var(--cyan)' }}>
+              <span style={{ fontFamily: 'var(--mf-mono)', fontSize: 11, fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))' }}>
                 {`{${v}}`}
               </span>
               {DESCRICOES[v] && (
-                <span style={{ display: 'block', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 10, color: 'var(--mf-text-3)', marginTop: 2 }}>
                   {DESCRICOES[v]}
                 </span>
               )}

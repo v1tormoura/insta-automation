@@ -238,12 +238,12 @@ export default function CampaignPreview({ payload, onValidChange }) {
   /* ── UI ────────────────────────────────────────────────────────────────── */
 
   const cartao = (valor, rotulo, cor) => (
-    <div style={{ background:'oklch(1 0 0 / 0.03)', border:'1px solid oklch(1 0 0 / 0.07)',
+    <div style={{ background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)',
       borderRadius:11, padding:'11px 13px', minWidth:98, flex:1 }}>
-      <div style={{ fontFamily:'var(--font-mono)', fontSize:19, fontWeight:800, color: cor || 'var(--text)' }}>
+      <div style={{ fontFamily:'var(--mf-mono)', fontSize:19, fontWeight:800, color: cor || 'var(--mf-text)' }}>
         {valor}
       </div>
-      <div style={{ fontSize:9.5, color:'var(--text3)', marginTop:2, textTransform:'uppercase',
+      <div style={{ fontSize:9.5, color:'var(--mf-text-3)', marginTop:2, textTransform:'uppercase',
         letterSpacing:'.05em' }}>{rotulo}</div>
     </div>
   );
@@ -264,37 +264,37 @@ export default function CampaignPreview({ payload, onValidChange }) {
         {cartao(s.publications ?? publicacoes.length, 'publicações')}
         {cartao(s.accounts ?? contas.length,          'contas')}
         {cartao(s.contents ?? conteudos.length,       'conteúdos')}
-        {cartao(s.invalid ?? comErro.length, 'com erro', comErro.length ? '#f87171' : '#4ade80')}
+        {cartao(s.invalid ?? comErro.length, 'com erro', comErro.length ? 'var(--mf-danger-500)' : 'var(--mf-success-500)')}
       </div>
 
-      <div style={{ fontSize:11.5, color:'var(--text3)', lineHeight:1.7 }}>
+      <div style={{ fontSize:11.5, color:'var(--mf-text-3)', lineHeight:1.7 }}>
         {primeira && (<>
-          Primeira publicação <strong style={{ color:'var(--text2)' }}>{horario(primeira)}</strong>,
-          última <strong style={{ color:'var(--text2)' }}>{horario(ultima)}</strong>.{' '}
+          Primeira publicação <strong style={{ color:'var(--mf-text-2)' }}>{horario(primeira)}</strong>,
+          última <strong style={{ color:'var(--mf-text-2)' }}>{horario(ultima)}</strong>.{' '}
         </>)}
-        Intervalo de <strong style={{ color:'var(--text2)' }}>{s.interval}</strong>
-        {s.window && <> dentro da janela <strong style={{ color:'var(--text2)' }}>{s.window}</strong></>}.
+        Intervalo de <strong style={{ color:'var(--mf-text-2)' }}>{s.interval}</strong>
+        {s.window && <> dentro da janela <strong style={{ color:'var(--mf-text-2)' }}>{s.window}</strong></>}.
       </div>
 
       {/* Bloqueio explícito quando há erro */}
       {comErro.length > 0 && (
-        <div style={{ background:'rgba(248,113,113,.08)', border:'1px solid rgba(248,113,113,.3)',
+        <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)',
           borderRadius:12, padding:'13px 15px' }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'#f87171', marginBottom:7 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'var(--mf-danger-500)', marginBottom:7 }}>
             {comErro.length} {comErro.length === 1 ? 'publicação precisa' : 'publicações precisam'} de correção
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:150, overflowY:'auto' }}>
             {comErro.slice(0, 25).map(p => (
               <div key={`${p.account?.id}-${p.content?.id}`}
-                style={{ fontSize:11, color:'var(--text2)', lineHeight:1.5 }}>
+                style={{ fontSize:11, color:'var(--mf-text-2)', lineHeight:1.5 }}>
                 <strong>{rotuloConta(p)}</strong> · {rotuloConteudo(p)} —{' '}
-                <span style={{ color:'#f87171' }}>
+                <span style={{ color:'var(--mf-danger-500)' }}>
                   {(p.problemas || []).map(descreverProblema).join('; ')}
                 </span>
               </div>
             ))}
             {comErro.length > 25 && (
-              <div style={{ fontSize:10.5, color:'var(--text3)' }}>
+              <div style={{ fontSize:10.5, color:'var(--mf-text-3)' }}>
                 e mais {comErro.length - 25}…
               </div>
             )}
@@ -309,15 +309,15 @@ export default function CampaignPreview({ payload, onValidChange }) {
           return (
             <button key={f.id} onClick={() => setFiltro(f.id)} style={{
               padding:'5px 11px', borderRadius:7, fontSize:10.5, fontWeight:700, cursor:'pointer',
-              background: ativo ? 'rgba(0,212,255,.12)' : 'oklch(1 0 0 / 0.04)',
-              color:      ativo ? 'var(--cyan)' : 'var(--text3)',
-              border: `1px solid ${ativo ? 'rgba(0,212,255,.32)' : 'oklch(1 0 0 / 0.08)'}`,
+              background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
+              color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
+              border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 32%, transparent)' : 'var(--mf-border)'}`,
             }}>{f.rotulo}</button>
           );
         })}
         {seletor(porConta,    setPorConta,    contas,    'Todas as contas')}
         {seletor(porConteudo, setPorConteudo, conteudos, 'Todos os conteúdos')}
-        <span style={{ marginLeft:'auto', fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)' }}>
+        <span style={{ marginLeft:'auto', fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)' }}>
           {visiveis.length}/{publicacoes.length}
         </span>
       </div>
@@ -332,44 +332,44 @@ export default function CampaignPreview({ payload, onValidChange }) {
             <div key={chave} style={{
               borderRadius:10, padding:'9px 12px',
               background:'oklch(0.12 0.04 235 / 0.5)',
-              border:`1px solid ${falhou ? 'rgba(248,113,113,.3)' : 'oklch(1 0 0 / 0.07)'}`,
+              border:`1px solid ${falhou ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'var(--mf-border)'}`,
             }}>
               <button onClick={() => setExpandida(aberta ? null : chave)} style={{
                 display:'flex', alignItems:'center', gap:9, width:'100%', textAlign:'left',
                 background:'transparent', border:'none', cursor:'pointer', padding:0,
               }}>
-                <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)',
+                <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)',
                   width:26, flexShrink:0 }}>{p.order ?? i + 1}</span>
                 <span style={{ fontSize:11.5, fontWeight:700, flexShrink:0 }}>{rotuloConta(p)}</span>
-                <span style={{ fontSize:11, color:'var(--text3)', overflow:'hidden',
+                <span style={{ fontSize:11, color:'var(--mf-text-3)', overflow:'hidden',
                   textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{rotuloConteudo(p)}</span>
-                <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--text3)', flexShrink:0 }}>
+                <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)', flexShrink:0 }}>
                   {horario(p.scheduledAt)}
                 </span>
                 {p.cover && (
                   <img src={p.cover.url} alt="capa"
                     title="Capa configurada para este vídeo"
                     style={{ width:16, height:22, objectFit:'cover', borderRadius:3,
-                      border:'1px solid rgba(139,92,246,.6)', flexShrink:0 }} />
+                      border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 60%, transparent)', flexShrink:0 }} />
                 )}
-                {falhou && <span style={{ color:'#f87171', fontSize:11, flexShrink:0 }}>⚠</span>}
+                {falhou && <span style={{ color:'var(--mf-danger-500)', fontSize:11, flexShrink:0 }}>⚠</span>}
               </button>
 
               {aberta && (
-                <div style={{ marginTop:9, paddingTop:9, borderTop:'1px solid oklch(1 0 0 / 0.06)',
+                <div style={{ marginTop:9, paddingTop:9, borderTop:'1px solid var(--mf-border)',
                   display:'flex', flexDirection:'column', gap:8 }}>
                   <div>
-                    <div style={{ fontSize:9.5, color:'var(--text3)', textTransform:'uppercase',
+                    <div style={{ fontSize:9.5, color:'var(--mf-text-3)', textTransform:'uppercase',
                       letterSpacing:'.05em', marginBottom:3 }}>Legenda publicada</div>
-                    <div style={{ fontSize:11.5, color:'var(--text2)', lineHeight:1.55,
+                    <div style={{ fontSize:11.5, color:'var(--mf-text-2)', lineHeight:1.55,
                       whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-                      {p.resolvedCaption || <em style={{ color:'var(--text3)' }}>sem legenda</em>}
+                      {p.resolvedCaption || <em style={{ color:'var(--mf-text-3)' }}>sem legenda</em>}
                     </div>
                   </div>
 
                   {p.resolvedComment && (
                     <div>
-                      <div style={{ fontSize:9.5, color:'var(--text3)', textTransform:'uppercase',
+                      <div style={{ fontSize:9.5, color:'var(--mf-text-3)', textTransform:'uppercase',
                         letterSpacing:'.05em', marginBottom:3 }}>
                         Comentário{p.commentDelayMinutes != null && (
                           p.commentDelayMaxMinutes > p.commentDelayMinutes
@@ -377,13 +377,13 @@ export default function CampaignPreview({ payload, onValidChange }) {
                             : ` · ${p.commentDelayMinutes} min depois`
                         )}
                       </div>
-                      <div style={{ fontSize:11.5, color:'var(--text2)', lineHeight:1.55,
+                      <div style={{ fontSize:11.5, color:'var(--mf-text-2)', lineHeight:1.55,
                         whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{p.resolvedComment}</div>
                     </div>
                   )}
 
                   {falhou && (
-                    <div style={{ fontSize:11, color:'#f87171', lineHeight:1.5 }}>
+                    <div style={{ fontSize:11, color:'var(--mf-danger-500)', lineHeight:1.5 }}>
                       {(p.problemas || []).map(descreverProblema).join(' · ')}
                     </div>
                   )}
@@ -394,7 +394,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
         })}
 
         {!visiveis.length && (
-          <div style={{ padding:'24px 0', textAlign:'center', color:'var(--text3)', fontSize:11.5 }}>
+          <div style={{ padding:'24px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize:11.5 }}>
             Nenhuma publicação com esses filtros.
           </div>
         )}
