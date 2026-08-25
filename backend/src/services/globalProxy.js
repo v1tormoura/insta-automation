@@ -89,9 +89,45 @@ async function saveGlobalProxyConfig(patch) {
  * Proxy efetivo de uma conta: o proxy próprio da conta tem prioridade;
  * sem ele, cai no proxy global (se ativo); sem nenhum, string vazia.
  */
+/**
+ * Proxy desta conta, em ordem de precedência.
+ *
+ *   1. o que já está gravado na conta
+ *   2. um reservado do pool, se houver pool
+ *   3. o proxy global
+ *
+ * A reserva do pool acontece aqui, e não no fluxo de conexão, porque este é o
+ * único ponto por onde TODO login e TODA publicação passam. Reservar no
+ * cadastro deixaria de fora as contas que já existem, e reservar em cada
+ * chamador seriam quinze lugares para esquecer um.
+ *
+ * A conta reservada tem o proxy GRAVADO nela na mesma operação. Sem isso a
+ * reserva viveria só no pool, e uma conta cujo proxy fosse removido do pool
+ * cairia no global sem aviso — voltando a dividir IP com todas as outras.
+ */
 async function resolveProxyFor(account) {
   const own = String(account?.proxy || '').trim();
   if (own) return normalizeProxy(own);
+
+  const id = account?._id;
+  if (id) {
+    try {
+      const { reservar } = require('./proxyPool');
+      const doPool = await reservar(id);
+      if (doPool) {
+        // Grava na conta para as próximas chamadas nem consultarem o pool, e
+        // para o proxy aparecer na tela de Contas como qualquer outro.
+        const Account = require('../models/Account');
+        await Account.updateOne({ _id: id }, { $set: { proxy: doPool } });
+        return normalizeProxy(doPool);
+      }
+    } catch (err) {
+      // Pool indisponível não pode impedir a publicação de uma conta que já
+      // funciona: cai no global, que é o comportamento anterior.
+      console.warn('[proxyPool] reserva falhou, usando o proxy global —', err.message);
+    }
+  }
+
   return getGlobalProxyUrl();
 }
 

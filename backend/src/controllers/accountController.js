@@ -90,6 +90,14 @@ exports.deleteAccount = async (req, res) => {
   try {
     const id = req.params.id;
     await require('../utils/cancelAccountWork')(id, 'Conta excluída pelo usuário');
+
+    // Devolve o proxy ao pool antes de apagar a conta. Sem isso ele ficaria
+    // reservado para um dono que não existe mais, e o pool encolheria a cada
+    // conta removida até acabar sem explicação.
+    await require('../services/proxyPool').liberar(id).catch(e =>
+      console.warn('[proxyPool] não foi possível liberar o proxy da conta —', e.message)
+    );
+
     await Account.findByIdAndDelete(id);
     broadcast('accounts', { action: 'deleted' });
     res.json({ success: true });
@@ -566,6 +574,22 @@ exports.bulkApplyProxies = async (req, res) => {
     const texto = String(req.body.proxiesText || req.body.texto || '').trim();
     if (!texto) return res.status(400).json({ error: 'Nenhum proxy informado' });
 
+    // Guarda a lista no pool ANTES de distribuir.
+    //
+    // A distribuição só alcança contas que já existem. Com zero contas — o
+    // caso de quem está montando a operação — os proxies colados eram
+    // simplesmente descartados, e a tela dizia "0 contas receberam proxy"
+    // sem explicar que a lista tinha sumido junto.
+    //
+    // No pool, o que sobra fica reservável: cada conta conectada depois puxa
+    // um proxy livre sozinha, sem ninguém ter de voltar aqui.
+    let poolInfo = null;
+    try {
+      poolInfo = await require('../services/proxyPool').importar(texto);
+    } catch (e) {
+      console.warn('[proxyPool] importação falhou, seguindo com a distribuição —', e.message);
+    }
+
     const relatorio = await distribuirProxies({
       texto,
       accountIds:       Array.isArray(req.body.accountIds) ? req.body.accountIds : null,
@@ -573,7 +597,9 @@ exports.bulkApplyProxies = async (req, res) => {
       permitirRotativo: !!req.body.permitirRotativo,
     });
 
-    if (relatorio.erro && !relatorio.atribuidos) {
+    // Falha de distribuição com o pool alimentado NÃO é erro: as contas novas
+    // vão puxar dali. Só é erro quando nem uma coisa nem outra funcionou.
+    if (relatorio.erro && !relatorio.atribuidos && !poolInfo?.adicionados) {
       return res.status(422).json({ error: relatorio.erro, ...relatorio });
     }
 
@@ -581,7 +607,10 @@ exports.bulkApplyProxies = async (req, res) => {
       success: true,
       // `applied` mantido pelo mesmo motivo de `proxiesText`.
       applied: relatorio.atribuidos,
-      message: `${relatorio.atribuidos} conta(s) receberam proxy próprio`,
+      message: poolInfo?.adicionados
+        ? `${relatorio.atribuidos} conta(s) receberam proxy próprio · ${poolInfo.adicionados} proxy(s) no pool para as próximas`
+        : `${relatorio.atribuidos} conta(s) receberam proxy próprio`,
+      pool: poolInfo,
       ...relatorio,
     });
   } catch (err) {

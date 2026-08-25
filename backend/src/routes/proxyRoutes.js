@@ -194,4 +194,70 @@ router.post('/distribuir', async (req, res) => {
   }
 });
 
+// ── Pool de proxies ──────────────────────────────────────────────────────────
+//
+// O proxy global é UM só: todas as contas saem pelo mesmo IP. O pool resolve
+// isso reservando um proxy por conta no instante da conexão, sem ninguém ter
+// de lembrar de atribuir.
+
+router.get('/pool', async (req, res) => {
+  try {
+    const { listar, resumo } = require('../services/proxyPool');
+    const [itens, contagem] = await Promise.all([listar(), resumo()]);
+    res.json({
+      resumo: contagem,
+      // Só host e porta: usuário e senha do proxy são credenciais e não
+      // precisam trafegar para a tela.
+      itens: itens.map(i => ({
+        url: i.url,
+        endereco: String(i.url).replace(/^[a-z0-9+.-]+:\/\//i, '').replace(/^.*@/, ''),
+        conta: i.contaId?.username || null,
+        ip: i.ip || '',
+        ok: i.ok,
+        rotativo: !!i.rotativo,
+        erro: i.erro || '',
+        ultimoTeste: i.ultimoTeste,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Não foi possível ler o pool', detalhe: err.message });
+  }
+});
+
+router.post('/pool/importar', async (req, res) => {
+  const texto = String(req.body?.texto || req.body?.lista || '');
+  if (!texto.trim()) {
+    return res.status(400).json({ error: 'Cole a lista de proxies.' });
+  }
+  try {
+    const { importar, resumo } = require('../services/proxyPool');
+    const r = await importar(texto);
+    res.json({ ...r, resumo: await resumo() });
+  } catch (err) {
+    res.status(500).json({ error: 'Não foi possível importar', detalhe: err.message });
+  }
+});
+
+router.post('/pool/testar', async (req, res) => {
+  try {
+    const { testarTodos, resumo } = require('../services/proxyPool');
+    const r = await testarTodos();
+    res.json({ ...r, resumo: await resumo() });
+  } catch (err) {
+    res.status(500).json({ error: 'Não foi possível testar', detalhe: err.message });
+  }
+});
+
+router.delete('/pool', async (req, res) => {
+  const url = String(req.body?.url || req.query?.url || '');
+  if (!url) return res.status(400).json({ error: 'Informe a url do proxy.' });
+  try {
+    const { remover, resumo } = require('../services/proxyPool');
+    const removido = await remover(url);
+    res.json({ removido, resumo: await resumo() });
+  } catch (err) {
+    res.status(500).json({ error: 'Não foi possível remover', detalhe: err.message });
+  }
+});
+
 module.exports = router;
