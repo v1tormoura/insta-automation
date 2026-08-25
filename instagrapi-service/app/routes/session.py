@@ -605,6 +605,26 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
             # login_by_sessionid sets the cookie and validates via account_info()
             # — no accounts/login/ call is made.
             await loop.run_in_executor(None, lambda: client.login_by_sessionid(body.sessionid))
+
+            # O app carrega a bandeja de stories e a timeline assim que a
+            # sessão se estabelece — é o "cold start". O login por SENHA da
+            # instagrapi faz isso (login() chama login_flow no fim); o login
+            # por sessionid NÃO faz, e a diferença é visível do outro lado:
+            # uma sessão que autentica e vai direto publicar, sem nunca abrir
+            # um feed, não se parece com nenhum usuário real.
+            #
+            # Melhor esforço de propósito. A sessão já está válida neste
+            # ponto; falhar aqui e desistir trocaria uma conta conectada por
+            # uma conta não conectada, o que é pior do que uma conta
+            # conectada sem o aquecimento.
+            try:
+                await loop.run_in_executor(None, client.login_flow)
+                session_pool._slog("COLD_START_OK", body.account_id)
+            except Exception as e:  # noqa: BLE001
+                logger.info(
+                    "cold start não completou para %s (%s) — sessão segue válida",
+                    body.account_id, type(e).__name__,
+                )
         except Exception as e:
             code = session_pool.classify_error(e)
             duration_ms = int((time.perf_counter() - t0) * 1000)
