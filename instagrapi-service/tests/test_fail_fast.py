@@ -36,103 +36,153 @@ def test_pre_login_rate_limited_takes_priority_over_message_check():
     assert classify_error(exc) == "RATE_LIMITED"
 
 
-# ── _patch_client_fail_fast behavior ─────────────────────────────────────────
+# ── preparação antes do login ────────────────────────────────────────────────
+#
+# O `pre_login_flow` da instagrapi tem três das cinco chamadas COMENTADAS na
+# própria biblioteca — sobra só o `launcher/sync/`. O app real faz as cinco, e
+# uma delas, `get_prefill_candidates`, anuncia ao Instagram qual conta vai
+# entrar deste aparelho ANTES de mandar a senha. Sem esse aviso o
+# `accounts/login/` chega sem contexto nenhum atrás dele.
+#
+# Estes testes fixam três decisões:
+#   1. os cinco passos são tentados, na ordem do app;
+#   2. um 429 em qualquer passo aborta antes de gastar o accounts/login/;
+#   3. falha de UM passo não impede o login, mas transporte quebrado sim.
 
-def test_patch_fail_fast_converts_please_wait_to_pre_login_rate_limited():
-    """PleaseWaitFewMinutes from pre_login_flow becomes _PreLoginRateLimited."""
+
+def _cliente_espiao(falhas=None):
+    """Cliente com os passos de pre-login trocados por espiões."""
     from instagrapi import Client
+    falhas = falhas or {}
+    c = Client()
+    c.username = "conta_teste"
+    chamados = []
+
+    def _passo(nome):
+        def _fn(*a, **k):
+            chamados.append(nome)
+            if nome in falhas:
+                raise falhas[nome]
+            return {}
+        return _fn
+
+    c.set_contact_point_prefill = _passo("prefill")
+    c.get_prefill_candidates    = _passo("candidates")
+    c.sync_launcher             = _passo("launcher")
+    c.sync_device_features      = _passo("device_features")
+    c._chamados = chamados
+    return c
+
+
+def test_preparacao_executa_os_cinco_passos_do_app():
+    from app.session_pool import _patch_client_fail_fast
+    c = _cliente_espiao()
+    _patch_client_fail_fast(c)
+    c.pre_login_flow()
+    assert c._chamados == [
+        "prefill", "candidates", "prefill", "launcher", "device_features"
+    ]
+
+
+def test_anuncia_o_usuario_antes_da_senha():
+    """
+    `get_prefill_candidates` é o passo que diz ao Instagram qual conta vai
+    entrar. Sem username definido ele não faz sentido e é pulado.
+    """
+    from app.session_pool import _patch_client_fail_fast
+    c = _cliente_espiao()
+    _patch_client_fail_fast(c)
+    c.pre_login_flow()
+    assert "candidates" in c._chamados
+
+    sem_usuario = _cliente_espiao()
+    sem_usuario.username = None
+    _patch_client_fail_fast(sem_usuario)
+    sem_usuario.pre_login_flow()
+    assert "candidates" not in sem_usuario._chamados
+
+
+def test_429_em_qualquer_passo_aborta():
+    """Insistir depois de um 429 queima o IP e o login seria recusado igual."""
     from instagrapi.exceptions import PleaseWaitFewMinutes
     from app.session_pool import _patch_client_fail_fast, _PreLoginRateLimited
 
-    client = Client()
-    client.pre_login_flow = MagicMock(side_effect=PleaseWaitFewMinutes("Please wait"))
-    _patch_client_fail_fast(client)
+    for passo in ("prefill", "candidates", "launcher"):
+        c = _cliente_espiao({passo: PleaseWaitFewMinutes("Please wait")})
+        _patch_client_fail_fast(c)
+        with pytest.raises(_PreLoginRateLimited):
+            c.pre_login_flow()
 
-    with pytest.raises(_PreLoginRateLimited):
-        client.pre_login_flow()
 
-
-def test_patch_fail_fast_result_classifies_as_rate_limited_end_to_end():
-    """_PreLoginRateLimited from the patch classifies as RATE_LIMITED (full chain)."""
-    from instagrapi import Client
+def test_429_classifica_como_rate_limited():
     from instagrapi.exceptions import PleaseWaitFewMinutes
     from app.session_pool import _patch_client_fail_fast, classify_error
 
-    client = Client()
-    client.pre_login_flow = MagicMock(side_effect=PleaseWaitFewMinutes("Please wait"))
-    _patch_client_fail_fast(client)
-
-    caught = None
+    c = _cliente_espiao({"launcher": PleaseWaitFewMinutes("Please wait")})
+    _patch_client_fail_fast(c)
     try:
-        client.pre_login_flow()
+        c.pre_login_flow()
+        pego = None
     except Exception as e:
-        caught = e
-
-    assert caught is not None
-    assert classify_error(caught) == "RATE_LIMITED"
-
-
-def test_patch_fail_fast_non_rate_limit_error_propagates_unchanged():
-    """Non-rate-limit errors from pre_login_flow propagate as their original type."""
-    from instagrapi import Client
-    from app.session_pool import _patch_client_fail_fast, _PreLoginRateLimited
-
-    client = Client()
-    client.pre_login_flow = MagicMock(side_effect=ConnectionError("network down"))
-    _patch_client_fail_fast(client)
-
-    with pytest.raises(ConnectionError):
-        client.pre_login_flow()
+        pego = e
+    assert pego is not None
+    assert classify_error(pego) == "RATE_LIMITED"
 
 
-def test_patch_fail_fast_non_rate_limit_not_wrapped_as_pre_login():
-    """Non-rate-limit errors are NOT converted to _PreLoginRateLimited."""
-    from instagrapi import Client
-    from app.session_pool import _patch_client_fail_fast, _PreLoginRateLimited
+def test_falha_de_um_passo_nao_impede_o_login():
+    """
+    Estes passos são de melhor esforço no app real. Tratá-los como
+    obrigatórios trocaria um login recusado por um login não tentado.
+    """
+    from app.session_pool import _patch_client_fail_fast
+    c = _cliente_espiao({"candidates": ValueError("resposta inesperada")})
+    _patch_client_fail_fast(c)
+    assert c.pre_login_flow() is True
+    # os passos seguintes continuaram
+    assert "launcher" in c._chamados
+    assert "device_features" in c._chamados
 
-    client = Client()
-    client.pre_login_flow = MagicMock(side_effect=ValueError("unexpected"))
-    _patch_client_fail_fast(client)
 
-    with pytest.raises(ValueError):
-        client.pre_login_flow()
+def test_transporte_quebrado_sobe():
+    """
+    Rede ou proxy fora do ar não é "um passo não respondeu", é o caminho
+    inteiro. Seguir gastaria uma requisição de login que falharia igual.
+    """
+    from app.session_pool import _patch_client_fail_fast
+    import requests
+
+    for erro in (ConnectionError("rede caiu"),
+                 requests.exceptions.ProxyError("proxy fora"),
+                 requests.exceptions.Timeout("estourou")):
+        c = _cliente_espiao({"launcher": erro})
+        _patch_client_fail_fast(c)
+        with pytest.raises(type(erro)):
+            c.pre_login_flow()
 
 
-def test_patch_fail_fast_success_returns_unchanged():
-    """Successful pre_login_flow (returns True) passes through without modification."""
+def test_patch_aplica_no_objeto_nao_na_classe():
+    """Um cliente por conta: patch na classe vazaria entre contas."""
     from instagrapi import Client
     from app.session_pool import _patch_client_fail_fast
-
-    client = Client()
-    client.pre_login_flow = MagicMock(return_value=True)
-    _patch_client_fail_fast(client)
-
-    assert client.pre_login_flow() is True
+    c = Client()
+    _patch_client_fail_fast(c)
+    assert 'pre_login_flow' in c.__dict__
 
 
-def test_patch_fail_fast_applies_instance_attribute():
-    """_patch_client_fail_fast sets pre_login_flow as an instance attribute (not class)."""
-    from instagrapi import Client
-    from app.session_pool import _patch_client_fail_fast
-
-    client = Client()
-    _patch_client_fail_fast(client)
-
-    assert 'pre_login_flow' in client.__dict__
-
-
-def test_patch_fail_fast_noop_when_rate_limit_exc_empty():
-    """_patch_client_fail_fast is a no-op and does NOT patch when _RATE_LIMIT_EXC is empty."""
+def test_sem_tipos_de_429_mantem_o_fluxo_original():
+    """
+    Sem os tipos de 429 importáveis o corte rápido é impossível, e aí o
+    original da biblioteca é mais seguro que uma versão pela metade.
+    """
     from instagrapi import Client
     from app import session_pool
     from app.session_pool import _patch_client_fail_fast
 
-    client = Client()
-
+    c = Client()
+    original = c.pre_login_flow
     with patch.object(session_pool, '_RATE_LIMIT_EXC', ()):
-        _patch_client_fail_fast(client)
-        # pre_login_flow must NOT be set as instance attribute (function returned early)
-        assert 'pre_login_flow' not in client.__dict__
+        _patch_client_fail_fast(c)
+    assert c.pre_login_flow == original
 
 
 # ── get_entry() integration ───────────────────────────────────────────────────

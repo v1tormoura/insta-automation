@@ -59,6 +59,20 @@ except ImportError:
 _RATE_LIMIT_EXC = tuple(e for e in (_PleaseWait, _RateLimit, _ClientThrottled) if e is not None)
 
 
+# Falhas que significam "o caminho está fora do ar", não "este passo não
+# respondeu". Elas sobem: seguir para o accounts/login/ gastaria uma
+# requisição que falharia pelo mesmo motivo, e num IP que queremos poupar.
+_TRANSPORTE_QUEBRADO: tuple = tuple(
+    e for e in (
+        ConnectionError,
+        TimeoutError,
+        getattr(__import__("requests.exceptions", fromlist=["x"]), "ConnectionError", None),
+        getattr(__import__("requests.exceptions", fromlist=["x"]), "Timeout", None),
+        getattr(__import__("requests.exceptions", fromlist=["x"]), "ProxyError", None),
+    ) if e is not None
+)
+
+
 class _PreLoginRateLimited(Exception):
     """Sentinel raised when pre_login_flow() is rate-limited.
 
@@ -170,31 +184,104 @@ def _patch_client_retries(client: Client) -> None:
 
 
 def _patch_client_fail_fast(client: Client) -> None:
-    """Override pre_login_flow to raise _PreLoginRateLimited on 429 instead of ignoring it.
-
-    instagrapi's login() catches PleaseWaitFewMinutes/ClientThrottledError from
-    pre_login_flow() and silently continues to call accounts/login/ — wasting one
-    Instagram request per blocked attempt.
-
-    This patch wraps pre_login_flow so any 429 raises _PreLoginRateLimited (a type
-    that login() does NOT catch) → classify_error() maps it to RATE_LIMITED, and
-    the accounts/login/ call is never made.
-
-    Effect: each IP-blocked login attempt uses 1 Instagram request instead of 2.
     """
-    if not _RATE_LIMIT_EXC:
-        return  # no rate-limit exceptions importable — safe no-op
+    Refaz a preparação que antecede o login, e mantém o corte rápido no 429.
+
+    ── Por que refazer
+
+    O `pre_login_flow` da instagrapi 2.18.16 tem três das cinco chamadas
+    COMENTADAS no código da própria biblioteca:
+
+        # self.set_contact_point_prefill("prefill")
+        # self.get_prefill_candidates(True)
+        # self.set_contact_point_prefill("prefill")
+        self.sync_launcher(True)
+        # self.sync_device_features(True)
+
+    Só `launcher/sync/` sobra. O app real faz as cinco antes de mandar a
+    senha, e uma delas importa em particular: `get_prefill_candidates` envia
+
+        client_contact_points: [{"type":"omnistring",
+                                 "value":"<usuario>",
+                                 "source":"last_login_attempt"}]
+
+    ou seja, ANUNCIA ao Instagram qual conta está prestes a entrar, deste
+    aparelho, antes de qualquer senha. Sem esse aviso o `accounts/login/`
+    chega frio — o aparelho nunca se apresentou, e a tentativa não tem
+    contexto nenhum atrás dela.
+
+    É a explicação mais próxima que encontrei para `invalid_user` numa conta
+    que existe e entra pelo navegador: não é que o Instagram não ache o
+    usuário, é que ele não reconhece a conversa.
+
+    ── Por que cada passo é tolerante a falha
+
+    No app real essas chamadas são de melhor esforço: servem para preencher
+    sugestões e registrar experimentos, e o login acontece mesmo quando
+    alguma falha. Tratá-las como obrigatórias trocaria um login recusado por
+    um login não tentado, que é pior. O 429 é a única exceção — ver abaixo.
+
+    ── Por que o 429 continua cortando
+
+    A instagrapi engole PleaseWaitFewMinutes e ClientThrottledError vindos do
+    pre-login e segue para o `accounts/login/`, gastando uma segunda
+    requisição num IP que já disse para esperar. `_PreLoginRateLimited` é de
+    um tipo que o `login()` NÃO captura, então a tentativa para aqui.
+    """
     _orig = client.pre_login_flow
 
-    def _fail_fast_pre_login_flow():
-        try:
-            return _orig()
-        except _RATE_LIMIT_EXC as exc:
-            raise _PreLoginRateLimited(
-                "pre_login_flow rate-limited — aborting to avoid spending accounts/login/ request"
-            ) from exc
+    def _preparar():
+        # Cada passo isolado: o que falhar não leva os outros junto.
+        def _tentar(nome, fn):
+            try:
+                fn()
+                return True
+            except _RATE_LIMIT_EXC as exc:
+                # 429 interrompe: insistir queima o IP, e o accounts/login/
+                # seguinte seria recusado do mesmo jeito.
+                raise _PreLoginRateLimited(
+                    f"{nome} recebeu 429 — abortando antes de gastar o accounts/login/"
+                ) from exc
+            except _TRANSPORTE_QUEBRADO:
+                # Rede, proxy ou tempo esgotado: não é o Instagram dizendo
+                # não a UM passo, é o caminho inteiro fora do ar. Engolir só
+                # adiaria o mesmo erro por mais uma requisição.
+                raise
+            except Exception as e:  # noqa: BLE001
+                # O resto é melhor esforço, como no app real: estes passos
+                # preenchem sugestões e registram experimentos, e o login
+                # acontece mesmo quando um deles não responde.
+                logger.info("pre-login: %s falhou (%s) — seguindo", nome, type(e).__name__)
+                return False
 
-    client.pre_login_flow = _fail_fast_pre_login_flow
+        feitos = []
+
+        # A ordem é a do app: apresenta o contato, pede as sugestões,
+        # reapresenta, sincroniza o launcher e os experimentos do aparelho.
+        if hasattr(client, "set_contact_point_prefill"):
+            if _tentar("contact_point_prefill", lambda: client.set_contact_point_prefill("prefill")):
+                feitos.append("prefill")
+
+        if hasattr(client, "get_prefill_candidates") and getattr(client, "username", None):
+            if _tentar("get_prefill_candidates", lambda: client.get_prefill_candidates(True)):
+                feitos.append("candidates")
+
+        if hasattr(client, "set_contact_point_prefill"):
+            _tentar("contact_point_prefill#2", lambda: client.set_contact_point_prefill("prefill"))
+
+        if _tentar("sync_launcher", lambda: client.sync_launcher(True)):
+            feitos.append("launcher")
+
+        if hasattr(client, "sync_device_features"):
+            if _tentar("sync_device_features", lambda: client.sync_device_features(True)):
+                feitos.append("device_features")
+
+        logger.info("pre-login concluído — passos ok: %s", ",".join(feitos) or "nenhum")
+        return True
+
+    # Sem os tipos de 429 importáveis, o corte rápido não é possível; a
+    # preparação completa continua valendo, que é o que mais importa aqui.
+    client.pre_login_flow = _preparar if _RATE_LIMIT_EXC else _orig
 
 
 def _device_uuids(account_id: str) -> dict:
