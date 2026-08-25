@@ -102,6 +102,20 @@ async def login(body: LoginRequest):
         if proxy:
             client.set_proxy(proxy)
 
+        # De onde este login sai. O painel testa o proxy por um caminho e o
+        # login usa outro — sem registrar aqui, "o proxy está ativo" e "o
+        # login passou pelo proxy" viram a mesma frase, e não são.
+        #
+        # Só host e porta: usuário e senha do proxy são credenciais e não
+        # entram em log. `origem` diz de qual configuração ele veio, porque
+        # proxy por conta e proxy global falham por motivos diferentes.
+        session_pool._slog(
+            "LOGIN_ROTA",
+            body.account_id,
+            proxy=_mascarar_proxy(proxy),
+            origem=("conta" if body.proxy else ("global_env" if proxy else "direto")),
+        )
+
         # Run the blocking Instagram I/O in a thread so the asyncio event loop
         # stays responsive to other requests during the 20-90 s login round-trip.
         loop = asyncio.get_running_loop()
