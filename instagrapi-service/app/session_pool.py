@@ -328,6 +328,52 @@ def _build_do_app() -> dict:
     )
 
 
+def aplicar_regiao(client: Client) -> dict:
+    """
+    Alinha país, idioma e fuso do cliente com a origem real da requisição.
+
+    O padrão do instagrapi é os Estados Unidos: country US, country_code 1,
+    locale en_US, timezone -14400 (leste americano). Rodando de um servidor
+    brasileiro, com contas brasileiras, o pedido de login chegava ao Instagram
+    dizendo três coisas que se contradizem — um aparelho americano, em inglês,
+    no fuso de Nova York, entrando numa conta brasileira a partir de um IP
+    brasileiro.
+
+    Aparelho de gente de verdade não faz isso: idioma, fuso e geografia do IP
+    concordam. A divergência é justamente o tipo de sinal que o Instagram usa
+    para separar app de automação — e explica por que a MESMA credencial entra
+    pelo navegador e é recusada por aqui com `bad_password`.
+
+    Vem de variável de ambiente porque a resposta certa depende de onde o
+    servidor está. O padrão é o Brasil por ser onde este roda; mudar de país
+    é trocar quatro variáveis, não editar código.
+    """
+    pais   = (os.getenv("INSTAGRAPI_COUNTRY") or "BR").strip().upper()
+    ddi    = int(os.getenv("INSTAGRAPI_COUNTRY_CODE") or 55)
+    idioma = (os.getenv("INSTAGRAPI_LOCALE") or "pt_BR").strip()
+    fuso_h = float(os.getenv("INSTAGRAPI_TZ_OFFSET_HOURS") or -3)
+    fuso_nome = (os.getenv("INSTAGRAPI_TZ_NAME") or "America/Sao_Paulo").strip()
+
+    try:
+        client.set_country(pais)
+        client.set_country_code(ddi)
+        # set_locale reconstrói o User-Agent, que carrega o idioma no fim da
+        # string. Sem isso o cabeçalho continuaria anunciando en_US enquanto o
+        # corpo diria pt_BR — trocaríamos uma contradição por outra.
+        client.set_locale(idioma)
+        client.set_timezone_offset(int(fuso_h * 3600))
+        if hasattr(client, "set_timezone_name"):
+            client.set_timezone_name(fuso_nome)
+    except Exception as e:  # noqa: BLE001
+        logger.error("aplicar_regiao falhou (%s) — o login sai com contexto inconsistente", e)
+        raise
+
+    return {
+        "country": pais, "country_code": ddi, "locale": idioma,
+        "timezone_offset": int(fuso_h * 3600), "timezone_name": fuso_nome,
+    }
+
+
 def apply_deterministic_device(client: Client, account_id: str) -> None:
     """
     Associa deterministicamente cada conta a um modelo de smartphone Android real.
@@ -404,6 +450,9 @@ async def get_entry(account_id: str) -> dict:
         if account_id not in _pool:
             client = Client()
             apply_deterministic_device(client, account_id)
+            # Depois do aparelho, porque set_locale reconstrói o User-Agent a
+            # partir do device_settings — invertido, o idioma seria sobrescrito.
+            aplicar_regiao(client)
             client.set_uuids(_device_uuids(account_id))
             apply_app_version(client)
             _patch_client_retries(client)

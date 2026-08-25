@@ -60,6 +60,16 @@ async def _startup_diagnostics():
             "STARTUP app_version=%s version_code=%s device=%s %s",
             efetiva, dev.get("version_code"), dev.get("manufacturer"), dev.get("model"),
         )
+        # O contexto regional entra no log porque a divergência entre ele e a
+        # origem real do IP é invisível no código e decisiva no login: um
+        # cliente en_US/US saindo de um IP brasileiro para uma conta
+        # brasileira é recusado com bad_password mesmo com a senha certa.
+        regiao = _sp.aplicar_regiao(_probe)
+        logger.info(
+            "STARTUP regiao country=%s ddi=%s locale=%s tz=%s (%s)",
+            regiao["country"], regiao["country_code"], regiao["locale"],
+            regiao["timezone_offset"], regiao["timezone_name"],
+        )
         logger.info("STARTUP user_agent=%s", getattr(_probe, "user_agent", None))
         logger.info(
             "STARTUP builds disponiveis=%s",

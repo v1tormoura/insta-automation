@@ -339,7 +339,7 @@ export default function MainLayout({ children }) {
           <div className="mf-side__brand">
             <button onClick={() => navigate('/')}
               style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0 }}>
-              <img src="/mouraflow-icon.svg?v=2" alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+              <img src="/mouraflow-icon.svg?v=3" alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
               <span className="mf-side__name">MouraFlow</span>
             </button>
           </div>

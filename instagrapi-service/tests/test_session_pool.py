@@ -394,3 +394,67 @@ def test_app_version_valida_no_env_e_respeitada(monkeypatch):
     assert client.device_settings["app_version"] == alvo
     assert client.device_settings["version_code"] == disponiveis[alvo]["version_code"]
     assert alvo in client.user_agent
+
+
+# ── contexto regional ─────────────────────────────────────────────────────────
+#
+# O padrão do instagrapi é os Estados Unidos: country US, locale en_US, fuso
+# -14400. Rodando de um servidor brasileiro com contas brasileiras, o login
+# chegava ao Instagram dizendo três coisas que se contradizem — aparelho
+# americano, em inglês, no fuso de Nova York, entrando numa conta brasileira a
+# partir de um IP brasileiro. Aparelho de gente de verdade não faz isso.
+
+def _cliente_completo(account_id="conta-teste"):
+    from instagrapi import Client
+    from app import session_pool
+    c = Client()
+    session_pool.apply_deterministic_device(c, account_id)
+    session_pool.aplicar_regiao(c)
+    session_pool.apply_app_version(c)
+    return c
+
+
+def test_regiao_padrao_e_brasileira():
+    c = _cliente_completo()
+    assert c.country == "BR"
+    assert int(c.country_code) == 55
+    assert c.locale == "pt_BR"
+    assert int(c.timezone_offset) == -10800
+
+
+def test_idioma_aparece_no_user_agent():
+    """
+    O User-Agent carrega o idioma no fim da string. Se só o corpo mudasse, a
+    contradição continuaria — cabeçalho em en_US e payload em pt_BR.
+    """
+    c = _cliente_completo()
+    assert "pt_BR" in c.user_agent
+    assert "en_US" not in c.user_agent
+
+
+def test_regiao_nao_quebra_a_build_nem_o_aparelho():
+    """
+    `set_locale` reconstrói o User-Agent a partir do device_settings. Se a
+    ordem das chamadas estiver errada, ele volta ao aparelho padrão da
+    biblioteca e perde a identidade determinística da conta.
+    """
+    c = _cliente_completo()
+    d = c.device_settings
+    for campo in ("app_version", "version_code", "bloks_versioning_id"):
+        assert d.get(campo), f"{campo} sumiu ao aplicar a região"
+    assert d["model"] in c.user_agent
+    assert d["version_code"] in c.user_agent
+
+
+def test_regiao_configuravel_por_ambiente(monkeypatch):
+    """Trocar de país é trocar variáveis, não editar código."""
+    monkeypatch.setenv("INSTAGRAPI_COUNTRY", "PT")
+    monkeypatch.setenv("INSTAGRAPI_COUNTRY_CODE", "351")
+    monkeypatch.setenv("INSTAGRAPI_LOCALE", "pt_PT")
+    monkeypatch.setenv("INSTAGRAPI_TZ_OFFSET_HOURS", "0")
+    c = _cliente_completo()
+    assert c.country == "PT"
+    assert int(c.country_code) == 351
+    assert c.locale == "pt_PT"
+    assert int(c.timezone_offset) == 0
+    assert "pt_PT" in c.user_agent
