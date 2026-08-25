@@ -106,8 +106,22 @@ async function saveGlobalProxyConfig(patch) {
  * cairia no global sem aviso — voltando a dividir IP com todas as outras.
  */
 async function resolveProxyFor(account) {
+  return (await resolverComOrigem(account)).url;
+}
+
+/**
+ * O mesmo que `resolveProxyFor`, mas dizendo DE ONDE o proxy veio.
+ *
+ * A origem importa no diagnóstico e não dá para deduzi-la depois: o serviço
+ * Python recebe só a URL, e o log dele dizia "conta" para qualquer proxy que
+ * chegasse — inclusive o global. Quem lesse concluiria que a conta tinha
+ * proxy próprio quando não tinha, e procuraria o problema no lugar errado.
+ *
+ * @returns {{url: string, origem: 'conta'|'pool'|'global'|'nenhum'}}
+ */
+async function resolverComOrigem(account) {
   const own = String(account?.proxy || '').trim();
-  if (own) return normalizeProxy(own);
+  if (own) return { url: normalizeProxy(own), origem: 'conta' };
 
   const id = account?._id;
   if (id) {
@@ -119,7 +133,7 @@ async function resolveProxyFor(account) {
         // para o proxy aparecer na tela de Contas como qualquer outro.
         const Account = require('../models/Account');
         await Account.updateOne({ _id: id }, { $set: { proxy: doPool } });
-        return normalizeProxy(doPool);
+        return { url: normalizeProxy(doPool), origem: 'pool' };
       }
     } catch (err) {
       // Pool indisponível não pode impedir a publicação de uma conta que já
@@ -128,7 +142,8 @@ async function resolveProxyFor(account) {
     }
   }
 
-  return getGlobalProxyUrl();
+  const global = await getGlobalProxyUrl();
+  return { url: global, origem: global ? 'global' : 'nenhum' };
 }
 
 module.exports = {
@@ -136,4 +151,5 @@ module.exports = {
   getGlobalProxyUrl,
   saveGlobalProxyConfig,
   resolveProxyFor,
+  resolverComOrigem,
 };

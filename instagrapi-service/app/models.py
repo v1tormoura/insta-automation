@@ -18,6 +18,9 @@ class LoginRequest(BaseModel):
     password: str
     verification_code: Optional[str] = ""
     proxy: Optional[str] = None
+    # De onde o Node tirou o proxy: conta, pool, global ou nenhum. Só para o
+    # log — o serviço não tem como deduzir isso da URL.
+    proxy_origem: Optional[str] = None
 
 
 class DiagnosticoRequest(BaseModel):

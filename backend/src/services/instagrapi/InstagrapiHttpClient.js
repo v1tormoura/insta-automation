@@ -132,12 +132,21 @@ class InstagrapiHttpClient {
 
   async login(account, username, password, verificationCode = '') {
     const accountId = String(account._id);
+
+    // A origem viaja junto porque o serviço Python não tem como deduzi-la —
+    // ele recebe só a URL. Sem isso o log dizia "conta" para qualquer proxy
+    // que chegasse, inclusive o global, e quem lesse procuraria o problema no
+    // lugar errado.
+    const { resolverComOrigem } = require('../globalProxy');
+    const rota = await resolverComOrigem(account);
+
     const result = await this._post('/session/login', {
       account_id:         accountId,
       username,
       password,
       verification_code:  verificationCode || '',
-      proxy:              (await resolveProxyFor(account)) || null,
+      proxy:              rota.url || null,
+      proxy_origem:       rota.origem,
     }, TIMEOUT_LOGIN);
 
     // TWO_FACTOR_REQUIRED is returned as a 2xx (202) — not an error

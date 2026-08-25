@@ -118,7 +118,9 @@ async def login(body: LoginRequest):
             "LOGIN_ROTA",
             body.account_id,
             proxy=_mascarar_proxy(proxy),
-            origem=("conta" if body.proxy else ("global_env" if proxy else "direto")),
+            # A origem vem do Node, que é quem sabe: aqui só chega a URL.
+            origem=(getattr(body, "proxy_origem", None)
+                    or ("global_env" if proxy else "direto")),
         )
 
         # E de qual IP o Instagram vai enxergar esta sessão. A linha acima diz
