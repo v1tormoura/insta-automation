@@ -101,6 +101,9 @@ async def login(body: LoginRequest):
         # Use account proxy if provided, otherwise fallback to global proxy
         proxy = body.proxy or os.getenv('GLOBAL_PROXY')
         if proxy:
+            # Molda a sessão fixa antes de aplicar: o proxy é rotativo, e sem o
+            # identificador por conta o IP mudaria a cada conexão.
+            proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
             client.set_proxy(proxy)
         session_pool.lembrar_proxy(body.account_id, proxy)
 
@@ -258,6 +261,9 @@ async def diagnostico(body: DiagnosticoRequest):
         client = entry["client"]
         proxy = body.proxy or os.getenv("GLOBAL_PROXY")
         if proxy:
+            # Molda a sessão fixa antes de aplicar: o proxy é rotativo, e sem o
+            # identificador por conta o IP mudaria a cada conexão.
+            proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
             client.set_proxy(proxy)
         session_pool.lembrar_proxy(body.account_id, proxy)
 
@@ -586,6 +592,9 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
         # GLOBAL_PROXY do ambiente continua valendo como fallback.
         proxy = body.proxy or os.getenv('GLOBAL_PROXY')
         if proxy:
+            # Molda a sessão fixa antes de aplicar: o proxy é rotativo, e sem o
+            # identificador por conta o IP mudaria a cada conexão.
+            proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
             client.set_proxy(proxy)
         session_pool.lembrar_proxy(body.account_id, proxy)
         loop = asyncio.get_running_loop()

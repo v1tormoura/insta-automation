@@ -481,9 +481,11 @@ def _limpa_memoria_de_proxy():
 
 
 def test_lembra_e_devolve_o_proxy():
+    """Devolve a URL já com a sessão fixa — é ela que os clientes usam."""
     from app import session_pool
     session_pool.lembrar_proxy("conta-1", PROXY_A)
-    assert session_pool.proxy_lembrado("conta-1") == PROXY_A
+    esperado = session_pool.moldar_proxy_por_conta(PROXY_A, "conta-1")
+    assert session_pool.proxy_lembrado("conta-1") == esperado
 
 
 def test_proxy_e_por_conta_nao_global():
@@ -491,8 +493,8 @@ def test_proxy_e_por_conta_nao_global():
     from app import session_pool
     session_pool.lembrar_proxy("conta-1", PROXY_A)
     session_pool.lembrar_proxy("conta-2", PROXY_B)
-    assert session_pool.proxy_lembrado("conta-1") == PROXY_A
-    assert session_pool.proxy_lembrado("conta-2") == PROXY_B
+    assert session_pool.proxy_lembrado("conta-1") == session_pool.moldar_proxy_por_conta(PROXY_A, "conta-1")
+    assert session_pool.proxy_lembrado("conta-2") == session_pool.moldar_proxy_por_conta(PROXY_B, "conta-2")
     assert session_pool.proxy_lembrado("conta-3") is None
 
 
@@ -513,14 +515,17 @@ async def test_cliente_novo_herda_o_proxy_da_conta():
     from app import session_pool
     session_pool.lembrar_proxy("conta-1", PROXY_A)
 
+    esperado = session_pool.moldar_proxy_por_conta(PROXY_A, "conta-1")
+
     entry = await session_pool.get_entry("conta-1")
-    proxies = entry["client"].private.proxies
-    assert proxies.get("https") == PROXY_A
+    assert entry["client"].private.proxies.get("https") == esperado
 
     await session_pool.remove_entry("conta-1")
     entry2 = await session_pool.get_entry("conta-1")
     assert entry2["client"] is not entry["client"], "deveria ser um cliente novo"
-    assert entry2["client"].private.proxies.get("https") == PROXY_A
+    # Mesmo identificador de sessão: o fornecedor devolve o MESMO IP, que é
+    # todo o ponto de sobreviver ao despejo.
+    assert entry2["client"].private.proxies.get("https") == esperado
 
 
 @pytest.mark.asyncio
@@ -543,7 +548,7 @@ async def test_memoria_sobrevive_ao_despejo_do_pool():
     session_pool.lembrar_proxy("conta-1", PROXY_A)
     await session_pool.get_entry("conta-1")
     await session_pool.remove_entry("conta-1")
-    assert session_pool.proxy_lembrado("conta-1") == PROXY_A
+    assert session_pool.proxy_lembrado("conta-1") == session_pool.moldar_proxy_por_conta(PROXY_A, "conta-1")
 
 
 # ── medição do IP de saída ────────────────────────────────────────────────────
@@ -635,3 +640,98 @@ def test_resposta_vazia_conta_como_falha():
     from app import session_pool
     c = _ClienteFalso(ip="   ")
     assert session_pool.conferir_ip_de_saida(c, "c1", "http://p:1") is None
+
+
+# ── sessão fixa no proxy rotativo ─────────────────────────────────────────────
+#
+# Um proxy rotativo troca de IP a cada conexão. Para o Instagram, a mesma conta
+# aparecendo de um endereço diferente a cada publicação é padrão de conta
+# invadida — o oposto do que queremos. Um celular real fica horas no mesmo IP.
+#
+# Quase todo fornecedor residencial resolve com um identificador dentro do nome
+# de usuário. O que muda é só a sintaxe, e por isso o molde é configurável.
+
+BASE = "http://cliente__cr.br;state.saopaulo:SENHA@host.exemplo.io:11000"
+
+
+def test_cada_conta_recebe_um_ip_diferente():
+    from app.session_pool import moldar_proxy_por_conta
+    a = moldar_proxy_por_conta(BASE, "conta-A")
+    b = moldar_proxy_por_conta(BASE, "conta-B")
+    assert a != b
+    assert "session." in a and "session." in b
+
+
+def test_a_mesma_conta_sempre_pede_o_mesmo_ip():
+    """
+    Derivado do account_id, não sorteado: precisa sobreviver a restart. Um
+    identificador novo a cada reinício pediria um IP novo, e a conta
+    apareceria saltando de endereço.
+    """
+    from app.session_pool import moldar_proxy_por_conta
+    assert moldar_proxy_por_conta(BASE, "conta-A") == moldar_proxy_por_conta(BASE, "conta-A")
+
+
+def test_nao_acumula_ao_aplicar_duas_vezes():
+    """Login repetido não pode empilhar identificadores no nome de usuário."""
+    from app.session_pool import moldar_proxy_por_conta
+    uma = moldar_proxy_por_conta(BASE, "conta-A")
+    assert moldar_proxy_por_conta(uma, "conta-A") == uma
+
+
+def test_preserva_host_porta_e_senha():
+    from app.session_pool import moldar_proxy_por_conta
+    r = moldar_proxy_por_conta(BASE, "conta-A")
+    assert r.endswith("@host.exemplo.io:11000")
+    assert ":SENHA@" in r
+    assert r.startswith("http://cliente__cr.br;state.saopaulo;session.")
+
+
+def test_preserva_os_parametros_de_geolocalizacao():
+    """Perder o `cr.br` faria o IP sair de outro país — pior que não fixar."""
+    from app.session_pool import moldar_proxy_por_conta
+    r = moldar_proxy_por_conta(BASE, "conta-A")
+    assert ";state.saopaulo" in r
+    assert "__cr.br" in r
+
+
+def test_molde_configuravel_para_outros_fornecedores(monkeypatch):
+    """Bright Data, Smartproxy e Oxylabs usam sintaxes diferentes."""
+    from app.session_pool import moldar_proxy_por_conta
+    monkeypatch.setenv("PROXY_SESSAO_MOLDE", "-session-{sessao}")
+    r = moldar_proxy_por_conta("http://user:pass@host:1", "conta-A")
+    assert "-session-" in r
+    assert r.startswith("http://user-session-")
+
+
+def test_molde_vazio_desliga_a_fixacao(monkeypatch):
+    """Quem usa IP dedicado não tem rotação para conter."""
+    from app.session_pool import moldar_proxy_por_conta
+    monkeypatch.setenv("PROXY_SESSAO_MOLDE", "")
+    assert moldar_proxy_por_conta(BASE, "conta-A") == BASE
+
+
+def test_proxy_sem_credenciais_passa_intacto():
+    """A fixação vive no nome de usuário; sem ele não há onde colocá-la."""
+    from app.session_pool import moldar_proxy_por_conta
+    u = "http://host.exemplo.io:11000"
+    assert moldar_proxy_por_conta(u, "conta-A") == u
+
+
+def test_proxy_vazio_nao_quebra():
+    from app.session_pool import moldar_proxy_por_conta
+    assert moldar_proxy_por_conta(None, "conta-A") is None
+    assert moldar_proxy_por_conta("", "conta-A") == ""
+
+
+def test_lembrar_proxy_ja_guarda_moldado():
+    """
+    O molde acontece num ponto só. Se `lembrar_proxy` guardasse a URL crua,
+    cada consumidor teria de moldar — e esquecer um faria a conta trocar de
+    IP apenas em algumas operações, que é o defeito mais difícil de ver.
+    """
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-A", BASE)
+    guardado = session_pool.proxy_lembrado("conta-A")
+    assert "session." in guardado
+    assert guardado == session_pool.moldar_proxy_por_conta(BASE, "conta-A")

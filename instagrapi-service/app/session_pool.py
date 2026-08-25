@@ -545,11 +545,96 @@ def apply_app_version(client: Client) -> str:
 _proxies: dict[str, str] = {}
 
 
+def sessao_da_conta(account_id: str) -> str:
+    """
+    Identificador de sessão estável para esta conta.
+
+    Derivado do account_id, não sorteado: precisa sobreviver a restart do
+    serviço. Um identificador novo a cada reinício pediria um IP novo ao
+    fornecedor, e a conta apareceria saltando de endereço — que é o padrão
+    que estamos tentando evitar.
+
+    Doze caracteres hexadecimais: curto o bastante para caber em nome de
+    usuário de proxy, longo o bastante para não colidir entre contas.
+    """
+    return hashlib.sha256(f"proxy-sessao:{account_id}".encode()).hexdigest()[:12]
+
+
+def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
+    """
+    Fixa o IP do proxy rotativo por conta.
+
+    Um proxy rotativo troca de IP a cada conexão. Para o Instagram, a mesma
+    conta aparecendo de um endereço diferente a cada publicação é o padrão de
+    conta invadida — exatamente o oposto do que queremos. Um celular real usa
+    o mesmo IP por horas.
+
+    Praticamente todo fornecedor residencial resolve isso do mesmo jeito: um
+    identificador dentro do NOME DE USUÁRIO faz o IP ficar fixo enquanto
+    aquele identificador for usado. O que muda entre fornecedores é só a
+    sintaxe:
+
+        Bright Data   usuario-session-abc123
+        Smartproxy    usuario-session-abc123
+        Oxylabs       usuario-sessid-abc123
+        IPRoyal       usuario_session-abc123_lifetime-30m
+
+    Daí o molde vir de variável de ambiente em vez de estar escrito no
+    código: `PROXY_SESSAO_MOLDE` recebe o sufixo com `{sessao}` onde entra o
+    identificador. O padrão segue a forma do proxy em uso aqui, cujo usuário
+    já traz parâmetros separados por ponto-e-vírgula
+    (`...__cr.br;state.saopaulo`).
+
+    Molde vazio desliga a fixação e devolve a URL intacta — é o caminho para
+    quem usa IP dedicado, onde não há rotação para conter.
+    """
+    if not url:
+        return url
+
+    molde = os.getenv("PROXY_SESSAO_MOLDE")
+    if molde is None:
+        molde = ";session.{sessao}"
+    if not molde.strip():
+        return url
+
+    try:
+        esquema, resto = url.split("://", 1)
+    except ValueError:
+        logger.warning("proxy sem esquema — fixação de sessão ignorada")
+        return url
+
+    if "@" not in resto:
+        # Sem credenciais não há onde pôr o identificador: a fixação depende
+        # do nome de usuário, e proxy sem autenticação não tem um.
+        return url
+
+    credenciais, destino = resto.rsplit("@", 1)
+    if ":" not in credenciais:
+        return url
+
+    usuario, senha = credenciais.split(":", 1)
+    sufixo = molde.replace("{sessao}", sessao_da_conta(account_id))
+
+    # Não duplica: chamar duas vezes para a mesma conta tem de dar o mesmo
+    # resultado, senão o identificador se acumularia a cada login.
+    if sufixo in usuario:
+        return url
+
+    return f"{esquema}://{usuario}{sufixo}:{senha}@{destino}"
+
+
 def lembrar_proxy(account_id: str, proxy: str | None) -> None:
-    """Guarda (ou esquece) o proxy desta conta para os clientes seguintes."""
+    """
+    Guarda (ou esquece) o proxy desta conta para os clientes seguintes.
+
+    A URL é moldada AQUI, num ponto só, e não em cada consumidor: login,
+    load, publicação e cliente recriado leem todos daqui, e moldar em cada um
+    seria quatro chances de esquecer — com o sintoma de a conta trocar de IP
+    só em algumas operações, que é o defeito mais difícil de enxergar.
+    """
     anterior = _proxies.get(account_id)
     if proxy:
-        _proxies[account_id] = proxy
+        _proxies[account_id] = moldar_proxy_por_conta(proxy, account_id)
     else:
         _proxies.pop(account_id, None)
     # Proxy trocado no painel invalida o IP medido: ele descreve um caminho

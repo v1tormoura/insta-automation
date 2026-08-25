@@ -122,6 +122,19 @@ services:
       INSTAGRAPI_TZ_OFFSET_HOURS: ${INSTAGRAPI_TZ_OFFSET_HOURS:--3}
       INSTAGRAPI_TZ_NAME: ${INSTAGRAPI_TZ_NAME:-America/Sao_Paulo}
       GLOBAL_PROXY: ${GLOBAL_PROXY:-}
+      # Sessao fixa no proxy rotativo: um identificador por conta faz o
+      # fornecedor devolver sempre o MESMO IP para aquela conta. Sem isto o
+      # IP muda a cada conexao, e para o Instagram a mesma conta saltando de
+      # endereco e padrao de conta invadida.
+      #
+      # A sintaxe muda por fornecedor. `{sessao}` e substituido pelo
+      # identificador da conta:
+      #   axtron / geo por parametro   ;session.{sessao}      (padrao)
+      #   Bright Data, Smartproxy      -session-{sessao}
+      #   Oxylabs                      -sessid-{sessao}
+      #   IPRoyal                      _session-{sessao}_lifetime-30m
+      # Vazio desliga a fixacao (use com IP dedicado, que nao rotaciona).
+      PROXY_SESSAO_MOLDE: ${PROXY_SESSAO_MOLDE-;session.{sessao}}
     volumes:
       - uploads:/app/uploads
     # No ports: — internal Docker network only; never exposed to the host
