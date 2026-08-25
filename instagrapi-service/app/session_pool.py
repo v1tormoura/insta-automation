@@ -444,6 +444,32 @@ def apply_app_version(client: Client) -> str:
     return versao
 
 
+# Proxy conhecido de cada conta, fora do pool.
+#
+# O pool guarda o cliente, e o cliente morre a cada restart do serviço. O
+# proxy não pode morrer junto: um cliente recriado sem ele volta a falar com
+# o Instagram pelo IP do servidor, e o IP é justamente o que o proxy existe
+# para esconder. Como só login e load carregam o proxy na requisição, as
+# publicações que viessem depois de um restart sairiam direto — sem erro
+# nenhum, só pelo endereço errado.
+#
+# Fica aqui, ao lado do pool e não dentro dele, para sobreviver ao
+# `remove_entry` que despeja o cliente após falha de sessão.
+_proxies: dict[str, str] = {}
+
+
+def lembrar_proxy(account_id: str, proxy: str | None) -> None:
+    """Guarda (ou esquece) o proxy desta conta para os clientes seguintes."""
+    if proxy:
+        _proxies[account_id] = proxy
+    else:
+        _proxies.pop(account_id, None)
+
+
+def proxy_lembrado(account_id: str) -> str | None:
+    return _proxies.get(account_id)
+
+
 async def get_entry(account_id: str) -> dict:
     """Get or create a pool entry for this account (creates isolated Client + Lock)."""
     async with _pool_lock:
@@ -457,6 +483,19 @@ async def get_entry(account_id: str) -> dict:
             apply_app_version(client)
             _patch_client_retries(client)
             _patch_client_fail_fast(client)
+
+            # Cliente novo herda o proxy que a conta já usava. Sem isto, todo
+            # restart do serviço devolvia as publicações ao IP do servidor.
+            lembrado = _proxies.get(account_id)
+            if lembrado:
+                try:
+                    client.set_proxy(lembrado)
+                    _slog("PROXY_REAPLICADO", account_id)
+                except Exception as e:  # noqa: BLE001
+                    logger.error(
+                        "não foi possível reaplicar o proxy da conta %s — as "
+                        "requisições vão sair pelo IP do servidor: %s", account_id, e,
+                    )
             _pool[account_id] = {
                 "client": client,
                 "lock":   asyncio.Lock(),

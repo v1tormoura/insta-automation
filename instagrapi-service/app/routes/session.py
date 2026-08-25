@@ -50,6 +50,7 @@ async def load_session(body: LoadRequest):
             client.set_settings(body.settings)
             if body.proxy:
                 client.set_proxy(body.proxy)
+            session_pool.lembrar_proxy(body.account_id, body.proxy)
         except Exception as e:
             logger.exception("load_session: set_settings failed for %s", body.account_id)
             raise HTTPException(status_code=422, detail=f"Configurações de sessão inválidas: {e}")
@@ -101,6 +102,7 @@ async def login(body: LoginRequest):
         proxy = body.proxy or os.getenv('GLOBAL_PROXY')
         if proxy:
             client.set_proxy(proxy)
+        session_pool.lembrar_proxy(body.account_id, proxy)
 
         # De onde este login sai. O painel testa o proxy por um caminho e o
         # login usa outro — sem registrar aqui, "o proxy está ativo" e "o
@@ -250,6 +252,7 @@ async def diagnostico(body: DiagnosticoRequest):
         proxy = body.proxy or os.getenv("GLOBAL_PROXY")
         if proxy:
             client.set_proxy(proxy)
+        session_pool.lembrar_proxy(body.account_id, proxy)
 
         loop = asyncio.get_running_loop()
         resultado = await loop.run_in_executor(None, lambda: _coletar_diagnostico(client, proxy))
@@ -569,6 +572,7 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
         proxy = body.proxy or os.getenv('GLOBAL_PROXY')
         if proxy:
             client.set_proxy(proxy)
+        session_pool.lembrar_proxy(body.account_id, proxy)
         loop = asyncio.get_running_loop()
         t0 = time.perf_counter()
         try:

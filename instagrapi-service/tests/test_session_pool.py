@@ -458,3 +458,89 @@ def test_regiao_configuravel_por_ambiente(monkeypatch):
     assert c.locale == "pt_PT"
     assert int(c.timezone_offset) == 0
     assert "pt_PT" in c.user_agent
+
+
+# ── memória de proxy por conta ────────────────────────────────────────────────
+#
+# O pool guarda o cliente, e o cliente morre a cada restart do serviço. Só
+# login e load carregam o proxy na requisição — publicação, perfil e insights
+# não. Sem memória, um cliente recriado depois de um restart voltava a falar
+# com o Instagram pelo IP do servidor, que é exatamente o que o proxy existe
+# para esconder. E sem erro nenhum: só pelo endereço errado.
+
+PROXY_A = "http://usuario__cr.br;state.saopaulo:senha@host.exemplo.io:1234"
+PROXY_B = "http://outro:chave@outro.exemplo.io:9999"
+
+
+@pytest.fixture(autouse=True)
+def _limpa_memoria_de_proxy():
+    from app import session_pool
+    session_pool._proxies.clear()
+    yield
+    session_pool._proxies.clear()
+
+
+def test_lembra_e_devolve_o_proxy():
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-1", PROXY_A)
+    assert session_pool.proxy_lembrado("conta-1") == PROXY_A
+
+
+def test_proxy_e_por_conta_nao_global():
+    """Duas contas, dois proxies. Vazar um para a outra juntaria os IPs."""
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-1", PROXY_A)
+    session_pool.lembrar_proxy("conta-2", PROXY_B)
+    assert session_pool.proxy_lembrado("conta-1") == PROXY_A
+    assert session_pool.proxy_lembrado("conta-2") == PROXY_B
+    assert session_pool.proxy_lembrado("conta-3") is None
+
+
+def test_proxy_vazio_esquece():
+    """Tirar o proxy no painel tem de tirar de verdade, não manter o antigo."""
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-1", PROXY_A)
+    session_pool.lembrar_proxy("conta-1", None)
+    assert session_pool.proxy_lembrado("conta-1") is None
+
+
+@pytest.mark.asyncio
+async def test_cliente_novo_herda_o_proxy_da_conta():
+    """
+    O teste que cobre o buraco real: o cliente é despejado (como num restart
+    ou após falha de sessão) e o próximo a nascer precisa sair pelo mesmo IP.
+    """
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-1", PROXY_A)
+
+    entry = await session_pool.get_entry("conta-1")
+    proxies = entry["client"].private.proxies
+    assert proxies.get("https") == PROXY_A
+
+    await session_pool.remove_entry("conta-1")
+    entry2 = await session_pool.get_entry("conta-1")
+    assert entry2["client"] is not entry["client"], "deveria ser um cliente novo"
+    assert entry2["client"].private.proxies.get("https") == PROXY_A
+
+
+@pytest.mark.asyncio
+async def test_conta_sem_proxy_sai_direto():
+    """Ausência de proxy não pode virar herança do proxy de outra conta."""
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-1", PROXY_A)
+    entry = await session_pool.get_entry("conta-sem-proxy")
+    assert not entry["client"].private.proxies
+
+
+@pytest.mark.asyncio
+async def test_memoria_sobrevive_ao_despejo_do_pool():
+    """
+    `remove_entry` derruba o cliente após falha de sessão. Se levasse o proxy
+    junto, a reconexão seguinte sairia pelo IP do servidor — justamente no
+    momento em que a conta está mais sensível.
+    """
+    from app import session_pool
+    session_pool.lembrar_proxy("conta-1", PROXY_A)
+    await session_pool.get_entry("conta-1")
+    await session_pool.remove_entry("conta-1")
+    assert session_pool.proxy_lembrado("conta-1") == PROXY_A
