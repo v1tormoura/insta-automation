@@ -12,6 +12,34 @@ import api from '../../services/api';
  * O endpoint não grava nada: é só planejar e devolver.
  */
 
+/**
+ * Traduz a falha para uma frase que diz o que fazer.
+ *
+ * O texto cru não servia: um 405 chegava como "405 Not Allowed 405 Not Allowed
+ * nginx/1.31.4" — verdadeiro e inútil. Quem lê precisa saber se espera, se
+ * corrige alguma coisa, ou se avisa alguém. O detalhe técnico continua logo
+ * abaixo, para quando for preciso investigar.
+ */
+function explicar(status, dados) {
+  // Corpo em HTML significa que a resposta veio do nginx, não do backend: a
+  // requisição não chegou ao Express.
+  const doProxy = typeof dados === 'string' && /<html/i.test(dados);
+
+  if (!status)              return 'O servidor não respondeu. Verifique a conexão e tente de novo.';
+  if (status === 401 ||
+      status === 403)       return 'Sua sessão expirou. Entre de novo e refaça a campanha.';
+  if (status === 404 ||
+      status === 405 ||
+      doProxy)              return 'A rota da prévia não chegou ao servidor. É configuração do servidor, não da campanha.';
+  if (status === 413)       return 'O plano ficou grande demais para enviar. Reduza contas ou conteúdos.';
+  if (status === 429)       return 'Requisições demais em pouco tempo. Espere alguns segundos e tente de novo.';
+  if (status === 502 ||
+      status === 503 ||
+      status === 504)       return 'O servidor está reiniciando ou fora do ar. Tente de novo em alguns segundos.';
+  if (status >= 500)        return 'O servidor falhou ao montar o plano. Tente de novo; se insistir, é erro nosso.';
+  return 'A campanha tem algo que o servidor recusou. Revise as etapas anteriores.';
+}
+
 const FILTROS = [
   { id: 'todas',    rotulo: 'Todas'     },
   { id: 'erro',     rotulo: 'Com erro'  },
@@ -85,7 +113,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
           detalhe,
         ].filter(Boolean);
 
-        setErro(partes.join(' · '));
+        setErro({ resumo: explicar(r?.status, d), detalhe: partes.join(' · ') });
         // O objeto inteiro no console: às vezes a pista está numa chave que a
         // tela não mostra.
         console.error('[CampaignPreview] falha ao gerar a prévia', { status: r?.status, data: d, err });
@@ -151,7 +179,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
   if (carregando) {
     return (
-      <div style={{ padding:'34px 0', textAlign:'center', color:'var(--text3)', fontSize:12 }}>
+      <div style={{ padding:'34px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize:12 }}>
         Gerando o plano…
       </div>
     );
@@ -159,17 +187,48 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
   if (erro) {
     return (
-      <div style={{ background:'rgba(248,113,113,.08)', border:'1px solid rgba(248,113,113,.3)',
-        borderRadius:12, padding:'14px 16px', fontSize:12, color:'#f87171', lineHeight:1.6 }}>
-        <strong>Não foi possível gerar a prévia.</strong>
-        <div style={{ marginTop:5, color:'var(--text2)', fontFamily:'var(--font-mono)', fontSize:11 }}>{erro}</div>
-        <button
-          onClick={() => setTentativa(t => t + 1)}
-          style={{ marginTop:10, padding:'6px 14px', borderRadius:7, fontSize:11, fontWeight:700,
-            cursor:'pointer', background:'rgba(248,113,113,.14)', color:'#fca5a5',
-            border:'1px solid rgba(248,113,113,.35)' }}>
-          Tentar de novo
-        </button>
+      <div style={{
+        display:'flex', gap:13, alignItems:'flex-start',
+        background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
+        border:'1px solid color-mix(in oklch, var(--mf-danger-500) 32%, transparent)',
+        borderRadius:14, padding:'16px 18px',
+      }}>
+        <span style={{
+          width:32, height:32, borderRadius:10, flexShrink:0, display:'grid', placeItems:'center',
+          background:'color-mix(in oklch, var(--mf-danger-500) 16%, transparent)',
+          color:'var(--mf-danger-500)',
+        }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </span>
+
+        <div style={{ minWidth:0, flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:750, color:'var(--mf-text)', marginBottom:4 }}>
+            Não foi possível gerar a prévia
+          </div>
+          <div style={{ fontSize:12, color:'var(--mf-text-2)', lineHeight:1.6 }}>
+            {erro.resumo}
+          </div>
+          <div style={{
+            marginTop:9, padding:'7px 10px', borderRadius:8,
+            background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)',
+            fontFamily:'var(--mf-mono)', fontSize:10.5, color:'var(--mf-text-3)',
+            overflowX:'auto', whiteSpace:'nowrap',
+          }}>{erro.detalhe}</div>
+
+          <button
+            onClick={() => setTentativa(t => t + 1)}
+            style={{ marginTop:12, padding:'7px 15px', borderRadius:8, fontSize:11.5, fontWeight:700,
+              cursor:'pointer',
+              background:'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
+              color:'var(--mf-danger-500)',
+              border:'1px solid color-mix(in oklch, var(--mf-danger-500) 34%, transparent)' }}>
+            Tentar de novo
+          </button>
+        </div>
       </div>
     );
   }

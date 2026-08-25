@@ -16,12 +16,51 @@ import api from '../../services/api';
  * arquivos não dava para achar nada. Agora a busca, o tipo e a pasta filtram no
  * SERVIDOR (a rota /media aceita search/type/folder/limit), e o que está
  * selecionado aparece sempre no topo — mesmo quando o filtro atual o esconde.
+ *
+ * A grade rola DENTRO de si, com altura limitada. Solta, ela empurrava os
+ * filtros e a bandeja de selecionados para fora da tela: com 315 arquivos a
+ * etapa passava de dois mil pixels, e conferir a seleção exigia rolar de volta
+ * ao topo.
  */
 
 const PAGINA = 40;
 
 const ehVideo = m =>
   m?.type === 'video' || /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(m?.filename || '');
+
+const nomeDe = m => m?.originalName || m?.filename || 'sem nome';
+
+/**
+ * Miniatura de uma mídia — o mesmo desenho na bandeja e na grade.
+ *
+ * Fica FORA do ContentPicker de propósito. Declarada dentro, ela ganharia
+ * identidade nova a cada render, e o React trataria cada render como um
+ * componente diferente: desmontaria e remontaria os elementos. Com quarenta
+ * miniaturas na grade, cada tecla digitada na busca destruiria e recriaria
+ * quarenta <video>, que o navegador teria de decodificar de novo.
+ */
+function Miniatura({ midia, brilho = 1 }) {
+  if (!midia?.url) return null;
+  const estilo = {
+    position: 'absolute', inset: 0, width: '100%', height: '100%',
+    objectFit: 'cover', filter: `brightness(${brilho})`,
+  };
+  return ehVideo(midia)
+    ? <video src={midia.url} muted playsInline preload="metadata" style={estilo} />
+    : <img src={midia.url} alt="" style={estilo} />;
+}
+
+/** Ícone de imagem — usado onde a capa ainda não foi escolhida. */
+function IconeCapa({ tamanho = 9 }) {
+  return (
+    <svg width={tamanho} height={tamanho} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </svg>
+  );
+}
 
 export default function ContentPicker({
   selecionados = [],      // [contentId] — a ordem é a ordem de seleção
@@ -101,6 +140,15 @@ export default function ContentPicker({
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  /* Fechar o modal com Esc: ele cobre a tela inteira e, sem isto, a única
+     saída era acertar o clique fora ou o botão Fechar lá no rodapé. */
+  useEffect(() => {
+    if (!modalCapa) return;
+    const aoTeclar = e => { if (e.key === 'Escape') setModalCapa(null); };
+    window.addEventListener('keydown', aoTeclar);
+    return () => window.removeEventListener('keydown', aoTeclar);
+  }, [modalCapa]);
+
   /* ── Ações ───────────────────────────────────────────────────────────────── */
 
   const alternar = (id) => {
@@ -165,20 +213,31 @@ export default function ContentPicker({
     [conhecidos],
   );
 
+  /* Vídeo sem capa não é erro — o Instagram escolhe um quadro. Mas é uma
+     escolha que passa despercebida, então a bandeja diz quantos estão assim. */
+  const videosSemCapa = useMemo(
+    () => escolhidos.filter(m => ehVideo(m) && !capas[String(m._id)]).length,
+    [escolhidos, capas],
+  );
+
   const todosVisiveisMarcados = itens.length > 0 && itens.every(m => selecionados.includes(String(m._id)));
 
   /* ── Estilos ─────────────────────────────────────────────────────────────── */
 
+  const ACENTO = 'var(--mf-mod-campanhas, var(--mf-accent-500))';
+
   const campo = {
-    height: 34, padding: '0 10px', borderRadius: 8, fontSize: 12,
-    background: 'oklch(0.10 0.03 235)', color: 'var(--text)',
-    border: '1px solid oklch(1 0 0 / 0.10)', outline: 'none',
+    height: 36, padding: '0 11px', borderRadius: 9, fontSize: 12,
+    background: 'var(--mf-surface-2)', color: 'var(--mf-text)',
+    border: '1px solid var(--mf-border)', outline: 'none',
   };
+
   const botao = (ativo) => ({
-    padding: '7px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-    background: ativo ? 'rgba(0,212,255,.14)' : 'oklch(1 0 0 / 0.04)',
-    color:      ativo ? 'var(--cyan)'         : 'var(--text3)',
-    border:     ativo ? '1px solid rgba(0,212,255,.35)' : '1px solid oklch(1 0 0 / 0.08)',
+    padding: '7px 12px', borderRadius: 9, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+    transition: 'all .15s',
+    background: ativo ? `color-mix(in oklch, ${ACENTO} 14%, transparent)` : 'var(--mf-surface-2)',
+    color:      ativo ? ACENTO : 'var(--mf-text-3)',
+    border:     `1px solid ${ativo ? `color-mix(in oklch, ${ACENTO} 38%, transparent)` : 'var(--mf-border)'}`,
   });
 
   return (
@@ -188,20 +247,20 @@ export default function ContentPicker({
           Escolher o que já existe e trazer arquivo novo são tarefas
           diferentes. Na mesma barra, o botão de enviar competia com os filtros
           e nenhuma das duas ficava óbvia. */}
-      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 10,
-        background: 'oklch(0.10 0.03 235)', border: '1px solid oklch(1 0 0 / 0.08)' }}>
+      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12,
+        background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
         {[
           ['biblioteca', 'Biblioteca', `${total} arquivo(s) salvos`],
           ['upload',     'Enviar novos', 'Do seu computador'],
         ].map(([id, titulo, sub]) => (
           <button key={id} onClick={() => setAba(id)} style={{
-            flex: 1, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-            border: 'none',
-            background: aba === id ? 'rgba(0,212,255,.13)' : 'transparent',
-            color:      aba === id ? 'var(--cyan)'         : 'var(--text3)',
+            flex: 1, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left',
+            border: 'none', transition: 'all .15s',
+            background: aba === id ? `color-mix(in oklch, ${ACENTO} 15%, transparent)` : 'transparent',
+            color:      aba === id ? ACENTO : 'var(--mf-text-3)',
           }}>
             <div style={{ fontSize: 12, fontWeight: 800 }}>{titulo}</div>
-            <div style={{ fontSize: 9.5, opacity: .75, marginTop: 1 }}>{sub}</div>
+            <div style={{ fontSize: 9.5, opacity: .78, marginTop: 1 }}>{sub}</div>
           </button>
         ))}
       </div>
@@ -220,18 +279,23 @@ export default function ContentPicker({
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             gap: 10, padding: '38px 20px', borderRadius: 14, textAlign: 'center',
             cursor: enviando ? 'default' : 'pointer',
-            border: `1.5px dashed ${arrastando ? 'var(--cyan)' : 'oklch(1 0 0 / 0.18)'}`,
-            background: arrastando ? 'rgba(0,212,255,.06)' : 'oklch(1 0 0 / 0.02)',
+            border: `1.5px dashed ${arrastando ? ACENTO : 'var(--mf-border-strong)'}`,
+            background: arrastando
+              ? `color-mix(in oklch, ${ACENTO} 7%, transparent)`
+              : 'var(--mf-surface-2)',
             transition: 'all .15s',
           }}>
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={arrastando ? 'var(--cyan)' : 'var(--text3)'}
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+            stroke={arrastando ? ACENTO : 'var(--mf-text-3)'}
             strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <div style={{ fontSize: 13, fontWeight: 700, color: enviando ? 'var(--text3)' : 'var(--text)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: enviando ? 'var(--mf-text-3)' : 'var(--mf-text)' }}>
             {enviando ? 'Enviando…' : 'Arraste os arquivos aqui ou clique para escolher'}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 11, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
             Vídeos e imagens. O que subir entra na biblioteca e já fica
             selecionado para esta campanha.
             {pasta && <><br />Será salvo na pasta <strong>{pasta}</strong>.</>}
@@ -242,8 +306,113 @@ export default function ContentPicker({
         </label>
       )}
 
-      {/* ── Barra de controle ─────────────────────────────────────────────── */}
-      {aba === 'biblioteca' && (
+      {/* ── Selecionados ──────────────────────────────────────────────────────
+          Miniaturas, não nomes de arquivo. Os nomes vêm do exportador e são
+          quase idênticos entre si — `(new)larissagomes2g_178551331…` — então a
+          bandeja em texto não dizia o que estava na campanha.
+
+          É também onde mora a capa: só faz sentido definir capa do que já foi
+          escolhido, e aqui cada vídeo tem a sua ao lado. */}
+      <div style={{
+        border: '1px solid var(--mf-border)', borderRadius: 14, padding: 14,
+        background: 'var(--mf-surface-1)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: escolhidos.length ? 12 : 0, gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 750, color: ACENTO }}>
+              {escolhidos.length} conteúdo(s) na campanha
+            </span>
+            {videosSemCapa > 0 && (
+              <span style={{ fontSize: 10.5, color: 'var(--mf-text-3)' }}>
+                {videosSemCapa} sem capa — o Instagram escolhe um quadro
+              </span>
+            )}
+          </div>
+          {escolhidos.length > 0 && (
+            <button onClick={() => onSelecionar([])} style={botao(false)}>Limpar seleção</button>
+          )}
+        </div>
+
+        {escolhidos.length === 0 ? (
+          <div style={{ fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.65 }}>
+            Nada selecionado ainda. Escolha abaixo ou envie arquivos novos — a ordem
+            do clique é a ordem em que os conteúdos entram no plano.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'thin' }}>
+            {escolhidos.map((m, i) => {
+              const id    = String(m._id);
+              const video = ehVideo(m);
+              const capa  = capas[id] ? conhecidos[capas[id]] : null;
+              return (
+                <div key={id} style={{ width: 92, flexShrink: 0 }}>
+                  <div style={{
+                    position: 'relative', width: 92, aspectRatio: '3/4', borderRadius: 11,
+                    overflow: 'hidden', background: 'var(--mf-surface-3)',
+                    border: '1px solid var(--mf-border)',
+                  }}>
+                    <Miniatura midia={m} brilho={0.92} />
+
+                    <span style={{
+                      position: 'absolute', top: 5, left: 5, width: 19, height: 19, borderRadius: '50%',
+                      background: ACENTO, color: 'var(--mf-bg)',
+                      fontSize: 9.5, fontWeight: 800, display: 'grid', placeItems: 'center',
+                      boxShadow: '0 1px 4px oklch(0 0 0 / .4)',
+                    }}>{i + 1}</span>
+
+                    <button onClick={() => alternar(id)} title="Remover da campanha"
+                      style={{
+                        position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: '50%',
+                        display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0,
+                        background: 'oklch(0 0 0 / .55)', border: '1px solid oklch(1 0 0 / .22)',
+                        color: '#fff', fontSize: 12, lineHeight: 1,
+                      }}>×</button>
+                  </div>
+
+                  {/* Capa só existe para vídeo. Na imagem o espaço fica com o
+                      nome do arquivo, para a linha não dançar de altura. */}
+                  {video ? (
+                    <button onClick={() => setModalCapa(id)}
+                      title={capa ? `Capa: ${nomeDe(capa)} — clique para trocar` : 'Definir a capa deste vídeo'}
+                      style={{
+                        marginTop: 5, width: '100%', display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '4px 6px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                        fontSize: 9.5, fontWeight: 750, transition: 'all .15s',
+                        background: capa
+                          ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)'
+                          : 'var(--mf-surface-2)',
+                        color: capa ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
+                        border: `1px solid ${capa
+                          ? 'color-mix(in oklch, var(--mf-mod-publicar) 38%, transparent)'
+                          : 'var(--mf-border)'}`,
+                      }}>
+                      <span style={{
+                        width: 15, height: 15, borderRadius: 4, flexShrink: 0, overflow: 'hidden',
+                        position: 'relative', display: 'grid', placeItems: 'center',
+                        background: capa ? 'transparent' : 'var(--mf-surface-3)',
+                      }}>
+                        {capa
+                          ? <img src={capa.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <IconeCapa />}
+                      </span>
+                      {capa ? 'Capa' : 'Definir capa'}
+                    </button>
+                  ) : (
+                    <div style={{
+                      marginTop: 5, fontSize: 9.5, color: 'var(--mf-text-3)', padding: '5px 2px',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }} title={nomeDe(m)}>{nomeDe(m)}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Biblioteca ────────────────────────────────────────────────────── */}
+      {aba === 'biblioteca' && (<>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           value={busca}
@@ -266,75 +435,10 @@ export default function ContentPicker({
             {pastas.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         )}
-
-      </div>
-      )}
-
-      {/* ── Selecionados ──────────────────────────────────────────────────────
-          Fica no topo e fora do filtro: é o único lugar onde dá para conferir a
-          seleção inteira sem limpar a busca. */}
-      <div style={{
-        border: '1px solid oklch(1 0 0 / 0.08)', borderRadius: 12, padding: 12,
-        background: 'oklch(0.16 0.05 235 / 0.45)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: escolhidos.length ? 10 : 0, gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--cyan)' }}>
-            {escolhidos.length} conteúdo(s) na campanha
-          </span>
-          {escolhidos.length > 0 && (
-            <button onClick={() => onSelecionar([])} style={botao(false)}>Limpar seleção</button>
-          )}
-        </div>
-
-        {escolhidos.length === 0 ? (
-          <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.6 }}>
-            Nada selecionado ainda. Escolha abaixo ou envie arquivos novos — a ordem
-            do clique é a ordem em que os conteúdos entram no plano.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {escolhidos.map((m, i) => {
-              const video = ehVideo(m);
-              const capa  = capas[String(m._id)];
-              return (
-                <span key={m._id} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '5px 8px 5px 6px', borderRadius: 8, fontSize: 10.5,
-                  background: 'oklch(0.10 0.03 235)', border: '1px solid oklch(1 0 0 / 0.10)',
-                  color: 'var(--text2)', maxWidth: 260,
-                }}>
-                  <span style={{
-                    width: 17, height: 17, borderRadius: '50%', flexShrink: 0,
-                    background: 'var(--cyan)', color: '#04121c', fontSize: 9, fontWeight: 800,
-                    display: 'grid', placeItems: 'center',
-                  }}>{i + 1}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {m.originalName || m.filename}
-                  </span>
-                  {video && (
-                    <button
-                      onClick={() => setModalCapa(String(m._id))}
-                      title={capa ? 'Trocar a capa deste vídeo' : 'Definir capa deste vídeo'}
-                      style={{
-                        border: 'none', cursor: 'pointer', borderRadius: 6, padding: '2px 6px',
-                        fontSize: 9, fontWeight: 700,
-                        background: capa ? 'rgba(139,92,246,.18)' : 'oklch(1 0 0 / 0.06)',
-                        color:      capa ? '#a78bfa'              : 'var(--text3)',
-                      }}>{capa ? 'capa ✓' : 'capa'}</button>
-                  )}
-                  <button onClick={() => alternar(m._id)} title="Remover"
-                    style={{ border: 'none', background: 'transparent', color: 'var(--text3)', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-                </span>
-              );
-            })}
-          </div>
-        )}
       </div>
 
-      {/* ── Biblioteca ────────────────────────────────────────────────────── */}
-      {aba === 'biblioteca' && (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+        <span style={{ fontSize: 11, color: 'var(--mf-text-3)' }}>
           {carregando ? 'Carregando…' : `Mostrando ${itens.length} de ${total} na biblioteca`}
         </span>
         {itens.length > 0 && (
@@ -344,70 +448,105 @@ export default function ContentPicker({
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(128px,1fr))', gap: 10 }}>
-        {itens.map(m => {
-          const id      = String(m._id);
-          const marcado = selecionados.includes(id);
-          const ordem   = selecionados.indexOf(id) + 1;
-          const video   = ehVideo(m);
-          return (
-            <button key={id} onClick={() => alternar(id)} style={{
-              position: 'relative', padding: 0, borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-              aspectRatio: '3/4', textAlign: 'left', transition: 'all .18s cubic-bezier(.4,0,.2,1)',
-              background: 'oklch(0.16 0.05 235)',
-              border: `2px solid ${marcado ? 'var(--cyan)' : 'transparent'}`,
-              boxShadow: marcado ? '0 4px 14px rgba(0,212,255,0.2)' : 'none',
-              transform: marcado ? 'translateY(-2px)' : 'none',
-            }}>
-              {m.url && (video
-                ? <video src={m.url} muted playsInline preload="metadata"
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: marcado ? 'brightness(1.08)' : 'brightness(.78)' }} />
-                : <img src={m.url} alt=""
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: marcado ? 'brightness(1.08)' : 'brightness(.78)' }} />
-              )}
-
-              {marcado && (
-                <span style={{
-                  position: 'absolute', top: 8, left: 8, width: 24, height: 24, borderRadius: '50%',
-                  background: 'var(--cyan)', color: '#04121c', display: 'grid', placeItems: 'center',
-                  fontSize: 12, fontWeight: 800, boxShadow: '0 2px 5px rgba(0,0,0,.3)',
-                }}>{ordem}</span>
-              )}
-
-              {video && capas[id] && (
-                <span style={{
-                  position: 'absolute', top: 8, right: 8, padding: '2px 6px', borderRadius: 6,
-                  fontSize: 9, fontWeight: 800, background: 'rgba(139,92,246,.9)', color: '#fff',
-                }}>CAPA</span>
-              )}
-
-              <div style={{
-                position: 'absolute', left: 0, right: 0, bottom: 0, padding: '20px 9px 8px',
-                background: 'linear-gradient(to top, rgba(0,0,0,.9), transparent)',
-                fontSize: 10, fontWeight: 600, color: '#fff',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      {/* A grade rola dentro de si. Solta, ela empurrava os filtros e a bandeja
+          para fora da tela, e a etapa passava de dois mil pixels de altura. */}
+      <div style={{
+        maxHeight: 'min(56vh, 560px)', overflowY: 'auto', overflowX: 'hidden',
+        padding: 2, borderRadius: 12, scrollbarWidth: 'thin',
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(124px,100%),1fr))', gap: 10 }}>
+          {itens.map(m => {
+            const id      = String(m._id);
+            const marcado = selecionados.includes(id);
+            const ordem   = selecionados.indexOf(id) + 1;
+            const video   = ehVideo(m);
+            const capa    = capas[id] ? conhecidos[capas[id]] : null;
+            return (
+              /* Contêiner posicionado com DOIS botões IRMÃOS: o de selecionar,
+                 que preenche o cartão, e o da capa por cima. Botão dentro de
+                 botão é HTML inválido — o navegador desaninha os dois, e o
+                 clique na capa passaria a marcar o vídeo. */
+              <div key={id} style={{
+                position: 'relative', borderRadius: 12, aspectRatio: '3/4',
+                transition: 'transform .18s cubic-bezier(.4,0,.2,1)',
+                transform: marcado ? 'translateY(-2px)' : 'none',
               }}>
-                {video && (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ display: 'inline-block', verticalAlign: '-1px', marginRight: 4 }}>
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                )}
-                {m.originalName || m.filename}
-              </div>
-            </button>
-          );
-        })}
+                <button onClick={() => alternar(id)}
+                  title={marcado ? 'Remover da campanha' : 'Adicionar à campanha'}
+                  style={{
+                    position: 'absolute', inset: 0, padding: 0, borderRadius: 12, overflow: 'hidden',
+                    cursor: 'pointer', textAlign: 'left', width: '100%', height: '100%',
+                    background: 'var(--mf-surface-2)',
+                    border: `2px solid ${marcado ? ACENTO : 'var(--mf-border)'}`,
+                    boxShadow: marcado
+                      ? `0 4px 16px color-mix(in oklch, ${ACENTO} 24%, transparent)`
+                      : 'none',
+                    transition: 'border-color .18s, box-shadow .18s',
+                  }}>
+                  <Miniatura midia={m} brilho={marcado ? 1.06 : 0.76} />
 
-        {!carregando && !itens.length && (
-          <div style={{
-            gridColumn: '1/-1', padding: '34px 0', textAlign: 'center', color: 'var(--text3)',
-            fontSize: 12.5, background: 'oklch(1 0 0 / 0.02)', borderRadius: 12, lineHeight: 1.7,
-          }}>
-            {buscaAtiva || tipo || pasta
-              ? <>Nenhuma mídia bate com esse filtro.<br />Ajuste a busca ou envie um arquivo novo.</>
-              : <>A biblioteca está vazia.<br />Use a aba <strong>Enviar novos</strong> para começar.</>}
-          </div>
-        )}
+                  {marcado && (
+                    <span style={{
+                      position: 'absolute', top: 7, left: 7, width: 23, height: 23, borderRadius: '50%',
+                      background: ACENTO, color: 'var(--mf-bg)',
+                      display: 'grid', placeItems: 'center', fontSize: 11.5, fontWeight: 800,
+                      boxShadow: '0 2px 6px oklch(0 0 0 / .4)',
+                    }}>{ordem}</span>
+                  )}
+
+                  <div style={{
+                    position: 'absolute', left: 0, right: 0, bottom: 0,
+                    /* Folga à direita quando o botão de capa está lá, para o
+                       nome do arquivo não passar por baixo dele. */
+                    padding: video && marcado ? '20px 38px 8px 9px' : '20px 9px 8px',
+                    background: 'linear-gradient(to top, oklch(0 0 0 / .9), transparent)',
+                    fontSize: 10, fontWeight: 600, color: '#fff',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {video && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"
+                        style={{ display: 'inline-block', verticalAlign: '-1px', marginRight: 4 }}>
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    )}
+                    {nomeDe(m)}
+                  </div>
+                </button>
+
+                {/* A capa aparece no próprio cartão assim que o vídeo entra na
+                    campanha. Antes existia só como um texto de 9px dentro da
+                    bandeja, e passava despercebida. */}
+                {video && marcado && (
+                  <button onClick={() => setModalCapa(id)}
+                    title={capa ? `Capa: ${nomeDe(capa)} — clique para trocar` : 'Definir a capa deste vídeo'}
+                    style={{
+                      position: 'absolute', right: 7, bottom: 7, zIndex: 2,
+                      width: 26, height: 26, borderRadius: 8, padding: 0, cursor: 'pointer',
+                      display: 'grid', placeItems: 'center', overflow: 'hidden',
+                      background: capa ? 'transparent' : 'oklch(0 0 0 / .6)',
+                      border: `1.5px solid ${capa ? 'var(--mf-mod-publicar)' : 'oklch(1 0 0 / .35)'}`,
+                      color: '#fff',
+                    }}>
+                    {capa
+                      ? <img src={capa.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <IconeCapa tamanho={13} />}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          {!carregando && !itens.length && (
+            <div style={{
+              gridColumn: '1/-1', padding: '34px 0', textAlign: 'center', color: 'var(--mf-text-3)',
+              fontSize: 12.5, background: 'var(--mf-surface-2)', borderRadius: 12, lineHeight: 1.7,
+            }}>
+              {buscaAtiva || tipo || pasta
+                ? <>Nenhuma mídia bate com esse filtro.<br />Ajuste a busca ou envie um arquivo novo.</>
+                : <>A biblioteca está vazia.<br />Use a aba <strong>Enviar novos</strong> para começar.</>}
+            </div>
+          )}
+        </div>
       </div>
 
       {itens.length < total && (
@@ -422,25 +561,33 @@ export default function ContentPicker({
       {modalCapa && (
         <div
           onClick={e => { if (e.target === e.currentTarget) setModalCapa(null); }}
+          role="dialog" aria-modal="true" aria-label="Escolher a capa do vídeo"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 60,
+            position: 'fixed', inset: 0, background: 'oklch(0 0 0 / .68)', zIndex: 60,
             display: 'grid', placeItems: 'center', padding: 20,
           }}>
           <div style={{
-            width: 'min(560px, 100%)', maxHeight: '80vh', overflow: 'auto',
-            background: 'oklch(0.14 0.04 235)', border: '1px solid oklch(1 0 0 / 0.10)',
-            borderRadius: 16, padding: 18,
+            width: 'min(600px, 100%)', maxHeight: '82vh', display: 'flex', flexDirection: 'column',
+            background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
+            borderRadius: 18, boxShadow: '0 24px 60px oklch(0 0 0 / .5)',
           }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700 }}>Capa do vídeo</h3>
-            <p style={{ margin: '0 0 14px', fontSize: 11.5, color: 'var(--text3)', lineHeight: 1.6 }}>
-              A imagem escolhida vira a miniatura do Reel. Sem capa, o Instagram usa
-              um quadro do próprio vídeo.
-            </p>
+            <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--mf-border)' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 750, color: 'var(--mf-text)' }}>
+                Capa do vídeo
+              </h3>
+              <p style={{ margin: 0, fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+                A imagem escolhida vira a miniatura do Reel no perfil. Sem capa, o
+                Instagram usa um quadro do próprio vídeo.
+              </p>
+            </div>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+            <div style={{ padding: '14px 20px', display: 'flex', gap: 8, flexWrap: 'wrap',
+              borderBottom: '1px solid var(--mf-border)' }}>
               <label style={{
                 ...botao(false), cursor: enviando ? 'default' : 'pointer',
-                background: 'rgba(16,185,129,.12)', color: '#34d399', border: '1px solid rgba(16,185,129,.28)',
+                background: 'color-mix(in oklch, var(--mf-success-500) 14%, transparent)',
+                color: 'var(--mf-success-500)',
+                border: '1px solid color-mix(in oklch, var(--mf-success-500) 34%, transparent)',
               }}>
                 {enviando ? 'Enviando…' : 'Enviar imagem nova'}
                 <input type="file" accept="image/*" style={{ display: 'none' }} disabled={enviando}
@@ -453,30 +600,46 @@ export default function ContentPicker({
               )}
             </div>
 
-            {imagensDisponiveis.length ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))', gap: 8 }}>
-                {imagensDisponiveis.map(img => {
-                  const escolhida = capas[modalCapa] === String(img._id);
-                  return (
-                    <button key={img._id}
-                      onClick={() => { onCapa?.(modalCapa, String(img._id)); setModalCapa(null); }}
-                      style={{
-                        position: 'relative', aspectRatio: '3/4', padding: 0, borderRadius: 10,
-                        overflow: 'hidden', cursor: 'pointer', background: 'oklch(0.16 0.05 235)',
-                        border: `2px solid ${escolhida ? '#a78bfa' : 'transparent'}`,
-                      }}>
-                      <img src={img.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ fontSize: 11.5, color: 'var(--text3)', textAlign: 'center', padding: '18px 0' }}>
-                Nenhuma imagem na biblioteca ainda — envie uma acima.
-              </div>
-            )}
+            <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1, scrollbarWidth: 'thin' }}>
+              {imagensDisponiveis.length ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(88px,1fr))', gap: 9 }}>
+                  {imagensDisponiveis.map(img => {
+                    const escolhida = capas[modalCapa] === String(img._id);
+                    return (
+                      <button key={img._id}
+                        onClick={() => { onCapa?.(modalCapa, String(img._id)); setModalCapa(null); }}
+                        title={nomeDe(img)}
+                        style={{
+                          position: 'relative', aspectRatio: '3/4', padding: 0, borderRadius: 10,
+                          overflow: 'hidden', cursor: 'pointer', background: 'var(--mf-surface-2)',
+                          border: `2px solid ${escolhida ? 'var(--mf-mod-publicar)' : 'var(--mf-border)'}`,
+                          transition: 'border-color .15s',
+                        }}>
+                        <img src={img.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {escolhida && (
+                          <span style={{
+                            position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: '50%',
+                            background: 'var(--mf-mod-publicar)', display: 'grid', placeItems: 'center',
+                          }}>
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--mf-bg)"
+                              strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11.5, color: 'var(--mf-text-3)', textAlign: 'center', padding: '22px 0', lineHeight: 1.7 }}>
+                  Nenhuma imagem na biblioteca ainda.<br />Envie uma acima para usar como capa.
+                </div>
+              )}
+            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px',
+              borderTop: '1px solid var(--mf-border)' }}>
               <button onClick={() => setModalCapa(null)} style={botao(false)}>Fechar</button>
             </div>
           </div>

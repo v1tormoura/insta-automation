@@ -8,6 +8,7 @@ import CaptionEditor from '../components/campaign/CaptionEditor';
 import CommentEditor from '../components/campaign/CommentEditor';
 import CampaignPreview from '../components/campaign/CampaignPreview';
 import ContentPicker from '../components/campaign/ContentPicker';
+import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 
 /**
  * Wizard de criação de campanha (fase 5).
@@ -23,6 +24,136 @@ import ContentPicker from '../components/campaign/ContentPicker';
  * legenda precisa saber quantas publicações existem e quando saem — decidir a
  * distribuição depois de escrever 12 textos obriga a reescrever tudo.
  */
+
+/**
+ * Trilha de progresso.
+ *
+ * Antes eram oito cartões de dois andares lado a lado: não cabiam na
+ * largura, então a barra rolava na horizontal e as últimas etapas ficavam
+ * fora de vista — justamente as que dizem quanto falta. A trilha troca
+ * altura por densidade: nós numerados sobre um trilho que se preenche
+ * conforme se avança, e a etapa atual em destaque.
+ *
+ * O trilho preenchido fica ATRÁS dos nós, medido em porcentagem entre o
+ * primeiro e o último centro — daí o `left`/`right` de meia coluna.
+ *
+ * Fica FORA do wizard pelo mesmo motivo do Avatar: declarada lá dentro,
+ * ganharia identidade nova a cada render e o React remontaria a trilha
+ * inteira. O elemento do preenchimento nasceria já na largura final e a
+ * transição nunca chegaria a rodar — a barra saltaria em vez de avançar.
+ */
+function Trilha({ etapa, setEtapa }) {
+  const total = ETAPAS.length;
+  const progresso = total > 1 ? (etapa / (total - 1)) * 100 : 0;
+
+  return (
+    <div style={{ padding:'2px 0 6px', overflowX:'auto', scrollbarWidth:'thin' }}>
+      <div style={{ position:'relative', display:'grid',
+        gridTemplateColumns:`repeat(${total}, minmax(74px, 1fr))`, minWidth:'min(100%, 620px)' }}>
+
+        {/* trilho de fundo + preenchimento */}
+        <div aria-hidden style={{ position:'absolute', top:15, height:2, borderRadius:2,
+          left:`calc(50% / ${total})`, right:`calc(50% / ${total})`,
+          background:'var(--mf-border)' }} />
+        <div aria-hidden style={{ position:'absolute', top:15, height:2, borderRadius:2,
+          left:`calc(50% / ${total})`, width:`calc((100% - 100% / ${total}) * ${progresso / 100})`,
+          background:'linear-gradient(90deg, var(--mf-success-500), var(--mf-mod-campanhas, var(--mf-accent-500)))',
+          transition:'width .32s cubic-bezier(.4,0,.2,1)' }} />
+
+        {ETAPAS.map((e, i) => {
+          const atual = i === etapa;
+          const feito = i < etapa;
+          const cor = atual ? 'var(--mf-mod-campanhas, var(--mf-accent-500))'
+                    : feito ? 'var(--mf-success-500)'
+                    : 'var(--mf-text-3)';
+          return (
+            <button key={e.id} onClick={() => i <= etapa && setEtapa(i)}
+              title={`${e.titulo} — ${e.desc}`}
+              aria-current={atual ? 'step' : undefined}
+              disabled={i > etapa}
+              style={{
+                position:'relative', display:'flex', flexDirection:'column', alignItems:'center',
+                gap:6, padding:'0 2px', background:'none', border:'none',
+                cursor: i <= etapa ? 'pointer' : 'default',
+              }}>
+              <span style={{
+                width:30, height:30, borderRadius:'50%', display:'grid', placeItems:'center',
+                fontFamily:'var(--mf-mono)', fontSize:11, fontWeight:750, lineHeight:1,
+                color: atual ? 'var(--mf-bg)' : cor,
+                background: atual ? 'var(--mf-mod-campanhas, var(--mf-accent-500))'
+                          : feito ? 'color-mix(in oklch, var(--mf-success-500) 16%, var(--mf-surface-2))'
+                          : 'var(--mf-surface-2)',
+                border:`1.5px solid ${atual || feito ? cor : 'var(--mf-border)'}`,
+                boxShadow: atual ? '0 0 0 4px color-mix(in oklch, var(--mf-mod-campanhas, var(--mf-accent-500)) 16%, transparent)' : 'none',
+                transition:'all .2s cubic-bezier(.4,0,.2,1)',
+              }}>
+                {feito
+                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  : String(i + 1).padStart(2, '0')}
+              </span>
+              <span style={{
+                fontSize:10.5, fontWeight: atual ? 750 : 600, color: atual ? 'var(--mf-text)' : cor,
+                maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                transition:'color .2s',
+              }}>{e.titulo}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Foto de perfil da conta, com iniciais quando não há foto e quando a foto
+ * falha ao carregar. Os dois casos acontecem: conta recém-conectada ainda
+ * não sincronizou o avatar, e o CDN do Instagram às vezes expira a URL.
+ * Sem o segundo caso, um avatar quebrado deixava um buraco no cartão.
+ *
+ * Fica FORA do wizard de propósito. Declarado lá dentro, ganharia identidade
+ * nova a cada render, e o React trataria cada render como um componente
+ * diferente: desmontaria e remontaria a <img> toda vez, fazendo a foto
+ * piscar a cada tecla digitada na busca. É a mesma armadilha que o comentário
+ * do `Atual()` descreve mais abaixo.
+ */
+function Avatar({ conta, marcada }) {
+  const src = urlDoAvatar(conta.avatar);
+  const [falhou, setFalhou] = useState(false);
+  const anel = marcada
+    ? 'var(--mf-mod-contas)'
+    : 'var(--mf-border-strong)';
+
+  return (
+    <span style={{
+      width:34, height:34, borderRadius:'50%', flexShrink:0, position:'relative',
+      display:'grid', placeItems:'center', overflow:'hidden',
+      background:'var(--mf-surface-3)',
+      boxShadow:`0 0 0 2px ${anel}`,
+      transition:'box-shadow .15s',
+    }}>
+      {src && !falhou ? (
+        <img src={src} alt="" onError={() => setFalhou(true)}
+          style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+      ) : (
+        <span style={{ fontSize:11, fontWeight:750, color:'var(--mf-text-3)', letterSpacing:'.02em' }}>
+          {iniciaisDe(conta.username)}
+        </span>
+      )}
+      {marcada && (
+        <span style={{
+          position:'absolute', right:-1, bottom:-1, width:14, height:14, borderRadius:'50%',
+          display:'grid', placeItems:'center',
+          background:'var(--mf-mod-contas)', border:'2px solid var(--mf-surface-2)',
+        }}>
+          <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="var(--mf-bg)"
+            strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+      )}
+    </span>
+  );
+}
 
 const RASCUNHO = 'campanha_rascunho_v1';
 
@@ -278,49 +409,17 @@ export default function CampaignWizard() {
   );
 
   const painel = (titulo, filhos, extra = {}) => (
-    <div style={{ background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
-      borderRadius:14, padding:16, marginBottom:14, ...extra }}>
-      {titulo && <h3 style={{ margin:'0 0 12px', fontSize:13, fontWeight:700 }}>{titulo}</h3>}
+    <div style={{ background:'var(--mf-surface-1)', border:'1px solid var(--mf-border)',
+      borderRadius:16, padding:18, marginBottom:14,
+      boxShadow:'0 1px 2px oklch(0 0 0 / .28)', ...extra }}>
+      {titulo && (
+        <h3 style={{ margin:'0 0 14px', fontSize:13, fontWeight:700, color:'var(--mf-text)' }}>
+          {titulo}
+        </h3>
+      )}
       {filhos}
     </div>
   );
-
-  function Stepper() {
-    return (
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        overflowX: 'auto',
-        padding: '6px 2px 14px',
-        marginBottom: 16,
-        alignItems: 'stretch',
-        scrollbarWidth: 'thin',
-      }}>
-        {ETAPAS.map((e, i) => {
-          const atual = i === etapa;
-          const feito = i < etapa;
-          return (
-            <button key={e.id} onClick={() => i <= etapa && setEtapa(i)}
-              title={e.desc}
-              style={{
-                flex: '1 1 0', minWidth: 102, textAlign: 'left', padding: '10px 12px', borderRadius: 10,
-                cursor: i <= etapa ? 'pointer' : 'default', transition: 'all .18s',
-                background: atual ? 'color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)' : feito ? 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)' : 'oklch(0.12 0.04 235)',
-                border: `1px solid ${atual ? 'color-mix(in oklch, var(--mf-mod-contas) 45%, transparent)' : feito ? 'color-mix(in oklch, var(--mf-success-500) 30%, transparent)' : 'var(--mf-border)'}`,
-                color: atual ? 'var(--mf-mod, var(--mf-accent-500))' : feito ? 'var(--mf-success-500)' : 'var(--mf-text-3)',
-                boxShadow: atual ? '0 0 14px color-mix(in oklch, var(--mf-mod-contas) 18%, transparent)' : 'none',
-              }}>
-              <div style={{ fontFamily: 'var(--mf-mono)', fontSize: 9.5, fontWeight: 750, opacity: .9 }}>
-                {feito ? '✓ FEITO' : `ETAPA ${String(i + 1).padStart(2, '0')}`}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 3, whiteSpace: 'nowrap',
-                overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.titulo}</div>
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
 
   function EtapaBasico() {
     return painel('Informações da campanha', <>
@@ -383,18 +482,20 @@ export default function CampaignWizard() {
           const saudavel = !c.healthStatus || c.healthStatus === 'ativa';
           return (
             <button key={c._id} onClick={() => alternar(c._id)} style={{
-              display:'flex', alignItems:'center', gap:10, padding:'10px 11px', borderRadius:10,
-              textAlign:'left', cursor:'pointer', transition:'all .15s',
-              background: marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 9%, transparent)' : 'var(--mf-border-subtle)',
-              border: `1px solid ${marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : 'var(--mf-border)'}`,
+              display:'flex', alignItems:'center', gap:10, padding:'9px 11px', borderRadius:12,
+              textAlign:'left', cursor:'pointer', transition:'all .15s cubic-bezier(.4,0,.2,1)',
+              background: marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 10%, var(--mf-surface-2))' : 'var(--mf-surface-2)',
+              border: `1px solid ${marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 42%, transparent)' : 'var(--mf-border)'}`,
+              boxShadow: marcada ? '0 2px 10px color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)' : 'none',
             }}>
-              <div style={{ width:16, height:16, borderRadius:5, flexShrink:0, display:'grid', placeItems:'center',
-                background: marcada ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent',
-                border: `1.5px solid ${marcada ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}` }}>
-                {marcada && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#04121c" strokeWidth="4" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
-              </div>
+              {/* Foto de perfil: reconhecer a conta pela cara é mais rápido que
+                  ler oito @nomes parecidos. O anel marca a seleção, então a
+                  caixinha separada de marcar deixou de ser necessária. */}
+              <Avatar conta={c} marcada={marcada} />
+
               <div style={{ minWidth:0, flex:1 }}>
-                <div style={{ fontSize:12, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                <div style={{ fontSize:12, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis',
+                  whiteSpace:'nowrap', color: marcada ? 'var(--mf-text)' : 'var(--mf-text-2)' }}>
                   @{c.username}
                 </div>
                 <div style={{ display:'flex', gap:5, marginTop:3, flexWrap:'wrap' }}>
@@ -602,11 +703,25 @@ export default function CampaignWizard() {
     const estrategia = ESTRATEGIAS.find(e => e.id === form.strategy.mode);
     const s = form.schedule;
 
+    /* Duas colunas: são oito linhas curtas, e empilhadas elas ocupavam a
+       altura toda do painel com metade da largura vazia. */
     const linha = (rot, valor) => (
-      <div style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'7px 0',
-        borderBottom:'1px solid var(--mf-border-subtle)' }}>
-        <span style={{ fontSize:11.5, color:'var(--mf-text-3)' }}>{rot}</span>
-        <span style={{ fontSize:11.5, fontWeight:700, textAlign:'right' }}>{valor}</span>
+      <div key={rot} style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline',
+        gap:12, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
+        <span style={{ fontSize:11.5, color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{rot}</span>
+        <span style={{ fontSize:11.5, fontWeight:700, textAlign:'right', color:'var(--mf-text)',
+          fontVariantNumeric:'tabular-nums' }}>{valor}</span>
+      </div>
+    );
+
+    /* Resumo antes do detalhe: são os três números que decidem se o plano está
+       certo, e estavam perdidos no meio de oito linhas de igual peso. */
+    const resumo = (n, rot, cor) => (
+      <div key={rot} style={{ flex:'1 1 110px', padding:'11px 13px', borderRadius:12,
+        background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)' }}>
+        <div style={{ fontFamily:'var(--mf-mono)', fontSize:20, fontWeight:750, color:cor,
+          lineHeight:1.1, fontVariantNumeric:'tabular-nums' }}>{n}</div>
+        <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:3, letterSpacing:'.04em' }}>{rot}</div>
       </div>
     );
 
@@ -620,20 +735,28 @@ export default function CampaignWizard() {
       ))}
 
       {painel('Configuração', <>
-        {linha('Campanha', form.name || '—')}
-        {linha('Estratégia', estrategia?.nome || form.strategy.mode)}
-        {linha('Intervalo', s.useFixedInterval
-          ? `${s.intervalMinMinutes} min (fixo)`
-          : `${s.intervalMinMinutes}–${s.intervalMaxMinutes} min`)}
-        {linha('Janela', s.windowStart && s.windowEnd ? `${s.windowStart} às ${s.windowEnd}` : 'Sem restrição')}
-        {linha('Dias', s.weekdays.length ? DIAS.filter(d => s.weekdays.includes(d.n)).map(d => d.r).join(', ') : 'Todos')}
-        {linha('Tipo', form.settings.postType)}
-        {linha('Limite diário', form.settings.respectDailyLimit ? 'Respeitado no plano' : 'Ignorado no plano')}
-        {linha('Comentário', form.commentMode === 'disabled'
-          ? 'Desativado'
-          : (form.comments.delayMaxMinutes ?? 6) > (form.comments.delayMinutes ?? 2)
-            ? `${form.comments.delayMinutes ?? 2} a ${form.comments.delayMaxMinutes ?? 6} min após o post`
-            : `${form.comments.delayMinutes ?? 2} min após o post`)}
+        <div style={{ display:'flex', gap:9, flexWrap:'wrap', marginBottom:14 }}>
+          {resumo(form.accountIds.length,  'CONTAS',    'var(--mf-mod-contas)')}
+          {resumo(form.contentIds.length,  'CONTEÚDOS', 'var(--mf-mod-publicar)')}
+          {resumo(form.settings.postType.toUpperCase(), 'FORMATO', 'var(--mf-mod-campanhas, var(--mf-accent-500))')}
+        </div>
+
+        <div style={{ display:'grid', gap:'0 26px',
+          gridTemplateColumns:'repeat(auto-fit, minmax(min(260px, 100%), 1fr))' }}>
+          {linha('Campanha', form.name || '—')}
+          {linha('Estratégia', estrategia?.nome || form.strategy.mode)}
+          {linha('Intervalo', s.useFixedInterval
+            ? `${s.intervalMinMinutes} min (fixo)`
+            : `${s.intervalMinMinutes}–${s.intervalMaxMinutes} min`)}
+          {linha('Janela', s.windowStart && s.windowEnd ? `${s.windowStart} às ${s.windowEnd}` : 'Sem restrição')}
+          {linha('Dias', s.weekdays.length ? DIAS.filter(d => s.weekdays.includes(d.n)).map(d => d.r).join(', ') : 'Todos')}
+          {linha('Limite diário', form.settings.respectDailyLimit ? 'Respeitado no plano' : 'Ignorado no plano')}
+          {linha('Comentário', form.commentMode === 'disabled'
+            ? 'Desativado'
+            : (form.comments.delayMaxMinutes ?? 6) > (form.comments.delayMinutes ?? 2)
+              ? `${form.comments.delayMinutes ?? 2} a ${form.comments.delayMaxMinutes ?? 6} min após o post`
+              : `${form.comments.delayMinutes ?? 2} min após o post`)}
+        </div>
       </>)}
 
       <div style={{ fontSize:11.5, lineHeight:1.7, color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)',
@@ -682,8 +805,8 @@ export default function CampaignWizard() {
         </button>
       }
     >
-      <div style={{ padding: '8px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Stepper />
+      <div style={{ padding: '8px 20px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Trilha etapa={etapa} setEtapa={setEtapa} />
 
         <AnimatePresence mode="wait">
           <motion.div key={ETAPAS[etapa].id}
@@ -704,12 +827,31 @@ export default function CampaignWizard() {
           </motion.div>
         </AnimatePresence>
 
-        {/* ── Navegação ── */}
-        <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginTop:6, flexWrap:'wrap' }}>
+        {/* ── Navegação ────────────────────────────────────────────────────
+            Presa ao fim da janela. A etapa de conteúdos passa de dois mil
+            pixels com a biblioteca aberta, e o botão de avançar ficava lá
+            embaixo: escolher uma mídia no topo e ter que rolar a página
+            inteira para seguir era o caminho normal, não a exceção.
+
+            `position: sticky` e não `fixed` — assim ele respeita a largura da
+            coluna e some junto quando a etapa é curta, em vez de flutuar
+            sobre o conteúdo. */}
+        <div style={{
+          position:'sticky', bottom:0, zIndex:20,
+          display:'flex', justifyContent:'space-between', alignItems:'center', gap:10,
+          flexWrap:'wrap', marginTop:4,
+          padding:'12px 14px',
+          borderRadius:14,
+          border:'1px solid var(--mf-border)',
+          background:'color-mix(in oklch, var(--mf-surface-1) 88%, transparent)',
+          backdropFilter:'blur(12px)',
+          WebkitBackdropFilter:'blur(12px)',
+          boxShadow:'0 -6px 22px oklch(0 0 0 / .30)',
+        }}>
           <button className="btn btn-ghost" disabled={etapa === 0 || enviando}
             onClick={() => setEtapa(e => Math.max(0, e - 1))}>Voltar</button>
 
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
             {/* Na revisão o número real vem da prévia; repetir a estimativa aqui
                 mostraria dois totais diferentes na mesma tela. */}
             {totalPublicacoes > 0 && !ultima && (
@@ -724,7 +866,9 @@ export default function CampaignWizard() {
                 {enviando ? 'Criando...' : previaValida === null ? 'Gerando plano...' : 'Publicar campanha'}
               </button>
             ) : (
-              <button className="btn btn-primary" onClick={avancar} disabled={enviando}>Continuar</button>
+              <button className="btn btn-primary" onClick={avancar} disabled={enviando}>
+                Continuar
+              </button>
             )}
           </div>
         </div>
