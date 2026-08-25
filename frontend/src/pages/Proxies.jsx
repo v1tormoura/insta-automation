@@ -24,6 +24,8 @@ export default function Proxies() {
   const [bulkSubstituir, setBulkSubstituir] = useState(false);
   const [bulkRelatorio, setBulkRelatorio]   = useState(null);
   const [bulkAplicando, setBulkAplicando]   = useState(false);
+  const [pool, setPool] = useState({ resumo: null, itens: [] });
+  const [testandoPool, setTestandoPool] = useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
 
@@ -32,7 +34,38 @@ export default function Proxies() {
     catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao carregar contas.'); }
   }
 
-  useEffect(() => { loadAccounts(); const t = setInterval(loadAccounts, 30000); return () => clearInterval(t); }, []);
+  /* O pool é a lista de proxies ainda não atribuídos a ninguém. Sem esta
+     tela, importar proxies com zero contas parecia não fazer nada: eles iam
+     para o pool e a página, que só mostrava linhas por conta, ficava vazia. */
+  async function loadPool() {
+    try { const res = await api.get('/proxy/pool'); setPool(res.data || { resumo:null, itens:[] }); }
+    catch { /* pool indisponível não derruba a tela de contas */ }
+  }
+
+  async function testarPool() {
+    setTestandoPool(true);
+    try {
+      const res = await api.post('/proxy/pool/testar');
+      await loadPool();
+      const { ok = 0, ruins = 0, rotativos = 0 } = res.data || {};
+      showToast(ok ? 'success' : 'error', 'Teste concluído',
+        `${ok} funcionando · ${ruins} sem resposta · ${rotativos} trocando de IP`);
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Falha ao testar.'); }
+    finally { setTestandoPool(false); }
+  }
+
+  async function removerDoPool(url) {
+    try {
+      await api.delete('/proxy/pool', { data: { url } });
+      await loadPool();
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Falha ao remover.'); }
+  }
+
+  useEffect(() => {
+    loadAccounts(); loadPool();
+    const t = setInterval(() => { loadAccounts(); loadPool(); }, 30000);
+    return () => clearInterval(t);
+  }, []);
 
   function openProxyModal(account) { setProxyAccount(account); setProxyValue(account.proxy || ''); setProxyModal(true); }
 
@@ -72,6 +105,7 @@ export default function Proxies() {
         proxiesText: bulkText,
         substituir: bulkSubstituir,
       });
+      await loadPool();
       await loadAccounts();
       // O modal NÃO fecha sozinho: o relatório é a parte útil — o que sobrou,
       // o que foi reprovado e quais contas continuaram sem proxy.
@@ -141,6 +175,94 @@ export default function Proxies() {
             </motion.div>
           ))}
         </div>
+
+        {/* ── Pool de proxies ──────────────────────────────────────────────
+            Fica ACIMA da tabela por conta de propósito: é aqui que os proxies
+            chegam quando são importados, e é daqui que cada conta puxa o seu
+            ao conectar. Quem importa com zero contas precisa ver que a lista
+            entrou em algum lugar. */}
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }}
+          style={{ ...cardStyle, marginBottom:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+            <div style={{ minWidth:0 }}>
+              <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
+                Pool de proxies
+              </h3>
+              <p style={{ fontSize:11, color:'var(--mf-text-3)', margin:'3px 0 0' }}>
+                Cada conta reserva um destes ao conectar. Um proxy, uma conta.
+              </p>
+            </div>
+            <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+              {pool.resumo && (
+                <span className="mf-mono" style={{ fontSize:11, color:'var(--mf-text-3)' }}>
+                  {pool.resumo.livres} livre(s) · {pool.resumo.reservados} em uso
+                  {pool.resumo.ruins > 0 && ` · ${pool.resumo.ruins} sem resposta`}
+                  {pool.resumo.rotativos > 0 && ` · ${pool.resumo.rotativos} trocando de IP`}
+                </span>
+              )}
+              <button className="btn-ghost btn-sm" onClick={testarPool} disabled={testandoPool || !pool.itens.length}>
+                {testandoPool ? 'Testando…' : 'Testar pool'}
+              </button>
+            </div>
+          </div>
+
+          {pool.itens.length === 0 ? (
+            <div style={{ padding:'28px 16px', textAlign:'center', color:'var(--mf-text-3)', fontSize:12.5, lineHeight:1.7 }}>
+              Nenhum proxy no pool.<br />
+              Use <strong style={{ color:'var(--mf-text-2)' }}>Importar proxies</strong> e cole a lista do fornecedor —
+              um por linha. Eles ficam aqui até uma conta reservar.
+            </div>
+          ) : (
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Endereço</th>
+                    <th style={thStyle}>Situação</th>
+                    <th style={thStyle}>IP de saída</th>
+                    <th style={thStyle}>Conta</th>
+                    <th style={{ ...thStyle, textAlign:'right' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pool.itens.map(item => (
+                    <tr key={item.url}>
+                      <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11.5 }}>{item.endereco}</td>
+                      <td style={tdStyle}>
+                        {item.rotativo ? (
+                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                            background:'var(--mf-warning-bg)', color:'var(--mf-warning-500)' }}
+                            title="Troca de IP entre requisições — isso quebra o login do Instagram">
+                            Troca de IP
+                          </span>
+                        ) : item.ok === true ? (
+                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                            background:'var(--mf-success-bg)', color:'var(--mf-success-500)' }}>Funcionando</span>
+                        ) : item.ok === false ? (
+                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                            background:'var(--mf-danger-bg)', color:'var(--mf-danger-500)' }}
+                            title={item.erro || 'Sem resposta'}>Sem resposta</span>
+                        ) : (
+                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                            background:'var(--mf-border-subtle)', color:'var(--mf-text-3)' }}>Não testado</span>
+                        )}
+                      </td>
+                      <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11.5 }}>{item.ip || '—'}</td>
+                      <td style={tdStyle}>
+                        {item.conta
+                          ? <span style={{ color:'var(--mf-text)' }}>@{item.conta}</span>
+                          : <span style={{ color:'var(--mf-text-3)' }}>livre</span>}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign:'right' }}>
+                        <button className="btn-ghost btn-sm" onClick={() => removerDoPool(item.url)}>Remover</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </motion.div>
 
         {/* Table card */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
