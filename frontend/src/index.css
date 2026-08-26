@@ -89,7 +89,13 @@
   --glow-lg:          oklch(0.82 0.19 196 / 0.45);
 
   /* ── Brand hex palette ──────────────── */
-  --bg:  #07101e;
+  /* O `--bg` aqui é global, fora do `[data-mf]`, e na prática só o <body> o
+     usa: tudo que está dentro da casca recebe o remapeamento da ponte, que
+     aponta para `--mf-bg`. Deixado no azul antigo, o body ficava #07101e
+     enquanto o app inteiro era oklch(0.20 0.030 250) — invisível no desktop,
+     porque a tela cobre o body, mas aparecendo no overscroll do celular como
+     uma faixa de outra cor. Igualado ao token. */
+  --bg:  oklch(0.20 0.030 250);
   --bg2: #0b1628;
   --bg3: #101e34;
   --bg4: #162440;

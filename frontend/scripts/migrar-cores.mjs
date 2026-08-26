@@ -213,14 +213,19 @@ const args = argv.slice(2);
 const aplicar = args.includes('--aplicar');
 const alvos = args.filter(a => !a.startsWith('--'));
 
-/* Estas páginas renderizam FORA do MainLayout, e os tokens são definidos sob
-   `[data-mf]` — que é o elemento da casca. Trocar as cores delas por
-   `var(--mf-*)` produziria propriedade inválida e cor herdada, ou seja, uma
-   tela de login ilegível. Elas entram junto com a decisão de como escopar os
-   tokens fora da casca. */
-const FORA_DA_CASCA = new Set([
-  'Login.jsx', 'Termos.jsx', 'Privacidade.jsx', 'OAuthCallback.jsx',
-]);
+/* Estava aqui a lista de páginas que renderizam FORA do MainLayout — login,
+   termos, privacidade e o retorno do OAuth. Os tokens vivem sob `[data-mf]`,
+   que era o elemento da casca, então trocar as cores delas por `var(--mf-*)`
+   daria propriedade inválida e uma tela de login ilegível.
+
+   A decisão que faltava era como escopar os tokens fora da casca, e ela foi
+   tomada do jeito mais simples: as quatro páginas ganharam `data-mf` no seu
+   próprio elemento raiz. Nada vaza para fora delas — que era o motivo do
+   escopo existir — e os tokens passam a valer lá dentro. A lista ficou vazia.
+
+   Se alguma página nova nascer fora da casca, o caminho é o mesmo: `data-mf`
+   na raiz dela, não uma exceção aqui. */
+const FORA_DA_CASCA = new Set([]);
 
 /* `**` e não `*`: a primeira passagem varreu só o primeiro nível e deixou
    `components/campaign/` e `components/campaign/detail/` inteiros de fora —

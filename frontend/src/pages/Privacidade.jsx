@@ -1,19 +1,19 @@
 export default function Privacidade() {
   return (
-    <div style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--text)', fontFamily:'var(--font)', padding:'48px 16px' }}>
+    <div data-mf style={{ minHeight:'100vh', background:'var(--bg)', color:'var(--mf-text)', fontFamily:'var(--font)', padding:'48px 16px' }}>
       <div style={{ maxWidth:720, margin:'0 auto' }}>
 
         <div style={{ marginBottom:40 }}>
           <a href="/" style={{ color:'var(--indigo)', fontSize:13, textDecoration:'none' }}>← Voltar</a>
           <h1 style={{ fontSize:28, fontWeight:700, margin:'16px 0 4px' }}>Política de Privacidade</h1>
-          <p style={{ color:'var(--text3)', fontSize:13 }}>Última atualização: julho de 2026</p>
+          <p style={{ color:'var(--mf-text-3)', fontSize:13 }}>Última atualização: julho de 2026</p>
         </div>
 
         <div style={{ background:'oklch(0.55 0.22 270 / 0.07)', border:'1px solid oklch(0.55 0.22 270 / 0.2)', borderRadius:12, padding:'16px 20px', marginBottom:32 }}>
-          <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.6 }}>
-            <strong style={{ color:'var(--text)' }}>Controlador dos dados:</strong> 67.761.040 VITOR MARCELO MOURA DA SILVA<br />
-            <strong style={{ color:'var(--text)' }}>CNPJ:</strong> 67.761.040/0001-27<br />
-            <strong style={{ color:'var(--text)' }}>Contato:</strong> contato@instaflow.pro
+          <div style={{ fontSize:13, color:'var(--mf-text-2)', lineHeight:1.6 }}>
+            <strong style={{ color:'var(--mf-text)' }}>Controlador dos dados:</strong> 67.761.040 VITOR MARCELO MOURA DA SILVA<br />
+            <strong style={{ color:'var(--mf-text)' }}>CNPJ:</strong> 67.761.040/0001-27<br />
+            <strong style={{ color:'var(--mf-text)' }}>Contato:</strong> contato@instaflow.pro
           </div>
         </div>
 
@@ -28,13 +28,13 @@ export default function Privacidade() {
           { title:'8. Contato', text:'Para dúvidas sobre esta Política de Privacidade ou exercício de direitos, entre em contato: contato@instaflow.pro' },
         ].map(({ title, text }) => (
           <div key={title} style={{ marginBottom:28 }}>
-            <h2 style={{ fontSize:16, fontWeight:700, color:'var(--text)', marginBottom:8 }}>{title}</h2>
-            <p style={{ fontSize:14, color:'var(--text2)', lineHeight:1.7, margin:0 }}>{text}</p>
+            <h2 style={{ fontSize:16, fontWeight:700, color:'var(--mf-text)', marginBottom:8 }}>{title}</h2>
+            <p style={{ fontSize:14, color:'var(--mf-text-2)', lineHeight:1.7, margin:0 }}>{text}</p>
           </div>
         ))}
 
-        <div style={{ borderTop:'1px solid oklch(1 0 0 / 0.07)', paddingTop:24, marginTop:8, fontSize:12, color:'var(--text3)', lineHeight:1.7 }}>
-          <strong style={{ color:'var(--text2)' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong><br />
+        <div style={{ borderTop:'1px solid var(--mf-border)', paddingTop:24, marginTop:8, fontSize:12, color:'var(--mf-text-3)', lineHeight:1.7 }}>
+          <strong style={{ color:'var(--mf-text-2)' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong><br />
           CNPJ: 67.761.040/0001-27 · contato@instaflow.pro
         </div>
       </div>
