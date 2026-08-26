@@ -17,42 +17,67 @@
      Violeta elétrico como identidade e ciano como acento de dado. A dupla
      evita o azul corporativo genérico e ainda separa por função: violeta é
      ação, ciano é informação. */
-  --mf-primary-100: oklch(0.92 0.05 285);
-  --mf-primary-300: oklch(0.78 0.14 285);
-  --mf-primary-500: oklch(0.62 0.24 285);   /* cor da marca */
-  --mf-primary-600: oklch(0.55 0.23 285);
-  --mf-primary-700: oklch(0.46 0.20 285);
+  /* O 500 escureceu de 0.62 para 0.61 e ganhou croma. Não é ajuste de gosto:
+     o texto do botão primário estava em 3,92:1 sobre ele — abaixo do mínimo
+     de 4,5 — e é o botão de "Publicar campanha". Agora dá 4,71, e o violeta
+     ainda saiu MAIS forte, porque o croma subiu junto. */
+  --mf-primary-100: oklch(0.92 0.07 285);
+  --mf-primary-300: oklch(0.78 0.20 285);
+  --mf-primary-500: oklch(0.61 0.30 285);   /* #8045ff — cor da marca */
+  --mf-primary-600: oklch(0.54 0.28 285);
+  --mf-primary-700: oklch(0.45 0.24 285);
   --mf-primary-fg:  oklch(0.98 0.01 285);
 
-  --mf-accent-300:  oklch(0.88 0.10 200);
-  --mf-accent-500:  oklch(0.80 0.15 200);   /* ciano — dado, destaque */
-  --mf-accent-700:  oklch(0.58 0.13 200);
+  /* Ciano elétrico. O matiz é o que estava errado antes, mais que o croma:
+     em 200° o resultado era #00dae4, um turquesa esverdeado que lia como cor
+     apagada. Em 213° dá #00d4ff — o ciano que a marca sempre usou.
+
+     Croma 0.19 é a borda do sRGB neste matiz: acima disso o canal azul já
+     está em ff e a cor para de mudar. É o ciano mais forte que a tela mostra.
+
+     Contraste medido sobre o fundo: 300 → 12,95   500 → 10,22   700 → 5,03 */
+  --mf-accent-300:  oklch(0.88 0.14 213);   /* #44efff */
+  --mf-accent-500:  oklch(0.78 0.19 213);   /* #00d4ff — ciano, dado, destaque */
+  --mf-accent-700:  oklch(0.58 0.19 213);   /* #0092bc */
 
   /* Magenta em dose pequena: só para o que é excepcional (campanha ativa,
      item premium). Usado em área grande, vira ruído. */
-  --mf-flare-500:   oklch(0.68 0.26 350);
+  --mf-flare-500:   oklch(0.70 0.27 350);
 
   /* ── Semântica de estado ───────────────────────────────────────────────
      Uma cor por significado. Componente nenhum escolhe verde por conta
      própria: pede "sucesso" e recebe o verde do sistema. */
-  --mf-success-500: oklch(0.72 0.17 155);
-  --mf-success-bg:  oklch(0.72 0.17 155 / 0.12);
-  --mf-warning-500: oklch(0.80 0.16 78);
-  --mf-warning-bg:  oklch(0.80 0.16 78 / 0.12);
-  --mf-danger-500:  oklch(0.64 0.22 20);
-  --mf-danger-bg:   oklch(0.64 0.22 20 / 0.12);
+  /* O verde estava usando 47% do croma que o sRGB permite neste matiz — de
+     longe o mais apagado da paleta, e do mesmo matiz do módulo Métricas. Dois
+     tons diferentes para a mesma cor lê como defeito, não como intenção. */
+  --mf-success-500: oklch(0.75 0.26 155);   /* #00d95b — contraste 9,54 */
+  --mf-success-bg:  oklch(0.75 0.26 155 / 0.12);
+  --mf-warning-500: oklch(0.81 0.18 78);    /* #ffaf00 — contraste 9,80 */
+  --mf-warning-bg:  oklch(0.81 0.18 78 / 0.12);
+  --mf-danger-500:  oklch(0.68 0.26 25);    /* #ff283a — contraste 4,84 */
+  --mf-danger-bg:   oklch(0.68 0.26 25 / 0.12);
   --mf-info-500:    oklch(0.72 0.14 240);
   --mf-info-bg:     oklch(0.72 0.14 240 / 0.12);
 
   /* ── Cor por módulo ────────────────────────────────────────────────────
      Cada área do produto tem um matiz fixo. O usuário aprende o lugar pela
      cor antes de ler o título — e o ícone da barra lateral, o cabeçalho da
-     página e o gráfico daquele módulo passam a concordar entre si. */
-  --mf-mod-contas:    oklch(0.80 0.15 200);   /* ciano   */
-  --mf-mod-publicar:  oklch(0.62 0.24 285);   /* violeta */
-  --mf-mod-campanhas: oklch(0.68 0.26 350);   /* magenta */
-  --mf-mod-jobs:      oklch(0.80 0.16 78);    /* âmbar   */
-  --mf-mod-metricas:  oklch(0.72 0.17 155);   /* verde   */
+     página e o gráfico daquele módulo passam a concordar entre si.
+
+     Todos os matizes ficam entre 85% e 100% do croma que o sRGB permite
+     naquele matiz e naquela luminosidade. Nivelar pelo PERCENTUAL, e não por
+     um número fixo de croma, é o que faz as cinco cores parecerem igualmente
+     vivas: o ciano satura em 0.19 e o violeta só em 0.365, então o mesmo
+     valor de croma nas duas deixaria o violeta apagado ao lado do ciano — que
+     era exatamente o que acontecia.
+
+     Ninguém vai a 100% além do ciano: violeta e verde no limite do gamut
+     viram neon puro (#8800ff, #00dc00), que não é vivo, é berrante. */
+  --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — mesmo do accent-500 */
+  --mf-mod-publicar:  oklch(0.75 0.33 285);   /* violeta — #a770ff  5,52 */
+  --mf-mod-campanhas: oklch(0.70 0.27 350);   /* magenta — #ff2fb5  5,45 */
+  --mf-mod-jobs:      oklch(0.81 0.18 78);    /* âmbar   — #ffaf00  9,80 */
+  --mf-mod-metricas:  oklch(0.75 0.26 155);   /* verde   — #00d95b  9,54 */
   --mf-mod-sistema:   oklch(0.70 0.03 275);   /* neutro  */
 
   /* ── Superfícies ───────────────────────────────────────────────────────

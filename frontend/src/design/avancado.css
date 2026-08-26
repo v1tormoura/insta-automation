@@ -234,13 +234,13 @@
 
   --mf-primary-500: oklch(0.52 0.24 285);
   --mf-primary-300: oklch(0.62 0.20 285);
-  --mf-accent-500:  oklch(0.62 0.14 200);
+  --mf-accent-500:  oklch(0.62 0.14 213);   /* mesmo matiz do tema escuro */
   --mf-success-500: oklch(0.55 0.16 155);
   --mf-warning-500: oklch(0.62 0.15 70);
   --mf-danger-500:  oklch(0.55 0.21 20);
   --mf-info-500:    oklch(0.55 0.15 240);
 
-  --mf-mod-contas:    oklch(0.60 0.14 200);
+  --mf-mod-contas:    oklch(0.60 0.14 213);
   --mf-mod-publicar:  oklch(0.52 0.24 285);
   --mf-mod-campanhas: oklch(0.58 0.24 350);
   --mf-mod-jobs:      oklch(0.62 0.15 70);
