@@ -108,7 +108,21 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
 
   return (
     <motion.div
-      layout
+      /* `layout="position"` e não `layout`.
+      
+         O `layout` cheio anima TAMANHO, e faz isso aplicando `scale` no
+         elemento e um contra-scale nos filhos. Quando o contra-scale não
+         acompanha — que é o caso aqui, com a faixa de miniaturas em
+         `overflow-x:auto` e selos posicionados — o resultado é texto por cima
+         das miniaturas e selos atravessando o cartão.
+
+         E não era eventual: a lista faz polling para manter "18s atrás" em
+         dia, então a animação recomeçava a cada atualização. Num celular mais
+         lento, o cartão ficava permanentemente no meio da distorção.
+
+         `position` anima só a posição. A reordenação continua suave e nenhum
+         scale é aplicado. */
+      layout="position"
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}

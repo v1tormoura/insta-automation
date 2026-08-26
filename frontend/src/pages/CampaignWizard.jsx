@@ -210,6 +210,9 @@ export default function CampaignWizard() {
   const [etapa, setEtapa]   = useState(0);
   const [form, setForm]     = useState(estadoInicial);
   const [contas, setContas] = useState([]);
+  /* Quantas contas do rascunho não existiam mais. Vira aviso assim que a lista
+     chega — silenciar seria pior: a pessoa montou a campanha contando com elas. */
+  const [contasPodadas, setContasPodadas] = useState(0);
   const [midias, setMidias] = useState([]);
   const [buscaConta, setBuscaConta]   = useState('');
   const [filtroConta, setFiltroConta] = useState('todas');
@@ -237,10 +240,41 @@ export default function CampaignWizard() {
     try { localStorage.setItem(RASCUNHO, JSON.stringify(form)); } catch { /* cota cheia */ }
   }, [form]);
 
+  useEffect(() => {
+    if (!contasPodadas) return;
+    aviso('warning', 'Contas removidas da seleção',
+      `${contasPodadas} conta(s) do rascunho não existem mais e foram tiradas. ` +
+      'Confira a etapa Contas antes de seguir.');
+    setContasPodadas(0);
+  }, [contasPodadas]);
+
   /* ── Carrega contas e mídias ───────────────────────────────────────────── */
   useEffect(() => {
     api.get('/accounts?limit=200')
-      .then(({ data }) => setContas(Array.isArray(data.accounts) ? data.accounts : []))
+      .then(({ data }) => {
+        const lista = Array.isArray(data.accounts) ? data.accounts : [];
+        setContas(lista);
+
+        /* O rascunho guarda IDs de conta e sobrevive a tudo — inclusive à conta
+           ser removida e reconectada, o que gera um _id novo. Os IDs mortos
+           ficavam selecionados e INVISÍVEIS: o seletor só desenha conta que
+           existe, então a tela dizia "5 conta(s) selecionada(s)" com uma conta
+           marcada, e a prévia só falhava lá na revisão com ACCOUNT_NOT_FOUND.
+
+           Só podamos com a lista COMPLETA em mãos. Com paginação parcial, um
+           ID ausente pode estar na página seguinte, e podar apagaria escolha
+           boa. */
+        const total = Number(data?.pagination?.total ?? lista.length);
+        if (lista.length < total) return;
+
+        const vivos = new Set(lista.map(c => String(c._id)));
+        setForm(f => {
+          const mantidos = f.accountIds.filter(id => vivos.has(String(id)));
+          if (mantidos.length === f.accountIds.length) return f;
+          setContasPodadas(f.accountIds.length - mantidos.length);
+          return { ...f, accountIds: mantidos };
+        });
+      })
       .catch(() => aviso('error', 'Erro', 'Não foi possível carregar as contas.'));
 
     api.get('/media')
@@ -535,6 +569,17 @@ export default function CampaignWizard() {
           const byContent = { ...(f.covers?.byContent || {}) };
           if (mediaId) byContent[contentId] = mediaId;
           else delete byContent[contentId];
+          return { ...f, covers: { byContent } };
+        })}
+        /* Em lote. O ContentPicker sabe quais dos selecionados são vídeo, então
+           manda a lista pronta — aqui só se grava. Capa em imagem não existe:
+           o Instagram usa a própria imagem como miniatura. */
+        onCapaTodos={(mediaId, idsDeVideo) => setForm(f => {
+          const byContent = { ...(f.covers?.byContent || {}) };
+          for (const id of idsDeVideo || []) {
+            if (mediaId) byContent[id] = mediaId;
+            else delete byContent[id];
+          }
           return { ...f, covers: { byContent } };
         })}
         onMidiasConhecidas={registrarMidias}

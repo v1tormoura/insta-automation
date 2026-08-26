@@ -25,12 +25,28 @@ function explicar(status, dados) {
   // requisição não chegou ao Express.
   const doProxy = typeof dados === 'string' && /<html/i.test(dados);
 
+  /* Um 404 tem dois significados MUITO diferentes, e tratá-los igual foi um
+     erro meu: sem rota, o nginx devolve HTML; com rota, o Express devolve JSON
+     com `code`. Quando há code, o problema é do que foi pedido — e dizer "é
+     configuração do servidor" manda a pessoa procurar no lugar errado. */
+  const doAplicativo = dados && typeof dados === 'object' && (dados.code || dados.error);
+  const codigo = doAplicativo ? String(dados.code || '') : '';
+
+  if (codigo === 'ACCOUNT_NOT_FOUND')
+    return 'Algumas contas selecionadas não existem mais — provavelmente foram removidas ' +
+           'depois que esta campanha começou a ser montada. Volte à etapa Contas e refaça a seleção.';
+  if (codigo === 'ACCOUNT_NOT_ELIGIBLE')
+    return 'Uma das contas está banida ou bloqueada. Volte à etapa Contas e tire ela da lista.';
+  if (codigo === 'CONTENT_NOT_FOUND')
+    return 'Alguns conteúdos não estão mais na biblioteca. Volte à etapa Conteúdos e refaça a seleção.';
+
   if (!status)              return 'O servidor não respondeu. Verifique a conexão e tente de novo.';
   if (status === 401 ||
       status === 403)       return 'Sua sessão expirou. Entre de novo e refaça a campanha.';
-  if (status === 404 ||
+  if ((status === 404 && !doAplicativo) ||
       status === 405 ||
       doProxy)              return 'A rota da prévia não chegou ao servidor. É configuração do servidor, não da campanha.';
+  if (status === 404)       return 'Algo que a campanha usa não existe mais. Revise as etapas anteriores.';
   if (status === 413)       return 'O plano ficou grande demais para enviar. Reduza contas ou conteúdos.';
   if (status === 429)       return 'Requisições demais em pouco tempo. Espere alguns segundos e tente de novo.';
   if (status === 502 ||

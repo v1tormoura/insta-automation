@@ -4,17 +4,41 @@ import api from '../services/api';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-function thumbSrc(file) {
+const ehVideo = f =>
+  f?.type === 'video' || /\.(mp4|mov|webm|m4v|avi|mkv)$/i.test(f?.filename || '');
+
+/** Endereço do arquivo em si. */
+function arquivoSrc(file) {
   if (!file?.filename) return null;
-  const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(file.filename);
-  if (isVideo) return `${API}/uploads/${file.filename.replace(/\.[^.]+$/, '')}.thumb.jpg`;
   return `${API}${file.url || `/uploads/${file.filename}`}`;
 }
 
+/**
+ * Miniatura gerada no servidor. O caminho é ADIVINHADO por convenção — o
+ * backend grava `nome.thumb.jpg` ao lado do vídeo — e por isso pode não
+ * existir: vídeo que entrou antes da geração, ou que a rotina pulou.
+ *
+ * Quando não existe, quem chama cai para o próprio vídeo. Ver FileThumb.
+ */
+function thumbSrc(file) {
+  if (!file?.filename) return null;
+  if (ehVideo(file)) return `${API}/uploads/${file.filename.replace(/\.[^.]+$/, '')}.thumb.jpg`;
+  return arquivoSrc(file);
+}
+
 function FileThumb({ file, selected, onClick }) {
-  const [imgFailed, setImgFailed] = useState(false);
+  /* Três estágios, nesta ordem: a miniatura pronta do servidor, o vídeo em si,
+     e só então o emoji.
+     
+     Antes eram dois, e o do meio faltava: quando o `.thumb.jpg` não existia —
+     que é o caso de toda a biblioteca antes de rodar "Gerar thumbs" — a
+     biblioteca inteira virava uma grade de claquetes, sem jeito de saber qual
+     vídeo era qual. O navegador decodifica o primeiro quadro sozinho com
+     `preload="metadata"`, então não é preciso esperar geração nenhuma. */
+  const [estagio, setEstagio] = useState('thumb');   // thumb → video → emoji
   const src = thumbSrc(file);
-  const isVideo = file.type === 'video';
+  const isVideo = ehVideo(file);
+  const imgFailed = estagio === 'emoji';
 
   return (
     <button
@@ -23,18 +47,27 @@ function FileThumb({ file, selected, onClick }) {
       style={{
         position: 'relative', aspectRatio: '9/16', borderRadius: 8, overflow: 'hidden',
         border: selected ? '2px solid var(--mf-mod, var(--mf-accent-500))' : '2px solid var(--mf-border)',
-        background: 'oklch(0.12 0.04 235)',
+        background: 'var(--mf-surface-2)',
         cursor: 'pointer', padding: 0, display: 'block',
         boxShadow: selected ? '0 0 0 1px var(--mf-mod, var(--mf-accent-500))' : 'none',
         transition: 'border-color .15s, box-shadow .15s',
       }}
     >
-      {src && !imgFailed
-        ? <img src={src} alt="" loading="lazy" onError={() => setImgFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)', opacity: .5, fontSize: 22 }}>
-            {isVideo ? '🎬' : '🖼️'}
-          </div>
-      }
+      {src && estagio === 'thumb' && (
+        <img src={src} alt="" loading="lazy"
+          onError={() => setEstagio(isVideo ? 'video' : 'emoji')}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      )}
+      {estagio === 'video' && (
+        <video src={arquivoSrc(file)} muted playsInline preload="metadata"
+          onError={() => setEstagio('emoji')}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      )}
+      {(estagio === 'emoji' || !src) && (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)', opacity: .5, fontSize: 22 }}>
+          {isVideo ? '🎬' : '🖼️'}
+        </div>
+      )}
       {isVideo && !imgFailed && src && (
         <div style={{ position: 'absolute', bottom: 4, left: 4, background: 'oklch(0 0 0 / 0.65)', borderRadius: 4, padding: '1px 5px', fontSize: 9, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>▶</div>
       )}

@@ -30,6 +30,11 @@ const ehVideo = m =>
 
 const nomeDe = m => m?.originalName || m?.filename || 'sem nome';
 
+/* Sentinela de "capa em lote". O modal é o mesmo em ambos os casos — só muda
+   quem recebe a escolha — e um contentId reservado evita duplicar a tela
+   inteira só para trocar o destino. */
+const TODOS = '__todos__';
+
 /**
  * Miniatura de uma mídia — o mesmo desenho na bandeja e na grade.
  *
@@ -67,6 +72,7 @@ export default function ContentPicker({
   onSelecionar,           // (proximaLista) => void
   capas = {},             // { [contentId]: mediaId } — capa escolhida por vídeo
   onCapa,                 // (contentId, mediaId|null) => void
+  onCapaTodos,            // (mediaId|null) => void — aplica a TODOS os vídeos
   onMidiasConhecidas,     // (lista) => void — devolve ao wizard o que já viu
   aviso,                  // (tipo, titulo, msg) => void
 }) {
@@ -149,6 +155,16 @@ export default function ContentPicker({
     return () => window.removeEventListener('keydown', aoTeclar);
   }, [modalCapa]);
 
+  /* Aplica a capa escolhida a um vídeo ou a todos, conforme o modal aberto.
+     Concentrado aqui porque os três caminhos que definem capa — clicar numa
+     imagem, enviar uma nova, remover — precisam da mesma decisão, e espalhá-la
+     era como o modo lote deixaria de valer para o upload. */
+  function aplicarCapa(mediaId) {
+    if (modalCapa === TODOS) onCapaTodos?.(mediaId, idsDeVideo);
+    else onCapa?.(modalCapa, mediaId);
+    setModalCapa(null);
+  }
+
   /* ── Ações ───────────────────────────────────────────────────────────────── */
 
   const alternar = (id) => {
@@ -164,7 +180,7 @@ export default function ContentPicker({
     onSelecionar(faltando.length ? [...selecionados, ...faltando] : selecionados.filter(id => !ids.includes(id)));
   };
 
-  async function enviar(arquivos, { comoCapaDe = null } = {}) {
+  async function enviar(arquivos, { comoCapaDe = null, idsAlvo = [] } = {}) {
     const lista = Array.from(arquivos || []);
     if (!lista.length) return;
 
@@ -183,8 +199,15 @@ export default function ContentPicker({
       registrar(criadas);
 
       if (comoCapaDe) {
-        onCapa?.(comoCapaDe, String(criadas[0]._id));
-        avisoRef.current?.('success', 'Capa definida', 'A imagem enviada virou a capa do vídeo.');
+        const id = String(criadas[0]._id);
+        if (comoCapaDe === TODOS) {
+          onCapaTodos?.(id, idsAlvo);
+          avisoRef.current?.('success', 'Capa definida',
+            'A imagem enviada virou a capa de todos os vídeos da campanha.');
+        } else {
+          onCapa?.(comoCapaDe, id);
+          avisoRef.current?.('success', 'Capa definida', 'A imagem enviada virou a capa do vídeo.');
+        }
         setModalCapa(null);
       } else {
         onSelecionar([...selecionados, ...criadas.map(m => String(m._id))
@@ -213,12 +236,20 @@ export default function ContentPicker({
     [conhecidos],
   );
 
+  /* Só os vídeos: capa em imagem não existe — o Instagram usa a própria
+     imagem como miniatura, e gravar capa nela sujaria o plano com uma chave
+     que o executor ignoraria.
+
+     Sem useMemo de propósito: é um filtro sobre a lista de selecionados, que
+     tem dezenas de itens e não centenas, e o resultado não entra em nenhuma
+     lista de dependências — só em manipuladores e no JSX. Memoizar aqui fazia
+     o compilador do React desistir de otimizar o componente inteiro. */
+  const idsDeVideo = escolhidos.filter(ehVideo).map(m => String(m._id));
+  const totalVideos = idsDeVideo.length;
+
   /* Vídeo sem capa não é erro — o Instagram escolhe um quadro. Mas é uma
      escolha que passa despercebida, então a bandeja diz quantos estão assim. */
-  const videosSemCapa = useMemo(
-    () => escolhidos.filter(m => ehVideo(m) && !capas[String(m._id)]).length,
-    [escolhidos, capas],
-  );
+  const videosSemCapa = escolhidos.filter(m => ehVideo(m) && !capas[String(m._id)]).length;
 
   const todosVisiveisMarcados = itens.length > 0 && itens.every(m => selecionados.includes(String(m._id)));
 
@@ -330,7 +361,21 @@ export default function ContentPicker({
             )}
           </div>
           {escolhidos.length > 0 && (
-            <button onClick={() => onSelecionar([])} style={botao(false)}>Limpar seleção</button>
+            <>
+              {/* Com 27 vídeos na campanha, definir capa um a um são 27 idas ao
+                  modal. Quase sempre a capa é a mesma para todos. */}
+              {totalVideos > 1 && (
+                <button onClick={() => setModalCapa(TODOS)} style={{
+                  ...botao(false),
+                  background: 'color-mix(in oklch, var(--mf-mod-publicar) 14%, transparent)',
+                  color: 'var(--mf-mod-publicar)',
+                  border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 36%, transparent)',
+                }}>
+                  Capa para todos ({totalVideos})
+                </button>
+              )}
+              <button onClick={() => onSelecionar([])} style={botao(false)}>Limpar seleção</button>
+            </>
           )}
         </div>
 
@@ -568,7 +613,8 @@ export default function ContentPicker({
       {modalCapa && (
         <div
           onClick={e => { if (e.target === e.currentTarget) setModalCapa(null); }}
-          role="dialog" aria-modal="true" aria-label="Escolher a capa do vídeo"
+          role="dialog" aria-modal="true"
+          aria-label={modalCapa === TODOS ? 'Escolher a capa de todos os vídeos' : 'Escolher a capa do vídeo'}
           style={{
             position: 'fixed', inset: 0, background: 'oklch(0 0 0 / .68)', zIndex: 60,
             display: 'grid', placeItems: 'center', padding: 20,
@@ -580,11 +626,15 @@ export default function ContentPicker({
           }}>
             <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--mf-border)' }}>
               <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 750, color: 'var(--mf-text)' }}>
-                Capa do vídeo
+                {modalCapa === TODOS ? `Capa para os ${totalVideos} vídeos` : 'Capa do vídeo'}
               </h3>
               <p style={{ margin: 0, fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
-                A imagem escolhida vira a miniatura do Reel no perfil. Sem capa, o
-                Instagram usa um quadro do próprio vídeo.
+                {modalCapa === TODOS
+                  ? <>A imagem escolhida vira a miniatura de <strong>todos</strong> os vídeos
+                      desta campanha, substituindo as capas já definidas. Depois dá para
+                      trocar a de um vídeo específico pelo botão no cartão dele.</>
+                  : <>A imagem escolhida vira a miniatura do Reel no perfil. Sem capa, o
+                      Instagram usa um quadro do próprio vídeo.</>}
               </p>
             </div>
 
@@ -598,11 +648,11 @@ export default function ContentPicker({
               }}>
                 {enviando ? 'Enviando…' : 'Enviar imagem nova'}
                 <input type="file" accept="image/*" style={{ display: 'none' }} disabled={enviando}
-                  onChange={e => enviar(e.target.files, { comoCapaDe: modalCapa })} />
+                  onChange={e => enviar(e.target.files, { comoCapaDe: modalCapa, idsAlvo: idsDeVideo })} />
               </label>
-              {capas[modalCapa] && (
-                <button onClick={() => { onCapa?.(modalCapa, null); setModalCapa(null); }} style={botao(false)}>
-                  Remover capa
+              {(modalCapa === TODOS ? videosSemCapa < totalVideos : capas[modalCapa]) && (
+                <button onClick={() => aplicarCapa(null)} style={botao(false)}>
+                  {modalCapa === TODOS ? 'Remover a capa de todos' : 'Remover capa'}
                 </button>
               )}
             </div>
@@ -611,10 +661,10 @@ export default function ContentPicker({
               {imagensDisponiveis.length ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(88px,1fr))', gap: 9 }}>
                   {imagensDisponiveis.map(img => {
-                    const escolhida = capas[modalCapa] === String(img._id);
+                    const escolhida = modalCapa !== TODOS && capas[modalCapa] === String(img._id);
                     return (
                       <button key={img._id}
-                        onClick={() => { onCapa?.(modalCapa, String(img._id)); setModalCapa(null); }}
+                        onClick={() => aplicarCapa(String(img._id))}
                         title={nomeDe(img)}
                         style={{
                           position: 'relative', aspectRatio: '3/4', padding: 0, borderRadius: 10,

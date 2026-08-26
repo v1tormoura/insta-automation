@@ -172,7 +172,17 @@
   flex-wrap: wrap;
   padding-block: var(--mf-6) var(--mf-5);
 }
-.mf-page-head__txt { min-width: 0; flex: 1; }
+/* `flex: 1` é `flex-basis: 0`, e essa era a causa de um bug feio no celular:
+   a quebra de linha do flex decide pela BASE do item, não pelo conteúdo. Com
+   base zero, o bloco do título nunca "não cabia" — ele simplesmente encolhia,
+   e os botões de ação continuavam grudados na mesma linha. Numa tela de 375px
+   com dois botões no cabeçalho, o título ficava com uns 50px e o subtítulo
+   saía uma palavra por linha: "Ciclos / automáticos / de / postagem".
+
+   Com base de 240px, os botões passam a não caber e vão para a linha de
+   baixo — que é o comportamento certo. O `min-width: 0` continua ali para o
+   texto poder truncar quando precisar. */
+.mf-page-head__txt { min-width: 0; flex: 1 1 240px; }
 .mf-page-head__t {
   font-size: var(--mf-t-h1); font-weight: 700; letter-spacing: -0.025em;
   margin: 0; display: flex; align-items: center; gap: var(--mf-3);
@@ -183,7 +193,7 @@
   box-shadow: 0 0 12px var(--mf-mod, var(--mf-primary-500));
 }
 .mf-page-head__s { color: var(--mf-text-3); font-size: var(--mf-t-sm); margin: var(--mf-1) 0 0; }
-.mf-page-head__acts { display: flex; gap: var(--mf-2); flex-wrap: wrap; }
+.mf-page-head__acts { display: flex; gap: var(--mf-2); flex-wrap: wrap; flex-shrink: 0; }
 
 /* ── Grid ────────────────────────────────────────────────────────────────
    `auto-fit` + `minmax` resolve a responsividade sem breakpoint: as colunas
