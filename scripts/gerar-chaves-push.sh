@@ -45,6 +45,21 @@ if grep -q '^VAPID_PRIVATE_KEY=' "$ENV_FILE" 2>/dev/null; then
   exit 0
 fi
 
+# A biblioteca vive dentro da imagem do backend. Se ela foi adicionada ao
+# package.json depois do último build, a imagem em uso ainda não a tem — e
+# `docker compose restart` não resolve, porque restart não reinstala nada.
+# Conferir aqui evita a mensagem genérica "não foi possível gerar", que manda
+# procurar no lugar errado.
+if ! docker compose run --rm --no-deps -T backend node -e "require('web-push')" >/dev/null 2>&1; then
+  echo "A imagem do backend não tem a biblioteca 'web-push'."
+  echo
+  echo "Ela é uma dependência nova: reconstrua a imagem antes de gerar as chaves."
+  echo "  docker compose build backend"
+  echo
+  echo "Depois rode este script de novo."
+  exit 1
+fi
+
 echo "Gerando o par de chaves…"
 
 # A geração acontece dentro do contêiner do backend, onde a dependência vive.
@@ -59,8 +74,9 @@ PUBLICA=$(echo "$SAIDA" | sed -n '1p')
 PRIVADA=$(echo "$SAIDA" | sed -n '2p')
 
 if [ -z "$PUBLICA" ] || [ -z "$PRIVADA" ]; then
-  echo "Não foi possível gerar as chaves. O contêiner do backend está de pé?"
-  echo "Tente: docker compose up -d backend"
+  echo "Não foi possível gerar as chaves."
+  echo "A biblioteca existe, então o problema é outro — veja o erro completo com:"
+  echo "  docker compose run --rm --no-deps backend node -e \"console.log(require('web-push').generateVAPIDKeys().publicKey)\""
   exit 1
 fi
 
