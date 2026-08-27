@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import { EsqueletoLista } from '../components/Estados';
 
 const METRICS = [
   { key: 'views',           label: 'Visualizações' },
@@ -78,10 +79,10 @@ export default function Ranking() {
   const pageActions = (
     <div style={{ display:'flex', gap:8, alignItems:'center' }}>
       {/* Period pills */}
-      <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:9, padding:3 }}>
+      <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
         {PERIODS.map(p => (
           <button key={p.key} onClick={() => setPeriod(p.key)} style={{
-            height:26, padding:'0 10px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
+            height:26, padding:'0 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
             border:'none', cursor:'pointer', transition:'.15s',
             background: period === p.key ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent',
             color: period === p.key ? 'var(--mf-bg)' : 'var(--mf-text-3)',
@@ -91,7 +92,7 @@ export default function Ranking() {
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <>
@@ -106,10 +107,10 @@ export default function Ranking() {
         {/* Metric filter */}
         <div style={{ ...cardStyle, marginBottom:14, padding:'10px 14px' }}>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', marginRight:4 }}>Métrica:</span>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', marginRight:4 }}>Métrica:</span>
             {METRICS.map(m => (
               <button key={m.key} onClick={() => setMetric(m.key)} style={{
-                height:28, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
+                height:28, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
                 border:'none', cursor:'pointer', transition:'.15s',
                 background: metric === m.key ? 'color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)' : 'transparent',
                 color: metric === m.key ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
@@ -122,17 +123,17 @@ export default function Ranking() {
         {/* Ranking list */}
         <div style={cardStyle}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Posts — {metricLabel}</h3>
-            <span style={{ fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:100, padding:'2px 8px' }}>{posts.length} posts</span>
+            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Posts — {metricLabel}</h3>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{posts.length} posts</span>
           </div>
 
           {loading ? (
-            <div style={{ textAlign:'center', padding:48, color:'var(--mf-text-3)' }}>Carregando ranking...</div>
+            <EsqueletoLista itens={5} />
           ) : posts.length === 0 ? (
             <div style={{ textAlign:'center', padding:48 }}>
-              <div style={{ fontSize:32, marginBottom:10 }}>📊</div>
-              <p style={{ color:'var(--mf-text-3)', fontSize:13 }}>Nenhum post encontrado para este período.</p>
-              <p style={{ color:'var(--mf-text-3)', fontSize:11, marginTop:4 }}>
+              <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>📊</div>
+              <p style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)' }}>Nenhum post encontrado para este período.</p>
+              <p style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginTop:4 }}>
                 Sincronize seus insights em <a href="/top-posts" style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>Top Posts</a> primeiro.
               </p>
             </div>
@@ -156,16 +157,16 @@ export default function Ranking() {
                 {/* Rank */}
                 <div style={{ textAlign:'center' }}>
                   {isTop
-                    ? <span style={{ fontSize:22 }}>{MEDALS[i]}</span>
-                    : <span style={{ fontSize:13, fontWeight:800, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>#{i + 1}</span>
+                    ? <span style={{ fontSize: 'var(--mf-t-h1)' }}>{MEDALS[i]}</span>
+                    : <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight:800, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>#{i + 1}</span>
                   }
                 </div>
 
                 {/* Thumbnail */}
-                <div style={{ width:52, height:52, borderRadius:7, overflow:'hidden', background:'oklch(0.10 0.03 235 / 0.5)', flexShrink:0 }}>
+                <div style={{ width:52, height:52, borderRadius: 'var(--mf-r-sm)', overflow:'hidden', background:'oklch(0.10 0.03 235 / 0.5)', flexShrink:0 }}>
                   {post.thumbnail
                     ? <img src={post.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    : <div style={{ width:'100%', height:'100%', display:'grid', placeItems:'center', fontSize:20 }}>
+                    : <div style={{ width:'100%', height:'100%', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-h1)' }}>
                         {post.mediaType === 'VIDEO' ? '🎬' : '🖼️'}
                       </div>
                   }
@@ -173,31 +174,31 @@ export default function Ranking() {
 
                 {/* Info + bar */}
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--mf-text)', marginBottom:5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text)', marginBottom:5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     @{post.username || post.accountId}
-                    <span style={{ marginLeft:8, fontSize:9, fontWeight:600, padding:'1px 6px', borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', color:'var(--mf-text-3)' }}>
+                    <span style={{ marginLeft:8, fontSize: 'var(--mf-t-nano)', fontWeight:600, padding:'1px 6px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', color:'var(--mf-text-3)' }}>
                       {post.mediaType === 'VIDEO' ? 'Reel' : post.mediaType === 'CAROUSEL_ALBUM' ? 'Carrossel' : 'Foto'}
                     </span>
                   </div>
-                  <div style={{ height:4, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', marginBottom:4 }}>
+                  <div style={{ height:4, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', marginBottom:4 }}>
                     <motion.div
                       initial={{ width:0 }}
                       animate={{ width:`${pct}%` }}
                       transition={{ duration:.5, delay:.1 + i * 0.02 }}
-                      style={{ height:'100%', borderRadius:99, background: isTop ? 'linear-gradient(90deg, var(--mf-mod-publicar), var(--mf-mod, var(--mf-accent-500)))' : 'color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)' }}
+                      style={{ height:'100%', borderRadius: 'var(--mf-r-full)', background: isTop ? 'linear-gradient(90deg, var(--mf-mod-publicar), var(--mf-mod, var(--mf-accent-500)))' : 'color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)' }}
                     />
                   </div>
-                  <div style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     {post.caption ? String(post.caption).slice(0, 55) + (post.caption.length > 55 ? '…' : '') : '(sem legenda)'}
                   </div>
                 </div>
 
                 {/* Value */}
                 <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontSize:18, fontWeight:800, color: isTop ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>
+                  <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color: isTop ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>
                     {fmtNum(val)}
                   </div>
-                  <div style={{ fontSize:9, color:'var(--mf-text-3)', marginTop:1, fontFamily:'var(--mf-mono)' }}>{metricLabel}</div>
+                  <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1, fontFamily:'var(--mf-mono)' }}>{metricLabel}</div>
                 </div>
               </motion.div>
             );

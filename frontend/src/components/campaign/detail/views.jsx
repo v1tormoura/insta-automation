@@ -109,14 +109,14 @@ export function LinhaPublicacao({ pub, onAbrir, mostrarData = false, compacta = 
       type="button"
       onClick={() => onAbrir?.(pub)}
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-[9px] border p-2.5 text-left transition-colors',
-        'hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]',
+        'flex w-full items-center gap-2.5 rounded-[var(--mf-r-md)] border p-2.5 text-left transition-colors',
+        'hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]',
         falhou || comFalhou
-          ? 'border-[color-mix(in oklch, var(--mf-danger-500) 24%, transparent)] bg-[color-mix(in oklch, var(--mf-danger-500) 3%, transparent)]'
+          ? 'border-[color-mix(in_oklch,_var(--mf-danger-500)_24%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_3%,_transparent)]'
           : 'border-[var(--border)] bg-[var(--mf-border-subtle)]'
       )}
     >
-      <span className="w-7 shrink-0 font-mono text-[9.5px] tabular-nums text-[var(--mf-text-3)]">
+      <span className="w-7 shrink-0 font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
         #{pub.order}
       </span>
 
@@ -125,18 +125,18 @@ export function LinhaPublicacao({ pub, onAbrir, mostrarData = false, compacta = 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           {!compacta && (
-            <span className="truncate text-[11.5px] font-bold text-[var(--mf-text)]">
+            <span className="truncate text-[var(--mf-t-micro)] font-bold text-[var(--mf-text)]">
               {nomeConta(pub.account)}
             </span>
           )}
           <ConteudoThumb conteudo={pub.content} size={16} />
-          <span className="truncate text-[11px] text-[var(--mf-text-3)]">
+          <span className="truncate text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
             {nomeConteudo(pub.content)}
           </span>
         </span>
 
         {(falhou || comFalhou) && (
-          <span className="mt-1 block truncate text-[10.5px] font-semibold text-[var(--mf-danger-500)]">
+          <span className="mt-1 block truncate text-[var(--mf-t-nano)] font-semibold text-[var(--mf-danger-500)]">
             {falhou
               ? descreverErro(pub.errorCode, ERROS_PUB)
               : `Comentário: ${descreverErro(pub.commentErrorCode, ERROS_COMENTARIO)}`}
@@ -145,11 +145,11 @@ export function LinhaPublicacao({ pub, onAbrir, mostrarData = false, compacta = 
       </span>
 
       <span className="shrink-0 text-right">
-        <span className="block font-mono text-[10.5px] tabular-nums text-[var(--mf-text-3)]">
+        <span className="block font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
           {mostrarData && `${dataCurta(pub.scheduledAt)} · `}{horaCurta(pub.scheduledAt)}
         </span>
         {pub.attempts > 1 && (
-          <span className="mt-0.5 block font-mono text-[9.5px] tabular-nums text-[var(--mf-text-3)]">
+          <span className="mt-0.5 block font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
             {pub.attempts}x
           </span>
         )}
@@ -214,23 +214,23 @@ export function ByAccountView({ publicacoes, onAbrir }) {
       {grupos.map(g => {
         const expandida = aberta === g.id;
         return (
-          <div key={g.id} className="rounded-[12px] border border-[var(--card-border)] bg-[var(--card)] p-3.5">
+          <div key={g.id} className="rounded-[var(--mf-r-md)] border border-[var(--card-border)] bg-[var(--card)] p-3.5">
             <button
               type="button"
               onClick={() => setAberta(expandida ? null : g.id)}
               aria-expanded={expandida}
-              className="flex w-full items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]"
+              className="flex w-full items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
             >
               <ContaAvatar conta={g.conta} size={30} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12.5px] font-bold text-[var(--mf-text)]">
                   {nomeConta(g.conta)}
                 </span>
-                <span className="block text-[10.5px] text-[var(--mf-text-3)]">
+                <span className="block text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
                   {g.total} publicaç{g.total === 1 ? 'ão' : 'ões'}
                 </span>
               </span>
-              <span className="shrink-0 font-mono text-[14px] font-extrabold tabular-nums text-[var(--mf-text)]">
+              <span className="shrink-0 font-mono text-[var(--mf-t-body)] font-extrabold tabular-nums text-[var(--mf-text)]">
                 {g.pct}%
               </span>
               <ChevronRight
@@ -241,9 +241,9 @@ export function ByAccountView({ publicacoes, onAbrir }) {
 
             <Progress value={g.pct} className="mt-2.5" />
 
-            <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px]">
+            <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[var(--mf-t-nano)]">
               <span className="text-[var(--mf-success-500)]">{g.published} concluídas</span>
-              {g.pendentes > 0  && <span className="text-[var(--mf-mod, var(--mf-accent-500))]">{g.pendentes} pendentes</span>}
+              {g.pendentes > 0  && <span className="text-[var(--mf-mod,_var(--mf-accent-500))]">{g.pendentes} pendentes</span>}
               {g.processing > 0 && <span className="text-[var(--mf-info-500)]">{g.processing} publicando</span>}
               {g.failed > 0     && <span className="text-[var(--mf-danger-500)]">{g.failed} falhas</span>}
               {g.cancelled > 0  && <span className="text-[var(--mf-text-3)]">{g.cancelled} canceladas</span>}
@@ -252,7 +252,7 @@ export function ByAccountView({ publicacoes, onAbrir }) {
             {g.proxima && (
               <div className="mt-2.5 border-t border-[var(--border)] pt-2.5">
                 <Eyebrow>Próxima</Eyebrow>
-                <div className="mt-1 truncate text-[11px] text-[var(--mf-text-2)]">
+                <div className="mt-1 truncate text-[var(--mf-t-micro)] text-[var(--mf-text-2)]">
                   {nomeConteudo(g.proxima.content)} — {quando(g.proxima.scheduledAt)}
                 </div>
               </div>
@@ -285,23 +285,23 @@ export function ByContentView({ publicacoes, onAbrir }) {
       {grupos.map(g => {
         const expandido = aberto === g.id;
         return (
-          <div key={g.id} className="rounded-[12px] border border-[var(--card-border)] bg-[var(--card)] p-3.5">
+          <div key={g.id} className="rounded-[var(--mf-r-md)] border border-[var(--card-border)] bg-[var(--card)] p-3.5">
             <button
               type="button"
               onClick={() => setAberto(expandido ? null : g.id)}
               aria-expanded={expandido}
-              className="flex w-full items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]"
+              className="flex w-full items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
             >
               <ConteudoThumb conteudo={g.conteudo} size={30} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12.5px] font-bold text-[var(--mf-text)]">
                   {nomeConteudo(g.conteudo)}
                 </span>
-                <span className="block text-[10.5px] text-[var(--mf-text-3)]">
+                <span className="block text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
                   {g.total} cont{g.total === 1 ? 'a' : 'as'}
                 </span>
               </span>
-              <span className="shrink-0 font-mono text-[12px] font-bold tabular-nums text-[var(--mf-text-2)]">
+              <span className="shrink-0 font-mono text-[var(--mf-t-xs)] font-bold tabular-nums text-[var(--mf-text-2)]">
                 {g.published}/{g.total}
               </span>
               <ChevronRight
@@ -312,9 +312,9 @@ export function ByContentView({ publicacoes, onAbrir }) {
 
             <Progress value={g.pct} className="mt-2.5" />
 
-            <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px]">
+            <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[var(--mf-t-nano)]">
               <span className="text-[var(--mf-success-500)]">{g.published} publicados</span>
-              {g.pendentes > 0  && <span className="text-[var(--mf-mod, var(--mf-accent-500))]">{g.pendentes} pendentes</span>}
+              {g.pendentes > 0  && <span className="text-[var(--mf-mod,_var(--mf-accent-500))]">{g.pendentes} pendentes</span>}
               {g.processing > 0 && <span className="text-[var(--mf-info-500)]">{g.processing} processando</span>}
               {g.failed > 0     && <span className="text-[var(--mf-danger-500)]">{g.failed} falharam</span>}
               {g.cancelled > 0  && <span className="text-[var(--mf-text-3)]">{g.cancelled} canceladas</span>}
@@ -327,16 +327,16 @@ export function ByContentView({ publicacoes, onAbrir }) {
                     key={p._id}
                     type="button"
                     onClick={() => onAbrir?.(p)}
-                    className="flex items-center gap-2 rounded-[7px] p-1.5 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]"
+                    className="flex items-center gap-2 rounded-[var(--mf-r-sm)] p-1.5 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
                   >
                     <ContaAvatar conta={p.account} size={20} />
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-[var(--mf-text-2)]">
+                    <span className="min-w-0 flex-1 truncate text-[var(--mf-t-micro)] font-semibold text-[var(--mf-text-2)]">
                       {nomeConta(p.account)}
                     </span>
-                    <span className="shrink-0 font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
+                    <span className="shrink-0 font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
                       {horaCurta(p.scheduledAt)}
                     </span>
-                    <span className={cn('shrink-0 text-[12px] font-bold', STATUS_PUB[p.status]?.cor)}>
+                    <span className={cn('shrink-0 text-[var(--mf-t-xs)] font-bold', STATUS_PUB[p.status]?.cor)}>
                       {p.status === 'published' ? '✓'
                         : p.status === 'failed' ? '✕'
                         : p.status === 'processing' ? '⚙'
@@ -430,16 +430,16 @@ export function PublicationsView({ publicacoes, onAbrir, contagem }) {
             onChange={e => setBusca(e.target.value)}
             placeholder="Buscar conta ou conteúdo..."
             aria-label="Buscar conta ou conteúdo"
-            className="h-8 w-full rounded-[8px] border border-[var(--border)] bg-[var(--mf-border-subtle)] pl-8 pr-2.5 text-[11.5px] text-[var(--mf-text)] placeholder:text-[var(--mf-text-3)] focus:border-[var(--border2)] focus:outline-none"
+            className="h-8 w-full rounded-[var(--mf-r-sm)] border border-[var(--border)] bg-[var(--mf-border-subtle)] pl-8 pr-2.5 text-[var(--mf-t-micro)] text-[var(--mf-text)] placeholder:text-[var(--mf-text-3)] focus:border-[var(--border2)] focus:outline-none"
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <label htmlFor="ordem-pub" className="text-[10.5px] text-[var(--mf-text-3)]">Ordenar</label>
+          <label htmlFor="ordem-pub" className="text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">Ordenar</label>
           <select
             id="ordem-pub"
             value={ordem}
             onChange={e => setOrdem(e.target.value)}
-            className="h-8 rounded-[8px] border border-[var(--border)] bg-[var(--mf-border-subtle)] px-2 text-[11.5px] text-[var(--mf-text)] focus:outline-none"
+            className="h-8 rounded-[var(--mf-r-sm)] border border-[var(--border)] bg-[var(--mf-border-subtle)] px-2 text-[var(--mf-t-micro)] text-[var(--mf-text)] focus:outline-none"
           >
             {ORDENACOES.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
           </select>
@@ -456,14 +456,14 @@ export function PublicationsView({ publicacoes, onAbrir, contagem }) {
               type="button"
               onClick={() => setFiltro(valor)}
               className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[7px] border px-2.5 py-1 text-[10.5px] font-bold transition-colors',
+                'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--mf-r-sm)] border px-2.5 py-1 text-[var(--mf-t-nano)] font-bold transition-colors',
                 ativo
-                  ? 'border-[color-mix(in oklch, var(--mf-mod-contas) 32%, transparent)] bg-[color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)] text-[var(--mf-mod, var(--mf-accent-500))]'
+                  ? 'border-[color-mix(in_oklch,_var(--mf-mod-contas)_32%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-mod-contas)_12%,_transparent)] text-[var(--mf-mod,_var(--mf-accent-500))]'
                   : 'border-[var(--border)] bg-[var(--mf-border-subtle)] text-[var(--mf-text-3)] hover:text-[var(--mf-text-2)]'
               )}
             >
               {rotulo}
-              <span className="font-mono text-[9.5px] tabular-nums opacity-75">{contarFiltro(valor)}</span>
+              <span className="font-mono text-[var(--mf-t-nano)] tabular-nums opacity-75">{contarFiltro(valor)}</span>
             </button>
           );
         })}
@@ -521,40 +521,40 @@ export function CommentsView({ publicacoes, comentarios, onAbrir, onReprocessar,
             <div
               key={p._id}
               className={cn(
-                'rounded-[10px] border p-3',
+                'rounded-[var(--mf-r-md)] border p-3',
                 falhou
-                  ? 'border-[color-mix(in oklch, var(--mf-danger-500) 24%, transparent)] bg-[color-mix(in oklch, var(--mf-danger-500) 3%, transparent)]'
+                  ? 'border-[color-mix(in_oklch,_var(--mf-danger-500)_24%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_3%,_transparent)]'
                   : 'border-[var(--border)] bg-[var(--mf-border-subtle)]'
               )}
             >
               <div className="flex flex-wrap items-center gap-2">
                 <ContaAvatar conta={p.account} size={22} />
-                <span className="text-[11.5px] font-bold text-[var(--mf-text)]">{nomeConta(p.account)}</span>
-                <span className="truncate text-[11px] text-[var(--mf-text-3)]">{nomeConteudo(p.content)}</span>
+                <span className="text-[var(--mf-t-micro)] font-bold text-[var(--mf-text)]">{nomeConta(p.account)}</span>
+                <span className="truncate text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">{nomeConteudo(p.content)}</span>
                 <span className="ml-auto shrink-0">
                   <StatusBadge status={p.commentStatus} mapa={STATUS_COMENTARIO} />
                 </span>
               </div>
 
               {p.resolvedComment && (
-                <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[var(--mf-text-2)]">
+                <p className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-2)]">
                   “{p.resolvedComment}”
                 </p>
               )}
 
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span className="font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
+                <span className="font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
                   {p.commentPostedAt
                     ? `Publicado ${quando(p.commentPostedAt)}`
                     : `Agendado para depois de ${horaCurta(p.scheduledAt)}`}
                 </span>
                 {p.commentAttempts > 0 && (
-                  <span className="font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
+                  <span className="font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
                     {p.commentAttempts} tentativa{p.commentAttempts === 1 ? '' : 's'}
                   </span>
                 )}
                 {falhou && (
-                  <span className="text-[10.5px] font-bold text-[var(--mf-danger-500)]">
+                  <span className="text-[var(--mf-t-nano)] font-bold text-[var(--mf-danger-500)]">
                     {descreverErro(p.commentErrorCode, ERROS_COMENTARIO)}
                   </span>
                 )}
@@ -592,7 +592,7 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[11px] text-[var(--mf-text-3)]">
+      <p className="text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
         {problemas.length} {problemas.length === 1 ? 'item precisa' : 'itens precisam'} de atenção.
       </p>
 
@@ -603,15 +603,15 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
         return (
           <div
             key={p._id}
-            className="rounded-[10px] border border-[color-mix(in oklch, var(--mf-danger-500) 26%, transparent)] bg-[color-mix(in oklch, var(--mf-danger-500) 4%, transparent)] p-3"
+            className="rounded-[var(--mf-r-md)] border border-[color-mix(in_oklch,_var(--mf-danger-500)_26%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_4%,_transparent)] p-3"
           >
             <div className="flex flex-wrap items-center gap-2">
               <AlertTriangle size={13} className="shrink-0 text-[var(--mf-danger-500)]" />
               <ContaAvatar conta={p.account} size={20} />
-              <span className="text-[11.5px] font-bold text-[var(--mf-text)]">{nomeConta(p.account)}</span>
+              <span className="text-[var(--mf-t-micro)] font-bold text-[var(--mf-text)]">{nomeConta(p.account)}</span>
               <span className="text-[var(--mf-text-3)]">·</span>
-              <span className="truncate text-[11px] text-[var(--mf-text-3)]">{nomeConteudo(p.content)}</span>
-              <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
+              <span className="truncate text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">{nomeConteudo(p.content)}</span>
+              <span className="ml-auto shrink-0 font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
                 {dataCurta(p.scheduledAt)} · {horaCurta(p.scheduledAt)}
               </span>
             </div>
@@ -619,12 +619,12 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
             {/* Publicação e comentário separados: reprocessar a publicação de um
                 post que já está no ar publicaria de novo. */}
             {pubFalhou && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[color-mix(in oklch, var(--mf-danger-500) 16%, transparent)] pt-2.5">
-                <span className="text-[11px] font-bold text-[var(--mf-danger-500)]">Publicação falhou</span>
-                <span className="font-mono text-[10.5px] text-[var(--mf-danger-500)]">
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[color-mix(in_oklch,_var(--mf-danger-500)_16%,_transparent)] pt-2.5">
+                <span className="text-[var(--mf-t-micro)] font-bold text-[var(--mf-danger-500)]">Publicação falhou</span>
+                <span className="font-mono text-[var(--mf-t-nano)] text-[var(--mf-danger-500)]">
                   {descreverErro(p.errorCode, ERROS_PUB)}
                 </span>
-                <span className="font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
+                <span className="font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
                   tentativa {p.attempts}
                 </span>
                 <span className="ml-auto flex gap-1.5">
@@ -638,13 +638,13 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
             )}
 
             {comFalhou && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[color-mix(in oklch, var(--mf-danger-500) 16%, transparent)] pt-2.5">
-                <span className="text-[11px] font-bold text-[var(--mf-danger-500)]">Comentário falhou</span>
-                <span className="font-mono text-[10.5px] text-[var(--mf-danger-500)]">
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[color-mix(in_oklch,_var(--mf-danger-500)_16%,_transparent)] pt-2.5">
+                <span className="text-[var(--mf-t-micro)] font-bold text-[var(--mf-danger-500)]">Comentário falhou</span>
+                <span className="font-mono text-[var(--mf-t-nano)] text-[var(--mf-danger-500)]">
                   {descreverErro(p.commentErrorCode, ERROS_COMENTARIO)}
                 </span>
                 {p.status === 'published' && (
-                  <span className="text-[10px] text-[var(--mf-text-3)]">a publicação saiu normalmente</span>
+                  <span className="text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">a publicação saiu normalmente</span>
                 )}
                 <span className="ml-auto flex gap-1.5">
                   {p.hasMediaLink ? (
@@ -653,7 +653,7 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
                       Reprocessar comentário
                     </Button>
                   ) : (
-                    <span className="text-[10px] text-[var(--mf-text-3)]">
+                    <span className="text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
                       sem vínculo com a mídia — não é possível reprocessar
                     </span>
                   )}
@@ -679,7 +679,7 @@ export function PlanoCompleto({ publicacoes, onAbrir }) {
 
   return (
     <div className="flex flex-col gap-1">
-      <p className="mb-1 text-[11px] leading-relaxed text-[var(--mf-text-3)]">
+      <p className="mb-1 text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-3)]">
         Ordem gerada pelo planner. Contas e conteúdos aparecem intercalados conforme
         a estratégia configurada.
       </p>
@@ -688,21 +688,21 @@ export function PlanoCompleto({ publicacoes, onAbrir }) {
           key={p._id}
           type="button"
           onClick={() => onAbrir?.(p)}
-          className="flex items-center gap-2.5 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]"
+          className="flex items-center gap-2.5 rounded-[var(--mf-r-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
         >
-          <span className="w-7 shrink-0 font-mono text-[10px] tabular-nums text-[var(--mf-text-3)]">
+          <span className="w-7 shrink-0 font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
             {String(p.order).padStart(2, '0')}
           </span>
-          <span className="w-24 shrink-0 font-mono text-[10.5px] tabular-nums text-[var(--mf-text-3)]">
+          <span className="w-24 shrink-0 font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
             {dataCurta(p.scheduledAt).slice(0, 5)} {horaCurta(p.scheduledAt)}
           </span>
-          <span className="w-28 shrink-0 truncate text-[11px] font-bold text-[var(--mf-text-2)]">
+          <span className="w-28 shrink-0 truncate text-[var(--mf-t-micro)] font-bold text-[var(--mf-text-2)]">
             {nomeConta(p.account)}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--mf-text-3)]">
+          <span className="min-w-0 flex-1 truncate text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
             {nomeConteudo(p.content)}
           </span>
-          <span className={cn('shrink-0 text-[12px] font-bold', STATUS_PUB[p.status]?.cor)}>
+          <span className={cn('shrink-0 text-[var(--mf-t-xs)] font-bold', STATUS_PUB[p.status]?.cor)}>
             {p.status === 'published' ? '✓'
               : p.status === 'failed' ? '✕'
               : p.status === 'processing' ? '⚙'

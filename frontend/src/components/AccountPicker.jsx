@@ -84,7 +84,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               padding: '6px 10px 6px 28px',
               background: 'oklch(0.10 0.03 235 / 0.8)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 8, fontSize: 12, color: 'var(--mf-text)', outline: 'none',
+              borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)', outline: 'none',
             }}
           />
         </div>
@@ -92,12 +92,12 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
           type="button"
           onClick={toggleFiltered}
           style={{
-            flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '5px 11px', borderRadius: 7,
+            flexShrink: 0, fontSize: 'var(--mf-t-micro)', fontWeight: 700, padding: '5px 11px', borderRadius: 'var(--mf-r-sm)',
             background:   allSel ? 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-info-500) 10%, transparent)',
             color:        allSel ? 'var(--mf-danger-500)'               : 'var(--mf-info-500)',
             border:       `1px solid ${allSel ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'color-mix(in oklch, var(--mf-info-500) 30%, transparent)'}`,
             cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--mf-mono)',
-            transition: '.15s',
+            transition: 'all var(--mf-fast) var(--mf-ease-out)',
           }}
         >
           {allSel ? 'Desmarcar' : 'Selecionar'}{' '}
@@ -113,17 +113,17 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
             type="button"
             onClick={() => setStatusTab(t.key)}
             style={{
-              fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+              fontSize: 'var(--mf-t-micro)', fontWeight: 600, padding: '4px 10px', borderRadius: 'var(--mf-r-sm)',
               border:       `1px solid ${statusTab === t.key ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
               background:   statusTab === t.key ? 'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)' : 'transparent',
               color:        statusTab === t.key ? 'var(--mf-primary-300)' : 'var(--mf-text-3)',
-              cursor: 'pointer', transition: '.15s', fontFamily: 'var(--mf-mono)',
+              cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)', fontFamily: 'var(--mf-mono)',
             }}
           >
             {t.label}
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
           <strong style={{ color: 'var(--mf-mod, var(--mf-accent-500))' }}>{selected.length}</strong> sel.
         </span>
       </div>
@@ -140,7 +140,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
         WebkitOverflowScrolling: 'touch',
       }}>
         {filtered.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px 0', color: 'var(--mf-text-3)', fontSize: 12 }}>
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px 0', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
             {search ? 'Nenhuma conta encontrada' : 'Nenhuma conta disponível'}
           </div>
         )}
@@ -158,10 +158,10 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               onClick={() => toggleOne(acc._id)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 5, padding: '10px 6px 8px', borderRadius: 10, position: 'relative',
+                gap: 5, padding: '10px 6px 8px', borderRadius: 'var(--mf-r-md)', position: 'relative',
                 border:     `1px solid ${isSel ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
                 background: isSel ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'oklch(0.10 0.03 235 / 0.6)',
-                cursor: 'pointer', transition: 'all .15s', textAlign: 'center', outline: 'none',
+                cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)', textAlign: 'center', outline: 'none',
                 boxShadow: isSel ? '0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 25%, transparent)' : 'none',
               }}
             >
@@ -169,7 +169,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               {isSel && (
                 <div style={{
                   position: 'absolute', top: 5, right: 5,
-                  width: 14, height: 14, borderRadius: '50%',
+                  width: 14, height: 14, borderRadius: 'var(--mf-r-full)',
                   background: 'var(--mf-primary-300)', display: 'grid', placeItems: 'center',
                 }}>
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text)" strokeWidth="3.5" strokeLinecap="round">
@@ -184,30 +184,30 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                   <img
                     src={src} alt=""
                     style={{
-                      width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', display: 'block',
+                      width: 38, height: 38, borderRadius: 'var(--mf-r-full)', objectFit: 'cover', display: 'block',
                       border: `2px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border)'}`,
                     }}
                     onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'grid'; }}
                   />
                 )}
                 <div style={{
-                  width: 38, height: 38, borderRadius: '50%',
+                  width: 38, height: 38, borderRadius: 'var(--mf-r-full)',
                   background: 'oklch(0.45 0.22 295)',
                   display: src ? 'none' : 'grid',
-                  placeItems: 'center', fontSize: 13, fontWeight: 800, color: 'var(--mf-text)',
+                  placeItems: 'center', fontSize: 'var(--mf-t-sm)', fontWeight: 800, color: 'var(--mf-text)',
                   border: `2px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border)'}`,
                 }}>{init}</div>
                 {/* Dot de status */}
                 <div style={{
                   position: 'absolute', right: -1, bottom: -1,
-                  width: 10, height: 10, borderRadius: '50%',
+                  width: 10, height: 10, borderRadius: 'var(--mf-r-full)',
                   background: dotClr, border: '2px solid oklch(0.12 0.04 235)',
                 }} />
               </div>
 
               {/* Username */}
               <div style={{
-                fontSize: 11, fontWeight: 600, lineHeight: 1.2,
+                fontSize: 'var(--mf-t-micro)', fontWeight: 600, lineHeight: 1.2,
                 color: isSel ? 'var(--mf-primary-300)' : 'var(--mf-text)',
                 width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>@{acc.username}</div>

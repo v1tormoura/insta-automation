@@ -23,12 +23,12 @@ const TOOLTIP = {
   contentStyle: {
     background: 'var(--mf-surface-2)',
     border: '1px solid var(--mf-border-strong)',
-    borderRadius: 10, fontSize: 12, boxShadow: 'var(--mf-shadow-2)',
+    borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', boxShadow: 'var(--mf-shadow-2)',
   },
-  labelStyle: { color: 'var(--mf-text-3)', fontSize: 11, marginBottom: 4 },
+  labelStyle: { color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginBottom: 4 },
 };
 
-const eixo = { stroke: 'var(--mf-text-3)', fontSize: 11, tickLine: false, axisLine: false };
+const eixo = { stroke: 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', tickLine: false, axisLine: false };
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DASHBOARD

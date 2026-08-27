@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
+import { EsqueletoMetricas, EsqueletoTabela, Bloco } from '../components/Estados';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -118,10 +119,10 @@ export default function Performance() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:9, padding:3 }}>
+    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
       {[['7d','7 dias'],['30d','30 dias'],['90d','90 dias']].map(([k,l]) => (
         <button key={k} onClick={() => setPeriod(k)} style={{
-          height:28, padding:'0 12px', borderRadius:7, fontSize:'.78rem', fontWeight:600,
+          height:28, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
           border:'none', cursor:'pointer', transition:'.15s',
           background: period === k ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent',
           color:      period === k ? 'var(--mf-bg)'     : 'var(--mf-text-3)',
@@ -133,7 +134,7 @@ export default function Performance() {
   const cardStyle = {
     background:'oklch(0.16 0.05 235 / 0.85)',
     border:'1px solid var(--mf-border)',
-    borderRadius:14, overflow:'hidden',
+    borderRadius: 'var(--mf-r-lg)', overflow:'hidden',
     backdropFilter:'blur(12px)',
   };
 
@@ -146,18 +147,19 @@ export default function Performance() {
       actions={pageActions}
     >
       {loading ? (
-        <div style={{ textAlign:'center', padding:60, color:'var(--mf-text-3)' }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ animation:'spin 1s linear infinite', display:'block', margin:'0 auto 12px' }}>
-            <path d="M21 12a9 9 0 11-6.219-8.56"/>
-          </svg>
-          Carregando insights...
+        /* Insights é uma tela de métricas: o esqueleto reproduz a fileira de
+           números e o gráfico, para o layout não saltar quando o dado chega. */
+        <div style={{ display:'flex', flexDirection:'column', gap:'var(--mf-4)' }}>
+          <EsqueletoMetricas quantas={4} />
+          <Bloco style={{ height:180, borderRadius:'var(--mf-r-lg)' }} />
+          <EsqueletoTabela linhas={5} colunas={4} />
         </div>
       ) : !data ? (
         <div style={{ textAlign:'center', padding:60, color:'var(--mf-text-3)' }}>
-          <div style={{ fontSize:28, marginBottom:10 }}>⚠️</div>
-          <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text-2)', marginBottom:8 }}>Erro ao carregar dados</div>
-          {errMsg && <div style={{ fontSize:11, color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 18%, transparent)', borderRadius:8, padding:'8px 14px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
-          <button onClick={load} style={{ padding:'8px 20px', borderRadius:9, border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--mf-text-2)', cursor:'pointer', fontSize:13, fontWeight:600 }}>↺ Tentar novamente</button>
+          <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>⚠️</div>
+          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:8 }}>Erro ao carregar dados</div>
+          {errMsg && <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 18%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 14px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
+          <button onClick={load} style={{ padding:'8px 20px', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--mf-text-2)', cursor:'pointer', fontSize: 'var(--mf-t-sm)', fontWeight:600 }}>↺ Tentar novamente</button>
         </div>
       ) : (
         <>
@@ -168,13 +170,13 @@ export default function Performance() {
                 key={k.label}
                 initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
                 transition={{ delay:i*.04, duration:.22 }}
-                style={{ padding:'16px 18px', borderRadius:14, background:k.bg, border:`1px solid ${k.border}`, backdropFilter:'blur(12px)', display:'flex', flexDirection:'column', gap:5 }}
+                style={{ padding:'16px 18px', borderRadius: 'var(--mf-r-lg)', background:k.bg, border:`1px solid ${k.border}`, backdropFilter:'blur(12px)', display:'flex', flexDirection:'column', gap:5 }}
               >
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                  <div style={{ fontSize:24, fontWeight:800, color:k.color, letterSpacing:-1, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{k.val}</div>
-                  <span style={{ fontSize:16 }}>{k.icon}</span>
+                  <div style={{ fontSize: 'var(--mf-t-display)', fontWeight:800, color:k.color, letterSpacing:-1, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{k.val}</div>
+                  <span style={{ fontSize: 'var(--mf-t-h2)' }}>{k.icon}</span>
                 </div>
-                <div style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.06em' }}>{k.label}</div>
+                <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.06em' }}>{k.label}</div>
               </motion.div>
             ))}
           </div>
@@ -183,15 +185,15 @@ export default function Performance() {
             {/* ── Top Contas ── */}
             <motion.div initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Contas</h3>
-                <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
+                <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Contas</h3>
+                <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
               </div>
 
               {data.byAccount.length === 0 ? (
                 <div style={{ padding:'28px 20px', textAlign:'center' }}>
-                  <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--mf-text-2)', marginBottom:6 }}>Nenhum insight sincronizado</div>
-                  <div style={{ fontSize:12, color:'var(--mf-text-3)', lineHeight:1.6 }}>
+                  <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:8 }}>📊</div>
+                  <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:600, color:'var(--mf-text-2)', marginBottom:6 }}>Nenhum insight sincronizado</div>
+                  <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.6 }}>
                     Vá no <strong>Dashboard</strong> e clique em <strong>SYNC</strong> para importar as métricas dos seus posts via Meta Graph API.
                   </div>
                 </div>
@@ -219,13 +221,13 @@ export default function Performance() {
                         {/* Avatar com rank */}
                         <div style={{ position:'relative', flexShrink:0 }}>
                           <div style={{
-                            width:42, height:42, borderRadius:'50%', overflow:'hidden',
+                            width:42, height:42, borderRadius: 'var(--mf-r-full)', overflow:'hidden',
                             border:`2px solid ${i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' : 'var(--mf-border)'}`,
                             background:'oklch(0.10 0.03 235 / 0.6)',
                           }}>
                             {src
                               ? <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
-                              : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:16, color: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
+                              : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize: 'var(--mf-t-h2)', color: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
                                   {acc.username?.[0]?.toUpperCase()}
                                 </div>
                             }
@@ -233,11 +235,11 @@ export default function Performance() {
                           {/* Rank badge */}
                           <div style={{
                             position:'absolute', bottom:-2, right:-4,
-                            width:17, height:17, borderRadius:'50%',
+                            width:17, height:17, borderRadius: 'var(--mf-r-full)',
                             background: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'var(--mf-mod-publicar)' : 'oklch(0.20 0.05 235)',
                             border:'2px solid oklch(0.16 0.05 235)',
                             display:'flex', alignItems:'center', justifyContent:'center',
-                            fontSize:8, fontWeight:900,
+                            fontSize: 'var(--mf-t-nano)', fontWeight:900,
                             color: i < 2 ? 'var(--mf-bg)' : 'var(--mf-text-3)',
                             fontFamily:'var(--mf-mono)',
                           }}>
@@ -247,35 +249,35 @@ export default function Performance() {
 
                         {/* Info */}
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                             @{acc.username}
                           </div>
                           <div style={{ display:'flex', gap:8, marginTop:3, flexWrap:'wrap' }}>
-                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>
+                            <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
                               <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700, fontFamily:'var(--mf-mono)' }}>{fmtNum(acc.views)}</span> views
                             </span>
-                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>
+                            <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
                               <span style={{ color:'var(--mf-danger-500)', fontWeight:700, fontFamily:'var(--mf-mono)' }}>{fmtNum(acc.likes)}</span> curtidas
                             </span>
-                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>
+                            <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
                               <span style={{ color:'var(--mf-warning-500)', fontWeight:700, fontFamily:'var(--mf-mono)' }}>{fmtNum(acc.saves)}</span> salvos
                             </span>
-                            <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>{acc.posts} posts</span>
+                            <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{acc.posts} posts</span>
                           </div>
                         </div>
 
                         {/* Right: engagement */}
                         <div style={{ flexShrink:0, textAlign:'right' }}>
-                          <div style={{ fontSize:13, fontWeight:800, color:'var(--mf-mod, var(--mf-accent-500))', fontFamily:'var(--mf-mono)', fontVariantNumeric:'tabular-nums' }}>
+                          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:800, color:'var(--mf-mod, var(--mf-accent-500))', fontFamily:'var(--mf-mono)', fontVariantNumeric:'tabular-nums' }}>
                             {fmtNum(acc.views)}
                           </div>
                           {eng && (
-                            <div style={{ fontSize:9, color:'var(--mf-success-500)', fontWeight:700, marginTop:1 }}>
+                            <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-success-500)', fontWeight:700, marginTop:1 }}>
                               {eng}% eng.
                             </div>
                           )}
                           {avgViewsPerPost > 0 && (
-                            <div style={{ fontSize:9, color:'var(--mf-text-3)', marginTop:1 }}>
+                            <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1 }}>
                               ≈{fmtNum(avgViewsPerPost)}/post
                             </div>
                           )}
@@ -291,8 +293,8 @@ export default function Performance() {
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-                  <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Tipo de Conteúdo</h3>
-                  <span style={{ fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{totalTyped} posts</span>
+                  <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Tipo de Conteúdo</h3>
+                  <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{totalTyped} posts</span>
                 </div>
                 <div style={{ padding:'16px 18px' }}>
                   {types.map(tp => {
@@ -301,13 +303,13 @@ export default function Performance() {
                     return (
                       <div key={tp.key} style={{ marginBottom:16 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                          <span style={{ fontSize:12, color:'var(--mf-text-2)' }}>{tp.icon} {tp.label}</span>
-                          <span style={{ fontSize:12, fontWeight:700, color:'var(--mf-text)', fontFamily:'var(--mf-mono)' }}>{count} <span style={{ color:'var(--mf-text-3)', fontWeight:400 }}>({pct}%)</span></span>
+                          <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)' }}>{tp.icon} {tp.label}</span>
+                          <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-text)', fontFamily:'var(--mf-mono)' }}>{count} <span style={{ color:'var(--mf-text-3)', fontWeight:400 }}>({pct}%)</span></span>
                         </div>
-                        <div style={{ height:5, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden' }}>
+                        <div style={{ height:5, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden' }}>
                           <motion.div
                             initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.5, delay:.15 }}
-                            style={{ height:'100%', borderRadius:99, background:tp.color }}
+                            style={{ height:'100%', borderRadius: 'var(--mf-r-full)', background:tp.color }}
                           />
                         </div>
                       </div>
@@ -319,7 +321,7 @@ export default function Performance() {
               {/* Engagement summary */}
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25, delay:.06 }}
                 style={{ ...cardStyle, padding:'16px 18px' }}>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Métricas de engajamento</div>
+                <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Métricas de engajamento</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
                     { label:'Eng. médio', value:data.avgEng, color:'var(--mf-mod, var(--mf-accent-500))', icon:'📈' },
@@ -335,12 +337,12 @@ export default function Performance() {
                       color:'var(--mf-warning-500)', icon:'🔖',
                     },
                   ].map(m => (
-                    <div key={m.label} style={{ background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:10, padding:'10px 12px' }}>
+                    <div key={m.label} style={{ background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'10px 12px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3 }}>
-                        <span style={{ fontSize:12 }}>{m.icon}</span>
-                        <span style={{ fontSize:9, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{m.label}</span>
+                        <span style={{ fontSize: 'var(--mf-t-xs)' }}>{m.icon}</span>
+                        <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{m.label}</span>
                       </div>
-                      <div style={{ fontSize:18, fontWeight:800, color:m.color, fontVariantNumeric:'tabular-nums' }}>{fmtNum(m.value)}</div>
+                      <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color:m.color, fontVariantNumeric:'tabular-nums' }}>{fmtNum(m.value)}</div>
                     </div>
                   ))}
                 </div>

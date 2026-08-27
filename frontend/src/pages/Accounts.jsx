@@ -5,6 +5,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import PageShell from '../components/PageShell';
+import { EsqueletoLista } from '../components/Estados';
 
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -88,6 +89,13 @@ export default function Accounts() {
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
+  /* Começa em false se o cache já tem contas: nesse caso a tela desenha na
+     hora e um esqueleto apareceria só para sumir no quadro seguinte. */
+  const [primeiraCarga, setPrimeiraCarga] = useState(() => {
+    try { return !JSON.parse(localStorage.getItem(ACCOUNTS_CACHE_KEY) || '[]').length; }
+    catch { return true; }
+  });
+
   async function loadAccounts(targetPage = page) {
     try {
       const res = await api.get(`/accounts?page=${targetPage}&limit=50`);
@@ -95,6 +103,11 @@ export default function Accounts() {
       setAccounts(list); setPagination(res.data.pagination || null);
       localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(list));
     } catch (err) { console.log('Erro ao carregar contas:', err.message); }
+    /* Só a PRIMEIRA carga mostra esqueleto. A tela recarrega sozinha a cada
+       trinta segundos, e trocar a lista por blocos cinzas a cada ciclo faria
+       a página piscar sem que ninguém tivesse pedido nada — pior que não ter
+       estado de carregamento. */
+    finally { setPrimeiraCarga(false); }
   }
 
   async function loadMetaApps() {
@@ -997,21 +1010,21 @@ export default function Accounts() {
           background: `linear-gradient(135deg, rgba(${accentBg},.07) 0%, oklch(0.16 0.05 235 / 0.6) 100%)`,
           border: `1px solid rgba(${accentBg},${proxyStatus.ativo ? '.35' : '.18'})`,
           borderLeft: `3px solid ${accent}`,
-          borderRadius: 14, padding: 16, marginBottom: 20,
+          borderRadius: 'var(--mf-r-lg)', padding: 16, marginBottom: 20,
           boxShadow: online ? `0 0 24px rgba(${accentBg},.10)` : 'none',
           transition: 'border-color .3s, box-shadow .3s',
         }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, flexWrap:'wrap', marginBottom:12 }}>
             <div style={{ display:'flex', alignItems:'center', gap:11 }}>
-              <div style={{ width:36, height:36, borderRadius:10, flexShrink:0, display:'grid', placeItems:'center',
+              <div style={{ width:36, height:36, borderRadius: 'var(--mf-r-md)', flexShrink:0, display:'grid', placeItems:'center',
                 background:`rgba(${accentBg},.12)`, border:`1px solid rgba(${accentBg},.28)`, color:accent }}>
                 <IcoGlobe />
               </div>
               <div>
-                <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text)' }}>Proxy Global</div>
-                <div style={{ fontSize:11, marginTop:3, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)' }}>Proxy Global</div>
+                <div style={{ fontSize: 'var(--mf-t-micro)', marginTop:3, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontWeight:700, color:accent }}>
-                    <span style={{ width:6, height:6, borderRadius:'50%', background:accent, boxShadow:`0 0 6px ${accent}`,
+                    <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:accent, boxShadow:`0 0 6px ${accent}`,
                       animation: online ? 'pulseGlow 1.8s ease-in-out infinite' : 'none' }} />
                     {online ? 'Ativo e funcionando' : caiu ? 'Ativo — proxy fora do ar' : 'Inativo'}
                   </span>
@@ -1027,14 +1040,14 @@ export default function Accounts() {
             {proxyStatus.ativo && (
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {ipDireto && (
-                  <div style={{ padding:'6px 11px', borderRadius:9, background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
+                  <div style={{ padding:'6px 11px', borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
                     <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:'var(--mf-text-3)', letterSpacing:'.08em' }}>IP DO SERVIDOR</div>
-                    <div style={{ fontFamily:'var(--mf-mono)', fontSize:12, color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{ipDireto}</div>
+                    <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{ipDireto}</div>
                   </div>
                 )}
-                <div style={{ padding:'6px 11px', borderRadius:9, background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
+                <div style={{ padding:'6px 11px', borderRadius: 'var(--mf-r-md)', background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
                   <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP EM USO AGORA</div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:13, fontWeight:700, color:accent, marginTop:2 }}>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:accent, marginTop:2 }}>
                     {proxyStatus.ip || '—'}
                   </div>
                 </div>
@@ -1051,16 +1064,16 @@ export default function Accounts() {
               disabled={proxyStatus.ativo}
               onKeyDown={e => { if (e.key === 'Enter' && !proxyStatus.ativo) testarProxyGlobal(); }}
               style={{
-                flex: 1, minWidth: 240, padding: '9px 12px', borderRadius: 9, fontFamily:'var(--mf-mono)',
+                flex: 1, minWidth: 240, padding: '9px 12px', borderRadius: 'var(--mf-r-md)', fontFamily:'var(--mf-mono)',
                 border: '1px solid var(--mf-border)', background: 'oklch(0.12 0.04 235 / 0.75)',
-                color: 'var(--mf-text)', fontSize: 12, opacity: proxyStatus.ativo ? 0.55 : 1,
+                color: 'var(--mf-text)', fontSize: 'var(--mf-t-xs)', opacity: proxyStatus.ativo ? 0.55 : 1,
               }}
             />
             <button
               onClick={testarProxyGlobal}
               disabled={!proxyUrl.trim() || proxyStatus.testando}
               style={{
-                padding: '9px 15px', borderRadius: 9, fontSize: 12, fontWeight: 700, whiteSpace:'nowrap',
+                padding: '9px 15px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', fontWeight: 700, whiteSpace:'nowrap',
                 background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)',
                 cursor: proxyStatus.testando ? 'wait' : 'pointer', opacity: !proxyUrl.trim() || proxyStatus.testando ? 0.5 : 1,
               }}
@@ -1073,7 +1086,7 @@ export default function Accounts() {
                 disabled={!proxyUrl.trim() || proxyStatus.salvando}
                 title="Testa e ativa o proxy para toda a automação"
                 style={{
-                  padding: '9px 15px', borderRadius: 9, fontSize: 12, fontWeight: 700, whiteSpace:'nowrap',
+                  padding: '9px 15px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', fontWeight: 700, whiteSpace:'nowrap',
                   background: 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)', color: 'var(--mf-success-500)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)',
                   cursor: !proxyUrl.trim() || proxyStatus.salvando ? 'not-allowed' : 'pointer',
                   opacity: !proxyUrl.trim() || proxyStatus.salvando ? 0.5 : 1,
@@ -1086,7 +1099,7 @@ export default function Accounts() {
                 onClick={desativarProxyGlobal}
                 disabled={proxyStatus.salvando}
                 style={{
-                  padding: '9px 15px', borderRadius: 9, fontSize: 12, fontWeight: 700, whiteSpace:'nowrap',
+                  padding: '9px 15px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', fontWeight: 700, whiteSpace:'nowrap',
                   background: 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color: 'var(--mf-danger-500)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 28%, transparent)',
                   cursor: 'pointer', opacity: proxyStatus.salvando ? 0.5 : 1,
                 }}
@@ -1097,7 +1110,7 @@ export default function Accounts() {
           </div>
 
           {proxyStatus.rotating && (
-            <div style={{ marginTop:10, padding:'9px 12px', borderRadius:9, fontSize:11, lineHeight:1.6,
+            <div style={{ marginTop:10, padding:'9px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-micro)', lineHeight:1.6,
               background:'color-mix(in oklch, var(--mf-warning-500) 9%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 30%, transparent)', color:'var(--mf-warning-500)' }}>
               <strong>Proxy rotativa detectada</strong> — o IP mudou entre duas medições
               {proxyStatus.ip2 ? <> (<span style={{fontFamily:'var(--mf-mono)'}}>{proxyStatus.ip} → {proxyStatus.ip2}</span>)</> : null}.
@@ -1109,7 +1122,7 @@ export default function Accounts() {
 
           {(proxyStatus.ativo || proxyStatus.erro) && (
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:10,
-              fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)' }}>
+              fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
               {proxyStatus.ativo && (
                 <span>Verificado a cada 90s pelo servidor{proxyStatus.lastCheck ? ` — último: ${fmtDateCompact(proxyStatus.lastCheck)}` : ''}</span>
               )}
@@ -1129,14 +1142,14 @@ export default function Accounts() {
               const active = filter === f.key;
               return (
                 <button key={f.key} onClick={() => setFilter(f.key)} style={{
-                  fontSize:12, fontWeight:600, padding:'6px 13px', borderRadius:20, cursor:'pointer', whiteSpace:'nowrap',
+                  fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'6px 13px', borderRadius: 'var(--mf-r-xl)', cursor:'pointer', whiteSpace:'nowrap',
                   display:'flex', alignItems:'center', gap:6, transition:'all .15s',
                   background: active ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
                   color:       active ? 'var(--mf-mod, var(--mf-accent-500))'        : 'var(--mf-text-3)',
                   border:      active ? '1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : '1px solid var(--mf-border)',
                 }}>
                   {f.label}
-                  <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:20,
+                  <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'1px 6px', borderRadius: 'var(--mf-r-xl)',
                     background: active ? 'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)' : 'var(--mf-border)',
                     color: active ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
                   }}>{f.count}</span>
@@ -1146,7 +1159,7 @@ export default function Accounts() {
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <button onClick={toggleSelectMode} style={{
-              fontSize:11, fontWeight:700, padding:'6px 12px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap',
+              fontSize: 'var(--mf-t-micro)', fontWeight:700, padding:'6px 12px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap',
               background:   selectMode ? 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)'  : 'color-mix(in oklch, var(--mf-primary-500) 10%, transparent)',
               color:        selectMode ? 'var(--mf-danger-500)'                : 'var(--mf-primary-300)',
               border:       `1px solid ${selectMode ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'color-mix(in oklch, var(--mf-primary-500) 30%, transparent)'}`,
@@ -1159,7 +1172,7 @@ export default function Accounts() {
                 <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
               </svg>
               <input
-                style={{ background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', borderRadius:9, padding:'7px 13px 7px 30px', fontSize:13, color:'var(--mf-text)', outline:'none', width:'min(220px,100%)', minWidth:0, transition:'border-color .18s', fontFamily:'var(--font)' }}
+                style={{ background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'7px 13px 7px 30px', fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)', outline:'none', width:'min(220px,100%)', minWidth:0, transition:'border-color .18s', fontFamily:'var(--font)' }}
                 placeholder="Buscar conta..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -1172,6 +1185,10 @@ export default function Accounts() {
 
         {/* ── Account cards grid ── */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(290px,100%),1fr))', gap:12 }}>
+          {primeiraCarga && !filteredAccounts.length && (
+            <div style={{ gridColumn: '1 / -1' }}><EsqueletoLista itens={6} /></div>
+          )}
+
           {filteredAccounts.map((account, idx) => {
             const hc          = healthColor(account.healthStatus);
             const hl          = healthLabel(account.healthStatus || 'ativa');
@@ -1206,7 +1223,7 @@ export default function Accounts() {
                   background: isSel ? 'oklch(0.17 0.08 270 / 0.92)' : `oklch(0.16 0.05 235 / 0.92)`,
                   border:     isSel ? '1px solid color-mix(in oklch, var(--mf-primary-500) 45%, transparent)' : `1px solid var(--mf-border)`,
                   borderLeft:`3px solid ${hc}`,
-                  borderRadius:14, overflow:'hidden',
+                  borderRadius: 'var(--mf-r-lg)', overflow:'hidden',
                   display:'flex', flexDirection:'column',
                   transition:'transform .2s, box-shadow .2s, border-color .2s, background .15s',
                   cursor:'pointer', position:'relative',
@@ -1216,7 +1233,7 @@ export default function Accounts() {
                 {/* checkbox indicator — only shown in selectMode */}
                 {selectMode && (
                   <div style={{
-                    position:'absolute', top:8, right:10, width:18, height:18, borderRadius:5, zIndex:2,
+                    position:'absolute', top:8, right:10, width:18, height:18, borderRadius: 'var(--mf-r-xs)', zIndex:2,
                     border:`1.5px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border-strong)'}`,
                     background: isSel ? 'var(--mf-primary-300)' : 'oklch(0.12 0.04 235 / 0.75)',
                     display:'grid', placeItems:'center', transition:'all .15s',
@@ -1235,37 +1252,37 @@ export default function Accounts() {
                     <div style={{ flexShrink:0, position:'relative' }}>
                       {account.avatar
                         ? <img src={avatarUrl(account.avatar)} alt="" onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
-                            style={{ width:44, height:44, borderRadius:'50%', objectFit:'cover', border:`2px solid ${hc}55`, display:'block' }} />
+                            style={{ width:44, height:44, borderRadius: 'var(--mf-r-full)', objectFit:'cover', border:`2px solid ${hc}55`, display:'block' }} />
                         : null}
-                      <div style={{ width:44, height:44, borderRadius:'50%', background:`linear-gradient(135deg,${hc}22,${hc}11)`, border:`2px solid ${hc}33`,
-                        display:account.avatar?'none':'flex', alignItems:'center', justifyContent:'center', fontSize:17, fontWeight:800, color:hc }}>
+                      <div style={{ width:44, height:44, borderRadius: 'var(--mf-r-full)', background:`linear-gradient(135deg,${hc}22,${hc}11)`, border:`2px solid ${hc}33`,
+                        display:account.avatar?'none':'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--mf-t-h2)', fontWeight:800, color:hc }}>
                         {account.username?.charAt(0)?.toUpperCase() || 'I'}
                       </div>
                       {/* status dot */}
-                      <span style={{ position:'absolute', bottom:1, right:1, width:9, height:9, borderRadius:'50%', background:hc, border:'2px solid oklch(0.16 0.05 235)', boxShadow:`0 0 6px ${hc}` }} />
+                      <span style={{ position:'absolute', bottom:1, right:1, width:9, height:9, borderRadius: 'var(--mf-r-full)', background:hc, border:'2px solid oklch(0.16 0.05 235)', boxShadow:`0 0 6px ${hc}` }} />
                     </div>
 
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        <span style={{ fontWeight:700, fontSize:13, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{account.name || account.username}</span>
-                        <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color:'var(--mf-text-3)', fontSize:10, textDecoration:'none', flexShrink:0, lineHeight:1 }}>↗</a>
+                        <span style={{ fontWeight:700, fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:140 }}>{account.name || account.username}</span>
+                        <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', textDecoration:'none', flexShrink:0, lineHeight:1 }}>↗</a>
                       </div>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)', marginTop:1 }}>@{account.username}</div>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1 }}>@{account.username}</div>
                       <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:5, flexWrap:'wrap' }}>
-                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px 2px 5px', borderRadius:20,
+                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:600, padding:'2px 7px 2px 5px', borderRadius: 'var(--mf-r-xl)',
                           background:`${hc}15`, color:hc, border:`1px solid ${hc}28`,
                           display:'inline-flex', alignItems:'center', gap:4 }}>
-                          <span style={{ width:5, height:5, borderRadius:'50%', background:hc, boxShadow:`0 0 5px ${hc}` }} />
+                          <span style={{ width:5, height:5, borderRadius: 'var(--mf-r-full)', background:hc, boxShadow:`0 0 5px ${hc}` }} />
                           {hl}
                         </span>
-                        <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'var(--mf-border-subtle)', color:'var(--mf-text-3)', letterSpacing:'.5px' }}>{accType}</span>
+                        <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 7px', borderRadius: 'var(--mf-r-xl)', background:'var(--mf-border-subtle)', color:'var(--mf-text-3)', letterSpacing:'.5px' }}>{accType}</span>
                         {account.provider === 'instagrapi' && (
-                          <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)', letterSpacing:'.4px' }}>
+                          <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 7px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)', letterSpacing:'.4px' }}>
                             API Mobile
                           </span>
                         )}
                         <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                          style={{ fontSize:9, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', textDecoration:'none', whiteSpace:'nowrap', letterSpacing:'.3px' }}>
+                          style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', textDecoration:'none', whiteSpace:'nowrap', letterSpacing:'.3px' }}>
                           Ver Perfil ↗
                         </a>
                       </div>
@@ -1280,8 +1297,8 @@ export default function Accounts() {
                       { label:'POSTS',       value:fmt(account.postsCount) },
                     ].map((s, i) => (
                       <div key={s.label} style={{ textAlign:'center', padding:'6px 4px', borderRight:i<2?'1px solid var(--mf-border)':'none' }}>
-                        <div style={{ fontFamily:'var(--mf-mono)', fontSize:8, fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.8px', marginBottom:3, textTransform:'uppercase' }}>{s.label}</div>
-                        <div style={{ fontSize:16, fontWeight:800, color:'var(--mf-text)', letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+                        <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.8px', marginBottom:3, textTransform:'uppercase' }}>{s.label}</div>
+                        <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight:800, color:'var(--mf-text)', letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
                       </div>
                     ))}
                   </div>
@@ -1293,24 +1310,24 @@ export default function Accounts() {
                   {!linked ? (
                     // Sem token e sem sessão: a conta existe no painel mas não está
                     // conectada a nada. Antes isso aparecia como "API conectada".
-                    <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5, color:'var(--mf-danger-500)' }}>
+                    <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5, color:'var(--mf-danger-500)' }}>
                       <IcoWifi /> Não conectada
                     </span>
                   ) : account.provider === 'instagrapi' && account.sessionStatus ? (
-                    <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5,
+                    <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5,
                       color: sessionStatusColor(account.sessionStatus) }}>
                       <IcoPhone />
                       {sessionStatusLabel(account.sessionStatus)}
                       {account.consecutiveFailures > 0 && (
-                        <span style={{ fontSize:9, opacity:.7 }}>({account.consecutiveFailures} falhas)</span>
+                        <span style={{ fontSize: 'var(--mf-t-nano)', opacity:.7 }}>({account.consecutiveFailures} falhas)</span>
                       )}
                     </span>
                   ) : (
-                    <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:isHealthy?'var(--mf-success-500)':account.healthStatus==='restrita'?'var(--mf-warning-500)':'var(--mf-danger-500)', display:'flex', alignItems:'center', gap:5 }}>
+                    <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:isHealthy?'var(--mf-success-500)':account.healthStatus==='restrita'?'var(--mf-warning-500)':'var(--mf-danger-500)', display:'flex', alignItems:'center', gap:5 }}>
                       <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Conta restrita' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
                     </span>
                   )}
-                  <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)', display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                  <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
                     <IcoWave /> {compact}
                   </span>
                 </div>
@@ -1319,14 +1336,14 @@ export default function Accounts() {
                 <div style={{ height:1, background:'var(--mf-border)' }} />
                 <div style={{ padding:'6px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
                   background: pxOnline ? 'color-mix(in oklch, var(--mf-success-500) 5%, transparent)' : pxDown ? 'color-mix(in oklch, var(--mf-danger-500) 5%, transparent)' : 'transparent' }}>
-                  <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, display:'flex', alignItems:'center', gap:5, color:pxColor, minWidth:0 }}>
-                    <span style={{ width:6, height:6, borderRadius:'50%', flexShrink:0, background:pxColor,
+                  <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5, color:pxColor, minWidth:0 }}>
+                    <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', flexShrink:0, background:pxColor,
                       boxShadow: pxOnline ? `0 0 6px ${pxColor}` : 'none',
                       animation: pxOnline ? 'pulseGlow 1.8s ease-in-out infinite' : 'none' }} />
                     <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pxLabel}</span>
                   </span>
                   {pxIp && (
-                    <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, color:pxColor, flexShrink:0 }}>
+                    <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:pxColor, flexShrink:0 }}>
                       {pxIp}
                     </span>
                   )}
@@ -1336,21 +1353,21 @@ export default function Accounts() {
                 <div style={{ height:1, background:'var(--mf-border)' }} />
                 <div onClick={e => e.stopPropagation()} style={{ padding:'8px 10px', display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
                   <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer"
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, border:'1px solid var(--mf-border)', color:'var(--mf-text-3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s', flexShrink:0 }}
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', color:'var(--mf-text-3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s', flexShrink:0 }}
                     onMouseEnter={e => { e.currentTarget.style.color='var(--mf-text)'; e.currentTarget.style.borderColor='var(--mf-border-strong)'; }}
                     onMouseLeave={e => { e.currentTarget.style.color='var(--mf-text-3)'; e.currentTarget.style.borderColor='var(--mf-border)'; }}
                   ><IcoEye /> Ver</a>
 
                   {account.provider === 'instagrapi' ? (
                     <button onClick={() => openInstaModal(account)} title="Reconectar via API Mobile"
-                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
+                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)',
                         background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
                       onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)'}
                       onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)'}
                     ><IcoPhone /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>Sessão</span></button>
                   ) : (
                     <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
-                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8,
+                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)',
                         background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
                       onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 16%, transparent)'}
                       onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)'}
@@ -1358,7 +1375,7 @@ export default function Accounts() {
                   )}
 
                   <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy exclusivo desta conta'}
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
                       background: temProxyProprio ? (pxOnline ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : pxDown ? 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)') : 'var(--mf-border-subtle)',
                       color:      temProxyProprio ? (pxOnline ? 'var(--mf-success-500)' : pxDown ? 'var(--mf-danger-500)' : 'var(--mf-mod-publicar)') : 'var(--mf-text-3)',
                       border:     temProxyProprio ? `1px solid ${pxOnline ? 'color-mix(in oklch, var(--mf-success-500) 30%, transparent)' : pxDown ? 'color-mix(in oklch, var(--mf-danger-500) 28%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)'}` : '1px solid var(--mf-border)',
@@ -1367,7 +1384,7 @@ export default function Accounts() {
 
                   {/* Editar perfil — nome, bio, link e gênero pela sessão salva */}
                   <button onClick={() => openPerfilModal(account)} title="Editar nome, bio, link da bio e foto"
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
+                    style={{ display:'flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
                       background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)' }}
                     onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)'}
                     onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)'}
@@ -1375,7 +1392,7 @@ export default function Accounts() {
 
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                     title={needsRecon ? 'Reconectar' : 'API ok'}
-                    style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, padding:'6px 10px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
+                    style={{ display:'flex', alignItems:'center', gap:4, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
                       background: needsRecon ? 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)' : 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',
                       color:      needsRecon ? 'var(--mf-danger-500)'           : 'var(--mf-success-500)',
                       border:     needsRecon ? '1px solid color-mix(in oklch, var(--mf-danger-500) 28%, transparent)' : '1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',
@@ -1383,7 +1400,7 @@ export default function Accounts() {
                   ><IcoCheck /> API</button>
 
                   <button onClick={() => deleteAccount(account._id)} title="Excluir conta"
-                    style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'6px 10px', borderRadius:8, flexShrink:0,
+                    style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'6px 10px', borderRadius: 'var(--mf-r-sm)', flexShrink:0,
                       background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color:'var(--mf-danger-500)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', cursor:'pointer', transition:'all .15s' }}
                     onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-danger-500) 16%, transparent)'}
                     onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-danger-500) 8%, transparent)'}
@@ -1393,13 +1410,13 @@ export default function Accounts() {
             );
           })}
 
-          {!filteredAccounts.length && (
+          {!primeiraCarga && !filteredAccounts.length && (
             <div style={{ gridColumn:'1 / -1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', color:'var(--mf-text-3)', gap:12 }}>
-              <div style={{ width:56, height:56, borderRadius:16, background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:56, height:56, borderRadius: 'var(--mf-r-lg)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <IcoUsers />
               </div>
-              <div style={{ fontSize:14, fontWeight:600, color:'var(--mf-text-2)' }}>Nenhuma conta encontrada</div>
-              <div style={{ fontFamily:'var(--mf-mono)', fontSize:11, color:'var(--mf-text-3)', textAlign:'center' }}>
+              <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:600, color:'var(--mf-text-2)' }}>Nenhuma conta encontrada</div>
+              <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', textAlign:'center' }}>
                 {safeAccounts.length === 0 ? 'Clique em "Conectar via API" para adicionar sua primeira conta.' : 'Ajuste o filtro ou a busca.'}
               </div>
               {safeAccounts.length === 0 && (
@@ -1420,24 +1437,24 @@ export default function Accounts() {
                 position:'fixed', bottom:'calc(28px + env(safe-area-inset-bottom, 0px))', left:'50%', transform:'translateX(-50%)',
                 background:'oklch(0.18 0.06 235 / 0.97)',
                 border:'1px solid var(--mf-border-strong)',
-                borderRadius:16, padding:'10px 16px',
+                borderRadius: 'var(--mf-r-lg)', padding:'10px 16px',
                 display:'flex', alignItems:'center', gap:10, flexWrap:'wrap',
                 boxShadow:'0 8px 32px rgba(0,0,0,.55), 0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 22%, transparent)',
                 backdropFilter:'blur(12px)', zIndex:100,
                 maxWidth:'calc(100vw - 32px)',
               }}
             >
-              <span style={{ fontFamily:'var(--mf-mono)', fontSize:12, fontWeight:700, color:'var(--mf-primary-300)',
-                background:'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)', padding:'3px 10px', borderRadius:20, border:'1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)' }}>
+              <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-primary-300)',
+                background:'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)', padding:'3px 10px', borderRadius: 'var(--mf-r-xl)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)' }}>
                 {selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}
               </span>
               <button onClick={() => { setSelectedIds(new Set()); setSelectMode(false); }} style={{
-                fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8,
+                fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'6px 12px', borderRadius: 'var(--mf-r-sm)',
                 background:'var(--mf-border)', color:'var(--mf-text-2)',
                 border:'1px solid var(--mf-border-strong)', cursor:'pointer', transition:'all .15s',
               }}>Desmarcar</button>
               <button onClick={() => setBulkDeleteModal(true)} disabled={bulkDeleting} style={{
-                fontSize:12, fontWeight:700, padding:'6px 14px', borderRadius:8,
+                fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'6px 14px', borderRadius: 'var(--mf-r-sm)',
                 background:'color-mix(in oklch, var(--mf-danger-500) 15%, transparent)', color:'var(--mf-danger-500)',
                 border:'1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:6, transition:'all .15s',
@@ -1449,9 +1466,9 @@ export default function Accounts() {
         {/* Pagination */}
         {pagination && pagination.pages > 1 && (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 0' }}>
-            <button className="btn-ghost" style={{ fontSize:12, padding:'6px 14px', opacity:page<=1?.4:1 }} disabled={page<=1} onClick={() => goToPage(page-1)}>← Anterior</button>
-            <span style={{ fontFamily:'var(--mf-mono)', fontSize:11, color:'var(--mf-text-3)' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
-            <button className="btn-ghost" style={{ fontSize:12, padding:'6px 14px', opacity:page>=pagination.pages?.4:1 }} disabled={page>=pagination.pages} onClick={() => goToPage(page+1)}>Próxima →</button>
+            <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'6px 14px', opacity:page<=1?.4:1 }} disabled={page<=1} onClick={() => goToPage(page-1)}>← Anterior</button>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>Página {pagination.page} de {pagination.pages} · {pagination.total} contas</span>
+            <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'6px 14px', opacity:page>=pagination.pages?.4:1 }} disabled={page>=pagination.pages} onClick={() => goToPage(page+1)}>Próxima →</button>
           </div>
         )}
 
@@ -1467,21 +1484,21 @@ export default function Accounts() {
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                   Conectar via Meta API
                 </h3>
-                <div style={{ fontSize: 12, color: 'var(--mf-text-2)', marginTop: 3 }}>
+                <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 3 }}>
                   {oauthModal.account ? `Reconectar @${oauthModal.account.username}` : 'Nova conta Instagram Business/Creator'}
                 </div>
               </div>
-              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); setTokenValue(''); setTokenError(''); }} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+              <button onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); setTokenValue(''); setTokenError(''); }} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
 
             {/* ── Seletor de App Meta (só aparece se há >1 app) ── */}
             {metaApps.length > 1 && (
               <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--mf-text-3)', letterSpacing: .5, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>App Meta a usar</label>
+                <label style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)', letterSpacing: .5, textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>App Meta a usar</label>
                 <select
                   value={selectedAppId}
                   onChange={e => setSelectedAppId(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--mf-text)', fontSize: 13, outline: 'none', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline: 'none', cursor: 'pointer' }}
                 >
                   <option value="">— Padrão do servidor (env vars) —</option>
                   {metaApps.map(a => (
@@ -1492,13 +1509,13 @@ export default function Accounts() {
             )}
 
             {/* ── Conexão rápida por token ── */}
-            <div style={{ background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 18%, transparent)', borderRadius:12, padding:'16px 18px', marginBottom:20 }}>
+            <div style={{ background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 18%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'16px 18px', marginBottom:20 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                <span style={{ fontWeight:700, fontSize:14, color:'var(--mf-text)' }}>Conexão rápida por token</span>
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20, background:'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', letterSpacing:.5 }}>RECOMENDADO</span>
+                <span style={{ fontWeight:700, fontSize: 'var(--mf-t-body)', color:'var(--mf-text)' }}>Conexão rápida por token</span>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', letterSpacing:.5 }}>RECOMENDADO</span>
               </div>
-              <div style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:10, lineHeight:1.6 }}>
+              <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:10, lineHeight:1.6 }}>
                 Cole seu token <strong style={{ color:'var(--mf-text-2)' }}>IGAA</strong> abaixo. Obtenha-o em{' '}
                 <strong style={{ color:'var(--mf-text-2)' }}>Meta → Instagram → Gerar tokens de acesso</strong>.
               </div>
@@ -1509,26 +1526,26 @@ export default function Accounts() {
                 rows={2}
                 style={{
                   width:'100%', boxSizing:'border-box', padding:'10px 12px',
-                  borderRadius:9, border:`1px solid ${tokenError ? 'color-mix(in oklch, var(--mf-danger-500) 50%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)'}`,
-                  background:'var(--bg3)', color:'var(--mf-text)', fontSize:12,
+                  borderRadius: 'var(--mf-r-md)', border:`1px solid ${tokenError ? 'color-mix(in oklch, var(--mf-danger-500) 50%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)'}`,
+                  background:'var(--bg3)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)',
                   fontFamily:'monospace', resize:'none', lineHeight:1.5, outline:'none',
                 }}
               />
-              {tokenError && <div style={{ fontSize:12, color:'var(--mf-danger-500)', marginTop:6 }}>{tokenError}</div>}
+              {tokenError && <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-danger-500)', marginTop:6 }}>{tokenError}</div>}
               <button
                 onClick={handleTokenConnect}
                 disabled={!tokenValue.trim() || tokenConnecting}
                 style={{
-                  marginTop:10, width:'100%', padding:'10px', borderRadius:9, border:'none',
+                  marginTop:10, width:'100%', padding:'10px', borderRadius: 'var(--mf-r-md)', border:'none',
                   background: tokenValue.trim() ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--bg3)',
                   color: tokenValue.trim() ? '#000' : 'var(--mf-text-3)',
-                  fontSize:13, fontWeight:700, cursor: tokenValue.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor: tokenValue.trim() ? 'pointer' : 'not-allowed',
                   display:'flex', alignItems:'center', justifyContent:'center', gap:7,
                   transition:'all .2s',
                 }}
               >
                 {tokenConnecting
-                  ? <><span style={{ width:14, height:14, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Verificando token...</>
+                  ? <><span style={{ width:14, height:14, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius: 'var(--mf-r-full)', display:'inline-block', animation:'spin .7s linear infinite' }} /> Verificando token...</>
                   : '⚡ Conectar com token'}
               </button>
             </div>
@@ -1536,18 +1553,18 @@ export default function Accounts() {
             {/* OU VIA LINK OAUTH */}
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
               <div style={{ flex:1, height:1, background:'var(--border)' }} />
-              <span style={{ fontSize:11, fontWeight:700, color:'var(--mf-text-3)', letterSpacing:1 }}>OU VIA LINK OAUTH</span>
+              <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:1 }}>OU VIA LINK OAUTH</span>
               <div style={{ flex:1, height:1, background:'var(--border)' }} />
             </div>
 
             {/* Step 1 */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--mf-mod, var(--mf-accent-500))', color: '#000', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</div>
-                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--mf-text)' }}>Copie o link de autorização</span>
+                <div style={{ width: 24, height: 24, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-mod, var(--mf-accent-500))', color: '#000', fontSize: 'var(--mf-t-xs)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</div>
+                <span style={{ fontWeight: 700, fontSize: 'var(--mf-t-body)', color: 'var(--mf-text)' }}>Copie o link de autorização</span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, padding: '9px 12px', fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-md)', padding: '9px 12px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {oauthModal.url}
                 </div>
                 <button
@@ -1557,12 +1574,12 @@ export default function Accounts() {
                     setTimeout(() => setUrlCopied(false), 2500);
                   }}
                   style={{
-                    padding: '0 16px', borderRadius: 9, border: `1px solid ${urlCopied ? 'color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)'}`,
+                    padding: '0 16px', borderRadius: 'var(--mf-r-md)', border: `1px solid ${urlCopied ? 'color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)'}`,
                     background: urlCopied ? 'color-mix(in oklch, var(--mf-success-500) 15%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)',
                     color: urlCopied ? 'var(--mf-success-500)' : 'var(--mf-mod, var(--mf-accent-500))',
-                    fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                    fontSize: 'var(--mf-t-xs)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
                     display: 'flex', alignItems: 'center', gap: 6,
-                    transition: 'all .2s',
+                    transition: 'all var(--mf-normal) var(--mf-ease-out)',
                   }}
                 >
                   {urlCopied
@@ -1571,7 +1588,7 @@ export default function Accounts() {
                   }
                 </button>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--mf-text-3)', marginTop: 8, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 8, lineHeight: 1.6 }}>
                 Cole esse link no seu <strong style={{ color: 'var(--mf-text-2)' }}>navegador isolado</strong> (Dolphin Anty, AdsPower, etc.) e autorize o aplicativo.
               </div>
             </div>
@@ -1582,12 +1599,12 @@ export default function Accounts() {
             {/* Step 2 */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</div>
-                <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--mf-text)' }}>Cole a URL de retorno</span>
+                <div style={{ width: 24, height: 24, borderRadius: 'var(--mf-r-full)', background: 'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-xs)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</div>
+                <span style={{ fontWeight: 700, fontSize: 'var(--mf-t-body)', color: 'var(--mf-text)' }}>Cole a URL de retorno</span>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--mf-text-3)', marginBottom: 10, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginBottom: 10, lineHeight: 1.6 }}>
                 Após autorizar, a barra de endereços vai mostrar uma URL começando com{' '}
-                <code style={{ background: 'var(--bg3)', padding: '1px 6px', borderRadius: 4, color: 'var(--mf-mod, var(--mf-accent-500))', fontSize: 11 }}>localhost:3000</code>.
+                <code style={{ background: 'var(--bg3)', padding: '1px 6px', borderRadius: 'var(--mf-r-xs)', color: 'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)' }}>localhost:3000</code>.
                 Copie inteira e cole aqui:
               </div>
               <textarea
@@ -1597,29 +1614,29 @@ export default function Accounts() {
                 rows={3}
                 style={{
                   width: '100%', boxSizing: 'border-box', padding: '10px 12px',
-                  borderRadius: 9, border: `1px solid ${oauthError ? 'color-mix(in oklch, var(--mf-danger-500) 50%, transparent)' : 'var(--border)'}`,
-                  background: 'var(--bg3)', color: 'var(--mf-text)', fontSize: 12,
+                  borderRadius: 'var(--mf-r-md)', border: `1px solid ${oauthError ? 'color-mix(in oklch, var(--mf-danger-500) 50%, transparent)' : 'var(--border)'}`,
+                  background: 'var(--bg3)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-xs)',
                   fontFamily: 'monospace', resize: 'none', lineHeight: 1.5, outline: 'none',
                 }}
               />
-              {oauthError && <div style={{ fontSize: 12, color: 'var(--mf-danger-500)', marginTop: 6 }}>{oauthError}</div>}
+              {oauthError && <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-danger-500)', marginTop: 6 }}>{oauthError}</div>}
             </div>
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button
                 onClick={() => { setOauthModal(null); setOauthWaiting(false); setCallbackUrl(''); setOauthError(''); setUrlCopied(false); setTokenValue(''); setTokenError(''); }}
-                style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '9px 20px', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight: 600, cursor: 'pointer' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleManualConnect}
                 disabled={!callbackUrl.trim() || oauthConnecting}
-                style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: callbackUrl.trim() ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--bg3)', color: callbackUrl.trim() ? '#000' : 'var(--mf-text-3)', fontSize: 13, fontWeight: 700, cursor: callbackUrl.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
+                style={{ padding: '9px 22px', borderRadius: 'var(--mf-r-md)', border: 'none', background: callbackUrl.trim() ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--bg3)', color: callbackUrl.trim() ? '#000' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: callbackUrl.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 7 }}
               >
                 {oauthConnecting
-                  ? <><span style={{ width:14, height:14, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Conectando...</>
+                  ? <><span style={{ width:14, height:14, border:'2px solid rgba(0,0,0,.3)', borderTopColor:'#000', borderRadius: 'var(--mf-r-full)', display:'inline-block', animation:'spin .7s linear infinite' }} /> Conectando...</>
                   : '✓ Conectar conta'}
               </button>
             </div>
@@ -1630,19 +1647,19 @@ export default function Accounts() {
       {/* ── Editar Perfil Modal ──────────────────────────────────── */}
       {perfilModal && (() => {
         const viaInstagrapi = perfilModal.provider === 'instagrapi' || !!perfilModal.hasInstagrapiSession;
-        const lbl = t => <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--mf-text-2)', marginBottom:5, letterSpacing:'.04em' }}>{t}</label>;
+        const lbl = t => <label style={{ display:'block', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:5, letterSpacing:'.04em' }}>{t}</label>;
         return (
           <div className="modal-overlay">
             <div className="modal" style={{ width: 'min(480px,100%)' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
                   <h3 style={{ margin:0 }}>Editar perfil</h3>
-                  <div style={{ fontSize:12, color:'var(--mf-text-2)', marginTop:3 }}>@{perfilModal.username}</div>
+                  <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:3 }}>@{perfilModal.username}</div>
                 </div>
-                <button onClick={fecharPerfilModal} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize:20, cursor:'pointer' }}>×</button>
+                <button onClick={fecharPerfilModal} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor:'pointer' }}>×</button>
               </div>
 
-              <div style={{ fontSize:11, lineHeight:1.6, marginBottom:12, padding:'9px 11px', borderRadius:8,
+              <div style={{ fontSize: 'var(--mf-t-micro)', lineHeight:1.6, marginBottom:12, padding:'9px 11px', borderRadius: 'var(--mf-r-sm)',
                 background: viaInstagrapi ? 'color-mix(in oklch, var(--mf-mod-publicar) 7%, transparent)' : 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
                 border: `1px solid ${viaInstagrapi ? 'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)' : 'color-mix(in oklch, var(--mf-warning-500) 25%, transparent)'}`,
                 color: viaInstagrapi ? 'var(--mf-text-3)' : 'var(--mf-warning-500)' }}>
@@ -1666,7 +1683,7 @@ export default function Accounts() {
                   value={perfilForm.biography}
                   onChange={e => setPerfilForm(f => ({ ...f, biography: e.target.value }))}
                   disabled={perfilSalvando} />
-                <div style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)', textAlign:'right', marginTop:3 }}>
+                <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textAlign:'right', marginTop:3 }}>
                   {perfilForm.biography.length}/150
                 </div>
               </div>
@@ -1687,7 +1704,7 @@ export default function Accounts() {
                     return (
                       <button key={valor || 'nada'} onClick={() => setPerfilForm(f => ({ ...f, gender: valor }))}
                         disabled={perfilSalvando}
-                        style={{ padding:'6px 11px', borderRadius:7, fontSize:11, fontWeight:600, cursor:'pointer',
+                        style={{ padding:'6px 11px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:600, cursor:'pointer',
                           background: ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)' : 'var(--mf-border-subtle)',
                           color:      ativo ? 'var(--mf-mod-publicar)'              : 'var(--mf-text-3)',
                           border:     ativo ? '1px solid color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)' : '1px solid var(--mf-border)' }}>
@@ -1701,26 +1718,26 @@ export default function Accounts() {
               <div style={{ marginBottom:14 }}>
                 {lbl('FOTO DE PERFIL')}
                 <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ width:54, height:54, borderRadius:'50%', overflow:'hidden', flexShrink:0,
+                  <div style={{ width:54, height:54, borderRadius: 'var(--mf-r-full)', overflow:'hidden', flexShrink:0,
                     border:'1px solid var(--mf-border-strong)', background:'oklch(0.12 0.04 235)', display:'grid', placeItems:'center' }}>
                     {perfilPreview
                       ? <img src={perfilPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                       : perfilModal.avatar
                         ? <img src={avatarUrl(perfilModal.avatar)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                        : <span style={{ fontSize:19, fontWeight:800, color:'var(--mf-text-3)' }}>
+                        : <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color:'var(--mf-text-3)' }}>
                             {perfilModal.username?.charAt(0)?.toUpperCase() || 'I'}
                           </span>}
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <label style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius:8,
-                      cursor: perfilSalvando ? 'not-allowed' : 'pointer', fontSize:11, fontWeight:700,
+                    <label style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 13px', borderRadius: 'var(--mf-r-sm)',
+                      cursor: perfilSalvando ? 'not-allowed' : 'pointer', fontSize: 'var(--mf-t-micro)', fontWeight:700,
                       background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', border:'1px solid var(--mf-border)',
                       opacity: perfilSalvando ? 0.5 : 1 }}>
                       {perfilForm.foto ? 'Trocar imagem' : 'Escolher imagem'}
                       <input type="file" accept="image/*" disabled={perfilSalvando} style={{ display:'none' }}
                         onChange={e => escolherFotoPerfil(e.target.files?.[0] || null)} />
                     </label>
-                    <div style={{ fontSize:10, color: perfilForm.foto ? 'var(--mf-success-500)' : 'var(--mf-text-3)', marginTop:6,
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: perfilForm.foto ? 'var(--mf-success-500)' : 'var(--mf-text-3)', marginTop:6,
                       overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                       {perfilForm.foto ? perfilForm.foto.name : 'JPG ou PNG — imagem quadrada fica melhor'}
                     </div>
@@ -1729,7 +1746,7 @@ export default function Accounts() {
               </div>
 
               {perfilErro && (
-                <div style={{ fontSize:11, color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius:8, padding:'8px 11px', marginBottom:10 }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 11px', marginBottom:10 }}>
                   {perfilErro}
                 </div>
               )}
@@ -1737,9 +1754,9 @@ export default function Accounts() {
               {/* Bloqueio consciente: link externo em conta nova é o padrão que
                   o Instagram mais pune, e o dano (banimento) é irreversível. */}
               {perfilRisco && (
-                <div style={{ fontSize:11, lineHeight:1.6, marginBottom:10, padding:'11px 13px', borderRadius:9,
+                <div style={{ fontSize: 'var(--mf-t-micro)', lineHeight:1.6, marginBottom:10, padding:'11px 13px', borderRadius: 'var(--mf-r-md)',
                   background:'color-mix(in oklch, var(--mf-warning-500) 9%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 35%, transparent)', color:'var(--mf-warning-500)' }}>
-                  <strong style={{ display:'block', fontSize:12, marginBottom:5 }}>Alto risco de banimento</strong>
+                  <strong style={{ display:'block', fontSize: 'var(--mf-t-xs)', marginBottom:5 }}>Alto risco de banimento</strong>
                   <div style={{ marginBottom:6 }}>
                     {perfilRisco.map((m, i) => <div key={i}>· {m}</div>)}
                   </div>
@@ -1749,7 +1766,7 @@ export default function Accounts() {
                     O recomendado é publicar conteúdo e deixar a conta amadurecer alguns dias antes.
                   </div>
                   <button onClick={() => salvarPerfil(true)} disabled={perfilSalvando}
-                    style={{ marginTop:9, padding:'7px 12px', borderRadius:7, fontSize:11, fontWeight:700, cursor:'pointer',
+                    style={{ marginTop:9, padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
                       background:'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)', color:'var(--mf-danger-500)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 35%, transparent)' }}>
                     Entendo o risco — aplicar mesmo assim
                   </button>
@@ -1775,21 +1792,21 @@ export default function Accounts() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div>
                 <h3 style={{ margin: 0 }}>🌐 Proxy da conta</h3>
-                <div style={{ fontSize: 12, color: 'var(--mf-text-2)', marginTop: 3 }}>@{proxyModal.username}</div>
+                <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 3 }}>@{proxyModal.username}</div>
               </div>
-              <button onClick={() => setProxyModal(null)} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+              <button onClick={() => setProxyModal(null)} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor: 'pointer' }}>×</button>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--mf-text-3)', marginBottom: 10 }}>
+            <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginBottom: 10 }}>
               As chamadas desta conta sairão por este proxy — IP exclusivo, independente do proxy global.
             </div>
-            <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 13 }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => { setProxyValue(e.target.value); setProxyTest({ testando:false, ip:null, erro:null }); }} onKeyDown={e => e.key === 'Enter' && testarProxyConta()} autoFocus />
+            <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--mf-t-sm)' }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => { setProxyValue(e.target.value); setProxyTest({ testando:false, ip:null, erro:null }); }} onKeyDown={e => e.key === 'Enter' && testarProxyConta()} autoFocus />
 
             {/* Estado atual gravado + resultado do teste feito agora */}
             <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
               {proxyModal.proxy && !proxyTest.ip && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'var(--mf-mono)', fontSize:11,
+                <div style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)',
                   color: proxyModal.proxyStatus === 'online' ? 'var(--mf-success-500)' : proxyModal.proxyStatus === 'offline' ? 'var(--mf-danger-500)' : 'var(--mf-text-3)' }}>
-                  <span style={{ width:6, height:6, borderRadius:'50%', background:'currentColor' }} />
+                  <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'currentColor' }} />
                   {proxyModal.proxyStatus === 'online'
                     ? `Online — saindo por ${proxyModal.proxyIp || '—'}`
                     : proxyModal.proxyStatus === 'offline' ? 'Offline no último teste do servidor' : 'Ainda não testado'}
@@ -1797,18 +1814,18 @@ export default function Accounts() {
                 </div>
               )}
               {proxyTest.ip && (
-                <div style={{ padding:'9px 11px', borderRadius:9, background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)' }}>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-success-500)', opacity:.8, letterSpacing:'.08em' }}>PROXY OK — IP DE SAÍDA</div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:14, fontWeight:700, color:'var(--mf-success-500)', marginTop:2 }}>{proxyTest.ip}</div>
+                <div style={{ padding:'9px 11px', borderRadius: 'var(--mf-r-md)', background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)' }}>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-success-500)', opacity:.8, letterSpacing:'.08em' }}>PROXY OK — IP DE SAÍDA</div>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-success-500)', marginTop:2 }}>{proxyTest.ip}</div>
                 </div>
               )}
               {proxyTest.erro && (
-                <div style={{ padding:'9px 11px', borderRadius:9, background:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', fontSize:11, color:'var(--mf-danger-500)' }}>
+                <div style={{ padding:'9px 11px', borderRadius: 'var(--mf-r-md)', background:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)' }}>
                   {proxyTest.erro}
                 </div>
               )}
               {!proxyModal.proxy && !proxyTest.ip && !proxyTest.erro && (
-                <div style={{ fontFamily:'var(--mf-mono)', fontSize:11, color:'var(--mf-text-3)' }}>
+                <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
                   {proxyStatus.ativo
                     ? `Sem proxy próprio — hoje esta conta usa o proxy global${proxyStatus.ip ? ` (${proxyStatus.ip})` : ''}.`
                     : 'Sem proxy próprio — esta conta sai pelo IP do servidor.'}
@@ -1859,7 +1876,7 @@ export default function Accounts() {
         const isSidMode = instaModal.loginMethod === 'sessionid';
 
         const lbl = (text) => (
-          <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--mf-text-2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
+          <label style={{ display:'block', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
         );
         const field = (content) => <div style={{ marginBottom:12 }}>{content}</div>;
 
@@ -1871,19 +1888,19 @@ export default function Accounts() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
                   <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : 'Conectar Instagram'}</h3>
-                  <div style={{ fontSize:12, color:'var(--mf-text-2)', marginTop:3 }}>
+                  <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:3 }}>
                     {isCodeStep ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura'}
                   </div>
                 </div>
-                <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize:20, cursor:'pointer' }}>×</button>
+                <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor:'pointer' }}>×</button>
               </div>
 
               {/* Method toggle (only on credentials step, not connected) */}
               {!isCodeStep && !isConnected && (
-                <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius:8, padding:4 }}>
+                <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius: 'var(--mf-r-sm)', padding:4 }}>
                   {[['password','🔑 Senha'],['sessionid','🍪 Session ID']].map(([method, label]) => (
                     <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
-                      style={{ flex:1, padding:'7px 0', fontSize:12, fontWeight:600, borderRadius:6, border:'none', cursor:'pointer',
+                      style={{ flex:1, padding:'7px 0', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
                         background: instaModal.loginMethod === method ? 'color-mix(in oklch, var(--mf-mod-publicar) 80%, transparent)' : 'transparent',
                         color: instaModal.loginMethod === method ? 'var(--mf-text)' : 'var(--mf-text-2)' }}>
                       {label}
@@ -1904,7 +1921,7 @@ export default function Accounts() {
                   </>)}
 
                   {isConnected && (
-                    <div style={{ background:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'var(--mf-success-500)' }}>
+                    <div style={{ background:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'10px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-success-500)' }}>
                       ✓ <strong>@{uname}</strong> já usa API Mobile. Clique em "Desconectar" para voltar ao modo oficial.
                     </div>
                   )}
@@ -1918,7 +1935,7 @@ export default function Accounts() {
                         onKeyDown={e => e.key === 'Enter' && !instaModal.loading && !blocked && connectInstagrapi()}
                         disabled={instaModal.loading || blocked} />
                     </>)}
-                    <div style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6, background:'color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)', borderRadius:8, padding:'10px 12px' }}>
+                    <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6, background:'color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'10px 12px' }}>
                       A senha é usada apenas para login e <strong>nunca é salva</strong>. Se a conta tiver 2FA, o código será pedido na próxima etapa.
                     </div>
                   </>)}
@@ -1953,11 +1970,11 @@ export default function Accounts() {
                             </>)
                       );
                     })()}
-                    <div style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:10, lineHeight:1.7, background:'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 20%, transparent)', borderRadius:8, padding:'10px 12px' }}>
+                    <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:10, lineHeight:1.7, background:'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'10px 12px' }}>
                       <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
                       1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>
                       2. Pressione <strong>F12</strong> → aba <strong>Application</strong><br/>
-                      3. Cookies → <code style={{ fontSize:11 }}>https://www.instagram.com</code><br/>
+                      3. Cookies → <code style={{ fontSize: 'var(--mf-t-micro)' }}>https://www.instagram.com</code><br/>
                       4. Copie o valor do cookie <strong>sessionid</strong>
                     </div>
                     {field(<>
@@ -1979,7 +1996,7 @@ export default function Accounts() {
               {/* Step: two_factor */}
               {is2FA && (
                 <>
-                  <div style={{ background:'rgba(234,179,8,.07)', border:'1px solid rgba(234,179,8,.25)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'var(--mf-warning-500)', lineHeight:1.6 }}>
+                  <div style={{ background:'rgba(234,179,8,.07)', border:'1px solid rgba(234,179,8,.25)', borderRadius: 'var(--mf-r-sm)', padding:'10px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-warning-500)', lineHeight:1.6 }}>
                     O Instagram enviou um código pelo seu método de autenticação. Digite-o abaixo.
                   </div>
                   {field(<>
@@ -1995,7 +2012,7 @@ export default function Accounts() {
 
               {/* Step: challenge — aprovação no app OU código por e-mail/SMS */}
               {isChallenge && (isApprovalChallenge ? (
-                <div style={{ background:'color-mix(in oklch, var(--mf-info-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 25%, transparent)', borderRadius:8, padding:'12px 14px', marginBottom:12, fontSize:12, color:'var(--mf-info-500)', lineHeight:1.7 }}>
+                <div style={{ background:'color-mix(in oklch, var(--mf-info-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 25%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'12px 14px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-info-500)', lineHeight:1.7 }}>
                   <strong style={{ color:'var(--text1)' }}>Aprove no app do Instagram</strong>
                   <div style={{ marginTop:6 }}>
                     Esta conta não usa código — o Instagram mostra um aviso de
@@ -2006,18 +2023,18 @@ export default function Accounts() {
                     2. Toque no aviso e confirme que <strong>foi você</strong><br/>
                     3. Volte aqui e clique em <strong>Já aprovei</strong>
                   </div>
-                  <div style={{ marginTop:8, fontSize:11, opacity:.8 }}>
+                  <div style={{ marginTop:8, fontSize: 'var(--mf-t-micro)', opacity:.8 }}>
                     Se já aprovou e ainda assim não passar, aprove de novo e repita — o
                     Instagram às vezes leva alguns segundos para registrar.
                   </div>
                 </div>
               ) : (
                 <>
-                  <div style={{ background:'color-mix(in oklch, var(--mf-info-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 25%, transparent)', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'var(--mf-info-500)', lineHeight:1.6 }}>
+                  <div style={{ background:'color-mix(in oklch, var(--mf-info-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 25%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'10px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-info-500)', lineHeight:1.6 }}>
                     O Instagram pediu confirmação de identidade e enviou um código
                     {instaModal.channel ? <> por <strong>{instaModal.channel}</strong></> : null}.
                     Digite-o abaixo para concluir a conexão.
-                    <div style={{ marginTop:6, fontSize:11, opacity:.8 }}>
+                    <div style={{ marginTop:6, fontSize: 'var(--mf-t-micro)', opacity:.8 }}>
                       Você tem 10 minutos. Se errar o código, pode digitar outro sem refazer o login.
                     </div>
                   </div>
@@ -2032,7 +2049,7 @@ export default function Accounts() {
                   {/* Escape: se o Instagram pediu aprovação no app em vez de código,
                       esta conta não vai receber código nenhum. */}
                   <button onClick={confirmChallengeApproval} disabled={instaModal.loading}
-                    style={{ background:'none', border:'none', padding:0, marginBottom:10, fontSize:11,
+                    style={{ background:'none', border:'none', padding:0, marginBottom:10, fontSize: 'var(--mf-t-micro)',
                       color:'var(--mf-mod, var(--mf-accent-500))', textDecoration:'underline', cursor:'pointer' }}>
                     Não chegou código? O Instagram pediu aprovação no app — clique aqui
                   </button>
@@ -2041,7 +2058,7 @@ export default function Accounts() {
 
               {/* Rate limited — active countdown */}
               {blocked && (
-                <div style={{ fontSize:12, background:'rgba(234,179,8,.09)', border:'1px solid rgba(234,179,8,.3)', borderRadius:8, padding:'10px 14px', marginBottom:10 }}>
+                <div style={{ fontSize: 'var(--mf-t-xs)', background:'rgba(234,179,8,.09)', border:'1px solid rgba(234,179,8,.3)', borderRadius: 'var(--mf-r-sm)', padding:'10px 14px', marginBottom:10 }}>
                   <div style={{ fontWeight:700, color:'var(--mf-warning-500)', marginBottom:4 }}>
                     Instagram confirmou limite de tentativas neste IP
                   </div>
@@ -2054,7 +2071,7 @@ export default function Accounts() {
                       saída enquanto o bloqueio durar. */}
                   {!isSidMode && (
                     <button onClick={() => setInstaModal(m => ({ ...m, loginMethod:'sessionid', error:'', detail:'', status:null }))}
-                      style={{ marginTop:8, padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+                      style={{ marginTop:8, padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
                         background:'color-mix(in oklch, var(--mf-info-500) 15%, transparent)', color:'var(--mf-info-500)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 35%, transparent)' }}>
                       Conectar por Session ID — não passa por este limite
                     </button>
@@ -2064,13 +2081,13 @@ export default function Accounts() {
 
               {/* Error (shown only when no active countdown) */}
               {instaModal.error && !blocked && (
-                <div style={{ fontSize:12, color: canRetryNow ? 'var(--mf-text-3)' : 'var(--mf-danger-500)', background: canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 8%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: `1px solid ${canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 25%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)'}`, borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
+                <div style={{ fontSize: 'var(--mf-t-xs)', color: canRetryNow ? 'var(--mf-text-3)' : 'var(--mf-danger-500)', background: canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 8%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: `1px solid ${canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 25%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)'}`, borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:10 }}>
                   {instaModal.error}
                   {/* Resposta técnica do Instagram. Fica visível de propósito: a
                       mensagem curada acima às vezes contradiz o motivo real. */}
                   {instaModal.detail && (
                     <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid var(--mf-border)',
-                      fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)', wordBreak:'break-word' }}>
+                      fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', wordBreak:'break-word' }}>
                       {instaModal.detail}
                     </div>
                   )}
@@ -2078,11 +2095,11 @@ export default function Accounts() {
                       conectada para dizer se o @ existe de fato. */}
                   {instaModal.veredito && (
                     <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid var(--mf-border)',
-                      fontSize:11, color:'var(--mf-mod, var(--mf-accent-500))', lineHeight:1.5 }}>
+                      fontSize: 'var(--mf-t-micro)', color:'var(--mf-mod, var(--mf-accent-500))', lineHeight:1.5 }}>
                       {instaModal.veredito}
                     </div>
                   )}
-                  {canRetryNow && <span style={{ display:'block', marginTop:4, fontSize:11, color:'var(--mf-text-3)' }}>Você pode tentar novamente.</span>}
+                  {canRetryNow && <span style={{ display:'block', marginTop:4, fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>Você pode tentar novamente.</span>}
                 </div>
               )}
 
@@ -2157,16 +2174,16 @@ export default function Accounts() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div>
                 <h3 style={{ margin: 0 }}>🌐 Proxies em massa</h3>
-                <div style={{ fontSize: 12, color: 'var(--mf-text-2)', marginTop: 3 }}>Distribui um proxy diferente por conta</div>
+                <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 3 }}>Distribui um proxy diferente por conta</div>
               </div>
-              <button onClick={() => setBulkProxyOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 20, cursor: 'pointer' }}>×</button>
+              <button onClick={() => setBulkProxyOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor: 'pointer' }}>×</button>
             </div>
-            <div style={{ background: 'var(--card2)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--mf-text-2)', marginBottom: 6 }}>Formato — um proxy por linha:</div>
-              <pre style={{ margin: 0, fontSize: 12, color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`http://user1:pass1@host1:porta\nhttp://user2:pass2@host2:porta`}</pre>
+            <div style={{ background: 'var(--card2)', borderRadius: 'var(--mf-r-sm)', padding: '10px 14px', marginBottom: 12, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-text-2)', marginBottom: 6 }}>Formato — um proxy por linha:</div>
+              <pre style={{ margin: 0, fontSize: 'var(--mf-t-xs)', color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`http://user1:pass1@host1:porta\nhttp://user2:pass2@host2:porta`}</pre>
             </div>
-            <textarea className="txta" rows={8} style={{ fontFamily: 'monospace', fontSize: 13, marginTop: 0 }} placeholder={'http://user1:pass1@host1:3128\n...'} value={bulkProxyText} onChange={e => setBulkProxyText(e.target.value)} />
-            <div style={{ fontSize: 12, color: 'var(--mf-text-2)', marginTop: 6 }}>{bulkProxyText.trim() ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)` : 'Cole os proxies acima.'}</div>
+            <textarea className="txta" rows={8} style={{ fontFamily: 'monospace', fontSize: 'var(--mf-t-sm)', marginTop: 0 }} placeholder={'http://user1:pass1@host1:3128\n...'} value={bulkProxyText} onChange={e => setBulkProxyText(e.target.value)} />
+            <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 6 }}>{bulkProxyText.trim() ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)` : 'Cole os proxies acima.'}</div>
             <div className="modal-actions" style={{ marginTop: 12 }}>
               <button className="btn btn-ghost" onClick={() => setBulkProxyOpen(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>{savingBulkProxy ? 'Aplicando...' : 'Aplicar proxies'}</button>

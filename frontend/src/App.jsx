@@ -22,6 +22,8 @@ import Loop from './pages/Loop';
 import JobManager from './pages/JobManager';
 import Campaigns from './pages/Campaigns';
 import CampaignWizard from './pages/CampaignWizard';
+import DesignSystemPreview from './pages/DesignSystemPreview';
+import ConfigNotificacoes from './pages/ConfigNotificacoes';
 import CampaignDetail from './pages/CampaignDetail';
 import OAuthCallback from './pages/OAuthCallback';
 import TopPosts from './pages/TopPosts';
@@ -58,8 +60,8 @@ export default function App() {
       richColors
       toastOptions={{
         style: {
-          background: 'rgba(10,20,38,.96)',
-          border: '1px solid rgba(0,212,255,.2)',
+          background: 'var(--mf-surface-1)',
+          border: '1px solid color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_20%,transparent)',
           color: '#e2edfd',
           backdropFilter: 'blur(16px)',
           fontSize: '13px',
@@ -110,6 +112,14 @@ export default function App() {
               {/* /campaigns/nova antes de /campaigns/:id — senão "nova" seria lido como id */}
               <Route path="/campaigns"      element={<Campaigns />} />
               <Route path="/campaigns/nova" element={<CampaignWizard />} />
+              {/* Rota TEMPORÁRIA da fase de redesign: vitrine das oito propostas
+                  de identidade. Não aplica nada — só permite comparar e marcar.
+                  Sai junto com a decisão. */}
+              <Route path="/design-system-preview" element={<DesignSystemPreview />} />
+              {/* Sob /settings de propósito: esse prefixo já é roteado no nginx
+                  no bloco compartilhado, então um F5 aqui devolve o app em vez
+                  de JSON. Rota nova fora dos prefixos conhecidos daria 405. */}
+              <Route path="/settings/notificacoes" element={<ConfigNotificacoes />} />
               <Route path="/campaigns/:id"  element={<CampaignDetail />} />
               <Route path="/top-posts"      element={<TopPosts />} />
               <Route path="/best-times"     element={<BestTimes />} />

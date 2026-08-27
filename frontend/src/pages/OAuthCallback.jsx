@@ -49,17 +49,17 @@ export default function OAuthCallback() {
           <div><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mf-danger-500)" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
           <strong style={{ color: 'var(--mf-danger-500)' }}>Erro na autenticação</strong>
           <p style={{ color: 'var(--text-secondary)', maxWidth: 400, textAlign: 'center' }}>{error}</p>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '.8rem' }}>Redirecionando...</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--mf-t-sm)' }}>Redirecionando...</p>
         </>
       ) : (
         <>
           <div style={{
             width: 48, height: 48, border: '3px solid var(--accent)',
-            borderTopColor: 'transparent', borderRadius: '50%',
+            borderTopColor: 'transparent', borderRadius: 'var(--mf-r-full)',
             animation: 'spin .8s linear infinite',
           }} />
           <strong>{status}</strong>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '.85rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--mf-t-body)' }}>
             Aguarde, conectando sua conta Instagram...
           </p>
         </>

@@ -73,11 +73,11 @@ export default function LegendLibraryModal({
   if (!aberta) return null;
 
   const botao = {
-    padding: '7px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+    padding: '7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
     background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', border: '1px solid var(--mf-border)',
   };
   const campo = {
-    height: 32, padding: '0 10px', borderRadius: 8, fontSize: 12,
+    height: 32, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)',
     background: 'oklch(0.10 0.03 235)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };
@@ -87,12 +87,12 @@ export default function LegendLibraryModal({
       onClick={e => { if (e.target === e.currentTarget) onFechar?.(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 999, display: 'grid', placeItems: 'center', padding: 20 }}>
       <div style={{
-        background: 'oklch(0.14 0.04 235)', padding: 20, borderRadius: 16,
+        background: 'oklch(0.14 0.04 235)', padding: 20, borderRadius: 'var(--mf-r-lg)',
         width: 'min(620px, 100%)', maxHeight: '85vh', display: 'flex', flexDirection: 'column',
         border: '1px solid var(--mf-border)',
       }}>
-        <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>Biblioteca de legendas</h3>
-        <p style={{ margin: '0 0 14px', fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 'var(--mf-t-h2)', fontWeight: 700 }}>Biblioteca de legendas</h3>
+        <p style={{ margin: '0 0 14px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
           Aplique um texto já salvo ou guarde o que está escrito agora para reutilizar
           em outras campanhas.
         </p>
@@ -110,30 +110,30 @@ export default function LegendLibraryModal({
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
           {carregando && (
-            <div style={{ textAlign: 'center', color: 'var(--mf-text-3)', padding: 20, fontSize: 12 }}>Carregando…</div>
+            <div style={{ textAlign: 'center', color: 'var(--mf-text-3)', padding: 20, fontSize: 'var(--mf-t-xs)' }}>Carregando…</div>
           )}
 
           {!carregando && filtradas.map(lg => (
             <button key={lg._id} onClick={() => { onAplicar?.(lg.text || ''); onFechar?.(); }}
-              style={{ textAlign: 'left', padding: 12, borderRadius: 10, cursor: 'pointer',
+              style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--mf-r-md)', cursor: 'pointer',
                 background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))' }}>
+                <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))' }}>
                   {lg.title || 'Sem título'}
                 </span>
-                <span style={{ fontSize: 9.5, color: 'var(--mf-text-3)', flexShrink: 0 }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', flexShrink: 0 }}>
                   {lg.category || 'Geral'}
                 </span>
               </div>
               <div style={{
-                fontSize: 11, color: 'var(--mf-text-2)', whiteSpace: 'pre-wrap',
+                fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', whiteSpace: 'pre-wrap',
                 display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
               }}>{lg.text}</div>
             </button>
           ))}
 
           {!carregando && !filtradas.length && (
-            <div style={{ textAlign: 'center', color: 'var(--mf-text-3)', padding: 24, fontSize: 12, lineHeight: 1.7 }}>
+            <div style={{ textAlign: 'center', color: 'var(--mf-text-3)', padding: 24, fontSize: 'var(--mf-t-xs)', lineHeight: 1.7 }}>
               {itens.length
                 ? 'Nenhuma legenda bate com esse filtro.'
                 : <>A biblioteca está vazia.<br />Salve a legenda atual abaixo para começar.</>}
@@ -143,7 +143,7 @@ export default function LegendLibraryModal({
 
         {/* Salvar a legenda atual */}
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--mf-border)' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 7 }}>Guardar a legenda atual</div>
+          <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, marginBottom: 7 }}>Guardar a legenda atual</div>
           <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
             <input value={titulo} onChange={e => setTitulo(e.target.value)}
               placeholder="Título (opcional)" style={{ ...campo, flex: 1, minWidth: 150 }} />
@@ -157,7 +157,7 @@ export default function LegendLibraryModal({
         </div>
 
         {erro && (
-          <div style={{ marginTop: 10, fontSize: 11, color: 'var(--mf-danger-500)' }}>{erro}</div>
+          <div style={{ marginTop: 10, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)' }}>{erro}</div>
         )}
 
         <div style={{ marginTop: 14, textAlign: 'right' }}>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import { EsqueletoTabela } from '../components/Estados';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -29,9 +30,12 @@ export default function Proxies() {
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
 
+  const [primeiraCarga, setPrimeiraCarga] = useState(true);
+
   async function loadAccounts() {
     try { const res = await api.get('/accounts?limit=200'); setAccounts(Array.isArray(res.data.accounts) ? res.data.accounts : Array.isArray(res.data) ? res.data : []); }
     catch (err) { showToast('error', 'Erro', err.response?.data?.error || 'Erro ao carregar contas.'); }
+    finally { setPrimeiraCarga(false); }
   }
 
   /* O pool é a lista de proxies ainda não atribuídos a ninguém. Sem esta
@@ -143,21 +147,29 @@ export default function Proxies() {
 
   const pageActions = (
     <div style={{ display:'flex', gap:8 }}>
-      <button className="btn-ghost" style={{ fontSize:'.78rem', padding:'6px 14px', borderRadius:8 }} onClick={() => setBulkModal(true)}>Importar proxies</button>
-      <button className="btn-primary" style={{ fontSize:'.78rem', padding:'6px 14px', borderRadius:8 }} onClick={testAllProxies}>Testar todos</button>
+      <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'6px 14px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setBulkModal(true)}>Importar proxies</button>
+      <button className="btn-primary" style={{ fontSize: 'var(--mf-t-xs)', padding:'6px 14px', borderRadius: 'var(--mf-r-sm)' }} onClick={testAllProxies}>Testar todos</button>
     </div>
   );
 
-  const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
   const modalStyle = { position:'fixed', inset:0, background:'oklch(0.06 0.02 235 / 0.85)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
-  const modalBoxStyle = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid var(--mf-border)', borderRadius:16, padding:'20px 24px', minWidth:380, boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
-  const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius:8, border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize:13, boxSizing:'border-box', outline:'none' };
-  const thStyle    = { padding:'10px 14px', fontSize:10, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
-  const tdStyle    = { padding:'11px 14px', fontSize:12, color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
+  const modalBoxStyle = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding:'20px 24px',
+    /* `minWidth: 380` sozinho estourava a tela de 320px em 60 pixels — o
+       modal ficava mais largo que o aparelho e a página passava a rolar
+       de lado. `min()` mantém os 380 onde cabem e cede onde não cabem.
+       `maxHeight` + rolagem interna resolvem o eixo vertical: um modal
+       mais alto que a viewport esconde o próprio botão de confirmar. */
+    width:'min(380px, calc(100vw - 32px))', boxSizing:'border-box',
+    maxHeight:'calc(100vh - 32px)', overflowY:'auto',
+    boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
+  const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', boxSizing:'border-box', outline:'none' };
+  const thStyle    = { padding:'10px 14px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
+  const tdStyle    = { padding:'11px 14px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
 
   function ProxyBadge({ status }) {
     const b = BADGE[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'—' };
-    return <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99, background:b.bg, color:b.color, border:`1px solid ${b.border}` }}>{b.label}</span>;
+    return <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:b.bg, color:b.color, border:`1px solid ${b.border}` }}>{b.label}</span>;
   }
 
   return (
@@ -170,8 +182,8 @@ export default function Proxies() {
           {STATS.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
               style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
-              <div style={{ fontSize:24, fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-              <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:3, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
+              <div style={{ fontSize: 'var(--mf-t-display)', fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:3, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
             </motion.div>
           ))}
         </div>
@@ -185,16 +197,16 @@ export default function Proxies() {
           style={{ ...cardStyle, marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <div style={{ minWidth:0 }}>
-              <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
+              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
                 Pool de proxies
               </h3>
-              <p style={{ fontSize:11, color:'var(--mf-text-3)', margin:'3px 0 0' }}>
+              <p style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', margin:'3px 0 0' }}>
                 Cada conta reserva um destes ao conectar. Um proxy, uma conta.
               </p>
             </div>
             <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
               {pool.resumo && (
-                <span className="mf-mono" style={{ fontSize:11, color:'var(--mf-text-3)' }}>
+                <span className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
                   {pool.resumo.livres} livre(s) · {pool.resumo.reservados} em uso
                   {pool.resumo.ruins > 0 && ` · ${pool.resumo.ruins} sem resposta`}
                   {pool.resumo.rotativos > 0 && ` · ${pool.resumo.rotativos} trocando de IP`}
@@ -206,8 +218,10 @@ export default function Proxies() {
             </div>
           </div>
 
-          {pool.itens.length === 0 ? (
-            <div style={{ padding:'28px 16px', textAlign:'center', color:'var(--mf-text-3)', fontSize:12.5, lineHeight:1.7 }}>
+          {primeiraCarga && !pool.itens.length ? (
+            <EsqueletoTabela linhas={4} colunas={5} />
+          ) : pool.itens.length === 0 ? (
+            <div style={{ padding:'28px 16px', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)', lineHeight:1.7 }}>
               Nenhum proxy no pool.<br />
               Use <strong style={{ color:'var(--mf-text-2)' }}>Importar proxies</strong> e cole a lista do fornecedor —
               um por linha. Eles ficam aqui até uma conta reservar.
@@ -227,27 +241,27 @@ export default function Proxies() {
                 <tbody>
                   {pool.itens.map(item => (
                     <tr key={item.url}>
-                      <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11.5 }}>{item.endereco}</td>
+                      <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)' }}>{item.endereco}</td>
                       <td style={tdStyle}>
                         {item.rotativo ? (
-                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                          <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)',
                             background:'var(--mf-warning-bg)', color:'var(--mf-warning-500)' }}
                             title="Troca de IP entre requisições — isso quebra o login do Instagram">
                             Troca de IP
                           </span>
                         ) : item.ok === true ? (
-                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                          <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)',
                             background:'var(--mf-success-bg)', color:'var(--mf-success-500)' }}>Funcionando</span>
                         ) : item.ok === false ? (
-                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                          <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)',
                             background:'var(--mf-danger-bg)', color:'var(--mf-danger-500)' }}
                             title={item.erro || 'Sem resposta'}>Sem resposta</span>
                         ) : (
-                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:99,
+                          <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)',
                             background:'var(--mf-border-subtle)', color:'var(--mf-text-3)' }}>Não testado</span>
                         )}
                       </td>
-                      <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11.5 }}>{item.ip || '—'}</td>
+                      <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)' }}>{item.ip || '—'}</td>
                       <td style={tdStyle}>
                         {item.conta
                           ? <span style={{ color:'var(--mf-text)' }}>@{item.conta}</span>
@@ -267,8 +281,8 @@ export default function Proxies() {
         {/* Table card */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-            <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Proxies por conta</h3>
-            <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>Atualiza a cada 30s</span>
+            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Proxies por conta</h3>
+            <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>Atualiza a cada 30s</span>
           </div>
           <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -287,17 +301,17 @@ export default function Proxies() {
                     <td style={tdStyle}>
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         {account.avatar
-                          ? <img src={`${API_BASE}${account.avatar}`} alt="" style={{ width:32, height:32, borderRadius:8, objectFit:'cover' }} />
-                          : <div style={{ width:32, height:32, borderRadius:8, background:'oklch(0.68 0.18 270 / 0.15)', border:'1px solid oklch(0.68 0.18 270 / 0.25)', display:'grid', placeItems:'center', fontSize:13, fontWeight:700, color:'oklch(0.68 0.18 270)' }}>{account.username?.charAt(0)?.toUpperCase() || 'I'}</div>
+                          ? <img src={`${API_BASE}${account.avatar}`} alt="" style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', objectFit:'cover' }} />
+                          : <div style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', background:'oklch(0.68 0.18 270 / 0.15)', border:'1px solid oklch(0.68 0.18 270 / 0.25)', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'oklch(0.68 0.18 270)' }}>{account.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                         }
                         <div>
-                          <div style={{ fontWeight:700, color:'var(--mf-text)', fontSize:12 }}>@{account.username}</div>
-                          <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{account.name || 'Sem nome'}</div>
+                          <div style={{ fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)' }}>@{account.username}</div>
+                          <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{account.name || 'Sem nome'}</div>
                         </div>
                       </div>
                     </td>
                     <td style={tdStyle}>
-                      <span style={{ fontFamily:'var(--mf-mono)', fontSize:11, color: account.proxy ? 'var(--mf-text)' : 'var(--mf-text-3)' }}>
+                      <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color: account.proxy ? 'var(--mf-text)' : 'var(--mf-text-3)' }}>
                         {account.proxy || '—'}
                       </span>
                     </td>
@@ -307,20 +321,20 @@ export default function Proxies() {
                           <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                             <ProxyBadge status={account.proxyStatus} />
                             {account.proxyStatus === 'online' && account.proxyIp && (
-                              <span style={{ fontFamily:'var(--mf-mono)', fontSize:11, fontWeight:700, color:'var(--mf-success-500)' }}>
+                              <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)' }}>
                                 {account.proxyIp}
                               </span>
                             )}
                           </div>
                         )
-                        : <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>—</span>
+                        : <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>—</span>
                       }
                     </td>
-                    <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize:11 }}>{fmtDate(account.proxyLastCheck)}</td>
+                    <td style={{ ...tdStyle, fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)' }}>{fmtDate(account.proxyLastCheck)}</td>
                     <td style={tdStyle}>
                       <div style={{ display:'flex', gap:6 }}>
-                        <button className="btn-ghost" style={{ fontSize:11, padding:'4px 10px', borderRadius:6 }} onClick={() => openProxyModal(account)}>Editar</button>
-                        <button className="btn-primary" style={{ fontSize:11, padding:'4px 10px', borderRadius:6, opacity: (!account.proxy || testing === account._id) ? .5 : 1 }}
+                        <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 10px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => openProxyModal(account)}>Editar</button>
+                        <button className="btn-primary" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 10px', borderRadius: 'var(--mf-r-sm)', opacity: (!account.proxy || testing === account._id) ? .5 : 1 }}
                           onClick={() => testProxy(account)} disabled={testing === account._id || !account.proxy}>
                           {testing === account._id ? '...' : 'Testar'}
                         </button>
@@ -331,7 +345,7 @@ export default function Proxies() {
               </tbody>
             </table>
             {!accounts.length && (
-              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--mf-text-3)', fontSize:13 }}>Nenhuma conta encontrada.</div>
+              <div style={{ textAlign:'center', padding:'32px 16px', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)' }}>Nenhuma conta encontrada.</div>
             )}
           </div>
         </motion.div>
@@ -341,15 +355,15 @@ export default function Proxies() {
           <div style={modalStyle}>
             <div style={modalBoxStyle}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                <h3 style={{ margin:0, fontSize:'.95rem', fontWeight:800 }}>Editar Proxy</h3>
-                <button onClick={() => setProxyModal(false)} style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
+                <h3 style={{ margin:0, fontSize: 'var(--mf-t-h2)', fontWeight:800 }}>Editar Proxy</h3>
+                <button onClick={() => setProxyModal(false)} style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
               </div>
-              <p style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:14 }}>Conta: <strong style={{ color:'var(--mf-text)' }}>@{proxyAccount?.username}</strong></p>
-              <label style={{ fontSize:11, color:'var(--mf-text-3)', display:'block', marginBottom:6, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Proxy URL</label>
+              <p style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:14 }}>Conta: <strong style={{ color:'var(--mf-text)' }}>@{proxyAccount?.username}</strong></p>
+              <label style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', display:'block', marginBottom:6, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Proxy URL</label>
               <input style={inputStyle} value={proxyValue} onChange={e => setProxyValue(e.target.value)} placeholder="http://usuario:senha@host:porta" />
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:20 }}>
-                <button className="btn-ghost" style={{ borderRadius:8, padding:'8px 16px' }} onClick={() => setProxyModal(false)}>Cancelar</button>
-                <button className="btn-primary" style={{ borderRadius:8, padding:'8px 16px' }} onClick={saveProxy}>Salvar proxy</button>
+                <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 16px' }} onClick={() => setProxyModal(false)}>Cancelar</button>
+                <button className="btn-primary" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 16px' }} onClick={saveProxy}>Salvar proxy</button>
               </div>
             </div>
           </div>
@@ -358,16 +372,20 @@ export default function Proxies() {
         {/* Bulk import modal */}
         {bulkModal && (
           <div style={modalStyle}>
-            <div style={{ ...modalBoxStyle, minWidth:440 }}>
+            {/* `minWidth` venceria o `width: min(...)` do estilo base — em CSS,
+                min-width tem prioridade sobre width — e o modal voltaria a ter
+                440px numa tela de 320. O alargamento vai no `width`, que
+                continua cedendo quando não cabe. */}
+            <div style={{ ...modalBoxStyle, width:'min(440px, calc(100vw - 32px))' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                <h3 style={{ margin:0, fontSize:'.95rem', fontWeight:800 }}>Importar proxies em massa</h3>
-                <button onClick={() => setBulkModal(false)} style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:22, cursor:'pointer', lineHeight:1 }}>×</button>
+                <h3 style={{ margin:0, fontSize: 'var(--mf-t-h2)', fontWeight:800 }}>Importar proxies em massa</h3>
+                <button onClick={() => setBulkModal(false)} style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
               </div>
-              <p style={{ fontSize:12, color:'var(--mf-text-3)', marginBottom:6, lineHeight:1.6 }}>
+              <p style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:6, lineHeight:1.6 }}>
                 Um proxy por linha. Cada conta recebe um <strong>proxy exclusivo</strong> —
                 repetir o mesmo IP em duas contas é o que se está tentando evitar.
               </p>
-              <p style={{ fontSize:11, color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6 }}>
+              <p style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6 }}>
                 Aceita <code>host:porta</code>, <code>host:porta:usuário:senha</code>,
                 <code> usuário:senha@host:porta</code> e URL completa. Cada proxy é testado
                 antes de ser gravado, então listas grandes demoram.
@@ -380,13 +398,13 @@ export default function Proxies() {
                 style={{ ...inputStyle, height:'auto', padding:'10px 12px', resize:'vertical', lineHeight:1.6 }}
               />
 
-              <label style={{ display:'flex', alignItems:'center', gap:7, marginTop:10, fontSize:11.5, color:'var(--mf-text-2)', cursor:'pointer' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:7, marginTop:10, fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', cursor:'pointer' }}>
                 <input type="checkbox" checked={bulkSubstituir} onChange={e => setBulkSubstituir(e.target.checked)} />
                 Trocar também o proxy das contas que já têm um
               </label>
 
               {bulkRelatorio && (
-                <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', fontSize:11.5, lineHeight:1.8 }}>
+                <div style={{ marginTop:14, padding:12, borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)', lineHeight:1.8 }}>
                   <div style={{ fontWeight:800, marginBottom:6 }}>Resultado</div>
                   <div>✅ {bulkRelatorio.atribuidos ?? 0} conta(s) receberam proxy exclusivo</div>
                   {bulkRelatorio.contasSemProxy > 0 && (
@@ -419,11 +437,11 @@ export default function Proxies() {
               )}
 
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
-                <button className="btn-ghost" style={{ borderRadius:8, padding:'8px 16px' }}
+                <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 16px' }}
                   onClick={() => { setBulkModal(false); setBulkRelatorio(null); }}>
                   {bulkRelatorio ? 'Fechar' : 'Cancelar'}
                 </button>
-                <button className="btn-primary" style={{ borderRadius:8, padding:'8px 16px', opacity: bulkAplicando ? .6 : 1 }}
+                <button className="btn-primary" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 16px', opacity: bulkAplicando ? .6 : 1 }}
                   disabled={bulkAplicando} onClick={applyBulkProxies}>
                   {bulkAplicando ? 'Testando proxies…' : 'Aplicar proxies'}
                 </button>

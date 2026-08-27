@@ -1,11 +1,13 @@
 import { cn } from '../../lib/utils';
 
 export function ShimmerButton({
-  shimmerColor = 'rgba(0,212,255,.6)',
+  shimmerColor = 'color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_60%,transparent)',
   shimmerSize = '0.05em',
   shimmerDuration = '2s',
   borderRadius = '9px',
-  background = 'linear-gradient(135deg, #00aacc, #00d4ff)',
+  /* Segue o acento do tema. Cravado, este botão continuaria ciano depois de
+     qualquer troca de paleta — e ele é justamente o de maior destaque. */
+  background = 'linear-gradient(135deg, var(--mf-accent-700), var(--mf-mod, var(--mf-accent-500)))',
   className,
   children,
   ...props
@@ -21,9 +23,9 @@ export function ShimmerButton({
       }}
       className={cn(
         'group relative z-0 flex cursor-pointer items-center justify-center gap-2 overflow-hidden whitespace-nowrap',
-        'rounded-[var(--border-radius)] px-4 py-2 text-[13px] font-semibold text-[#040e1c]',
+        'rounded-[var(--border-radius)] px-4 py-2 text-[var(--mf-t-sm)] font-semibold text-[var(--mf-bg)]',
         '[background:var(--background)]',
-        'transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_28px_rgba(0,212,255,.45)] active:scale-[.98]',
+        'transition-all duration-200 hover:scale-[1.01] hover:shadow-[0_0_28px_color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_45%,transparent)] active:scale-[.98]',
         className
       )}
       {...props}

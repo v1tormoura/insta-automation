@@ -126,7 +126,7 @@ export default function ConnectedAccountsMetrics() {
         {[1, 2, 3, 4].map(i => (
           <div key={i} style={{
             background: 'oklch(0.14 0.04 235 / 0.7)',
-            borderRadius: 14,
+            borderRadius: 'var(--mf-r-lg)',
             padding: 16,
             height: 110,
             border: '1px solid var(--mf-border)',
@@ -142,17 +142,17 @@ export default function ConnectedAccountsMetrics() {
       <div style={{
         background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
         border: '1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)',
-        borderRadius: 14,
+        borderRadius: 'var(--mf-r-lg)',
         padding: '12px 16px',
         marginBottom: 16,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        fontSize: 12,
+        fontSize: 'var(--mf-t-xs)',
         color: 'var(--mf-danger-500)',
       }}>
         <span>{error}</span>
-        <button onClick={() => loadMetrics(true)} className="btn btn-ghost btn-sm" style={{ fontSize: 11 }}>
+        <button onClick={() => loadMetrics(true)} className="btn btn-ghost btn-sm" style={{ fontSize: 'var(--mf-t-micro)' }}>
           Tentar novamente
         </button>
       </div>
@@ -167,20 +167,20 @@ export default function ConnectedAccountsMetrics() {
       {/* ── Cabeçalho do Módulo ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--mf-mod, var(--mf-accent-500))', boxShadow: '0 0 10px var(--mf-mod, var(--mf-accent-500))' }} />
-          <h2 style={{ fontSize: 12, fontWeight: 750, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-2)', margin: 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-mod, var(--mf-accent-500))', boxShadow: '0 0 10px var(--mf-mod, var(--mf-accent-500))' }} />
+          <h2 style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 750, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-2)', margin: 0 }}>
             Métricas Globais · Contas Conectadas
           </h2>
-          <span style={{ fontSize: 10.5, fontFamily: 'var(--mf-mono)', padding: '2px 8px', borderRadius: 6, background: 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)' }}>
+          <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', padding: '2px 8px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)' }}>
             {d.periodLabel || 'Últimos 30 dias'}
           </span>
           {/* Diz que o painel se atualiza sozinho. Sem isso o usuário fica
               clicando em atualizar por não ter como saber que não precisa. */}
           {atualizadoEm && (
             <span title={`Atualizado às ${new Date(atualizadoEm).toLocaleTimeString('pt-BR')}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10,
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--mf-t-nano)',
                 color: 'var(--mf-text-3)', whiteSpace: 'nowrap' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mf-success-500)',
+              <span style={{ width: 6, height: 6, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-success-500)',
                 animation: 'mf-pulse 2s var(--mf-ease-inout) infinite' }} />
               ao vivo
             </span>
@@ -194,9 +194,9 @@ export default function ConnectedAccountsMetrics() {
             style={{
               background: 'oklch(0.12 0.04 235)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 7,
+              borderRadius: 'var(--mf-r-sm)',
               color: 'var(--mf-text-2)',
-              fontSize: 11,
+              fontSize: 'var(--mf-t-micro)',
               padding: '4px 8px',
               cursor: 'pointer',
             }}
@@ -213,14 +213,14 @@ export default function ConnectedAccountsMetrics() {
             style={{
               background: 'var(--mf-border-subtle)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 7,
+              borderRadius: 'var(--mf-r-sm)',
               padding: '5px 8px',
               color: 'var(--mf-text-3)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-              fontSize: 11,
+              fontSize: 'var(--mf-t-micro)',
             }}
           >
             <RefreshCw size={12} style={{ animation: refreshing ? 'dash-spin .7s linear infinite' : 'none' }} />
@@ -233,11 +233,11 @@ export default function ConnectedAccountsMetrics() {
         <div style={{
           background: 'oklch(0.14 0.04 235 / 0.6)',
           border: '1px dashed var(--mf-border-strong)',
-          borderRadius: 14,
+          borderRadius: 'var(--mf-r-lg)',
           padding: '24px 16px',
           textAlign: 'center',
           color: 'var(--mf-text-3)',
-          fontSize: 12,
+          fontSize: 'var(--mf-t-xs)',
         }}>
           Nenhuma conta conectada no momento. Conecte uma conta para visualizar alcance, seguidores e o melhor post.
         </div>
@@ -257,23 +257,23 @@ export default function ConnectedAccountsMetrics() {
             <div style={{
               background: 'var(--mf-surface-1)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 14,
+              borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
               <span aria-hidden="true" style={{ position: 'absolute', inset: 'auto -10px -14px auto', width: 58, height: 58,
-                borderRadius: '50%', background: 'radial-gradient(circle, color-mix(in oklch, var(--mf-mod-metricas) 16%, transparent), transparent 70%)' }} />
+                borderRadius: 'var(--mf-r-full)', background: 'radial-gradient(circle, color-mix(in oklch, var(--mf-mod-metricas) 16%, transparent), transparent 70%)' }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Visualizações
                 </span>
                 <Eye size={16} style={{ color: 'var(--mf-mod-metricas)', opacity: 0.9 }} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--mf-mod-metricas)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-mod-metricas)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>
                 {fmt(d.totalViews)}
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--mf-text-3)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4 }}>
                 Reproduções somadas de todas as contas
               </div>
             </div>
@@ -282,21 +282,21 @@ export default function ConnectedAccountsMetrics() {
             <div style={{
               background: 'oklch(0.15 0.05 235 / 0.8)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 14,
+              borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Alcance total
                 </span>
                 <Globe size={16} style={{ color: 'var(--mf-mod, var(--mf-accent-500))', opacity: 0.9 }} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
+              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
                 {fmt(d.totalReach)}
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--mf-text-3)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4 }}>
                 {d.connectedAccountsCount} {d.connectedAccountsCount === 1 ? 'conta conectada' : 'contas conectadas'}
               </div>
             </div>
@@ -305,21 +305,21 @@ export default function ConnectedAccountsMetrics() {
             <div style={{
               background: 'oklch(0.15 0.05 235 / 0.8)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 14,
+              borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Seguidores totais
                 </span>
                 <Users size={16} style={{ color: 'var(--mf-success-500)', opacity: 0.9 }} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
+              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
                 {fmt(d.totalFollowers)}
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--mf-text-3)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4 }}>
                 Audiência atual acumulada
               </div>
             </div>
@@ -328,7 +328,7 @@ export default function ConnectedAccountsMetrics() {
             <div style={{
               background: 'oklch(0.15 0.05 235 / 0.8)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 14,
+              borderRadius: 'var(--mf-r-lg)',
               padding: '12px 14px',
               position: 'relative',
               overflow: 'hidden',
@@ -338,7 +338,7 @@ export default function ConnectedAccountsMetrics() {
             }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                     Melhor post
                   </span>
                   <Flame size={16} style={{ color: 'var(--mf-warning-500)' }} />
@@ -349,7 +349,7 @@ export default function ConnectedAccountsMetrics() {
                     <div style={{
                       width: 38,
                       height: 48,
-                      borderRadius: 6,
+                      borderRadius: 'var(--mf-r-sm)',
                       background: 'oklch(0.10 0.03 235)',
                       overflow: 'hidden',
                       flexShrink: 0,
@@ -370,16 +370,16 @@ export default function ConnectedAccountsMetrics() {
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         @{d.bestPost.username}
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>
-                        {fmt(d.bestPost.videoViews)} <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--mf-text-3)' }}>views</span>
+                      <div style={{ fontSize: 'var(--mf-t-body)', fontWeight: 800, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>
+                        {fmt(d.bestPost.videoViews)} <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 500, color: 'var(--mf-text-3)' }}>views</span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 11, color: 'var(--mf-text-3)', padding: '6px 0' }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', padding: '6px 0' }}>
                     Nenhum post no período
                   </div>
                 )}
@@ -396,7 +396,7 @@ export default function ConnectedAccountsMetrics() {
                     background: 'transparent',
                     border: 'none',
                     color: 'var(--mf-mod, var(--mf-accent-500))',
-                    fontSize: 10,
+                    fontSize: 'var(--mf-t-nano)',
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
@@ -414,13 +414,13 @@ export default function ConnectedAccountsMetrics() {
             <div style={{
               background: 'oklch(0.15 0.05 235 / 0.8)',
               border: '1px solid var(--mf-border)',
-              borderRadius: 14,
+              borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Stories
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -440,10 +440,10 @@ export default function ConnectedAccountsMetrics() {
                   <Eye size={16} style={{ color: 'var(--mf-mod-publicar)', opacity: 0.9 }} />
                 </div>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--mf-mod-publicar)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
+              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-mod-publicar)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
                 {fmt(d.totalStoryViews)}
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--mf-text-3)', marginTop: 4 }}>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4 }}>
                 {coletandoStories ? 'Coletando…' : 'Visualizações nos stories'}
               </div>
             </div>
@@ -461,14 +461,14 @@ export default function ConnectedAccountsMetrics() {
                   marginTop: 12,
                   background: 'oklch(0.13 0.04 235 / 0.9)',
                   border: '1px solid var(--mf-border)',
-                  borderRadius: 12,
+                  borderRadius: 'var(--mf-r-md)',
                   padding: 12,
                   overflow: 'hidden',
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--mf-text-2)', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-2)', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
                   <span>Melhor post de cada conta conectada:</span>
-                  <span style={{ fontSize: 10, color: 'var(--mf-text-3)' }}>{d.bestPostByAccount.length} contas</span>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>{d.bestPostByAccount.length} contas</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8 }}>
@@ -481,7 +481,7 @@ export default function ConnectedAccountsMetrics() {
                         gap: 8,
                         background: 'oklch(0.11 0.03 235)',
                         border: '1px solid var(--mf-border)',
-                        borderRadius: 8,
+                        borderRadius: 'var(--mf-r-sm)',
                         padding: '6px 10px',
                       }}
                     >
@@ -489,20 +489,20 @@ export default function ConnectedAccountsMetrics() {
                         <img
                           src={proxyImg(acc.thumbnailUrl)}
                           alt=""
-                          style={{ width: 28, height: 36, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
+                          style={{ width: 28, height: 36, borderRadius: 'var(--mf-r-xs)', objectFit: 'cover', flexShrink: 0 }}
                           onError={e => { e.target.style.display = 'none'; }}
                         />
                       ) : (
-                        <div style={{ width: 28, height: 36, borderRadius: 4, background: 'var(--mf-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)', fontSize: 9 }}>
+                        <div style={{ width: 28, height: 36, borderRadius: 'var(--mf-r-xs)', background: 'var(--mf-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)' }}>
                           —
                         </div>
                       )}
 
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           @{acc.username}
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--mf-mod, var(--mf-accent-500))', fontFamily: 'var(--mf-mono)' }}>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-mod, var(--mf-accent-500))', fontFamily: 'var(--mf-mono)' }}>
                           {acc.hasPost ? `${fmt(acc.videoViews)} views` : 'Sem posts no período'}
                         </div>
                       </div>

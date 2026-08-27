@@ -4,13 +4,13 @@ export default function Termos() {
       <div style={{ maxWidth:720, margin:'0 auto' }}>
 
         <div style={{ marginBottom:40 }}>
-          <a href="/" style={{ color:'var(--indigo)', fontSize:13, textDecoration:'none' }}>← Voltar</a>
-          <h1 style={{ fontSize:28, fontWeight:700, margin:'16px 0 4px' }}>Termos de Uso</h1>
-          <p style={{ color:'var(--mf-text-3)', fontSize:13 }}>Última atualização: julho de 2026</p>
+          <a href="/" style={{ color:'var(--indigo)', fontSize: 'var(--mf-t-sm)', textDecoration:'none' }}>← Voltar</a>
+          <h1 style={{ fontSize: 'var(--mf-t-display)', fontWeight:700, margin:'16px 0 4px' }}>Termos de Uso</h1>
+          <p style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)' }}>Última atualização: julho de 2026</p>
         </div>
 
-        <div style={{ background:'oklch(0.55 0.22 270 / 0.07)', border:'1px solid oklch(0.55 0.22 270 / 0.2)', borderRadius:12, padding:'16px 20px', marginBottom:32 }}>
-          <div style={{ fontSize:13, color:'var(--mf-text-2)', lineHeight:1.6 }}>
+        <div style={{ background:'oklch(0.55 0.22 270 / 0.07)', border:'1px solid oklch(0.55 0.22 270 / 0.2)', borderRadius: 'var(--mf-r-md)', padding:'16px 20px', marginBottom:32 }}>
+          <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-2)', lineHeight:1.6 }}>
             <strong style={{ color:'var(--mf-text)' }}>Operado por:</strong> 67.761.040 VITOR MARCELO MOURA DA SILVA<br />
             <strong style={{ color:'var(--mf-text)' }}>CNPJ:</strong> 67.761.040/0001-27<br />
             <strong style={{ color:'var(--mf-text)' }}>Contato:</strong> contato@instaflow.pro
@@ -28,12 +28,12 @@ export default function Termos() {
           { title:'8. Contato', text:'Dúvidas sobre estes Termos podem ser enviadas para contato@instaflow.pro.' },
         ].map(({ title, text }) => (
           <div key={title} style={{ marginBottom:28 }}>
-            <h2 style={{ fontSize:16, fontWeight:700, color:'var(--mf-text)', marginBottom:8 }}>{title}</h2>
-            <p style={{ fontSize:14, color:'var(--mf-text-2)', lineHeight:1.7, margin:0 }}>{text}</p>
+            <h2 style={{ fontSize: 'var(--mf-t-h2)', fontWeight:700, color:'var(--mf-text)', marginBottom:8 }}>{title}</h2>
+            <p style={{ fontSize: 'var(--mf-t-body)', color:'var(--mf-text-2)', lineHeight:1.7, margin:0 }}>{text}</p>
           </div>
         ))}
 
-        <div style={{ borderTop:'1px solid var(--mf-border)', paddingTop:24, marginTop:8, fontSize:12, color:'var(--mf-text-3)', lineHeight:1.7 }}>
+        <div style={{ borderTop:'1px solid var(--mf-border)', paddingTop:24, marginTop:8, fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.7 }}>
           <strong style={{ color:'var(--mf-text-2)' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong><br />
           CNPJ: 67.761.040/0001-27 · contato@instaflow.pro
         </div>

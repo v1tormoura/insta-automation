@@ -16,7 +16,7 @@ import { cn } from '../../../lib/utils';
 
 export const STATUS_PUB = {
   pending:    { rotulo: 'Pendente',   cor: 'text-[var(--mf-text-3)]', badge: 'secondary',   Icone: Circle },
-  scheduled:  { rotulo: 'Agendada',   cor: 'text-[var(--mf-mod, var(--mf-accent-500))]',  badge: 'outline',     Icone: Clock },
+  scheduled:  { rotulo: 'Agendada',   cor: 'text-[var(--mf-mod,_var(--mf-accent-500))]',  badge: 'outline',     Icone: Clock },
   processing: { rotulo: 'Publicando', cor: 'text-[var(--mf-info-500)]',      badge: 'purple',      Icone: Loader2 },
   published:  { rotulo: 'Publicado',  cor: 'text-[var(--mf-success-500)]', badge: 'success',     Icone: CheckCircle2 },
   failed:     { rotulo: 'Falhou',     cor: 'text-[var(--mf-danger-500)]',   badge: 'destructive', Icone: XCircle },
@@ -25,7 +25,7 @@ export const STATUS_PUB = {
 
 export const STATUS_COMENTARIO = {
   none:      { rotulo: 'Sem comentário',       cor: 'text-[var(--mf-text-3)]', badge: 'secondary' },
-  scheduled: { rotulo: 'Comentário agendado',  cor: 'text-[var(--mf-mod, var(--mf-accent-500))]',  badge: 'outline' },
+  scheduled: { rotulo: 'Comentário agendado',  cor: 'text-[var(--mf-mod,_var(--mf-accent-500))]',  badge: 'outline' },
   posted:    { rotulo: 'Comentado',            cor: 'text-[var(--mf-success-500)]', badge: 'success' },
   failed:    { rotulo: 'Comentário falhou',    cor: 'text-[var(--mf-danger-500)]',   badge: 'destructive' },
   cancelled: { rotulo: 'Comentário cancelado', cor: 'text-[var(--mf-text-3)]', badge: 'secondary' },
@@ -161,7 +161,7 @@ export function ContaAvatar({ conta, size = 26 }) {
   const inicial = (conta?.username || '?').charAt(0).toUpperCase();
   return (
     <span
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)] font-bold text-[var(--mf-mod, var(--mf-accent-500))]"
+      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[color-mix(in_oklch,_var(--mf-mod-contas)_10%,_transparent)] font-bold text-[var(--mf-mod,_var(--mf-accent-500))]"
       style={{ width: size, height: size, fontSize: size * 0.42 }}
       aria-hidden="true"
     >
@@ -191,7 +191,7 @@ export function ConteudoThumb({ conteudo, size = 30 }) {
 
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-[var(--border)] bg-[var(--mf-border-subtle)] font-mono font-bold text-[var(--mf-text-3)]"
+      className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--mf-r-sm)] border border-[var(--border)] bg-[var(--mf-border-subtle)] font-mono font-bold text-[var(--mf-text-3)]"
       style={{ width: size, height: size, fontSize: size * 0.28 }}
       aria-hidden="true"
     >
@@ -211,7 +211,7 @@ export function ConteudoThumb({ conteudo, size = 30 }) {
 /** Rótulo de seção — o eyebrow usado no topo dos cartões. */
 export function Eyebrow({ children, className }) {
   return (
-    <div className={cn('text-[9.5px] font-bold uppercase tracking-[.08em] text-[var(--mf-text-3)]', className)}>
+    <div className={cn('text-[var(--mf-t-nano)] font-bold uppercase tracking-[.08em] text-[var(--mf-text-3)]', className)}>
       {children}
     </div>
   );
@@ -220,7 +220,7 @@ export function Eyebrow({ children, className }) {
 /** Estado vazio: uma frase que diz o que aconteceu, sem ilustração. */
 export function Vazio({ children, className }) {
   return (
-    <div className={cn('py-8 text-center text-[11.5px] text-[var(--mf-text-3)]', className)}>
+    <div className={cn('py-8 text-center text-[var(--mf-t-micro)] text-[var(--mf-text-3)]', className)}>
       {children}
     </div>
   );

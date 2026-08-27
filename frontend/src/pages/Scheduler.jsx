@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
+import { EsqueletoLista } from '../components/Estados';
 
 function jobsToSchedulerItems(jobs) {
   const items = [];
@@ -41,17 +42,23 @@ export default function Scheduler() {
   const [posts, setPosts] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
 
+  const [primeiraCarga, setPrimeiraCarga] = useState(true);
+
   async function load() {
-    const [postsRes, jobsRes] = await Promise.all([
-      api.get('/posts'),
-      api.get('/jobs').catch(() => ({ data: [] })),
-    ]);
-    const legacyScheduled = (postsRes.data.posts || postsRes.data || [])
-      .filter(p => p.status === 'agendado' || p.status === 'pendente');
-    const jobItems = jobsToSchedulerItems(jobsRes.data || []);
-    const combined = [...legacyScheduled, ...jobItems]
-      .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
-    setPosts(combined);
+    try {
+      const [postsRes, jobsRes] = await Promise.all([
+        api.get('/posts'),
+        api.get('/jobs').catch(() => ({ data: [] })),
+      ]);
+      const legacyScheduled = (postsRes.data.posts || postsRes.data || [])
+        .filter(p => p.status === 'agendado' || p.status === 'pendente');
+      const jobItems = jobsToSchedulerItems(jobsRes.data || []);
+      const combined = [...legacyScheduled, ...jobItems]
+        .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0));
+      setPosts(combined);
+    /* A fila recarrega a cada dez segundos. Sem o `finally`, uma falha de rede
+       deixaria a flag ligada para sempre e o esqueleto no lugar da lista. */
+    } finally { setPrimeiraCarga(false); }
   }
 
   useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, []);
@@ -78,8 +85,8 @@ export default function Scheduler() {
   );
 
   const pageActions = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 28, padding: '0 10px', borderRadius: 8, background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 11, color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)' }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mf-success-500)', display: 'inline-block', animation: 'sched-pulse 1.5s infinite' }} />
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 28, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)' }}>
+      <span style={{ width: 6, height: 6, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-success-500)', display: 'inline-block', animation: 'sched-pulse 1.5s infinite' }} />
       Scheduler ativo
     </span>
   );
@@ -110,13 +117,13 @@ export default function Scheduler() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.25 }}
               style={{
-                textAlign: 'center', padding: '18px 10px', borderRadius: 14,
+                textAlign: 'center', padding: '18px 10px', borderRadius: 'var(--mf-r-lg)',
                 background: s.bg, border: `1px solid ${s.border}`,
                 backdropFilter: 'blur(12px)',
               }}
             >
-              <div style={{ fontSize: 28, fontWeight: 800, color: s.color, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
+              <div style={{ fontSize: 'var(--mf-t-display)', fontWeight: 800, color: s.color, letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+              <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{s.label}</div>
             </motion.div>
           ))}
         </div>
@@ -127,9 +134,9 @@ export default function Scheduler() {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 14, padding: '16px', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)' }}
           >
-            <h3 style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 12 }}>Filtro por data</h3>
+            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 12 }}>Filtro por data</h3>
             <input
               className="inp"
               type="date"
@@ -138,13 +145,13 @@ export default function Scheduler() {
               style={{ width: '100%', boxSizing: 'border-box' }}
             />
             {selectedDate && (
-              <button className="btn-ghost" onClick={() => setSelectedDate('')} style={{ marginTop: 8, width: '100%', padding: '6px', fontSize: '.78rem', borderRadius: 7 }}>
+              <button className="btn-ghost" onClick={() => setSelectedDate('')} style={{ marginTop: 8, width: '100%', padding: '6px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)' }}>
                 Limpar filtro
               </button>
             )}
             <div style={{ marginTop: 16, borderTop: '1px solid var(--mf-border)', paddingTop: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--mf-mod, var(--mf-accent-500))', fontVariantNumeric: 'tabular-nums' }}>{filteredPosts.length}</div>
-              <div style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>Resultados</div>
+              <div style={{ fontSize: 'var(--mf-t-display)', fontWeight: 800, color: 'var(--mf-mod, var(--mf-accent-500))', fontVariantNumeric: 'tabular-nums' }}>{filteredPosts.length}</div>
+              <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>Resultados</div>
             </div>
           </motion.div>
 
@@ -153,16 +160,18 @@ export default function Scheduler() {
             initial={{ opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 14, overflow: 'hidden', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow: 'hidden', backdropFilter: 'blur(12px)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
-              <span style={{ fontSize: '.72rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 100, padding: '2px 8px' }}>{filteredPosts.length} itens</span>
+              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
+              <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>{filteredPosts.length} itens</span>
             </div>
 
             <div style={{ padding: 12 }}>
-              {filteredPosts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: '.85rem' }}>Nenhum agendamento encontrado</div>
+              {primeiraCarga && !filteredPosts.length ? (
+                <EsqueletoLista itens={4} />
+              ) : filteredPosts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>Nenhum agendamento encontrado</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {filteredPosts.map((post, i) => (
@@ -173,7 +182,7 @@ export default function Scheduler() {
                       transition={{ delay: i * 0.03 }}
                       style={{
                         display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
-                        background: 'oklch(0.12 0.04 235 / 0.6)', borderRadius: 10,
+                        background: 'oklch(0.12 0.04 235 / 0.6)', borderRadius: 'var(--mf-r-md)',
                         border: '1px solid var(--mf-border)',
                         borderLeft: `3px solid ${post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)'}`,
                       }}
@@ -181,22 +190,22 @@ export default function Scheduler() {
                       <div style={{ textAlign: 'center', flexShrink: 0, width: 52 }}>
                         {post.scheduledAt ? (
                           <>
-                            <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text)' }}>{new Date(post.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                            <div style={{ fontSize: 10, color: post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)', marginTop: 2, fontFamily: 'var(--mf-mono)' }}>{countdown(post.scheduledAt)}</div>
+                            <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 800, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text)' }}>{new Date(post.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div style={{ fontSize: 'var(--mf-t-nano)', color: post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)', marginTop: 2, fontFamily: 'var(--mf-mono)' }}>{countdown(post.scheduledAt)}</div>
                           </>
-                        ) : <div style={{ fontSize: 20 }}>📤</div>}
+                        ) : <div style={{ fontSize: 'var(--mf-t-h1)' }}>📤</div>}
                       </div>
                       <div style={{ width: 1, height: 40, background: 'var(--mf-border)', flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3, color: 'var(--mf-text)' }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
-                        <div style={{ fontSize: 11, color: 'var(--mf-text-3)', display: 'flex', gap: 12, fontFamily: 'var(--mf-mono)', flexWrap: 'wrap', rowGap: 2 }}>
+                        <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, marginBottom: 3, color: 'var(--mf-text)' }}>{post.caption ? post.caption.slice(0, 50) + (post.caption.length > 50 ? '...' : '') : 'Sem legenda'}</div>
+                        <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', display: 'flex', gap: 12, fontFamily: 'var(--mf-mono)', flexWrap: 'wrap', rowGap: 2 }}>
                           <span>{post.postType === 'reel' ? 'Reel' : 'Post'}</span>
                           {post.scheduledAt && <span>{fmtDate(post.scheduledAt)}</span>}
                           {post.accounts?.length && <span>{post.accounts.map(a => `@${a.username}`).join(', ')}</span>}
                         </div>
                       </div>
                       <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                        fontSize: 'var(--mf-t-micro)', fontWeight: 700, padding: '3px 9px', borderRadius: 'var(--mf-r-full)',
                         fontFamily: 'var(--mf-mono)',
                         background: post.status === 'agendado' ? 'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',
                         color: post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)',

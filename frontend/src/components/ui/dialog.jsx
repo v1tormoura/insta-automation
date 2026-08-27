@@ -27,7 +27,7 @@ const DialogContent = ({ className, children, ...props }) => (
       className={cn(
         'fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]',
         'w-full max-w-[480px] max-h-[85vh] overflow-y-auto',
-        'rounded-[16px] border border-[var(--border)] bg-[var(--bg2)] shadow-[0_24px_80px_rgba(0,0,0,.7)]',
+        'rounded-[var(--mf-r-lg)] border border-[var(--border)] bg-[var(--bg2)] shadow-[var(--mf-shadow-3)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -38,7 +38,7 @@ const DialogContent = ({ className, children, ...props }) => (
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-[6px] p-1.5 text-[var(--text3)] hover:text-[var(--text)] hover:bg-[rgba(255,255,255,.06)] transition-all focus:outline-none">
+      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-[var(--mf-r-sm)] p-1.5 text-[var(--text3)] hover:text-[var(--text)] hover:bg-[var(--mf-border)] transition-all focus:outline-none">
         <X size={14} />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -64,7 +64,7 @@ DialogFooter.displayName = 'DialogFooter';
 
 const DialogTitle = ({ className, ...props }) => (
   <DialogPrimitive.Title
-    className={cn('text-[16px] font-semibold text-[var(--text)] tracking-tight', className)}
+    className={cn('text-[var(--mf-t-h2)] font-semibold text-[var(--text)] tracking-tight', className)}
     {...props}
   />
 );
@@ -72,7 +72,7 @@ DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 const DialogDescription = ({ className, ...props }) => (
   <DialogPrimitive.Description
-    className={cn('text-[13px] text-[var(--text2)]', className)}
+    className={cn('text-[var(--mf-t-sm)] text-[var(--text2)]', className)}
     {...props}
   />
 );

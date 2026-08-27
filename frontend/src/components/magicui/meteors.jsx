@@ -15,7 +15,7 @@ export function Meteors({ number = 20, className }) {
       {meteors.map((m) => (
         <span
           key={m.id}
-          className="absolute top-0 left-1/2 h-0.5 rotate-[215deg] animate-meteor-effect rounded-full bg-gradient-to-r from-[var(--cyan)] to-transparent shadow-[0_0_0_1px_rgba(0,212,255,.1)]"
+          className="absolute top-0 left-1/2 h-0.5 rotate-[215deg] animate-meteor-effect rounded-full bg-gradient-to-r from-[var(--cyan)] to-transparent shadow-[0_0_0_1px_color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_10%,transparent)]"
           style={{
             left: m.left,
             width: `${Math.floor(Math.random() * 80 + 60)}px`,

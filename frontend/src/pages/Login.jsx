@@ -81,8 +81,8 @@ export default function Login() {
       }} />
       {/* Ambient blobs */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-        <div style={{ position:'absolute', width:560, height:560, left:'50%', top:'50%', transform:'translate(-60%,-55%)', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-mod-contas) 10%, transparent),transparent 68%)', borderRadius:'50%', filter:'blur(40px)' }} />
-        <div style={{ position:'absolute', width:400, height:400, right:'-100px', bottom:'-80px', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-primary-500) 7%, transparent),transparent 70%)', borderRadius:'50%', filter:'blur(40px)' }} />
+        <div style={{ position:'absolute', width:560, height:560, left:'50%', top:'50%', transform:'translate(-60%,-55%)', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-mod-contas) 10%, transparent),transparent 68%)', borderRadius: 'var(--mf-r-full)', filter:'blur(40px)' }} />
+        <div style={{ position:'absolute', width:400, height:400, right:'-100px', bottom:'-80px', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-primary-500) 7%, transparent),transparent 70%)', borderRadius: 'var(--mf-r-full)', filter:'blur(40px)' }} />
       </div>
 
       <motion.div
@@ -94,7 +94,7 @@ export default function Login() {
           display: 'flex', width: '100%', maxWidth: 860,
           background: 'var(--mf-surface-1)',
           border: '1px solid var(--mf-border)',
-          borderRadius: 18, overflow: 'hidden',
+          borderRadius: 'var(--mf-r-xl)', overflow: 'hidden',
           boxShadow: '0 32px 80px rgba(0,0,0,.65), 0 0 0 1px color-mix(in oklch, var(--mf-mod-contas) 4%, transparent) inset',
           backdropFilter: 'blur(24px)',
         }}
@@ -114,20 +114,20 @@ export default function Login() {
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:36 }}>
                 <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width:38, height:38, objectFit:'contain' }} />
                 <div>
-                  <div style={{ color:'var(--mf-text)', fontWeight:800, fontSize:18, lineHeight:1, letterSpacing:'-.3px' }}>MouraFlow</div>
-                  <div style={{ color:'var(--mf-text-3)', fontSize:11, marginTop:3 }}>Automação Pro</div>
+                  <div style={{ color:'var(--mf-text)', fontWeight:800, fontSize: 'var(--mf-t-h1)', lineHeight:1, letterSpacing:'-.3px' }}>MouraFlow</div>
+                  <div style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginTop:3 }}>Automação Pro</div>
                 </div>
               </div>
             </BlurFade>
 
             <BlurFade delay={0.2}>
               <AnimatedGradientText className="block mb-2" style={{ display:'block', marginBottom:8 }}>
-                <span style={{ fontSize:13, fontWeight:600, letterSpacing:'.04em' }}>INSTAGRAM AUTOMATION</span>
+                <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight:600, letterSpacing:'.04em' }}>INSTAGRAM AUTOMATION</span>
               </AnimatedGradientText>
-              <h2 style={{ color:'var(--mf-text)', fontSize:22, fontWeight:800, margin:'0 0 10px', lineHeight:1.25, letterSpacing:'-.4px' }}>
+              <h2 style={{ color:'var(--mf-text)', fontSize: 'var(--mf-t-h1)', fontWeight:800, margin:'0 0 10px', lineHeight:1.25, letterSpacing:'-.4px' }}>
                 Automatize seu Instagram<br/>em escala.
               </h2>
-              <p style={{ color:'var(--mf-text-2)', fontSize:13, margin:'0 0 32px', lineHeight:1.7 }}>
+              <p style={{ color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', margin:'0 0 32px', lineHeight:1.7 }}>
                 Gerencie dezenas de contas, agende publicações e acompanhe métricas em tempo real.
               </p>
             </BlurFade>
@@ -140,13 +140,13 @@ export default function Login() {
                       width:30, height:30,
                       background:'color-mix(in oklch, var(--mf-mod-contas) 7%, transparent)',
                       border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)',
-                      borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+                      borderRadius: 'var(--mf-r-sm)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
                     }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d={d}/>
                       </svg>
                     </div>
-                    <span style={{ color:'var(--mf-text-2)', fontSize:13 }}>{text}</span>
+                    <span style={{ color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)' }}>{text}</span>
                   </div>
                 </BlurFade>
               ))}
@@ -155,8 +155,8 @@ export default function Login() {
 
           <BlurFade delay={0.6} style={{ position:'relative', zIndex:1 }}>
             <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:24 }}>
-              <div style={{ width:6, height:6, background:'var(--mf-success-500)', borderRadius:'50%', boxShadow:'0 0 7px var(--mf-success-500)' }} />
-              <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Todos os sistemas operacionais</span>
+              <div style={{ width:6, height:6, background:'var(--mf-success-500)', borderRadius: 'var(--mf-r-full)', boxShadow:'0 0 7px var(--mf-success-500)' }} />
+              <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Todos os sistemas operacionais</span>
             </div>
           </BlurFade>
         </div>
@@ -169,20 +169,20 @@ export default function Login() {
                 <div style={{
                   display:'inline-flex', alignItems:'center', gap:6,
                   background:'color-mix(in oklch, var(--mf-mod-contas) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 16%, transparent)',
-                  borderRadius:20, padding:'4px 12px', marginBottom:20,
+                  borderRadius: 'var(--mf-r-xl)', padding:'4px 12px', marginBottom:20,
                 }}>
                   <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', display:'flex' }}><LockIcon /></span>
-                  <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontSize:11, fontWeight:600 }}>Acesso restrito</span>
+                  <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)', fontWeight:600 }}>Acesso restrito</span>
                 </div>
                 <h2 style={{ color:'var(--mf-text)', fontSize:23, fontWeight:800, margin:'0 0 6px', letterSpacing:'-.4px' }}>Bem-vindo de volta</h2>
-                <p style={{ color:'var(--mf-text-2)', fontSize:13, margin:0, lineHeight:1.6 }}>Entre com suas credenciais de acesso.</p>
+                <p style={{ color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', margin:0, lineHeight:1.6 }}>Entre com suas credenciais de acesso.</p>
               </div>
             </BlurFade>
 
             <BlurFade delay={0.25}>
               <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
                 <div>
-                  <label style={{ display:'block', color:'var(--mf-text-3)', fontSize:10, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 }}>USUÁRIO</label>
+                  <label style={{ display:'block', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 }}>USUÁRIO</label>
                   <div style={{ position:'relative' }}>
                     <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none', display:'flex' }}>
                       <UserIcon />
@@ -193,8 +193,8 @@ export default function Login() {
                       style={{
                         width:'100%', background:'var(--mf-border-subtle)',
                         border:'1px solid var(--border)',
-                        borderRadius:9, padding:'11px 12px 11px 36px',
-                        color:'var(--mf-text)', fontSize:14, outline:'none',
+                        borderRadius: 'var(--mf-r-md)', padding:'11px 12px 11px 36px',
+                        color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
                         boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
                         fontFamily:'var(--font)',
                       }}
@@ -205,7 +205,7 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label style={{ display:'block', color:'var(--mf-text-3)', fontSize:10, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 }}>SENHA</label>
+                  <label style={{ display:'block', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 }}>SENHA</label>
                   <div style={{ position:'relative' }}>
                     <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none', display:'flex' }}>
                       <LockIcon />
@@ -216,8 +216,8 @@ export default function Login() {
                       style={{
                         width:'100%', background:'var(--mf-border-subtle)',
                         border:'1px solid var(--border)',
-                        borderRadius:9, padding:'11px 40px 11px 36px',
-                        color:'var(--mf-text)', fontSize:14, outline:'none',
+                        borderRadius: 'var(--mf-r-md)', padding:'11px 40px 11px 36px',
+                        color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
                         boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
                         fontFamily:'var(--font)',
                       }}
@@ -240,7 +240,7 @@ export default function Login() {
                       transition={{ duration:.2 }}
                       style={{
                         background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 22%, transparent)',
-                        borderRadius:8, padding:'10px 14px', color:'var(--mf-danger-500)', fontSize:13,
+                        borderRadius: 'var(--mf-r-sm)', padding:'10px 14px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)',
                       }}
                     >
                       {error}
@@ -254,10 +254,10 @@ export default function Login() {
                   whileHover={loading ? {} : { scale: 1.01, boxShadow: '0 0 28px color-mix(in oklch, var(--mf-mod-contas) 45%, transparent)' }}
                   whileTap={loading ? {} : { scale: 0.98 }}
                   style={{
-                    marginTop:4, padding:'12px 16px', borderRadius:9, border:'none',
+                    marginTop:4, padding:'12px 16px', borderRadius: 'var(--mf-r-md)', border:'none',
                     cursor: loading ? 'not-allowed' : 'pointer',
                     background: 'linear-gradient(135deg, var(--cyan2), var(--mf-mod, var(--mf-accent-500)))',
-                    color:'var(--mf-bg)', fontWeight:700, fontSize:14,
+                    color:'var(--mf-bg)', fontWeight:700, fontSize: 'var(--mf-t-body)',
                     display:'flex', alignItems:'center', justifyContent:'center', gap:8,
                     opacity: loading ? 0.65 : 1,
                     boxShadow:'0 0 18px color-mix(in oklch, var(--mf-mod-contas) 28%, transparent)',
@@ -281,8 +281,8 @@ export default function Login() {
             </BlurFade>
 
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:20 }}>
-              <div style={{ width:6, height:6, background:'var(--mf-success-500)', borderRadius:'50%', boxShadow:'0 0 6px var(--mf-success-500)' }} />
-              <span style={{ color:'var(--mf-text-3)', fontSize:12 }}>Conexão segura via HTTPS</span>
+              <div style={{ width:6, height:6, background:'var(--mf-success-500)', borderRadius: 'var(--mf-r-full)', boxShadow:'0 0 6px var(--mf-success-500)' }} />
+              <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>Conexão segura via HTTPS</span>
             </div>
           </div>
         </div>
@@ -293,12 +293,12 @@ export default function Login() {
         initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:.5, duration:.4 }}
         style={{ position:'relative', zIndex:1, marginTop:24, textAlign:'center', lineHeight:1.7 }}
       >
-        <div style={{ fontSize:11, color:'var(--mf-text-3)' }}>
+        <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
           MouraFlow é um serviço operado por{' '}
           <strong style={{ color:'var(--mf-text-2)' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong>
         </div>
-        <div style={{ fontSize:11, color:'var(--mf-text-3)' }}>CNPJ: 67.761.040/0001-27</div>
-        <div style={{ marginTop:6, fontSize:11 }}>
+        <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>CNPJ: 67.761.040/0001-27</div>
+        <div style={{ marginTop:6, fontSize: 'var(--mf-t-micro)' }}>
           <a href="/termos"     style={{ color:'var(--indigo)', textDecoration:'none' }}>Termos de Uso</a>
           <span style={{ color:'var(--mf-text-3)', margin:'0 6px' }}>·</span>
           <a href="/privacidade" style={{ color:'var(--indigo)', textDecoration:'none' }}>Política de Privacidade</a>

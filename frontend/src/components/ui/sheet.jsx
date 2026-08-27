@@ -40,7 +40,7 @@ const SheetContent = ({ className, children, ...props }) => (
         // Largura total no celular; teto a partir de sm para não virar uma
         // coluna estreita demais no desktop.
         'w-full sm:max-w-[440px]',
-        'border-l border-[var(--border)] bg-[var(--bg2)] shadow-[0_0_80px_rgba(0,0,0,.7)]',
+        'border-l border-[var(--border)] bg-[var(--bg2)] shadow-[var(--mf-shadow-3)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:duration-200 data-[state=open]:duration-300',
         'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
@@ -51,7 +51,7 @@ const SheetContent = ({ className, children, ...props }) => (
       {children}
       <DialogPrimitive.Close
         aria-label="Fechar"
-        className="absolute right-4 top-4 rounded-[6px] p-1.5 text-[var(--text3)] transition-all hover:bg-[rgba(255,255,255,.06)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--cyan)]"
+        className="absolute right-4 top-4 rounded-[var(--mf-r-sm)] p-1.5 text-[var(--text3)] transition-all hover:bg-[var(--mf-border)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--cyan)]"
       >
         <X size={14} />
       </DialogPrimitive.Close>
@@ -81,14 +81,14 @@ const SheetFooter = ({ className, ...props }) => (
 
 const SheetTitle = ({ className, ...props }) => (
   <DialogPrimitive.Title
-    className={cn('text-[14px] font-bold text-[var(--text)]', className)}
+    className={cn('text-[var(--mf-t-body)] font-bold text-[var(--text)]', className)}
     {...props}
   />
 );
 
 const SheetDescription = ({ className, ...props }) => (
   <DialogPrimitive.Description
-    className={cn('text-[11.5px] text-[var(--text3)]', className)}
+    className={cn('text-[var(--mf-t-micro)] text-[var(--text3)]', className)}
     {...props}
   />
 );

@@ -57,8 +57,8 @@ export function TabsList({ children, className, label = 'Seções' }) {
       onKeyDown={aoTeclar}
       // Rola na horizontal no celular em vez de quebrar em duas linhas.
       className={cn(
-        'flex gap-1 overflow-x-auto rounded-[10px] border border-[var(--border)]',
-        'bg-[rgba(255,255,255,.02)] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'flex gap-1 overflow-x-auto rounded-[var(--mf-r-md)] border border-[var(--border)]',
+        'bg-[var(--mf-border-subtle)] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className
       )}
     >
@@ -81,12 +81,12 @@ export function TabsTrigger({ value: valor, children, count, className }) {
       tabIndex={ativo ? 0 : -1}
       onClick={() => onValueChange(valor)}
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[7px] px-3 py-1.5',
-        'text-[11.5px] font-semibold transition-colors',
+        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--mf-r-sm)] px-3 py-1.5',
+        'text-[var(--mf-t-micro)] font-semibold transition-colors',
         'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--cyan)]',
         ativo
-          ? 'bg-[rgba(0,212,255,.12)] text-[var(--cyan)]'
-          : 'text-[var(--text3)] hover:bg-[rgba(255,255,255,.04)] hover:text-[var(--text2)]',
+          ? 'bg-[color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_12%,transparent)] text-[var(--cyan)]'
+          : 'text-[var(--text3)] hover:bg-[var(--mf-border-subtle)] hover:text-[var(--text2)]',
         className
       )}
     >
@@ -94,8 +94,8 @@ export function TabsTrigger({ value: valor, children, count, className }) {
       {count !== undefined && count !== null && (
         <span
           className={cn(
-            'rounded-full px-1.5 font-mono text-[9.5px] tabular-nums',
-            ativo ? 'bg-[rgba(0,212,255,.18)]' : 'bg-[rgba(255,255,255,.06)]'
+            'rounded-full px-1.5 font-mono text-[var(--mf-t-nano)] tabular-nums',
+            ativo ? 'bg-[color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_18%,transparent)]' : 'bg-[var(--mf-border)]'
           )}
         >
           {count}

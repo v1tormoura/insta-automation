@@ -33,24 +33,24 @@ export default function CommentEditor({
       <div style={{
         display:'flex', alignItems:'center', gap:12, flexWrap:'wrap',
         background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
-        borderRadius:14, padding:'13px 16px', marginBottom: ativo ? 14 : 0,
+        borderRadius: 'var(--mf-r-lg)', padding:'13px 16px', marginBottom: ativo ? 14 : 0,
       }}>
         <button onClick={alternar} role="switch" aria-checked={ativo} style={{
-          width:42, height:24, borderRadius:12, padding:2, flexShrink:0, cursor:'pointer',
+          width:42, height:24, borderRadius: 'var(--mf-r-md)', padding:2, flexShrink:0, cursor:'pointer',
           display:'flex', justifyContent: ativo ? 'flex-end' : 'flex-start',
           background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'var(--mf-border)',
           border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 50%, transparent)' : 'var(--mf-border-strong)'}`,
           transition:'all .18s',
         }}>
           <span style={{
-            width:18, height:18, borderRadius:'50%',
+            width:18, height:18, borderRadius: 'var(--mf-r-full)',
             background: ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', transition:'all .18s',
           }} />
         </button>
 
         <div style={{ flex:1, minWidth:180 }}>
-          <div style={{ fontSize:13, fontWeight:700 }}>Primeiro comentário</div>
-          <div style={{ fontSize:10.5, color:'var(--mf-text-3)', marginTop:2, lineHeight:1.45 }}>
+          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700 }}>Primeiro comentário</div>
+          <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2, lineHeight:1.45 }}>
             {ativo
               ? 'Publicado automaticamente depois do post.'
               : 'Desativado — nenhum comentário será publicado.'}
@@ -74,16 +74,16 @@ export default function CommentEditor({
           {/* Atraso */}
           <div style={{
             background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
-            borderRadius:14, padding:16,
+            borderRadius: 'var(--mf-r-lg)', padding:16,
           }}>
-            <label style={{ display:'block', fontSize:12, fontWeight:700, marginBottom:6 }}>
+            <label style={{ display:'block', fontSize: 'var(--mf-t-xs)', fontWeight:700, marginBottom:6 }}>
               Publicar o comentário depois de
             </label>
             {/* Faixa, não valor fixo: o atraso é sorteado entre o mínimo e o
                 máximo a cada publicação. Um número fixo faz o comentário sair
                 sempre no mesmo delta do post — padrão exato em série. */}
             <div style={{ display:'flex', alignItems:'center', gap:9, flexWrap:'wrap' }}>
-              <span style={{ fontSize:12, color:'var(--mf-text-3)' }}>entre</span>
+              <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)' }}>entre</span>
               <input
                 className="input"
                 type="number"
@@ -105,7 +105,7 @@ export default function CommentEditor({
                   });
                 }}
               />
-              <span style={{ fontSize:12, color:'var(--mf-text-3)' }}>e</span>
+              <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)' }}>e</span>
               <input
                 className="input"
                 type="number"
@@ -120,9 +120,9 @@ export default function CommentEditor({
                   onChange({ ...comments, delayMaxMinutes: Math.max(piso, teto) });
                 }}
               />
-              <span style={{ fontSize:12, color:'var(--mf-text-2)' }}>minutos</span>
+              <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)' }}>minutos</span>
             </div>
-            <div style={{ fontSize:10.5, color:'var(--mf-text-3)', marginTop:8, lineHeight:1.5 }}>
+            <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:8, lineHeight:1.5 }}>
               Contado a partir da publicação do post. O atraso é sorteado dentro da faixa
               a cada publicação — máximo igual ao mínimo deixa o atraso fixo.
             </div>

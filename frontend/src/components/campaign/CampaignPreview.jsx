@@ -195,7 +195,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
   if (carregando) {
     return (
-      <div style={{ padding:'34px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize:12 }}>
+      <div style={{ padding:'34px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
         Gerando o plano…
       </div>
     );
@@ -207,10 +207,10 @@ export default function CampaignPreview({ payload, onValidChange }) {
         display:'flex', gap:13, alignItems:'flex-start',
         background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
         border:'1px solid color-mix(in oklch, var(--mf-danger-500) 32%, transparent)',
-        borderRadius:14, padding:'16px 18px',
+        borderRadius: 'var(--mf-r-lg)', padding:'16px 18px',
       }}>
         <span style={{
-          width:32, height:32, borderRadius:10, flexShrink:0, display:'grid', placeItems:'center',
+          width:32, height:32, borderRadius: 'var(--mf-r-md)', flexShrink:0, display:'grid', placeItems:'center',
           background:'color-mix(in oklch, var(--mf-danger-500) 16%, transparent)',
           color:'var(--mf-danger-500)',
         }}>
@@ -222,22 +222,22 @@ export default function CampaignPreview({ payload, onValidChange }) {
         </span>
 
         <div style={{ minWidth:0, flex:1 }}>
-          <div style={{ fontSize:13, fontWeight:750, color:'var(--mf-text)', marginBottom:4 }}>
+          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:750, color:'var(--mf-text)', marginBottom:4 }}>
             Não foi possível gerar a prévia
           </div>
-          <div style={{ fontSize:12, color:'var(--mf-text-2)', lineHeight:1.6 }}>
+          <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.6 }}>
             {erro.resumo}
           </div>
           <div style={{
-            marginTop:9, padding:'7px 10px', borderRadius:8,
+            marginTop:9, padding:'7px 10px', borderRadius: 'var(--mf-r-sm)',
             background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)',
-            fontFamily:'var(--mf-mono)', fontSize:10.5, color:'var(--mf-text-3)',
+            fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)',
             overflowX:'auto', whiteSpace:'nowrap',
           }}>{erro.detalhe}</div>
 
           <button
             onClick={() => setTentativa(t => t + 1)}
-            style={{ marginTop:12, padding:'7px 15px', borderRadius:8, fontSize:11.5, fontWeight:700,
+            style={{ marginTop:12, padding:'7px 15px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700,
               cursor:'pointer',
               background:'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
               color:'var(--mf-danger-500)',
@@ -255,17 +255,17 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
   const cartao = (valor, rotulo, cor) => (
     <div style={{ background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)',
-      borderRadius:11, padding:'11px 13px', minWidth:98, flex:1 }}>
-      <div style={{ fontFamily:'var(--mf-mono)', fontSize:19, fontWeight:800, color: cor || 'var(--mf-text)' }}>
+      borderRadius: 'var(--mf-r-md)', padding:'11px 13px', minWidth:98, flex:1 }}>
+      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-h1)', fontWeight:800, color: cor || 'var(--mf-text)' }}>
         {valor}
       </div>
-      <div style={{ fontSize:9.5, color:'var(--mf-text-3)', marginTop:2, textTransform:'uppercase',
+      <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2, textTransform:'uppercase',
         letterSpacing:'.05em' }}>{rotulo}</div>
     </div>
   );
 
   const seletor = (valor, aoMudar, itens, vazio) => (
-    <select className="input" style={{ fontSize:11, padding:'5px 8px', maxWidth:190 }}
+    <select className="input" style={{ fontSize: 'var(--mf-t-micro)', padding:'5px 8px', maxWidth:190 }}
       value={valor} onChange={e => aoMudar(e.target.value)}>
       <option value="">{vazio}</option>
       {itens.map(i => <option key={i.id} value={i.id}>{i.label}</option>)}
@@ -283,7 +283,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
         {cartao(s.invalid ?? comErro.length, 'com erro', comErro.length ? 'var(--mf-danger-500)' : 'var(--mf-success-500)')}
       </div>
 
-      <div style={{ fontSize:11.5, color:'var(--mf-text-3)', lineHeight:1.7 }}>
+      <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.7 }}>
         {primeira && (<>
           Primeira publicação <strong style={{ color:'var(--mf-text-2)' }}>{horario(primeira)}</strong>,
           última <strong style={{ color:'var(--mf-text-2)' }}>{horario(ultima)}</strong>.{' '}
@@ -295,14 +295,14 @@ export default function CampaignPreview({ payload, onValidChange }) {
       {/* Bloqueio explícito quando há erro */}
       {comErro.length > 0 && (
         <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)',
-          borderRadius:12, padding:'13px 15px' }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'var(--mf-danger-500)', marginBottom:7 }}>
+          borderRadius: 'var(--mf-r-md)', padding:'13px 15px' }}>
+          <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-danger-500)', marginBottom:7 }}>
             {comErro.length} {comErro.length === 1 ? 'publicação precisa' : 'publicações precisam'} de correção
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:150, overflowY:'auto' }}>
             {comErro.slice(0, 25).map(p => (
               <div key={`${p.account?.id}-${p.content?.id}`}
-                style={{ fontSize:11, color:'var(--mf-text-2)', lineHeight:1.5 }}>
+                style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.5 }}>
                 <strong>{rotuloConta(p)}</strong> · {rotuloConteudo(p)} —{' '}
                 <span style={{ color:'var(--mf-danger-500)' }}>
                   {(p.problemas || []).map(descreverProblema).join('; ')}
@@ -310,7 +310,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
               </div>
             ))}
             {comErro.length > 25 && (
-              <div style={{ fontSize:10.5, color:'var(--mf-text-3)' }}>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
                 e mais {comErro.length - 25}…
               </div>
             )}
@@ -324,7 +324,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
           const ativo = filtro === f.id;
           return (
             <button key={f.id} onClick={() => setFiltro(f.id)} style={{
-              padding:'5px 11px', borderRadius:7, fontSize:10.5, fontWeight:700, cursor:'pointer',
+              padding:'5px 11px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight:700, cursor:'pointer',
               background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
               color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
               border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 32%, transparent)' : 'var(--mf-border)'}`,
@@ -333,7 +333,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
         })}
         {seletor(porConta,    setPorConta,    contas,    'Todas as contas')}
         {seletor(porConteudo, setPorConteudo, conteudos, 'Todos os conteúdos')}
-        <span style={{ marginLeft:'auto', fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)' }}>
+        <span style={{ marginLeft:'auto', fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
           {visiveis.length}/{publicacoes.length}
         </span>
       </div>
@@ -346,7 +346,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
           const aberta = expandida === chave;
           return (
             <div key={chave} style={{
-              borderRadius:10, padding:'9px 12px',
+              borderRadius: 'var(--mf-r-md)', padding:'9px 12px',
               background:'oklch(0.12 0.04 235 / 0.5)',
               border:`1px solid ${falhou ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'var(--mf-border)'}`,
             }}>
@@ -354,30 +354,30 @@ export default function CampaignPreview({ payload, onValidChange }) {
                 display:'flex', alignItems:'center', gap:9, width:'100%', textAlign:'left',
                 background:'transparent', border:'none', cursor:'pointer', padding:0,
               }}>
-                <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)',
+                <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)',
                   width:26, flexShrink:0 }}>{p.order ?? i + 1}</span>
-                <span style={{ fontSize:11.5, fontWeight:700, flexShrink:0 }}>{rotuloConta(p)}</span>
-                <span style={{ fontSize:11, color:'var(--mf-text-3)', overflow:'hidden',
+                <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, flexShrink:0 }}>{rotuloConta(p)}</span>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', overflow:'hidden',
                   textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{rotuloConteudo(p)}</span>
-                <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)', flexShrink:0 }}>
+                <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', flexShrink:0 }}>
                   {horario(p.scheduledAt)}
                 </span>
                 {p.cover && (
                   <img src={p.cover.url} alt="capa"
                     title="Capa configurada para este vídeo"
-                    style={{ width:16, height:22, objectFit:'cover', borderRadius:3,
+                    style={{ width:16, height:22, objectFit:'cover', borderRadius: 'var(--mf-r-xs)',
                       border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 60%, transparent)', flexShrink:0 }} />
                 )}
-                {falhou && <span style={{ color:'var(--mf-danger-500)', fontSize:11, flexShrink:0 }}>⚠</span>}
+                {falhou && <span style={{ color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-micro)', flexShrink:0 }}>⚠</span>}
               </button>
 
               {aberta && (
                 <div style={{ marginTop:9, paddingTop:9, borderTop:'1px solid var(--mf-border)',
                   display:'flex', flexDirection:'column', gap:8 }}>
                   <div>
-                    <div style={{ fontSize:9.5, color:'var(--mf-text-3)', textTransform:'uppercase',
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textTransform:'uppercase',
                       letterSpacing:'.05em', marginBottom:3 }}>Legenda publicada</div>
-                    <div style={{ fontSize:11.5, color:'var(--mf-text-2)', lineHeight:1.55,
+                    <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.55,
                       whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
                       {p.resolvedCaption || <em style={{ color:'var(--mf-text-3)' }}>sem legenda</em>}
                     </div>
@@ -385,7 +385,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
                   {p.resolvedComment && (
                     <div>
-                      <div style={{ fontSize:9.5, color:'var(--mf-text-3)', textTransform:'uppercase',
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textTransform:'uppercase',
                         letterSpacing:'.05em', marginBottom:3 }}>
                         Comentário{p.commentDelayMinutes != null && (
                           p.commentDelayMaxMinutes > p.commentDelayMinutes
@@ -393,13 +393,13 @@ export default function CampaignPreview({ payload, onValidChange }) {
                             : ` · ${p.commentDelayMinutes} min depois`
                         )}
                       </div>
-                      <div style={{ fontSize:11.5, color:'var(--mf-text-2)', lineHeight:1.55,
+                      <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.55,
                         whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{p.resolvedComment}</div>
                     </div>
                   )}
 
                   {falhou && (
-                    <div style={{ fontSize:11, color:'var(--mf-danger-500)', lineHeight:1.5 }}>
+                    <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', lineHeight:1.5 }}>
                       {(p.problemas || []).map(descreverProblema).join(' · ')}
                     </div>
                   )}
@@ -410,7 +410,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
         })}
 
         {!visiveis.length && (
-          <div style={{ padding:'24px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize:11.5 }}>
+          <div style={{ padding:'24px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>
             Nenhuma publicação com esses filtros.
           </div>
         )}

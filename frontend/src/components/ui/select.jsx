@@ -9,9 +9,9 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = ({ className, children, ...props }) => (
   <SelectPrimitive.Trigger
     className={cn(
-      'flex h-9 w-full items-center justify-between rounded-[9px] border border-[var(--border)] bg-[rgba(255,255,255,.04)] px-3 py-2 text-[13px] text-[var(--text)] placeholder:text-[var(--text3)]',
+      'flex h-9 w-full items-center justify-between rounded-[var(--mf-r-md)] border border-[var(--border)] bg-[var(--mf-border-subtle)] px-3 py-2 text-[var(--mf-t-sm)] text-[var(--text)] placeholder:text-[var(--text3)]',
       'ring-offset-transparent transition-all outline-none',
-      'focus:border-[var(--border2)] focus:shadow-[0_0_12px_rgba(0,212,255,.14)]',
+      'focus:border-[var(--border2)] focus:shadow-[0_0_12px_color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_14%,transparent)]',
       'disabled:cursor-not-allowed disabled:opacity-50',
       '[&>span]:line-clamp-1',
       className
@@ -47,7 +47,7 @@ const SelectContent = ({ className, children, position = 'popper', ...props }) =
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       className={cn(
-        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--bg2)] shadow-[0_16px_50px_rgba(0,0,0,.6)]',
+        'relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-[var(--mf-r-md)] border border-[var(--border)] bg-[var(--bg2)] shadow-[var(--mf-shadow-3)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         position === 'popper' &&
           'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
@@ -73,7 +73,7 @@ const SelectContent = ({ className, children, position = 'popper', ...props }) =
 
 const SelectLabel = ({ className, ...props }) => (
   <SelectPrimitive.Label
-    className={cn('py-1.5 pl-8 pr-2 text-[10px] font-semibold text-[var(--text3)] uppercase tracking-widest', className)}
+    className={cn('py-1.5 pl-8 pr-2 text-[var(--mf-t-nano)] font-semibold text-[var(--text3)] uppercase tracking-widest', className)}
     {...props}
   />
 );
@@ -81,8 +81,8 @@ const SelectLabel = ({ className, ...props }) => (
 const SelectItem = ({ className, children, ...props }) => (
   <SelectPrimitive.Item
     className={cn(
-      'relative flex w-full cursor-pointer select-none items-center rounded-[7px] py-1.5 pl-8 pr-2 text-[13px] text-[var(--text2)] outline-none',
-      'hover:bg-[rgba(255,255,255,.06)] hover:text-[var(--text)] focus:bg-[rgba(255,255,255,.06)] focus:text-[var(--text)]',
+      'relative flex w-full cursor-pointer select-none items-center rounded-[var(--mf-r-sm)] py-1.5 pl-8 pr-2 text-[var(--mf-t-sm)] text-[var(--text2)] outline-none',
+      'hover:bg-[var(--mf-border)] hover:text-[var(--text)] focus:bg-[var(--mf-border)] focus:text-[var(--text)]',
       'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className
     )}

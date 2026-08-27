@@ -13,11 +13,11 @@ import { Eyebrow, ContaAvatar, nomeConta, nomeConteudo, STATUS_PUB, Vazio } from
  */
 
 const SIMBOLO = {
-  published:  { s: '✓', cor: 'text-[var(--mf-success-500)] bg-[color-mix(in oklch, var(--mf-success-500) 10%, transparent)]' },
-  scheduled:  { s: '◷', cor: 'text-[var(--mf-mod, var(--mf-accent-500))] bg-[color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)]' },
+  published:  { s: '✓', cor: 'text-[var(--mf-success-500)] bg-[color-mix(in_oklch,_var(--mf-success-500)_10%,_transparent)]' },
+  scheduled:  { s: '◷', cor: 'text-[var(--mf-mod,_var(--mf-accent-500))] bg-[color-mix(in_oklch,_var(--mf-mod-contas)_8%,_transparent)]' },
   pending:    { s: '◷', cor: 'text-[var(--mf-text-3)] bg-[var(--mf-border-subtle)]' },
-  processing: { s: '⚙', cor: 'text-[var(--mf-info-500)] bg-[color-mix(in oklch, var(--mf-info-500) 12%, transparent)]' },
-  failed:     { s: '✕', cor: 'text-[var(--mf-danger-500)] bg-[color-mix(in oklch, var(--mf-danger-500) 10%, transparent)]' },
+  processing: { s: '⚙', cor: 'text-[var(--mf-info-500)] bg-[color-mix(in_oklch,_var(--mf-info-500)_12%,_transparent)]' },
+  failed:     { s: '✕', cor: 'text-[var(--mf-danger-500)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_10%,_transparent)]' },
   cancelled:  { s: '—', cor: 'text-[var(--mf-text-3)] bg-[var(--mf-border-subtle)]' },
 };
 
@@ -52,12 +52,12 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
   }
 
   return (
-    <div className="rounded-[13px] border border-[var(--card-border)] bg-[var(--card)] p-4">
+    <div className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Eyebrow>Matriz de distribuição</Eyebrow>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9.5px] text-[var(--mf-text-3)]">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
           <span><span className="text-[var(--mf-success-500)]">✓</span> publicado</span>
-          <span><span className="text-[var(--mf-mod, var(--mf-accent-500))]">◷</span> agendado</span>
+          <span><span className="text-[var(--mf-mod,_var(--mf-accent-500))]">◷</span> agendado</span>
           <span><span className="text-[var(--mf-info-500)]">⚙</span> processando</span>
           <span><span className="text-[var(--mf-danger-500)]">✕</span> falhou</span>
           <span className="opacity-60">· não planejado</span>
@@ -72,14 +72,14 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 bg-[var(--card)] pr-2 text-left text-[9.5px] font-bold uppercase tracking-[.06em] text-[var(--mf-text-3)]"
+                className="sticky left-0 z-10 bg-[var(--card)] pr-2 text-left text-[var(--mf-t-nano)] font-bold uppercase tracking-[.06em] text-[var(--mf-text-3)]"
               >
                 Conta
               </th>
               {conteudos.map(({ id, conteudo }) => (
                 <th key={id} scope="col" className="px-1 pb-1">
                   <div
-                    className="mx-auto max-w-[74px] truncate text-[10px] font-semibold text-[var(--mf-text-3)]"
+                    className="mx-auto max-w-[74px] truncate text-[var(--mf-t-nano)] font-semibold text-[var(--mf-text-3)]"
                     title={nomeConteudo(conteudo)}
                   >
                     {nomeConteudo(conteudo)}
@@ -99,7 +99,7 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
                 >
                   <span className="flex items-center gap-1.5">
                     <ContaAvatar conta={conta} size={18} />
-                    <span className="max-w-[110px] truncate text-[11px] font-semibold text-[var(--mf-text-2)]">
+                    <span className="max-w-[110px] truncate text-[var(--mf-t-micro)] font-semibold text-[var(--mf-text-2)]">
                       {nomeConta(conta)}
                     </span>
                   </span>
@@ -120,9 +120,9 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
                         onClick={() => pub && onAbrir?.(pub)}
                         title={rotulo}
                         aria-label={rotulo}
-                        className={`flex h-8 w-full min-w-[52px] items-center justify-center rounded-[6px] text-[13px] font-bold transition-transform ${marca.cor} ${
+                        className={`flex h-8 w-full min-w-[52px] items-center justify-center rounded-[var(--mf-r-sm)] text-[var(--mf-t-sm)] font-bold transition-transform ${marca.cor} ${
                           pub
-                            ? 'cursor-pointer hover:scale-[1.12] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]'
+                            ? 'cursor-pointer hover:scale-[1.12] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]'
                             : 'cursor-default'
                         }`}
                       >

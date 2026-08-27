@@ -6,7 +6,8 @@ import '../design/avancado.css';
 import '../design/ponte.css';
 import { removeToken } from '../services/auth';
 import { useServerEvents } from '../services/useServerEvents';
-import { pushNotification, clearNotifications, markRead, useNotifications } from '../services/useNotifications';
+import { pushNotification } from '../services/useNotifications';
+import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
 
 const ic = (children, w = 18) => (
   <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -102,6 +103,7 @@ const NAV_GROUPS = [
       { to: '/proxies', mod: 'contas',   label: 'Proxies',  sub: 'Gerenciar proxies', icon: ICONS.proxies  },
       { to: '/api-meta', mod: 'sistema',    label: 'API Meta',  sub: 'Apps Meta / OAuth',  icon: ICONS.apimeta },
       { to: '/oauth-contas', mod: 'contas', label: 'OAuth',    sub: 'Conexões por conta', icon: ICONS.oauth   },
+      { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Avisos de marco', icon: ICONS.bell },
     ],
   },
   {
@@ -149,94 +151,6 @@ function buildNotif(data, event) {
     if (a === 'warmup_action')  return { type: 'success', msg: `Ação de aquecimento: ${data.actionType || ''}${data.username ? ` @${data.username}` : ''}` };
   }
   return null;
-}
-
-/* ── NotificationBell ── */
-function NotificationBell() {
-  const { notifs, unread } = useNotifications();
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef(null);
-
-  // Cores semânticas do sistema — o sino deixa de ter a própria paleta.
-  const typeColor = {
-    success: 'var(--mf-success-500)', error: 'var(--mf-danger-500)',
-    warn: 'var(--mf-warning-500)', info: 'var(--mf-info-500)',
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = e => { if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
-
-  return (
-    <div ref={panelRef} style={{ position: 'relative' }}>
-      <button
-        onClick={() => { setOpen(v => !v); if (!open) markRead(); }}
-        aria-label="Notificações"
-        className="mf-btn mf-btn--ghost mf-btn--icon"
-        style={{ position: 'relative' }}
-      >
-        {ICONS.bell}
-        {unread > 0 && (
-          <span style={{
-            position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16,
-            fontSize: 9, fontWeight: 800,
-            background: 'var(--mf-danger-500)', color: 'var(--mf-primary-fg)',
-            borderRadius: 'var(--mf-r-full)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '0 3px', lineHeight: 1,
-            boxShadow: '0 0 8px color-mix(in oklch, var(--mf-danger-500) 60%, transparent)',
-          }}>
-            {unread > 99 ? '99+' : unread}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div className="notif-panel" style={{
-          position: 'absolute', top: 'calc(100% + 10px)', right: 0, zIndex: 9999,
-          width: 340, maxHeight: 440, overflowY: 'auto',
-          background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border-strong)',
-          borderRadius: 'var(--mf-r-lg)', boxShadow: 'var(--mf-shadow-3)',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 14px 10px', borderBottom: '1px solid var(--mf-border)',
-            position: 'sticky', top: 0, background: 'var(--mf-surface-1)',
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', letterSpacing: '.08em' }}>
-              NOTIFICAÇÕES {unread > 0 && <span style={{ color: '#f43f5e' }}>({unread})</span>}
-            </span>
-            {notifs.length > 0 && (
-              <button onClick={() => { clearNotifications(); setOpen(false); }} style={{ fontSize: 10, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                Limpar tudo
-              </button>
-            )}
-          </div>
-          {notifs.length === 0 ? (
-            <div style={{ padding: '32px 14px', textAlign: 'center', fontSize: 12, color: 'var(--text3)' }}>
-              Nenhuma notificação ainda.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {notifs.map(n => (
-                <div key={n.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--mf-border)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: typeColor[n.type] || '#60a5fa', flexShrink: 0, marginTop: 4, boxShadow: `0 0 6px ${typeColor[n.type] || '#60a5fa'}` }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.4, wordBreak: 'break-word' }}>{n.msg}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 3 }}>
-                      {n.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /* ── Paleta de comandos ────────────────────────────────────────────────────
@@ -330,6 +244,10 @@ export default function MainLayout({ children }) {
   function logout() { removeToken(); navigate('/login'); }
 
   return (
+    /* O provider envolve a casca inteira: o sino fica na barra superior e a
+       pilha de avisos flutua sobre o conteúdo, e os dois precisam ler o mesmo
+       estado. Fora daqui, o aviso não teria onde aparecer. */
+    <SmartActivityProvider>
     <div data-mf>
       <div className="mf-app" data-collapsed={recolhida} data-drawer={gaveta}>
 
@@ -391,12 +309,12 @@ export default function MainLayout({ children }) {
 
             <div className="mf-top__spacer" />
 
-            <NotificationBell />
+            <SinoDeNotificacoes />
 
             <div style={{
               width: 30, height: 30, borderRadius: 'var(--mf-r-full)', flexShrink: 0,
               background: 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500))',
-              display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700,
+              display: 'grid', placeItems: 'center', fontSize: 'var(--mf-t-micro)', fontWeight: 700,
               color: 'var(--mf-primary-fg)',
             }} title="Vitor Marcelo Moura">VM</div>
           </header>
@@ -411,6 +329,8 @@ export default function MainLayout({ children }) {
       </div>
 
       <PaletaComandos aberta={paleta} aoFechar={() => setPaleta(false)} />
+      <PilhaDeAvisos />
     </div>
+    </SmartActivityProvider>
   );
 }

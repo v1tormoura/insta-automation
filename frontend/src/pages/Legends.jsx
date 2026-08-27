@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import { EsqueletoLista } from '../components/Estados';
 
 export default function Legends() {
   const [legends, setLegends]   = useState([]);
@@ -15,7 +16,12 @@ export default function Legends() {
 
   function showToast(type, t, message) { setToast({ type, title: t, message }); setTimeout(() => setToast(null), 3500); }
 
-  async function load() { const res = await api.get('/legends'); setLegends(res.data); }
+  const [primeiraCarga, setPrimeiraCarga] = useState(true);
+
+  async function load() {
+    try { const res = await api.get('/legends'); setLegends(res.data); }
+    finally { setPrimeiraCarga(false); }
+  }
 
   useEffect(() => { load(); }, []);
 
@@ -69,7 +75,7 @@ export default function Legends() {
   );
 
   const pageActions = (
-    <span style={{ fontSize: '.78rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 8, padding: '4px 10px' }}>
+    <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
       {legends.length} legendas
     </span>
   );
@@ -77,7 +83,7 @@ export default function Legends() {
   const cardStyle = {
     background: 'oklch(0.16 0.05 235 / 0.85)',
     border: '1px solid var(--mf-border)',
-    borderRadius: 14,
+    borderRadius: 'var(--mf-r-lg)',
     backdropFilter: 'blur(12px)',
     overflow: 'hidden',
   };
@@ -101,7 +107,7 @@ export default function Legends() {
             style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 0, position: 'sticky', top: 16, alignSelf: 'start' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {editId ? (
                   <>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-primary-300)" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -109,15 +115,15 @@ export default function Legends() {
                   </>
                 ) : 'Nova legenda'}
               </h3>
-              <span style={{ fontSize: 11, color: text.length > 2000 ? 'var(--mf-danger-500)' : 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{text.length} chars</span>
+              <span style={{ fontSize: 'var(--mf-t-micro)', color: text.length > 2000 ? 'var(--mf-danger-500)' : 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{text.length} chars</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 14 }}>
               {editId && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', fontSize: 12, color: 'var(--mf-primary-300)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-primary-300)' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   Modo edição ativo
-                  <button type="button" onClick={cancelEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--mf-primary-300)', cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: 0 }}>Cancelar</button>
+                  <button type="button" onClick={cancelEdit} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--mf-primary-300)', cursor: 'pointer', fontSize: 'var(--mf-t-micro)', fontWeight: 600, padding: 0 }}>Cancelar</button>
                 </div>
               )}
 
@@ -136,11 +142,11 @@ export default function Legends() {
 
               <div style={{ display: 'flex', gap: 8 }}>
                 {editId && (
-                  <button type="button" className="btn-ghost" onClick={cancelEdit} style={{ flex: 1, padding: '9px', borderRadius: 9, fontSize: '.83rem' }}>
+                  <button type="button" className="btn-ghost" onClick={cancelEdit} style={{ flex: 1, padding: '9px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)' }}>
                     Cancelar
                   </button>
                 )}
-                <button className="btn-primary" type="submit" style={{ flex: 1, padding: '9px', borderRadius: 9, fontSize: '.83rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button className="btn-primary" type="submit" style={{ flex: 1, padding: '9px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {editId ? 'Salvar alterações' : 'Salvar legenda'}
                 </button>
               </div>
@@ -150,17 +156,20 @@ export default function Legends() {
           {/* ── Lista ── */}
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', flexWrap: 'wrap', gap: 8 }}>
-              <h3 style={{ fontSize: '.88rem', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Legendas salvas</h3>
+              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Legendas salvas</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 8, padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color .15s' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color var(--mf-fast) var(--mf-ease-out)' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--mf-text)', fontSize: 12, width: '100%' }} />
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--mf-text)', fontSize: 'var(--mf-t-xs)', width: '100%' }} />
                 </div>
-                <span style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{filtered.length} total</span>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{filtered.length} total</span>
               </div>
             </div>
 
             <div style={{ padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
+              {primeiraCarga && !filtered.length && (
+                <div style={{ gridColumn: '1 / -1' }}><EsqueletoLista itens={4} /></div>
+              )}
               {filtered.map((legend, i) => (
                 <motion.div
                   key={legend._id}
@@ -170,20 +179,20 @@ export default function Legends() {
                   style={{
                     background: 'oklch(0.12 0.04 235 / 0.7)',
                     border: `1px solid ${editId === legend._id ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
-                    borderRadius: 11, overflow: 'hidden',
+                    borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
                     boxShadow: editId === legend._id ? '0 0 0 2px color-mix(in oklch, var(--mf-primary-500) 20%, transparent)' : 'none',
                   }}
                 >
                   <div className="legend-card-top" style={{ padding: '10px 12px', borderBottom: '1px solid var(--mf-border)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '.83rem', color: 'var(--mf-text)' }}>{legend.title}</strong>
-                    <span style={{ fontSize: '.65rem', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color: 'var(--mf-mod-publicar)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)', borderRadius: 100, padding: '1px 7px', flexShrink: 0 }}>{legend.category}</span>
+                    <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text)' }}>{legend.title}</strong>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color: 'var(--mf-mod-publicar)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)', borderRadius: 'var(--mf-r-full)', padding: '1px 7px', flexShrink: 0 }}>{legend.category}</span>
                   </div>
-                  <p style={{ margin: 0, padding: '8px 12px', fontSize: '.78rem', color: 'var(--mf-text-3)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{legend.text}</p>
+                  <p style={{ margin: 0, padding: '8px 12px', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{legend.text}</p>
                   <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid var(--mf-border)' }}>
                     <button
                       className="btn-ghost"
                       onClick={() => startEdit(legend)}
-                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '5px', borderRadius: 7, fontSize: '.75rem' }}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '5px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)' }}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       Editar
@@ -191,7 +200,7 @@ export default function Legends() {
                     <button
                       className="btn-danger"
                       onClick={() => deleteLegend(legend._id)}
-                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px', borderRadius: 7, fontSize: '.75rem' }}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)' }}
                     >
                       Excluir
                     </button>
@@ -199,7 +208,7 @@ export default function Legends() {
                 </motion.div>
               ))}
               {!filtered.length && (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: '.85rem' }}>
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>
                   {search ? 'Nenhuma legenda encontrada.' : 'Nenhuma legenda salva ainda.'}
                 </div>
               )}

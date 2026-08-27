@@ -9,6 +9,7 @@ import CommentEditor from '../components/campaign/CommentEditor';
 import CampaignPreview from '../components/campaign/CampaignPreview';
 import ContentPicker from '../components/campaign/ContentPicker';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
+import { EsqueletoLista } from '../components/Estados';
 
 /**
  * Wizard de criação de campanha (fase 5).
@@ -52,10 +53,10 @@ function Trilha({ etapa, setEtapa }) {
         gridTemplateColumns:`repeat(${total}, minmax(74px, 1fr))`, minWidth:'min(100%, 620px)' }}>
 
         {/* trilho de fundo + preenchimento */}
-        <div aria-hidden style={{ position:'absolute', top:15, height:2, borderRadius:2,
+        <div aria-hidden style={{ position:'absolute', top:15, height:2, borderRadius: 'var(--mf-r-xs)',
           left:`calc(50% / ${total})`, right:`calc(50% / ${total})`,
           background:'var(--mf-border)' }} />
-        <div aria-hidden style={{ position:'absolute', top:15, height:2, borderRadius:2,
+        <div aria-hidden style={{ position:'absolute', top:15, height:2, borderRadius: 'var(--mf-r-xs)',
           left:`calc(50% / ${total})`, width:`calc((100% - 100% / ${total}) * ${progresso / 100})`,
           background:'linear-gradient(90deg, var(--mf-success-500), var(--mf-mod-campanhas, var(--mf-accent-500)))',
           transition:'width .32s cubic-bezier(.4,0,.2,1)' }} />
@@ -77,8 +78,8 @@ function Trilha({ etapa, setEtapa }) {
                 cursor: i <= etapa ? 'pointer' : 'default',
               }}>
               <span style={{
-                width:30, height:30, borderRadius:'50%', display:'grid', placeItems:'center',
-                fontFamily:'var(--mf-mono)', fontSize:11, fontWeight:750, lineHeight:1,
+                width:30, height:30, borderRadius: 'var(--mf-r-full)', display:'grid', placeItems:'center',
+                fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', fontWeight:750, lineHeight:1,
                 color: atual ? 'var(--mf-bg)' : cor,
                 background: atual ? 'var(--mf-mod-campanhas, var(--mf-accent-500))'
                           : feito ? 'color-mix(in oklch, var(--mf-success-500) 16%, var(--mf-surface-2))'
@@ -92,7 +93,7 @@ function Trilha({ etapa, setEtapa }) {
                   : String(i + 1).padStart(2, '0')}
               </span>
               <span style={{
-                fontSize:10.5, fontWeight: atual ? 750 : 600, color: atual ? 'var(--mf-text)' : cor,
+                fontSize: 'var(--mf-t-nano)', fontWeight: atual ? 750 : 600, color: atual ? 'var(--mf-text)' : cor,
                 maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
                 transition:'color .2s',
               }}>{e.titulo}</span>
@@ -125,7 +126,7 @@ function Avatar({ conta, marcada }) {
 
   return (
     <span style={{
-      width:34, height:34, borderRadius:'50%', flexShrink:0, position:'relative',
+      width:34, height:34, borderRadius: 'var(--mf-r-full)', flexShrink:0, position:'relative',
       display:'grid', placeItems:'center', overflow:'hidden',
       background:'var(--mf-surface-3)',
       boxShadow:`0 0 0 2px ${anel}`,
@@ -135,13 +136,13 @@ function Avatar({ conta, marcada }) {
         <img src={src} alt="" onError={() => setFalhou(true)}
           style={{ width:'100%', height:'100%', objectFit:'cover' }} />
       ) : (
-        <span style={{ fontSize:11, fontWeight:750, color:'var(--mf-text-3)', letterSpacing:'.02em' }}>
+        <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight:750, color:'var(--mf-text-3)', letterSpacing:'.02em' }}>
           {iniciaisDe(conta.username)}
         </span>
       )}
       {marcada && (
         <span style={{
-          position:'absolute', right:-1, bottom:-1, width:14, height:14, borderRadius:'50%',
+          position:'absolute', right:-1, bottom:-1, width:14, height:14, borderRadius: 'var(--mf-r-full)',
           display:'grid', placeItems:'center',
           background:'var(--mf-mod-contas)', border:'2px solid var(--mf-surface-2)',
         }}>
@@ -213,6 +214,7 @@ export default function CampaignWizard() {
   /* Quantas contas do rascunho não existiam mais. Vira aviso assim que a lista
      chega — silenciar seria pior: a pessoa montou a campanha contando com elas. */
   const [contasPodadas, setContasPodadas] = useState(0);
+  const [contasCarregando, setContasCarregando] = useState(true);
   const [midias, setMidias] = useState([]);
   const [buscaConta, setBuscaConta]   = useState('');
   const [filtroConta, setFiltroConta] = useState('todas');
@@ -275,7 +277,8 @@ export default function CampaignWizard() {
           return { ...f, accountIds: mantidos };
         });
       })
-      .catch(() => aviso('error', 'Erro', 'Não foi possível carregar as contas.'));
+      .catch(() => aviso('error', 'Erro', 'Não foi possível carregar as contas.'))
+      .finally(() => setContasCarregando(false));
 
     api.get('/media')
       .then(({ data }) => {
@@ -439,15 +442,15 @@ export default function CampaignWizard() {
   /* ── Blocos de UI ──────────────────────────────────────────────────────── */
 
   const rotulo = t => (
-    <label style={{ display:'block', fontSize:11, fontWeight:700, color:'var(--mf-text-2)', marginBottom:6, letterSpacing:'.04em' }}>{t}</label>
+    <label style={{ display:'block', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:6, letterSpacing:'.04em' }}>{t}</label>
   );
 
   const painel = (titulo, filhos, extra = {}) => (
     <div style={{ background:'var(--mf-surface-1)', border:'1px solid var(--mf-border)',
-      borderRadius:16, padding:18, marginBottom:14,
+      borderRadius: 'var(--mf-r-lg)', padding:18, marginBottom:14,
       boxShadow:'0 1px 2px oklch(0 0 0 / .28)', ...extra }}>
       {titulo && (
-        <h3 style={{ margin:'0 0 14px', fontSize:13, fontWeight:700, color:'var(--mf-text)' }}>
+        <h3 style={{ margin:'0 0 14px', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)' }}>
           {titulo}
         </h3>
       )}
@@ -489,7 +492,7 @@ export default function CampaignWizard() {
           value={buscaConta} onChange={e => setBuscaConta(e.target.value)} />
         {[['todas','Todas'], ['mobile','API Mobile'], ['oficial','Oficial'], ['saudavel','Saudáveis']].map(([id, r]) => (
           <button key={id} onClick={() => setFiltroConta(id)} style={{
-            padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+            padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
             background: filtroConta === id ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
             color:      filtroConta === id ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
             border:     `1px solid ${filtroConta === id ? 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'var(--mf-border)'}`,
@@ -501,22 +504,25 @@ export default function CampaignWizard() {
             ? f.accountIds.filter(id => !visiveis.includes(id))
             : [...new Set([...f.accountIds, ...visiveis])],
         }))} style={{
-          padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+          padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
           background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)',
         }}>{todasMarcadas ? 'Desmarcar' : 'Selecionar todas'}</button>
       </div>
 
-      <div style={{ fontSize:12, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700, marginBottom:10 }}>
+      <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700, marginBottom:10 }}>
         {form.accountIds.length} conta(s) selecionada(s)
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(230px,100%),1fr))', gap:8 }}>
+        {contasCarregando && !contasFiltradas.length && (
+          <div style={{ gridColumn: '1 / -1' }}><EsqueletoLista itens={4} /></div>
+        )}
         {contasFiltradas.map(c => {
           const marcada = form.accountIds.includes(c._id);
           const saudavel = !c.healthStatus || c.healthStatus === 'ativa';
           return (
             <button key={c._id} onClick={() => alternar(c._id)} style={{
-              display:'flex', alignItems:'center', gap:10, padding:'9px 11px', borderRadius:12,
+              display:'flex', alignItems:'center', gap:10, padding:'9px 11px', borderRadius: 'var(--mf-r-md)',
               textAlign:'left', cursor:'pointer', transition:'all .15s cubic-bezier(.4,0,.2,1)',
               background: marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 10%, var(--mf-surface-2))' : 'var(--mf-surface-2)',
               border: `1px solid ${marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 42%, transparent)' : 'var(--mf-border)'}`,
@@ -528,16 +534,16 @@ export default function CampaignWizard() {
               <Avatar conta={c} marcada={marcada} />
 
               <div style={{ minWidth:0, flex:1 }}>
-                <div style={{ fontSize:12, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis',
+                <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, overflow:'hidden', textOverflow:'ellipsis',
                   whiteSpace:'nowrap', color: marcada ? 'var(--mf-text)' : 'var(--mf-text-2)' }}>
                   @{c.username}
                 </div>
                 <div style={{ display:'flex', gap:5, marginTop:3, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:20,
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'1px 6px', borderRadius: 'var(--mf-r-xl)',
                     background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)' }}>
                     {c.provider === 'instagrapi' ? 'API Mobile' : 'Oficial'}
                   </span>
-                  <span style={{ fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:20,
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'1px 6px', borderRadius: 'var(--mf-r-xl)',
                     background: saudavel ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)',
                     color: saudavel ? 'var(--mf-success-500)' : 'var(--mf-danger-500)' }}>
                     {saudavel ? 'Saudável' : c.healthStatus}
@@ -548,7 +554,7 @@ export default function CampaignWizard() {
           );
         })}
         {!contasFiltradas.length && (
-          <div style={{ gridColumn:'1/-1', padding:'26px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize:12 }}>
+          <div style={{ gridColumn:'1/-1', padding:'26px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
             Nenhuma conta encontrada com esse filtro.
           </div>
         )}
@@ -599,8 +605,8 @@ export default function CampaignWizard() {
         contents={rotulosConteudos}
       />
 
-      <div style={{ fontSize:11, color:'var(--mf-text-3)', background:'var(--mf-border-subtle)',
-        border:'1px solid var(--mf-border)', borderRadius:9, padding:'11px 13px', lineHeight:1.65 }}>
+      <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'var(--mf-border-subtle)',
+        border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'11px 13px', lineHeight:1.65 }}>
         A prioridade na hora de publicar é <strong>conta + conteúdo</strong> → <strong>conta</strong> →
         <strong> conteúdo</strong> → <strong>geral</strong>. Campo vazio cai para o nível seguinte, então
         dá para preencher só as exceções e deixar o resto na legenda geral.
@@ -625,8 +631,8 @@ export default function CampaignWizard() {
       />
 
       {form.commentMode !== 'disabled' && (
-        <div style={{ fontSize:11, color:'var(--mf-text-3)', background:'var(--mf-border-subtle)',
-          border:'1px solid var(--mf-border)', borderRadius:9, padding:'11px 13px',
+        <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'var(--mf-border-subtle)',
+          border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'11px 13px',
           lineHeight:1.65, marginTop:14 }}>
           O comentário é agendado como tarefa própria — não trava o processamento das
           outras publicações enquanto espera o atraso.
@@ -642,17 +648,17 @@ export default function CampaignWizard() {
           const ativa = form.strategy.mode === e.id;
           return (
             <button key={e.id} onClick={() => mudarEm('strategy', 'mode', e.id)} style={{
-              textAlign:'left', padding:'12px 14px', borderRadius:11, cursor:'pointer', transition:'all .15s',
+              textAlign:'left', padding:'12px 14px', borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'all .15s',
               background: ativa ? 'color-mix(in oklch, var(--mf-mod-contas) 9%, transparent)' : 'var(--mf-border-subtle)',
               border: `1px solid ${ativa ? 'color-mix(in oklch, var(--mf-mod-contas) 38%, transparent)' : 'var(--mf-border)'}`,
             }}>
               <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-                <span style={{ width:14, height:14, borderRadius:'50%', flexShrink:0,
+                <span style={{ width:14, height:14, borderRadius: 'var(--mf-r-full)', flexShrink:0,
                   border:`2px solid ${ativa ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`,
                   background: ativa ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent' }} />
-                <span style={{ fontSize:12.5, fontWeight:700, color: ativa ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)' }}>{e.nome}</span>
+                <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color: ativa ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)' }}>{e.nome}</span>
               </div>
-              <div style={{ fontSize:11, color:'var(--mf-text-3)', marginTop:5, lineHeight:1.55, paddingLeft:23 }}>{e.desc}</div>
+              <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:5, lineHeight:1.55, paddingLeft:23 }}>{e.desc}</div>
             </button>
           );
         })}
@@ -670,7 +676,7 @@ export default function CampaignWizard() {
         <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', marginBottom:12 }}>
           <input type="checkbox" checked={s.useFixedInterval}
             onChange={e => mudarEm('schedule', 'useFixedInterval', e.target.checked)} />
-          <span style={{ fontSize:12, fontWeight:600 }}>Usar intervalo fixo</span>
+          <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600 }}>Usar intervalo fixo</span>
         </label>
 
         <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
@@ -716,7 +722,7 @@ export default function CampaignWizard() {
             const ativo = s.weekdays.includes(d.n);
             return (
               <button key={d.n} onClick={() => alternarDia(d.n)} style={{
-                padding:'7px 12px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+                padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
                 background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
                 color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
                 border:     `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'var(--mf-border)'}`,
@@ -724,7 +730,7 @@ export default function CampaignWizard() {
             );
           })}
         </div>
-        <div style={{ fontSize:10.5, color:'var(--mf-text-3)', marginTop:9 }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:9 }}>
           Nenhum dia marcado = todos os dias. Horários no fuso de Brasília.
         </div>
       </>)}
@@ -733,9 +739,9 @@ export default function CampaignWizard() {
         <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
           <input type="checkbox" checked={form.settings.respectDailyLimit}
             onChange={e => mudarEm('settings', 'respectDailyLimit', e.target.checked)} />
-          <span style={{ fontSize:12, lineHeight:1.6 }}>
+          <span style={{ fontSize: 'var(--mf-t-xs)', lineHeight:1.6 }}>
             Não agendar além do limite diário de cada conta
-            <span style={{ display:'block', fontSize:10.5, color:'var(--mf-text-3)', marginTop:2 }}>
+            <span style={{ display:'block', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2 }}>
               A verificação na hora de publicar continua ativa de qualquer forma.
             </span>
           </span>
@@ -753,8 +759,8 @@ export default function CampaignWizard() {
     const linha = (rot, valor) => (
       <div key={rot} style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline',
         gap:12, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-        <span style={{ fontSize:11.5, color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{rot}</span>
-        <span style={{ fontSize:11.5, fontWeight:700, textAlign:'right', color:'var(--mf-text)',
+        <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{rot}</span>
+        <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, textAlign:'right', color:'var(--mf-text)',
           fontVariantNumeric:'tabular-nums' }}>{valor}</span>
       </div>
     );
@@ -762,11 +768,11 @@ export default function CampaignWizard() {
     /* Resumo antes do detalhe: são os três números que decidem se o plano está
        certo, e estavam perdidos no meio de oito linhas de igual peso. */
     const resumo = (n, rot, cor) => (
-      <div key={rot} style={{ flex:'1 1 110px', padding:'11px 13px', borderRadius:12,
+      <div key={rot} style={{ flex:'1 1 110px', padding:'11px 13px', borderRadius: 'var(--mf-r-md)',
         background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)' }}>
-        <div style={{ fontFamily:'var(--mf-mono)', fontSize:20, fontWeight:750, color:cor,
+        <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-h1)', fontWeight:750, color:cor,
           lineHeight:1.1, fontVariantNumeric:'tabular-nums' }}>{n}</div>
-        <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:3, letterSpacing:'.04em' }}>{rot}</div>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:3, letterSpacing:'.04em' }}>{rot}</div>
       </div>
     );
 
@@ -804,19 +810,19 @@ export default function CampaignWizard() {
         </div>
       </>)}
 
-      <div style={{ fontSize:11.5, lineHeight:1.7, color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)',
-        border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
+      <div style={{ fontSize: 'var(--mf-t-micro)', lineHeight:1.7, color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)',
+        border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px', marginBottom:14 }}>
         Ao publicar, o servidor grava exatamente o plano acima. A campanha fica visível na página
         dela antes de qualquer publicação sair — <strong>nada é enviado ao Instagram agora</strong>.
       </div>
 
       {erro && (
-        <div style={{ fontSize:12, color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
-          border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
+        <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
+          border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px', marginBottom:14 }}>
           <strong>{erro.code}</strong>
           <div style={{ marginTop:4, lineHeight:1.6 }}>{erro.message}</div>
           {!!erro.ids?.length && (
-            <div style={{ marginTop:6, fontFamily:'var(--mf-mono)', fontSize:10, opacity:.85 }}>
+            <div style={{ marginTop:6, fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', opacity:.85 }}>
               {erro.ids.join(', ')}
             </div>
           )}
@@ -845,7 +851,7 @@ export default function CampaignWizard() {
       subtitle={ETAPAS[etapa].desc}
       accent="cyan"
       actions={
-        <button onClick={() => navigate('/campaigns')} className="btn btn-ghost" style={{ fontSize:12 }}>
+        <button onClick={() => navigate('/campaigns')} className="btn btn-ghost" style={{ fontSize: 'var(--mf-t-xs)' }}>
           Sair do wizard
         </button>
       }
@@ -886,7 +892,7 @@ export default function CampaignWizard() {
           display:'flex', justifyContent:'space-between', alignItems:'center', gap:10,
           flexWrap:'wrap', marginTop:4,
           padding:'12px 14px',
-          borderRadius:14,
+          borderRadius: 'var(--mf-r-lg)',
           border:'1px solid var(--mf-border)',
           background:'color-mix(in oklch, var(--mf-surface-1) 88%, transparent)',
           backdropFilter:'blur(12px)',
@@ -900,7 +906,7 @@ export default function CampaignWizard() {
             {/* Na revisão o número real vem da prévia; repetir a estimativa aqui
                 mostraria dois totais diferentes na mesma tela. */}
             {totalPublicacoes > 0 && !ultima && (
-              <span style={{ fontFamily:'var(--mf-mono)', fontSize:11, color:'var(--mf-text-3)' }}>
+              <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
                 até {totalPublicacoes} publicações
               </span>
             )}

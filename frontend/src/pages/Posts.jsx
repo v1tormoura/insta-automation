@@ -9,6 +9,7 @@ import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
+import { EsqueletoLista } from '../components/Estados';
 
 /* ── Custom legend dropdown ── */
 function LegendDropdown({ legends, value, onChange }) {
@@ -34,9 +35,9 @@ function LegendDropdown({ legends, value, onChange }) {
           background: 'oklch(0.10 0.03 235 / 0.8)',
           border: `1px solid ${open ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
           borderRadius: open ? '9px 9px 0 0' : 9,
-          padding: '9px 12px', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+          padding: '9px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer', textAlign: 'left',
           color: selected ? 'var(--mf-text)' : 'var(--mf-text-3)',
-          transition: 'border-color .15s',
+          transition: 'border-color var(--mf-fast) var(--mf-ease-out)',
           boxShadow: open ? '0 0 0 3px oklch(0.82 0.19 196 / 0.08)' : 'none',
         }}
       >
@@ -44,7 +45,7 @@ function LegendDropdown({ legends, value, onChange }) {
           {selected ? selected.title : 'Selecione uma legenda salva...'}
         </span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
-          style={{ flexShrink: 0, marginLeft: 8, transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none', color: 'var(--mf-text-3)' }}>
+          style={{ flexShrink: 0, marginLeft: 8, transition: 'transform var(--mf-normal) var(--mf-ease-out)', transform: open ? 'rotate(180deg)' : 'none', color: 'var(--mf-text-3)' }}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
@@ -61,7 +62,7 @@ function LegendDropdown({ legends, value, onChange }) {
               key={l._id || 'empty'}
               onClick={() => { onChange(l._id); setOpen(false); }}
               style={{
-                padding: '9px 12px', fontSize: 13, cursor: 'pointer',
+                padding: '9px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer',
                 color: l._id === '' ? 'var(--mf-text-3)' : l._id === value ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)',
                 background: l._id !== '' && l._id === value ? 'oklch(0.82 0.19 196 / 0.08)' : 'transparent',
                 borderBottom: i < legends.length ? '1px solid var(--mf-border-subtle)' : 'none',
@@ -126,7 +127,7 @@ function MediaCard({ file, index, onRemove }) {
 
   return (
     <div style={{
-      position: 'relative', borderRadius: 9, overflow: 'hidden',
+      position: 'relative', borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
       background: 'oklch(0.12 0.04 235)', border: '1px solid var(--mf-border)',
       aspectRatio: '9/16',
     }}>
@@ -136,7 +137,7 @@ function MediaCard({ file, index, onRemove }) {
         style={{
           position: 'absolute', top: 5, right: 5, zIndex: 2,
           background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)',
-          borderRadius: 5, width: 20, height: 20, cursor: 'pointer', fontSize: 10,
+          borderRadius: 'var(--mf-r-xs)', width: 20, height: 20, cursor: 'pointer', fontSize: 'var(--mf-t-nano)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >✕</button>
@@ -161,10 +162,10 @@ function MediaCard({ file, index, onRemove }) {
         background: 'linear-gradient(transparent, oklch(0 0 0 / 0.78))',
         padding: '22px 6px 5px', pointerEvents: 'none',
       }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>
           #{index + 1}
         </div>
-        <div style={{ fontSize: 9, color: 'var(--mf-surface-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-surface-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {file.name}
         </div>
       </div>
@@ -188,8 +189,12 @@ export default function Posts() {
      checagem nos três lugares que usam a capa — e foi a falta dela que fez
      escolher uma capa apagar a tela. */
   const nomeDaCapa = coverLibFile?.originalName || coverLibFile?.filename || '';
+  /* `API`, do escopo do módulo — não `API_URL`, que só existe dentro de um
+     callback lá embaixo. Referenciado aqui, lançava ReferenceError, e esta
+     linha só executa quando há capa escolhida: era a tela azul ao selecionar
+     capa da biblioteca. O build não pega, porque o Vite não analisa escopo. */
   const urlDaCapa  = coverLibFile
-    ? (coverLibFile.url ? `${API_URL}${coverLibFile.url}` : `${API_URL}/uploads/${coverLibFile.filename || ''}`)
+    ? (coverLibFile.url ? `${API}${coverLibFile.url}` : `${API}/uploads/${coverLibFile.filename || ''}`)
     : '';
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [scheduledAt, setScheduledAt] = useState('');
@@ -260,6 +265,8 @@ export default function Posts() {
     setToast({ type, title, message });
     setTimeout(() => setToast(null), 3500);
   }
+
+  const [primeiraCarga, setPrimeiraCarga] = useState(true);
 
   async function load(targetPage = postPage) {
     try {
@@ -374,10 +381,10 @@ export default function Posts() {
   /* ── Header actions ── */
   const pageActions = (
     <>
-      <button className="btn-ghost" style={{ fontSize: '.8rem', padding: '7px 14px', borderRadius: 8 }} type="button" onClick={retryAllErrors} disabled={retryingAll}>
+      <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-sm)', padding: '7px 14px', borderRadius: 'var(--mf-r-sm)' }} type="button" onClick={retryAllErrors} disabled={retryingAll}>
         ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
       </button>
-      <button className="btn-primary" style={{ fontSize: '.83rem', padding: '7px 16px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, minWidth: 120, justifyContent: 'center', opacity: posting ? 0.8 : 1 }} type="button"
+      <button className="btn-primary" style={{ fontSize: 'var(--mf-t-sm)', padding: '7px 16px', borderRadius: 'var(--mf-r-sm)', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, minWidth: 120, justifyContent: 'center', opacity: posting ? 0.8 : 1 }} type="button"
         disabled={posting}
         onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
         {posting ? (
@@ -500,11 +507,11 @@ export default function Posts() {
                   <button type="button"
                     onClick={() => setMediaSource('upload')}
                     style={{
-                      padding: '10px 12px', borderRadius: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       border: `1.5px solid ${mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
                       background: mediaSource === 'upload' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'oklch(0.12 0.04 235)',
                       color: mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
-                      fontWeight: mediaSource === 'upload' ? 700 : 500, fontSize: '.82rem', transition: '.15s',
+                      fontWeight: mediaSource === 'upload' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                     }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -514,11 +521,11 @@ export default function Posts() {
                   <button type="button"
                     onClick={() => { setMediaSource('library'); setShowLibPicker(true); }}
                     style={{
-                      padding: '10px 12px', borderRadius: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       border: `1.5px solid ${mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
                       background: mediaSource === 'library' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'oklch(0.12 0.04 235)',
                       color: mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
-                      fontWeight: mediaSource === 'library' ? 700 : 500, fontSize: '.82rem', transition: '.15s',
+                      fontWeight: mediaSource === 'library' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                     }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -565,16 +572,16 @@ export default function Posts() {
                 ) : (
                   <>
                     <button type="button" onClick={() => setShowLibPicker(true)}
-                      style={{ width: '100%', padding: '18px 16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 10, background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: '.15s' }}>
+                      style={{ width: '100%', padding: '18px 16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>Escolher da biblioteca</span>
-                      <span style={{ fontSize: 11, color: 'var(--mf-text-3)' }}>Selecione mídias já enviadas nas suas pastas</span>
+                      <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600 }}>Escolher da biblioteca</span>
+                      <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Selecione mídias já enviadas nas suas pastas</span>
                     </button>
                     {libraryMedia.length > 0 && (
                       <div style={{ marginTop: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <span style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{libraryMedia.length} selecionado(s)</span>
-                          <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 11, color: 'var(--mf-mod, var(--mf-accent-500))', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
+                          <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{libraryMedia.length} selecionado(s)</span>
+                          <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-mod, var(--mf-accent-500))', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6 }}>
                           {libraryMedia.map((m, i) => {
@@ -582,12 +589,12 @@ export default function Posts() {
                             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
                             const src = isVideo ? `${API_URL}/uploads/${(m.filename||'').replace(/\.[^.]+$/,'')}.thumb.jpg` : `${API_URL}${m.url || `/uploads/${m.filename}`}`;
                             return (
-                              <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'oklch(0.12 0.04 235)' }}>
+                              <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'oklch(0.12 0.04 235)' }}>
                                 <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
                                 <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
-                                   style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 4, background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                                   style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)', cursor: 'pointer', fontSize: 'var(--mf-t-nano)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 3px' }}>
-                                  <div style={{ fontSize: 8, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{i+1} {m.originalName || m.filename}</div>
+                                  <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{i+1} {m.originalName || m.filename}</div>
                                 </div>
                               </div>
                             );
@@ -604,14 +611,14 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Capa do Reel</h3>
-                <span style={{ fontSize: '.73rem', color: 'var(--mf-text-3)' }}>Opcional — aplica a todos</span>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Opcional — aplica a todos</span>
               </div>
               <div style={cardBodyStyle}>
                 {/* Botões de origem */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   <button type="button"
                     onClick={() => setShowCoverPicker(true)}
-                    style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid var(--mf-border)', background: coverLibFile ? 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' : 'var(--mf-border-subtle)', color: coverLibFile ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}>
+                    style={{ flex: 1, padding: '8px 0', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)', background: coverLibFile ? 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' : 'var(--mf-border-subtle)', color: coverLibFile ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)', fontSize: 'var(--mf-t-xs)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                     {/* `filename` não é obrigatório no modelo de mídia, então
                         pode chegar vazio. Antes isto era `.slice()` direto num
@@ -619,7 +626,7 @@ export default function Posts() {
                         inteiro — a tela ficava em branco ao escolher a capa. */}
                     {nomeDaCapa ? nomeDaCapa.slice(0, 18) + (nomeDaCapa.length > 18 ? '…' : '') : 'Da biblioteca'}
                   </button>
-                  <label style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid var(--mf-border)', background: cover ? 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)' : 'var(--mf-border-subtle)', color: cover ? 'var(--mf-info-500)' : 'var(--mf-text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: '.15s' }}>
+                  <label style={{ flex: 1, padding: '8px 0', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)', background: cover ? 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)' : 'var(--mf-border-subtle)', color: cover ? 'var(--mf-info-500)' : 'var(--mf-text-2)', fontSize: 'var(--mf-t-xs)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                     <input type="file" accept="image/*" style={{ display: 'none' }}
                       onChange={e => { setCover(e.target.files?.[0] || null); setCoverLibFile(null); }} />
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -630,14 +637,14 @@ export default function Posts() {
                 {(cover || coverLibFile) ? (
                   <div style={{ position: 'relative', display: 'inline-block' }}>
                     {cover
-                      ? <img src={URL.createObjectURL(cover)} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
-                      : <img src={urlDaCapa} alt="Capa" style={{ height: 80, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
+                      ? <img src={URL.createObjectURL(cover)} alt="Capa" style={{ height: 80, borderRadius: 'var(--mf-r-sm)', objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
+                      : <img src={urlDaCapa} alt="Capa" style={{ height: 80, borderRadius: 'var(--mf-r-sm)', objectFit: 'cover', border: '1px solid var(--mf-border)' }} />
                     }
                     <button type="button" onClick={() => { setCover(null); setCoverLibFile(null); }}
-                      style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--mf-danger-500)', border: 'none', color: 'var(--mf-text)', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                      style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-danger-500)', border: 'none', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 11, color: 'var(--mf-text-3)', fontStyle: 'italic' }}>Sem capa — usa o primeiro frame do vídeo</div>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontStyle: 'italic' }}>Sem capa — usa o primeiro frame do vídeo</div>
                 )}
               </div>
             </div>
@@ -648,7 +655,7 @@ export default function Posts() {
                 <h3 style={cardH3Style}>Legenda</h3>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/legends')}>Gerenciar →</button>
-                  <span style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{caption.length}/2200</span>
+                  <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{caption.length}/2200</span>
                 </div>
               </div>
               <div style={cardBodyStyle}>
@@ -667,7 +674,7 @@ export default function Posts() {
                 <textarea className="txta"
                   placeholder="Escreva a legenda do seu post. Use #hashtags e {variáveis}."
                   value={caption} maxLength={2200} onChange={e => setCaption(e.target.value)} rows={4} />
-                <div style={{ fontSize: 11, color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
                   Variáveis: {'{data}'} {'{hora}'} {'{username}'} {'{nome}'} {'{cidade}'}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -676,13 +683,13 @@ export default function Posts() {
                 {/* CTA sufixo automático */}
                 <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ctaSuffix.enabled ? 8 : 0 }}>
-                    <label style={{ fontSize: 12, color: 'var(--mf-text-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                    <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
                       <input type="checkbox" checked={ctaSuffix.enabled} onChange={e => updateCtaSuffix({ enabled: e.target.checked })}
                         style={{ accentColor: 'var(--mf-mod, var(--mf-accent-500))', width: 14, height: 14 }} />
                       Sufixo automático na legenda
                     </label>
                     {ctaSuffix.enabled && (
-                      <span style={{ fontSize: 10, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>adicionado ao final</span>
+                      <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>adicionado ao final</span>
                     )}
                   </div>
                   {ctaSuffix.enabled && (
@@ -697,7 +704,7 @@ export default function Posts() {
                 </div>
 
                 <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
-                  <div style={{ fontSize: 12, color: 'var(--mf-text-2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     Localização (opcional)
                   </div>
@@ -715,7 +722,7 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Pergunta de engajamento</h3>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: engageComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: engageComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
                   <input
                     type="checkbox"
                     checked={!!engageComment}
@@ -730,7 +737,7 @@ export default function Posts() {
                     placeholder="Ex: Gostaram? Comenta aí! 👇"
                     value={engageComment}
                     onChange={e => setEngageComment(e.target.value)} />
-                  <div style={{ fontSize: 11, color: 'var(--mf-text-3)', marginTop: 4 }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4 }}>
                     Postado ~60 min após publicar · estimula comentários pro algoritmo
                   </div>
                 </div>
@@ -741,7 +748,7 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Comentário fixado automático</h3>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: ctaComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: ctaComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
                   <input
                     type="checkbox"
                     checked={!!ctaComment}
@@ -756,7 +763,7 @@ export default function Posts() {
                     placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
                     value={ctaComment}
                     onChange={e => setCtaComment(e.target.value)} />
-                  <div style={{ fontSize: 11, color: 'var(--mf-text-3)', marginTop: 4 }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4 }}>
                     Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'}
                   </div>
                 </div>
@@ -776,27 +783,27 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Publicações simultâneas</h3>
-                <span style={{ fontSize: '.72rem', fontFamily: 'var(--mf-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 100, padding: '2px 10px' }}>
+                <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 'var(--mf-r-full)', padding: '2px 10px' }}>
                   {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
                 </span>
               </div>
               <div style={cardBodyStyle}>
-                <p style={{ fontSize: 11, color: 'var(--mf-text-2)', marginBottom: 12 }}>
+                <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 12 }}>
                   Quantos reels entram em cada rodada. Dentro da rodada as publicações saem
                   uma a uma, com 2 a 5 min entre elas e ordem de contas sorteada.
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>LOTE</span>
-                  <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--mf-info-500)', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
-                  <span style={{ fontSize: 14, color: 'var(--mf-text-3)' }}>/{Math.max(media.length, 1)} reels</span>
+                  <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>LOTE</span>
+                  <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, color: 'var(--mf-info-500)', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
+                  <span style={{ fontSize: 'var(--mf-t-body)', color: 'var(--mf-text-3)' }}>/{Math.max(media.length, 1)} reels</span>
                 </div>
                 <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
                   onChange={e => setSimultaneousLimit(Number(e.target.value))}
                   style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
                   <span>1</span><span>{Math.max(media.length, 1)}</span>
                 </div>
-                <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', borderRadius: 8, border: '1px solid color-mix(in oklch, var(--mf-info-500) 15%, transparent)', fontSize: 11, color: 'var(--mf-info-500)', lineHeight: 1.5 }}>
+                <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 15%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-info-500)', lineHeight: 1.5 }}>
                   {simultaneousLimit === 1
                     ? 'Sequencial — 1 reel por rodada, enviado conta a conta com intervalo humano entre cada publicação.'
                     : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} entram na mesma rodada, mas as publicações saem uma de cada vez: nenhuma conta recebe dois posts seguidos.`
@@ -809,17 +816,17 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Intervalo entre posts</h3>
-                <span style={{ fontSize: '.83rem', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>{intervalMins} min</span>
+                <span style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>{intervalMins} min</span>
               </div>
               <div style={cardBodyStyle}>
                 <input type="range" min="1" max="120" step="1" value={Math.max(1, intervalMins)}
                   onChange={e => setIntervalMins(Number(e.target.value))}
                   style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer', marginBottom: 6 }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
                   <span>1 min</span><span>120 min</span>
                 </div>
                 <div style={{ marginTop: 10 }}>
-                  <label style={{ fontSize: 12, color: 'var(--mf-text-2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>
+                  <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>
                   <input className="inp" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
                 </div>
               </div>
@@ -829,23 +836,23 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Modo de processamento</h3>
-                <span style={{ fontSize: '.73rem', color: 'var(--mf-text-3)' }}>Limpeza aplicada</span>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Limpeza aplicada</span>
               </div>
               <div style={cardBodyStyle}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {processModes.map(m => (
                     <div key={m.id} onClick={() => setProcessMode(m.id)}
                       style={{
-                        padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: '1px solid',
+                        padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
                         background: processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
                         borderColor: processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
-                        transition: 'all .15s',
+                        transition: 'all var(--mf-fast) var(--mf-ease-out)',
                       }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
+                        <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
+                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--mf-text-3)' }}>{m.desc}</div>
+                      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
                     </div>
                   ))}
                 </div>
@@ -858,7 +865,7 @@ export default function Posts() {
                 <h3 style={cardH3Style}>Contas</h3>
               </div>
               <div style={cardBodyStyle}>
-                <div style={{ fontSize: 11, color: 'var(--mf-text-2)', marginBottom: 10 }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 10 }}>
                   Selecione onde publicar — cada conta posta 1 vez por mídia
                 </div>
 
@@ -872,8 +879,8 @@ export default function Posts() {
                 <div className="g3" style={{ gap: 6, marginTop: 12 }}>
                   {[['Mídias', media.length, 'var(--mf-info-500)'], ['Contas', selectedCount, 'var(--mf-mod-publicar)'], ['Total', totalEstimated, 'var(--mf-mod, var(--mf-accent-500))']].map(([l, v, c]) => (
                     <div key={l} style={{ textAlign:'center', background:'var(--mf-surface-2)', borderRadius:'var(--mf-r-md)', padding:'var(--mf-2) var(--mf-1)', border:'1px solid var(--mf-border)', minWidth:0 }}>
-                      <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: -1, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
-                      <div style={{ fontSize: 10, color: 'var(--mf-text-3)', marginTop: 2, fontFamily: 'var(--mf-mono)' }}>{l}</div>
+                      <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, letterSpacing: -1, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2, fontFamily: 'var(--mf-mono)' }}>{l}</div>
                     </div>
                   ))}
                 </div>
@@ -881,8 +888,8 @@ export default function Posts() {
                 <button className="btn-primary" type="submit" disabled={posting}
                   style={{
                     width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12,
-                    fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10,
-                    transition: 'all .2s',
+                    fontSize: 'var(--mf-t-body)', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 'var(--mf-r-md)',
+                    transition: 'all var(--mf-normal) var(--mf-ease-out)',
                     background: posted
                       ? 'linear-gradient(135deg,var(--mf-success-500),#059669)'
                       : undefined,
@@ -913,9 +920,10 @@ export default function Posts() {
           <div style={{ ...cardStyle, marginTop: 4 }}>
             <div style={cardHdStyle}>
               <h3 style={cardH3Style}>Posts registrados</h3>
-              <span style={{ fontSize: '.73rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{postPagination?.total || posts.length} no total</span>
+              <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{postPagination?.total || posts.length} no total</span>
             </div>
             <div className="queue-list">
+              {primeiraCarga && !posts.length && <EsqueletoLista itens={5} />}
               {posts.map(post => (
                 <div className="queue-row" key={post._id}>
                   <div className="queue-icon" style={{ background: post.postType === 'reel' ? 'var(--indigo-dim)' : 'var(--cyan-dim)' }}>
@@ -929,11 +937,11 @@ export default function Posts() {
                   <div className="queue-info">
                     <strong>{post.postType === 'reel' ? 'Reel' : 'Post'}</strong>
                     <span>{post.accounts?.map(a => `@${a.username}`).join(', ') || 'Sem conta'}</span>
-                    {post.error && <em style={{ fontSize: 11, color: 'var(--mf-danger-500)', display: 'block', marginTop: 1 }}>{post.error}</em>}
+                    {post.error && <em style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', display: 'block', marginTop: 1 }}>{post.error}</em>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                     <span className={`badge ${statusBadgeClass(post.status)}`}>{post.status}</span>
-                    <span style={{ fontSize: 10, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
                       {post.scheduledAt ? new Date(post.scheduledAt).toLocaleString('pt-BR') : new Date(post.createdAt).toLocaleString('pt-BR')}
                     </span>
                   </div>

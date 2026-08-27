@@ -76,7 +76,7 @@ export default function VariableInserter({ onInsert, compacto = false }) {
         title="Inserir marcação no texto"
         style={{
           padding: compacto ? '3px 8px' : '5px 10px',
-          borderRadius: 7, fontSize: compacto ? 10 : 10.5, fontWeight: 700, cursor: 'pointer',
+          borderRadius: 'var(--mf-r-sm)', fontSize: compacto ? 10 : 10.5, fontWeight: 700, cursor: 'pointer',
           background: aberto ? 'color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)' : 'var(--mf-border-subtle)',
           color: aberto ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
           border: `1px solid ${aberto ? 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : 'var(--mf-border)'}`,
@@ -90,8 +90,8 @@ export default function VariableInserter({ onInsert, compacto = false }) {
         <div style={{
           position: 'absolute', zIndex: 60, top: 'calc(100% + 6px)', left: 0,
           minWidth: 240, maxHeight: 260, overflowY: 'auto', padding: 6,
-          borderRadius: 10, background: 'oklch(0.13 0.04 235 / 0.98)',
-          border: '1px solid var(--mf-border-strong)', boxShadow: '0 14px 40px oklch(0 0 0 / .5)',
+          borderRadius: 'var(--mf-r-md)', background: 'oklch(0.13 0.04 235 / 0.98)',
+          border: '1px solid var(--mf-border-strong)', boxShadow: 'var(--mf-shadow-3)',
           backdropFilter: 'blur(12px)',
         }}>
           {variaveis.map(v => (
@@ -101,16 +101,16 @@ export default function VariableInserter({ onInsert, compacto = false }) {
               onClick={() => { onInsert(`{${v}}`); setAberto(false); }}
               style={{
                 display: 'block', width: '100%', textAlign: 'left', padding: '7px 9px',
-                borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer',
+                borderRadius: 'var(--mf-r-sm)', border: 'none', background: 'transparent', cursor: 'pointer',
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--mf-border)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <span style={{ fontFamily: 'var(--mf-mono)', fontSize: 11, fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))' }}>
+              <span style={{ fontFamily: 'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))' }}>
                 {`{${v}}`}
               </span>
               {DESCRICOES[v] && (
-                <span style={{ display: 'block', fontSize: 10, color: 'var(--mf-text-3)', marginTop: 2 }}>
+                <span style={{ display: 'block', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>
                   {DESCRICOES[v]}
                 </span>
               )}

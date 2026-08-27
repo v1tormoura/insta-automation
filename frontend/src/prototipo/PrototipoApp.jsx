@@ -169,7 +169,7 @@ export default function PrototipoApp() {
             <div style={{
               width: 30, height: 30, borderRadius: 'var(--mf-r-full)',
               background: 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500))',
-              display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700,
+              display: 'grid', placeItems: 'center', fontSize: 'var(--mf-t-micro)', fontWeight: 700,
               color: 'var(--mf-primary-fg)', flexShrink: 0,
             }}>VM</div>
           </header>

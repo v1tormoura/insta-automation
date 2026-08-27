@@ -73,9 +73,9 @@ export function proximaAcao({ campanha, estatisticas = {}, comentarios = {}, pro
 }
 
 const TONS = {
-  erro:   'border-[color-mix(in oklch, var(--mf-danger-500) 28%, transparent)]  bg-[color-mix(in oklch, var(--mf-danger-500) 6%, transparent)]  text-[var(--mf-danger-500)]',
-  aviso:  'border-[color-mix(in oklch, var(--mf-warning-500) 28%, transparent)] bg-[color-mix(in oklch, var(--mf-warning-500) 6%, transparent)] text-[var(--mf-warning-500)]',
-  ok:     'border-[color-mix(in oklch, var(--mf-mod-contas) 24%, transparent)]  bg-[color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)]  text-[var(--mf-mod, var(--mf-accent-500))]',
+  erro:   'border-[color-mix(in_oklch,_var(--mf-danger-500)_28%,_transparent)]  bg-[color-mix(in_oklch,_var(--mf-danger-500)_6%,_transparent)]  text-[var(--mf-danger-500)]',
+  aviso:  'border-[color-mix(in_oklch,_var(--mf-warning-500)_28%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-warning-500)_6%,_transparent)] text-[var(--mf-warning-500)]',
+  ok:     'border-[color-mix(in_oklch,_var(--mf-mod-contas)_24%,_transparent)]  bg-[color-mix(in_oklch,_var(--mf-mod-contas)_5%,_transparent)]  text-[var(--mf-mod,_var(--mf-accent-500))]',
   neutro: 'border-[var(--border)]        bg-[var(--mf-border-subtle)] text-[var(--mf-text-3)]',
 };
 
@@ -95,18 +95,18 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))' }}>
 
       {/* Próxima publicação */}
-      <div className="rounded-[13px] border border-[var(--card-border)] bg-[var(--card)] p-4">
+      <div className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4">
         <div className="flex items-center justify-between gap-2">
           <Eyebrow>Próxima publicação</Eyebrow>
           {restante && (
-            <span className="font-mono text-[10.5px] font-bold tabular-nums text-[var(--mf-mod, var(--mf-accent-500))]">
+            <span className="font-mono text-[var(--mf-t-nano)] font-bold tabular-nums text-[var(--mf-mod,_var(--mf-accent-500))]">
               {restante}
             </span>
           )}
         </div>
 
         {!proxima ? (
-          <p className="py-6 text-center text-[11.5px] text-[var(--mf-text-3)]">
+          <p className="py-6 text-center text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
             Não existem publicações pendentes.
           </p>
         ) : (
@@ -114,7 +114,7 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
             <button
               type="button"
               onClick={() => onAbrir?.(proxima)}
-              className="mt-3 flex w-full items-center gap-3 rounded-[9px] p-1 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod, var(--mf-accent-500))]"
+              className="mt-3 flex w-full items-center gap-3 rounded-[var(--mf-r-md)] p-1 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
             >
               <ContaAvatar conta={proxima.account} size={34} />
               <div className="min-w-0 flex-1">
@@ -123,13 +123,13 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
                 </div>
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <ConteudoThumb conteudo={proxima.content} size={16} />
-                  <span className="truncate text-[11px] text-[var(--mf-text-3)]">
+                  <span className="truncate text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
                     {nomeConteudo(proxima.content)}
                   </span>
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <div className="font-mono text-[12px] font-bold tabular-nums text-[var(--mf-text-2)]">
+                <div className="font-mono text-[var(--mf-t-xs)] font-bold tabular-nums text-[var(--mf-text-2)]">
                   {quando(proxima.scheduledAt)}
                 </div>
                 <div className="mt-1 flex justify-end">
@@ -141,7 +141,7 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
             {proxima.resolvedCaption && (
               <div className="mt-3 border-t border-[var(--border)] pt-3">
                 <Eyebrow>Legenda</Eyebrow>
-                <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-[var(--mf-text-2)]">
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-2)]">
                   {proxima.resolvedCaption}
                 </p>
               </div>
@@ -150,7 +150,7 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
             {proxima.resolvedComment && (
               <div className="mt-2.5 border-t border-[var(--border)] pt-2.5">
                 <Eyebrow>Comentário</Eyebrow>
-                <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-[11.5px] leading-relaxed text-[var(--mf-text-2)]">
+                <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-2)]">
                   {proxima.resolvedComment}
                 </p>
               </div>
@@ -160,9 +160,9 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
       </div>
 
       {/* Próxima ação */}
-      <div className="rounded-[13px] border border-[var(--card-border)] bg-[var(--card)] p-4">
+      <div className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4">
         <Eyebrow>Próxima ação</Eyebrow>
-        <div className={`mt-3 flex items-start gap-3 rounded-[10px] border p-3.5 ${TONS[acao.tom]}`}>
+        <div className={`mt-3 flex items-start gap-3 rounded-[var(--mf-r-md)] border p-3.5 ${TONS[acao.tom]}`}>
           <acao.Icone
             size={17}
             className={`mt-0.5 shrink-0 ${acao.Icone === Loader2 ? 'animate-spin' : ''}`}
@@ -170,7 +170,7 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
           <div className="min-w-0">
             <div className="text-[12.5px] font-bold leading-snug">{acao.titulo}</div>
             {acao.detalhe && (
-              <div className="mt-1 text-[11px] leading-relaxed text-[var(--mf-text-3)]">
+              <div className="mt-1 text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-3)]">
                 {acao.detalhe}
               </div>
             )}

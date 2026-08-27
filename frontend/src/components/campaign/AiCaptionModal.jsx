@@ -75,12 +75,12 @@ export default function AiCaptionModal({
   if (!aberta) return null;
 
   const campo = {
-    padding: '8px 10px', borderRadius: 8, fontSize: 12, width: '100%',
+    padding: '8px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', width: '100%',
     background: 'oklch(0.10 0.03 235)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };
   const chip = (ativo) => ({
-    padding: '5px 10px', borderRadius: 7, fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+    padding: '5px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
     background: ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)' : 'var(--mf-border-subtle)',
     color:      ativo ? 'var(--mf-mod-publicar)'              : 'var(--mf-text-3)',
     border:     ativo ? '1px solid color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)' : '1px solid var(--mf-border)',
@@ -91,17 +91,17 @@ export default function AiCaptionModal({
       onClick={e => { if (e.target === e.currentTarget) onFechar?.(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 999, display: 'grid', placeItems: 'center', padding: 20 }}>
       <div style={{
-        background: 'oklch(0.14 0.04 235)', padding: 20, borderRadius: 16,
+        background: 'oklch(0.14 0.04 235)', padding: 20, borderRadius: 'var(--mf-r-lg)',
         width: 'min(640px, 100%)', maxHeight: '88vh', display: 'flex', flexDirection: 'column',
         border: '1px solid var(--mf-border)',
       }}>
-        <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>Gerar legenda com IA</h3>
+        <h3 style={{ margin: '0 0 4px', fontSize: 'var(--mf-t-h2)', fontWeight: 700 }}>Gerar legenda com IA</h3>
 
         {status && !status.disponivel ? (
           <>
-            <p style={{ fontSize: 12, color: 'var(--mf-text-2)', lineHeight: 1.7, margin: '8px 0 0' }}>
+            <p style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', lineHeight: 1.7, margin: '8px 0 0' }}>
               A geração por IA não está configurada neste servidor. Para ativar, defina
-              <code style={{ margin: '0 4px', padding: '1px 5px', borderRadius: 4, background: 'var(--mf-border)' }}>ANTHROPIC_API_KEY</code>
+              <code style={{ margin: '0 4px', padding: '1px 5px', borderRadius: 'var(--mf-r-xs)', background: 'var(--mf-border)' }}>ANTHROPIC_API_KEY</code>
               no arquivo <strong>.env</strong> do backend e reinicie o container.
             </p>
             <div style={{ marginTop: 18, textAlign: 'right' }}>
@@ -110,7 +110,7 @@ export default function AiCaptionModal({
           </>
         ) : (
           <>
-            <p style={{ margin: '0 0 14px', fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
               Descreva o post. As marcações do painel ({'{username}'}, {'{campaign}'}) podem
               aparecer no texto e são substituídas na publicação.
             </p>
@@ -126,7 +126,7 @@ export default function AiCaptionModal({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 10.5, color: 'var(--mf-text-3)', marginBottom: 6 }}>Tom</div>
+                  <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginBottom: 6 }}>Tom</div>
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                     {TONS.map(t => (
                       <button key={t.id} onClick={() => setTom(t.id)} style={chip(tom === t.id)}>{t.rotulo}</button>
@@ -135,7 +135,7 @@ export default function AiCaptionModal({
                 </div>
 
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--mf-text-2)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)' }}>
                     Variações
                     <select value={quantidade} onChange={e => setQuantidade(Number(e.target.value))}
                       style={{ ...campo, width: 62, padding: '5px 6px', cursor: 'pointer' }}>
@@ -143,13 +143,13 @@ export default function AiCaptionModal({
                     </select>
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--mf-text-2)', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={hashtags} onChange={e => setHashtags(e.target.checked)} />
                     Incluir hashtags
                   </label>
 
                   {String(textoAtual || '').trim() && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--mf-text-2)', cursor: 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', cursor: 'pointer' }}>
                       <input type="checkbox" checked={usarEstilo} onChange={e => setUsarEstilo(e.target.checked)} />
                       Imitar o estilo do texto atual
                     </label>
@@ -158,22 +158,22 @@ export default function AiCaptionModal({
               </div>
 
               {erro && (
-                <div style={{ fontSize: 11, color: 'var(--mf-danger-500)', marginBottom: 10, lineHeight: 1.6 }}>{erro}</div>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', marginBottom: 10, lineHeight: 1.6 }}>{erro}</div>
               )}
 
               {sugestoes.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--mf-text-2)' }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-2)' }}>
                     Escolha uma variação — ela vai para o campo, onde você ainda pode editar.
                   </div>
                   {sugestoes.map((s, i) => (
                     <button key={i} onClick={() => { onAplicar?.(s.texto); onFechar?.(); }}
-                      style={{ textAlign: 'left', padding: 12, borderRadius: 10, cursor: 'pointer',
+                      style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--mf-r-md)', cursor: 'pointer',
                         background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)' }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--mf-mod-publicar)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 800, color: 'var(--mf-mod-publicar)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>
                         {s.gancho || `Variação ${i + 1}`}
                       </div>
-                      <div style={{ fontSize: 11.5, color: 'var(--mf-text-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
                         {s.texto}
                       </div>
                     </button>
@@ -186,7 +186,7 @@ export default function AiCaptionModal({
               <button onClick={onFechar} style={{ ...chip(false), padding: '8px 16px' }}>Fechar</button>
               <button onClick={gerar} disabled={gerando || status === null}
                 style={{
-                  padding: '8px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  padding: '8px 18px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight: 700,
                   cursor: gerando ? 'default' : 'pointer',
                   background: 'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)', color: 'var(--mf-mod-publicar)',
                   border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)', opacity: gerando ? .6 : 1,

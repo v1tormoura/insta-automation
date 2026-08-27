@@ -94,8 +94,8 @@ function FileThumbnail({ fileItem, cache }) {
     vid.addEventListener('error', () => URL.revokeObjectURL(url));
   }, [fileItem.id]);
 
-  if (!src) return <div style={{ width: 60, height: 34, borderRadius: 4, background: 'var(--mf-border)', flexShrink: 0 }} />;
-  return <img src={src} alt="" style={{ width: 60, height: 34, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />;
+  if (!src) return <div style={{ width: 60, height: 34, borderRadius: 'var(--mf-r-xs)', background: 'var(--mf-border)', flexShrink: 0 }} />;
+  return <img src={src} alt="" style={{ width: 60, height: 34, objectFit: 'cover', borderRadius: 'var(--mf-r-xs)', flexShrink: 0 }} />;
 }
 
 function Acc({ title, id, open, toggle, children, count }) {
@@ -110,8 +110,8 @@ function Acc({ title, id, open, toggle, children, count }) {
         <svg width="8" height="8" viewBox="0 0 8 8" style={{ transition: 'transform .17s', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }}>
           <polygon points="0,0 8,4 0,8" fill="currentColor" opacity="0.55" />
         </svg>
-        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.07em', flex: 1 }}>{title}</span>
-        {count != null && <span style={{ fontSize: 9, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', background: 'var(--mf-border)', borderRadius: 20, padding: '1px 6px' }}>{count}</span>}
+        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.07em', flex: 1 }}>{title}</span>
+        {count != null && <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', background: 'var(--mf-border)', borderRadius: 'var(--mf-r-xl)', padding: '1px 6px' }}>{count}</span>}
       </button>
       {open && <div style={{ padding: '2px 14px 14px' }}>{children}</div>}
     </div>
@@ -121,7 +121,7 @@ function Acc({ title, id, open, toggle, children, count }) {
 function Fld({ label, children, span2 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: span2 ? 'span 2' : undefined }}>
-      <label style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
+      <label style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</label>
       {children}
     </div>
   );
@@ -221,9 +221,9 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
     <div style={{
       position: 'relative', width: PW, height: PH, flexShrink: 0,
       background: tmpl.canvas?.background || '#000',
-      borderRadius: 10, overflow: 'hidden',
+      borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
       border: '1px solid var(--mf-border-strong)',
-      boxShadow: '0 20px 60px rgba(0,0,0,.8)',
+      boxShadow: 'var(--mf-shadow-3)',
     }}>
 
       {tplEnabled ? (
@@ -244,7 +244,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
             {previewUrl
               ? <video key={previewUrl} src={previewUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: objFit }} autoPlay muted loop playsInline />
               : <div style={{ width: '100%', height: '100%', background: 'oklch(0.55 0.18 235 / 0.09)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 9, color: 'color-mix(in oklch, var(--mf-info-500) 40%, transparent)', fontFamily: 'var(--mf-mono)', userSelect: 'none' }}>VÍDEO</span>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', color: 'color-mix(in oklch, var(--mf-info-500) 40%, transparent)', fontFamily: 'var(--mf-mono)', userSelect: 'none' }}>VÍDEO</span>
                 </div>
             }
           </div>
@@ -269,7 +269,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
                 onMouseDown={e => { e.stopPropagation(); startDrag(e, 'resize', h); }}
                 style={{
                   position: 'absolute', left: l, top: t,
-                  width: 10, height: 10, borderRadius: 2,
+                  width: 10, height: 10, borderRadius: 'var(--mf-r-xs)',
                   background: 'var(--mf-info-500)', border: '1.5px solid #1e3a5f',
                   cursor: c, transform: 'translate(-50%,-50%)', zIndex: 11,
                 }}
@@ -280,9 +280,9 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
           {/* Badge de posição */}
           <div style={{
             position: 'absolute', bottom: 22, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 15, fontSize: 8, fontFamily: 'var(--mf-mono)',
+            zIndex: 15, fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)',
             color: 'color-mix(in oklch, var(--mf-info-500) 85%, transparent)', background: 'rgba(0,0,0,.65)',
-            padding: '2px 7px', borderRadius: 4, pointerEvents: 'none', whiteSpace: 'nowrap',
+            padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', pointerEvents: 'none', whiteSpace: 'nowrap',
           }}>
             x:{vX} y:{vY} · {vW}×{vH}
           </div>
@@ -293,7 +293,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
           : (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10, background: 'linear-gradient(160deg,color-mix(in oklch, var(--mf-primary-500) 15%, transparent) 0%,color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent) 100%)' }}>
               <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)" strokeWidth="1.2" strokeLinecap="round"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/><rect x="1" y="8" width="14" height="13" rx="2"/></svg>
-              <span style={{ fontSize: 10, color: 'color-mix(in oklch, var(--mf-mod-publicar) 55%, transparent)', fontFamily: 'var(--mf-mono)' }}>Selecione um vídeo</span>
+              <span style={{ fontSize: 'var(--mf-t-nano)', color: 'color-mix(in oklch, var(--mf-mod-publicar) 55%, transparent)', fontFamily: 'var(--mf-mono)' }}>Selecione um vídeo</span>
             </div>
           )
       )}
@@ -310,7 +310,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
         return realSrc
           ? <img key={el.id} src={realSrc} alt="" style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(8, px(el.width||120)), height: el.height ? px(el.height) : 'auto', opacity: el.opacity??1, zIndex: tplEnabled ? 3 : undefined }} />
           : (
-            <div key={el.id} style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(10, px(el.width||120)), height: Math.max(6, px(el.height||40)), background: 'color-mix(in oklch, var(--mf-info-500) 18%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 45%, transparent)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: tplEnabled ? 3 : undefined }}>
+            <div key={el.id} style={{ position: 'absolute', left: px(el.x||0), top: px(el.y||0), width: Math.max(10, px(el.width||120)), height: Math.max(6, px(el.height||40)), background: 'color-mix(in oklch, var(--mf-info-500) 18%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 45%, transparent)', borderRadius: 'var(--mf-r-xs)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: tplEnabled ? 3 : undefined }}>
               <span style={{ fontSize: 5, color: 'var(--mf-info-500)', fontFamily: 'var(--mf-mono)' }}>{el.label||'IMG'}</span>
             </div>
           );
@@ -320,7 +320,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
       {textEls.map(el => {
         const txt = el.text && !el.text.includes('{{') ? el.text : `[${el.label||'TEXT'}]`;
         return (
-          <div key={el.id} style={{ position: 'absolute', left: Math.round((el.x||0)*scale), top: Math.round((el.y||0)*scale), fontSize: Math.max(8,Math.round((el.fontSize||48)*scale)), color: el.color||'var(--mf-text)', fontWeight: el.fontWeight||'bold', background: el.bgColor ? el.bgColor+'AA' : 'transparent', padding: el.bgColor ? '1px 4px' : 0, whiteSpace: 'nowrap', lineHeight: 1.2, borderRadius: 2, zIndex: tplEnabled ? 4 : undefined }}>
+          <div key={el.id} style={{ position: 'absolute', left: Math.round((el.x||0)*scale), top: Math.round((el.y||0)*scale), fontSize: Math.max(8,Math.round((el.fontSize||48)*scale)), color: el.color||'var(--mf-text)', fontWeight: el.fontWeight||'bold', background: el.bgColor ? el.bgColor+'AA' : 'transparent', padding: el.bgColor ? '1px 4px' : 0, whiteSpace: 'nowrap', lineHeight: 1.2, borderRadius: 'var(--mf-r-xs)', zIndex: tplEnabled ? 4 : undefined }}>
             {txt}
           </div>
         );
@@ -335,12 +335,18 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(var(--mf-border-subtle) 1px,transparent 1px),linear-gradient(90deg,var(--mf-border-subtle) 1px,transparent 1px)', backgroundSize: `${Math.round(W/4*scale)}px ${Math.round(H/8*scale)}px`, zIndex: 0 }} />
 
       {/* Badge de dimensão */}
-      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'var(--mf-surface-3)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 3, zIndex: 25 }}>{W}×{H}</div>
+      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'var(--mf-surface-3)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 'var(--mf-r-xs)', zIndex: 25 }}>{W}×{H}</div>
     </div>
   );
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+/* Tamanhos de fonte dentro do preview NÃO usam a escala tipográfica.
+   O preview é uma miniatura de uma tela de 1080×1920, e o número ali é
+   proporcional ao quadro, não ao navegador: `fontSize: 5` representa um texto
+   grande no vídeo final. Trocar por `--mf-t-nano` faria o rótulo estourar a
+   miniatura e mentir sobre o resultado. A escala vale para a interface em
+   volta; o que está dentro da moldura obedece ao vídeo. */
 export default function VideoEditorPage() {
   const navigate = useNavigate();
 
@@ -563,7 +569,7 @@ export default function VideoEditorPage() {
 
   // ── INP shorthand ────────────────────────────────────────────────────────────
   const INP = { width: '100%', boxSizing: 'border-box' };
-  const CARD_SM = { background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', borderRadius: 8, padding: '9px 10px' };
+  const CARD_SM = { background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '9px 10px' };
 
   return (
     <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -572,8 +578,11 @@ export default function VideoEditorPage() {
       {/* ── Confirm Modal ── */}
       {confirmOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setConfirmOpen(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'oklch(0.13 0.04 235)', border: '1px solid var(--mf-border)', borderRadius: 16, padding: '24px 26px', width: 400, maxWidth: '100%' }}>
-            <h2 style={{ margin: '0 0 18px', fontSize: '.95rem', fontWeight: 700, color: 'var(--mf-text)' }}>Confirmar processamento</h2>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'oklch(0.13 0.04 235)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '24px 26px', width: 400, maxWidth: '100%',
+            /* Teto de altura com rolagem interna: sem ele, um modal mais
+               alto que a viewport esconde o próprio botão de confirmar. */
+            maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
+            <h2 style={{ margin: '0 0 18px', fontSize: 'var(--mf-t-h2)', fontWeight: 700, color: 'var(--mf-text)' }}>Confirmar processamento</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
               {[
                 ['Vídeos', `${selectedCount} selecionado${selectedCount !== 1 ? 's' : ''}`],
@@ -596,19 +605,19 @@ export default function VideoEditorPage() {
                   : 'desativados'],
                 ['Corte', (tmpl.trim?.startTime||0) > 0 || tmpl.trim?.endTime ? `${tmpl.trim.startTime||0}s → ${tmpl.trim.endTime ?? 'fim'}` : 'sem corte'],
               ].map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.8rem', gap: 8 }}>
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-sm)', gap: 8 }}>
                   <span style={{ color: 'var(--mf-text-3)' }}>{k}</span>
                   <span style={{ color: 'var(--mf-text)', fontWeight: 600, textAlign: 'right' }}>{v}</span>
                 </div>
               ))}
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 4 }}>Nome do lote</label>
+              <label style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 4 }}>Nome do lote</label>
               <input className="inp" value={batchName} onChange={e => setBatchName(e.target.value)} placeholder={`Lote ${new Date().toLocaleDateString('pt-BR')}`} style={INP} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmOpen(false)} className="btn-ghost" style={{ flex: 1, padding: '9px 0', borderRadius: 8, fontSize: '.82rem' }}>Cancelar</button>
-              <button onClick={startProcessing} disabled={saving} style={{ flex: 2, padding: '9px 0', borderRadius: 8, border: 'none', cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--mf-border)' : 'linear-gradient(135deg,var(--mf-success-500),var(--mf-success-500))', color: saving ? 'var(--mf-text-3)' : 'var(--mf-text)', fontWeight: 700, fontSize: '.88rem' }}>
+              <button onClick={() => setConfirmOpen(false)} className="btn-ghost" style={{ flex: 1, padding: '9px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)' }}>Cancelar</button>
+              <button onClick={startProcessing} disabled={saving} style={{ flex: 2, padding: '9px 0', borderRadius: 'var(--mf-r-sm)', border: 'none', cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--mf-border)' : 'linear-gradient(135deg,var(--mf-success-500),var(--mf-success-500))', color: saving ? 'var(--mf-text-3)' : 'var(--mf-text)', fontWeight: 700, fontSize: 'var(--mf-t-body)' }}>
                 {saving ? '⚙ Criando…' : `▶ Processar ${selectedCount} vídeo${selectedCount !== 1 ? 's' : ''}`}
               </button>
             </div>
@@ -623,20 +632,20 @@ export default function VideoEditorPage() {
 
         {/* Header */}
         <div style={{ padding: '11px 12px 9px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 9 }}>
+          <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 9 }}>
             Arquivos · {files.length} carregados
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => fileInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '6px 0', borderRadius: 7, fontSize: '.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <button onClick={() => fileInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
               Vídeos
             </button>
-            <button onClick={() => folderInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '6px 0', borderRadius: 7, fontSize: '.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <button onClick={() => folderInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               Pasta
             </button>
             {files.length > 0 && (
-              <button onClick={clearFiles} className="btn-ghost" style={{ padding: '6px 9px', borderRadius: 7, fontSize: '.72rem', color: 'var(--mf-danger-500)' }} title="Limpar lista">
+              <button onClick={clearFiles} className="btn-ghost" style={{ padding: '6px 9px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)' }} title="Limpar lista">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
               </button>
             )}
@@ -649,13 +658,13 @@ export default function VideoEditorPage() {
         {/* Selection bar */}
         {files.length > 0 && (
           <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--mf-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontSize: 10, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)' }}>
+            <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)' }}>
               {selectedCount}/{files.length} selecionados
             </span>
             <div style={{ display: 'flex', gap: 5 }}>
-              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: true })))}  className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 5, fontSize: 10 }}>Todos</button>
-              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: false })))} className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 5, fontSize: 10 }}>Nenhum</button>
-              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: !f.selected })))} className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 5, fontSize: 10 }}>Inverter</button>
+              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: true })))}  className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Todos</button>
+              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: false })))} className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Nenhum</button>
+              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: !f.selected })))} className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Inverter</button>
             </div>
           </div>
         )}
@@ -666,7 +675,7 @@ export default function VideoEditorPage() {
             ? (
               <div style={{ padding: '50px 14px', textAlign: 'center' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mf-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10 }}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <p style={{ fontSize: '.76rem', color: 'var(--mf-text-3)', margin: 0, lineHeight: 1.5 }}>Clique em <strong>Vídeos</strong> ou arraste arquivos</p>
+                <p style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', margin: 0, lineHeight: 1.5 }}>Clique em <strong>Vídeos</strong> ou arraste arquivos</p>
               </div>
             )
             : (
@@ -677,8 +686,8 @@ export default function VideoEditorPage() {
                       <input type="checkbox" checked={item.selected} onChange={e => { e.stopPropagation(); setFiles(fs => fs.map(f => f.id === item.id ? { ...f, selected: e.target.checked } : f)); }} onClick={e => e.stopPropagation()} style={{ flexShrink: 0, accentColor: 'var(--mf-success-500)' }} />
                       <FileThumbnail fileItem={item} cache={thumbCache.current} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.name}>{item.name}</div>
-                        <div style={{ fontSize: '.62rem', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', marginTop: 2 }}>
+                        <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.name}>{item.name}</div>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', marginTop: 2 }}>
                           {[fmtDur(item.duration), item.resolution, fmtSize(item.size)].filter(Boolean).join(' · ')}
                         </div>
                       </div>
@@ -692,9 +701,9 @@ export default function VideoEditorPage() {
 
         {/* Output info */}
         <div style={{ padding: '9px 12px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
-          <div style={{ fontSize: 9, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 5 }}>Saída dos renders</div>
-          <div style={{ fontSize: '.68rem', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'var(--mf-border-subtle)', borderRadius: 5, padding: '4px 8px' }}>uploads/renders/&lt;lote&gt;/</div>
-          <div style={{ fontSize: 10, color: 'var(--mf-border-strong)', marginTop: 4, lineHeight: 1.4 }}>Download disponível pelo painel do lote após processamento.</div>
+          <div style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 5 }}>Saída dos renders</div>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'var(--mf-border-subtle)', borderRadius: 'var(--mf-r-xs)', padding: '4px 8px' }}>uploads/renders/&lt;lote&gt;/</div>
+          <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-border-strong)', marginTop: 4, lineHeight: 1.4 }}>Download disponível pelo painel do lote após processamento.</div>
         </div>
       </div>
 
@@ -707,7 +716,7 @@ export default function VideoEditorPage() {
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', maxWidth: 340, width: '100%' }}>
           <input className="inp" value={tmpl.name} onChange={e => setT('name', e.target.value)} placeholder="Nome do template…" style={{ flex: 1 }} />
-          <button onClick={saveTemplate} className="btn-ghost" style={{ padding: '8px 14px', borderRadius: 8, fontSize: '.76rem', flexShrink: 0 }}>
+          <button onClick={saveTemplate} className="btn-ghost" style={{ padding: '8px 14px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', flexShrink: 0 }}>
             Salvar
           </button>
         </div>
@@ -722,7 +731,7 @@ export default function VideoEditorPage() {
         )}
 
         {!previewUrl && files.length > 0 && (
-          <div style={{ fontSize: '.72rem', color: 'var(--mf-surface-3)', textAlign: 'center' }}>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-surface-3)', textAlign: 'center' }}>
             Clique em um vídeo da lista para pré-visualizar
           </div>
         )}
@@ -733,7 +742,7 @@ export default function VideoEditorPage() {
       ══════════════════════════════════════════════════════════ */}
       <div style={{ width: 310, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--mf-border)', background: 'oklch(0.095 0.03 235 / 0.98)', flexShrink: 0 }}>
         <div style={{ padding: '11px 14px 9px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Configurações do template</span>
+          <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Configurações do template</span>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -750,7 +759,7 @@ export default function VideoEditorPage() {
               </Fld>
               <Fld label="Fundo">
                 <div style={{ display: 'flex', gap: 5 }}>
-                  <input type="color" value={tmpl.canvas.background} onChange={e => setT('canvas.background', e.target.value)} style={{ width: 28, height: 28, padding: 1, borderRadius: 4, border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer', flexShrink: 0 }} />
+                  <input type="color" value={tmpl.canvas.background} onChange={e => setT('canvas.background', e.target.value)} style={{ width: 28, height: 28, padding: 1, borderRadius: 'var(--mf-r-xs)', border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer', flexShrink: 0 }} />
                   <input className="inp" value={tmpl.canvas.background} onChange={e => setT('canvas.background', e.target.value)} style={{ flex: 1 }} />
                 </div>
               </Fld>
@@ -761,10 +770,10 @@ export default function VideoEditorPage() {
           <Acc title="Enquadramento" id="enquadramento" open={sections.enquadramento} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {FIT_OPTS.map(opt => (
-                <label key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '7px 9px', borderRadius: 8, cursor: 'pointer', background: videoEl?.fit === opt.id ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${videoEl?.fit === opt.id ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}`, transition: 'background .12s' }}>
+                <label key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '7px 9px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: videoEl?.fit === opt.id ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${videoEl?.fit === opt.id ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}`, transition: 'background .12s' }}>
                   <input type="radio" name="fit" value={opt.id} checked={videoEl?.fit === opt.id} onChange={() => updEl(videoEl.id, { fit: opt.id })} style={{ marginTop: 2, accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: '.76rem', fontWeight: 600, color: 'var(--mf-text)' }}>{opt.label}</div>
+                    <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: 'var(--mf-text)' }}>{opt.label}</div>
                     <div style={{ fontSize: '.65rem', color: 'var(--mf-text-3)', marginTop: 1 }}>{opt.desc}</div>
                   </div>
                 </label>
@@ -774,11 +783,11 @@ export default function VideoEditorPage() {
 
           {/* REELS */}
           <Acc title="Formato Reels 9:16" id="reels" open={sections.reels} toggle={toggleSection}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.8rem', color: 'var(--mf-text)', padding: '4px 0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text)', padding: '4px 0' }}>
               <input type="checkbox" checked={tmpl.canvas.width === 1080 && tmpl.canvas.height === 1920} onChange={e => { if (e.target.checked) { setT('canvas.width', 1080); setT('canvas.height', 1920); } }} style={{ accentColor: 'var(--mf-success-500)' }} />
               Converter para 1080×1920 (Reels/TikTok)
             </label>
-            <p style={{ margin: '8px 0 0', fontSize: '.68rem', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>Usa o enquadramento selecionado acima para adaptar qualquer vídeo ao formato vertical.</p>
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>Usa o enquadramento selecionado acima para adaptar qualquer vídeo ao formato vertical.</p>
           </Acc>
 
           {/* MOLDURA / TEMPLATE PNG */}
@@ -789,14 +798,14 @@ export default function VideoEditorPage() {
 
             {/* Lista de templates enviados */}
             {(tmpl.templatePng?.templates || []).map((t, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', marginBottom: 6 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 'var(--mf-r-sm)', background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', marginBottom: 6 }}>
                 <img
                   src={t.url?.startsWith('http') ? t.url : `${api.defaults.baseURL.replace(/\/$/, '')}${t.url}`}
                   alt=""
-                  style={{ width: 44, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0, background: 'var(--mf-border)' }}
+                  style={{ width: 44, height: 28, objectFit: 'cover', borderRadius: 'var(--mf-r-xs)', flexShrink: 0, background: 'var(--mf-border)' }}
                 />
-                <span style={{ flex: 1, fontSize: '.68rem', color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                <button onClick={() => removeTplPng(i)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: '.68rem', color: 'var(--mf-danger-500)', borderRadius: 4, flexShrink: 0 }}>✕</button>
+                <span style={{ flex: 1, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                <button onClick={() => removeTplPng(i)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)', flexShrink: 0 }}>✕</button>
               </div>
             ))}
 
@@ -804,7 +813,7 @@ export default function VideoEditorPage() {
             <button
               onClick={() => pngInputRef.current?.click()}
               className="btn-ghost"
-              style={{ width: '100%', padding: '8px 0', borderRadius: 7, fontSize: '.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10, border: '1px dashed oklch(0.55 0.18 235 / 0.45)', color: 'var(--mf-info-500)' }}
+              style={{ width: '100%', padding: '8px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10, border: '1px dashed oklch(0.55 0.18 235 / 0.45)', color: 'var(--mf-info-500)' }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               {(tmpl.templatePng?.templates || []).length > 0 ? '+ Adicionar outro (rotação)' : 'Escolher Template PNG'}
@@ -838,7 +847,7 @@ export default function VideoEditorPage() {
 
           {/* BORDA */}
           <Acc title="Borda / Moldura" id="borda" open={sections.borda} toggle={toggleSection}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.8rem', color: 'var(--mf-text)', marginBottom: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text)', marginBottom: 10 }}>
               <input type="checkbox" checked={tmpl.border?.enabled || false} onChange={e => setT('border.enabled', e.target.checked)} style={{ accentColor: 'var(--mf-info-500)' }} />
               Ativar borda
             </label>
@@ -848,7 +857,7 @@ export default function VideoEditorPage() {
                 <Fld label="Opacidade (0–1)"><input className="inp" type="number" step="0.05" min="0" max="1" value={tmpl.border.opacity ?? 1} onChange={e => setT('border.opacity', Number(e.target.value))} style={INP} /></Fld>
                 <Fld label="Cor" span2>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <input type="color" value={tmpl.border.color || 'var(--mf-text)'} onChange={e => setT('border.color', e.target.value)} style={{ width: 30, height: 28, padding: 1, borderRadius: 5, border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer', flexShrink: 0 }} />
+                    <input type="color" value={tmpl.border.color || 'var(--mf-text)'} onChange={e => setT('border.color', e.target.value)} style={{ width: 30, height: 28, padding: 1, borderRadius: 'var(--mf-r-xs)', border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer', flexShrink: 0 }} />
                     <input className="inp" value={tmpl.border.color || 'var(--mf-text)'} onChange={e => setT('border.color', e.target.value)} style={{ flex: 1 }} />
                   </div>
                 </Fld>
@@ -858,7 +867,7 @@ export default function VideoEditorPage() {
 
           {/* AJUSTES DE IMAGEM */}
           <Acc title="Ajustes de imagem" id="ajustes" open={sections.ajustes} toggle={toggleSection}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.8rem', color: 'var(--mf-text)', marginBottom: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text)', marginBottom: 10 }}>
               <input type="checkbox" checked={tmpl.ajustes?.enabled || false} onChange={e => setT('ajustes.enabled', e.target.checked)} style={{ accentColor: 'var(--mf-info-500)' }} />
               Ativar ajustes
             </label>
@@ -874,7 +883,7 @@ export default function VideoEditorPage() {
                   ['zoom',      'Micro-zoom',   0, 100],
                 ].map(([campo, rotulo, min, max]) => (
                   <div key={campo}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.72rem', color: 'var(--mf-text-3)', marginBottom: 3 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 3 }}>
                       <span>{rotulo}</span>
                       <span style={{ fontFamily: 'var(--mf-mono)', color: (tmpl.ajustes[campo] || 0) !== 0 ? 'var(--mf-info-500)' : 'var(--mf-text-3)' }}>
                         {(tmpl.ajustes[campo] || 0) > 0 ? '+' : ''}{tmpl.ajustes[campo] || 0}
@@ -889,22 +898,22 @@ export default function VideoEditorPage() {
                   </div>
                 ))}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.78rem', color: 'var(--mf-text)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>
                   <input type="checkbox" checked={tmpl.ajustes.espelhar || false} onChange={e => setT('ajustes.espelhar', e.target.checked)} style={{ accentColor: 'var(--mf-info-500)' }} />
                   Espelhar horizontalmente
                 </label>
 
                 <div style={{ borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.78rem', color: 'var(--mf-text)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>
                     <input type="checkbox" checked={tmpl.ajustes.quebrarHash || false} onChange={e => setT('ajustes.quebrarHash', e.target.checked)} style={{ accentColor: 'var(--mf-success-500)' }} />
                     Gerar arquivo novo a cada render
                   </label>
-                  <div style={{ fontSize: '.68rem', color: 'var(--mf-text-3)', lineHeight: 1.6, marginTop: 5 }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6, marginTop: 5 }}>
                     Aplica variações mínimas e aleatórias em cada processamento, então
                     dois envios do mesmo vídeo nunca saem com os bytes iguais. É
                     imperceptível na tela.
                   </div>
-                  <div style={{ fontSize: '.68rem', color: 'var(--mf-warning-500)', lineHeight: 1.6, marginTop: 6 }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', lineHeight: 1.6, marginTop: 6 }}>
                     Muda o arquivo, não o conteúdo. O Instagram compara vídeos por
                     semelhança visual e por áudio, não pelo hash — repostar o mesmo
                     vídeo continua sendo reconhecível para ele.
@@ -920,8 +929,8 @@ export default function VideoEditorPage() {
               {imageEls.map(el => (
                 <div key={el.id} style={CARD_SM}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--mf-info-500)' }}>{el.label || 'Imagem'}</span>
-                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: '.68rem', color: 'var(--mf-danger-500)', borderRadius: 4 }}>✕</button>
+                    <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: 'var(--mf-info-500)' }}>{el.label || 'Imagem'}</span>
+                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)' }}>✕</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     <Fld label="Variável {{VAR}}" span2><input className="inp" value={el.source} onChange={e => updEl(el.id, { source: e.target.value })} placeholder="{{LOGO}}" style={INP} /></Fld>
@@ -932,7 +941,7 @@ export default function VideoEditorPage() {
                   </div>
                 </div>
               ))}
-              <button onClick={addImageEl} className="btn-ghost" style={{ padding: '7px 0', borderRadius: 7, fontSize: '.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <button onClick={addImageEl} className="btn-ghost" style={{ padding: '7px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Adicionar overlay
               </button>
@@ -945,8 +954,8 @@ export default function VideoEditorPage() {
               {textEls.map(el => (
                 <div key={el.id} style={CARD_SM}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--mf-success-500)' }}>{el.label || 'Texto'}</span>
-                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: '.68rem', color: 'var(--mf-danger-500)', borderRadius: 4 }}>✕</button>
+                    <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: 'var(--mf-success-500)' }}>{el.label || 'Texto'}</span>
+                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)' }}>✕</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     <Fld label="Texto ou {{VAR}}" span2><input className="inp" value={el.text} onChange={e => updEl(el.id, { text: e.target.value })} placeholder="{{TITULO}}" style={INP} /></Fld>
@@ -955,14 +964,14 @@ export default function VideoEditorPage() {
                     <Fld label="Tamanho fonte"><input className="inp" type="number" value={el.fontSize||48} onChange={e => updEl(el.id, { fontSize: Number(e.target.value) })} style={INP} /></Fld>
                     <Fld label="Cor">
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <input type="color" value={el.color||'var(--mf-text)'} onChange={e => updEl(el.id, { color: e.target.value })} style={{ width: 27, height: 28, padding: 1, borderRadius: 4, border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer', flexShrink: 0 }} />
+                        <input type="color" value={el.color||'var(--mf-text)'} onChange={e => updEl(el.id, { color: e.target.value })} style={{ width: 27, height: 28, padding: 1, borderRadius: 'var(--mf-r-xs)', border: '1px solid var(--mf-border-strong)', background: 'none', cursor: 'pointer', flexShrink: 0 }} />
                         <input className="inp" value={el.color||'var(--mf-text)'} onChange={e => updEl(el.id, { color: e.target.value })} style={{ flex: 1 }} />
                       </div>
                     </Fld>
                   </div>
                 </div>
               ))}
-              <button onClick={addTextEl} className="btn-ghost" style={{ padding: '7px 0', borderRadius: 7, fontSize: '.74rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <button onClick={addTextEl} className="btn-ghost" style={{ padding: '7px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Adicionar texto
               </button>
@@ -975,7 +984,7 @@ export default function VideoEditorPage() {
               <Fld label="De (segundos)"><input className="inp" type="number" min="0" step="0.5" value={tmpl.trim?.startTime || 0} onChange={e => setT('trim.startTime', Number(e.target.value))} style={INP} /></Fld>
               <Fld label="Até (vazio = fim)"><input className="inp" type="number" min="0" step="0.5" value={tmpl.trim?.endTime ?? ''} onChange={e => setT('trim.endTime', e.target.value === '' ? null : Number(e.target.value))} placeholder="fim" style={INP} /></Fld>
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: '.68rem', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>
               Corta o vídeo antes das demais operações. Aplicado via -ss / -to no FFmpeg.
             </p>
           </Acc>
@@ -985,7 +994,7 @@ export default function VideoEditorPage() {
             <Fld label={`Volume original: ${Math.round((tmpl.audio?.originalVolume ?? 1) * 100)}%`}>
               <input type="range" min="0" max="2" step="0.05" value={tmpl.audio?.originalVolume ?? 1} onChange={e => setT('audio.originalVolume', Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--mf-success-500)', marginTop: 2 }} />
             </Fld>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.78rem', color: 'var(--mf-text)', marginTop: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)', marginTop: 10 }}>
               <input type="checkbox" checked={tmpl.audio?.keepOriginal !== false} onChange={e => setT('audio.keepOriginal', e.target.checked)} style={{ accentColor: 'var(--mf-success-500)' }} />
               Manter áudio original
             </label>
@@ -999,16 +1008,16 @@ export default function VideoEditorPage() {
             <Fld label={`Volume da trilha: ${Math.round((tmpl.audio?.musicVolume ?? 0.3) * 100)}%`} style={{ marginTop: 8 }}>
               <input type="range" min="0" max="2" step="0.05" value={tmpl.audio?.musicVolume ?? 0.3} onChange={e => setT('audio.musicVolume', Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--mf-info-500)', marginTop: 2 }} />
             </Fld>
-            <p style={{ margin: '8px 0 0', fontSize: '.68rem', color: 'var(--mf-text-3)', lineHeight: 1.4 }}>Mistura automaticamente com o áudio original via amix no FFmpeg.</p>
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.4 }}>Mistura automaticamente com o áudio original via amix no FFmpeg.</p>
           </Acc>
 
           {/* QUALIDADE */}
           <Acc title="Qualidade" id="qualidade" open={sections.qualidade} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {QUALITY_OPTS.map(q => (
-                <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '7px 9px', borderRadius: 8, cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}` }}>
+                <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '7px 9px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}` }}>
                   <input type="radio" name="quality" checked={tmpl.output?.crf === q.crf} onChange={() => { setT('output.crf', q.crf); setT('output.preset', q.preset); }} style={{ accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
-                  <span style={{ fontSize: '.76rem', color: 'var(--mf-text)' }}>{q.label}</span>
+                  <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>{q.label}</span>
                 </label>
               ))}
             </div>
@@ -1016,11 +1025,11 @@ export default function VideoEditorPage() {
 
           {/* METADADOS */}
           <Acc title="Metadados" id="metadados" open={sections.metadados} toggle={toggleSection}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '.8rem', color: 'var(--mf-text)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text)' }}>
               <input type="checkbox" checked={tmpl.output?.removeMetadata !== false} onChange={e => setT('output.removeMetadata', e.target.checked)} style={{ accentColor: 'var(--mf-info-500)' }} />
               Remover metadados do arquivo final
             </label>
-            <p style={{ margin: '8px 0 0', fontSize: '.68rem', color: 'var(--mf-text-3)', lineHeight: 1.4 }}>Remove EXIF, GPS, câmera e informações do autor via -map_metadata -1 no FFmpeg.</p>
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.4 }}>Remove EXIF, GPS, câmera e informações do autor via -map_metadata -1 no FFmpeg.</p>
           </Acc>
 
         </div>
@@ -1028,22 +1037,22 @@ export default function VideoEditorPage() {
         {/* Process button */}
         <div style={{ padding: '11px 12px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
           {selectedCount === 0 && files.length > 0 && (
-            <p style={{ fontSize: '.7rem', color: 'var(--mf-text-3)', textAlign: 'center', margin: '0 0 8px' }}>Marque os vídeos na lista para processar</p>
+            <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center', margin: '0 0 8px' }}>Marque os vídeos na lista para processar</p>
           )}
           {files.length === 0 && (
-            <p style={{ fontSize: '.7rem', color: 'var(--mf-text-3)', textAlign: 'center', margin: '0 0 8px' }}>Adicione vídeos para começar</p>
+            <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center', margin: '0 0 8px' }}>Adicione vídeos para começar</p>
           )}
           <button
             onClick={() => selectedCount > 0 && !saving && setConfirmOpen(true)}
             disabled={selectedCount === 0 || saving}
             style={{
-              width: '100%', padding: '11px 0', borderRadius: 10, border: 'none',
+              width: '100%', padding: '11px 0', borderRadius: 'var(--mf-r-md)', border: 'none',
               cursor: selectedCount === 0 || saving ? 'not-allowed' : 'pointer',
               background: selectedCount > 0 && !saving
                 ? 'linear-gradient(135deg, var(--mf-success-500) 0%, var(--mf-success-500) 100%)'
                 : 'var(--mf-border)',
               color: selectedCount > 0 && !saving ? 'var(--mf-text)' : 'var(--mf-text-3)',
-              fontWeight: 700, fontSize: '.85rem', letterSpacing: '.02em',
+              fontWeight: 700, fontSize: 'var(--mf-t-body)', letterSpacing: '.02em',
               boxShadow: selectedCount > 0 && !saving ? '0 4px 18px color-mix(in oklch, var(--mf-success-500) 28%, transparent)' : 'none',
               transition: 'background .18s, box-shadow .18s',
             }}

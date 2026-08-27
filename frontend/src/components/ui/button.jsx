@@ -4,18 +4,18 @@ import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[9px] text-[13px] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cyan)] focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40 select-none',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--mf-r-md)] text-[var(--mf-t-sm)] font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cyan)] focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40 select-none',
   {
     variants: {
       variant: {
         default:
-          'bg-gradient-to-r from-[var(--cyan2)] to-[var(--cyan)] text-[#040e1c] shadow-[0_0_18px_rgba(0,212,255,.28)] hover:shadow-[0_0_28px_rgba(0,212,255,.45)] hover:-translate-y-px active:translate-y-0',
+          'bg-gradient-to-r from-[var(--cyan2)] to-[var(--cyan)] text-[var(--mf-bg)] shadow-[0_0_18px_color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_28%,transparent)] hover:shadow-[0_0_28px_color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_45%,transparent)] hover:-translate-y-px active:translate-y-0',
         outline:
-          'border border-[var(--border)] bg-[rgba(255,255,255,.04)] text-[var(--text2)] hover:bg-[rgba(255,255,255,.07)] hover:text-[var(--text)] hover:border-[var(--border2)]',
+          'border border-[var(--border)] bg-[var(--mf-border-subtle)] text-[var(--text2)] hover:bg-[var(--mf-border)] hover:text-[var(--text)] hover:border-[var(--border2)]',
         ghost:
-          'text-[var(--text2)] hover:bg-[rgba(255,255,255,.06)] hover:text-[var(--text)]',
+          'text-[var(--text2)] hover:bg-[var(--mf-border)] hover:text-[var(--text)]',
         danger:
-          'bg-[rgba(244,63,94,.1)] text-[var(--red)] border border-[rgba(244,63,94,.2)] hover:bg-[rgba(244,63,94,.18)]',
+          'bg-[color-mix(in_oklch,var(--mf-danger-500)_10%,transparent)] text-[var(--red)] border border-[color-mix(in_oklch,var(--mf-danger-500)_20%,transparent)] hover:bg-[color-mix(in_oklch,var(--mf-danger-500)_18%,transparent)]',
         secondary:
           'bg-[var(--bg4)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--bg5)] hover:border-[var(--border2)]',
         link:
@@ -23,10 +23,10 @@ const buttonVariants = cva(
       },
       size: {
         default: 'h-9 px-4 py-2',
-        sm: 'h-7 rounded-[7px] px-3 text-[12px]',
-        lg: 'h-11 rounded-[11px] px-6 text-[14px]',
-        icon: 'h-8 w-8 rounded-[8px]',
-        xs: 'h-6 rounded-[6px] px-2 text-[11px]',
+        sm: 'h-7 rounded-[var(--mf-r-sm)] px-3 text-[var(--mf-t-xs)]',
+        lg: 'h-11 rounded-[var(--mf-r-md)] px-6 text-[var(--mf-t-body)]',
+        icon: 'h-8 w-8 rounded-[var(--mf-r-sm)]',
+        xs: 'h-6 rounded-[var(--mf-r-sm)] px-2 text-[var(--mf-t-micro)]',
       },
     },
     defaultVariants: {

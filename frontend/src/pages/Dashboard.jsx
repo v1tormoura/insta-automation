@@ -19,6 +19,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import { NumberTicker } from '../components/magicui/number-ticker';
 import { BlurFade } from '../components/magicui/blur-fade';
 import ConnectedAccountsMetrics from '../components/ConnectedAccountsMetrics';
+import { EsqueletoMetricas } from '../components/Estados';
 
 /* ── helpers (unchanged) ── */
 const fmt  = v => Number(v || 0).toLocaleString('pt-BR');
@@ -61,18 +62,18 @@ function InsightThumb({ ins, rank }) {
   const color = ['var(--mf-mod-publicar)','var(--mf-info-500)','var(--mf-mod-contas)','var(--mf-success-500)','var(--mf-warning-500)','var(--mf-danger-500)'][rank] || 'var(--mf-mod, var(--mf-accent-500))';
   return (
     <motion.div whileHover={{ scale:1.03, y:-3 }} transition={spring}
-      style={{ position:'relative', aspectRatio:'9/16', borderRadius:11, overflow:'hidden', background:'var(--mf-surface-1)', border:'1px solid var(--mf-border)', cursor:'pointer' }}>
+      style={{ position:'relative', aspectRatio:'9/16', borderRadius: 'var(--mf-r-md)', overflow:'hidden', background:'var(--mf-surface-1)', border:'1px solid var(--mf-border)', cursor:'pointer' }}>
       {src
         ? <img src={src} alt="" onError={() => setErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
         : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--mf-border)' }}><Flame size={24} /></div>
       }
       <div style={{ position:'absolute', inset:0, background:'linear-gradient(to bottom,rgba(0,0,0,.3) 0%,transparent 40%,rgba(0,0,0,.7) 100%)' }} />
-      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-text)', fontSize:9, fontWeight:800, width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
+      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-text)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:20, height:20, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
         #{rank+1}
       </div>
       <div style={{ position:'absolute', bottom:7, left:7, right:7 }}>
-        <div style={{ fontSize:10, color:'var(--mf-surface-3)', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{ins.username}</div>
-        <div style={{ fontSize:9, color:'var(--mf-surface-3)', display:'flex', gap:6, marginTop:2 }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-surface-3)', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{ins.username}</div>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-surface-3)', display:'flex', gap:6, marginTop:2 }}>
           <span>👁 {fmtK(ins.videoViews || ins.impressions)}</span>
           <span>❤️ {fmtK(ins.likeCount)}</span>
         </div>
@@ -84,10 +85,10 @@ function InsightThumb({ ins, rank }) {
 const tooltipStyle = {
   background: 'var(--mf-surface-1)',
   border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)',
-  borderRadius: 10,
+  borderRadius: 'var(--mf-r-md)',
   color: 'var(--mf-text)',
-  boxShadow: '0 10px 35px rgba(0,0,0,.5)',
-  fontSize: 12,
+  boxShadow: 'var(--mf-shadow-3)',
+  fontSize: 'var(--mf-t-xs)',
 };
 
 const PERIODS = [
@@ -117,9 +118,9 @@ function LiveClock() {
 function AvatarChip({ username, avatar, size = 32 }) {
   const [err, setErr] = useState(false);
   const src = avatar && !err ? proxyImg(avatar) : null;
-  if (src) return <img src={src} alt={username} onError={() => setErr(true)} style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />;
+  if (src) return <img src={src} alt={username} onError={() => setErr(true)} style={{ width:size, height:size, borderRadius: 'var(--mf-r-full)', objectFit:'cover', flexShrink:0 }} />;
   return (
-    <span style={{ width:size, height:size, borderRadius:'50%', background:'linear-gradient(135deg,color-mix(in oklch, var(--mf-primary-500) 40%, transparent),color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent))', color:'var(--mf-mod-publicar)', fontSize:Math.floor(size/2.5), fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+    <span style={{ width:size, height:size, borderRadius: 'var(--mf-r-full)', background:'linear-gradient(135deg,color-mix(in oklch, var(--mf-primary-500) 40%, transparent),color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent))', color:'var(--mf-mod-publicar)', fontSize:Math.floor(size/2.5), fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
       {(username||'?').slice(0,2).toUpperCase()}
     </span>
   );
@@ -305,7 +306,7 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
 
   return (
     <motion.article transition={spring} whileHover={{ y: -2 }}
-      className="mf-card mf-card--hover sheen"
+      className="mf-card mf-card--hover sheen metric-wide"
       style={{ '--mf-mod': `var(--mf-mod-${mod})`, padding: 'var(--mf-4) var(--mf-5)' }}>
       <span aria-hidden="true" style={{ position: 'absolute', top: 0, left: 20, right: 20, height: 1,
         background: 'linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-mod) 40%, transparent), transparent)' }} />
@@ -473,12 +474,12 @@ function QueuePanel({ d, accountStats }) {
               >
                 <AvatarChip username={acc?.username} avatar={acc?.avatar} size={26} />
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{acc?.username || '—'}</div>
-                  <div style={{ fontSize:10, color:'var(--mf-text-3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{item.postType || 'Reels'}</div>
+                  <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{acc?.username || '—'}</div>
+                  <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{item.postType || 'Reels'}</div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:10, color:'var(--mf-text-3)' }}>{fmtTime(item.scheduledAt)}</div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700, color: STATUS_COLOR[item.status] || 'var(--mf-text-3)', marginTop:2, letterSpacing:'.04em' }}>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{fmtTime(item.scheduledAt)}</div>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color: STATUS_COLOR[item.status] || 'var(--mf-text-3)', marginTop:2, letterSpacing:'.04em' }}>
                     {STATUS_LABEL[item.status] || String(item.status||'PENDENTE').toUpperCase()}
                   </div>
                 </div>
@@ -493,7 +494,7 @@ function QueuePanel({ d, accountStats }) {
       <AnimatePresence>
         {pausedCount > 0 && (
           <motion.div initial={{ opacity:0, y:4 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
-            style={{ margin:'8px 14px 14px', padding:'8px 12px', background:'color-mix(in oklch, var(--mf-warning-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 18%, transparent)', borderRadius:10, display:'flex', alignItems:'center', gap:7, fontSize:11, color:'var(--mf-warning-500)' }}>
+            style={{ margin:'8px 14px 14px', padding:'8px 12px', background:'color-mix(in oklch, var(--mf-warning-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 18%, transparent)', borderRadius: 'var(--mf-r-md)', display:'flex', alignItems:'center', gap:7, fontSize: 'var(--mf-t-micro)', color:'var(--mf-warning-500)' }}>
             <AlertTriangle size={13} style={{ flexShrink:0 }} />
             {pausedCount} conta(s) em pausa automática.
           </motion.div>
@@ -542,18 +543,18 @@ function LoopsPanel({ loops }) {
   return (
     <div style={{ ...card, display:'flex', flexDirection:'column', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)' }} className="lift">
       {/* purple ambient orb */}
-      <div style={{ position:'absolute', top:-60, right:-40, width:180, height:180, borderRadius:'50%', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent),transparent 70%)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:-60, right:-40, width:180, height:180, borderRadius: 'var(--mf-r-full)', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent),transparent 70%)', pointerEvents:'none' }} />
       <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,oklch(0.65 0.22 295 / 0.55),transparent)' }} />
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid var(--mf-border-subtle)', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ width:28, height:28, borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <Repeat2 size={13} style={{ color:'var(--mf-mod-publicar)' }} />
           </div>
-          <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase' }}>Loops em execução</span>
+          <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase' }}>Loops em execução</span>
         </div>
-        <Link to="/loop" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--mf-text-3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', transition:'all .15s' }}
+        <Link to="/loop" style={{ display:'flex', alignItems:'center', gap:4, fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', textDecoration:'none', padding:'3px 9px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', transition:'all .15s' }}
           onMouseEnter={e => { e.currentTarget.style.color='var(--mf-mod-publicar)'; e.currentTarget.style.borderColor='color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)'; }}
           onMouseLeave={e => { e.currentTarget.style.color='var(--mf-text-3)'; e.currentTarget.style.borderColor='var(--mf-border)'; }}
         >Gerenciar <ChevronRight size={12} /></Link>
@@ -565,16 +566,16 @@ function LoopsPanel({ loops }) {
           <div style={{ fontSize:42, fontWeight:800, letterSpacing:'-2px', lineHeight:1, background:'linear-gradient(135deg,var(--mf-mod-publicar),var(--mf-mod-publicar),var(--mf-primary-500))', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text', fontVariantNumeric:'tabular-nums' }}>
             <NumberTicker value={totalRemaining} />
           </div>
-          <div style={{ fontSize:12, color:'var(--mf-text-3)', lineHeight:1.4 }}>
+          <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.4 }}>
             reels<br/>restantes
           </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8 }}>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)', borderRadius:20, padding:'3px 10px', fontSize:11, fontWeight:700, color:'var(--mf-mod-publicar)' }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 22%, transparent)', borderRadius: 'var(--mf-r-xl)', padding:'3px 10px', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-mod-publicar)' }}>
             <Play size={9} style={{ fill:'var(--mf-mod-publicar)' }} />{activeLoops.length} loop(s) ativo(s)
           </span>
           {grouped.length > 0 && (
-            <span style={{ fontSize:11, color:'var(--mf-text-3)' }}>{grouped.length} conta(s)</span>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>{grouped.length} conta(s)</span>
           )}
         </div>
       </div>
@@ -584,7 +585,7 @@ function LoopsPanel({ loops }) {
         {grouped.length === 0 ? (
           <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:120, color:'var(--mf-text-3)', gap:8 }}>
             <Repeat2 size={24} opacity={.2} />
-            <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, letterSpacing:'.06em' }}>NENHUM LOOP ATIVO</span>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', letterSpacing:'.06em' }}>NENHUM LOOP ATIVO</span>
           </div>
         ) : (
           grouped.slice(0, 8).map(({ account, loops: al }, gi) => {
@@ -604,28 +605,28 @@ function LoopsPanel({ loops }) {
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
               >
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:32, height:32, borderRadius:'50%', overflow:'hidden', border:`1.5px solid ${isDone?'color-mix(in oklch, var(--mf-success-500) 35%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 30%, transparent)'}`, flexShrink:0, background:'var(--mf-surface-1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <div style={{ width:32, height:32, borderRadius: 'var(--mf-r-full)', overflow:'hidden', border:`1.5px solid ${isDone?'color-mix(in oklch, var(--mf-success-500) 35%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 30%, transparent)'}`, flexShrink:0, background:'var(--mf-surface-1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                     {avatarSrc
                       ? <img src={avatarSrc} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
-                      : <span style={{ fontSize:12, fontWeight:700, color: isDone?'var(--mf-success-500)':'var(--mf-mod-publicar)' }}>{(account.username||'?')[0].toUpperCase()}</span>
+                      : <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, color: isDone?'var(--mf-success-500)':'var(--mf-mod-publicar)' }}>{(account.username||'?')[0].toUpperCase()}</span>
                     }
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{account.username}</div>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:12, fontWeight:800, color: isDone?'var(--mf-success-500)':'var(--mf-mod-publicar)', flexShrink:0, fontVariantNumeric:'tabular-nums' }}>{cyclePos}/{total}</div>
+                      <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>@{account.username}</div>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', fontWeight:800, color: isDone?'var(--mf-success-500)':'var(--mf-mod-publicar)', flexShrink:0, fontVariantNumeric:'tabular-nums' }}>{cyclePos}/{total}</div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:2 }}>
-                      <span style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'60%' }}>{loop.name}</span>
-                      <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, color: isDone?'var(--mf-success-500)':'color-mix(in oklch, var(--mf-mod-publicar) 70%, transparent)' }}>
+                      <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'60%' }}>{loop.name}</span>
+                      <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color: isDone?'var(--mf-success-500)':'color-mix(in oklch, var(--mf-mod-publicar) 70%, transparent)' }}>
                         {isDone ? 'ciclo concluído' : `${remaining} · ${fmtNext(loop)}`}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div style={{ marginTop:7, height:3, background:'var(--mf-border)', borderRadius:3, overflow:'hidden' }}>
+                <div style={{ marginTop:7, height:3, background:'var(--mf-border)', borderRadius: 'var(--mf-r-xs)', overflow:'hidden' }}>
                   <motion.div initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.7, ease }}
-                    style={{ height:'100%', borderRadius:3, background: isDone ? 'linear-gradient(90deg,var(--mf-success-500),var(--mf-success-500))' : 'linear-gradient(90deg,#6d28d9,var(--mf-mod-publicar))', boxShadow: isDone ? '0 0 8px color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : '0 0 8px color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }} />
+                    style={{ height:'100%', borderRadius: 'var(--mf-r-xs)', background: isDone ? 'linear-gradient(90deg,var(--mf-success-500),var(--mf-success-500))' : 'linear-gradient(90deg,#6d28d9,var(--mf-mod-publicar))', boxShadow: isDone ? '0 0 8px color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : '0 0 8px color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }} />
                 </div>
               </motion.div>
             );
@@ -649,7 +650,7 @@ function TopViewsRanking({ d }) {
   if (list.length === 0) return (
     <div style={{ ...card, padding:'32px', textAlign:'center', color:'var(--mf-text-3)' }}>
       <Eye size={28} style={{ marginBottom:10, opacity:.18 }} />
-      <div style={{ fontSize:13 }}>Nenhum dado. Faça Sync em Top Posts.</div>
+      <div style={{ fontSize: 'var(--mf-t-sm)' }}>Nenhum dado. Faça Sync em Top Posts.</div>
     </div>
   );
 
@@ -658,21 +659,21 @@ function TopViewsRanking({ d }) {
   return (
     <div style={{ ...card, overflow:'hidden', borderColor:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)' }} className="lift">
       {/* gold ambient */}
-      <div style={{ position:'absolute', top:-50, right:-40, width:160, height:160, borderRadius:'50%', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-warning-500) 7%, transparent),transparent 70%)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:-50, right:-40, width:160, height:160, borderRadius: 'var(--mf-r-full)', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-warning-500) 7%, transparent),transparent 70%)', pointerEvents:'none' }} />
       <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,oklch(0.85 0.15 80 / 0.5),transparent)' }} />
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid var(--mf-border-subtle)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ width:28, height:28, borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <Eye size={13} style={{ color:'var(--mf-warning-500)' }} />
           </div>
           <div>
-            <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase', display:'block' }}>Top Contas · Views</span>
-            <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-text-3)', letterSpacing:'.04em' }}>30 DIAS · {fmtK(totalV)} TOTAL</span>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase', display:'block' }}>Top Contas · Views</span>
+            <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', letterSpacing:'.04em' }}>30 DIAS · {fmtK(totalV)} TOTAL</span>
           </div>
         </div>
-        <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--mf-text-3)', textDecoration:'none', padding:'3px 9px', borderRadius:6, border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', transition:'all .15s' }}
+        <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:4, fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', textDecoration:'none', padding:'3px 9px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', transition:'all .15s' }}
           onMouseEnter={e => { e.currentTarget.style.color='var(--mf-warning-500)'; e.currentTarget.style.borderColor='color-mix(in oklch, var(--mf-warning-500) 25%, transparent)'; }}
           onMouseLeave={e => { e.currentTarget.style.color='var(--mf-text-3)'; e.currentTarget.style.borderColor='var(--mf-border)'; }}
         >Top posts <ChevronRight size={12} /></Link>
@@ -705,13 +706,13 @@ function TopViewsRanking({ d }) {
                 {/* rank */}
                 <div style={{ width:22, textAlign:'center', flexShrink:0 }}>
                   {isTop3
-                    ? <span style={{ fontSize:14, lineHeight:1 }}>{MEDALS[i]}</span>
-                    : <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, color:'var(--mf-border-strong)' }}>{String(i+1).padStart(2,'0')}</span>
+                    ? <span style={{ fontSize: 'var(--mf-t-body)', lineHeight:1 }}>{MEDALS[i]}</span>
+                    : <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-border-strong)' }}>{String(i+1).padStart(2,'0')}</span>
                   }
                 </div>
 
                 {/* avatar */}
-                <div style={{ width: isTop?34:28, height: isTop?34:28, borderRadius:'50%', overflow:'hidden', flexShrink:0,
+                <div style={{ width: isTop?34:28, height: isTop?34:28, borderRadius: 'var(--mf-r-full)', overflow:'hidden', flexShrink:0,
                   border:`${isTop?'2px':'1.5px'} solid ${isTop?'color-mix(in oklch, var(--mf-warning-500) 50%, transparent)':'var(--mf-border-strong)'}`,
                   background:'var(--mf-surface-1)', display:'flex', alignItems:'center', justifyContent:'center',
                   boxShadow: isTop ? '0 0 12px color-mix(in oklch, var(--mf-warning-500) 30%, transparent)' : 'none',
@@ -728,7 +729,7 @@ function TopViewsRanking({ d }) {
                   <div style={{ fontSize: isTop?13:12, fontWeight:700, color: isTop?'#ffe9a0':'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                     @{acc.username}
                   </div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-text-3)', marginTop:2, letterSpacing:'.03em' }}>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2, letterSpacing:'.03em' }}>
                     {acc.totalPosts} posts · {fmtK(acc.avgViews)}/post
                   </div>
                 </div>
@@ -739,14 +740,14 @@ function TopViewsRanking({ d }) {
                     color: isTop?'var(--mf-warning-500)':'var(--mf-mod, var(--mf-accent-500))',
                     textShadow: isTop ? '0 0 16px color-mix(in oklch, var(--mf-warning-500) 50%, transparent)' : '0 0 10px color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)',
                   }}>{fmtK(views)}</div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, color:'var(--mf-text-3)', marginTop:1 }}>views</div>
+                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1 }}>views</div>
                 </div>
               </div>
 
               {/* bar */}
-              <div style={{ marginTop:6, height: isTop?3:2, background:'var(--mf-border-subtle)', borderRadius:3, overflow:'hidden', marginLeft:22+10+(isTop?34:28)+10 }}>
+              <div style={{ marginTop:6, height: isTop?3:2, background:'var(--mf-border-subtle)', borderRadius: 'var(--mf-r-xs)', overflow:'hidden', marginLeft:22+10+(isTop?34:28)+10 }}>
                 <motion.div initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.65, delay:i*.04, ease }}
-                  style={{ height:'100%', borderRadius:3,
+                  style={{ height:'100%', borderRadius: 'var(--mf-r-xs)',
                     background: isTop ? 'linear-gradient(90deg,var(--mf-warning-500),var(--mf-warning-500),var(--mf-mod, var(--mf-accent-500)))' : isTop3 ? `${rc}` : 'color-mix(in oklch, var(--mf-mod-contas) 45%, transparent)',
                     boxShadow: isTop ? '0 0 8px color-mix(in oklch, var(--mf-warning-500) 50%, transparent)' : 'none',
                   }} />
@@ -768,7 +769,7 @@ function PostagensTable({ stats }) {
     return vb-va;
   }), [stats, col]);
   const totals = useMemo(() => stats.reduce((acc,s) => ({ hoje:acc.hoje+s.postsToday,'7d':acc['7d']+s.posts7d,'30d':acc['30d']+s.posts30d }), { hoje:0,'7d':0,'30d':0 }), [stats]);
-  const thS = { fontSize:10, color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.08em', padding:'8px 12px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', cursor:'pointer', whiteSpace:'nowrap' };
+  const thS = { fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.08em', padding:'8px 12px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', cursor:'pointer', whiteSpace:'nowrap' };
   return (
     <div style={{ ...card }} className="lift">
       <PanelHeader title="Postagens por conta" icon={Send} right={
@@ -776,7 +777,7 @@ function PostagensTable({ stats }) {
           {PERIODS.map(p => <SelectBtn key={p.value} active={col===p.value} onClick={() => setCol(p.value)}>{p.label}</SelectBtn>)}
         </div>
       } />
-      <div style={{ padding:'8px 14px 6px', fontSize:11, color:'var(--mf-text-3)', borderBottom:'1px solid var(--mf-border-subtle)' }}>
+      <div style={{ padding:'8px 14px 6px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', borderBottom:'1px solid var(--mf-border-subtle)' }}>
         {stats.length} conta(s) ·&nbsp;
         <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals.hoje)}</span> hoje ·&nbsp;
         <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals['7d'])}</span> em 7d ·&nbsp;
@@ -794,7 +795,7 @@ function PostagensTable({ stats }) {
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding:'20px 12px', color:'var(--mf-text-3)', fontSize:12 }}>Nenhuma postagem no período.</td></tr>
+              <tr><td colSpan={4} style={{ padding:'20px 12px', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>Nenhuma postagem no período.</td></tr>
             ) : sorted.map((acc, i) => (
               <motion.tr key={acc._id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:i*.03 }}
                 style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
@@ -805,14 +806,14 @@ function PostagensTable({ stats }) {
                   <div style={{ display:'flex', alignItems:'center', gap:9 }}>
                     <AvatarChip username={acc.username} avatar={acc.avatar} />
                     <div>
-                      <div style={{ fontWeight:600, fontSize:13, color:'var(--mf-text)' }}>@{acc.username}</div>
-                      <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{fmtK(acc.followers)} seguidores</div>
+                      <div style={{ fontWeight:600, fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>@{acc.username}</div>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{fmtK(acc.followers)} seguidores</div>
                     </div>
                   </div>
                 </td>
-                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='hoje'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsToday)}</td>
-                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='7d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts7d)}</td>
-                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize:14, color:col==='30d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
+                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-body)', color:col==='hoje'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsToday)}</td>
+                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-body)', color:col==='7d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts7d)}</td>
+                <td style={{ padding:'9px 12px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-body)', color:col==='30d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
               </motion.tr>
             ))}
           </tbody>
@@ -827,16 +828,16 @@ function PerformanceTable({ stats }) {
   const agg = useMemo(() => stats.reduce((acc,a) => ({ followers:acc.followers+a.followers, published:acc.published+a.posts30d, failures:acc.failures+a.failures30d, growth:acc.growth+(a.growth30d||0) }), { followers:0, published:0, failures:0, growth:0 }), [stats]);
   const successRate = (agg.published+agg.failures)>0 ? Math.round(agg.published/(agg.published+agg.failures)*100) : 0;
   const fmtDate = d => { if (!d) return '—'; const dt=new Date(d); return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; };
-  const thS = { fontSize:10, color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.07em', padding:'8px 10px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', whiteSpace:'nowrap' };
+  const thS = { fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.07em', padding:'8px 10px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', whiteSpace:'nowrap' };
   return (
     <div style={{ ...card }} className="lift">
       <PanelHeader title="Performance por conta" icon={TrendingUp} right={
-        <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:11, flexWrap:'wrap' }}>
-          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:6, height:6, borderRadius:'50%', background:'var(--mf-success-500)', boxShadow:'0 0 6px var(--mf-success-500)', display:'inline-block' }} /><span style={{ color:'var(--mf-success-500)', fontWeight:700, fontSize:10 }}>LIVE</span></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Seg <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmtK(agg.followers)}</strong></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Pub <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmt(agg.published)}</strong></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Falhas <strong style={{ color:'var(--mf-danger-500)' }}>{fmt(agg.failures)}</strong></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize:11 }}>Sucesso <strong style={{ color:'var(--mf-success-500)' }}>{successRate}%</strong></span>
+        <div style={{ display:'flex', alignItems:'center', gap:12, fontSize: 'var(--mf-t-micro)', flexWrap:'wrap' }}>
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', boxShadow:'0 0 6px var(--mf-success-500)', display:'inline-block' }} /><span style={{ color:'var(--mf-success-500)', fontWeight:700, fontSize: 'var(--mf-t-nano)' }}>LIVE</span></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Seg <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmtK(agg.followers)}</strong></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Pub <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmt(agg.published)}</strong></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Falhas <strong style={{ color:'var(--mf-danger-500)' }}>{fmt(agg.failures)}</strong></span>
+          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Sucesso <strong style={{ color:'var(--mf-success-500)' }}>{successRate}%</strong></span>
         </div>
       } />
       <div className="tbl-scroll-wrap">
@@ -857,7 +858,7 @@ function PerformanceTable({ stats }) {
           </thead>
           <tbody>
             {stats.length===0 ? (
-              <tr><td colSpan={10} style={{ padding:'20px 10px', color:'var(--mf-text-3)', fontSize:12 }}>Nenhuma conta encontrada.</td></tr>
+              <tr><td colSpan={10} style={{ padding:'20px 10px', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>Nenhuma conta encontrada.</td></tr>
             ) : stats.map((acc,idx) => {
               const growth = acc.growth30d||0;
               return (
@@ -866,24 +867,24 @@ function PerformanceTable({ stats }) {
                   onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
                   onMouseLeave={e => e.currentTarget.style.background='transparent'}
                 >
-                  <td style={{ padding:'9px 10px', fontSize:11, color:'var(--mf-text-3)', fontWeight:600 }}>{String(idx+1).padStart(2,'0')}</td>
+                  <td style={{ padding:'9px 10px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontWeight:600 }}>{String(idx+1).padStart(2,'0')}</td>
                   <td style={{ padding:'9px 10px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <AvatarChip username={acc.username} avatar={acc.avatar} size={28} />
                       <div>
-                        <div style={{ fontWeight:600, fontSize:12, color:'var(--mf-text)', whiteSpace:'nowrap' }}>@{acc.username}</div>
-                        <div style={{ fontSize:10, color:'var(--mf-text-3)' }}>{acc.following} seguindo</div>
+                        <div style={{ fontWeight:600, fontSize: 'var(--mf-t-xs)', color:'var(--mf-text)', whiteSpace:'nowrap' }}>@{acc.username}</div>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{acc.following} seguindo</div>
                       </div>
                     </div>
                   </td>
                   <td style={{ padding:'9px 10px', textAlign:'right' }}><StatusBadge status={acc.status} /></td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.followers)}</td>
-                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:growth>0?'var(--mf-success-500)':growth<0?'var(--mf-danger-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-mod, var(--mf-accent-500))', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.failures30d>10?'var(--mf-danger-500)':acc.failures30d>0?'var(--mf-warning-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
-                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize:13, color:acc.posts30d===0?'var(--mf-text-3)':acc.successRate>=80?'var(--mf-success-500)':acc.successRate>=60?'var(--mf-warning-500)':'var(--mf-danger-500)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
-                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
-                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontSize:11, color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.followers)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-sm)', color:growth>0?'var(--mf-success-500)':growth<0?'var(--mf-danger-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-sm)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-sm)', color:acc.failures30d>10?'var(--mf-danger-500)':acc.failures30d>0?'var(--mf-warning-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
+                  <td style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-sm)', color:acc.posts30d===0?'var(--mf-text-3)':acc.successRate>=80?'var(--mf-success-500)':acc.successRate>=60?'var(--mf-warning-500)':'var(--mf-danger-500)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
+                  <td className="col-mob-hide" style={{ padding:'9px 10px', textAlign:'right', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
                 </motion.tr>
               );
             })}
@@ -898,18 +899,18 @@ function PerformanceTable({ stats }) {
 function InsightCard({ icon, title, value, sub, detail, color }) {
   return (
     <motion.div variants={fadeUp} whileHover={{ y:-3, boxShadow:`0 16px 44px rgba(0,0,0,.52), 0 0 0 1px ${color}25` }} transition={spring}
-      style={{ background:'oklch(0.16 0.05 235 / 0.75)', border:`1px solid ${color}20`, borderRadius:16, padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}
+      style={{ background:'oklch(0.16 0.05 235 / 0.75)', border:`1px solid ${color}20`, borderRadius: 'var(--mf-r-lg)', padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}
       className="sheen">
-      <div style={{ position:'absolute', top:-20, right:-14, width:80, height:80, borderRadius:'50%', background:`${color}08`, pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:-20, right:-14, width:80, height:80, borderRadius: 'var(--mf-r-full)', background:`${color}08`, pointerEvents:'none' }} />
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <span style={{ width:34, height:34, borderRadius:10, background:`${color}15`, border:`1px solid ${color}28`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0, color }}>{icon}</span>
+        <span style={{ width:34, height:34, borderRadius: 'var(--mf-r-md)', background:`${color}15`, border:`1px solid ${color}28`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--mf-t-h2)', flexShrink:0, color }}>{icon}</span>
         <div>
-          <div style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.1em', textTransform:'uppercase' }}>{title}</div>
-          <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1.1, marginTop:2 }}>{value}</div>
+          <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.1em', textTransform:'uppercase' }}>{title}</div>
+          <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color, lineHeight:1.1, marginTop:2 }}>{value}</div>
         </div>
       </div>
-      <div style={{ fontSize:12, color:'var(--mf-text-2)', lineHeight:1.55 }}>{sub}</div>
-      {detail && <div style={{ fontSize:11, color:`${color}cc`, fontWeight:600, borderTop:`1px solid ${color}15`, paddingTop:8 }}>{detail}</div>}
+      <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.55 }}>{sub}</div>
+      {detail && <div style={{ fontSize: 'var(--mf-t-micro)', color:`${color}cc`, fontWeight:600, borderTop:`1px solid ${color}15`, paddingTop:8 }}>{detail}</div>}
     </motion.div>
   );
 }
@@ -950,7 +951,7 @@ function SmartInsights({ accountStats, data: d }) {
 
   return (
     <motion.section variants={stagger} initial="hidden" animate="show" style={{ padding:'0 0 4px' }}>
-      <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', marginBottom:12, textTransform:'uppercase' }}>
+      <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', marginBottom:12, textTransform:'uppercase' }}>
         <TrendingUp size={13} /> Insights inteligentes
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
@@ -1000,18 +1001,18 @@ function LivePostRow({ post, API_BASE }) {
     >
       {acc && <AvatarChip username={acc.username} avatar={acc.avatar} size={28} />}
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+        <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
           {acc ? `@${acc.username}` : '—'}
           {(post.accounts||[]).length > 1 && (
-            <span style={{ marginLeft:5, fontSize:10, color:'var(--mf-text-3)' }}>+{post.accounts.length-1}</span>
+            <span style={{ marginLeft:5, fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>+{post.accounts.length-1}</span>
           )}
         </div>
-        {caption && <div style={{ fontSize:10, color:'var(--mf-text-3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{caption}</div>}
-        {post.error && <div style={{ fontSize:10, color:'var(--mf-danger-500)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{post.error.slice(0,80)}</div>}
+        {caption && <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{caption}</div>}
+        {post.error && <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-danger-500)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{post.error.slice(0,80)}</div>}
       </div>
       <div style={{ textAlign:'right', flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3 }}>
-        <span style={{ fontFamily:'var(--mf-mono)', fontSize:9, fontWeight:800, color:sc, background:`${sc}14`, border:`1px solid ${sc}30`, padding:'2px 6px', borderRadius:5, letterSpacing:'.05em' }}>{sl}</span>
-        <span style={{ fontSize:9, color:'var(--mf-text-3)' }}>{fmtAgo(post.updatedAt)}</span>
+        <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:800, color:sc, background:`${sc}14`, border:`1px solid ${sc}30`, padding:'2px 6px', borderRadius: 'var(--mf-r-xs)', letterSpacing:'.05em' }}>{sl}</span>
+        <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{fmtAgo(post.updatedAt)}</span>
       </div>
     </motion.div>
   );
@@ -1040,15 +1041,15 @@ function LivePostsPanel() {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px', borderBottom:'1px solid var(--mf-border-subtle)', flexWrap:'wrap', gap:8, flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:8, background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ width:28, height:28, borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <ListVideo size={13} style={{ color:'var(--mf-mod, var(--mf-accent-500))' }} />
           </div>
-          <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase' }}>Postagens em tempo real</span>
+          <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-text-2)', textTransform:'uppercase' }}>Postagens em tempo real</span>
         </div>
         {/* Dot pulse when processing */}
         {counts.processing > 0 && (
-          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--mf-mod, var(--mf-accent-500))', boxShadow:'0 0 8px var(--mf-mod, var(--mf-accent-500))', animation:'blink 1.4s infinite', display:'inline-block' }} />
+          <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-micro)', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>
+            <span style={{ width:7, height:7, borderRadius: 'var(--mf-r-full)', background:'var(--mf-mod, var(--mf-accent-500))', boxShadow:'0 0 8px var(--mf-mod, var(--mf-accent-500))', animation:'blink 1.4s infinite', display:'inline-block' }} />
             {counts.processing} publicando agora
           </span>
         )}
@@ -1061,7 +1062,7 @@ function LivePostsPanel() {
           const cnt = counts[t.key];
           return (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding:'4px 12px', borderRadius:7, fontSize:10, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
+              padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0,
               background: isActive ? `${t.color}18` : 'var(--mf-border-subtle)',
               color:      isActive ? t.color : 'var(--mf-text-3)',
               border:     `1px solid ${isActive ? `${t.color}35` : 'var(--mf-border)'}`,
@@ -1069,7 +1070,7 @@ function LivePostsPanel() {
             }}>
               {t.label}
               {cnt > 0 && (
-                <span style={{ marginLeft:5, background:isActive?`${t.color}28`:'var(--mf-border)', color:isActive?t.color:'var(--mf-text-3)', borderRadius:10, padding:'1px 6px', fontSize:9, fontWeight:800 }}>{cnt}</span>
+                <span style={{ marginLeft:5, background:isActive?`${t.color}28`:'var(--mf-border)', color:isActive?t.color:'var(--mf-text-3)', borderRadius: 'var(--mf-r-md)', padding:'1px 6px', fontSize: 'var(--mf-t-nano)', fontWeight:800 }}>{cnt}</span>
               )}
             </button>
           );
@@ -1079,7 +1080,7 @@ function LivePostsPanel() {
       {/* Rows */}
       <div style={{ flex:1, overflowY:'auto' }}>
         {rows.length === 0 ? (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:120, color:'var(--mf-text-3)', fontSize:12, gap:8 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:120, color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', gap:8 }}>
             <Eye size={18} opacity={.2} />{active?.emptyText}
           </div>
         ) : (
@@ -1108,11 +1109,16 @@ export default function Dashboard() {
   const [problemsPeriod,setProblemsPeriod]= useState('hoje');
   const [proxyCount,    setProxyCount]    = useState(0);
 
+  const [primeiraCarga, setPrimeiraCarga] = useState(true);
   const loadRef  = useRef(null);
   // chartContainerRef removed — ResponsiveContainer handles sizing
   const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
 
-  const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch { setData(d => d ?? {}); } }, []);
+  const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch { setData(d => d ?? {}); }
+    /* Só a primeira carga mostra esqueleto: o painel recarrega sozinho, e
+       trocar as métricas por blocos cinzas a cada ciclo faria a tela
+       piscar sem ninguém ter pedido. */
+    finally { setPrimeiraCarga(false); } }, []);
   const loadStats   = useCallback(async () => { try { const r = await api.get('/dashboard/account-stats');                                 setAccountStats(r.data||[]); } catch {} }, []);
   const loadInsights= useCallback(async () => { try { const r = await api.get('/insights', { params:{ period:'30d', limit:6 } });          setTopInsights(r.data?.insights||[]); } catch {} }, []);
   const loadProxies = useCallback(async () => { try { const r = await api.get('/proxies'); const list=r.data?.proxies||(Array.isArray(r.data)?r.data:[]); setProxyCount(list.length); } catch {} }, []);
@@ -1250,12 +1256,30 @@ export default function Dashboard() {
         </BlurFade>
 
         {/* ── KPI Cards ── */}
+        {primeiraCarga && !data ? (
+          <EsqueletoMetricas quantas={4} />
+        ) : (
         <motion.section variants={stagger} initial="hidden" animate="show" className="metric-grid">
           <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={[]}         delay={0}    />
           <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit>0?fmt(d.dailyPostLimit):'—'}`}   orbType="warm"   spark={sparkDaily} delay={.06}  />
           <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="erro"   spark={sparkErrors} delay={.12}  />
           <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="fila" spark={[]}         delay={.18} />
-        </motion.section>
+            {/* As duas métricas de conta vinham numa fileira própria logo
+                abaixo. Medindo: 154px de altura e três textos cada, o mesmo
+                conteúdo de um cartão KPI — só que em 471px de largura contra
+                220px. Metade da largura da tela para um número.
+
+                Juntas aqui, os seis números ficam comparáveis lado a lado, que
+                é o ganho de verdade: antes, comparar "contas ativas" com
+                "contas com problema" exigia olhar duas seções separadas por
+                três painéis. A altura total é praticamente a mesma. */}
+          <WideMetric title="CONTAS ADICIONADAS" value={fmt(accountsAddedValue)}
+          subtitle={accountsPeriod==='hoje'?'adicionadas hoje':accountsPeriod==='7d'?'nos últimos 7 dias':'nos últimos 30 dias'}
+          kind="orb" activePeriod={accountsPeriod} onPeriodChange={setAccountsPeriod} chip={`+${accountsAddedValue}`} spark={sparkDaily} />
+          <WideMetric title="CONTAS COM PROBLEMA" value={fmt(problemsValue)}
+          subtitle={problemsPeriod==='hoje'?'com problema hoje':problemsPeriod==='7d'?'com problema em 7d':'com problema total'}
+          kind="ice" activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} chip={`-${problemsValue}`} tone="muted" spark={sparkDaily} />
+        </motion.section>)}
 
         {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
         <BlurFade delay={0.04} inView>
@@ -1276,25 +1300,13 @@ export default function Dashboard() {
           </div>
         </BlurFade>
 
-        {/* ── Wide metrics ── */}
-        <BlurFade delay={0} inView>
-          <section className="wide-metric-row">
-            <WideMetric title="CONTAS ADICIONADAS" value={fmt(accountsAddedValue)}
-              subtitle={accountsPeriod==='hoje'?'adicionadas hoje':accountsPeriod==='7d'?'nos últimos 7 dias':'nos últimos 30 dias'}
-              kind="orb" activePeriod={accountsPeriod} onPeriodChange={setAccountsPeriod} chip={`+${accountsAddedValue}`} spark={sparkDaily} />
-            <WideMetric title="CONTAS COM PROBLEMA" value={fmt(problemsValue)}
-              subtitle={problemsPeriod==='hoje'?'com problema hoje':problemsPeriod==='7d'?'com problema em 7d':'com problema total'}
-              kind="ice" activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} chip={`-${problemsValue}`} tone="muted" spark={sparkDaily} />
-          </section>
-        </BlurFade>
-
         {/* ── Quick actions ── */}
         <section className="quick-grid">
           {quickActions.map(({ title, subtitle, icon: Icon, to }, i) => (
             <motion.div key={title} variants={fadeUp} initial="hidden" animate="show" transition={{ delay:.1+i*.05, duration:.35, ease }}
               whileHover={{ y:-2, borderColor:'color-mix(in oklch, var(--mf-mod-contas) 22%, transparent)', boxShadow:'0 10px 32px rgba(0,0,0,.45)' }}
             >
-              <Link to={to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:14, background:'oklch(0.16 0.05 235 / 0.88)', border:'1px solid var(--mf-border)', backdropFilter:'blur(14px)', cursor:'pointer', width:'100%', transition:'all .22s cubic-bezier(.4,0,.2,1)' }} className="sheen">
+              <Link to={to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius: 'var(--mf-r-lg)', background:'oklch(0.16 0.05 235 / 0.88)', border:'1px solid var(--mf-border)', backdropFilter:'blur(14px)', cursor:'pointer', width:'100%', transition:'all .22s cubic-bezier(.4,0,.2,1)' }} className="sheen">
                 <span className="quick-icon"><Icon size={22} /></span>
                 <span className="quick-copy"><strong>{title}</strong><small>{subtitle}</small></span>
                 <ChevronRight className="quick-chevron" size={18} />
@@ -1306,7 +1318,7 @@ export default function Dashboard() {
         {/* ── Forecast + Queue summary ── */}
         <BlurFade delay={0} inView>
           <section className="operations-grid">
-            <div className="panel forecast-panel" style={{ ...card, borderRadius:18 }}>
+            <div className="panel forecast-panel" style={{ ...card, borderRadius: 'var(--mf-r-xl)' }}>
               <PanelHeader title="Previsão de postagens" icon={FolderOpen} right={
                 <div style={{ display:'flex', gap:4 }}>
                   {[7,14,30].map(p => <SelectBtn key={p} active={period===p} onClick={() => setPeriod(p)}>{p}d</SelectBtn>)}
@@ -1328,8 +1340,8 @@ export default function Dashboard() {
                               <stop offset="100%" stopColor="var(--mf-warning-500)" stopOpacity={0}   />
                             </linearGradient>
                           </defs>
-                          <XAxis dataKey="day" tick={{ fontSize:10, fill:'var(--mf-text-3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                          <YAxis allowDecimals={false} tick={{ fontSize:10, fill:'var(--mf-text-3)' }} tickLine={false} axisLine={false} />
+                          <XAxis dataKey="day" tick={{ fontSize: 'var(--mf-t-nano)', fill:'var(--mf-text-3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 'var(--mf-t-nano)', fill:'var(--mf-text-3)' }} tickLine={false} axisLine={false} />
                           <Tooltip contentStyle={tooltipStyle} labelStyle={{ color:'var(--mf-text)' }} formatter={(v, name) => [v, name === 'published' ? 'Publicado' : 'Previsto']} />
                           <Area type="monotone" dataKey="published"  stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth={2} fill="url(#fg-chart)"       dot={false} activeDot={{ r:4, fill:'var(--mf-mod, var(--mf-accent-500))' }} connectNulls={false} />
                           <Area type="monotone" dataKey="forecasted" stroke="var(--mf-warning-500)"      strokeWidth={2} fill="url(#fg-chart-amber)" dot={false} activeDot={{ r:4, fill:'var(--mf-warning-500)'      }} connectNulls={false} strokeDasharray="5 3" />
@@ -1337,12 +1349,12 @@ export default function Dashboard() {
                       </ResponsiveContainer>
                     </div>
                     {forecastData.some(x => x.forecast) && (
-                      <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize:10, color:'var(--mf-text-3)' }}>
+                      <div style={{ display:'flex', gap:12, justifyContent:'flex-end', padding:'0 8px 8px', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
                         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:2, background:'var(--mf-mod, var(--mf-accent-500))', display:'inline-block' }} />Publicado
+                          <span style={{ width:8, height:8, borderRadius: 'var(--mf-r-xs)', background:'var(--mf-mod, var(--mf-accent-500))', display:'inline-block' }} />Publicado
                         </span>
                         <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:2, background:'var(--mf-warning-500)', display:'inline-block' }} />Previsto
+                          <span style={{ width:8, height:8, borderRadius: 'var(--mf-r-xs)', background:'var(--mf-warning-500)', display:'inline-block' }} />Previsto
                         </span>
                       </div>
                     )}
@@ -1352,8 +1364,8 @@ export default function Dashboard() {
                     <div style={{ color:'var(--mf-mod, var(--mf-accent-500))', opacity:.55 }}>
                       <FolderOpen size={44} strokeWidth={1.2} />
                     </div>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--mf-text-2)' }}>Nenhuma postagem no período.</div>
-                    <div style={{ fontSize:11, color:'var(--mf-text-3)', lineHeight:1.5, maxWidth:240 }}>
+                    <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:600, color:'var(--mf-text-2)' }}>Nenhuma postagem no período.</div>
+                    <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.5, maxWidth:240 }}>
                       Ative um loop ou crie uma postagem para visualizar a previsão aqui.
                     </div>
                   </div>
@@ -1361,7 +1373,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="panel queue-panel" style={{ ...card, borderRadius:18 }}>
+            <div className="panel queue-panel" style={{ ...card, borderRadius: 'var(--mf-r-xl)' }}>
               <PanelHeader title="Resumo da fila" icon={Layers3} right={<SelectBtn active={false} onClick={() => {}}>Todos<ChevronDown size={12} style={{ marginLeft:2 }}/></SelectBtn>} />
               <div className="queue-body">
                 <div className="queue-hourglass-wrap">
@@ -1402,26 +1414,26 @@ export default function Dashboard() {
           <div style={{ ...card }} className="lift">
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 16px 12px', borderBottom:'1px solid var(--mf-border-subtle)', flexWrap:'wrap', gap:8 }}>
               <div>
-                <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize:10, fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', textTransform:'uppercase' }}>
+                <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', textTransform:'uppercase' }}>
                   <Flame size={13} /> Posts com mais visualizações
                 </div>
-                <div style={{ fontSize:11, color:'var(--mf-text-3)', marginTop:3 }}>Top {topInsights.length||6} dos últimos 30 dias · dados da API do Instagram.</div>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:3 }}>Top {topInsights.length||6} dos últimos 30 dias · dados da API do Instagram.</div>
               </div>
               <div style={{ display:'flex', gap:8 }}>
                 <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.97 }}
                   disabled={syncingIns}
                   onClick={async () => { setSyncingIns(true); try { await api.post('/insights/sync'); await new Promise(r => setTimeout(r,1200)); await loadInsights(); } catch {} finally { setSyncingIns(false); } }}
-                  style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 14px', borderRadius:8, border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize:11, fontWeight:700, cursor:syncingIns?'not-allowed':'pointer', opacity:syncingIns?.6:1 }}>
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 14px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:syncingIns?'not-allowed':'pointer', opacity:syncingIns?.6:1 }}>
                   <RefreshCw size={12} style={{ animation:syncingIns?'dash-spin .8s linear infinite':'none' }} />SYNC
                 </motion.button>
-                <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8, border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', fontSize:11, fontWeight:700, textDecoration:'none' }}>
+                <Link to="/top-posts" style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-micro)', fontWeight:700, textDecoration:'none' }}>
                   VER TUDO <ChevronRight size={12} />
                 </Link>
               </div>
             </div>
             <div style={{ padding:'14px 16px' }}>
               {topInsights.length === 0 ? (
-                <div style={{ padding:'20px 0', textAlign:'center', fontSize:12, color:'var(--mf-text-3)' }}>Nenhum insight sincronizado. Clique em SYNC para importar.</div>
+                <div style={{ padding:'20px 0', textAlign:'center', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)' }}>Nenhum insight sincronizado. Clique em SYNC para importar.</div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(130px,100%),1fr))', gap:10 }}>
                   {topInsights.slice(0,6).map((ins,i) => (
@@ -1446,7 +1458,7 @@ export default function Dashboard() {
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {logs.length===0 ? (
-                  <li style={{ color:'var(--mf-text-3)', fontSize:11, padding:'16px 0' }}>Nenhum log ainda.</li>
+                  <li style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'16px 0' }}>Nenhum log ainda.</li>
                 ) : logs.map((log,i) => (
                   <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                     <span className={`log-status ${log.type}`} style={{ flexShrink:0, marginTop:1 }}>
@@ -1455,13 +1467,13 @@ export default function Dashboard() {
                       {log.type==='warning'&&<AlertTriangle size={13}/>}
                     </span>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.text}</div>
+                      <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)', lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.text}</div>
                       <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                        {log.account&&<span style={{ fontSize:10, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{log.account}</span>}
-                        {log.caption&&<span style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.caption}</span>}
+                        {log.account&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{log.account}</span>}
+                        {log.caption&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.caption}</span>}
                       </div>
                     </div>
-                    <time style={{ fontSize:10, color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{log.time}</time>
+                    <time style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{log.time}</time>
                   </li>
                 ))}
               </ul>
@@ -1474,7 +1486,7 @@ export default function Dashboard() {
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {topAccounts.length===0 ? (
-                  <li style={{ color:'var(--mf-text-3)', fontSize:11, padding:'16px 0' }}>Nenhuma conta conectada.</li>
+                  <li style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'16px 0' }}>Nenhuma conta conectada.</li>
                 ) : topAccounts.map((acc,i) => {
                   const score    = acc.healthScore??(acc.healthStatus==='ativa'?95:acc.healthStatus==='restrita'?45:10);
                   const isErr    = acc.healthStatus!=='ativa';
@@ -1483,13 +1495,13 @@ export default function Dashboard() {
                     <li key={acc.username||i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                       <div style={{ position:'relative', flexShrink:0 }}>
                         <AvatarChip username={acc.username} avatar={acc.avatar} size={38} />
-                        <span style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderRadius:'50%', background:dotColor, border:'2px solid var(--mf-surface-1)', boxShadow:`0 0 6px ${dotColor}` }} />
+                        <span style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderRadius: 'var(--mf-r-full)', background:dotColor, border:'2px solid var(--mf-surface-1)', boxShadow:`0 0 6px ${dotColor}` }} />
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{acc.username}</div>
+                        <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{acc.username}</div>
                         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                          <span style={{ fontSize:10, color:isErr?'var(--mf-danger-500)':'var(--mf-success-500)', fontWeight:600 }}>{isErr?acc.healthStatus.replace('_',' '):'Online'}</span>
-                          <span style={{ fontSize:10, color:'var(--mf-text-3)' }}>· {fmtK(acc.followers)} seg.</span>
+                          <span style={{ fontSize: 'var(--mf-t-nano)', color:isErr?'var(--mf-danger-500)':'var(--mf-success-500)', fontWeight:600 }}>{isErr?acc.healthStatus.replace('_',' '):'Online'}</span>
+                          <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>· {fmtK(acc.followers)} seg.</span>
                         </div>
                       </div>
                       <span className={`score-ring ${isErr?'low':''}`} style={{ '--score':`${score}%`, flexShrink:0 }}>{score}%</span>
@@ -1502,7 +1514,7 @@ export default function Dashboard() {
             {/* SISTEMA */}
             <div style={{ ...card }} className="lift">
               <PanelHeader title="Sistema" icon={ShieldCheck} right={
-                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:6, background:!sysLoaded?'var(--mf-border-subtle)':sysOk?'color-mix(in oklch, var(--mf-success-500) 10%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color:sysDotColor, border:`1px solid ${!sysLoaded?'var(--mf-border)':sysOk?'color-mix(in oklch, var(--mf-success-500) 25%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 25%, transparent)'}` }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-sm)', background:!sysLoaded?'var(--mf-border-subtle)':sysOk?'color-mix(in oklch, var(--mf-success-500) 10%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color:sysDotColor, border:`1px solid ${!sysLoaded?'var(--mf-border)':sysOk?'color-mix(in oklch, var(--mf-success-500) 25%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 25%, transparent)'}` }}>
                   {!sysLoaded?'...':sysOk?'ONLINE':'ALERTA'}
                 </span>
               } />
@@ -1514,14 +1526,14 @@ export default function Dashboard() {
                   { icon:<WifiOff size={14}/>,       label:'Contas caídas',     value:fallenCount,          color:fallenCount>0?'var(--mf-warning-500)':'var(--mf-text-3)', sub:fallenCount>0?'Reconectar necessário':'Todas online' },
                 ].map(item => (
                   <li key={item.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-                    <span style={{ width:32, height:32, borderRadius:9, background:`color-mix(in srgb,${item.color} 12%,transparent)`, border:`1px solid color-mix(in srgb,${item.color} 20%,transparent)`, display:'flex', alignItems:'center', justifyContent:'center', color:item.color, flexShrink:0 }}>
+                    <span style={{ width:32, height:32, borderRadius: 'var(--mf-r-md)', background:`color-mix(in srgb,${item.color} 12%,transparent)`, border:`1px solid color-mix(in srgb,${item.color} 20%,transparent)`, display:'flex', alignItems:'center', justifyContent:'center', color:item.color, flexShrink:0 }}>
                       {item.icon}
                     </span>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text-2)' }}>{item.label}</div>
-                      <div style={{ fontSize:10, color:'var(--mf-text-3)', marginTop:1 }}>{item.sub}</div>
+                      <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text-2)' }}>{item.label}</div>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1 }}>{item.sub}</div>
                     </div>
-                    <strong style={{ fontSize:20, fontWeight:800, color:item.color, letterSpacing:-0.5, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{item.value}</strong>
+                    <strong style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color:item.color, letterSpacing:-0.5, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{item.value}</strong>
                   </li>
                 ))}
               </ul>
@@ -1534,7 +1546,7 @@ export default function Dashboard() {
               } />
               <ul style={{ listStyle:'none', margin:0, padding:'4px 14px', display:'flex', flexDirection:'column' }}>
                 {activities.length===0 ? (
-                  <li style={{ color:'var(--mf-text-3)', fontSize:11, padding:'16px 0' }}>Nenhuma atividade ainda.</li>
+                  <li style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'16px 0' }}>Nenhuma atividade ainda.</li>
                 ) : activities.map((act,i) => {
                   const Icon      = act.icon;
                   const toneColor = { cyan:'var(--mf-mod, var(--mf-accent-500))', danger:'var(--mf-danger-500)', amber:'var(--mf-warning-500)' }[act.tone]||'var(--mf-text-3)';
@@ -1542,13 +1554,13 @@ export default function Dashboard() {
                     <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
                       <span className={`activity-icon ${act.tone}`} style={{ flexShrink:0, marginTop:1 }}><Icon size={13} /></span>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.text}</div>
+                        <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.text}</div>
                         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                          {act.account&&<span style={{ fontSize:10, color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{act.account}</span>}
-                          {act.caption&&<span style={{ fontSize:10, color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.caption}</span>}
+                          {act.account&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{act.account}</span>}
+                          {act.caption&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.caption}</span>}
                         </div>
                       </div>
-                      <time style={{ fontSize:10, color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{act.time}</time>
+                      <time style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{act.time}</time>
                     </li>
                   );
                 })}

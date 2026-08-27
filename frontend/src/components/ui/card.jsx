@@ -5,8 +5,8 @@ const Card = forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      'relative overflow-hidden rounded-[12px] border border-[var(--border)] bg-[rgba(10,20,38,.85)] backdrop-blur-[12px]',
-      'before:absolute before:top-0 before:left-4 before:right-4 before:h-px before:bg-gradient-to-r before:from-transparent before:via-[rgba(0,212,255,.3)] before:to-transparent',
+      'relative overflow-hidden rounded-[var(--mf-r-md)] border border-[var(--border)] bg-[var(--mf-surface-1)] backdrop-blur-[12px]',
+      'before:absolute before:top-0 before:left-4 before:right-4 before:h-px before:bg-gradient-to-r before:from-transparent before:via-[color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_30%,transparent)] before:to-transparent',
       className
     )}
     {...props}
@@ -26,7 +26,7 @@ CardHeader.displayName = 'CardHeader';
 const CardTitle = forwardRef(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn('text-[14px] font-semibold text-[var(--text)] leading-tight tracking-tight', className)}
+    className={cn('text-[var(--mf-t-body)] font-semibold text-[var(--text)] leading-tight tracking-tight', className)}
     {...props}
   />
 ));
@@ -35,7 +35,7 @@ CardTitle.displayName = 'CardTitle';
 const CardDescription = forwardRef(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn('text-[12px] text-[var(--text3)]', className)}
+    className={cn('text-[var(--mf-t-xs)] text-[var(--text3)]', className)}
     {...props}
   />
 ));

@@ -258,14 +258,14 @@ export default function ContentPicker({
   const ACENTO = 'var(--mf-mod-campanhas, var(--mf-accent-500))';
 
   const campo = {
-    height: 36, padding: '0 11px', borderRadius: 9, fontSize: 12,
+    height: 36, padding: '0 11px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)',
     background: 'var(--mf-surface-2)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };
 
   const botao = (ativo) => ({
-    padding: '7px 12px', borderRadius: 9, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-    transition: 'all .15s',
+    padding: '7px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
+    transition: 'all var(--mf-fast) var(--mf-ease-out)',
     background: ativo ? `color-mix(in oklch, ${ACENTO} 14%, transparent)` : 'var(--mf-surface-2)',
     color:      ativo ? ACENTO : 'var(--mf-text-3)',
     border:     `1px solid ${ativo ? `color-mix(in oklch, ${ACENTO} 38%, transparent)` : 'var(--mf-border)'}`,
@@ -278,20 +278,20 @@ export default function ContentPicker({
           Escolher o que já existe e trazer arquivo novo são tarefas
           diferentes. Na mesma barra, o botão de enviar competia com os filtros
           e nenhuma das duas ficava óbvia. */}
-      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 12,
+      <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 'var(--mf-r-md)',
         background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
         {[
           ['biblioteca', 'Biblioteca', `${total} arquivo(s) salvos`],
           ['upload',     'Enviar novos', 'Do seu computador'],
         ].map(([id, titulo, sub]) => (
           <button key={id} onClick={() => setAba(id)} style={{
-            flex: 1, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left',
-            border: 'none', transition: 'all .15s',
+            flex: 1, padding: '9px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', textAlign: 'left',
+            border: 'none', transition: 'all var(--mf-fast) var(--mf-ease-out)',
             background: aba === id ? `color-mix(in oklch, ${ACENTO} 15%, transparent)` : 'transparent',
             color:      aba === id ? ACENTO : 'var(--mf-text-3)',
           }}>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>{titulo}</div>
-            <div style={{ fontSize: 9.5, opacity: .78, marginTop: 1 }}>{sub}</div>
+            <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 800 }}>{titulo}</div>
+            <div style={{ fontSize: 'var(--mf-t-nano)', opacity: .78, marginTop: 1 }}>{sub}</div>
           </button>
         ))}
       </div>
@@ -308,13 +308,13 @@ export default function ContentPicker({
           }}
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: 10, padding: '38px 20px', borderRadius: 14, textAlign: 'center',
+            gap: 10, padding: '38px 20px', borderRadius: 'var(--mf-r-lg)', textAlign: 'center',
             cursor: enviando ? 'default' : 'pointer',
             border: `1.5px dashed ${arrastando ? ACENTO : 'var(--mf-border-strong)'}`,
             background: arrastando
               ? `color-mix(in oklch, ${ACENTO} 7%, transparent)`
               : 'var(--mf-surface-2)',
-            transition: 'all .15s',
+            transition: 'all var(--mf-fast) var(--mf-ease-out)',
           }}>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
             stroke={arrastando ? ACENTO : 'var(--mf-text-3)'}
@@ -323,10 +323,10 @@ export default function ContentPicker({
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <div style={{ fontSize: 13, fontWeight: 700, color: enviando ? 'var(--mf-text-3)' : 'var(--mf-text)' }}>
+          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: enviando ? 'var(--mf-text-3)' : 'var(--mf-text)' }}>
             {enviando ? 'Enviando…' : 'Arraste os arquivos aqui ou clique para escolher'}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
             Vídeos e imagens. O que subir entra na biblioteca e já fica
             selecionado para esta campanha.
             {pasta && <><br />Será salvo na pasta <strong>{pasta}</strong>.</>}
@@ -345,17 +345,17 @@ export default function ContentPicker({
           É também onde mora a capa: só faz sentido definir capa do que já foi
           escolhido, e aqui cada vídeo tem a sua ao lado. */}
       <div style={{
-        border: '1px solid var(--mf-border)', borderRadius: 14, padding: 14,
+        border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: 14,
         background: 'var(--mf-surface-1)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: escolhidos.length ? 12 : 0, gap: 8, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12.5, fontWeight: 750, color: ACENTO }}>
+            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 750, color: ACENTO }}>
               {escolhidos.length} conteúdo(s) na campanha
             </span>
             {videosSemCapa > 0 && (
-              <span style={{ fontSize: 10.5, color: 'var(--mf-text-3)' }}>
+              <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
                 {videosSemCapa} sem capa — o Instagram escolhe um quadro
               </span>
             )}
@@ -380,7 +380,7 @@ export default function ContentPicker({
         </div>
 
         {escolhidos.length === 0 ? (
-          <div style={{ fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.65 }}>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.65 }}>
             Nada selecionado ainda. Escolha abaixo ou envie arquivos novos — a ordem
             do clique é a ordem em que os conteúdos entram no plano.
           </div>
@@ -393,28 +393,28 @@ export default function ContentPicker({
               return (
                 <div key={id} style={{ width: 92, flexShrink: 0 }}>
                   <div style={{
-                    position: 'relative', width: 92, aspectRatio: '3/4', borderRadius: 11,
+                    position: 'relative', width: 92, aspectRatio: '3/4', borderRadius: 'var(--mf-r-md)',
                     overflow: 'hidden', background: 'var(--mf-surface-3)',
                     border: '1px solid var(--mf-border)',
                   }}>
                     <Miniatura midia={m} brilho={0.92} />
 
                     <span style={{
-                      position: 'absolute', top: 5, left: 5, width: 19, height: 19, borderRadius: '50%',
+                      position: 'absolute', top: 5, left: 5, width: 19, height: 19, borderRadius: 'var(--mf-r-full)',
                       background: ACENTO, color: 'var(--mf-bg)',
-                      fontSize: 9.5, fontWeight: 800, display: 'grid', placeItems: 'center',
-                      boxShadow: '0 1px 4px oklch(0 0 0 / .4)',
+                      fontSize: 'var(--mf-t-nano)', fontWeight: 800, display: 'grid', placeItems: 'center',
+                      boxShadow: 'var(--mf-shadow-1)',
                     }}>{i + 1}</span>
 
                     <button onClick={() => alternar(id)} title="Remover da campanha"
                       style={{
-                        position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: '50%',
+                        position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: 'var(--mf-r-full)',
                         display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0,
                         /* Branco literal, não token: isto flutua sobre a FOTO,
                            não sobre a superfície do app. Um token de texto
                            seguiria o tema e sumiria sobre a imagem. */
                         background: 'oklch(0 0 0 / .55)', border: '1px solid oklch(1 0 0 / .22)',
-                        color: '#fff', fontSize: 12, lineHeight: 1,
+                        color: '#fff', fontSize: 'var(--mf-t-xs)', lineHeight: 1,
                       }}>×</button>
                   </div>
 
@@ -425,8 +425,8 @@ export default function ContentPicker({
                       title={capa ? `Capa: ${nomeDe(capa)} — clique para trocar` : 'Definir a capa deste vídeo'}
                       style={{
                         marginTop: 5, width: '100%', display: 'flex', alignItems: 'center', gap: 5,
-                        padding: '4px 6px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                        fontSize: 9.5, fontWeight: 750, transition: 'all .15s',
+                        padding: '4px 6px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', textAlign: 'left',
+                        fontSize: 'var(--mf-t-nano)', fontWeight: 750, transition: 'all var(--mf-fast) var(--mf-ease-out)',
                         background: capa
                           ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)'
                           : 'var(--mf-surface-2)',
@@ -436,7 +436,7 @@ export default function ContentPicker({
                           : 'var(--mf-border)'}`,
                       }}>
                       <span style={{
-                        width: 15, height: 15, borderRadius: 4, flexShrink: 0, overflow: 'hidden',
+                        width: 15, height: 15, borderRadius: 'var(--mf-r-xs)', flexShrink: 0, overflow: 'hidden',
                         position: 'relative', display: 'grid', placeItems: 'center',
                         background: capa ? 'transparent' : 'var(--mf-surface-3)',
                       }}>
@@ -448,7 +448,7 @@ export default function ContentPicker({
                     </button>
                   ) : (
                     <div style={{
-                      marginTop: 5, fontSize: 9.5, color: 'var(--mf-text-3)', padding: '5px 2px',
+                      marginTop: 5, fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', padding: '5px 2px',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }} title={nomeDe(m)}>{nomeDe(m)}</div>
                   )}
@@ -486,7 +486,7 @@ export default function ContentPicker({
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--mf-text-3)' }}>
+        <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>
           {carregando ? 'Carregando…' : `Mostrando ${itens.length} de ${total} na biblioteca`}
         </span>
         {itens.length > 0 && (
@@ -500,7 +500,7 @@ export default function ContentPicker({
           para fora da tela, e a etapa passava de dois mil pixels de altura. */}
       <div style={{
         maxHeight: 'min(56vh, 560px)', overflowY: 'auto', overflowX: 'hidden',
-        padding: 2, borderRadius: 12, scrollbarWidth: 'thin',
+        padding: 2, borderRadius: 'var(--mf-r-md)', scrollbarWidth: 'thin',
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(124px,100%),1fr))', gap: 10 }}>
           {itens.map(m => {
@@ -515,14 +515,14 @@ export default function ContentPicker({
                  botão é HTML inválido — o navegador desaninha os dois, e o
                  clique na capa passaria a marcar o vídeo. */
               <div key={id} style={{
-                position: 'relative', borderRadius: 12, aspectRatio: '3/4',
+                position: 'relative', borderRadius: 'var(--mf-r-md)', aspectRatio: '3/4',
                 transition: 'transform .18s cubic-bezier(.4,0,.2,1)',
                 transform: marcado ? 'translateY(-2px)' : 'none',
               }}>
                 <button onClick={() => alternar(id)}
                   title={marcado ? 'Remover da campanha' : 'Adicionar à campanha'}
                   style={{
-                    position: 'absolute', inset: 0, padding: 0, borderRadius: 12, overflow: 'hidden',
+                    position: 'absolute', inset: 0, padding: 0, borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
                     cursor: 'pointer', textAlign: 'left', width: '100%', height: '100%',
                     background: 'var(--mf-surface-2)',
                     border: `2px solid ${marcado ? ACENTO : 'var(--mf-border)'}`,
@@ -535,10 +535,10 @@ export default function ContentPicker({
 
                   {marcado && (
                     <span style={{
-                      position: 'absolute', top: 7, left: 7, width: 23, height: 23, borderRadius: '50%',
+                      position: 'absolute', top: 7, left: 7, width: 23, height: 23, borderRadius: 'var(--mf-r-full)',
                       background: ACENTO, color: 'var(--mf-bg)',
-                      display: 'grid', placeItems: 'center', fontSize: 11.5, fontWeight: 800,
-                      boxShadow: '0 2px 6px oklch(0 0 0 / .4)',
+                      display: 'grid', placeItems: 'center', fontSize: 'var(--mf-t-micro)', fontWeight: 800,
+                      boxShadow: 'var(--mf-shadow-1)',
                     }}>{ordem}</span>
                   )}
 
@@ -550,7 +550,7 @@ export default function ContentPicker({
                     background: 'linear-gradient(to top, oklch(0 0 0 / .9), transparent)',
                     /* Sobre o gradiente preto da miniatura — branco literal
                        pelo mesmo motivo do botão de remover. */
-                    fontSize: 10, fontWeight: 600, color: '#fff',
+                    fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: '#fff',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {video && (
@@ -571,7 +571,7 @@ export default function ContentPicker({
                     title={capa ? `Capa: ${nomeDe(capa)} — clique para trocar` : 'Definir a capa deste vídeo'}
                     style={{
                       position: 'absolute', right: 7, bottom: 7, zIndex: 2,
-                      width: 26, height: 26, borderRadius: 8, padding: 0, cursor: 'pointer',
+                      width: 26, height: 26, borderRadius: 'var(--mf-r-sm)', padding: 0, cursor: 'pointer',
                       display: 'grid', placeItems: 'center', overflow: 'hidden',
                       background: capa ? 'transparent' : 'oklch(0 0 0 / .6)',
                       /* A borda também é branca literal: `--mf-surface-3` é
@@ -591,7 +591,7 @@ export default function ContentPicker({
           {!carregando && !itens.length && (
             <div style={{
               gridColumn: '1/-1', padding: '34px 0', textAlign: 'center', color: 'var(--mf-text-3)',
-              fontSize: 12.5, background: 'var(--mf-surface-2)', borderRadius: 12, lineHeight: 1.7,
+              fontSize: 'var(--mf-t-sm)', background: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-md)', lineHeight: 1.7,
             }}>
               {buscaAtiva || tipo || pasta
                 ? <>Nenhuma mídia bate com esse filtro.<br />Ajuste a busca ou envie um arquivo novo.</>
@@ -622,13 +622,13 @@ export default function ContentPicker({
           <div style={{
             width: 'min(600px, 100%)', maxHeight: '82vh', display: 'flex', flexDirection: 'column',
             background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
-            borderRadius: 18, boxShadow: '0 24px 60px oklch(0 0 0 / .5)',
+            borderRadius: 'var(--mf-r-xl)', boxShadow: 'var(--mf-shadow-3)',
           }}>
             <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--mf-border)' }}>
-              <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 750, color: 'var(--mf-text)' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: 'var(--mf-t-h2)', fontWeight: 750, color: 'var(--mf-text)' }}>
                 {modalCapa === TODOS ? `Capa para os ${totalVideos} vídeos` : 'Capa do vídeo'}
               </h3>
-              <p style={{ margin: 0, fontSize: 11.5, color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
                 {modalCapa === TODOS
                   ? <>A imagem escolhida vira a miniatura de <strong>todos</strong> os vídeos
                       desta campanha, substituindo as capas já definidas. Depois dá para
@@ -667,15 +667,15 @@ export default function ContentPicker({
                         onClick={() => aplicarCapa(String(img._id))}
                         title={nomeDe(img)}
                         style={{
-                          position: 'relative', aspectRatio: '3/4', padding: 0, borderRadius: 10,
+                          position: 'relative', aspectRatio: '3/4', padding: 0, borderRadius: 'var(--mf-r-md)',
                           overflow: 'hidden', cursor: 'pointer', background: 'var(--mf-surface-2)',
                           border: `2px solid ${escolhida ? 'var(--mf-mod-publicar)' : 'var(--mf-border)'}`,
-                          transition: 'border-color .15s',
+                          transition: 'border-color var(--mf-fast) var(--mf-ease-out)',
                         }}>
                         <img src={img.url} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         {escolhida && (
                           <span style={{
-                            position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: '50%',
+                            position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: 'var(--mf-r-full)',
                             background: 'var(--mf-mod-publicar)', display: 'grid', placeItems: 'center',
                           }}>
                             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--mf-bg)"
@@ -689,7 +689,7 @@ export default function ContentPicker({
                   })}
                 </div>
               ) : (
-                <div style={{ fontSize: 11.5, color: 'var(--mf-text-3)', textAlign: 'center', padding: '22px 0', lineHeight: 1.7 }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center', padding: '22px 0', lineHeight: 1.7 }}>
                   Nenhuma imagem na biblioteca ainda.<br />Envie uma acima para usar como capa.
                 </div>
               )}

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import './Promo.css';
+import { EsqueletoLista } from '../components/Estados';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const avatarSrc = av => av
@@ -111,10 +112,7 @@ export default function Promo() {
       </div>
 
       {loading ? (
-        <div className="promo-empty">
-          <div className="promo-spinner" />
-          <span>Carregando contas...</span>
-        </div>
+        <EsqueletoLista itens={4} />
       ) : accounts.length === 0 ? (
         <div className="promo-empty">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--mf-text-3)' }}>

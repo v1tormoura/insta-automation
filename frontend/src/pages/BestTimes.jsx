@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
+import { EsqueletoLista, Bloco } from '../components/Estados';
 
 /* ─── constants ─────────────────────────────────── */
 const PERIODS = [['7d','7 dias'],['30d','30 dias'],['90d','90 dias']];
@@ -110,18 +111,18 @@ function HourBars({ hours, peakHour }) {
                       left:'50%',transform:'translateX(-50%)',
                       background:'oklch(0.10 0.04 235)',
                       border:`1px solid ${isPeak?'oklch(0.72 0.19 196/0.4)':'oklch(1 0 0/0.1)'}`,
-                      borderRadius:8,padding:'6px 10px',
-                      fontSize:10,whiteSpace:'nowrap',zIndex:20,
+                      borderRadius: 'var(--mf-r-sm)',padding:'6px 10px',
+                      fontSize: 'var(--mf-t-nano)',whiteSpace:'nowrap',zIndex:20,
                       pointerEvents:'none',
                       boxShadow:'0 8px 24px rgba(0,0,0,.4)',
                     }}
                   >
-                    <div style={{fontWeight:800,color:isPeak?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)',fontSize:12,fontVariantNumeric:'tabular-nums'}}>{padH(h.hour)}:00</div>
+                    <div style={{fontWeight:800,color:isPeak?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)',fontSize: 'var(--mf-t-xs)',fontVariantNumeric:'tabular-nums'}}>{padH(h.hour)}:00</div>
                     <div style={{color:'var(--mf-text-3)',marginTop:2}}>
                       {h.avgEngagement>0?`eng. ${h.avgEngagement}`:'sem dados'}
                       {h.count>0&&` · ${h.count} post${h.count>1?'s':''}`}
                     </div>
-                    {isPeak&&<div style={{color:'var(--mf-mod, var(--mf-accent-500))',fontSize:9,marginTop:3,fontWeight:700,letterSpacing:'.04em'}}>★ MELHOR HORÁRIO</div>}
+                    {isPeak&&<div style={{color:'var(--mf-mod, var(--mf-accent-500))',fontSize: 'var(--mf-t-nano)',marginTop:3,fontWeight:700,letterSpacing:'.04em'}}>★ MELHOR HORÁRIO</div>}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -141,7 +142,7 @@ function HourBars({ hours, peakHour }) {
       {/* x-axis */}
       <div style={{display:'flex',justifyContent:'space-between',marginTop:6,padding:'0 1px'}}>
         {['00h','04h','08h','12h','16h','20h','23h'].map(h=>(
-          <span key={h} style={{fontSize:9,color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{h}</span>
+          <span key={h} style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{h}</span>
         ))}
       </div>
     </div>
@@ -158,7 +159,7 @@ function HeatRow({ hours, peakHour }) {
         const isPeak=h.hour===peakHour;
         return (
           <div key={h.hour} title={`${padH(h.hour)}h · eng.${h.avgEngagement}`} style={{
-            height:6,borderRadius:2,
+            height:6,borderRadius: 'var(--mf-r-xs)',
             background: isPeak?'var(--mf-mod, var(--mf-accent-500))':h.count===0?'oklch(1 0 0/0.05)':`oklch(0.68 0.18 196/${0.06+i*0.45})`,
             boxShadow: isPeak?'0 0 6px oklch(0.72 0.19 196/0.7)':'none',
             transition:'transform .15s',cursor:'default',
@@ -186,7 +187,7 @@ function AccountCard({ a, idx }) {
       style={{
         background:'oklch(0.15 0.05 235/0.92)',
         border:'1px solid oklch(1 0 0/0.08)',
-        borderRadius:18,overflow:'hidden',
+        borderRadius: 'var(--mf-r-xl)',overflow:'hidden',
         backdropFilter:'blur(20px) saturate(160%)',
         boxShadow:'0 2px 12px rgba(0,0,0,.08)',
         transition:'box-shadow .2s',
@@ -200,33 +201,33 @@ function AccountCard({ a, idx }) {
         {/* Avatar */}
         <div style={{flexShrink:0,position:'relative'}}>
           <div style={{
-            width:58,height:58,borderRadius:'50%',overflow:'hidden',
+            width:58,height:58,borderRadius: 'var(--mf-r-full)',overflow:'hidden',
             border:'2px solid oklch(0.72 0.19 196/0.25)',
             background:'oklch(0.11 0.04 235)',
             boxShadow:'0 0 0 4px oklch(0.72 0.19 196/0.06)',
           }}>
             {src
               ?<img src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
-              :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:22,color:'var(--mf-mod, var(--mf-accent-500))'}}>{a.username?.[0]?.toUpperCase()}</div>
+              :<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize: 'var(--mf-t-h1)',color:'var(--mf-mod, var(--mf-accent-500))'}}>{a.username?.[0]?.toUpperCase()}</div>
             }
           </div>
         </div>
 
         {/* Info */}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:800,fontSize:15,color:'var(--mf-text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',letterSpacing:-.2}}>
+          <div style={{fontWeight:800,fontSize: 'var(--mf-t-h2)',color:'var(--mf-text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',letterSpacing:-.2}}>
             @{a.username}
           </div>
           {a.name&&a.name!==a.username&&(
-            <div style={{fontSize:11,color:'var(--mf-text-3)',marginTop:1}}>{a.name}</div>
+            <div style={{fontSize: 'var(--mf-t-micro)',color:'var(--mf-text-3)',marginTop:1}}>{a.name}</div>
           )}
           <div style={{display:'flex',gap:12,marginTop:7,flexWrap:'wrap'}}>
             {a.followers!=null&&(
-              <span style={{fontSize:11,color:'var(--mf-text-3)'}}>
+              <span style={{fontSize: 'var(--mf-t-micro)',color:'var(--mf-text-3)'}}>
                 <span style={{fontWeight:700,color:'var(--mf-text)',fontFamily:'var(--mf-mono)'}}>{fmtK(a.followers)}</span> seguidores
               </span>
             )}
-            <span style={{fontSize:11,color:'var(--mf-text-3)'}}>
+            <span style={{fontSize: 'var(--mf-t-micro)',color:'var(--mf-text-3)'}}>
               <span style={{fontWeight:700,color:'var(--mf-text)',fontFamily:'var(--mf-mono)'}}>{totalPosts}</span> posts analisados
             </span>
           </div>
@@ -237,7 +238,7 @@ function AccountCard({ a, idx }) {
           flexShrink:0,textAlign:'center',
           background:'oklch(0.72 0.19 196/0.07)',
           border:'1px solid oklch(0.72 0.19 196/0.18)',
-          borderRadius:14,padding:'12px 18px',
+          borderRadius: 'var(--mf-r-lg)',padding:'12px 18px',
           position:'relative',overflow:'hidden',
         }}>
           <div style={{
@@ -245,30 +246,30 @@ function AccountCard({ a, idx }) {
             background:'radial-gradient(circle at 50% 0%,oklch(0.72 0.19 196/0.08),transparent 70%)',
             pointerEvents:'none',
           }}/>
-          <div style={{fontSize:10,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>Melhor hora</div>
-          <div style={{fontSize:30,fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-1}}>
+          <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>Melhor hora</div>
+          <div style={{fontSize: 'var(--mf-t-display)',fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-1}}>
             {padH(a.peakHour)}h
           </div>
-          <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:5}}>eng. {peakEng}</div>
+          <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',marginTop:5}}>eng. {peakEng}</div>
           {isPeakNow&&(
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginTop:5}}>
-              <span style={{width:5,height:5,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
-              <span style={{fontSize:9,color:'var(--mf-success-500)',fontWeight:700}}>AGORA</span>
+              <span style={{width:5,height:5,borderRadius: 'var(--mf-r-full)',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
+              <span style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-success-500)',fontWeight:700}}>AGORA</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Quick metrics */}
-      <div style={{margin:'0 22px',padding:'10px 14px',borderRadius:10,background:'oklch(0.10 0.04 235/0.5)',display:'flex',gap:0,marginBottom:14}}>
+      <div style={{margin:'0 22px',padding:'10px 14px',borderRadius: 'var(--mf-r-md)',background:'oklch(0.10 0.04 235/0.5)',display:'flex',gap:0,marginBottom:14}}>
         {[
           {label:'Janela ideal',value:bestWindow,color:'var(--mf-mod-publicar)'},
           {label:'Pico eng.',value:String(peakEng),color:'var(--mf-mod, var(--mf-accent-500))'},
           {label:'Posts',value:String(totalPosts),color:'var(--mf-text-2)'},
         ].map((m,i)=>(
           <div key={m.label} style={{flex:1,textAlign:'center',borderRight:i<2?'1px solid oklch(1 0 0/0.07)':'none',padding:'2px 8px'}}>
-            <div style={{fontWeight:700,fontSize:13,color:m.color,fontVariantNumeric:'tabular-nums'}}>{m.value}</div>
-            <div style={{fontSize:9,color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.05em',marginTop:2}}>{m.label}</div>
+            <div style={{fontWeight:700,fontSize: 'var(--mf-t-sm)',color:m.color,fontVariantNumeric:'tabular-nums'}}>{m.value}</div>
+            <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.05em',marginTop:2}}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -285,10 +286,10 @@ function AccountCard({ a, idx }) {
 
       {/* Top hours footer */}
       <div style={{borderTop:'1px solid oklch(1 0 0/0.07)',padding:'10px 22px',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
-        <span style={{fontSize:9,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginRight:2}}>Top:</span>
+        <span style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginRight:2}}>Top:</span>
         {topHours.map((h,i)=>(
           <span key={h.hour} style={{
-            fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:20,
+            fontSize: 'var(--mf-t-micro)',fontWeight:700,padding:'3px 10px',borderRadius: 'var(--mf-r-xl)',
             background:i===0?'oklch(0.72 0.19 196/0.14)':'oklch(0.11 0.04 235/0.7)',
             color:i===0?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)',
             border:`1px solid ${i===0?'oklch(0.72 0.19 196/0.3)':'oklch(1 0 0/0.07)'}`,
@@ -334,34 +335,34 @@ function HeroCard({ data, period }) {
         position:'relative',overflow:'hidden',
         background:'linear-gradient(145deg,oklch(0.14 0.055 235),oklch(0.11 0.04 240))',
         border:'1px solid oklch(1 0 0/0.08)',
-        borderRadius:20,padding:'28px 28px 22px',
+        borderRadius: 'var(--mf-r-xl)',padding:'28px 28px 22px',
         marginBottom:20,
         boxShadow:'0 4px 32px rgba(0,0,0,.12)',
       }}
     >
       {/* Background glow orbs */}
-      <div style={{position:'absolute',top:-80,right:-60,width:260,height:260,borderRadius:'50%',background:'oklch(0.72 0.19 196/0.05)',filter:'blur(50px)',pointerEvents:'none'}}/>
-      <div style={{position:'absolute',bottom:-60,left:-40,width:180,height:180,borderRadius:'50%',background:'oklch(0.65 0.18 280/0.04)',filter:'blur(40px)',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',top:-80,right:-60,width:260,height:260,borderRadius: 'var(--mf-r-full)',background:'oklch(0.72 0.19 196/0.05)',filter:'blur(50px)',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',bottom:-60,left:-40,width:180,height:180,borderRadius: 'var(--mf-r-full)',background:'oklch(0.65 0.18 280/0.04)',filter:'blur(40px)',pointerEvents:'none'}}/>
 
       <div style={{display:'flex',gap:28,alignItems:'stretch',flexWrap:'wrap',position:'relative'}}>
         {/* Feature KPI */}
         <div style={{display:'flex',flexDirection:'column',justifyContent:'center',minWidth:140}}>
-          <div style={{fontSize:10,fontWeight:700,color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>
+          <div style={{fontSize: 'var(--mf-t-nano)',fontWeight:700,color:'var(--mf-text-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>
             Pico global
           </div>
           <div style={{display:'flex',alignItems:'baseline',gap:4}}>
             <div style={{fontSize:56,fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-2,textShadow:'0 0 40px oklch(0.72 0.19 196/0.4)'}}>
               {padH(peakNum)}
             </div>
-            <div style={{fontSize:22,fontWeight:700,color:'var(--mf-mod, var(--mf-accent-500))',opacity:.7}}>h</div>
+            <div style={{fontSize: 'var(--mf-t-h1)',fontWeight:700,color:'var(--mf-mod, var(--mf-accent-500))',opacity:.7}}>h</div>
           </div>
           {isPeakNow?(
-            <div style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,padding:'4px 10px',borderRadius:20,background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',width:'fit-content'}}>
-              <span style={{width:5,height:5,borderRadius:'50%',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
-              <span style={{fontSize:10,color:'var(--mf-success-500)',fontWeight:700}}>AGORA É O PICO</span>
+            <div style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,padding:'4px 10px',borderRadius: 'var(--mf-r-xl)',background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',width:'fit-content'}}>
+              <span style={{width:5,height:5,borderRadius: 'var(--mf-r-full)',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
+              <span style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-success-500)',fontWeight:700}}>AGORA É O PICO</span>
             </div>
           ):(
-            <div style={{fontSize:10,color:'var(--mf-text-3)',marginTop:6}}>hora de maior engajamento</div>
+            <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',marginTop:6}}>hora de maior engajamento</div>
           )}
         </div>
 
@@ -377,8 +378,8 @@ function HeroCard({ data, period }) {
             {label:'Fonte',         value:'API oficial', color:'var(--mf-text-3)', icon:'🔗'},
           ].map(s=>(
             <div key={s.label}>
-              <div style={{fontSize:9,color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5,display:'flex',alignItems:'center',gap:4}}>
-                <span style={{fontSize:11}}>{s.icon}</span>{s.label}
+              <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5,display:'flex',alignItems:'center',gap:4}}>
+                <span style={{fontSize: 'var(--mf-t-micro)'}}>{s.icon}</span>{s.label}
               </div>
               <div style={{fontSize:s.value.length>5?16:20,fontWeight:800,color:s.color,fontVariantNumeric:'tabular-nums',lineHeight:1.1}}>
                 {s.value}
@@ -394,14 +395,14 @@ function HeroCard({ data, period }) {
           initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{delay:.3,duration:.3}}
           style={{
             marginTop:18,padding:'10px 16px',
-            borderRadius:10,
+            borderRadius: 'var(--mf-r-md)',
             background:'oklch(0.72 0.19 196/0.06)',
             border:'1px solid oklch(0.72 0.19 196/0.14)',
             display:'flex',alignItems:'center',gap:10,
           }}
         >
-          <span style={{fontSize:14,flexShrink:0}}>💡</span>
-          <span style={{fontSize:12,color:'var(--mf-text-2)',lineHeight:1.55}}>{insight}</span>
+          <span style={{fontSize: 'var(--mf-t-body)',flexShrink:0}}>💡</span>
+          <span style={{fontSize: 'var(--mf-t-xs)',color:'var(--mf-text-2)',lineHeight:1.55}}>{insight}</span>
         </motion.div>
       )}
     </motion.div>
@@ -439,17 +440,17 @@ export default function BestTimes() {
   const pageActions=(
     <div style={{display:'flex',gap:8,alignItems:'center'}}>
       <button onClick={()=>fetchData(true)} className="btn-ghost" disabled={refreshing||loading}
-        style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:8,fontSize:'.83rem'}}>
+        style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius: 'var(--mf-r-sm)',fontSize: 'var(--mf-t-sm)'}}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
           style={{animation:refreshing?'bt-spin 1s linear infinite':'none'}}>
           <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
         </svg>
         Atualizar
       </button>
-      <div style={{display:'flex',gap:2,background:'oklch(0.10 0.03 235/0.6)',border:'1px solid oklch(1 0 0/0.07)',borderRadius:9,padding:3}}>
+      <div style={{display:'flex',gap:2,background:'oklch(0.10 0.03 235/0.6)',border:'1px solid oklch(1 0 0/0.07)',borderRadius: 'var(--mf-r-md)',padding:3}}>
         {PERIODS.map(([p,l])=>(
           <button key={p} onClick={()=>setPeriod(p)} style={{
-            height:26,padding:'0 12px',borderRadius:7,fontSize:'.75rem',fontWeight:600,
+            height:26,padding:'0 12px',borderRadius: 'var(--mf-r-sm)',fontSize: 'var(--mf-t-xs)',fontWeight:600,
             border:'none',cursor:'pointer',transition:'all .15s',
             background:period===p?'var(--mf-mod, var(--mf-accent-500))':'transparent',
             color:period===p?'var(--mf-bg)':'var(--mf-text-3)',
@@ -471,24 +472,31 @@ export default function BestTimes() {
       {loading&&(
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
           {[1,2].map(i=>(
-            <div key={i} style={{height:280,borderRadius:18,background:'oklch(0.14 0.04 235/0.5)',border:'1px solid oklch(1 0 0/0.06)',animation:'bt-pulse 1.6s ease-in-out infinite'}}/>
+            <div key={i} style={{height:280,borderRadius: 'var(--mf-r-xl)',background:'oklch(0.14 0.04 235/0.5)',border:'1px solid oklch(1 0 0/0.06)',animation:'bt-pulse 1.6s ease-in-out infinite'}}/>
           ))}
         </div>
       )}
 
       {error&&(
-        <div style={{background:'oklch(0.18 0.06 15/0.4)',border:'1px solid oklch(0.38 0.12 15/0.35)',borderRadius:12,padding:'14px 18px',color:'var(--mf-danger-500)',fontSize:13}}>
+        <div style={{background:'oklch(0.18 0.06 15/0.4)',border:'1px solid oklch(0.38 0.12 15/0.35)',borderRadius: 'var(--mf-r-md)',padding:'14px 18px',color:'var(--mf-danger-500)',fontSize: 'var(--mf-t-sm)'}}>
           {error}
         </div>
       )}
 
       {!loading&&!error&&accounts.length===0&&(
-        <div style={{textAlign:'center',padding:'80px 20px',background:'oklch(0.15 0.05 235/0.5)',border:'1px solid oklch(1 0 0/0.07)',borderRadius:20}}>
-          <div style={{fontSize:40,marginBottom:14,opacity:.5}}>
+        <div style={{textAlign:'center',padding:'80px 20px',background:'oklch(0.15 0.05 235/0.5)',border:'1px solid oklch(1 0 0/0.07)',borderRadius: 'var(--mf-r-xl)'}}>
+          <div style={{fontSize: 'var(--mf-t-display)',marginBottom:14,opacity:.5}}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{display:'block',margin:'0 auto'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <div style={{fontWeight:700,fontSize:16,color:'var(--mf-text)',marginBottom:7}}>Sem dados suficientes</div>
-          <div style={{fontSize:13,color:'var(--mf-text-3)'}}>Sincronize os insights das contas para análise dos melhores horários.</div>
+          <div style={{fontWeight:700,fontSize: 'var(--mf-t-h2)',color:'var(--mf-text)',marginBottom:7}}>Sem dados suficientes</div>
+          <div style={{fontSize: 'var(--mf-t-sm)',color:'var(--mf-text-3)'}}>Sincronize os insights das contas para análise dos melhores horários.</div>
+        </div>
+      )}
+
+      {loading && (
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <Bloco style={{height:150,borderRadius:'var(--mf-r-lg)'}} />
+          <EsqueletoLista itens={4} />
         </div>
       )}
 

@@ -16,7 +16,7 @@ import { cn } from '../../../lib/utils';
 
 function Cartao({ titulo, children, className }) {
   return (
-    <div className={cn('rounded-[13px] border border-[var(--card-border)] bg-[var(--card)] p-4', className)}>
+    <div className={cn('rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4', className)}>
       <Eyebrow>{titulo}</Eyebrow>
       <div className="mt-2.5">{children}</div>
     </div>
@@ -30,7 +30,7 @@ function Numero({ valor, rotulo, cor }) {
       <div className={cn('font-mono text-[20px] font-extrabold leading-none tabular-nums', cor)}>
         {valor}
       </div>
-      <div className="mt-1 truncate text-[9.5px] uppercase tracking-[.05em] text-[var(--mf-text-3)]">
+      <div className="mt-1 truncate text-[var(--mf-t-nano)] uppercase tracking-[.05em] text-[var(--mf-text-3)]">
         {rotulo}
       </div>
     </div>
@@ -54,7 +54,7 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
         </div>
         <div className="mt-3 grid grid-cols-2 gap-y-2.5 sm:grid-cols-4">
           <Numero valor={e.published ?? 0}  rotulo="publicadas" cor="text-[var(--mf-success-500)]" />
-          <Numero valor={pendentes}         rotulo="pendentes"  cor="text-[var(--mf-mod, var(--mf-accent-500))]" />
+          <Numero valor={pendentes}         rotulo="pendentes"  cor="text-[var(--mf-mod,_var(--mf-accent-500))]" />
           <Numero valor={e.processing ?? 0} rotulo="processando" cor="text-[var(--mf-info-500)]" />
           <Numero
             valor={e.failed ?? 0} rotulo="falhas"
@@ -62,7 +62,7 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
           />
         </div>
         {e.cancelled > 0 && (
-          <div className="mt-2.5 border-t border-[var(--border)] pt-2 text-[10.5px] text-[var(--mf-text-3)]">
+          <div className="mt-2.5 border-t border-[var(--border)] pt-2 text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
             {e.cancelled} cancelada{e.cancelled === 1 ? '' : 's'}
           </div>
         )}
@@ -74,12 +74,12 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
           <div className="font-mono text-[26px] font-extrabold leading-none tabular-nums text-[var(--mf-text)]">
             {progresso?.percentage ?? 0}%
           </div>
-          <div className="font-mono text-[11px] tabular-nums text-[var(--mf-text-3)]">
+          <div className="font-mono text-[var(--mf-t-micro)] tabular-nums text-[var(--mf-text-3)]">
             {progresso?.done ?? 0}/{progresso?.total ?? 0}
           </div>
         </div>
         <Progress value={progresso?.percentage ?? 0} className="mt-3" />
-        <p className="mt-2.5 text-[10.5px] leading-relaxed text-[var(--mf-text-3)]">
+        <p className="mt-2.5 text-[var(--mf-t-nano)] leading-relaxed text-[var(--mf-text-3)]">
           Conta publicadas, falhas e canceladas — tudo que chegou a um estado final.
         </p>
       </Cartao>
@@ -91,7 +91,7 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
         </div>
         <div className="mt-3 grid grid-cols-3 gap-y-2.5">
           <Numero valor={contas?.concluidas ?? 0} rotulo="concluídas" cor="text-[var(--mf-success-500)]" />
-          <Numero valor={contas?.pendentes ?? 0}  rotulo="pendentes"  cor="text-[var(--mf-mod, var(--mf-accent-500))]" />
+          <Numero valor={contas?.pendentes ?? 0}  rotulo="pendentes"  cor="text-[var(--mf-mod,_var(--mf-accent-500))]" />
           <Numero
             valor={contas?.comErro ?? 0} rotulo="com erro"
             cor={contas?.comErro ? 'text-[var(--mf-danger-500)]' : 'text-[var(--mf-text-3)]'}
@@ -108,7 +108,7 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
             </div>
             <div className="mt-3 grid grid-cols-2 gap-y-2.5 sm:grid-cols-4">
               <Numero valor={c.posted ?? 0}    rotulo="publicados" cor="text-[var(--mf-success-500)]" />
-              <Numero valor={c.scheduled ?? 0} rotulo="agendados"  cor="text-[var(--mf-mod, var(--mf-accent-500))]" />
+              <Numero valor={c.scheduled ?? 0} rotulo="agendados"  cor="text-[var(--mf-mod,_var(--mf-accent-500))]" />
               {/* Configurados mas ainda sem agendamento: o post deles não saiu. */}
               <Numero valor={c.pending ?? 0}   rotulo="aguardando" cor="text-[var(--mf-text-3)]" />
               <Numero
@@ -117,14 +117,14 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
               />
             </div>
             {c.cancelled > 0 && (
-              <div className="mt-2.5 border-t border-[var(--border)] pt-2 text-[10.5px] text-[var(--mf-text-3)]">
+              <div className="mt-2.5 border-t border-[var(--border)] pt-2 text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
                 {c.cancelled} cancelado{c.cancelled === 1 ? '' : 's'}
               </div>
             )}
           </>
         ) : (
           // Sem comentário configurado, "0 de 48" sugeriria 48 pendências.
-          <p className="py-2 text-[11.5px] text-[var(--mf-text-3)]">
+          <p className="py-2 text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
             Esta campanha não publica comentários.
           </p>
         )}

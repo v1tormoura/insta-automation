@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
+import { EsqueletoTabela } from '../components/Estados';
 
 const STATUS_META = {
   concluido:        { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'oklch(0.22 0.06 150 / 0.5)' },
@@ -48,7 +49,7 @@ function EntryCard({ entry, i }) {
         background:'oklch(0.16 0.05 235 / 0.85)',
         border:'1px solid var(--mf-border)',
         borderLeft:`3px solid ${m.color}`,
-        borderRadius:12, padding:'12px 16px',
+        borderRadius: 'var(--mf-r-md)', padding:'12px 16px',
         backdropFilter:'blur(12px)',
       }}
     >
@@ -56,8 +57,8 @@ function EntryCard({ entry, i }) {
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <span style={{ color:'var(--mf-text-3)', display:'flex', alignItems:'center' }}>{tm.icon}</span>
           <div>
-            <strong style={{ fontSize:13, color:'var(--mf-text)' }}>{tm.label}</strong>
-            <span style={{ fontSize:11, color:'var(--mf-text-3)', display:'block', fontFamily:'var(--mf-mono)' }}>
+            <strong style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>{tm.label}</strong>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', display:'block', fontFamily:'var(--mf-mono)' }}>
               {['agendado','pendente'].includes(entry.status) && entry.scheduledAt
                 ? `Agendado: ${new Date(entry.scheduledAt).toLocaleString('pt-BR')}`
                 : entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '—'
@@ -65,11 +66,11 @@ function EntryCard({ entry, i }) {
             </span>
           </div>
         </div>
-        <span style={{ fontSize:10, fontWeight:700, padding:'2px 9px', borderRadius:99, background:m.bg, color:m.color, border:`1px solid ${m.color}22`, flexShrink:0 }}>
+        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', background:m.bg, color:m.color, border:`1px solid ${m.color}22`, flexShrink:0 }}>
           {m.label}
         </span>
       </div>
-      <div style={{ fontFamily:'var(--mf-mono)', fontSize:11, display:'flex', flexDirection:'column', gap:3, color:'var(--mf-text-3)', minWidth:0 }}>
+      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', display:'flex', flexDirection:'column', gap:3, color:'var(--mf-text-3)', minWidth:0 }}>
         <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>conta: </span><span style={{ color:'var(--mf-text-2)' }}>{entry.accounts}</span></span>
         {entry.media   && <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}><span>mídia: </span><span style={{ color:'var(--mf-text-2)' }}>{entry.media}</span></span>}
         {entry.caption && <span><span>legenda: </span><span style={{ color:'var(--mf-text-2)' }}>{entry.caption.slice(0,80)}{entry.caption.length > 80 ? '…' : ''}</span></span>}
@@ -168,13 +169,13 @@ export default function Logs() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius:99, background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
-      <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
+    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+      <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
       Tempo real
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius:14, overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <PageShell icon={pageIcon} title="Logs do Sistema" subtitle="Histórico completo de publicações e automações." accent="cyan" actions={pageActions}>
@@ -183,19 +184,19 @@ export default function Logs() {
       <div style={{ ...cardStyle, padding:'10px 12px', marginBottom:14, display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
         {FILTERS.map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
-            height:28, padding:'0 12px', borderRadius:7, fontSize:'.75rem', fontWeight:600,
+            height:28, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
             border:'none', cursor:'pointer', transition:'.15s',
             background: filter === f ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent',
             color: filter === f ? 'var(--mf-bg)' : 'var(--mf-text-3)',
           }}>{FILTER_LABELS[f]}</button>
         ))}
-        <span style={{ marginLeft:'auto', fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
+        <span style={{ marginLeft:'auto', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
           {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {loading && (
-        <div style={{ textAlign:'center', color:'var(--mf-text-3)', padding:40, fontSize:13 }}>Carregando…</div>
+        <EsqueletoTabela linhas={8} colunas={4} />
       )}
 
       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -204,11 +205,11 @@ export default function Logs() {
             <div key={group.key}>
               {/* Group header */}
               <div style={{ display:'flex', alignItems:'center', gap:8, margin:'8px 0 6px', paddingLeft:4 }}>
-                <span style={{ width:8, height:8, borderRadius:'50%', background:group.color, flexShrink:0, boxShadow:`0 0 6px ${group.color}` }} />
-                <span style={{ fontFamily:'var(--mf-mono)', fontSize:10, fontWeight:700, letterSpacing:'.1em', color:group.color, textTransform:'uppercase' }}>
+                <span style={{ width:8, height:8, borderRadius: 'var(--mf-r-full)', background:group.color, flexShrink:0, boxShadow:`0 0 6px ${group.color}` }} />
+                <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.1em', color:group.color, textTransform:'uppercase' }}>
                   {group.label}
                 </span>
-                <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>({group.items.length})</span>
+                <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>({group.items.length})</span>
                 <div style={{ flex:1, height:1, background:`linear-gradient(90deg,${group.color}30,transparent)` }} />
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
@@ -221,12 +222,12 @@ export default function Logs() {
         )}
 
         {!loading && !filtered.length && (
-          <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius:14 }}>
+          <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
             <div style={{ marginBottom:12, color:'var(--mf-text-3)' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             </div>
-            <div style={{ fontWeight:700, fontSize:15, color:'var(--mf-text)', marginBottom:6 }}>Nenhum registro ainda</div>
-            <div style={{ fontSize:13, color:'var(--mf-text-3)' }}>Os logs aparecem aqui assim que você publicar posts ou executar automações.</div>
+            <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Nenhum registro ainda</div>
+            <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Os logs aparecem aqui assim que você publicar posts ou executar automações.</div>
           </div>
         )}
       </div>

@@ -12,6 +12,7 @@ import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import './Loop.css';
+import { EsqueletoLista } from '../components/Estados';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -405,11 +406,11 @@ function LoopModal({ onClose, onCreated }) {
                   : <span className="lm-section-count">{form.mediaFiles.length}</span>}
               </div>
               {/* Source toggle */}
-              <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 7, padding: 2, gap: 2, marginRight: 4 }}>
+              <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: 2, gap: 2, marginRight: 4 }}>
                 {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
                   <button key={src} type="button"
                     onClick={() => setMediaSource(src)}
-                    style={{ padding: '3px 9px', borderRadius: 5, fontSize: 10, fontWeight: mediaSource === src ? 700 : 400, cursor: 'pointer', border: 'none', transition: '.15s',
+                    style={{ padding: '3px 9px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)', fontWeight: mediaSource === src ? 700 : 400, cursor: 'pointer', border: 'none', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                       background: mediaSource === src ? 'oklch(0.60 0.22 295)' : 'transparent',
                       color: mediaSource === src ? 'var(--mf-text)' : 'var(--mf-text-3)',
                     }}>{lbl}</button>
@@ -467,16 +468,16 @@ function LoopModal({ onClose, onCreated }) {
             ) : (
               <>
                 <button type="button" onClick={() => setShowLibPicker(true)}
-                  style={{ width: '100%', marginTop: 8, padding: '16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 10, background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: '.15s' }}>
+                  style={{ width: '100%', marginTop: 8, padding: '16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>Escolher da biblioteca</span>
-                  <span style={{ fontSize: 10, color: 'var(--mf-text-3)' }}>Selecione mídias já salvas nas suas pastas</span>
+                  <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600 }}>Escolher da biblioteca</span>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Selecione mídias já salvas nas suas pastas</span>
                 </button>
                 {form.mediaFiles.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 10, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{form.mediaFiles.length} selecionado(s)</span>
-                      <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 10, color: 'var(--mf-mod, var(--mf-accent-500))', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
+                      <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{form.mediaFiles.length} selecionado(s)</span>
+                      <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-mod, var(--mf-accent-500))', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
                     </div>
                     <div className="lm-grid">
                       {form.mediaFiles.map((filename, i) => (
@@ -549,7 +550,7 @@ function LoopModal({ onClose, onCreated }) {
               <button type="button" className="lm-legend-trigger" onClick={() => setLegendOpen(o => !o)}>
                 <span>{selectedLegendLabel()}</span>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                  style={{ transform: legendOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }}>
+                  style={{ transform: legendOpen ? 'rotate(180deg)' : 'none', transition: 'transform var(--mf-normal) var(--mf-ease-out)', flexShrink: 0 }}>
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
@@ -653,16 +654,16 @@ function LoopModal({ onClose, onCreated }) {
               {processModes.map(m => (
                 <div key={m.id} onClick={() => setForm(f => ({ ...f, processMode: m.id }))}
                   style={{
-                    padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid',
+                    padding: '9px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
                     background: form.processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
                     borderColor: form.processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
-                    transition: 'all .15s',
+                    transition: 'all var(--mf-fast) var(--mf-ease-out)',
                   }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: form.processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
+                    <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: form.processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--mf-text-3)' }}>{m.desc}</div>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
                 </div>
               ))}
             </div>
@@ -796,11 +797,11 @@ export default function LoopPage() {
         onClick={handleGenThumbs}
         disabled={genThumb === 'loading'}
         title="Gerar thumbnails para vídeos antigos que não têm preview"
-        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 13px', fontSize:'.78rem', fontWeight:600, borderRadius:9, border:'1px solid var(--border)', background:'transparent', color: genThumb === 'done' ? 'var(--mf-success-500)' : genThumb === 'error' ? 'var(--mf-danger-500)' : 'var(--mf-text-2)', cursor: genThumb === 'loading' ? 'default' : 'pointer', transition:'color .2s' }}>
+        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 13px', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-md)', border:'1px solid var(--border)', background:'transparent', color: genThumb === 'done' ? 'var(--mf-success-500)' : genThumb === 'error' ? 'var(--mf-danger-500)' : 'var(--mf-text-2)', cursor: genThumb === 'loading' ? 'default' : 'pointer', transition:'color .2s' }}>
         {genThumb === 'loading' ? <RefreshCw size={12} className="spin" /> : <Film size={12} />}
         {genThumb === 'done' ? 'Pronto!' : genThumb === 'error' ? 'Erro' : 'Gerar thumbs'}
       </button>
-      <button className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 16px', fontSize:'.83rem', fontWeight:700, borderRadius:9 }} onClick={() => setShowModal(true)}>
+      <button className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 16px', fontSize: 'var(--mf-t-sm)', fontWeight:700, borderRadius: 'var(--mf-r-md)' }} onClick={() => setShowModal(true)}>
         <Plus size={14} /> Novo loop
       </button>
     </>
@@ -823,7 +824,7 @@ export default function LoopPage() {
         actions={pageActions}
       >
         {loading ? (
-          <div className="lp-load"><RefreshCw size={18} className="spin" /> Carregando...</div>
+          <EsqueletoLista itens={4} />
         ) : loops.length === 0 ? (
           <motion.div
             className="lp-empty"
@@ -971,24 +972,24 @@ export default function LoopPage() {
               style={{ maxWidth: 400, padding: 0, overflow: 'hidden' }}
             >
               <div style={{ padding: '28px 28px 8px', textAlign: 'center' }}>
-                <div style={{ width: 56, height: 56, borderRadius: 16, background: 'oklch(0.4 0.18 15 / 0.15)', border: '1px solid oklch(0.5 0.18 15 / 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: 'var(--mf-r-lg)', background: 'oklch(0.4 0.18 15 / 0.15)', border: '1px solid oklch(0.5 0.18 15 / 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
                   <Trash2 size={24} style={{ color: 'oklch(0.65 0.2 15)' }} />
                 </div>
-                <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--mf-text)', margin: '0 0 6px' }}>Excluir loop?</h3>
-                <p style={{ fontSize: 13, color: 'var(--mf-text-3)', margin: '0 0 4px' }}>Você está prestes a excluir</p>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--mf-text)', margin: '0 0 16px' }}>"{deleteModal.name}"</p>
-                <p style={{ fontSize: 12, color: 'oklch(0.7 0.18 15 / 0.9)', background: 'oklch(0.4 0.18 15 / 0.1)', borderRadius: 8, padding: '8px 12px', margin: '0 0 24px', border: '1px solid oklch(0.5 0.18 15 / 0.2)', lineHeight: 1.5 }}>
+                <h3 style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 700, color: 'var(--mf-text)', margin: '0 0 6px' }}>Excluir loop?</h3>
+                <p style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text-3)', margin: '0 0 4px' }}>Você está prestes a excluir</p>
+                <p style={{ fontSize: 'var(--mf-t-body)', fontWeight: 600, color: 'var(--mf-text)', margin: '0 0 16px' }}>"{deleteModal.name}"</p>
+                <p style={{ fontSize: 'var(--mf-t-xs)', color: 'oklch(0.7 0.18 15 / 0.9)', background: 'oklch(0.4 0.18 15 / 0.1)', borderRadius: 'var(--mf-r-sm)', padding: '8px 12px', margin: '0 0 24px', border: '1px solid oklch(0.5 0.18 15 / 0.2)', lineHeight: 1.5 }}>
                   Esta ação não pode ser desfeita. O histórico de posts e as configurações serão perdidos.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 10, padding: '0 24px 24px' }}>
                 <button
                   onClick={() => setDeleteModal(null)}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid var(--mf-border-strong)', background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: '.15s' }}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--mf-border-strong)', background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight: 600, cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)' }}
                 >Cancelar</button>
                 <button
                   onClick={confirmDelete}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid oklch(0.5 0.2 15 / 0.5)', background: 'oklch(0.5 0.22 15)', color: 'var(--mf-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: '.15s' }}
+                  style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--mf-r-md)', border: '1px solid oklch(0.5 0.2 15 / 0.5)', background: 'oklch(0.5 0.22 15)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)' }}
                 >Excluir loop</button>
               </div>
             </motion.div>

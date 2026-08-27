@@ -176,7 +176,7 @@ export default function Limpador() {
   const cardStyle = {
     background: 'oklch(0.16 0.05 235 / 0.85)',
     border: '1px solid var(--mf-border)',
-    borderRadius: 14,
+    borderRadius: 'var(--mf-r-lg)',
     overflow: 'hidden',
     backdropFilter: 'blur(12px)',
   };
@@ -208,16 +208,16 @@ export default function Limpador() {
           {/* Drop zone */}
           <div style={cardStyle}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
+              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
                 Arquivos de entrada
                 {items.length > 0 && (
-                  <span style={{ marginLeft:8, fontSize:11, fontWeight:600, color:'var(--mf-mod, var(--mf-accent-500))', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius:6, padding:'1px 8px' }}>
+                  <span style={{ marginLeft:8, fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-mod, var(--mf-accent-500))', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'1px 8px' }}>
                     {items.length}
                   </span>
                 )}
               </h3>
               {hasDone && !running && (
-                <button onClick={clearDone} style={{ fontSize:11, color:'var(--mf-text-3)', background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
+                <button onClick={clearDone} style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding:'3px 10px', cursor:'pointer' }}>
                   Limpar concluídos
                 </button>
               )}
@@ -232,22 +232,22 @@ export default function Limpador() {
                 style={{
                   display:'block', padding:'28px 16px', textAlign:'center',
                   border:`1.5px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'oklch(0.72 0.19 196 / 0.25)'}`,
-                  borderRadius:10, cursor:'pointer', transition:'.2s',
+                  borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'.2s',
                   background: dragOver ? 'color-mix(in oklch, var(--mf-mod-contas) 6%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 2%, transparent)',
                 }}
               >
                 <input ref={fileRef} type="file" accept="video/*,image/*" multiple style={{ display:'none' }}
                   onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
-                <div style={{ width:44, height:44, borderRadius:12, margin:'0 auto 12px', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', display:'grid', placeItems:'center', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)' }}>
+                <div style={{ width:44, height:44, borderRadius: 'var(--mf-r-md)', margin:'0 auto 12px', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', display:'grid', placeItems:'center', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)' }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="1.8" strokeLinecap="round">
                     <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
                     <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
                   </svg>
                 </div>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--mf-text)', marginBottom:4 }}>
+                <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:600, color:'var(--mf-text)', marginBottom:4 }}>
                   Arraste ou clique para selecionar
                 </div>
-                <div style={{ fontSize:11, color:'var(--mf-text-3)' }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
                   Vários arquivos de uma vez — MP4 · MOV · JPG · PNG · WebM · máx. 500 MB cada
                 </div>
               </label>
@@ -258,8 +258,8 @@ export default function Limpador() {
           {items.length > 0 && (
             <div style={cardStyle}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Fila de processamento</h3>
-                <span style={{ fontSize:11, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
+                <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Fila de processamento</h3>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
                   {items.filter(i => i.status === 'done').length}/{items.length} prontos
                 </span>
               </div>
@@ -280,12 +280,12 @@ export default function Limpador() {
 
           {/* Tips */}
           <div style={{ ...cardStyle, padding:16 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Por que limpar?</div>
+            <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Por que limpar?</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {TIPS.map((tip, i) => (
                 <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
-                  <span style={{ fontSize:14, flexShrink:0 }}>{tip.icon}</span>
-                  <span style={{ fontSize:11, color:'var(--mf-text-3)', lineHeight:1.6 }}>{tip.text}</span>
+                  <span style={{ fontSize: 'var(--mf-t-body)', flexShrink:0 }}>{tip.icon}</span>
+                  <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.6 }}>{tip.text}</span>
                 </div>
               ))}
             </div>
@@ -299,14 +299,14 @@ export default function Limpador() {
           {/* Mode selector */}
           <div style={cardStyle}>
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize:'.88rem', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Modo de limpeza</h3>
+              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Modo de limpeza</h3>
             </div>
             <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
               {MODES.map(m => {
                 const sel = mode === m.key;
                 return (
                   <div key={m.key} onClick={() => !running && setMode(m.key)} style={{
-                    padding:'14px 16px', borderRadius:10, cursor: running ? 'default' : 'pointer', transition:'.15s',
+                    padding:'14px 16px', borderRadius: 'var(--mf-r-md)', cursor: running ? 'default' : 'pointer', transition:'.15s',
                     border:`1.5px solid ${sel ? m.badgeColor + '66' : 'var(--mf-border)'}`,
                     background: sel ? m.badgeBg : 'oklch(0.12 0.04 235 / 0.4)',
                     opacity: running && !sel ? 0.5 : 1,
@@ -314,16 +314,16 @@ export default function Limpador() {
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <span style={{ color: sel ? m.badgeColor : 'var(--mf-text-3)' }}>{m.icon}</span>
-                        <span style={{ fontSize:13, fontWeight:700, color: sel ? m.badgeColor : 'var(--mf-text)' }}>{m.label}</span>
+                        <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color: sel ? m.badgeColor : 'var(--mf-text)' }}>{m.label}</span>
                       </div>
                       <span style={{
-                        fontSize:9, fontWeight:800, padding:'2px 9px', borderRadius:99, letterSpacing:.8,
+                        fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', letterSpacing:.8,
                         background: sel ? m.badgeBg : 'oklch(0.10 0.03 235 / 0.5)',
                         color: sel ? m.badgeColor : 'var(--mf-text-3)',
                         border:`1px solid ${sel ? m.badgeColor + '40' : 'transparent'}`,
                       }}>{m.badge}</span>
                     </div>
-                    <div style={{ fontSize:11, color:'var(--mf-text-3)', lineHeight:1.4 }}>{m.desc}</div>
+                    <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.4 }}>{m.desc}</div>
                   </div>
                 );
               })}
@@ -335,7 +335,7 @@ export default function Limpador() {
             onClick={processAll}
             disabled={running || !hasPending}
             style={{
-              height:52, borderRadius:10, border:'none', fontWeight:750, fontSize:14,
+              height:52, borderRadius: 'var(--mf-r-md)', border:'none', fontWeight:750, fontSize: 'var(--mf-t-body)',
               cursor: running || !hasPending ? 'not-allowed' : 'pointer', transition:'.2s',
               background: running || !hasPending
                 ? 'color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent)'
@@ -366,8 +366,8 @@ export default function Limpador() {
 
           {/* Seletor de preset — aparece só no modo watermark */}
           {mode === 'watermark' && (
-            <div style={{ background:'oklch(0.14 0.04 235 / 0.8)', border:'1px solid var(--mf-border)', borderRadius:12, overflow:'hidden' }}>
-              <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--mf-border)', fontSize:11, fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
+            <div style={{ background:'oklch(0.14 0.04 235 / 0.8)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
+              <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
                 Plataforma / Posição
               </div>
               <div style={{ padding:'10px 12px', display:'flex', flexWrap:'wrap', gap:6 }}>
@@ -378,7 +378,7 @@ export default function Limpador() {
                       onClick={() => !running && setWmPreset(p.key)}
                       title={p.desc}
                       style={{
-                        fontSize:11, fontWeight:700, padding:'5px 12px', borderRadius:7, cursor: running ? 'default' : 'pointer',
+                        fontSize: 'var(--mf-t-micro)', fontWeight:700, padding:'5px 12px', borderRadius: 'var(--mf-r-sm)', cursor: running ? 'default' : 'pointer',
                         border:`1.5px solid ${sel ? 'color-mix(in oklch, var(--mf-warning-500) 60%, transparent)' : 'var(--mf-border)'}`,
                         background: sel ? 'color-mix(in oklch, var(--mf-warning-500) 15%, transparent)' : 'oklch(0.11 0.03 235 / 0.5)',
                         color: sel ? 'var(--mf-warning-500)' : 'var(--mf-text-3)',
@@ -389,7 +389,7 @@ export default function Limpador() {
                 })}
               </div>
               {wmPreset === 'auto' && (
-                <div style={{ padding:'8px 14px', borderTop:'1px solid var(--mf-border)', fontSize:10, color:'var(--mf-text-3)', lineHeight:1.5 }}>
+                <div style={{ padding:'8px 14px', borderTop:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', lineHeight:1.5 }}>
                   Auto analisa 3 frames e detecta a região mais estática. Falha em vídeos estáticos — selecione a plataforma acima.
                 </div>
               )}
@@ -398,7 +398,7 @@ export default function Limpador() {
 
           {/* Info modo */}
           {!running && mode !== 'watermark' && (
-            <div style={{ fontSize:11, color:'var(--mf-text-3)', textAlign:'center', lineHeight:1.7 }}>
+            <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', textAlign:'center', lineHeight:1.7 }}>
               Os arquivos são processados um a um e baixados automaticamente.<br />
               Modo {selectedMode?.label}: {selectedMode?.desc}
             </div>
@@ -406,11 +406,11 @@ export default function Limpador() {
 
           {/* Progresso geral enquanto processa */}
           {running && (
-            <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius:10, padding:'12px 14px' }}>
-              <div style={{ fontSize:11, color:'var(--mf-text-3)', marginBottom:6, fontWeight:600 }}>
+            <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
+              <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginBottom:6, fontWeight:600 }}>
                 ⚙ Processando — os downloads iniciam automaticamente
               </div>
-              <div style={{ fontSize:10, color:'var(--mf-text-3)', animation:'limpador-pulse 1.5s infinite' }}>
+              <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', animation:'limpador-pulse 1.5s infinite' }}>
                 Aguarde — cada arquivo é enviado, processado com FFmpeg e baixado em sequência.
               </div>
             </div>
@@ -446,12 +446,12 @@ function FileRow({ item, running, mode, onRemove }) {
 
   return (
     <div style={{
-      display:'flex', alignItems:'center', gap:10, padding:'9px 10px', borderRadius:9,
+      display:'flex', alignItems:'center', gap:10, padding:'9px 10px', borderRadius: 'var(--mf-r-md)',
       background:'oklch(0.12 0.04 235 / 0.5)',
       border:`1px solid ${status === 'done' ? 'color-mix(in oklch, var(--mf-success-500) 20%, transparent)' : status === 'error' ? 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)' : 'var(--mf-border)'}`,
     }}>
       {/* Type icon */}
-      <div style={{ width:30, height:30, borderRadius:8, flexShrink:0, display:'grid', placeItems:'center',
+      <div style={{ width:30, height:30, borderRadius: 'var(--mf-r-sm)', flexShrink:0, display:'grid', placeItems:'center',
         background: isVideo ? 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)' }}>
         {isVideo ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod-publicar)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -467,24 +467,24 @@ function FileRow({ item, running, mode, onRemove }) {
       {/* Info + progress */}
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-          <span style={{ fontSize:12, fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>
+          <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>
             {file.name}
           </span>
-          <span style={{ fontSize:10, fontWeight:700, color:statusColor, flexShrink:0, whiteSpace:'nowrap' }}>
+          <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:statusColor, flexShrink:0, whiteSpace:'nowrap' }}>
             {statusLabel}
           </span>
         </div>
 
         <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4 }}>
-          <span style={{ fontSize:10, color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', flexShrink:0 }}>
+          <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', flexShrink:0 }}>
             {fmtSize(file.size)}
           </span>
 
           {/* Progress bar */}
           {(status === 'uploading' || status === 'processing') && (
-            <div style={{ flex:1, height:3, borderRadius:99, background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', position:'relative' }}>
+            <div style={{ flex:1, height:3, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', position:'relative' }}>
               {status === 'uploading' ? (
-                <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,var(--mf-primary-500),var(--mf-mod-publicar))', borderRadius:99, transition:'width .3s' }} />
+                <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,var(--mf-primary-500),var(--mf-mod-publicar))', borderRadius: 'var(--mf-r-full)', transition:'width .3s' }} />
               ) : (
                 <div style={{ height:'100%', background:'linear-gradient(90deg,var(--mf-primary-500),var(--mf-mod-publicar),var(--mf-primary-500))', backgroundSize:'200% 100%', animation:'limpador-shimmer 1.2s linear infinite', position:'absolute', inset:0 }} />
               )}
@@ -492,11 +492,11 @@ function FileRow({ item, running, mode, onRemove }) {
           )}
 
           {status === 'done' && (
-            <div style={{ flex:1, height:3, borderRadius:99, background:'color-mix(in oklch, var(--mf-success-500) 30%, transparent)' }} />
+            <div style={{ flex:1, height:3, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 30%, transparent)' }} />
           )}
 
           {status === 'error' && error && (
-            <span style={{ fontSize:10, color:'var(--mf-danger-500)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={error}>
+            <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-danger-500)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={error}>
               {error}
             </span>
           )}
@@ -505,7 +505,7 @@ function FileRow({ item, running, mode, onRemove }) {
 
       {/* Remove button */}
       {!running && status !== 'uploading' && status !== 'processing' && (
-        <button onClick={onRemove} style={{ flexShrink:0, width:22, height:22, borderRadius:6, background:'transparent', border:'1px solid var(--mf-border)', cursor:'pointer', display:'grid', placeItems:'center', color:'var(--mf-text-3)' }}>
+        <button onClick={onRemove} style={{ flexShrink:0, width:22, height:22, borderRadius: 'var(--mf-r-sm)', background:'transparent', border:'1px solid var(--mf-border)', cursor:'pointer', display:'grid', placeItems:'center', color:'var(--mf-text-3)' }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>

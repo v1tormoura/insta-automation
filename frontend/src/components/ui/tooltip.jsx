@@ -10,7 +10,7 @@ const TooltipContent = ({ className, sideOffset = 4, ...props }) => (
     <TooltipPrimitive.Content
       sideOffset={sideOffset}
       className={cn(
-        'z-50 overflow-hidden rounded-[7px] border border-[var(--border2)] bg-[var(--bg3)] px-3 py-1.5 text-[11px] font-medium text-[var(--text)] shadow-[0_8px_24px_rgba(0,0,0,.5)]',
+        'z-50 overflow-hidden rounded-[var(--mf-r-sm)] border border-[var(--border2)] bg-[var(--bg3)] px-3 py-1.5 text-[var(--mf-t-micro)] font-medium text-[var(--text)] shadow-[var(--mf-shadow-2)]',
         'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
         'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
         className

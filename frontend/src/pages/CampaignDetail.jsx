@@ -206,11 +206,11 @@ export default function CampaignDetail() {
     return (
       <PageShell title="Campanha" subtitle="Carregando…" accent="cyan">
         <div className="flex flex-col gap-3">
-          <Skeleton className="h-[190px] rounded-[14px]" />
+          <Skeleton className="h-[190px] rounded-[var(--mf-r-lg)]" />
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))' }}>
-            {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-[150px] rounded-[13px]" />)}
+            {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-[150px] rounded-[var(--mf-r-lg)]" />)}
           </div>
-          <Skeleton className="h-[230px] rounded-[13px]" />
+          <Skeleton className="h-[230px] rounded-[var(--mf-r-lg)]" />
         </div>
       </PageShell>
     );
@@ -219,7 +219,7 @@ export default function CampaignDetail() {
   if (erroCarga || !resumo?.campaign) {
     return (
       <PageShell title="Campanha" subtitle="Não foi possível carregar" accent="cyan">
-        <div className="rounded-[13px] border border-[color-mix(in oklch, var(--mf-danger-500) 26%, transparent)] bg-[color-mix(in oklch, var(--mf-danger-500) 5%, transparent)] p-5 text-center">
+        <div className="rounded-[var(--mf-r-lg)] border border-[color-mix(in_oklch,_var(--mf-danger-500)_26%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_5%,_transparent)] p-5 text-center">
           <p className="text-[12.5px] font-semibold text-[var(--mf-danger-500)]">
             {erroCarga || 'Campanha não encontrada.'}
           </p>

@@ -5,11 +5,12 @@ import {
   BarChart3, Settings, LogOut, Search, Bell,
   TrendingUp, ArrowUpRight, ArrowDownRight,
   Camera, Play, Plus, MoreHorizontal,
-  CheckCircle2, Clock, XCircle, Sparkles, Target, Zap
+  CheckCircle2, Clock, XCircle, Sparkles, Target, Zap,
+  Eye
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  BarChart, Bar, Cell, CartesianGrid
 } from 'recharts';
 import { NumberTicker } from '../components/magicui/number-ticker';
 import { BlurFade } from '../components/magicui/blur-fade';
@@ -115,7 +116,7 @@ function DashboardV2() {
   const [activeTab, setActiveTab] = useState('overview');
   
   return (
-    <div className="flex h-screen overflow-hidden font-sans selection:bg-cyan-500/30" style={{ background: '#030712' }}>
+    <div className="flex h-screen overflow-hidden font-sans" style={{ background: 'var(--mf-bg)' }}>
       
       {/* LEFT SIDEBAR - BENTO STYLE MINIMAL */}
       <motion.aside 
@@ -241,8 +242,8 @@ function DashboardV2() {
                         <stop offset="95%" stopColor="var(--mf-mod-publicar)" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--mf-text-2)' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--mf-text-2)' }} />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 'var(--mf-t-micro)', fill: 'var(--mf-text-2)' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 'var(--mf-t-micro)', fill: 'var(--mf-text-2)' }} />
                     <CartesianGrid strokeDasharray="4 4" stroke="var(--mf-border-subtle)" vertical={false} />
                     <RechartsTooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--mf-border)', strokeWidth: 2, strokeDasharray: '4 4' }} />
                     <Area type="monotone" dataKey="stories" name="Stories" stroke="var(--mf-mod-contas)" strokeWidth={3} fillOpacity={1} fill="url(#colorStories)" />
@@ -296,7 +297,7 @@ function DashboardV2() {
                   {connectedAccounts.length} Ativas
                 </div>
               </div>
-              <button className="px-5 py-2.5 rounded-xl text-sm font-bold text-black flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_color-mix(in oklch, var(--mf-mod-contas) 40%, transparent)]"
+              <button className="px-5 py-2.5 rounded-xl text-sm font-bold text-black flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_color-mix(in_oklch,_var(--mf-mod-contas)_40%,_transparent)]"
                       style={{ background: 'linear-gradient(135deg, var(--mf-mod-contas), #00aacc)' }}>
                 <Plus size={16} /> Conectar Conta
               </button>
