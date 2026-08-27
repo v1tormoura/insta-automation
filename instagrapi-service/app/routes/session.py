@@ -278,6 +278,126 @@ async def diagnostico(body: DiagnosticoRequest):
     return resultado
 
 
+@router.post("/sondar-proxy")
+async def sondar_proxy(body: DiagnosticoRequest):
+    """
+    Qual parâmetro faz ESTE fornecedor fixar o IP?
+
+    ── Por que descobrir por medição
+
+    Todo fornecedor residencial oferece sessão fixa, e cada um usa uma sintaxe
+    diferente dentro do nome de usuário — `;session.`, `-sessid-`, `_session-`.
+    A documentação nem sempre diz qual, e a errada é aceita em silêncio: o
+    fornecedor ignora o parâmetro desconhecido e continua rotacionando. O
+    sintoma aparece só no login, disfarçado de senha errada.
+
+    Aqui cada candidato é medido: duas requisições com o mesmo identificador.
+    IP igual nas duas significa que o parâmetro foi entendido e o IP ficou
+    preso. IP diferente significa que o fornecedor ignorou.
+
+    Nenhum login é tentado, nenhuma credencial é lida. O que sai na resposta é
+    o molde a pôr em `PROXY_SESSAO_MOLDE` — o proxy em si nunca é impresso.
+    """
+    proxy = body.proxy or os.getenv("GLOBAL_PROXY")
+    if not proxy:
+        raise HTTPException(status_code=400, detail={
+            "code": "SEM_PROXY",
+            "message": "Nenhum proxy informado nem configurado.",
+        })
+
+    loop = asyncio.get_running_loop()
+    resultado = await loop.run_in_executor(None, lambda: _sondar_moldes(proxy))
+    session_pool._slog("SONDAR_PROXY", body.account_id or "-",
+                       aceito=resultado.get("molde_aceito"),
+                       testados=len(resultado.get("candidatos", [])))
+    return resultado
+
+
+# Sufixos que os fornecedores residenciais usam para fixar o IP. A ordem segue
+# a frequência com que aparecem — o primeiro que fixar encerra a busca.
+_MOLDES_CANDIDATOS = [
+    ";session.{sessao}",
+    "-session-{sessao}",
+    "-sessid-{sessao}",
+    "_session-{sessao}",
+    ";sessid.{sessao}",
+    ";sid.{sessao}",
+    ";sticky.{sessao}",
+    "-sid-{sessao}",
+]
+
+
+def _sondar_moldes(proxy: str) -> dict:
+    """Mede cada candidato duas vezes. IP igual = o fornecedor entendeu."""
+    import requests
+
+    def _ip(url: str) -> str | None:
+        p = {"http": url, "https": url}
+        return requests.get("https://api.ipify.org", proxies=p, timeout=25).text.strip()
+
+    def _com_sufixo(url: str, sufixo: str) -> str:
+        esquema, resto = url.split("://", 1)
+        credenciais, destino = resto.rsplit("@", 1)
+        usuario, senha = credenciais.split(":", 1)
+        return f"{esquema}://{usuario}{sufixo}:{senha}@{destino}"
+
+    saida = {"linha_de_base": None, "candidatos": [], "molde_aceito": None, "erros": []}
+
+    # Linha de base: sem parâmetro nenhum. Se já for estável, o proxy é
+    # dedicado e não há rotação para conter — nenhum molde é necessário.
+    try:
+        a, b = _ip(proxy), _ip(proxy)
+        saida["linha_de_base"] = {"ips": sorted({a, b}), "estavel": a == b}
+        if a == b:
+            saida["molde_aceito"] = ""
+            saida["conclusao"] = (
+                "O proxy já entrega IP fixo sem parâmetro nenhum. "
+                "Deixe PROXY_SESSAO_MOLDE vazio."
+            )
+            return saida
+    except Exception as e:  # noqa: BLE001
+        saida["erros"].append(f"linha de base: {type(e).__name__}"[:120])
+        saida["conclusao"] = "O proxy não respondeu. Confira credencial e porta."
+        return saida
+
+    for indice, molde in enumerate(_MOLDES_CANDIDATOS):
+        # Identificador FIXO por candidato, não derivado de hash(): em Python o
+        # hash de string é aleatorizado por processo, e a sondagem daria um
+        # resultado diferente a cada execução — impossível de conferir duas
+        # vezes. O que precisa ser igual são as DUAS medições do mesmo
+        # candidato, e isso o sufixo calculado uma vez já garante.
+        sufixo = molde.replace("{sessao}", f"mfsonda{indice}")
+        try:
+            url = _com_sufixo(proxy, sufixo)
+            a, b = _ip(url), _ip(url)
+            fixou = a == b
+            saida["candidatos"].append({
+                "molde": molde, "fixou": fixou, "ips": sorted({a, b}),
+            })
+            if fixou:
+                saida["molde_aceito"] = molde
+                saida["conclusao"] = (
+                    "Ponha isto no .env e recrie o servico do instagrapi: "
+                    f"PROXY_SESSAO_MOLDE={molde} — a partir dai cada conta "
+                    "recebe um identificador proprio e um IP que nao muda "
+                    "durante o login."
+                )
+                return saida
+        except Exception as e:  # noqa: BLE001
+            # Recusa também é informação: o fornecedor validou o parâmetro e
+            # não gostou, o que ao menos diz que ele olha para esse campo.
+            saida["candidatos"].append({
+                "molde": molde, "fixou": False, "erro": type(e).__name__,
+            })
+
+    saida["conclusao"] = (
+        "Nenhum dos moldes conhecidos fixou o IP. Pergunte ao fornecedor qual "
+        "parâmetro ativa a sessão fixa — é um sufixo no nome de usuário — e "
+        "ponha em PROXY_SESSAO_MOLDE com {sessao} no lugar do valor."
+    )
+    return saida
+
+
 async def loop_ip_de_saida(client, account_id: str, proxy: str | None) -> None:
     """Mede o IP de saída fora do event loop — a chamada é bloqueante."""
     laco = asyncio.get_running_loop()
@@ -313,11 +433,49 @@ def _coletar_diagnostico(client, proxy: str | None) -> dict:
     # IP visto de fora, pela MESMA sessão que o login usaria — não por uma
     # requisição solta. Uma sessão nova poderia sair por outra rota e a
     # resposta seria sobre um caminho que o login não percorre.
-    try:
-        r = client.public.get("https://api.ipify.org?format=json", timeout=15)
-        saida["ip_de_saida"] = r.json().get("ip")
-    except Exception as e:  # noqa: BLE001
-        saida["erros"].append(f"ip: {type(e).__name__}: {e}"[:200])
+    #
+    # E medido VÁRIAS VEZES, em sequência, porque uma medição só não responde a
+    # pergunta que importa.
+    #
+    # ── Por que a estabilidade decide o diagnóstico
+    #
+    # Um login não é uma requisição: são cinco ou seis em sequência — sincronia
+    # de experimentos, sincronia de lançamentos, a chave de criptografia, o
+    # POST de credencial, e o carregamento inicial do feed. Se o proxy é
+    # rotativo e troca de IP no meio disso, o Instagram vê uma sessão nascendo
+    # espalhada por vários endereços e recusa — com `bad_password`, a mesma
+    # mensagem de senha errada.
+    #
+    # Ou seja: proxy rotacionando e conta sinalizada produzem EXATAMENTE o
+    # mesmo erro na tela, e a única forma de separá-los é medir se o IP se
+    # mantém. Com IP instável, não há o que depurar na conta — o problema é o
+    # proxy, e nenhuma troca de senha ou de método de login vai resolver.
+    ips = []
+    for _ in range(6):
+        try:
+            r = client.public.get("https://api.ipify.org?format=json", timeout=15)
+            ips.append(r.json().get("ip"))
+        except Exception as e:  # noqa: BLE001
+            saida["erros"].append(f"ip: {type(e).__name__}: {e}"[:200])
+            break
+
+    distintos = sorted({i for i in ips if i})
+    saida["ip_de_saida"] = ips[0] if ips else None
+    saida["ip_estavel"] = len(distintos) <= 1
+    saida["ips_observados"] = distintos
+    saida["medicoes"] = len(ips)
+
+    if len(distintos) > 1:
+        saida["veredito_proxy"] = (
+            f"INSTÁVEL — {len(distintos)} IPs em {len(ips)} requisições. "
+            "O login usa cerca de seis chamadas em sequência; com o IP mudando "
+            "no meio, o Instagram recusa mesmo com a senha certa. "
+            "Configure sessão fixa (sticky) no fornecedor do proxy."
+        )
+    elif distintos:
+        saida["veredito_proxy"] = f"estável em {distintos[0]}"
+    else:
+        saida["veredito_proxy"] = "não foi possível medir"
 
     # A chave de criptografia de senha. `qe/sync` responde 405 ao GET, mas os
     # cabeçalhos vêm junto — é deles que o instagrapi tira a chave, então 405
