@@ -211,6 +211,18 @@ async function syncAllStoryInsights() {
       if (r.error) comErro++;
     }
 
+    /* Marcos de story. Separado do ciclo de conteúdo porque a audiência de
+       story vive 24h e sobe rápido — é dela que vêm quase todas as
+       notificações — enquanto post cresce por semanas. */
+    try {
+      const detector = require('./smartActivity/detector');
+      const { broadcast } = require('../events/broadcaster');
+      const novas = await detector.varrer(contas, { apenasStories: true });
+      if (novas.length) broadcast('notificacoes', { novas: novas.length });
+    } catch (err) {
+      console.warn('[SmartActivity] detecção de story falhou:', err.message);
+    }
+
     // Loga SEMPRE, mesmo sem story ativo. Silêncio em caso de sucesso torna
     // "rodou e não havia story" indistinguível de "nunca rodou" — e a primeira
     // pergunta de quem acabou de configurar isto é exatamente essa.

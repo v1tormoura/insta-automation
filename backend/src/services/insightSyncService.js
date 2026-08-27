@@ -217,6 +217,23 @@ async function syncAllInsights() {
       results.push({ username: acc.username, ...r });
     }
     broadcast('insights', { action: 'synced', count: results.length });
+
+    /* Detecção de marcos: LÊ o que este ciclo acabou de gravar. Nenhuma
+       chamada nova ao Instagram, nenhuma rotina paralela — a notificação é
+       consequência da métrica ter subido, não uma segunda corrida atrás dela.
+
+       Envelopado à parte: uma falha aqui não pode desfazer nem manchar uma
+       sincronização de métricas que já deu certo. */
+    try {
+      const detector = require('./smartActivity/detector');
+      const novas = await detector.varrer(accounts, { apenasStories: false });
+      // Desligado por padrão; devolve null quando não está ativo.
+      const resumo = await detector.resumoDoDia();
+      const total = novas.length + (resumo ? 1 : 0);
+      if (total) broadcast('notificacoes', { novas: total });
+    } catch (err) {
+      console.warn('[SmartActivity] detecção falhou:', err.message);
+    }
   } catch (err) {
     console.error('[InsightSync] fatal:', err.message);
   } finally {
