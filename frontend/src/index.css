@@ -23,20 +23,16 @@
   --font-sans:  'Geist', ui-sans-serif, system-ui, sans-serif;
   --font-mono:  'GeistMono', ui-monospace, monospace;
 
-  --color-cyan:    #00d4ff;
-  --color-cyan2:   #00aacc;
-  --color-green:   #10b981;
-  --color-red:     #f43f5e;
-  --color-amber:   #f59e0b;
-  --color-purple:  #8b5cf6;
-  --color-indigo:  #6366f1;
-  --color-bg:      #09090f;
-  --color-bg2:     #0d1525;
-  --color-bg3:     #111e33;
-  --color-bg4:     #162440;
-  --color-text:    #e2edfd;
-  --color-text2:   #7f9ab5;
-  --color-text3:   #3a5268;
+  /* A paleta de cor saiu daqui.
+
+     Estas linhas geravam utilitários do Tailwind — `bg-cyan`, `text-text2` —
+     e a auditoria encontrou UM consumidor em todo o projeto. Mantidas, elas
+     seriam uma terceira fonte de verdade para cor, congelada nos valores de
+     antes do design system, esperando alguém escrever `bg-bg2` e receber um
+     azul que não existe mais em lugar nenhum.
+
+     Tipografia fica: `--font-sans` e `--font-mono` alimentam `font-sans` e
+     `font-mono`, que os primitivos usam de verdade. */
 }
 
 /* ════════════════════════════════════════════════════════
@@ -89,13 +85,11 @@
   --glow-lg:          oklch(0.82 0.19 196 / 0.45);
 
   /* ── Brand hex palette ──────────────── */
-  /* O `--bg` aqui é global, fora do `[data-mf]`, e na prática só o <body> o
-     usa: tudo que está dentro da casca recebe o remapeamento da ponte, que
-     aponta para `--mf-bg`. Deixado no azul antigo, o body ficava #07101e
-     enquanto o app inteiro era oklch(0.20 0.030 250) — invisível no desktop,
-     porque a tela cobre o body, mas aparecendo no overscroll do celular como
-     uma faixa de outra cor. Igualado ao token. */
-  --bg:  oklch(0.20 0.030 250);
+  /* Aponta para o token, não repete o valor. Escrito por extenso, este `--bg`
+     ficava para trás a cada troca de paleta e o <body> aparecia numa cor
+     diferente do app no overscroll do celular. `--mf-bg` é declarado no :root
+     de tokens.css justamente para poder ser lido daqui. */
+  --bg:  var(--mf-bg);
   --bg2: #0b1628;
   --bg3: #101e34;
   --bg4: #162440;
@@ -650,7 +644,7 @@ a { text-decoration: none; color: inherit; }
 }
 .stat-card::before { content:''; position:absolute; top:0; left:14px; right:14px; height:1px; background:linear-gradient(90deg,transparent,rgba(0,212,255,.32),transparent); }
 .stat-card::after  { content:''; position:absolute; bottom:-18px; right:-12px; width:70px; height:70px; border-radius:50%; background:radial-gradient(circle,var(--accent,var(--cyan)) 0%,transparent 70%); opacity:.06; }
-.stat-card:hover { transform: translateY(-2px); border-color: rgba(0,212,255,.2); box-shadow: 0 10px 36px rgba(0,0,0,.45); }
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(0,212,255,.2); box-shadow: var(--mf-shadow-3); }
 .sc-top  { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
 .sc-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.07); }
 .sc-trend { font-size: 11px; display: flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
@@ -821,7 +815,7 @@ input[type="color"].inp { padding: 2px 4px; height: 36px; cursor: pointer; }
 .toggle::after {
   content: ''; width: 12px; height: 12px; background: #fff;
   border-radius: 50%; position: absolute; top: 2px; left: 2px;
-  transition: left .18s; box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  transition: left .18s; box-shadow: var(--mf-shadow-1);
 }
 .toggle.on::after { left: 18px; }
 

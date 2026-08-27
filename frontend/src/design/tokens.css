@@ -12,21 +12,36 @@
    parecendo a mesma família — em hex, isso exige acertar cada degrau na mão.
    ══════════════════════════════════════════════════════════════════════════ */
 
+/* O fundo também no :root, e só ele.
+
+   O <body> vive FORA de [data-mf] e precisa da mesma cor — senão aparece uma
+   faixa de outro tom no overscroll do celular, e o descasamento volta toda vez
+   que a paleta muda, porque o valor estaria escrito em dois lugares. Duplicar
+   o token inteiro no :root desfaria o escopo; duplicar UM resolve o único
+   elemento que está do lado de fora. */
+:root { --mf-bg: oklch(0.17 0.028 265); }
+
 [data-mf] {
   /* ── Marca ──────────────────────────────────────────────────────────────
      Violeta elétrico como identidade e ciano como acento de dado. A dupla
      evita o azul corporativo genérico e ainda separa por função: violeta é
      ação, ciano é informação. */
-  /* O 500 escureceu de 0.62 para 0.61 e ganhou croma. Não é ajuste de gosto:
-     o texto do botão primário estava em 3,92:1 sobre ele — abaixo do mínimo
-     de 4,5 — e é o botão de "Publicar campanha". Agora dá 4,71, e o violeta
-     ainda saiu MAIS forte, porque o croma subiu junto. */
-  --mf-primary-100: oklch(0.92 0.07 285);
-  --mf-primary-300: oklch(0.78 0.20 285);
-  --mf-primary-500: oklch(0.61 0.30 285);   /* #8045ff — cor da marca */
-  --mf-primary-600: oklch(0.54 0.28 285);
-  --mf-primary-700: oklch(0.45 0.24 285);
-  --mf-primary-fg:  oklch(0.98 0.01 285);
+  /* NOCTURNO — o ciano assume o primary.
+  
+     Antes o violeta era a marca e o ciano era "dado". A paleta escolhida
+     inverte: ação principal, CTA e item ativo da navegação passam a ser
+     ciano, e o violeta desce para apoio — onde continua sendo o matiz do
+     módulo Publicar.
+
+     Consequência que precisa ser dita: o rótulo do botão primário vira TEXTO
+     ESCURO. Ciano em L=0.78 é claro demais para carregar texto branco — daria
+     por volta de 1,8:1. Sobre ele, o próprio fundo do tema dá 10,22. */
+  --mf-primary-100: oklch(0.93 0.06 213);
+  --mf-primary-300: oklch(0.88 0.14 213);
+  --mf-primary-500: oklch(0.78 0.19 213);   /* #00d4ff — a marca */
+  --mf-primary-600: oklch(0.66 0.17 213);
+  --mf-primary-700: oklch(0.58 0.19 213);
+  --mf-primary-fg:  oklch(0.17 0.028 265);  /* escuro sobre o ciano */
 
   /* Ciano elétrico. O matiz é o que estava errado antes, mais que o croma:
      em 200° o resultado era #00dae4, um turquesa esverdeado que lia como cor
@@ -36,9 +51,12 @@
      está em ff e a cor para de mudar. É o ciano mais forte que a tela mostra.
 
      Contraste medido sobre o fundo: 300 → 12,95   500 → 10,22   700 → 5,03 */
-  --mf-accent-300:  oklch(0.88 0.14 213);   /* #44efff */
-  --mf-accent-500:  oklch(0.78 0.19 213);   /* #00d4ff — ciano, dado, destaque */
-  --mf-accent-700:  oklch(0.58 0.19 213);   /* #0092bc */
+  /* Um passo mais claro e mais verde que o primary (195° contra 213°). Serve
+     ao que precisa saltar SOBRE uma superfície que já é ciano — sem ele, um
+     destaque dentro de um cartão primário desapareceria no próprio fundo. */
+  --mf-accent-300:  oklch(0.92 0.11 195);
+  --mf-accent-500:  oklch(0.86 0.16 195);
+  --mf-accent-700:  oklch(0.62 0.14 195);
 
   /* Magenta em dose pequena: só para o que é excepcional (campanha ativa,
      item premium). Usado em área grande, vira ruído. */
@@ -50,14 +68,14 @@
   /* O verde estava usando 47% do croma que o sRGB permite neste matiz — de
      longe o mais apagado da paleta, e do mesmo matiz do módulo Métricas. Dois
      tons diferentes para a mesma cor lê como defeito, não como intenção. */
-  --mf-success-500: oklch(0.75 0.26 155);   /* #00d95b — contraste 9,54 */
-  --mf-success-bg:  oklch(0.75 0.26 155 / 0.12);
-  --mf-warning-500: oklch(0.81 0.18 78);    /* #ffaf00 — contraste 9,80 */
-  --mf-warning-bg:  oklch(0.81 0.18 78 / 0.12);
-  --mf-danger-500:  oklch(0.68 0.26 25);    /* #ff283a — contraste 4,84 */
-  --mf-danger-bg:   oklch(0.68 0.26 25 / 0.12);
-  --mf-info-500:    oklch(0.72 0.14 240);
-  --mf-info-bg:     oklch(0.72 0.14 240 / 0.12);
+  --mf-success-500: oklch(0.79 0.208 150);
+  --mf-success-bg:  oklch(0.79 0.208 150 / 0.13);
+  --mf-warning-500: oklch(0.79 0.155 75);
+  --mf-warning-bg:  oklch(0.79 0.155 75 / 0.13);
+  --mf-danger-500:  oklch(0.79 0.121 25);
+  --mf-danger-bg:   oklch(0.79 0.121 25 / 0.13);
+  --mf-info-500:    oklch(0.79 0.108 245);
+  --mf-info-bg:     oklch(0.79 0.108 245 / 0.13);
 
   /* ── Cor por módulo ────────────────────────────────────────────────────
      Cada área do produto tem um matiz fixo. O usuário aprende o lugar pela
@@ -73,12 +91,12 @@
 
      Ninguém vai a 100% além do ciano: violeta e verde no limite do gamut
      viram neon puro (#8800ff, #00dc00), que não é vivo, é berrante. */
-  --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — mesmo do accent-500 */
+  --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — o mesmo do primary */
   --mf-mod-publicar:  oklch(0.75 0.33 285);   /* violeta — #a770ff  5,52 */
   --mf-mod-campanhas: oklch(0.70 0.27 350);   /* magenta — #ff2fb5  5,45 */
   --mf-mod-jobs:      oklch(0.81 0.18 78);    /* âmbar   — #ffaf00  9,80 */
   --mf-mod-metricas:  oklch(0.75 0.26 155);   /* verde   — #00d95b  9,54 */
-  --mf-mod-sistema:   oklch(0.70 0.03 275);   /* neutro  */
+  --mf-mod-sistema:   oklch(0.70 0.03 265);   /* neutro — matiz do tema */
 
   /* ── Superfícies ───────────────────────────────────────────────────────
      Azul-noite: matiz 250, que é azul-marinho, no lugar do 275 arroxeado da
@@ -95,11 +113,11 @@
      passo de 0.04 entre elas. O passo é o que carrega a hierarquia: com
      diferença menor, card e fundo se confundem; com maior, cada camada
      parece um material diferente. */
-  --mf-bg:          oklch(0.20 0.030 250);
-  --mf-surface-1:   oklch(0.24 0.032 250);
-  --mf-surface-2:   oklch(0.28 0.034 250);
-  --mf-surface-3:   oklch(0.32 0.036 250);
-  --mf-overlay:     oklch(0.14 0.03 250 / 0.72);
+  --mf-bg:          oklch(0.17 0.028 265);
+  --mf-surface-1:   oklch(0.21 0.030 265);
+  --mf-surface-2:   oklch(0.25 0.032 265);
+  --mf-surface-3:   oklch(0.30 0.034 265);
+  --mf-overlay:     oklch(0.12 0.028 265 / 0.74);
 
   /* Traço da grade de fundo. Fraco de propósito: ela precisa dar escala ao
      fundo sem ser lida como conteúdo. Acima de 0.03 vira quadriculado
@@ -134,9 +152,9 @@
      0.66 é o primeiro passo que volta a passar. Fica registrado porque a
      conta muda toda vez que a paleta muda — o valor não é transportável de
      um tema para o outro. */
-  --mf-text:      oklch(0.97 0.008 250);
-  --mf-text-2:    oklch(0.76 0.020 250);
-  --mf-text-3:    oklch(0.66 0.022 250);
+  --mf-text:      oklch(0.97 0.008 265);
+  --mf-text-2:    oklch(0.77 0.020 265);
+  --mf-text-3:    oklch(0.66 0.022 265);
 
   /* ── Espaçamento ───────────────────────────────────────────────────────
      Escala de 4. Valor fora dela é acidente, não decisão. */
@@ -144,9 +162,22 @@
   --mf-5: 20px;   --mf-6: 24px;   --mf-8: 32px;  --mf-10: 40px;
   --mf-12: 48px;  --mf-16: 64px;
 
-  /* ── Raio ──────────────────────────────────────────────────────────────*/
-  --mf-r-sm: 6px;  --mf-r-md: 10px;  --mf-r-lg: 14px;
-  --mf-r-xl: 20px; --mf-r-full: 999px;
+  /* ── Raio ──────────────────────────────────────────────────────────────
+     Na MESMA grade de 4 do espaçamento, e isso não é simetria decorativa: o
+     raio de um card e o respiro interno dele são lidos juntos, e quando os
+     dois vêm da mesma progressão a caixa parece desenhada em vez de montada.
+
+     A escala foi calibrada pelo que o código já fazia, não imposta por cima.
+     Uma contagem dos 1.055 usos mostrou 39 raios distintos com o pico em 8px
+     (172 usos), seguido de 9, 7 e 10 — ou seja, havia um sistema latente em
+     torno de 8, expresso em quatro valores por falta de um nome. `sm` é 8px
+     por isso: o valor mais usado do produto vira token sem que nada precise
+     mudar de tamanho.
+
+     Cinco degraus bastam. O sexto é sempre um valor que alguém não conseguiu
+     decidir entre dois vizinhos. */
+  --mf-r-xs: 4px;  --mf-r-sm: 8px;   --mf-r-md: 12px;
+  --mf-r-lg: 16px; --mf-r-xl: 24px;  --mf-r-full: 999px;
 
   /* ── Elevação ──────────────────────────────────────────────────────────
      No escuro, sombra sozinha quase não aparece. Cada nível combina sombra
@@ -158,8 +189,11 @@
                  inset 0 1px 0 oklch(1 0 0 / 0.05);
   --mf-shadow-3: 0 12px 32px -8px oklch(0 0 0 / 0.6),
                  inset 0 1px 0 oklch(1 0 0 / 0.06);
-  --mf-glow-primary: 0 0 0 1px oklch(0.62 0.24 285 / 0.35),
-                     0 8px 24px -6px oklch(0.62 0.24 285 / 0.45);
+  /* Acompanha o primary. Cravado no violeta, o brilho do botão continuaria
+     roxo sob um botão ciano — o defeito mais visível de trocar paleta pela
+     metade. */
+  --mf-glow-primary: 0 0 0 1px oklch(0.78 0.19 213 / 0.35),
+                     0 8px 24px -6px oklch(0.78 0.19 213 / 0.40);
 
   /* ── Movimento ─────────────────────────────────────────────────────────
      Curvas nomeadas por intenção. `out` para o que entra (rápido no começo,
@@ -190,8 +224,14 @@
   --mf-t-h2:      clamp(0.95rem, 0.88rem + 0.3vw, 1.075rem);
   --mf-t-body:    0.875rem;
   --mf-t-sm:      0.8125rem;
-  --mf-t-xs:      0.75rem;
-  --mf-t-micro:   0.6875rem;
+  --mf-t-xs:      0.75rem;     /* 12px */
+  --mf-t-micro:   0.6875rem;  /* 11px */
+
+  /* 10px. Existe porque o código tinha 195 usos de 10px e 68 de 9px, e sem um
+     nome para o degrau eles continuariam surgindo como número solto. É o piso:
+     abaixo de 10px o texto deixa de ser lido e vira textura, então nada no
+     produto desce daqui — o `nano` é o fundo da escala, não um convite. */
+  --mf-t-nano:    0.625rem;   /* 10px */
 
   /* ── Layout ────────────────────────────────────────────────────────────*/
   --mf-sidebar:   264px;

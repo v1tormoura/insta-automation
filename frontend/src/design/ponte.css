@@ -21,6 +21,55 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 [data-mf] {
+  /* ── Nomes do shadcn/ui ─────────────────────────────────────────────────
+     O ecossistema shadcn/Radix espera `--background`, `--primary`, `--ring` e
+     companhia. O projeto já tem um sistema de tokens funcional em `--mf-*`,
+     usado cinco mil vezes, e duplicar valores criaria justamente o sistema
+     paralelo que se quer evitar: duas fontes de verdade que divergem no
+     primeiro ajuste que alguém fizer só numa delas.
+
+     Então estes são APELIDOS, não definições. Cada um aponta para o token
+     real. Um componente shadcn colado da documentação funciona sem tradução,
+     e continua obedecendo à mesma paleta que o resto do produto.
+
+     `-foreground` é o par de contraste de cada superfície — o texto que
+     comprovadamente se lê em cima dela, não um cinza qualquer. */
+  --background:            var(--mf-bg);
+  --foreground:            var(--mf-text);
+  --card:                  var(--mf-surface-1);
+  --card-foreground:       var(--mf-text);
+  --popover:               var(--mf-surface-2);
+  --popover-foreground:    var(--mf-text);
+  --primary:               var(--mf-primary-500);
+  --primary-foreground:    var(--mf-primary-fg);
+  --secondary:             var(--mf-surface-3);
+  --secondary-foreground:  var(--mf-text);
+  --muted:                 var(--mf-surface-2);
+  --muted-foreground:      var(--mf-text-3);
+  --accent:                var(--mf-mod, var(--mf-accent-500));
+  --accent-foreground:     var(--mf-bg);
+  --success:               var(--mf-success-500);
+  --success-foreground:    var(--mf-bg);
+  --warning:               var(--mf-warning-500);
+  --warning-foreground:    var(--mf-bg);
+  --destructive:           var(--mf-danger-500);
+  --destructive-foreground: var(--mf-bg);
+  --info:                  var(--mf-info-500);
+  --info-foreground:       var(--mf-bg);
+  --border:                var(--mf-border);
+  --input:                 var(--mf-border-strong);
+  --ring:                  var(--mf-primary-500);
+  --radius:                var(--mf-r-md);
+
+  /* Sobreviventes do tema antigo que ainda têm consumidores. O brilho era
+     ciano cravado; agora acompanha o primary, senão o halo continuaria da cor
+     velha embaixo de um botão da cor nova. */
+  --card-border: var(--mf-border);
+  --card-shine:  color-mix(in oklch, var(--mf-primary-500) 30%, transparent);
+  --glow:        0 0 24px -4px color-mix(in oklch, var(--mf-primary-500) 22%, transparent);
+  --glow-sm:     0 0 14px -4px color-mix(in oklch, var(--mf-primary-500) 16%, transparent);
+  --glow-lg:     0 0 44px -8px color-mix(in oklch, var(--mf-primary-500) 40%, transparent);
+
   /* ── Fundos ─────────────────────────────────────────────────────────────
      Os cinco níveis antigos comprimem nos três do sistema novo: --bg4/--bg5
      existiam para hover e estado ativo, que agora saem de color-mix. */
@@ -60,7 +109,7 @@
   --text:  var(--mf-text);
   --text2: var(--mf-text-2);
   --text3: var(--mf-text-3);
-  --text4: var(--mf-text-4, oklch(0.44 0.020 275));
+  --text4: var(--mf-text-4, var(--mf-text-2));
 
   /* ── Bordas ─────────────────────────────────────────────────────────── */
   --border:  var(--mf-border);
@@ -247,7 +296,7 @@
    `min(480px, 100vw - 2rem)` resolve em qualquer largura sem exceção: nunca
    passa da tela, e nunca fica menor que a tela quando há espaço. */
 [data-mf] .modal-overlay {
-  background: oklch(0.145 0.018 275 / 0.72);
+  background: color-mix(in oklch, var(--mf-surface-1) 74%, transparent);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 [data-mf] .modal {
@@ -605,3 +654,629 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
    mesma distância que separa dois painéis o coloca perto demais do primeiro
    bloco de conteúdo. */
 [data-mf] .dashboard .dash-header { margin-bottom: var(--mf-2); }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ANEL DE FOCO
+   ══════════════════════════════════════════════════════════════════════════
+
+   Mora aqui, e não em sistema.css, porque esta é a última folha carregada.
+   Uma auditoria das regras existentes achou dezessete com `box-shadow` que
+   venceriam o anel por especificidade — `.search-wrap input:focus` entre
+   elas, o que apagaria o foco justamente no campo de busca.
+
+   `[data-mf][data-mf]` repetido é o idioma para subir especificidade sem
+   `!important`: vale 30 contra os 20 e 21 das rivais, e empate com 30 se
+   resolve por ordem, que agora está do nosso lado.
+
+   Contraste do anel sobre o fundo: 10,82. O mínimo da WCAG 1.4.11 para
+   indicador de estado é 3. */
+[data-mf][data-mf] :focus-visible {
+  outline: 2px solid var(--mf-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--mf-r-sm);
+}
+
+/* ── Estrutura ────────────────────────────────────────────────────────────
+   Grid de duas colunas com `minmax(0, 1fr)` na área de conteúdo. Sem o
+   minmax, uma tabela larga empurra a coluna e a página inteira ganha rolagem
+   horizontal — a causa mais comum de "estourou pro lado" em layout de grid. */
+.mf-app {
+  display: grid;
+  grid-template-columns: var(--mf-sidebar) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  transition: grid-template-columns var(--mf-normal) var(--mf-ease-out);
+}
+.mf-app[data-collapsed='true'] { grid-template-columns: var(--mf-sidebar-c) minmax(0, 1fr); }
+
+.mf-main { min-width: 0; display: flex; flex-direction: column; }
+
+/* Container: respira nas laterais no celular, e para de crescer no monitor
+   grande. Texto atravessando 3440px não é aproveitamento de espaço, é linha
+   que ninguém consegue ler. */
+.mf-container {
+  width: 100%;
+  max-width: var(--mf-container);
+  margin-inline: auto;
+  padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
+}
+
+/* ── Barra lateral ───────────────────────────────────────────────────────*/
+.mf-side {
+  background: var(--mf-surface-1);
+  border-right: 1px solid var(--mf-border);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh; height: 100dvh;
+  overflow: hidden;
+}
+.mf-side__brand {
+  display: flex; align-items: center; gap: var(--mf-3);
+  padding: var(--mf-4); height: var(--mf-topbar);
+  border-bottom: 1px solid var(--mf-border);
+  flex-shrink: 0;
+}
+.mf-side__mark {
+  width: 28px; height: 28px; border-radius: var(--mf-r-sm);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500));
+  display: grid; place-items: center;
+  font-weight: 800; font-size: var(--mf-t-xs); color: var(--mf-primary-fg);
+  box-shadow: var(--mf-glow-primary);
+}
+.mf-side__name { font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+.mf-side__nav { flex: 1; overflow-y: auto; padding: var(--mf-3) var(--mf-2); }
+.mf-side__nav::-webkit-scrollbar { width: 6px; }
+.mf-side__nav::-webkit-scrollbar-thumb { background: var(--mf-border-strong); border-radius: var(--mf-r-full); }
+
+.mf-side__group { margin-bottom: var(--mf-4); }
+.mf-side__label {
+  font-size: var(--mf-t-micro); font-weight: 700; letter-spacing: 0.08em;
+  color: var(--mf-text-3); text-transform: uppercase;
+  padding: 0 var(--mf-3) var(--mf-2);
+}
+
+.mf-nav-item {
+  display: flex; align-items: center; gap: var(--mf-3);
+  width: 100%; padding: var(--mf-2) var(--mf-3);
+  border-radius: var(--mf-r-md); border: none; background: none;
+  color: var(--mf-text-2); cursor: pointer; text-align: left;
+  position: relative;
+  transition: background var(--mf-fast) var(--mf-ease-out),
+              color var(--mf-fast) var(--mf-ease-out);
+}
+/* ── Repouso, passagem e presença ──────────────────────────────────────────
+
+   Havia dois por cento de opacidade entre o item ativo (branco a 6%) e o item
+   sob o mouse (branco a 4%). Na prática, passar o cursor por qualquer linha a
+   deixava quase idêntica à página em que se está — e a barra perdia a única
+   função que tem além de navegar, que é dizer ONDE você está.
+
+   A separação agora é de natureza, não de intensidade: o hover continua sendo
+   um véu neutro, e o ativo passa a ser TINTA DO MÓDULO. Cinza e cor não se
+   confundem por mais próximos que fiquem em luminosidade. */
+.mf-nav-item:hover { background: oklch(1 0 0 / 0.05); color: var(--mf-text); }
+
+.mf-nav-item[aria-current='page'] {
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 13%, transparent);
+  color: var(--mf-text);
+}
+/* O peso vai no PRÓPRIO rótulo. Declarado no item, `.mf-nav-item__t` o
+   sobrescreve com os seus 600 — o span tem regra própria e ela vence. O
+   terceiro sinal do item ativo (junto do filete e da tinta) ficava sem
+   efeito, e nada no navegador avisa. */
+.mf-nav-item[aria-current='page'] .mf-nav-item__t { font-weight: 700; }
+.mf-nav-item[aria-current='page'] .mf-nav-item__s { color: var(--mf-text-2); }
+/* Marcador da página atual na cor do MÓDULO, não na cor da marca: é assim
+   que a barra lateral ensina o código de cores sem nenhuma legenda. */
+.mf-nav-item[aria-current='page']::before {
+  content: ''; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 18px; border-radius: 0 3px 3px 0;
+  background: var(--mf-mod, var(--mf-primary-500));
+  box-shadow: 0 0 12px var(--mf-mod, var(--mf-primary-500));
+}
+/* ── O ícone em repouso é NEUTRO ───────────────────────────────────────────
+
+   Antes todo ícone da barra vestia a cor do próprio módulo, o tempo todo. O
+   resultado era uma coluna de oito cores simultâneas: bonita numa captura de
+   tela, cansativa em uso, e — o que importa mais — inútil como pista, porque
+   quando tudo tem cor, cor deixa de significar alguma coisa.
+
+   Agora a cor é o prêmio de estar ali. Em repouso o ícone é texto secundário;
+   sob o cursor ele acende pela metade; na página atual ele assume o módulo
+   inteiro. O código de cores continua sendo ensinado — só que no momento em
+   que a pessoa está olhando para aquele item, que é quando ela aprende. */
+.mf-nav-item__ico {
+  width: 18px; height: 18px; flex-shrink: 0;
+  color: var(--mf-text-3);
+  transition: color var(--mf-fast) var(--mf-ease-out);
+}
+.mf-nav-item:hover .mf-nav-item__ico {
+  color: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 55%, var(--mf-text-2));
+}
+.mf-nav-item[aria-current='page'] .mf-nav-item__ico {
+  color: var(--mf-mod, var(--mf-primary-500));
+}
+
+/* Recolhida, o ícone é a ÚNICA coisa que resta do item: neutralizá-lo ali
+   deixaria uma coluna de silhuetas cinzas indistinguíveis. Nesse estado ele
+   volta a carregar o módulo em repouso. */
+.mf-app[data-collapsed='true'] .mf-nav-item__ico {
+  color: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 70%, var(--mf-text-2));
+}
+.mf-app[data-collapsed='true'] .mf-nav-item[aria-current='page'] .mf-nav-item__ico {
+  color: var(--mf-mod, var(--mf-primary-500));
+}
+
+/* O rótulo e a descrição são dois <span>, que por padrão são inline — sem
+   esta coluna eles saem na mesma linha e grudados ("PostarCriar e agendar").
+   `line-height` apertado porque são duas linhas dentro de um item de 34px:
+   o padrão de 1.5 empurraria a descrição para fora do item. */
+.mf-nav-item__txt {
+  min-width: 0; display: flex; flex-direction: column; gap: 1px;
+}
+.mf-nav-item__t {
+  display: block; font-size: var(--mf-t-sm); font-weight: 600; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mf-nav-item__s {
+  display: block; font-size: var(--mf-t-micro); color: var(--mf-text-3); line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.mf-app[data-collapsed='true'] .mf-nav-item__txt,
+.mf-app[data-collapsed='true'] .mf-side__label,
+.mf-app[data-collapsed='true'] .mf-side__name { display: none; }
+.mf-app[data-collapsed='true'] .mf-nav-item { justify-content: center; padding-inline: 0; }
+
+/* ── Barra superior ──────────────────────────────────────────────────────*/
+.mf-top {
+  height: var(--mf-topbar); flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--mf-3);
+  border-bottom: 1px solid var(--mf-border);
+  /* Era `oklch(0.145 0.018 275 / 0.8)` — matiz 275, da paleta anterior.
+     Cravado, ficava levemente arroxeado sobre um app que virou 265. */
+  background: color-mix(in oklch, var(--mf-surface-1) 82%, transparent);
+  backdrop-filter: blur(16px);
+  position: sticky; top: 0; z-index: var(--mf-z-sticky);
+  padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
+}
+.mf-top__spacer { flex: 1; min-width: var(--mf-2); }
+
+/* Gatilho da paleta de comandos. Parece um campo de busca porque é a
+   affordance que as pessoas já conhecem — o atalho é para quem repete. */
+.mf-cmd-trigger {
+  display: flex; align-items: center; gap: var(--mf-2);
+  height: 32px; padding: 0 var(--mf-2) 0 var(--mf-3);
+  border-radius: var(--mf-r-md);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+  color: var(--mf-text-3); cursor: pointer;
+  font-size: var(--mf-t-sm);
+  min-width: 0;
+  transition: border-color var(--mf-fast) var(--mf-ease-out),
+              color var(--mf-fast) var(--mf-ease-out);
+}
+.mf-cmd-trigger:hover { border-color: var(--mf-border-strong); color: var(--mf-text-2); }
+.mf-kbd {
+  font-family: var(--mf-mono); font-size: var(--mf-t-micro);
+  padding: 2px var(--mf-1) 2px var(--mf-1);
+  border-radius: var(--mf-r-sm);
+  background: var(--mf-surface-3); border: 1px solid var(--mf-border);
+  color: var(--mf-text-3); white-space: nowrap;
+}
+
+/* ── Cabeçalho de página ─────────────────────────────────────────────────
+   Todas as páginas nascem daqui. É o que garante que título, subtítulo e
+   ações comecem no mesmo eixo em toda tela — o desalinhamento entre páginas
+   era um dos sintomas mais visíveis da interface atual. */
+.mf-page-head {
+  display: flex; align-items: flex-start; gap: var(--mf-4);
+  flex-wrap: wrap;
+  padding-block: var(--mf-6) var(--mf-5);
+}
+/* `flex: 1` é `flex-basis: 0`, e essa era a causa de um bug feio no celular:
+   a quebra de linha do flex decide pela BASE do item, não pelo conteúdo. Com
+   base zero, o bloco do título nunca "não cabia" — ele simplesmente encolhia,
+   e os botões de ação continuavam grudados na mesma linha. Numa tela de 375px
+   com dois botões no cabeçalho, o título ficava com uns 50px e o subtítulo
+   saía uma palavra por linha: "Ciclos / automáticos / de / postagem".
+
+   Com base de 240px, os botões passam a não caber e vão para a linha de
+   baixo — que é o comportamento certo. O `min-width: 0` continua ali para o
+   texto poder truncar quando precisar. */
+.mf-page-head__txt { min-width: 0; flex: 1 1 240px; }
+.mf-page-head__t {
+  font-size: var(--mf-t-h1); font-weight: 700; letter-spacing: -0.025em;
+  margin: 0; display: flex; align-items: center; gap: var(--mf-3);
+}
+.mf-page-head__dot {
+  width: 8px; height: 8px; border-radius: var(--mf-r-full); flex-shrink: 0;
+  background: var(--mf-mod, var(--mf-primary-500));
+  box-shadow: 0 0 12px var(--mf-mod, var(--mf-primary-500));
+}
+.mf-page-head__s { color: var(--mf-text-3); font-size: var(--mf-t-sm); margin: var(--mf-1) 0 0; }
+.mf-page-head__acts { display: flex; gap: var(--mf-2); flex-wrap: wrap; flex-shrink: 0; }
+
+/* ── Grid ────────────────────────────────────────────────────────────────
+   `auto-fit` + `minmax` resolve a responsividade sem breakpoint: as colunas
+   se ajustam ao espaço real. O `min()` no mínimo impede o estouro a 320px,
+   onde um minmax fixo de 240px seria maior que a tela. */
+.mf-grid { display: grid; gap: var(--mf-4); }
+.mf-grid--kpi  { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.mf-grid--2    { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.mf-grid--cards{ grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+
+/* Painel analítico: proporção 2:1 no desktop, empilhado quando não cabe.
+   A regra está no container, não em media query — o bloco se comporta igual
+   dentro de qualquer largura. */
+.mf-split { display: grid; gap: var(--mf-4); grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+@container (max-width: 900px) { .mf-split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px)     { .mf-split { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Card ────────────────────────────────────────────────────────────────
+   Não é "branco + borda + sombra". A profundidade vem de três coisas
+   somadas: superfície um degrau acima do fundo, filete de luz no topo
+   (::before) e sombra projetada. */
+.mf-card {
+  background: var(--mf-surface-1);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-r-lg);
+  box-shadow: var(--mf-shadow-1);
+  position: relative; overflow: hidden;
+  container-type: inline-size;
+  transition: border-color var(--mf-normal) var(--mf-ease-out),
+              box-shadow var(--mf-normal) var(--mf-ease-out),
+              transform var(--mf-normal) var(--mf-ease-out);
+}
+.mf-card::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.10), transparent);
+}
+.mf-card--hover:hover {
+  border-color: var(--mf-border-strong);
+  box-shadow: var(--mf-shadow-2);
+  transform: translateY(-2px);
+}
+.mf-card__body { padding: var(--mf-5); }
+.mf-card__head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--mf-3);
+  padding: var(--mf-4) var(--mf-5);
+  border-bottom: 1px solid var(--mf-border);
+}
+.mf-card__title { font-size: var(--mf-t-h2); font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.mf-card__sub { font-size: var(--mf-t-xs); color: var(--mf-text-3); margin: 2px 0 0; }
+
+/* ── KPI ─────────────────────────────────────────────────────────────────*/
+.mf-kpi { display: flex; flex-direction: column; gap: var(--mf-3); padding: var(--mf-4) var(--mf-5) var(--mf-3); }
+.mf-kpi__top { display: flex; align-items: center; justify-content: space-between; gap: var(--mf-2); }
+.mf-kpi__label {
+  font-size: var(--mf-t-micro); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--mf-text-3);
+}
+.mf-kpi__ico {
+  width: 26px; height: 26px; border-radius: var(--mf-r-sm); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 14%, transparent);
+  color: var(--mf-mod, var(--mf-primary-500));
+}
+/* Número em fonte tabular e fluido: cabe em 320px e continua imponente em
+   1920px, sem media query e sem quebrar linha no meio do valor. */
+.mf-kpi__value {
+  font-family: var(--mf-mono);
+  font-size: clamp(1.5rem, 1.15rem + 1.1cqw, 2rem);
+  font-weight: 650; letter-spacing: -0.03em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.mf-kpi__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--mf-2); }
+.mf-trend { display: inline-flex; align-items: center; gap: 3px; font-size: var(--mf-t-xs); font-weight: 650; }
+.mf-trend[data-dir='up']   { color: var(--mf-success-500); }
+.mf-trend[data-dir='down'] { color: var(--mf-danger-500); }
+.mf-trend[data-dir='flat'] { color: var(--mf-text-3); }
+.mf-kpi__vs { font-size: var(--mf-t-micro); color: var(--mf-text-3); }
+
+/* ── Botões ──────────────────────────────────────────────────────────────*/
+.mf-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--mf-2);
+  height: 36px; padding-inline: var(--mf-4);
+  border-radius: var(--mf-r-md); border: 1px solid transparent;
+  font-size: var(--mf-t-sm); font-weight: 600; white-space: nowrap;
+  cursor: pointer; position: relative; overflow: hidden;
+  transition: background var(--mf-fast) var(--mf-ease-out),
+              border-color var(--mf-fast) var(--mf-ease-out),
+              transform var(--mf-fast) var(--mf-ease-out),
+              box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+/* Recuo de 1px no clique. É a microinteração de melhor custo-benefício:
+   confirma que o toque foi registrado antes de qualquer resposta da rede. */
+.mf-btn:active:not(:disabled) { transform: translateY(1px); }
+.mf-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.mf-btn--primary {
+  background: linear-gradient(180deg, var(--mf-primary-500), var(--mf-primary-600));
+  color: var(--mf-primary-fg);
+  box-shadow: var(--mf-shadow-1);
+}
+.mf-btn--primary:hover:not(:disabled) { box-shadow: var(--mf-glow-primary); }
+.mf-btn--secondary { background: var(--mf-surface-2); border-color: var(--mf-border); color: var(--mf-text); }
+.mf-btn--secondary:hover:not(:disabled) { background: var(--mf-surface-3); border-color: var(--mf-border-strong); }
+.mf-btn--ghost { background: transparent; color: var(--mf-text-2); }
+.mf-btn--ghost:hover:not(:disabled) { background: oklch(1 0 0 / 0.05); color: var(--mf-text); }
+.mf-btn--danger { background: var(--mf-danger-bg); color: var(--mf-danger-500); border-color: oklch(0.64 0.22 20 / 0.3); }
+.mf-btn--danger:hover:not(:disabled) { background: oklch(0.64 0.22 20 / 0.2); }
+.mf-btn--sm { height: 30px; padding-inline: var(--mf-3); font-size: var(--mf-t-xs); }
+.mf-btn--icon { width: 32px; height: 32px; padding: 0; }
+
+.mf-spin {
+  width: 13px; height: 13px; border-radius: var(--mf-r-full);
+  border: 2px solid currentColor; border-top-color: transparent;
+  animation: mf-spin 0.6s linear infinite;
+}
+@keyframes mf-spin { to { transform: rotate(360deg); } }
+
+/* ── Selo de estado ──────────────────────────────────────────────────────*/
+.mf-badge {
+  display: inline-flex; align-items: center; gap: var(--mf-1);
+  height: 22px; padding-inline: var(--mf-2);
+  border-radius: var(--mf-r-full);
+  font-size: var(--mf-t-micro); font-weight: 650; white-space: nowrap;
+  background: var(--mf-surface-2); color: var(--mf-text-2);
+  border: 1px solid var(--mf-border);
+}
+.mf-badge__dot { width: 6px; height: 6px; border-radius: var(--mf-r-full); background: currentColor; flex-shrink: 0; }
+.mf-badge[data-tone='success'] { background: var(--mf-success-bg); color: var(--mf-success-500); border-color: oklch(0.72 0.17 155 / 0.25); }
+.mf-badge[data-tone='warning'] { background: var(--mf-warning-bg); color: var(--mf-warning-500); border-color: oklch(0.80 0.16 78 / 0.25); }
+.mf-badge[data-tone='danger']  { background: var(--mf-danger-bg);  color: var(--mf-danger-500);  border-color: oklch(0.64 0.22 20 / 0.25); }
+.mf-badge[data-tone='info']    { background: var(--mf-info-bg);    color: var(--mf-info-500);    border-color: oklch(0.72 0.14 240 / 0.25); }
+/* "Processando" pulsa. Estado que muda sozinho precisa parecer vivo, senão
+   o usuário recarrega a página achando que travou. */
+.mf-badge[data-tone='info'] .mf-badge__dot { animation: mf-pulse 1.6s var(--mf-ease-inout) infinite; }
+@keyframes mf-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ── Tabela ──────────────────────────────────────────────────────────────
+   O container rola, não a página. Sem isso, uma tabela larga cria rolagem
+   horizontal no documento inteiro e a barra lateral sai da tela junto. */
+.mf-table-wrap { width: 100%; overflow-x: auto; }
+.mf-table { width: 100%; border-collapse: collapse; font-size: var(--mf-t-sm); }
+.mf-table th {
+  text-align: left; font-size: var(--mf-t-micro); font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--mf-text-3);
+  padding: var(--mf-3) var(--mf-4); border-bottom: 1px solid var(--mf-border);
+  white-space: nowrap; position: sticky; top: 0; background: var(--mf-surface-1);
+}
+.mf-table td { padding: var(--mf-3) var(--mf-4); border-bottom: 1px solid var(--mf-border); }
+.mf-table tbody tr { transition: background var(--mf-fast) var(--mf-ease-out); }
+.mf-table tbody tr:hover { background: oklch(1 0 0 / 0.03); }
+.mf-table tbody tr:last-child td { border-bottom: none; }
+
+/* No celular a tabela vira lista: cada célula ganha o rótulo da coluna pelo
+   data-label. Tabela rolando lateralmente no telefone é o pior dos mundos —
+   o dado existe mas ninguém acha. */
+@media (max-width: 720px) {
+  .mf-table--stack thead { display: none; }
+  .mf-table--stack tr {
+    display: block; padding: var(--mf-3) var(--mf-4);
+    border-bottom: 1px solid var(--mf-border);
+  }
+  .mf-table--stack td {
+    display: flex; justify-content: space-between; align-items: center; gap: var(--mf-4);
+    padding: var(--mf-1) 0; border: none;
+  }
+  .mf-table--stack td::before {
+    content: attr(data-label);
+    font-size: var(--mf-t-micro); font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--mf-text-3); flex-shrink: 0;
+  }
+}
+
+/* ── Campos ──────────────────────────────────────────────────────────────*/
+.mf-input, .mf-select {
+  width: 100%; height: 36px; padding-inline: var(--mf-3);
+  border-radius: var(--mf-r-md);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2); color: var(--mf-text);
+  font-size: var(--mf-t-sm); outline: none;
+  transition: border-color var(--mf-fast) var(--mf-ease-out),
+              box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+.mf-input:focus, .mf-select:focus {
+  border-color: var(--mf-primary-500);
+  box-shadow: 0 0 0 3px oklch(0.62 0.24 285 / 0.18);
+}
+.mf-input::placeholder { color: var(--mf-text-3); }
+.mf-field { display: flex; flex-direction: column; gap: var(--mf-2); min-width: 0; }
+.mf-label { font-size: var(--mf-t-xs); font-weight: 600; color: var(--mf-text-2); }
+
+/* ── Esqueleto ───────────────────────────────────────────────────────────
+   O brilho atravessa da esquerda para a direita e sugere progresso. Um bloco
+   cinza parado passa a sensação de travado. */
+.mf-skel {
+  border-radius: var(--mf-r-sm);
+  background: linear-gradient(90deg,
+    var(--mf-surface-2) 25%, var(--mf-surface-3) 50%, var(--mf-surface-2) 75%);
+  background-size: 200% 100%;
+  animation: mf-shimmer 1.4s var(--mf-ease-inout) infinite;
+}
+@keyframes mf-shimmer { to { background-position: -200% 0; } }
+
+/* ── Estado vazio ────────────────────────────────────────────────────────*/
+.mf-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: var(--mf-3); padding: var(--mf-12) var(--mf-6);
+}
+.mf-empty__ico {
+  width: 52px; height: 52px; border-radius: var(--mf-r-lg);
+  display: grid; place-items: center;
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 12%, transparent);
+  color: var(--mf-mod, var(--mf-primary-500));
+  border: 1px solid color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 25%, transparent);
+}
+.mf-empty__t { font-size: var(--mf-t-h2); font-weight: 650; margin: 0; }
+.mf-empty__d { font-size: var(--mf-t-sm); color: var(--mf-text-3); max-width: 46ch; margin: 0; }
+
+/* ── Paleta de comandos ──────────────────────────────────────────────────*/
+.mf-cmd-backdrop {
+  position: fixed; inset: 0; z-index: var(--mf-z-command);
+  background: var(--mf-overlay); backdrop-filter: blur(6px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: clamp(var(--mf-6), 12vh, var(--mf-16)) var(--mf-4) var(--mf-4);
+  animation: mf-fade var(--mf-fast) var(--mf-ease-out);
+}
+.mf-cmd {
+  width: min(560px, 100%);
+  max-height: min(60vh, 480px);
+  display: flex; flex-direction: column;
+  background: var(--mf-surface-1);
+  border: 1px solid var(--mf-border-strong);
+  border-radius: var(--mf-r-xl);
+  box-shadow: var(--mf-shadow-3);
+  overflow: hidden;
+  animation: mf-rise var(--mf-normal) var(--mf-ease-out);
+}
+.mf-cmd__input {
+  height: 50px; padding-inline: var(--mf-5);
+  border: none; border-bottom: 1px solid var(--mf-border);
+  background: transparent; color: var(--mf-text);
+  font-size: var(--mf-t-body); outline: none; flex-shrink: 0;
+}
+.mf-cmd__list { overflow-y: auto; padding: var(--mf-2); }
+.mf-cmd__group { font-size: var(--mf-t-micro); font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--mf-text-3); padding: var(--mf-3) var(--mf-3) var(--mf-1); }
+.mf-cmd__item {
+  display: flex; align-items: center; gap: var(--mf-3); width: 100%;
+  padding: var(--mf-2) var(--mf-3); border: none; background: none;
+  border-radius: var(--mf-r-md); cursor: pointer; text-align: left;
+  color: var(--mf-text-2); font-size: var(--mf-t-sm);
+}
+.mf-cmd__item[data-active='true'] { background: oklch(1 0 0 / 0.07); color: var(--mf-text); }
+.mf-cmd__item .mf-nav-item__ico { color: var(--mf-mod, var(--mf-text-3)); }
+
+@keyframes mf-fade { from { opacity: 0; } }
+@keyframes mf-rise { from { opacity: 0; transform: translateY(-8px) scale(0.98); } }
+
+/* ── Notificação ─────────────────────────────────────────────────────────*/
+.mf-toasts {
+  position: fixed; bottom: var(--mf-5); right: var(--mf-5); z-index: var(--mf-z-toast);
+  display: flex; flex-direction: column; gap: var(--mf-2);
+  width: min(360px, calc(100vw - var(--mf-8)));
+}
+.mf-toast {
+  display: flex; gap: var(--mf-3); padding: var(--mf-3) var(--mf-4);
+  background: var(--mf-surface-2);
+  border: 1px solid var(--mf-border-strong);
+  border-left: 3px solid var(--mf-tone, var(--mf-primary-500));
+  border-radius: var(--mf-r-md);
+  box-shadow: var(--mf-shadow-3);
+  animation: mf-slide-in var(--mf-normal) var(--mf-ease-spring);
+}
+@keyframes mf-slide-in { from { opacity: 0; transform: translateX(24px); } }
+.mf-toast__t { font-size: var(--mf-t-sm); font-weight: 650; }
+.mf-toast__d { font-size: var(--mf-t-xs); color: var(--mf-text-3); margin-top: 2px; }
+
+/* ── Etapas ──────────────────────────────────────────────────────────────*/
+.mf-steps { display: flex; gap: var(--mf-2); overflow-x: auto; padding-bottom: var(--mf-2); }
+.mf-step {
+  flex: 1; min-width: 92px; padding: var(--mf-3);
+  border-radius: var(--mf-r-md);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-1);
+  position: relative; overflow: hidden;
+}
+.mf-step[data-state='done']    { border-color: oklch(0.72 0.17 155 / 0.3); }
+.mf-step[data-state='current'] { border-color: var(--mf-primary-500); background: var(--mf-surface-2); }
+.mf-step[data-state='current']::after {
+  content: ''; position: absolute; inset: auto 0 0; height: 2px;
+  background: linear-gradient(90deg, var(--mf-primary-500), var(--mf-accent-500));
+}
+.mf-step__n { font-size: var(--mf-t-micro); font-weight: 700; letter-spacing: 0.06em; color: var(--mf-text-3); }
+.mf-step[data-state='done'] .mf-step__n { color: var(--mf-success-500); }
+.mf-step[data-state='current'] .mf-step__n { color: var(--mf-primary-300); }
+.mf-step__t { font-size: var(--mf-t-sm); font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+/* ── Barra de progresso ──────────────────────────────────────────────────*/
+.mf-prog { height: 6px; border-radius: var(--mf-r-full); background: var(--mf-surface-3); overflow: hidden; }
+.mf-prog__fill {
+  height: 100%; border-radius: var(--mf-r-full);
+  background: linear-gradient(90deg, var(--mf-primary-500), var(--mf-accent-500));
+  transition: width var(--mf-slow) var(--mf-ease-out);
+}
+
+/* ── Utilidades ──────────────────────────────────────────────────────────*/
+.mf-row { display: flex; align-items: center; gap: var(--mf-3); min-width: 0; }
+.mf-col { display: flex; flex-direction: column; gap: var(--mf-4); min-width: 0; }
+.mf-mono { font-family: var(--mf-mono); font-variant-numeric: tabular-nums; }
+.mf-trunc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mf-muted { color: var(--mf-text-3); }
+.mf-sec { padding-bottom: var(--mf-8); }
+
+/* Só para leitor de tela. */
+.mf-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ── Gaveta do celular ───────────────────────────────────────────────────*/
+@media (max-width: 1024px) {
+  .mf-app, .mf-app[data-collapsed='true'] { grid-template-columns: minmax(0, 1fr); }
+  .mf-side {
+    position: fixed; inset: 0 auto 0 0; width: var(--mf-sidebar);
+    z-index: var(--mf-z-drawer);
+    transform: translateX(-100%);
+    transition: transform var(--mf-normal) var(--mf-ease-out);
+    box-shadow: var(--mf-shadow-3);
+  }
+  .mf-app[data-drawer='true'] .mf-side { transform: translateX(0); }
+  .mf-app[data-collapsed='true'] .mf-nav-item__txt,
+  .mf-app[data-collapsed='true'] .mf-side__label,
+  .mf-app[data-collapsed='true'] .mf-side__name { display: block; }
+  .mf-app[data-collapsed='true'] .mf-nav-item { justify-content: flex-start; padding-inline: var(--mf-3); }
+  .mf-scrim {
+    position: fixed; inset: 0; z-index: calc(var(--mf-z-drawer) - 1);
+    background: var(--mf-overlay); backdrop-filter: blur(2px);
+    animation: mf-fade var(--mf-fast) var(--mf-ease-out);
+  }
+}
+@media (min-width: 1025px) { .mf-only-mobile { display: none !important; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOCO E MICROINTERAÇÃO
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Anel de foco ──────────────────────────────────────────────────────────
+   O design system inteiro tinha três regras de `focus-visible`. Na prática,
+   quem navega por teclado atravessava o produto sem saber onde estava — e a
+   ausência de anel também é o que faz uma interface parecer inacabada quando
+   alguém tabula por ela.
+
+   `:focus-visible` e não `:focus`: o navegador decide, e ele só mostra o anel
+   quando o foco veio do teclado. Com `:focus`, todo clique de mouse deixaria
+   um anel para trás, e foi por fugir disso que muita gente removeu o outline
+   em vez de corrigi-lo.
+
+   Duas camadas: um vão da cor do fundo e o anel por cima. Sem o vão, o anel
+   encosta na borda do componente e some contra ela. Contraste do anel sobre o
+   fundo: 10,82 — o mínimo da WCAG 1.4.11 para indicador é 3.
+
+   `box-shadow` em vez de `outline` porque acompanha o `border-radius` do
+   elemento; `outline` só passou a fazer isso em navegadores recentes e ainda
+   erra em cantos compostos. */
+[data-mf][data-mf] :focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--mf-bg),
+    0 0 0 4px var(--mf-primary-500);
+  transition: box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+
+/* Nenhum `border-radius` aqui, de propósito. `box-shadow` já acompanha o raio
+   do próprio elemento — impor um valor faria o avatar redondo virar quadrado
+   no instante em que recebesse foco, que é o oposto de um indicador. */
+
+/* Dentro de um contêiner que corta o conteúdo, o anel externo seria cortado
+   junto. Ali ele vira interno. */
+[data-mf][data-mf] [style*='overflow: hidden'] > :focus-visible,
+[data-mf][data-mf] [style*='overflow:hidden'] > :focus-visible {
+  box-shadow: inset 0 0 0 2px var(--mf-primary-500);
+}
