@@ -42,6 +42,9 @@ export default function ConfigNotificacoes() {
   const [toast, setToast] = useState(null);
   const [navegadorLigado, setNavegadorLigado] = useState(
     () => notificacaoDoNavegador.ligada() && notificacaoDoNavegador.permissao() === 'granted');
+  /* Por que o interruptor não pode ser ligado, quando não pode. Um botão que
+     não faz nada e não diz por quê é pior que um botão ausente. */
+  const [diagnostico] = useState(() => notificacaoDoNavegador.diagnostico());
 
   const aviso = (type, title, message) => setToast({ type, title, message, id: Date.now() });
 
@@ -344,24 +347,39 @@ export default function ConfigNotificacoes() {
 
                   {/* Notificação do navegador: a permissão só é pedida ao ligar
                       este interruptor. Ver o comentário em SmartActivity.jsx. */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0',
-                    cursor: notificacaoDoNavegador.suportada() ? 'pointer' : 'not-allowed',
-                    opacity: notificacaoDoNavegador.suportada() ? 1 : .5 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '7px 0',
+                    cursor: diagnostico.pode ? 'pointer' : 'not-allowed',
+                    opacity: diagnostico.pode ? 1 : .55 }}>
                     <input type="checkbox" checked={navegadorLigado}
-                      disabled={!notificacaoDoNavegador.suportada()}
+                      disabled={!diagnostico.pode}
+                      style={{ marginTop: 2 }}
                       onChange={async e => {
                         if (!e.target.checked) {
-                          notificacaoDoNavegador.desligar();
+                          await notificacaoDoNavegador.desligar();
                           setNavegadorLigado(false);
+                          aviso('info', 'Desligado', 'Este aparelho não recebe mais avisos do sistema.');
                           return;
                         }
                         const r = await notificacaoDoNavegador.ligar();
-                        setNavegadorLigado(r === 'granted');
-                        if (r === 'denied') aviso('warning', 'Permissão negada',
-                          'O navegador bloqueou. Os avisos internos continuam funcionando.');
+                        setNavegadorLigado(r.ok);
+                        aviso(r.ok ? 'success' : 'warning',
+                          r.ok ? 'Aparelho inscrito' : 'Não foi possível ativar',
+                          r.ok ? 'O celular passa a avisar mesmo com o app fechado.' : r.texto);
                       }} />
-                    <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
-                      Avisar pelo navegador quando a aba estiver em segundo plano
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
+                        Avisar no aparelho, mesmo com o app fechado
+                      </span>
+                      {/* A inscrição é por APARELHO: ligar no computador não
+                          liga no celular, e vice-versa. Dizer isso evita a
+                          conclusão errada de que "não funciona". */}
+                      <span style={{ display: 'block', fontSize: 'var(--mf-t-nano)',
+                        color: diagnostico.pode ? 'var(--mf-text-3)' : 'var(--mf-warning-500)',
+                        marginTop: 3, lineHeight: 1.55 }}>
+                        {diagnostico.pode
+                          ? 'Vale só para este aparelho — ative também no celular.'
+                          : diagnostico.texto}
+                      </span>
                     </span>
                   </label>
 

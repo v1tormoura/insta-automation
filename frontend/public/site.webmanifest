@@ -15,7 +15,11 @@
       "purpose": "any maskable"
     }
   ],
-  "theme_color": "#080D1B",
-  "background_color": "#080D1B",
-  "display": "standalone"
+  "theme_color": "#090f1c",
+  "background_color": "#090f1c",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "pt-BR",
+  "description": "Automação de Instagram em escala"
 }

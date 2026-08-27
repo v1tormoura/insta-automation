@@ -39,12 +39,32 @@ const CHAVE_SEMEADO = 'smartActivitySemeado';
  * resultado esperado, não erro.
  */
 async function _gravar(doc) {
+  let nova;
   try {
-    return await Notificacao.create(doc);
+    nova = await Notificacao.create(doc);
   } catch (err) {
     if (err?.code === 11000) return null;   // outro ciclo chegou primeiro
     throw err;
   }
+
+  /* Push depois de GRAVAR, e sem esperar.
+  
+     Depois porque o histórico é a fonte da verdade: uma notificação enviada e
+     não gravada não existiria na Central. E sem `await` porque a entrega
+     depende de um serviço externo — o servidor de push do navegador — e uma
+     lentidão dele não pode segurar a varredura das outras contas.
+
+     Falha aqui é silenciosa de propósito: o aviso interno já está gravado e
+     vai aparecer assim que o painel abrir. Push é o extra. */
+  try {
+    const webPush = require('./webPush');
+    if (webPush.disponivel()) {
+      webPush.enviar(nova).catch(err =>
+        console.warn('[WebPush] envio falhou:', err.message));
+    }
+  } catch { /* módulo indisponível não derruba a detecção */ }
+
+  return nova;
 }
 
 /**

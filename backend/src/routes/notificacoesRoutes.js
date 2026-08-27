@@ -161,4 +161,31 @@ router.post('/semear', async (_req, res) => {
   }
 });
 
+/* ── Web Push ─────────────────────────────────────────────────────────────
+   A chave PÚBLICA vai para o navegador — é assim que o VAPID funciona: ela
+   identifica o servidor para o serviço de push. A privada nunca sai daqui. */
+router.get('/push/chave-publica', (_req, res) => {
+  const webPush = require('../services/smartActivity/webPush');
+  res.json({ chave: webPush.chavePublica(), disponivel: webPush.disponivel() });
+});
+
+router.post('/push/inscrever', async (req, res) => {
+  try {
+    const webPush = require('../services/smartActivity/webPush');
+    res.json(await webPush.inscrever(req.body || {}));
+  } catch (err) {
+    const codigo = err.code === 'INSCRICAO_INVALIDA' ? 400 : 500;
+    res.status(codigo).json({ error: err.message, code: err.code || 'PUSH_ERRO' });
+  }
+});
+
+router.post('/push/cancelar', async (req, res) => {
+  try {
+    const webPush = require('../services/smartActivity/webPush');
+    res.json(await webPush.cancelar(req.body?.endpoint));
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'PUSH_ERRO' });
+  }
+});
+
 module.exports = router;

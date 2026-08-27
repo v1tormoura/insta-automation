@@ -33,6 +33,7 @@
     "puppeteer": "^25.1.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "speakeasy": "^2.0.0"
+    "speakeasy": "^2.0.0",
+    "web-push": "^3.6.7"
   }
 }
