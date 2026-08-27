@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Bell, X, TrendingUp, Flame, Eye, Award, Info, AlertTriangle, CheckCheck } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { ContextoSmartActivity, useSmartActivity } from '../services/smartActivityContexto';
 import { notificacaoDoNavegador } from '../services/notificacaoNavegador';
-import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
+import { urlDoAvatar } from '../utils/avatar';
 import { useNotifications, markRead as marcarEfemerasLidas } from '../services/useNotifications';
 
 /**
@@ -101,6 +101,37 @@ function Contador({ valor, duracao = 850 }) {
 
 /* ── Cartão ─────────────────────────────────────────────────────────────── */
 
+/**
+ * O monograma da marca, em traço contínuo.
+ *
+ * Desenhado aqui em vez de carregado de `/mouraflow-icon.svg` por um motivo
+ * concreto: um SVG servido como arquivo e usado em `<img>` não enxerga as
+ * variáveis CSS da página — o gradiente ficaria cravado nos hexadecimais do
+ * arquivo, que são de antes do Nocturno. Inline, ele acompanha o tema.
+ */
+function Monograma({ tamanho = 20 }) {
+  /* `useId` e não uma constante: a pilha mostra até três avisos e a Central
+     mostra dezenas, todos com este monograma. Com um id fixo, o documento
+     ficaria cheio de `<linearGradient id="mf-marca">` repetidos — e `url(#id)`
+     resolve para o PRIMEIRO do documento. Enquanto todos são idênticos ninguém
+     nota; quando o primeiro cartão é dispensado, os outros perdem o gradiente
+     e viram traço preto. */
+  const id = useId();
+  return (
+    <svg width={tamanho} height={tamanho} viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%"   stopColor="var(--mf-mod-publicar)" />
+          <stop offset="100%" stopColor="var(--mf-primary-500)" />
+        </linearGradient>
+      </defs>
+      <path d="M5 25V9.5l11 9 11-9V25" fill="none" stroke={`url(#${id})`}
+        strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="16" cy="18.5" r="3.2" fill="var(--mf-primary-500)" />
+    </svg>
+  );
+}
+
 function Avatar({ notificacao, tamanho = 38 }) {
   const [falhou, setFalhou] = useState(false);
   const src = urlDoAvatar(notificacao.avatar);
@@ -117,12 +148,15 @@ function Avatar({ notificacao, tamanho = 38 }) {
         position: 'absolute', inset: 0, borderRadius: 'var(--mf-r-md)',
         overflow: 'hidden', display: 'grid', placeItems: 'center',
       }}>
+        {/* Sem foto sincronizada, entra a MARCA — não as iniciais.
+        
+            Iniciais identificam a conta, mas o cartão já faz isso na linha de
+            baixo, com o @ por extenso. Duas letras genéricas num quadrado
+            colorido pareciam avatar quebrado; o monograma parece decisão. */}
         {src && !falhou
           ? <img src={src} alt="" onError={() => setFalhou(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 750, color: cor }}>
-              {iniciaisDe(notificacao.username)}
-            </span>}
+          : <Monograma tamanho={Math.round(tamanho * 0.62)} />}
       </span>
 
       {/* O selo do tema fica FORA do recorte do avatar: dentro, ele seria

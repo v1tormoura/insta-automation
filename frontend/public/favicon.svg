@@ -13,12 +13,12 @@
   -->
   <defs>
     <linearGradient id="mf-marca" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#22d3ee"/>
+      <stop offset="0%" stop-color="#a770ff"/>
+      <stop offset="100%" stop-color="#00d4ff"/>
     </linearGradient>
     <linearGradient id="mf-ponto" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#8b5cf6"/>
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#a770ff"/>
     </linearGradient>
   </defs>
 
