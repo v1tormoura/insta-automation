@@ -162,10 +162,10 @@ function MediaCard({ file, index, onRemove }) {
         background: 'linear-gradient(transparent, oklch(0 0 0 / 0.78))',
         padding: '22px 6px 5px', pointerEvents: 'none',
       }}>
-        <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'oklch(1 0 0)', textShadow:'0 1px 2px oklch(0 0 0 / 0.6)', fontFamily: 'var(--mf-mono)' }}>
           #{index + 1}
         </div>
-        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-surface-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'oklch(1 0 0 / 0.86)', textShadow:'0 1px 2px oklch(0 0 0 / 0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {file.name}
         </div>
       </div>

@@ -44,25 +44,29 @@ export const PALETAS = [
     id: 'nocturno',
     nome: 'Nocturno',
     conceito:
-      'Turno da noite. Azul-índigo profundo com ciano elétrico — a leitura de ' +
-      'sala de operações, onde o dado brilha e a estrutura recua. É a direção ' +
-      'atual do produto, levada ao ponto.',
+      'Turno da noite. Azul de sala de operações com ciano elétrico — o dado ' +
+      'brilha e a estrutura recua. É a direção atual do produto, levada ao ponto.',
+    /* Estes valores precisam espelhar o tema real de tokens.css. Não é um
+       detalhe de organização: esta página existe para MOSTRAR a paleta, e uma
+       cópia desatualizada aqui exibe com confiança uma paleta que o produto
+       não usa mais. Foi o que aconteceu — a medição de contraste pegou o
+       terciário antigo (L=0.66, matiz 265) reprovando em 4.04. */
     dark: {
-      bg: 'oklch(0.17 0.028 265)',
-      surface1: 'oklch(0.21 0.030 265)',
-      surface2: 'oklch(0.25 0.032 265)',
-      surface3: 'oklch(0.30 0.034 265)',
-      fg: 'oklch(0.97 0.008 265)',
-      fg2: 'oklch(0.77 0.020 265)',
-      fg3: 'oklch(0.66 0.022 265)',
-      border: 'oklch(1 0 0 / 0.10)',
-      borderForte: 'oklch(1 0 0 / 0.19)',
+      bg: 'oklch(0.274 0.049 241)',
+      surface1: 'oklch(0.321 0.054 241)',
+      surface2: 'oklch(0.368 0.059 241)',
+      surface3: 'oklch(0.415 0.064 241)',
+      fg: 'oklch(0.970 0.008 241)',
+      fg2: 'oklch(0.873 0.020 241)',
+      fg3: 'oklch(0.800 0.022 241)',
+      border: 'oklch(1 0 0 / 0.13)',
+      borderForte: 'oklch(1 0 0 / 0.23)',
       primary: 'oklch(0.78 0.19 213)',
-      primaryFg: 'oklch(0.17 0.028 265)',
+      primaryFg: 'oklch(0.20 0.045 241)',
       secondary: 'oklch(0.66 0.24 275)',
       secondaryFg: 'oklch(0.98 0.01 275)',
       accent: 'oklch(0.86 0.16 195)',
-      accentFg: 'oklch(0.17 0.028 265)',
+      accentFg: 'oklch(0.20 0.045 241)',
       success: 'oklch(0.79 0.208 150)',
       warning: 'oklch(0.79 0.155 75)',
       destructive: 'oklch(0.79 0.121 25)',

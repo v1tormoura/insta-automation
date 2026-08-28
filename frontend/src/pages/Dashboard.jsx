@@ -68,12 +68,12 @@ function InsightThumb({ ins, rank }) {
         : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--mf-border)' }}><Flame size={24} /></div>
       }
       <div style={{ position:'absolute', inset:0, background:'linear-gradient(to bottom,rgba(0,0,0,.3) 0%,transparent 40%,rgba(0,0,0,.7) 100%)' }} />
-      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-text)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:20, height:20, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
+      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:20, height:20, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
         #{rank+1}
       </div>
       <div style={{ position:'absolute', bottom:7, left:7, right:7 }}>
-        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-surface-3)', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{ins.username}</div>
-        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-surface-3)', display:'flex', gap:6, marginTop:2 }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color:'oklch(1 0 0)', fontWeight:600, textShadow:'0 1px 2px oklch(0 0 0 / 0.6)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{ins.username}</div>
+        <div style={{ fontSize: 'var(--mf-t-nano)', color:'oklch(1 0 0 / 0.86)', textShadow:'0 1px 2px oklch(0 0 0 / 0.6)', display:'flex', gap:6, marginTop:2 }}>
           <span>👁 {fmtK(ins.videoViews || ins.impressions)}</span>
           <span>❤️ {fmtK(ins.likeCount)}</span>
         </div>

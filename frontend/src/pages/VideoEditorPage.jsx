@@ -335,7 +335,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(var(--mf-border-subtle) 1px,transparent 1px),linear-gradient(90deg,var(--mf-border-subtle) 1px,transparent 1px)', backgroundSize: `${Math.round(W/4*scale)}px ${Math.round(H/8*scale)}px`, zIndex: 0 }} />
 
       {/* Badge de dimensão */}
-      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'var(--mf-surface-3)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 'var(--mf-r-xs)', zIndex: 25 }}>{W}×{H}</div>
+      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'oklch(1 0 0 / 0.86)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 'var(--mf-r-xs)', zIndex: 25 }}>{W}×{H}</div>
     </div>
   );
 }
@@ -731,7 +731,7 @@ export default function VideoEditorPage() {
         )}
 
         {!previewUrl && files.length > 0 && (
-          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-surface-3)', textAlign: 'center' }}>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center' }}>
             Clique em um vídeo da lista para pré-visualizar
           </div>
         )}

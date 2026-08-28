@@ -231,21 +231,35 @@
      fundo escuro. No claro, sombra é sombra: preto com alfa baixo, e o filete
      sai de cena (regra logo abaixo).
 
-     Contraste medido: texto 15,1 · primary 4,80 · rótulo do CTA 4,86 ·
-     terciário 4,67. Pior par da paleta inteira: 4,56. */
-  --mf-bg:        oklch(0.985 0.004 265);
+     Contraste medido: texto 14,3 · primary 4,80 · rótulo do CTA 4,86 ·
+     terciário 4,63. Pior par da paleta inteira: 4,63.
+
+     O terciário estava em L=0.535 e reprovava. O número 4,67 registrado aqui
+     antes era real, mas medido contra o --mf-surface-2 — e o fundo mais
+     escuro deste tema é o surface-3, onde a mesma cor dava 4,27. Medir contra
+     a superfície errada produz um número verdadeiro sobre a pergunta errada.
+     Num tema claro é a luminosidade ALTA que reprova, ao contrário do escuro.
+     0.522 era o último valor que passava na conta contínua (4.50) e reprovou
+     medido no pixel (4.48): arredondar para 8 bits come a margem. 0.515 dá
+     4.63 e passa de verdade — no `Ctrl K` do topo, que foi onde apareceu.
+
+     O matiz acompanha o tema escuro em 241. Ele saiu de 265 quando o fundo
+     escuro passou a ser o azul da barra de menu, e um tema claro violeta ao
+     lado de um escuro azul denuncia que os dois foram calibrados em
+     momentos diferentes. */
+  --mf-bg:        oklch(0.985 0.004 241);
   --mf-surface-1: oklch(1 0 0);
-  --mf-surface-2: oklch(0.965 0.005 265);
-  --mf-surface-3: oklch(0.935 0.007 265);
-  --mf-overlay:   oklch(0.22 0.02 265 / 0.38);
+  --mf-surface-2: oklch(0.965 0.005 241);
+  --mf-surface-3: oklch(0.935 0.007 241);
+  --mf-overlay:   oklch(0.22 0.02 241 / 0.38);
 
-  --mf-border:        oklch(0.22 0.02 265 / 0.12);
-  --mf-border-strong: oklch(0.22 0.02 265 / 0.22);
-  --mf-border-subtle: oklch(0.22 0.02 265 / 0.07);
+  --mf-border:        oklch(0.22 0.02 241 / 0.12);
+  --mf-border-strong: oklch(0.22 0.02 241 / 0.22);
+  --mf-border-subtle: oklch(0.22 0.02 241 / 0.07);
 
-  --mf-text:   oklch(0.22 0.020 265);
-  --mf-text-2: oklch(0.44 0.018 265);
-  --mf-text-3: oklch(0.535 0.016 265);
+  --mf-text:   oklch(0.22 0.020 241);
+  --mf-text-2: oklch(0.44 0.018 241);
+  --mf-text-3: oklch(0.515 0.016 241);   /* reprovava em 4,27 sobre o surface-3 */
 
   --mf-primary-100: oklch(0.95 0.03 213);
   --mf-primary-300: oklch(0.66 0.13 213);
@@ -275,13 +289,13 @@
   --mf-mod-campanhas: oklch(0.520 0.19 350);
   --mf-mod-jobs:      oklch(0.530 0.12 75);
   --mf-mod-metricas:  oklch(0.500 0.14 150);
-  --mf-mod-sistema:   oklch(0.480 0.02 265);
+  --mf-mod-sistema:   oklch(0.480 0.02 241);
 
-  --mf-grade: oklch(0.22 0.02 265 / 0.035);
+  --mf-grade: oklch(0.22 0.02 241 / 0.035);
 
-  --mf-shadow-1: 0 1px 2px oklch(0.22 0.02 265 / 0.07);
-  --mf-shadow-2: 0 4px 12px -2px oklch(0.22 0.02 265 / 0.11);
-  --mf-shadow-3: 0 16px 40px -12px oklch(0.22 0.02 265 / 0.20);
+  --mf-shadow-1: 0 1px 2px oklch(0.22 0.02 241 / 0.07);
+  --mf-shadow-2: 0 4px 12px -2px oklch(0.22 0.02 241 / 0.11);
+  --mf-shadow-3: 0 16px 40px -12px oklch(0.22 0.02 241 / 0.20);
   --mf-glow-primary: 0 0 0 1px oklch(0.510 0.15 213 / 0.30),
                      0 6px 18px -6px oklch(0.510 0.15 213 / 0.35);
 }

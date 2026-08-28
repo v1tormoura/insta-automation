@@ -19,7 +19,7 @@
    que a paleta muda, porque o valor estaria escrito em dois lugares. Duplicar
    o token inteiro no :root desfaria o escopo; duplicar UM resolve o único
    elemento que está do lado de fora. */
-:root { --mf-bg: oklch(0.17 0.028 265); }
+:root { --mf-bg: oklch(0.274 0.049 241); }
 
 [data-mf] {
   /* ── Marca ──────────────────────────────────────────────────────────────
@@ -40,8 +40,8 @@
   --mf-primary-300: oklch(0.88 0.14 213);
   --mf-primary-500: oklch(0.78 0.19 213);   /* #00d4ff — a marca */
   --mf-primary-600: oklch(0.66 0.17 213);
-  --mf-primary-700: oklch(0.58 0.19 213);
-  --mf-primary-fg:  oklch(0.17 0.028 265);  /* escuro sobre o ciano */
+  --mf-primary-700: oklch(0.63 0.19 213);   /* subiu: 2.91 sobre o fundo novo */
+  --mf-primary-fg:  oklch(0.20 0.045 241);  /* escuro sobre o ciano — 10.2:1 */
 
   /* Ciano elétrico. O matiz é o que estava errado antes, mais que o croma:
      em 200° o resultado era #00dae4, um turquesa esverdeado que lia como cor
@@ -56,11 +56,11 @@
      destaque dentro de um cartão primário desapareceria no próprio fundo. */
   --mf-accent-300:  oklch(0.92 0.11 195);
   --mf-accent-500:  oklch(0.86 0.16 195);
-  --mf-accent-700:  oklch(0.62 0.14 195);
+  --mf-accent-700:  oklch(0.65 0.14 195);   /* idem */
 
   /* Magenta em dose pequena: só para o que é excepcional (campanha ativa,
      item premium). Usado em área grande, vira ruído. */
-  --mf-flare-500:   oklch(0.70 0.27 350);
+  --mf-flare-500:   oklch(0.76 0.27 350);
 
   /* ── Semântica de estado ───────────────────────────────────────────────
      Uma cor por significado. Componente nenhum escolhe verde por conta
@@ -91,48 +91,55 @@
 
      Ninguém vai a 100% além do ciano: violeta e verde no limite do gamut
      viram neon puro (#8800ff, #00dc00), que não é vivo, é berrante. */
-  --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — o mesmo do primary */
-  --mf-mod-publicar:  oklch(0.75 0.33 285);   /* violeta — #a770ff  5,52 */
-  --mf-mod-campanhas: oklch(0.70 0.27 350);   /* magenta — #ff2fb5  5,45 */
-  --mf-mod-jobs:      oklch(0.81 0.18 78);    /* âmbar   — #ffaf00  9,80 */
-  --mf-mod-metricas:  oklch(0.75 0.26 155);   /* verde   — #00d95b  9,54 */
-  --mf-mod-sistema:   oklch(0.70 0.03 265);   /* neutro — matiz do tema */
+  --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — #00d4ff  5,87 */
+  --mf-mod-publicar:  oklch(0.78 0.33 285);   /* violeta — #af7cff  3,56 */
+  --mf-mod-campanhas: oklch(0.76 0.27 350);   /* magenta — #ff4bc9  3,52 */
+  --mf-mod-jobs:      oklch(0.81 0.18 78);    /* âmbar   — #ffaf00  5,66 */
+  --mf-mod-metricas:  oklch(0.75 0.26 155);   /* verde   — #00d95b  5,52 */
+  --mf-mod-sistema:   oklch(0.70 0.03 241);   /* neutro — matiz do tema */
 
   /* ── Superfícies ───────────────────────────────────────────────────────
-     Azul-noite: matiz 250, que é azul-marinho, no lugar do 275 arroxeado da
-     primeira proposta. Duas consequências práticas — o ciano do acento
-     brilha mais sobre azul do que sobre violeta, porque estão mais próximos
-     na roda e a superfície deixa de disputar; e o conjunto fica mais perto
-     do que o produto já era antes do redesign.
+     O fundo é uma cor escolhida, não derivada: #0e2a3d, o azul da barra de
+     menu. Em OKLCH isso é L=0.274 C=0.049 h=241 — bem mais claro e quase o
+     dobro de croma do azul-noite anterior (L=0.17 C=0.028 h=265). O matiz
+     desceu de 265 para 241, saindo do violeta em direção ao azul limpo.
 
-     Croma 0.030, quase o dobro do anterior. Num fundo mais claro, croma
-     baixo lê como cinza sujo; é a saturação que faz o azul continuar sendo
-     azul quando a luminosidade sobe.
+     Croma alto importa: num fundo claro, croma baixo lê como cinza sujo. É a
+     saturação que faz o azul continuar azul quando a luminosidade sobe.
 
-     As quatro camadas sobem juntas (0.20 → 0.24 → 0.28 → 0.32) mantendo o
-     passo de 0.04 entre elas. O passo é o que carrega a hierarquia: com
-     diferença menor, card e fundo se confundem; com maior, cada camada
-     parece um material diferente. */
-  --mf-bg:          oklch(0.17 0.028 265);
-  --mf-surface-1:   oklch(0.21 0.030 265);
-  --mf-surface-2:   oklch(0.25 0.032 265);
-  --mf-surface-3:   oklch(0.30 0.034 265);
-  --mf-overlay:     oklch(0.12 0.028 265 / 0.74);
+     O PREÇO, que é real e foi medido. Clarear o fundo encurta a faixa de
+     luminosidade disponível para o texto — de 0.83 (0.97 menos 0.14) para
+     0.70. Três tons de texto ainda cabem lá dentro, mas mais juntos: a
+     escada que era de 1.55x e 1.42x agora é de 1.30x. Menos hierarquia por
+     contraste, e é por isso que o peso da fonte passa a carregar mais.
+
+     O passo entre camadas é 0.047, e não foi escolhido no olho: é o maior
+     passo em que os três tons de texto ainda passam 4.5:1 sobre TODAS as
+     quatro superfícies. Um passo maior deixaria o surface-3 claro demais
+     para o texto terciário; um menor achataria a elevação sem devolver
+     contraste que valesse a troca. */
+  --mf-bg:          oklch(0.274 0.049 241);   /* #0e2a3d — a barra de menu */
+  --mf-surface-1:   oklch(0.321 0.054 241);
+  --mf-surface-2:   oklch(0.368 0.059 241);
+  --mf-surface-3:   oklch(0.415 0.064 241);
+  --mf-overlay:     oklch(0.14 0.045 241 / 0.78);
 
   /* Traço da grade de fundo. Fraco de propósito: ela precisa dar escala ao
      fundo sem ser lida como conteúdo. Acima de 0.03 vira quadriculado
      visível e começa a competir com os cartões. */
-  --mf-grade:      oklch(1 0 0 / 0.030);
+  --mf-grade:      oklch(1 0 0 / 0.042);
   --mf-grade-tam:  32px;
 
-  /* Subiram junto com as superfícies. Branco translúcido rende menos quanto
-     mais claro é o que está atrás: os mesmos 8% que desenhavam uma borda
-     nítida sobre 0.145 quase somem sobre 0.24. */
-  --mf-border:        oklch(1 0 0 / 0.10);
-  --mf-border-strong: oklch(1 0 0 / 0.18);
+  /* Branco translúcido rende menos quanto mais claro é o que está atrás, e o
+     fundo subiu de 0.21 para 0.32. Os alfas foram recalculados para manter a
+     MESMA separação medida entre a borda de um card e o fundo da página
+     (2.885:1): 10% sobre a superfície antiga equivale a 13% sobre a nova.
+     Mantidos em 10%, os cartões perderiam contorno. */
+  --mf-border:        oklch(1 0 0 / 0.13);
+  --mf-border-strong: oklch(1 0 0 / 0.23);
   /* divisória interna: mais fraca que a borda do próprio card, senão cada
      linha de tabela compete com o contorno do painel que a contém */
-  --mf-border-subtle: oklch(1 0 0 / 0.06);
+  --mf-border-subtle: oklch(1 0 0 / 0.08);
   --mf-border-focus:  var(--mf-primary-500);
 
   /* ── Texto ─────────────────────────────────────────────────────────────
@@ -140,21 +147,30 @@
      acompanha o das superfícies (250): texto com viés violeta sobre fundo
      azul lê como cinza sujo, mesmo com croma baixo.
 
-     A luminância do terciário é medida, não escolhida no olho. Ele carrega
-     rótulo de tabela, legenda de métrica e timestamp — texto pequeno, onde
-     o mínimo do WCAG AA é 4.5:1. E ela precisou subir junto com a paleta:
-     clarear o fundo custa contraste, e o valor antigo passou a reprovar.
+     A luminância dos dois tons apagados é resolvida por busca, não escolhida
+     no olho, e o critério mudou com a paleta nova: agora o pior fundo é o
+     --mf-surface-3 (L=0.415), não o surface-2. O surface-3 carrega chip
+     selecionado e trilho de progresso, e ambos têm texto por cima — tratá-lo
+     como superfície sem texto seria conveniente e falso.
 
-     Contra --mf-surface-2, que é o mais claro dos fundos em que ele aparece:
+     Terciário contra surface-3:
 
-         L=0.61 → 3.88   L=0.64 → 4.36   L=0.66 → 4.72   L=0.68 → 5.09
+         L=0.73 → 3.83   L=0.77 → 4.29   L=0.794 → 4.505   L=0.800 → 4.603
 
-     0.66 é o primeiro passo que volta a passar. Fica registrado porque a
-     conta muda toda vez que a paleta muda — o valor não é transportável de
-     um tema para o outro. */
-  --mf-text:      oklch(0.97 0.008 265);
-  --mf-text-2:    oklch(0.77 0.020 265);
-  --mf-text-3:    oklch(0.66 0.022 265);
+     0.794 é o primeiro passo que passa, e por isso NÃO é o escolhido. Estes
+     números já estão quantizados em 8 bits, que é como o navegador pinta: a
+     conta contínua dava 4.51 para o 0.794 e a medição no pixel real devolveu
+     4.49 — reprovado por arredondamento. Um valor calibrado exatamente no
+     limite reprova na tela. 0.800 dá 4.603 e sobrevive à quantização.
+
+     O secundário fica em 0.873, no meio do caminho entre ele e o texto
+     principal, que é o que sobra de escada depois que o fundo subiu.
+
+     Estes números não são transportáveis: a conta refaz-se inteira a cada
+     troca de paleta, e o tema claro tem os seus próprios. */
+  --mf-text:      oklch(0.970 0.008 241);
+  --mf-text-2:    oklch(0.873 0.020 241);
+  --mf-text-3:    oklch(0.800 0.022 241);
 
   /* ── Espaçamento ───────────────────────────────────────────────────────
      Escala de 4. Valor fora dela é acidente, não decisão. */
@@ -182,13 +198,18 @@
   /* ── Elevação ──────────────────────────────────────────────────────────
      No escuro, sombra sozinha quase não aparece. Cada nível combina sombra
      (profundidade) com um filete claro no topo (luz incidindo na borda
-     superior) — é isso que faz a superfície parecer levantada, não pintada. */
+     superior) — é isso que faz a superfície parecer levantada, não pintada.
+
+     O filete subiu junto com as superfícies, pelo mesmo motivo das bordas:
+     é branco translúcido, e rende menos sobre um fundo mais claro. A sombra
+     preta, ao contrário, ganhou — contra um fundo claro ela finalmente
+     aparece — então os alfas dela ficam onde estavam. */
   --mf-shadow-1: 0 1px 2px oklch(0 0 0 / 0.4),
-                 inset 0 1px 0 oklch(1 0 0 / 0.04);
-  --mf-shadow-2: 0 4px 12px -2px oklch(0 0 0 / 0.5),
-                 inset 0 1px 0 oklch(1 0 0 / 0.05);
-  --mf-shadow-3: 0 12px 32px -8px oklch(0 0 0 / 0.6),
                  inset 0 1px 0 oklch(1 0 0 / 0.06);
+  --mf-shadow-2: 0 4px 12px -2px oklch(0 0 0 / 0.5),
+                 inset 0 1px 0 oklch(1 0 0 / 0.08);
+  --mf-shadow-3: 0 12px 32px -8px oklch(0 0 0 / 0.6),
+                 inset 0 1px 0 oklch(1 0 0 / 0.10);
   /* Acompanha o primary. Cravado no violeta, o brilho do botão continuaria
      roxo sob um botão ciano — o defeito mais visível de trocar paleta pela
      metade. */
