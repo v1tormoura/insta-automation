@@ -1471,7 +1471,7 @@ router.post('/instagrapi-direct', async (req, res) => {
   } catch (err) {
     // Limpeza: se esta rota criou uma conta temporária e o login falhou, remove o órfão
     if (_isNewAccount) {
-      await Account.findByIdAndDelete(account?._id).catch(() => {});
+      await require('../utils/removerConta')(account?._id).catch(() => {});
       console.log(`[IG-LOGIN] orphan account ${account?._id} deleted — login failed with code=${err?.code}`);
     }
     console.error(`[IG-LOGIN] error — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
@@ -1680,7 +1680,7 @@ router.post('/instagrapi-sessionid-new', async (req, res) => {
       res.json({ success: true, accountId, message: `@${clean} conectada via Session ID` });
     });
   } catch (err) {
-    if (_isNew) await Account.deleteOne({ _id: account._id }).catch(() => {});
+    if (_isNew) await require('../utils/removerConta')(account._id).catch(() => {});
     _handleInstagrapiError(err, res);
   }
 });

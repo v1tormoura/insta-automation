@@ -1349,6 +1349,37 @@ function textosPorConta() {
 }
 
 describe('FASE 11 — campanha controlada 2×2', () => {
+  /* Relógio fixo — sem isto o teste dos intervalos falhava por hora do dia.
+
+     A janela é 18:00–23:00 e as quatro publicações ocupam de 60 a 90 minutos.
+     Quando o relógio cai dentro da janela com menos tempo restante do que
+     isso, o agendador coloca as primeiras hoje e empurra as demais para a
+     reabertura do dia seguinte — e o intervalo entre esse par vira ~1150
+     minutos, o salto das 23:00 até as 18:00. O agendador está certo; a
+     asserção é que supunha um dia só.
+
+     A faixa exata foi levantada varrendo o dia: passa às 21:50, falha às 22:30
+     e às 22:55, volta a passar às 23:30 (aí já está fora da janela e a
+     campanha inteira vai para o dia seguinte). Ou seja, uma hora de cada
+     vinte e quatro em que a suíte reprovava sem nada ter mudado no código.
+
+     10:00 deixa a janela inteira à frente. O caso da virada não fica sem
+     cobertura: ele passou a ter um teste próprio, logo abaixo.
+
+     Só a data é falsificada. `setTimeout` e afins ficam reais porque a criação
+     da campanha percorre promessas, e fingir os temporizadores travaria a
+     espera em vez de acelerá-la. */
+  beforeAll(() => {
+    jest.useFakeTimers({
+      doNotFake: ['setTimeout', 'setInterval', 'setImmediate', 'clearTimeout',
+                  'clearInterval', 'clearImmediate', 'nextTick', 'queueMicrotask',
+                  'performance', 'requestAnimationFrame', 'cancelAnimationFrame'],
+    });
+    // 10:00 da manhã: bem antes da janela, então ela abre inteira à frente.
+    jest.setSystemTime(new Date(2026, 0, 15, 10, 0, 0));
+  });
+  afterAll(() => jest.useRealTimers());
+
   beforeEach(async () => { await semear({ contas: 2, midias: 2 }); });
 
   test('a PRÉVIA mostra o plano sem criar campanha, publicação ou job', async () => {
@@ -1397,6 +1428,39 @@ describe('FASE 11 — campanha controlada 2×2', () => {
     for (let i = 1; i < contas.length; i++) {
       expect(contas[i]).not.toBe(contas[i - 1]);
     }
+  });
+
+  test('quando a janela acaba, o resto vai para a reabertura do dia seguinte', async () => {
+    /* Este caso existia e só se manifestava como falha intermitente. O
+       comportamento correto é: respeitar a faixa enquanto couber, e, quando não
+       couber, retomar na ABERTURA da janela seguinte — nunca fora dela, nunca
+       comprimindo o intervalo para caber à força. */
+    jest.setSystemTime(new Date(2026, 0, 15, 22, 40, 0));
+    await criarCampanha({ ...CFG_CONTROLADA, ...textosPorConta() });
+    const t = [...db.publications].sort((a, b) => a.order - b.order)
+      .map(p => new Date(p.scheduledAt));
+    jest.setSystemTime(new Date(2026, 0, 15, 10, 0, 0));
+
+    // Nenhuma publicação fora da janela, em nenhum dos dias.
+    for (const d of t) {
+      expect(d.getHours()).toBeGreaterThanOrEqual(18);
+      expect(d.getHours()).toBeLessThan(23);
+    }
+
+    let viradas = 0;
+    for (let i = 1; i < t.length; i++) {
+      const mesmoDia = t[i].getDate() === t[i - 1].getDate();
+      if (mesmoDia) {
+        const min = (t[i] - t[i - 1]) / 60000;
+        expect(min).toBeGreaterThanOrEqual(20);
+        expect(min).toBeLessThanOrEqual(30);
+      } else {
+        viradas++;
+        // Retoma na abertura, não num horário qualquer do dia seguinte.
+        expect(t[i].getHours()).toBe(18);
+      }
+    }
+    expect(viradas).toBe(1);
   });
 
   test('intervalos entre 20 e 30 minutos, tudo dentro da janela 18:00-23:00', async () => {

@@ -91,14 +91,11 @@ exports.deleteAccount = async (req, res) => {
     const id = req.params.id;
     await require('../utils/cancelAccountWork')(id, 'Conta excluída pelo usuário');
 
-    // Devolve o proxy ao pool antes de apagar a conta. Sem isso ele ficaria
-    // reservado para um dono que não existe mais, e o pool encolheria a cada
-    // conta removida até acabar sem explicação.
-    await require('../services/proxyPool').liberar(id).catch(e =>
-      console.warn('[proxyPool] não foi possível liberar o proxy da conta —', e.message)
-    );
-
-    await Account.findByIdAndDelete(id);
+    // Libera o proxy e apaga, nessa ordem — depois de apagada não há como
+    // saber qual reserva era dela. O caminho é compartilhado com as rotas de
+    // conexão, que apagam conta temporária quando o login falha: separados,
+    // um deles esquecia de liberar e o pool encolhia a cada tentativa.
+    await require('../utils/removerConta')(id);
     broadcast('accounts', { action: 'deleted' });
     res.json({ success: true });
   } catch (err) {
