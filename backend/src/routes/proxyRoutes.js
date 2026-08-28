@@ -202,7 +202,18 @@ router.post('/distribuir', async (req, res) => {
 
 router.get('/pool', async (req, res) => {
   try {
-    const { listar, resumo } = require('../services/proxyPool');
+    const { listar, resumo, recuperarOrfaos } = require('../services/proxyPool');
+
+    /* Recupera reservas órfãs ANTES de contar.
+
+       Sem isto, a tela se contradizia: o resumo somava como "em uso" um proxy
+       cuja conta não existe mais, enquanto a tabela o mostrava como "livre" —
+       porque o `populate` de uma referência morta devolve null. Três reservas
+       fantasma num banco sem conta nenhuma foi como o defeito apareceu.
+
+       Aqui é barato e idempotente: abrir a página conserta o estado. */
+    await recuperarOrfaos().catch(() => { /* pool indisponível não derruba a tela */ });
+
     const [itens, contagem] = await Promise.all([listar(), resumo()]);
     res.json({
       resumo: contagem,

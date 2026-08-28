@@ -24,17 +24,40 @@ function mockBate(doc, filtro) {
     const v = doc[campo];
     if (cond && typeof cond === 'object' && !(cond instanceof Date)) {
       if ('$ne' in cond) return v !== cond.$ne;
+      if ('$in' in cond)  return cond.$in.some(x => String(x) === String(v));
+      if ('$nin' in cond) return !cond.$nin.some(x => String(x) === String(v));
     }
     return String(v ?? null) === String(cond ?? null);
   });
 }
+
+/* Contas que "existem" — `recuperarOrfaos` consulta o Account para decidir
+   quais reservas ainda têm dono. É a única fonte da verdade dessa decisão:
+   errá-la significa devolver ao pool um proxy em uso, ou nunca devolver
+   nenhum. */
+const mockContasVivas = [];
+
+jest.mock('../src/models/Account', () => ({
+  find: (filtro = {}) => ({
+    select: () => ({
+      lean: async () => {
+        const ids = filtro._id?.$in;
+        return mockContasVivas.filter(c => !ids || ids.some(i => String(i) === String(c._id)));
+      },
+    }),
+  }),
+}));
 
 jest.mock('../src/models/ProxyPool', () => {
   const erroDuplicado = () => Object.assign(new Error('duplicate key'), { code: 11000 });
   return {
     async create(doc) {
       if (mockRegistros.some(r => r.url === doc.url)) throw erroDuplicado();
-      const novo = { contaId: null, ip: '', ok: null, rotativo: false, erro: '',
+      /* `_id` não é enfeite: sem ele, uma consulta por `{ _id: { $in: [...] } }`
+         casa com TODOS os registros, porque `undefined === undefined`. Foi o que
+         aconteceu — o teste de órfãos recuperou dois proxies em vez de um. */
+      const novo = { _id: `p${mockRegistros.length + 1}`,
+                     contaId: null, ip: '', ok: null, rotativo: false, erro: '',
                      ultimoTeste: null, reservadoEm: null, createdAt: new Date(), ...doc };
       mockRegistros.push(novo);
       return novo;
@@ -71,8 +94,13 @@ jest.mock('../src/models/ProxyPool', () => {
       return { deletedCount: i >= 0 ? 1 : 0 };
     },
     async deleteMany() { mockRegistros.length = 0; return { deletedCount: 0 }; },
-    find() {
-      return { populate: () => ({ sort: () => ({ lean: async () => [...mockRegistros] }) }) };
+    find(filtro = {}) {
+      const achados = () => mockRegistros.filter(r => mockBate(r, filtro)).map(r => ({ ...r }));
+      return {
+        select:   () => ({ lean: async () => achados() }),
+        populate: () => ({ sort: () => ({ lean: async () => achados() }) }),
+        lean: async () => achados(),
+      };
     },
   };
 });
@@ -97,6 +125,7 @@ const conta = () => `conta${++seq}`;
 
 beforeEach(() => {
   mockRegistros.length = 0;
+  mockContasVivas.length = 0;
   mockChamadas.findOneAndUpdate = 0;
   mockChamadas.findOne = 0;
   mockChamadas.updateOne = 0;
@@ -216,5 +245,52 @@ describe('resumo', () => {
 
     const r = await pool.resumo();
     expect(r).toMatchObject({ total: 4, livres: 1, reservados: 1, ruins: 1, rotativos: 1 });
+  });
+});
+
+describe('reservas órfãs', () => {
+  /* Uma conta apagada por um caminho que não chama `liberar()` deixa o proxy
+     reservado para sempre: o pool encolhe em silêncio até esgotar, e a tela
+     ainda se contradizia — o resumo somava "em uso" enquanto a tabela mostrava
+     "livre", porque `populate` de referência morta devolve null. */
+
+  test('devolve ao pool o proxy de uma conta que não existe mais', async () => {
+    await pool.importar('1.1.1.1:80\n2.2.2.2:80');
+    mockRegistros[0].contaId = 'viva';
+    mockRegistros[1].contaId = 'apagada';
+    mockContasVivas.push({ _id: 'viva' });
+
+    expect(await pool.recuperarOrfaos()).toEqual({ recuperados: 1 });
+    expect(mockRegistros[0].contaId).toBe('viva');   // reserva legítima intacta
+    expect(mockRegistros[1].contaId).toBeNull();     // órfã devolvida
+  });
+
+  test('proxy livre não é confundido com órfão', async () => {
+    // Se o filtro do `find` fosse ignorado, o pool inteiro entraria na conta.
+    await pool.importar('1.1.1.1:80\n2.2.2.2:80');
+    mockRegistros[0].contaId = 'viva';
+    mockContasVivas.push({ _id: 'viva' });
+
+    expect(await pool.recuperarOrfaos()).toEqual({ recuperados: 0 });
+    expect(mockRegistros[1].contaId).toBeNull();
+  });
+
+  test('sem reserva nenhuma, não faz nada', async () => {
+    await pool.importar('1.1.1.1:80');
+    expect(await pool.recuperarOrfaos()).toEqual({ recuperados: 0 });
+  });
+
+  test('banco fora do ar não apaga reserva', async () => {
+    // Sem esta guarda, uma queda do Mongo faria `Account.find` devolver vazio
+    // e TODAS as reservas seriam lidas como órfãs.
+    await pool.importar('1.1.1.1:80');
+    mockRegistros[0].contaId = 'viva';
+
+    const antes = pool.bancoConectado;
+    pool.bancoConectado = () => false;
+    expect(await pool.recuperarOrfaos()).toEqual({ recuperados: 0, motivo: 'sem banco' });
+    pool.bancoConectado = antes;
+
+    expect(mockRegistros[0].contaId).toBe('viva');
   });
 });

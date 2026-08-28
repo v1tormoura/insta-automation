@@ -107,6 +107,45 @@ async function liberar(accountId) {
   return r.modifiedCount || 0;
 }
 
+/**
+ * Devolve ao pool os proxies reservados para contas que não existem mais.
+ *
+ * ── Por que `liberar()` não basta
+ *
+ * Ele é chamado ao excluir uma conta pelo painel, e resolve esse caminho. Mas
+ * conta some por outros: remoção direta no banco, restauração de backup,
+ * limpeza manual, ou uma exclusão que falhou no meio. Em todos eles a reserva
+ * fica para trás.
+ *
+ * O efeito é lento e silencioso: o pool encolhe um proxy por vez, e o sintoma
+ * aparece semanas depois como "não há proxy livre" com a lista cheia na tela.
+ * Um diagnóstico de produção encontrou três reservas apontando para contas
+ * inexistentes num banco sem conta nenhuma.
+ *
+ * Roda sob demanda e é seguro repetir: só mexe no que está órfão.
+ */
+async function recuperarOrfaos() {
+  if (!module.exports.bancoConectado()) return { recuperados: 0, motivo: 'sem banco' };
+
+  const reservados = await ProxyPool.find({ contaId: { $ne: null } })
+    .select('_id contaId').lean();
+  if (!reservados.length) return { recuperados: 0 };
+
+  const Account = require('../models/Account');
+  const ids = [...new Set(reservados.map(r => String(r.contaId)))];
+  const vivas = await Account.find({ _id: { $in: ids } }).select('_id').lean();
+  const existe = new Set(vivas.map(c => String(c._id)));
+
+  const orfaos = reservados.filter(r => !existe.has(String(r.contaId)));
+  if (!orfaos.length) return { recuperados: 0 };
+
+  const r = await ProxyPool.updateMany(
+    { _id: { $in: orfaos.map(o => o._id) } },
+    { $set: { contaId: null, reservadoEm: null } }
+  );
+  return { recuperados: r.modifiedCount || 0 };
+}
+
 /** Quantos livres, quantos reservados, quantos reprovados. */
 async function resumo() {
   const [total, livres, ruins, rotativos] = await Promise.all([
@@ -175,5 +214,6 @@ function bancoConectado() {
 }
 
 module.exports = {
-  importar, reservar, liberar, resumo, listar, testarTodos, remover, bancoConectado,
+  importar, reservar, liberar, recuperarOrfaos, resumo, listar, testarTodos, remover,
+  bancoConectado,
 };

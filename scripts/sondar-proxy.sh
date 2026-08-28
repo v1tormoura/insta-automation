@@ -31,18 +31,25 @@ echo "Lendo o proxy do banco — nada para colar, e a credencial não passa pelo
 echo "histórico do shell."
 echo
 
-# Preferência: proxy de uma conta que já tenha um; senão, o global.
+# Três origens, nesta ordem: proxy de uma conta, o POOL, e o global.
+# O pool entrou depois: um diagnóstico de produção mostrou proxies
+# importados vivendo só lá, e o script dizia "nenhum proxy encontrado"
+# com a lista cheia na tela.
 PROXY=$(docker compose exec -T mongo mongosh insta-automation --quiet --eval '
   const c = db.accounts.findOne({ proxy: { $nin: [null, ""] } }, { proxy: 1 });
   if (c && c.proxy) { print(c.proxy); }
   else {
-    const g = db.settings.findOne({ key: "globalProxy" });
-    print(g && g.value ? (g.value.url || "") : "");
+    const p = db.proxypool.findOne({ ok: { $ne: false } }, { url: 1 });
+    if (p && p.url) { print(p.url); }
+    else {
+      const g = db.settings.findOne({ key: "globalProxy" });
+      print(g && g.value ? (g.value.url || "") : "");
+    }
   }
 ' 2>/dev/null | tr -d '\r' | tail -1)
 
 if [ -z "$PROXY" ]; then
-  echo "Nenhum proxy encontrado — nem por conta, nem global."
+  echo "Nenhum proxy encontrado — nem por conta, nem no pool, nem global."
   echo "Importe proxies em Proxies, ou atribua um a uma conta, e rode de novo."
   exit 1
 fi
