@@ -22,7 +22,6 @@ import Loop from './pages/Loop';
 import JobManager from './pages/JobManager';
 import Campaigns from './pages/Campaigns';
 import CampaignWizard from './pages/CampaignWizard';
-import DesignSystemPreview from './pages/DesignSystemPreview';
 import ConfigNotificacoes from './pages/ConfigNotificacoes';
 import CampaignDetail from './pages/CampaignDetail';
 import OAuthCallback from './pages/OAuthCallback';
@@ -115,7 +114,6 @@ export default function App() {
               {/* Rota TEMPORÁRIA da fase de redesign: vitrine das oito propostas
                   de identidade. Não aplica nada — só permite comparar e marcar.
                   Sai junto com a decisão. */}
-              <Route path="/design-system-preview" element={<DesignSystemPreview />} />
               {/* Sob /settings de propósito: esse prefixo já é roteado no nginx
                   no bloco compartilhado, então um F5 aqui devolve o app em vez
                   de JSON. Rota nova fora dos prefixos conhecidos daria 405. */}

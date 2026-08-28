@@ -40,7 +40,7 @@
   --mf-primary-300: oklch(0.88 0.14 213);
   --mf-primary-500: oklch(0.78 0.19 213);   /* #00d4ff — a marca */
   --mf-primary-600: oklch(0.66 0.17 213);
-  --mf-primary-700: oklch(0.63 0.19 213);   /* subiu: 2.91 sobre o fundo novo */
+  --mf-primary-700: oklch(0.65 0.19 213);   /* subiu: 2.91 sobre o fundo novo */
   --mf-primary-fg:  oklch(0.20 0.045 241);  /* escuro sobre o ciano — 10.2:1 */
 
   /* Ciano elétrico. O matiz é o que estava errado antes, mais que o croma:
@@ -56,11 +56,11 @@
      destaque dentro de um cartão primário desapareceria no próprio fundo. */
   --mf-accent-300:  oklch(0.92 0.11 195);
   --mf-accent-500:  oklch(0.86 0.16 195);
-  --mf-accent-700:  oklch(0.65 0.14 195);   /* idem */
+  --mf-accent-700:  oklch(0.665 0.14 195);   /* idem */
 
   /* Magenta em dose pequena: só para o que é excepcional (campanha ativa,
      item premium). Usado em área grande, vira ruído. */
-  --mf-flare-500:   oklch(0.76 0.27 350);
+  --mf-flare-500:   oklch(0.79 0.27 350);
 
   /* ── Semântica de estado ───────────────────────────────────────────────
      Uma cor por significado. Componente nenhum escolhe verde por conta
@@ -68,14 +68,14 @@
   /* O verde estava usando 47% do croma que o sRGB permite neste matiz — de
      longe o mais apagado da paleta, e do mesmo matiz do módulo Métricas. Dois
      tons diferentes para a mesma cor lê como defeito, não como intenção. */
-  --mf-success-500: oklch(0.79 0.208 150);
-  --mf-success-bg:  oklch(0.79 0.208 150 / 0.13);
-  --mf-warning-500: oklch(0.79 0.155 75);
-  --mf-warning-bg:  oklch(0.79 0.155 75 / 0.13);
-  --mf-danger-500:  oklch(0.79 0.121 25);
-  --mf-danger-bg:   oklch(0.79 0.121 25 / 0.13);
-  --mf-info-500:    oklch(0.79 0.108 245);
-  --mf-info-bg:     oklch(0.79 0.108 245 / 0.13);
+  --mf-success-500: oklch(0.795 0.208 150);
+  --mf-success-bg:  oklch(0.795 0.208 150 / 0.13);
+  --mf-warning-500: oklch(0.815 0.151 75);
+  --mf-warning-bg:  oklch(0.815 0.151 75 / 0.13);
+  --mf-danger-500:  oklch(0.820 0.101 25);
+  --mf-danger-bg:   oklch(0.820 0.101 25 / 0.13);
+  --mf-info-500:    oklch(0.820 0.092 245);
+  --mf-info-bg:     oklch(0.820 0.092 245 / 0.13);
 
   /* ── Cor por módulo ────────────────────────────────────────────────────
      Cada área do produto tem um matiz fixo. O usuário aprende o lugar pela
@@ -92,8 +92,8 @@
      Ninguém vai a 100% além do ciano: violeta e verde no limite do gamut
      viram neon puro (#8800ff, #00dc00), que não é vivo, é berrante. */
   --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — #00d4ff  5,87 */
-  --mf-mod-publicar:  oklch(0.78 0.33 285);   /* violeta — #af7cff  3,56 */
-  --mf-mod-campanhas: oklch(0.76 0.27 350);   /* magenta — #ff4bc9  3,52 */
+  --mf-mod-publicar:  oklch(0.795 0.33 285);  /* violeta — #b482ff */
+  --mf-mod-campanhas: oklch(0.79 0.27 350);   /* magenta — #ff57d2 */
   --mf-mod-jobs:      oklch(0.81 0.18 78);    /* âmbar   — #ffaf00  5,66 */
   --mf-mod-metricas:  oklch(0.75 0.26 155);   /* verde   — #00d95b  5,52 */
   --mf-mod-sistema:   oklch(0.70 0.03 241);   /* neutro — matiz do tema */
