@@ -59,6 +59,9 @@ const SESSION_EVENTS = Object.freeze({
   SESSION_INVALIDATED:  'SESSION_INVALIDATED',
   SESSION_RATE_LIMITED: 'SESSION_RATE_LIMITED',
   SESSION_EXPIRED:      'SESSION_EXPIRED',
+  // Falha de infraestrutura ou de conteúdo, registrada mas NÃO contada
+  // contra a validade da sessão.
+  SESSION_TECHNICAL_ERROR: 'SESSION_TECHNICAL_ERROR',
   SESSION_LOCKED:       'SESSION_LOCKED',
   SESSION_CONFLICT:     'SESSION_CONFLICT',
   LOGIN_SUCCESS:        'LOGIN_SUCCESS',
@@ -97,6 +100,24 @@ function _log(event, accountId, ctx = '') {
 // After this many consecutive failures the session is marked FAILED and
 // requires explicit re-login — automatic recovery is not attempted.
 const MAX_CONSECUTIVE_FAILURES = 5;
+
+/* Códigos que dizem algo sobre a SESSÃO — os únicos que aproximam a conta de
+   ser declarada inválida. Tudo o mais (timeout, serviço fora, proxy, mídia
+   recusada, erro sem código) é ruído de infraestrutura ou de conteúdo.
+
+   A lista é fechada de propósito. Fosse ao contrário — "conta tudo menos estes"
+   — cada código novo entraria contando por omissão, que foi exatamente como o
+   contador virou um medidor de instabilidade da rede. */
+const CODIGOS_DE_SESSAO = Object.freeze([
+  'SESSION_EXPIRED',
+  'AUTH_REQUIRED',
+  'BAD_PASSWORD',
+  'NO_INSTAGRAPI_SESSION',
+]);
+
+function _ehEvidenciaDeSessao(code) {
+  return CODIGOS_DE_SESSAO.includes(code);
+}
 
 /**
  * Manages instagrapi sessions with:
@@ -367,14 +388,37 @@ class SessionManager {
       return this.recordRateLimit(id);
     }
 
+    /* `consecutiveFailures` não é um contador de erros: é o que faz `validate()`
+       declarar a sessão inválida ao chegar em MAX, e daí o painel dizer "sessão
+       expirada". Então só pode contar erro que seja EVIDÊNCIA sobre a sessão.
+
+       Antes contava qualquer coisa. O `worker` chama isto com qualquer falha de
+       publicação — vídeo que o Instagram recusou, timeout, proxy que caiu, o
+       serviço Python reiniciando. Cinco tropeços desses, em dias diferentes, e
+       uma conta perfeitamente logada aparecia como sessão expirada, com o blob
+       da sessão intacto no banco. Era o sintoma "a conta está online, não foi
+       banida, e diz que expirou".
+
+       Erro técnico continua sendo registrado — muda o `sessionStatus` e a data
+       do último erro, que é o que serve para diagnóstico. O que ele não faz
+       mais é empurrar a conta para a invalidez. */
+    if (!_ehEvidenciaDeSessao(code)) {
+      await Account.findByIdAndUpdate(id, {
+        $set: {
+          lastSessionErrorAt: new Date(),
+          sessionStatus:      SESSION_STATUS.NETWORK_ERROR,
+        },
+      });
+      _log(SESSION_EVENTS.SESSION_TECHNICAL_ERROR, id, `code=${code || 'sem código'} — não conta como falha de sessão`);
+      return;
+    }
+
     const acct = await Account.findById(id).select('consecutiveFailures').lean();
     const n    = (acct?.consecutiveFailures || 0) + 1;
 
     let status = n >= MAX_CONSECUTIVE_FAILURES ? SESSION_STATUS.FAILED : SESSION_STATUS.INVALID;
     if (code === 'SESSION_EXPIRED' || code === 'AUTH_REQUIRED') {
       status = SESSION_STATUS.REAUTH_REQUIRED;
-    } else if (code === 'INSTAGRAPI_SERVICE_UNAVAILABLE' || code === 'TIMEOUT') {
-      status = SESSION_STATUS.NETWORK_ERROR;
     }
 
     await Account.findByIdAndUpdate(id, {

@@ -218,6 +218,24 @@ export default function Proxies() {
             </div>
           </div>
 
+          {/* Pool esgotado é a única condição aqui que causa dano silencioso: a
+              próxima conta a conectar não recebe proxy, sai pelo endereço
+              global junto com as outras, e o Instagram lê várias contas no
+              mesmo IP como automação. O número "0 livre(s)" acima já dizia
+              isso, mas ninguém lê um contador procurando por um problema que
+              não sabe que existe. */}
+          {pool.resumo?.esgotado && (
+            <div role="status" style={{ background:'var(--mf-warning-bg)',
+              border:'1px solid oklch(0.80 0.16 78 / 0.3)', borderRadius:'var(--mf-r-md)',
+              padding:'var(--mf-3) var(--mf-4)', marginBottom:'var(--mf-4)',
+              fontSize:'var(--mf-t-sm)', color:'var(--mf-warning-500)' }}>
+              <b>O pool acabou.</b> Os {pool.resumo.total} proxies estão todos reservados.
+              A próxima conta a conectar vai sair pelo proxy global, dividindo IP com as
+              demais — que é o padrão que o Instagram marca como automação. Importe mais
+              proxies antes de adicionar contas.
+            </div>
+          )}
+
           {primeiraCarga && !pool.itens.length ? (
             <EsqueletoTabela linhas={4} colunas={5} />
           ) : pool.itens.length === 0 ? (

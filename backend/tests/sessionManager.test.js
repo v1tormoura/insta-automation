@@ -518,28 +518,71 @@ describe('SessionManager: metrics', () => {
     });
   });
 
-  test('recordFailure() increments consecutiveFailures', async () => {
+  /* `consecutiveFailures` decide, em MAX, se a sessão passa a ser tratada como
+     inválida — e daí o painel dizer "sessão expirada". Estes testes afirmavam
+     que QUALQUER erro incrementava, inclusive `new Error('timeout')` sem
+     código. Era o comportamento real, e era o defeito: o worker chama
+     recordFailure com qualquer falha de publicação, então cinco tropeços de
+     rede em dias diferentes marcavam como expirada uma conta logada e sadia.
+
+     Um teste que descreve o defeito com precisão é o que faz o defeito
+     sobreviver a uma revisão. Agora eles afirmam a regra correta: só conta o
+     que é evidência sobre a sessão. */
+
+  test('erro de sessão incrementa consecutiveFailures', async () => {
     mockFindById.mockReturnValue(dbChain({ consecutiveFailures: 2 }));
-    await mgr.recordFailure('acc1', new Error('timeout'));
+    await mgr.recordFailure('acc1', Object.assign(new Error('login required'), { code: 'SESSION_EXPIRED' }));
     expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('acc1', {
       $set: expect.objectContaining({ consecutiveFailures: 3 }),
     });
   });
 
-  test('recordFailure() sets FAILED at threshold (5)', async () => {
+  test('erro sem código NÃO incrementa — não é evidência sobre a sessão', async () => {
+    // É o caso mais comum vindo da publicação: vídeo recusado, proxy caído,
+    // serviço Python reiniciando. Nada disso diz que a sessão morreu.
+    mockFindById.mockClear();
+    await mgr.recordFailure('acc1', new Error('falha ao enviar o vídeo'));
+    expect(mockFindById).not.toHaveBeenCalled();
+    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('acc1', {
+      $set: expect.objectContaining({ sessionStatus: SESSION_STATUS.NETWORK_ERROR }),
+    });
+    expect(mockFindByIdAndUpdate).not.toHaveBeenCalledWith('acc1', {
+      $set: expect.objectContaining({ consecutiveFailures: expect.anything() }),
+    });
+  });
+
+  test('TIMEOUT e serviço fora do ar não aproximam a conta da invalidez', async () => {
+    for (const code of ['TIMEOUT', 'INSTAGRAPI_SERVICE_UNAVAILABLE', 'PROXY_ERROR']) {
+      mockFindById.mockClear();
+      await mgr.recordFailure('acc1', Object.assign(new Error('x'), { code }));
+      expect(mockFindById).not.toHaveBeenCalled();
+    }
+  });
+
+  test('sessão inválida chega a FAILED no limite (5)', async () => {
     mockFindById.mockReturnValue(dbChain({ consecutiveFailures: 4 })); // 4+1 = 5
-    await mgr.recordFailure('acc1', new Error('x'));
+    await mgr.recordFailure('acc1', Object.assign(new Error('x'), { code: 'BAD_PASSWORD' }));
     expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('acc1', {
       $set: expect.objectContaining({ sessionStatus: SESSION_STATUS.FAILED }),
     });
   });
 
-  test('recordFailure() sets INVALID below threshold (3)', async () => {
+  test('abaixo do limite fica INVALID', async () => {
     mockFindById.mockReturnValue(dbChain({ consecutiveFailures: 2 })); // 2+1 = 3
-    await mgr.recordFailure('acc1', new Error('x'));
+    await mgr.recordFailure('acc1', Object.assign(new Error('x'), { code: 'NO_INSTAGRAPI_SESSION' }));
     expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('acc1', {
       $set: expect.objectContaining({ sessionStatus: SESSION_STATUS.INVALID }),
     });
+  });
+
+  test('cem falhas técnicas seguidas não invalidam a sessão', async () => {
+    // O cenário do usuário, comprimido: a conta está online e sadia, e a
+    // instabilidade é da infraestrutura.
+    mockFindById.mockClear();
+    for (let i = 0; i < 100; i++) {
+      await mgr.recordFailure('acc1', Object.assign(new Error('x'), { code: 'TIMEOUT' }));
+    }
+    expect(mockFindById).not.toHaveBeenCalled();
   });
 
   test('recordFailure() sets REAUTH_REQUIRED for SESSION_EXPIRED error code', async () => {

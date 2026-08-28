@@ -147,9 +147,12 @@ async function publishViaInstagrapi(account, post) {
 
   const postType = post.postType || 'reel';
   if (postType === 'story') {
+    // Story é desviado antes daqui. Se chegou, o desvio quebrou — e a mensagem
+    // precisa dizer isso, não culpar o instagrapi, que publica story sem
+    // problema pelo `storyService`.
     throw Object.assign(
-      new Error('instagrapi não suporta stories — configure a conta com sessão mobile para histórias'),
-      { code: 'UNSUPPORTED_TYPE' }
+      new Error('story chegou ao caminho de reel — o desvio em publishOneAccount não foi aplicado'),
+      { code: 'STORY_MAL_ROTEADO' }
     );
   }
 
@@ -180,6 +183,26 @@ async function publishViaInstagrapi(account, post) {
       throw igErr;
     }
   }
+}
+
+// ── Story ────────────────────────────────────────────────────────────────
+// Delega ao serviço que a página de Stories usa, em vez de repetir a escolha
+// de provedor aqui. Duas implementações da mesma decisão divergem, e foi assim
+// que o caminho agendado ficou sem saber publicar story.
+
+async function publicarStoryAgendado(account, post) {
+  const { postStory } = require('../services/storyService');
+  writeAccountLog(account.username, 'Publicando story...');
+
+  const info = await postStory(account, {
+    imageUrl: post.media,
+    caption:  post.caption || '',
+    linkUrl:  post.storyLink || null,
+    linkText: post.storyLinkText || null,
+  });
+
+  writeAccountLog(account.username, `Story publicado via ${info.method}`);
+  return { mediaId: String(info.id || '') };
 }
 
 // ── Publicação (Graph API → Private API fallback) ─────────────────────────
@@ -280,9 +303,25 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
     // `resultado` carrega o id da mídia publicada. Postar e Loop ignoram o
     // retorno (usam Promise.allSettled e só olham fulfilled/rejected); a
     // campanha o consome para amarrar o comentário à publicação certa.
-    const resultado = account.provider === 'instagrapi'
-      ? await publishViaInstagrapi(account, post)
-      : await publishWithRetry(post, account, preProcessedVideoUrl);
+    /* Story tem caminho próprio, antes da bifurcação por provedor.
+
+       `publishWithRetry` e `publishViaInstagrapi` publicam REEL e POST; nenhum
+       dos dois sabe fazer story, e o segundo recusava dizendo que "instagrapi
+       não suporta stories" — afirmação falsa, porque o provider implementa
+       `publishStory` e o serviço Python expõe `/publish/story`. O resultado era
+       o story agendado nunca sair, com uma mensagem que mandava procurar no
+       lugar errado.
+
+       `storyService.postStory` é o caminho que a página de Stories já usa: ele
+       escolhe entre instagrapi, Graph API, sessão privada e navegador conforme
+       a conta, e cuida da figurinha de link. Usá-lo aqui faz o story agendado
+       funcionar para TODO tipo de conta, não só para uma. */
+    const ehStory = (post.postType || 'reel') === 'story';
+    const resultado = ehStory
+      ? await publicarStoryAgendado(account, post)
+      : account.provider === 'instagrapi'
+        ? await publishViaInstagrapi(account, post)
+        : await publishWithRetry(post, account, preProcessedVideoUrl);
     await registerSuccess(account);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
     broadcast('accounts', { action: 'synced' });

@@ -91,7 +91,28 @@ async function reservar(accountId) {
     { new: true, sort: { ultimoTeste: -1, createdAt: 1 } }
   ).lean();
 
-  return reservado ? reservado.url : null;
+  if (reservado) return reservado.url;
+
+  /* Pool esgotado. Quem chama vai cair no proxy global, e é aí que várias
+     contas passam a sair pelo MESMO IP — o padrão que o Instagram lê como
+     automação. Sem este aviso, o sintoma aparece semanas depois como "as
+     contas foram sinalizadas" e nada no sistema liga uma coisa à outra.
+
+     Distinguir "pool acabou" de "não há pool" importa: no primeiro caso a
+     saída é importar mais proxies; no segundo, o comportamento é o esperado. */
+  const [total, ruins] = await Promise.all([
+    ProxyPool.countDocuments({}),
+    ProxyPool.countDocuments({ ok: false }),
+  ]);
+  if (total > 0) {
+    console.warn(
+      `[proxyPool] ESGOTADO — conta ${id} vai sair pelo proxy global, ` +
+      `dividindo IP com as demais. ${total} no pool, todos em uso` +
+      (ruins ? ` (${ruins} reprovados no teste)` : '') +
+      '. Importe mais proxies em Proxies.'
+    );
+  }
+  return null;
 }
 
 /**
@@ -154,7 +175,13 @@ async function resumo() {
     ProxyPool.countDocuments({ ok: false }),
     ProxyPool.countDocuments({ rotativo: true }),
   ]);
-  return { total, livres, reservados: total - livres - ruins - rotativos, ruins, rotativos };
+  /* `esgotado` responde à pergunta que a tela precisa fazer — "posso conectar
+     mais uma conta sem que ela divida IP?" — sem obrigar quem lê a deduzir
+     isso de quatro números. */
+  return {
+    total, livres, reservados: total - livres - ruins - rotativos, ruins, rotativos,
+    esgotado: total > 0 && livres === 0,
+  };
 }
 
 /** Lista o pool com o dono de cada proxy. */
