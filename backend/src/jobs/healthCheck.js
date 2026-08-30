@@ -203,13 +203,28 @@ async function checkViaInstagrapi(account) {
     const http      = new InstagrapiHttpClient(null, sm);
     const accountId = String(account._id);
 
-    // ── 1. Validação local (sem rede) ────────────────────────────────────────
-    // Verifica consecutiveFailures e sessionStatus no MongoDB — sem chamar Instagram.
+    /* ── 1. Validação local ───────────────────────────────────────────────
+       Ela lê `consecutiveFailures` e `sessionStatus` do banco, sem tocar na
+       rede. Antes, dizer "inválida" aqui bastava para o painel anunciar SESSÃO
+       EXPIRADA — e essa é uma afirmação sobre o que o Instagram pensa, feita
+       sem perguntar a ele.
+
+       O resultado era um estado que não se curava. Um proxy fora do ar fazia a
+       conta acumular falhas; a contagem passava do limite; a validação local
+       passava a reprovar; e a partir daí o health check nunca mais chegava ao
+       ping. A conta ficava marcada como expirada para sempre, com a sessão
+       intacta, e só um comando manual no banco a tirava de lá.
+
+       Agora a validação local só DECIDE quando não há sessão para testar. Nos
+       outros casos ela é registrada e a verificação segue: o ping é a
+       autoridade sobre a sessão, e um ping bem-sucedido chama `recordSuccess`,
+       que zera o contador. Quer dizer: o estado volta sozinho quando a causa
+       real — a rede — se resolve. */
     const validation = await sm.validate(accountId);
-    if (!validation.valid) {
+    if (!validation.valid && /sem sessão|não encontrada/i.test(validation.reason || '')) {
       return {
         status: 'sessao_expirada',
-        error:  validation.reason || 'Sessão marcada como inválida — reconecte a conta',
+        error:  validation.reason || 'Sessão não encontrada — reconecte a conta',
       };
     }
 

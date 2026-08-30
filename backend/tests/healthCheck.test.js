@@ -86,17 +86,61 @@ describe('checkViaInstagrapi: sessão expirada', () => {
     expect(mockSm.recordSuccess).not.toHaveBeenCalled();
   });
 
-  test('validação local FAILED → sessao_expirada sem chamar rede', async () => {
+  /* Este teste afirmava que a validação LOCAL bastava para declarar a sessão
+     expirada, sem tocar na rede — "sem chamar rede" estava no próprio nome, e
+     era tratado como virtude.
+
+     Era o defeito. "Sessão expirada" é uma afirmação sobre o que o Instagram
+     pensa, e o banco não sabe o que o Instagram pensa. Com o proxy fora do ar,
+     a conta acumulava falhas, a validação local passava a reprovar, e o health
+     check nunca mais chegava ao ping: a conta ficava marcada como expirada
+     para sempre, com a sessão intacta, sem caminho de volta que não fosse um
+     comando manual no banco. */
+
+  test('contagem de falhas alta NÃO decide sozinha — o ping é a autoridade', async () => {
     mockSm.validate.mockResolvedValue({
       valid: false, status: 'FAILED', reason: '5 falhas consecutivas — relogin necessário',
+    });
+    mockHttp.pingSession.mockResolvedValue({ ok: true });
+
+    const result = await checkViaInstagrapi(ACCOUNT);
+
+    expect(mockHttp.pingSession).toHaveBeenCalled();
+    expect(result.status).toBe('ativa');
+  });
+
+  test('ping bem-sucedido zera o contador — o estado se cura sozinho', async () => {
+    // Sem isto, resolver a causa real (a rede) não devolveria a conta ao ar.
+    mockSm.validate.mockResolvedValue({
+      valid: false, status: 'FAILED', reason: '23 falhas consecutivas — relogin necessário',
+    });
+    mockHttp.pingSession.mockResolvedValue({ ok: true });
+
+    await checkViaInstagrapi(ACCOUNT);
+    expect(mockSm.recordSuccess).toHaveBeenCalled();
+  });
+
+  test('sem sessão gravada, aí sim decide sem rede', async () => {
+    // Não há o que testar: a ausência de sessão é fato local, e gastar uma
+    // requisição para confirmá-la seria desperdício.
+    mockSm.validate.mockResolvedValue({
+      valid: false, status: 'UNKNOWN', reason: 'Sem sessão instagrapi configurada',
     });
 
     const result = await checkViaInstagrapi(ACCOUNT);
 
     expect(result.status).toBe('sessao_expirada');
-    expect(mockHttp.ensureSession).not.toHaveBeenCalled();
     expect(mockHttp.pingSession).not.toHaveBeenCalled();
-    expect(mockSm.recordFailure).not.toHaveBeenCalled();
+  });
+
+  test('o Instagram rejeitando a sessão continua marcando expirada', async () => {
+    mockSm.validate.mockResolvedValue({ valid: true, status: 'VALID', reason: '' });
+    mockHttp.pingSession.mockRejectedValue(
+      Object.assign(new Error('login required'), { code: 'SESSION_EXPIRED' })
+    );
+
+    const result = await checkViaInstagrapi(ACCOUNT);
+    expect(result.status).toBe('sessao_expirada');
   });
 });
 

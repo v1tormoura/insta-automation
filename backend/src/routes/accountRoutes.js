@@ -1225,9 +1225,10 @@ async function _tryRestoreSession(account, http) {
   const info = await sm.hasPersistedSession(accountId);
   if (!info.exists) return { restored: false };
 
-  // 2. Is the local metadata valid (no network call to Instagram)?
-  const validation = await sm.validate(accountId);
-  if (!validation.valid) return { restored: false };
+  /* 2. O blob existe (passo 1). A contagem de falhas NÃO impede a tentativa de
+        restaurar: o passo 3 é o teste de verdade, e desistir antes dele deixava
+        a conta sem sessão no pool Python por causa de falhas antigas — quer
+        dizer, sem publicar, por um motivo que já não valia. */
 
   // 3. Load the session into the Python pool
   try {

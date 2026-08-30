@@ -133,18 +133,33 @@ describe('_keepAliveInstagrapi: Python indisponível', () => {
 // ── Cenário 3: sessão expirada → marca expirada, sem login, sem descobrir senha ─
 
 describe('_keepAliveInstagrapi: sessão expirada', () => {
-  test('validação local inválida → expirada sem chamar rede nem login', async () => {
+  /* O keep-alive é o que traz a conta de volta: um ciclo bem-sucedido chama
+     `recordSuccess` e zera o contador. Barrar por contagem de falhas fechava o
+     círculo — a queda de rede enchia o contador, o contador impedia o
+     keep-alive, e a conta ficava presa fora do ar por um problema já resolvido. */
+
+  test('contagem de falhas não impede o ciclo — é ele que cura', async () => {
     mockSm.validate.mockResolvedValue({
-      valid: false, status: 'FAILED', reason: '5 falhas consecutivas — relogin necessário',
+      valid: false, status: 'FAILED', reason: '23 falhas consecutivas — relogin necessário',
+    });
+    mockSm.acquireLock.mockResolvedValue(LOCK_TOKEN);
+
+    await _keepAliveInstagrapi(ACCOUNT);
+
+    expect(mockSm.acquireLock).toHaveBeenCalled();
+    expect(mockHttp.ensureSession).toHaveBeenCalled();
+  });
+
+  test('sem sessão gravada, desiste antes de gastar rede', async () => {
+    mockSm.validate.mockResolvedValue({
+      valid: false, status: 'UNKNOWN', reason: 'Sem sessão instagrapi configurada',
     });
 
     const result = await _keepAliveInstagrapi(ACCOUNT);
 
-    expect(result.status).toBe('sessao_expirada' in result ? result.status : 'expirada');
     expect(result.status).toBe('expirada');
     expect(mockHttp.ensureSession).not.toHaveBeenCalled();
-    expect(mockHttp.login).not.toHaveBeenCalled();
-    expect(mockSm.acquireLock).not.toHaveBeenCalled(); // nem tenta adquirir lock
+    expect(mockSm.acquireLock).not.toHaveBeenCalled();
   });
 
   test('SESSION_EXPIRED de ensureSession → marca expirada, recordFailure, sem login', async () => {

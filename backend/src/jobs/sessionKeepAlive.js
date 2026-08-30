@@ -48,11 +48,19 @@ async function _keepAliveInstagrapi(account) {
   const accountId = String(account._id);
   const label     = `@${account.username}`;
 
-  // ── 1. Validação local (sem rede) ─────────────────────────────────────────
+  /* ── 1. Validação local ───────────────────────────────────────────────────
+     Só decide quando não há sessão para testar. Antes ela barrava por contagem
+     de falhas, e o efeito era circular: uma queda de rede enchia o contador, o
+     contador impedia o keep-alive, e o keep-alive era exatamente o que traria a
+     conta de volta ao chamar `recordSuccess`. A conta ficava presa fora do ar
+     por um problema que já tinha passado. */
   const validation = await sm.validate(accountId);
-  if (!validation.valid) {
+  if (!validation.valid && /sem sessão|não encontrada/i.test(validation.reason || '')) {
     console.log(`⚠️ [KeepAlive] ${label} (instagrapi) — ${validation.reason}`);
     return { status: 'expirada', error: validation.reason };
+  }
+  if (!validation.valid) {
+    console.log(`ℹ️ [KeepAlive] ${label} — ${validation.reason}; testando mesmo assim`);
   }
 
   // ── 2. Tenta adquirir lock por conta ─────────────────────────────────────
