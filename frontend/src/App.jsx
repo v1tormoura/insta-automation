@@ -7,6 +7,7 @@ import { LimiteDeRota } from './components/LimiteDeErro';
 import Dashboard from './pages/Dashboard';
 import DashboardV2 from './pages/DashboardV2';
 import PrototipoApp from './prototipo/PrototipoApp';
+import DesignPreview from './prototipo-v2/DesignPreview';
 import Accounts from './pages/Accounts';
 import Posts from './pages/Posts';
 import Scheduler from './pages/Scheduler';
@@ -79,6 +80,9 @@ export default function App() {
           Fica fora do PrivateRoute e do MainLayout de proposito: ele traz a
           propria casca, e assim nada da interface atual interfere na avaliacao. */}
       <Route path="/prototipo" element={<PrototipoApp />} />
+      {/* Direção nova, em avaliação. Escopada em [data-mf2]: não afeta
+          nenhuma outra rota. Sai quando a migração terminar. */}
+      <Route path="/design-preview" element={<DesignPreview />} />
 
       <Route path="/*" element={
         <PrivateRoute>

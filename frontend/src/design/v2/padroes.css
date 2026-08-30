@@ -1,0 +1,632 @@
+/**
+ * Camada 3 — padrões.
+ *
+ * Esta é a camada que faltava no produto, e a ausência dela é o que produziu
+ * os 3.128 estilos inline. Sem um vocabulário de composição, todo bloco de
+ * informação vira um cartão com borda — não por escolha, mas por falta de
+ * alternativa disponível na hora de escrever a tela.
+ *
+ * Aqui cada padrão tem nome e tem regra sobre QUANDO usar:
+ *
+ *   secao      agrupa sem moldura — o padrão de longe mais comum
+ *   metrica    número em destaque, sem cartão
+ *   painel     moldura SÓ onde existe interação ou fronteira real
+ *   faixa      linha de dados numa lista, sem cartão
+ *   feed       eventos em sequência temporal
+ *   comando    busca e ações
+ *
+ * A regra que vale mais que todas: moldura é cara. Ela custa atenção. Só
+ * ganha moldura o que o usuário pode operar, ou o que precisa de fronteira
+ * porque tem rolagem própria.
+ */
+
+/* ═══ Casca ══════════════════════════════════════════════════════════════ */
+
+[data-mf2] {
+  font-family: var(--f-sans);
+  font-size: var(--t-md);
+  line-height: 1.5;
+  color: var(--g-ink);
+  background: var(--g-ground);
+  -webkit-font-smoothing: antialiased;
+}
+[data-mf2] *, [data-mf2] *::before, [data-mf2] *::after { box-sizing: border-box; }
+
+.p-app {
+  display: grid;
+  grid-template-columns: var(--w-rail) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  transition: grid-template-columns var(--t-slow) var(--ease);
+}
+.p-app[data-aberta='true'] { grid-template-columns: var(--w-side) minmax(0, 1fr); }
+
+/* ═══ Sidebar ════════════════════════════════════════════════════════════
+   Rail de 56px por padrão. A queixa era ocupar espaço demais: 264px sempre
+   presos, com 28 itens de duas alturas cada. Aqui o padrão é o rail, e o
+   rótulo aparece ao passar o cursor — quem sabe o caminho não precisa lê-lo,
+   e quem não sabe usa Ctrl K. */
+
+.p-side {
+  background: var(--g-ground);
+  border-right: 1px solid var(--g-line);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
+  z-index: 30;
+}
+
+.p-brand {
+  height: var(--h-top);
+  display: flex; align-items: center; gap: var(--s4);
+  padding-inline: var(--s5);
+  border-bottom: 1px solid var(--g-line);
+  flex-shrink: 0;
+}
+.p-brand__m {
+  width: 24px; height: 24px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--r2);
+  background: linear-gradient(140deg, var(--g-brand), var(--g-brand-2));
+  color: var(--g-on-brand);
+  font-weight: 700; font-size: var(--t-sm);
+}
+.p-brand__n {
+  font-weight: 600; letter-spacing: -0.01em; white-space: nowrap;
+  opacity: 0; transition: opacity var(--t-mid) var(--ease);
+}
+.p-app[data-aberta='true'] .p-brand__n { opacity: 1; }
+
+.p-nav {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: var(--s4) var(--s3);
+  display: flex; flex-direction: column; gap: var(--s2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--g-raised) transparent;
+}
+
+.p-nav__g {
+  font-family: var(--f-mono);
+  font-size: var(--t-nano); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--g-ink-3);
+  padding: var(--s5) var(--s4) var(--s2);
+  white-space: nowrap;
+  opacity: 0; transition: opacity var(--t-mid) var(--ease);
+}
+.p-app[data-aberta='true'] .p-nav__g { opacity: 1; }
+/* Recolhida, o rótulo do grupo vira uma régua: mantém a separação sem texto
+   que ninguém consegue ler em 56px. */
+.p-app:not([data-aberta='true']) .p-nav__g {
+  height: 1px; padding: 0; margin: var(--s4) var(--s4);
+  background: var(--g-line); overflow: hidden;
+}
+
+.p-nav__i {
+  display: flex; align-items: center; gap: var(--s4);
+  height: 34px; padding-inline: var(--s4);
+  border-radius: var(--r2);
+  color: var(--g-ink-3);
+  text-decoration: none;
+  position: relative;
+  white-space: nowrap;
+  border: none; background: none; width: 100%;
+  font: inherit; font-size: var(--t-sm); cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.p-nav__i:hover { background: var(--g-raised); color: var(--g-ink-2); }
+.p-nav__i svg { width: 16px; height: 16px; flex-shrink: 0; }
+.p-nav__i span {
+  opacity: 0; transition: opacity var(--t-mid) var(--ease);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.p-app[data-aberta='true'] .p-nav__i span { opacity: 1; }
+
+/* Estado ativo com quatro sinais somados, e nenhum deles é preenchimento
+   sólido: fundo sólido na navegação rouba atenção do conteúdo, que é onde a
+   pessoa está olhando. */
+.p-nav__i[data-ativo='true'] {
+  color: var(--g-ink);
+  background: color-mix(in oklch, var(--mod, var(--g-brand)) 10%, transparent);
+  font-weight: 500;
+}
+.p-nav__i[data-ativo='true'] svg { color: var(--mod, var(--g-brand)); }
+.p-nav__i[data-ativo='true']::before {
+  content: ''; position: absolute; left: -8px; top: 7px; bottom: 7px;
+  width: 2px; border-radius: 0 var(--r9) var(--r9) 0;
+  background: var(--mod, var(--g-brand));
+}
+
+/* Dica que aparece só com o rail recolhido — no aberto o rótulo já está lá. */
+.p-nav__i::after {
+  content: attr(data-dica);
+  position: absolute; left: calc(100% + 12px); top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--g-high); color: var(--g-ink);
+  border: 1px solid var(--g-line-strong);
+  padding: var(--s2) var(--s4); border-radius: var(--r2);
+  font-size: var(--t-xs); white-space: nowrap;
+  box-shadow: var(--e2);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  z-index: 50;
+}
+.p-app:not([data-aberta='true']) .p-nav__i:hover::after {
+  opacity: 1; transform: translateY(-50%) translateX(0);
+}
+
+.p-side__pe {
+  border-top: 1px solid var(--g-line);
+  padding: var(--s3);
+  flex-shrink: 0;
+}
+
+/* ═══ Topbar ═════════════════════════════════════════════════════════════
+   Vidro só aqui e em sobreposições — é a parte "brilho contido" da direção.
+   O desfoque tem função: a topbar fica sobre conteúdo que rola. */
+
+.p-top {
+  height: var(--h-top);
+  display: flex; align-items: center; gap: var(--s4);
+  padding-inline: var(--s6);
+  border-bottom: 1px solid var(--g-line);
+  background: color-mix(in oklch, var(--g-ground) 78%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  position: sticky; top: 0; z-index: 20;
+}
+
+.p-crumb {
+  display: flex; align-items: center; gap: var(--s3);
+  font-size: var(--t-sm); color: var(--g-ink-3);
+  min-width: 0;
+}
+.p-crumb b { color: var(--g-ink); font-weight: 500; }
+
+/* Superfície de comando: o caminho principal para 28 destinos. Quem sabe o
+   nome digita, não navega. */
+.p-cmd {
+  margin-left: auto;
+  display: flex; align-items: center; gap: var(--s3);
+  height: var(--h-control); min-width: 200px;
+  padding-inline: var(--s4);
+  background: var(--g-panel);
+  border: 1px solid var(--g-line);
+  border-radius: var(--r2);
+  color: var(--g-ink-3); font-size: var(--t-sm);
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.p-cmd:hover { border-color: var(--g-line-strong); background: var(--g-raised); }
+.p-cmd svg { width: 14px; height: 14px; }
+.p-kbd {
+  margin-left: auto;
+  font-family: var(--f-mono); font-size: var(--t-nano);
+  background: var(--g-raised); border: 1px solid var(--g-line);
+  padding: 1px var(--s2); border-radius: var(--r1);
+  color: var(--g-ink-3);
+}
+
+.p-main { min-width: 0; display: flex; flex-direction: column; }
+.p-page {
+  padding: var(--s6);
+  display: flex; flex-direction: column; gap: var(--gap-sec);
+  flex: 1;
+  max-width: 1600px; width: 100%;
+}
+
+/* ═══ Seção — agrupa SEM moldura ═════════════════════════════════════════
+   O padrão mais usado, e o que substitui a maioria dos cartões de hoje. */
+
+.p-sec { display: flex; flex-direction: column; gap: var(--s5); }
+.p-sec__h {
+  display: flex; align-items: baseline; gap: var(--s4);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--g-line);
+}
+.p-sec__t { font-size: var(--t-md); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.p-sec__s { font-size: var(--t-xs); color: var(--g-ink-3); }
+.p-sec__a { margin-left: auto; display: flex; gap: var(--s3); }
+
+/* ═══ Faixa de estado ════════════════════════════════════════════════════
+   Some quando está tudo bem; ocupa a primeira linha quando não está. A
+   ausência disto é o que fez uma falha de proxy virar "as contas foram
+   sinalizadas" semanas depois. */
+
+.p-status {
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  border-radius: var(--r3);
+  border: 1px solid color-mix(in oklch, var(--tom) 30%, transparent);
+  background: color-mix(in oklch, var(--tom) 8%, var(--g-panel));
+  font-size: var(--t-sm);
+}
+.p-status[data-tom='crit'] { --tom: var(--g-crit); }
+.p-status[data-tom='warn'] { --tom: var(--g-warn); }
+.p-status[data-tom='ok']   { --tom: var(--g-ok);   }
+.p-status__d {
+  width: 6px; height: 6px; border-radius: var(--r9);
+  background: var(--tom); flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--tom) 22%, transparent);
+}
+.p-status b { color: var(--g-ink); font-weight: 500; }
+.p-status span { color: var(--g-ink-2); }
+
+/* ═══ Métrica — número em destaque, SEM cartão ═══════════════════════════
+   Separadas por régua fina, não por moldura. Quatro molduras lado a lado
+   viram quatro caixas competindo; quatro números separados por régua viram
+   uma leitura só. */
+
+.p-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--g-line);
+  border-radius: var(--r3);
+  background: var(--g-panel);
+  overflow: hidden;
+}
+.p-metric {
+  padding: var(--s5);
+  border-right: 1px solid var(--g-line);
+  display: flex; flex-direction: column; gap: var(--s2);
+  position: relative;
+  transition: background var(--t-fast) var(--ease);
+}
+.p-metric:last-child { border-right: none; }
+.p-metric:hover { background: var(--g-raised); }
+.p-metric__l {
+  font-family: var(--f-mono);
+  font-size: var(--t-nano); letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--g-ink-3);
+}
+.p-metric__v {
+  font-size: var(--t-2xl); font-weight: 300; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; line-height: 1.05;
+  color: var(--g-ink);
+}
+.p-metric__f { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s1); }
+.p-metric__d {
+  font-family: var(--f-mono); font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.p-metric__d[data-dir='up']   { color: var(--g-ok);   }
+.p-metric__d[data-dir='down'] { color: var(--g-crit); }
+.p-metric__spark { margin-left: auto; opacity: 0.85; }
+
+/* ═══ Painel — moldura SÓ onde há interação ═════════════════════════════ */
+
+.p-panel {
+  border: 1px solid var(--g-line);
+  border-radius: var(--r3);
+  background: var(--g-panel);
+  box-shadow: var(--e1);
+  overflow: hidden;
+}
+.p-panel__h {
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--g-line);
+}
+.p-panel__t { font-size: var(--t-sm); font-weight: 600; margin: 0; }
+.p-panel__b { padding: var(--s5); }
+
+/* ═══ Tabela ═════════════════════════════════════════════════════════════
+   Densidade compacta: linha de 36px, fixa. Altura variável destrói a leitura
+   em varredura, que é como uma tabela é usada de verdade. */
+
+.p-tw { overflow-x: auto; }
+.p-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.p-table th {
+  text-align: left;
+  font-family: var(--f-mono);
+  font-size: var(--t-nano); letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 500; color: var(--g-ink-3);
+  padding: 0 var(--s5); height: 30px;
+  border-bottom: 1px solid var(--g-line);
+  white-space: nowrap;
+}
+.p-table td {
+  padding: 0 var(--s5); height: var(--h-row);
+  border-bottom: 1px solid var(--g-line-faint);
+  color: var(--g-ink-2);
+  white-space: nowrap;
+}
+.p-table tbody tr { transition: background var(--t-fast) var(--ease); }
+.p-table tbody tr:hover { background: var(--g-raised); }
+.p-table tbody tr:last-child td { border-bottom: none; }
+.p-table td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.p-table td:first-child { color: var(--g-ink); font-weight: 500; }
+
+.p-conta { display: flex; align-items: center; gap: var(--s3); }
+.p-av {
+  width: 22px; height: 22px; border-radius: var(--r9); flex-shrink: 0;
+  display: grid; place-items: center;
+  font-size: var(--t-nano); font-weight: 600;
+  background: var(--g-raised); color: var(--g-ink-3);
+  border: 1px solid var(--g-line);
+}
+
+/* ═══ Feed — eventos em sequência ════════════════════════════════════════
+   Linha temporal contínua, não lista de cartões. A sequência é a informação;
+   cartões a quebrariam em unidades independentes. */
+
+.p-feed { display: flex; flex-direction: column; }
+.p-ev {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: var(--s4); align-items: start;
+  padding: var(--s4) 0;
+  position: relative;
+}
+.p-ev::before {
+  content: ''; position: absolute;
+  left: 9px; top: 26px; bottom: -8px; width: 1px;
+  background: var(--g-line);
+}
+.p-ev:last-child::before { display: none; }
+.p-ev__d {
+  width: 19px; height: 19px; border-radius: var(--r9);
+  display: grid; place-items: center;
+  background: color-mix(in oklch, var(--tom, var(--g-ink-3)) 16%, var(--g-panel));
+  border: 1px solid color-mix(in oklch, var(--tom, var(--g-ink-3)) 40%, transparent);
+  color: var(--tom, var(--g-ink-3));
+  z-index: 1;
+}
+.p-ev__d svg { width: 11px; height: 11px; }
+.p-ev[data-tom='ok']   { --tom: var(--g-ok);   }
+.p-ev[data-tom='warn'] { --tom: var(--g-warn); }
+.p-ev[data-tom='crit'] { --tom: var(--g-crit); }
+.p-ev[data-tom='rare'] { --tom: var(--g-rare); }
+.p-ev__t { font-size: var(--t-sm); color: var(--g-ink); line-height: 1.45; }
+.p-ev__t b { font-weight: 500; }
+.p-ev__s { font-size: var(--t-xs); color: var(--g-ink-3); margin-top: 1px; }
+.p-ev__h {
+  font-family: var(--f-mono); font-size: var(--t-nano);
+  color: var(--g-ink-3); font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+/* ═══ Controles ══════════════════════════════════════════════════════════ */
+
+.p-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s3);
+  height: var(--h-control); padding-inline: var(--s5);
+  border-radius: var(--r2); border: 1px solid transparent;
+  font: inherit; font-size: var(--t-sm); font-weight: 500;
+  cursor: pointer; white-space: nowrap;
+  transition: background var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease),
+              transform var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease);
+}
+.p-btn svg { width: 14px; height: 14px; }
+/* Afunda 1px ao pressionar. É o retorno físico que falta hoje — e é a
+   diferença entre um botão que responde e um que só muda de cor. */
+.p-btn:active { transform: translateY(1px); }
+
+.p-btn--primary {
+  background: var(--g-brand); color: var(--g-on-brand); font-weight: 600;
+}
+.p-btn--primary:hover { box-shadow: var(--glow); }
+
+.p-btn--ghost {
+  background: var(--g-panel); color: var(--g-ink-2); border-color: var(--g-line);
+}
+.p-btn--ghost:hover { background: var(--g-raised); border-color: var(--g-line-strong); color: var(--g-ink); }
+
+.p-btn--quiet { background: transparent; color: var(--g-ink-3); padding-inline: var(--s4); }
+.p-btn--quiet:hover { background: var(--g-raised); color: var(--g-ink); }
+
+.p-btn--icon { padding-inline: 0; width: var(--h-control); }
+
+.p-chip {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  height: 20px; padding-inline: var(--s3);
+  border-radius: var(--r1);
+  font-family: var(--f-mono); font-size: var(--t-nano);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  background: color-mix(in oklch, var(--tom, var(--g-ink-3)) 14%, transparent);
+  color: var(--tom, var(--g-ink-3));
+  border: 1px solid color-mix(in oklch, var(--tom, var(--g-ink-3)) 26%, transparent);
+  white-space: nowrap;
+}
+.p-chip[data-tom='ok']   { --tom: var(--g-ok);    }
+.p-chip[data-tom='warn'] { --tom: var(--g-warn);  }
+.p-chip[data-tom='crit'] { --tom: var(--g-crit);  }
+.p-chip[data-tom='info'] { --tom: var(--g-brand); }
+
+.p-field {
+  height: var(--h-control); width: 100%;
+  padding-inline: var(--s4);
+  background: var(--g-panel); color: var(--g-ink);
+  border: 1px solid var(--g-line); border-radius: var(--r2);
+  font: inherit; font-size: var(--t-sm);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.p-field::placeholder { color: var(--g-ink-3); }
+.p-field:focus { outline: none; border-color: var(--g-brand); box-shadow: var(--glow); }
+
+/* Anel de foco em toda navegação por teclado. Não é opcional. */
+[data-mf2] :focus-visible {
+  outline: 2px solid var(--g-brand);
+  outline-offset: 2px;
+  border-radius: var(--r1);
+}
+
+/* ═══ Sobreposições ══════════════════════════════════════════════════════ */
+
+.p-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  min-width: 190px; padding: var(--s2);
+  background: var(--g-high);
+  border: 1px solid var(--g-line-strong);
+  border-radius: var(--r3);
+  box-shadow: var(--e3);
+  z-index: 60;
+}
+.p-menu__i {
+  display: flex; align-items: center; gap: var(--s4);
+  width: 100%; height: 30px; padding-inline: var(--s4);
+  border: none; background: none; border-radius: var(--r2);
+  font: inherit; font-size: var(--t-sm); color: var(--g-ink-2);
+  cursor: pointer; text-align: left;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.p-menu__i:hover { background: var(--g-raised); color: var(--g-ink); }
+.p-menu__i svg { width: 14px; height: 14px; }
+.p-menu__sep { height: 1px; background: var(--g-line); margin: var(--s2) 0; }
+
+.p-scrim {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgb(3 6 9 / 0.68);
+  backdrop-filter: blur(3px);
+  display: grid; place-items: center;
+  padding: var(--s6);
+}
+.p-modal {
+  width: 100%; max-width: 440px;
+  background: var(--g-panel);
+  border: 1px solid var(--g-line-strong);
+  border-radius: var(--r4);
+  box-shadow: var(--e3);
+  overflow: hidden;
+}
+.p-modal__h { padding: var(--s6) var(--s6) var(--s4); }
+.p-modal__t { font-size: var(--t-lg); font-weight: 600; letter-spacing: -0.015em; margin: 0 0 var(--s3); }
+.p-modal__d { font-size: var(--t-sm); color: var(--g-ink-2); margin: 0; }
+.p-modal__f {
+  display: flex; justify-content: flex-end; gap: var(--s3);
+  padding: var(--s5) var(--s6);
+  border-top: 1px solid var(--g-line);
+  background: var(--g-ground);
+}
+
+.p-toasts {
+  position: fixed; right: var(--s6); bottom: var(--s6);
+  display: flex; flex-direction: column; gap: var(--s3);
+  z-index: 90; max-width: 340px;
+}
+.p-toast {
+  display: flex; align-items: flex-start; gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  background: var(--g-high);
+  border: 1px solid var(--g-line-strong);
+  border-left: 2px solid var(--tom, var(--g-brand));
+  border-radius: var(--r2);
+  box-shadow: var(--e3);
+  font-size: var(--t-sm);
+}
+.p-toast[data-tom='ok']   { --tom: var(--g-ok);   }
+.p-toast[data-tom='crit'] { --tom: var(--g-crit); }
+.p-toast svg { width: 15px; height: 15px; color: var(--tom, var(--g-brand)); flex-shrink: 0; margin-top: 1px; }
+.p-toast b { display: block; font-weight: 500; color: var(--g-ink); }
+.p-toast span { color: var(--g-ink-3); font-size: var(--t-xs); }
+
+/* ═══ Estados ════════════════════════════════════════════════════════════ */
+
+/* Esqueleto com brilho que atravessa, não opacidade pulsando: pulsar diz
+   "algo está piscando", atravessar diz "algo está vindo". */
+.p-skel {
+  background: linear-gradient(90deg,
+    var(--g-panel) 0%, var(--g-raised) 50%, var(--g-panel) 100%);
+  background-size: 200% 100%;
+  animation: p-shine 1.4s linear infinite;
+  border-radius: var(--r1);
+}
+@keyframes p-shine { to { background-position: -200% 0; } }
+
+.p-empty {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: var(--s4);
+  padding: var(--s8) var(--s6);
+}
+.p-empty__i {
+  width: 40px; height: 40px; border-radius: var(--r3);
+  display: grid; place-items: center;
+  background: var(--g-raised); border: 1px solid var(--g-line);
+  color: var(--g-ink-3);
+}
+.p-empty__t { font-size: var(--t-md); font-weight: 600; margin: 0; }
+.p-empty__d { font-size: var(--t-sm); color: var(--g-ink-3); margin: 0; max-width: 40ch; }
+
+/* ═══ Gráfico ════════════════════════════════════════════════════════════ */
+
+.p-chart { width: 100%; }
+.p-chart .recharts-cartesian-grid line { stroke: var(--g-line-faint); }
+.p-chart .recharts-text { fill: var(--g-ink-3); font-size: 10px; font-family: var(--f-mono); }
+.p-tip {
+  background: var(--g-high);
+  border: 1px solid var(--g-line-strong);
+  border-radius: var(--r2);
+  box-shadow: var(--e3);
+  padding: var(--s4);
+  font-size: var(--t-xs);
+}
+.p-tip__l {
+  font-family: var(--f-mono); font-size: var(--t-nano);
+  color: var(--g-ink-3); text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: var(--s3);
+}
+.p-tip__r { display: flex; align-items: center; gap: var(--s3); }
+.p-tip__r + .p-tip__r { margin-top: var(--s2); }
+.p-tip__d { width: 6px; height: 6px; border-radius: var(--r9); }
+.p-tip__v { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--g-ink); margin-left: auto; }
+
+.p-grid2 { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: var(--s6); }
+
+/* ═══ Responsividade ═════════════════════════════════════════════════════
+   Seis pontos, e cada um existe porque algo PRECISA mudar de forma ali. Os
+   32 breakpoints do produto atual, de 230px a 2560px, não têm essa regra —
+   cada tela quebra num ponto próprio. */
+
+@media (max-width: 1280px) {
+  .p-grid2 { grid-template-columns: minmax(0, 1fr); }
+}
+/* Só existe onde a sidebar vira gaveta. Escondido por padrão para não
+   depender de JavaScript saber a largura da tela. */
+.p-so-gaveta { display: none; }
+
+@media (max-width: 1024px) {
+  .p-so-gaveta { display: inline-flex; }
+  .p-app, .p-app[data-aberta='true'] { grid-template-columns: minmax(0, 1fr); }
+  .p-side {
+    position: fixed; inset: 0 auto 0 0; width: var(--w-side);
+    transform: translateX(-100%);
+    transition: transform var(--t-slow) var(--ease);
+    box-shadow: var(--e3);
+  }
+  .p-app[data-gaveta='true'] .p-side { transform: translateX(0); }
+  .p-app[data-gaveta='true'] .p-brand__n,
+  .p-app[data-gaveta='true'] .p-nav__i span,
+  .p-app[data-gaveta='true'] .p-nav__g { opacity: 1; }
+  .p-app[data-gaveta='true'] .p-nav__g { height: auto; padding: var(--s5) var(--s4) var(--s2); background: none; margin: 0; }
+  .p-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* A 3ª e 4ª métricas viram a segunda linha: a borda direita da 2ª some. */
+  .p-metric:nth-child(2) { border-right: none; }
+  .p-metric:nth-child(-n+2) { border-bottom: 1px solid var(--g-line); }
+}
+@media (max-width: 768px) {
+  .p-page { padding: var(--s5); gap: var(--s6); }
+  .p-cmd { min-width: 0; }
+  .p-cmd span, .p-kbd { display: none; }
+  .p-crumb .p-crumb__pai { display: none; }
+}
+@media (max-width: 480px) {
+  /* Empilha 2×2 continua, mas o número encolhe para caber com o rótulo. */
+  .p-metric { padding: var(--s4); }
+  .p-metric__v { font-size: var(--t-xl); }
+  .p-metric__spark { display: none; }
+  .p-toasts { left: var(--s5); right: var(--s5); bottom: var(--s5); max-width: none; }
+  .p-top { padding-inline: var(--s5); }
+}
+@media (min-width: 1920px) {
+  /* Ultrawide: largura máxima e respiro, nunca esticado. */
+  .p-page { padding-inline: var(--s8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-mf2] *, [data-mf2] *::before, [data-mf2] *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

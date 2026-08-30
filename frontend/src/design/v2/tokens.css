@@ -1,0 +1,143 @@
+/**
+ * Tokens da direção nova — escuro profundo, ciano + violeta, brilho contido,
+ * densidade compacta.
+ *
+ * ── Por que tudo vive dentro de [data-mf2]
+ *
+ * O protótipo precisa conviver com o produto atual sem tocá-lo. Escopar aqui
+ * significa que estas variáveis só existem dentro da árvore marcada, e que
+ * abrir /design-preview não muda uma linha do que já está no ar.
+ *
+ * ── A decisão que organiza o resto
+ *
+ * O croma sai das superfícies e vai para os acentos. A paleta anterior tinha
+ * croma 0.049–0.064 no CHÃO — quase quatro vezes a média de Linear, Vercel,
+ * Raycast, Supabase e Stripe. Fundo colorido não deixa acento brilhar: o olho
+ * compara, e se o chão já é azul, o azul do acento vira mais do mesmo. Aqui o
+ * chão fica em croma 0.012–0.018 (quase neutro, viés frio) e a cor viva mora
+ * na luz: dado, estado, foco, movimento.
+ *
+ * Todos os pares foram medidos JÁ QUANTIZADOS em 8 bits, que é como o
+ * navegador pinta. Pior caso da paleta inteira: 103% da exigência WCAG AA.
+ */
+
+[data-mf2] {
+  /* ── Superfícies ────────────────────────────────────────────────────────
+     Quatro camadas com passo de ~0.043 em luminosidade. O passo é o que
+     carrega a elevação; menor que isso e painel some no fundo. */
+  --g-ground: #0b1015;   /* L 0.170 — o chão */
+  --g-panel:  #14191f;   /* L 0.212 — painel, linha de tabela ímpar */
+  --g-raised: #1d242b;   /* L 0.256 — hover, campo, chip */
+  --g-high:   #272f37;   /* L 0.300 — menu flutuante, tooltip */
+
+  /* Bordas: branco translúcido. O alfa é maior nas mais altas porque branco
+     rende menos quanto mais claro é o que está atrás. */
+  --g-line:        rgb(255 255 255 / 0.07);
+  --g-line-strong: rgb(255 255 255 / 0.13);
+  --g-line-faint:  rgb(255 255 255 / 0.04);
+
+  /* ── Texto ──────────────────────────────────────────────────────────────
+     Três tons. O terciário está em L 0.675, que é o primeiro valor a passar
+     4.5:1 sobre a superfície MAIS ALTA com margem para a quantização — a
+     conta contínua daria 0.66, e 0.66 reprova no pixel.
+
+     A escada é 1.70x e 1.57x entre os degraus, contra 1.55x e 1.42x da
+     paleta anterior. O ganho vem do chão ter descido: quanto mais escuro o
+     fundo, mais faixa de luminosidade sobra para o texto se separar. */
+  --g-ink:   #f2f5f9;
+  --g-ink-2: #b6bfc8;
+  --g-ink-3: #8f98a2;
+
+  /* ── Marca e módulos ────────────────────────────────────────────────────
+     Ciano é a marca e não muda: é a única cor que já é reconhecível como
+     MouraFlow. Violeta entra como segunda voz para separar módulos sem que
+     a interface vire arco-íris. */
+  --g-brand:   #00d4ff;
+  --g-brand-2: #9b88ff;
+
+  --g-ok:    #31d96d;
+  --g-warn:  #f5af20;
+  --g-crit:  #fd736d;
+  --g-rare:  #ff39b5;   /* eventos raros — nunca decorativo */
+
+  /* Tinta escura para ficar SOBRE cor viva. Um único token: botão primário,
+     crachá cheio e selo usam todos o mesmo, e trocar a marca não deixa
+     nenhum deles para trás. */
+  --g-on-brand: #04141a;
+
+  /* ── Espaço ─────────────────────────────────────────────────────────────
+     Oito degraus, e nada fora deles. A interface anterior tinha 223 valores
+     de padding distintos — `9px 12px`, `10px 12px`, `10px 14px`, `12px 14px`
+     — quase iguais e todos diferentes. É esse ruído que o olho lê como
+     amador, antes de ler qualquer cor. */
+  --s1: 2px;  --s2: 4px;   --s3: 8px;   --s4: 12px;
+  --s5: 16px; --s6: 24px;  --s7: 32px;  --s8: 48px;
+
+  /* ── Densidade compacta ─────────────────────────────────────────────────
+     Alturas fixas para os elementos que se repetem em coluna. Fixas de
+     propósito: linha de tabela com altura variável destrói a leitura em
+     varredura, que é o modo como uma tabela é usada de verdade. */
+  --h-row:     36px;   /* linha de tabela */
+  --h-control: 32px;   /* botão, campo, chip */
+  --h-metric:  48px;   /* bloco de métrica */
+  --h-top:     52px;   /* topbar */
+  --gap-sec:   32px;   /* entre seções */
+
+  --w-rail: 56px;      /* sidebar recolhida */
+  --w-side: 232px;     /* sidebar aberta */
+
+  /* ── Raio ───────────────────────────────────────────────────────────────
+     Menor que o do produto atual. Raio grande em densidade alta come área
+     útil nos cantos e faz tudo parecer mais macio do que um painel de
+     operação deveria parecer. */
+  --r1: 4px; --r2: 6px; --r3: 8px; --r4: 12px; --r9: 999px;
+
+  /* ── Elevação ───────────────────────────────────────────────────────────
+     No escuro, sombra preta quase não aparece. O que faz uma superfície
+     parecer levantada é o FILETE de luz na borda de cima — a mesma coisa que
+     acontece com um objeto real sob luz vinda de cima.
+
+     Esta é a parte "brilho contido" da direção escolhida: profundidade vem
+     de filete e sombra, não de halo colorido. */
+  --e1: 0 1px 2px rgb(0 0 0 / 0.5),
+        inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --e2: 0 4px 16px -4px rgb(0 0 0 / 0.6),
+        inset 0 1px 0 rgb(255 255 255 / 0.07);
+  --e3: 0 16px 40px -12px rgb(0 0 0 / 0.75),
+        inset 0 1px 0 rgb(255 255 255 / 0.09);
+
+  /* Único brilho colorido do sistema: foco e ação primária. */
+  --glow: 0 0 0 1px rgb(0 212 255 / 0.35),
+          0 4px 20px -6px rgb(0 212 255 / 0.35);
+
+  /* ── Movimento ──────────────────────────────────────────────────────────
+     Três durações e nada fora delas. Rápido no começo é o que faz a
+     interface parecer instantânea mesmo quando não é. */
+  --t-fast: 120ms;   /* retorno imediato: hover, press */
+  --t-mid:  200ms;   /* entra e sai: menu, dica */
+  --t-slow: 320ms;   /* muda a superfície: modal, gaveta */
+  --ease:   cubic-bezier(0.2, 0, 0, 1);
+
+  /* ── Tipo ───────────────────────────────────────────────────────────────
+     Geist fica. A decisão é técnica: este produto é feito de números, e o
+     par Geist + Geist Mono foi desenhado junto — o mono alinha em coluna sem
+     ajuste. O que muda é o uso, não a família. */
+  --f-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'GeistMono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --t-nano:  10px;  --t-micro: 11px;  --t-xs: 12px;
+  --t-sm:    13px;  --t-md:    14px;  --t-lg: 16px;
+  --t-xl:    20px;  --t-2xl:   28px;  --t-3xl: 36px;
+
+  color-scheme: dark;
+}
+
+/* Módulo: define --mod, e todo componente dentro herda a cor de contexto.
+   É assim que um painel de campanhas fica violeta sem saber que existe
+   módulo — ele só lê --mod. */
+[data-mf2] [data-mod='contas']    { --mod: var(--g-brand);   }
+[data-mf2] [data-mod='publicar']  { --mod: var(--g-brand-2); }
+[data-mf2] [data-mod='campanhas'] { --mod: var(--g-rare);    }
+[data-mf2] [data-mod='jobs']      { --mod: var(--g-warn);    }
+[data-mf2] [data-mod='metricas']  { --mod: var(--g-ok);      }
+[data-mf2] [data-mod='sistema']   { --mod: var(--g-ink-3);   }
