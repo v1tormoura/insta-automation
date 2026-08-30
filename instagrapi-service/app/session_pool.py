@@ -544,6 +544,11 @@ def apply_app_version(client: Client) -> str:
 # `remove_entry` que despeja o cliente após falha de sessão.
 _proxies: dict[str, str] = {}
 
+# A URL ANTES do molde. Guardada porque, quando o fornecedor recusa a
+# credencial, a primeira pergunta é se ele recusa a credencial ou o sufixo que
+# NÓS acrescentamos — e sem o original não há como responder.
+_proxies_crus: dict[str, str] = {}
+
 
 def sessao_da_conta(account_id: str) -> str:
     """
@@ -635,8 +640,10 @@ def lembrar_proxy(account_id: str, proxy: str | None) -> None:
     anterior = _proxies.get(account_id)
     if proxy:
         _proxies[account_id] = moldar_proxy_por_conta(proxy, account_id)
+        _proxies_crus[account_id] = proxy
     else:
         _proxies.pop(account_id, None)
+        _proxies_crus.pop(account_id, None)
     # Proxy trocado no painel invalida o IP medido: ele descreve um caminho
     # que não é mais usado, e mantê-lo faria o log afirmar algo falso.
     if anterior != proxy:
@@ -645,6 +652,56 @@ def lembrar_proxy(account_id: str, proxy: str | None) -> None:
 
 def proxy_lembrado(account_id: str) -> str | None:
     return _proxies.get(account_id)
+
+
+def explicar_recusa_de_proxy(account_id: str) -> str:
+    """
+    Diz se quem o fornecedor recusou foi a credencial ou o molde de sessão.
+
+    ── Por que isto existe
+
+    Para fixar o IP por conta, o nome de usuário do proxy recebe um sufixo:
+
+        chave__cr.br;state.bahia;session.a1b2c3d4e5f6
+                                 └──── acrescentado aqui ────┘
+
+    Fornecedor que não reconhece esse parâmetro recusa a credencial INTEIRA e
+    responde 407 — o mesmo 407 de senha errada. E aí a investigação vai para o
+    lugar errado com força total: o teste do painel usa a URL crua, sem molde,
+    e PASSA. Quem olha conclui que o proxy está bom e o problema é a conta.
+
+    A resposta sai de uma medição: tenta a URL crua. Se ela funciona, o que
+    sobra é o sufixo.
+    """
+    cru = _proxies_crus.get(account_id)
+    moldado = _proxies.get(account_id)
+    if not cru or not moldado or cru == moldado:
+        return ""
+
+    molde = os.getenv("PROXY_SESSAO_MOLDE") or ";session.{sessao}"
+
+    try:
+        import requests
+        r = requests.get(
+            "https://api.ipify.org",
+            proxies={"http": cru, "https": cru},
+            timeout=15,
+        )
+        cru_funciona = r.status_code == 200
+    except Exception:  # noqa: BLE001
+        cru_funciona = False
+
+    if cru_funciona:
+        return (
+            f" — sem o molde de sessão o proxy FUNCIONA, então o fornecedor "
+            f"recusa o sufixo '{molde}' que acrescentamos ao usuário. Rode "
+            f"scripts/sondar-proxy.sh para descobrir a sintaxe que ele aceita e "
+            f"ponha em PROXY_SESSAO_MOLDE (vazio desliga a fixação de IP)."
+        )
+    return (
+        " — a credencial é recusada mesmo SEM o molde de sessão, então o "
+        "problema é a própria credencial, não a fixação de IP."
+    )
 
 
 # IP de saída já confirmado para cada proxy. A chave é o proxy, não a conta:

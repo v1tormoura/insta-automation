@@ -257,7 +257,14 @@ async function checkViaInstagrapi(account) {
         code === 'INSTAGRAPI_SERVICE_UNAVAILABLE' || code === 'TIMEOUT' ||
         code === 'PROXY_ERROR'                    || code === 'NETWORK_ERROR'
       ) {
-        return { status: null, error: `Erro técnico: ${code}` };
+        /* O detalhe vem junto e precisa passar. `PROXY_ERROR` sozinho não
+           distingue credencial ruim de "o fornecedor não aceita o sufixo de
+           sessão que acrescentamos" — e é o serviço Python que sabe a
+           diferença, porque só ele tem as duas URLs para comparar. Descartar
+           a frase dele foi o que deixou onze contas com um diagnóstico de uma
+           palavra. */
+        const detalhe = String(pingErr?.message || '').replace(/^InstagrapiService [^:]*:\s*/, '');
+        return { status: null, error: detalhe ? `${code}: ${detalhe}`.slice(0, 220) : `Erro técnico: ${code}` };
       }
 
       // Rate-limit — a sessão ESTÁ ativa, só com limitação temporária

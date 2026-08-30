@@ -220,7 +220,7 @@ async def login(body: LoginRequest):
             # Evict the failed client from the pool so ensureSession doesn't treat
             # this entry as a loaded session on subsequent restore attempts.
             await session_pool.remove_entry(body.account_id)
-            _raise_for_code(code, e, (body.password,), extra=meta)
+            _raise_for_code(code, e, (body.password,), extra=meta, account_id=body.account_id)
 
         settings = client.get_settings()
 
@@ -625,7 +625,7 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
                 code, body.account_id, type(e).__name__,
             )
             session_pool.clear_pending_2fa(body.account_id)
-            _raise_for_code(code, e, (body.verification_code,))
+            _raise_for_code(code, e, (body.verification_code,), account_id=body.account_id)
         finally:
             session_pool.clear_pending_2fa(body.account_id)
 
@@ -688,7 +688,7 @@ async def session_ping(account_id: str):
                 "session_ping: %s for account %s (type=%s)",
                 code, account_id, type(e).__name__,
             )
-            _raise_for_code(code, e)
+            _raise_for_code(code, e, account_id=account_id)
 
 
 # ── /session/userinfo ──────────────────────────────────────────────────────────
@@ -727,7 +727,7 @@ async def get_user_info(account_id: str, username: str):
                 "get_user_info: %s for account %s username %s (type=%s)",
                 code, account_id, username, type(e).__name__,
             )
-            _raise_for_code(code, e)
+            _raise_for_code(code, e, account_id=account_id)
 
 
 # ── /session/login-by-sessionid ────────────────────────────────────────────────
@@ -791,7 +791,7 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
                 code, body.account_id, type(e).__name__, duration_ms,
             )
             await session_pool.remove_entry(body.account_id)
-            _raise_for_code(code, e, (body.sessionid,))
+            _raise_for_code(code, e, (body.sessionid,), account_id=body.account_id)
 
         settings = client.get_settings()
 
@@ -1001,6 +1001,7 @@ def _raise_for_code(
     exc: Exception | None = None,
     secrets: tuple = (),
     extra: str = "",
+    account_id: str | None = None,
 ) -> None:
     """Raise the appropriate HTTPException for a given error code."""
     _STATUS = {
@@ -1024,6 +1025,18 @@ def _raise_for_code(
     # padrão suspeito, e "usuário ou senha incorretos" manda depurar a coisa
     # errada. O Node decide como exibir; aqui garantimos que a verdade chegue.
     message = _safe_detail(exc, secrets)
+
+    # PROXY_ERROR sozinho não distingue "credencial ruim" de "o fornecedor não
+    # aceita o sufixo de sessão que nós acrescentamos". A diferença é decisiva:
+    # na segunda, o teste do painel PASSA — ele usa a URL crua — e a
+    # investigação vai inteira para o lado errado.
+    if code == "PROXY_ERROR" and account_id:
+        try:
+            from ..session_pool import explicar_recusa_de_proxy
+            extra = f"{extra}{explicar_recusa_de_proxy(account_id)}"
+        except Exception:  # noqa: BLE001
+            pass
+
     if extra:
         message = f"{message}{extra}" if message else extra.strip()
     raise HTTPException(status_code=http_status, detail={"code": code, "message": message})
