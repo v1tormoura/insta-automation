@@ -66,6 +66,22 @@ const mongoose = require("mongoose");
 
   const temVapid = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
+  /* De onde vem cada métrica. Isto não é detalhe: story e post têm FONTES
+     diferentes, e só uma delas funciona sem token da Meta.
+
+     `storyInsightSync` varre contas instagrapi. `insightSyncService`, que é
+     quem grava métrica de POST, exige `accessToken` e `igUserId` — o caminho
+     Graph API. Numa base só instagrapi ele encontra zero contas e não faz
+     nada, para sempre, mesmo com tudo o mais perfeito.
+
+     Sem dizer isso, o diagnóstico manda conferir sessões quando metade do
+     problema não é sessão nenhuma. */
+  const Account = require("/app/src/models/Account");
+  const [comGraph, comInstagrapi] = await Promise.all([
+    Account.countDocuments({ accessToken: { $nin: [null, ""] }, igUserId: { $nin: [null, ""] } }),
+    Account.countDocuments({ $or: [{ provider: "instagrapi" }, { instagrapiSession: { $nin: [null, ""] } }] }),
+  ]);
+
   console.log("── 1. O módulo está ligado? ──────────────────");
   console.log("  visualizações de story : " + (cfg.ativos.storyViews   ? "SIM" : "não"));
   console.log("  visualizações de post  : " + (cfg.ativos.contentViews ? "SIM" : "não"));
@@ -76,6 +92,19 @@ const mongoose = require("mongoose");
   console.log("  insights no banco      : " + insights);
   console.log("  última atualização     : " +
     (horas === null ? "NUNCA" : horas.toFixed(1) + " h atrás"));
+  console.log("");
+
+  console.log("── 2b. Cada métrica tem fonte? ───────────────");
+  console.log("  contas via instagrapi  : " + comInstagrapi + "   (alimenta STORY)");
+  console.log("  contas com token Meta  : " + comGraph + "   (alimenta POST e ALCANCE)");
+  if (!comGraph && (cfg.ativos.contentViews || cfg.ativos.reach)) {
+    console.log("");
+    console.log("  ATENÇÃO: \"visualizações de post\" e \"alcance\" estão LIGADOS e");
+    console.log("  não têm fonte. Métrica de post vem da Graph API, que precisa de");
+    console.log("  token da Meta — nenhuma conta tem. O serviço instagrapi expõe");
+    console.log("  insight de story e nada além disso.");
+    console.log("  Esses dois nunca vão disparar. Só os marcos de STORY podem.");
+  }
   console.log("");
 
   console.log("── 3. Os tetos foram semeados? ───────────────");
@@ -101,7 +130,7 @@ const mongoose = require("mongoose");
     console.log("  observar — a notificação é consequência de um número subir.");
     console.log("  Conecte as contas e espere um ciclo de sincronização.");
   } else if (horas !== null && horas > 6) {
-    console.log("  As métricas estão paradas há " + horas.toFixed(0) + " horas.");
+    console.log("  As métricas de STORY estão paradas há " + horas.toFixed(0) + " horas.");
     console.log("  A detecção lê o que a sincronização acabou de gravar; se ela");
     console.log("  não roda, nada é detectado. Confira as sessões primeiro:");
     console.log("    ./scripts/conferir-sessoes.sh");
