@@ -258,9 +258,14 @@
   --mf-t-nano:    0.625rem;   /* 10px */
 
   /* ── Layout ────────────────────────────────────────────────────────────*/
-  --mf-sidebar:   264px;
-  --mf-sidebar-c: 68px;
-  --mf-topbar:    56px;
+  /* A sidebar encolheu nos dois estados. Recolhida, 56px é o menor rail que
+     ainda dá área de toque confortável ao ícone; aberta, 232px bastam desde
+     que o subtítulo saiu de cada item. Juntas, as duas mudanças devolvem
+     cerca de 200px ao conteúdo em tela de notebook, que é onde o Dashboard
+     mais sofria. */
+  --mf-sidebar:   232px;
+  --mf-sidebar-c: 56px;
+  --mf-topbar:    52px;
   --mf-container: 1560px;
 }
 

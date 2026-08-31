@@ -738,8 +738,8 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 
 .mf-nav-item {
   display: flex; align-items: center; gap: var(--mf-3);
-  width: 100%; padding: var(--mf-2) var(--mf-3);
-  border-radius: var(--mf-r-md); border: none; background: none;
+  width: 100%; height: 34px; padding: 0 var(--mf-3);
+  border-radius: var(--mf-r-sm); border: none; background: none;
   color: var(--mf-text-2); cursor: pointer; text-align: left;
   position: relative;
   transition: background var(--mf-fast) var(--mf-ease-out),
@@ -766,7 +766,6 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
    terceiro sinal do item ativo (junto do filete e da tinta) ficava sem
    efeito, e nada no navegador avisa. */
 .mf-nav-item[aria-current='page'] .mf-nav-item__t { font-weight: 700; }
-.mf-nav-item[aria-current='page'] .mf-nav-item__s { color: var(--mf-text-2); }
 /* Marcador da página atual na cor do MÓDULO, não na cor da marca: é assim
    que a barra lateral ensina o código de cores sem nenhuma legenda. */
 .mf-nav-item[aria-current='page']::before {
@@ -813,15 +812,9 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
    esta coluna eles saem na mesma linha e grudados ("PostarCriar e agendar").
    `line-height` apertado porque são duas linhas dentro de um item de 34px:
    o padrão de 1.5 empurraria a descrição para fora do item. */
-.mf-nav-item__txt {
-  min-width: 0; display: flex; flex-direction: column; gap: 1px;
-}
+.mf-nav-item__txt { min-width: 0; }
 .mf-nav-item__t {
-  display: block; font-size: var(--mf-t-sm); font-weight: 600; line-height: 1.25;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.mf-nav-item__s {
-  display: block; font-size: var(--mf-t-micro); color: var(--mf-text-3); line-height: 1.25;
+  display: block; font-size: var(--mf-t-sm); font-weight: 500; line-height: 1.25;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -830,15 +823,44 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 .mf-app[data-collapsed='true'] .mf-side__name { display: none; }
 .mf-app[data-collapsed='true'] .mf-nav-item { justify-content: center; padding-inline: 0; }
 
+/* Dica do rail. O `title` nativo do navegador leva quase um segundo para
+   aparecer — tempo suficiente para quem procura um destino desistir e abrir a
+   sidebar. Desenhada, ela responde na hora. Só existe recolhida: aberta, o
+   rótulo já está ali ao lado. */
+.mf-app[data-collapsed='true'] .mf-nav-item[data-dica]::after {
+  content: attr(data-dica);
+  position: absolute; left: calc(100% + 10px); top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--mf-surface-3); color: var(--mf-text);
+  border: 1px solid var(--mf-border-strong);
+  padding: var(--mf-1) var(--mf-3); border-radius: var(--mf-r-sm);
+  font-size: var(--mf-t-xs); font-weight: 500; white-space: nowrap;
+  box-shadow: var(--mf-shadow-2);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--mf-fast) var(--mf-ease-out),
+              transform var(--mf-fast) var(--mf-ease-out);
+  z-index: var(--mf-z-drawer);
+}
+.mf-app[data-collapsed='true'] .mf-nav-item[data-dica]:hover::after {
+  opacity: 1; transform: translateY(-50%) translateX(0);
+}
+
 /* ── Barra superior ──────────────────────────────────────────────────────*/
 .mf-top {
   height: var(--mf-topbar); flex-shrink: 0;
   display: flex; align-items: center; gap: var(--mf-3);
   border-bottom: 1px solid var(--mf-border);
-  /* Era `oklch(0.145 0.018 275 / 0.8)` — matiz 275, da paleta anterior.
-     Cravado, ficava levemente arroxeado sobre um app que virou 265. */
-  background: color-mix(in oklch, var(--mf-surface-1) 82%, transparent);
-  backdrop-filter: blur(16px);
+  /* Rente ao CHÃO, não uma camada acima dele. Com `--mf-surface-1` a topbar
+     lia como faixa levantada — o que fazia sentido quando o fundo era claro e
+     precisava de separação por tom. Agora a separação é a borda, e o desfoque
+     deixa o conteúdo passar por baixo enquanto rola, que é a única função que
+     o vidro tem aqui.
+
+     A saturação no desfoque não é enfeite: sem ela, o `backdrop-filter`
+     acinzenta o que passa por trás, e um acento vivo cruzando a topbar
+     apareceria lavado. */
+  background: color-mix(in oklch, var(--mf-bg) 78%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
   position: sticky; top: 0; z-index: var(--mf-z-sticky);
   padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
 }

@@ -212,7 +212,24 @@ function PaletaComandos({ aberta, aoFechar }) {
 
 export default function MainLayout({ children }) {
   const [gaveta, setGaveta]       = useState(false);
-  const [recolhida, setRecolhida] = useState(false);
+  /* Rail por padrão. A queixa era a sidebar ocupar espaço demais: 264px
+     presos com 28 itens de duas alturas cada. Quem prefere expandida clica
+     uma vez e a escolha fica gravada — o padrão serve a maioria sem tirar a
+     opção de ninguém.
+
+     A leitura tolera localStorage indisponível (janela anônima, storage
+     bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
+     inteiro em vez de só perder uma preferência. */
+  const [recolhida, setRecolhida] = useState(() => {
+    try { return localStorage.getItem('mf-sidebar-aberta') !== '1'; }
+    catch { return true; }
+  });
+
+  const alternarSidebar = () => setRecolhida(r => {
+    const nova = !r;
+    try { localStorage.setItem('mf-sidebar-aberta', nova ? '0' : '1'); } catch { /* sem preferência */ }
+    return nova;
+  });
   const [paleta, setPaleta]       = useState(false);
   const location   = useLocation();
   const navigate   = useNavigate();
@@ -269,12 +286,11 @@ export default function MainLayout({ children }) {
                 {grupo.items.map(item => (
                   <NavLink key={item.to} to={item.to} end={item.to === '/'}
                     className="mf-nav-item"
-                    title={recolhida ? item.label : undefined}
+                    data-dica={item.label}
                     style={{ '--mf-mod': `var(--mf-mod-${item.mod || 'sistema'})`, textDecoration: 'none' }}>
                     <span className="mf-nav-item__ico">{item.icon}</span>
                     <span className="mf-nav-item__txt">
                       <span className="mf-nav-item__t">{item.label}</span>
-                      {item.sub && <span className="mf-nav-item__s">{item.sub}</span>}
                     </span>
                   </NavLink>
                 ))}
@@ -283,7 +299,7 @@ export default function MainLayout({ children }) {
           </nav>
 
           <div style={{ padding: 'var(--mf-3)', borderTop: '1px solid var(--mf-border)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-1)' }}>
-            <button className="mf-nav-item" onClick={() => setRecolhida(r => !r)}>
+            <button className="mf-nav-item" onClick={alternarSidebar}>
               <span className="mf-nav-item__ico">{ICONS.chevron}</span>
               <span className="mf-nav-item__txt"><span className="mf-nav-item__t">Recolher</span></span>
             </button>
