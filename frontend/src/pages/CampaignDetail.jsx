@@ -19,7 +19,7 @@ import NextUp from '../components/campaign/detail/NextUp';
 import DistributionMatrix from '../components/campaign/detail/DistributionMatrix';
 import PublicationDrawer from '../components/campaign/detail/PublicationDrawer';
 import {
-  TimelineView, ByAccountView, ByContentView, PublicationsView,
+  TimelineView, ByAccountView, ByContentView, PublicationsView, EventosView,
   CommentsView, ProblemsView, PlanoCompleto, resumoContas,
 } from '../components/campaign/detail/views';
 
@@ -49,6 +49,11 @@ const ABAS = [
   ['publicacoes', 'Publicações'],
   ['comentarios', 'Comentários'],
   ['problemas',   'Problemas'],
+  /* "Problemas" mostra o ESTADO de cada publicação; esta mostra o CAMINHO.
+     São perguntas diferentes: uma responde "o que está errado agora", a outra
+     "o que aconteceu para chegar aqui" — e a segunda é a que faltava quando
+     uma campanha inteira falhava sem explicação. */
+  ['eventos',     'Eventos'],
 ];
 
 export default function CampaignDetail() {
@@ -138,9 +143,17 @@ export default function CampaignDetail() {
 
     setAgindo(true);
     try {
-      await api.post(`/campaigns/${id}${cfg.caminho}`);
+      const { data } = await api.post(`/campaigns/${id}${cfg.caminho}`);
       await carregar();
-      aviso('success', cfg.rotulo, 'Feito.');
+
+      /* O agendamento deu certo — mas o ambiente pode não estar pronto, e aí
+         as publicações vão falhar uma a uma. Dizer isso AGORA evita a espera
+         que termina em dezesseis erros sem explicação. */
+      if (data?.ambiente && !data.ambiente.pronto) {
+        aviso('warning', 'Agendada, mas atenção', data.ambiente.veredito);
+      } else {
+        aviso('success', cfg.rotulo, 'Feito.');
+      }
     } catch (err) {
       aviso('error', cfg.rotulo, err?.response?.data?.message || 'Não foi possível concluir.');
     } finally {
@@ -191,6 +204,19 @@ export default function CampaignDetail() {
     [pubs],
   );
 
+  /* Linha do tempo persistida. Antes os eventos iam só para o `console.log`
+     do servidor: serviam a quem estivesse no terminal no instante exato, e a
+     mais ninguém — nem ao mesmo alguém no dia seguinte. */
+  const [eventos, setEventos] = useState(null);
+  useEffect(() => {
+    if (aba !== 'eventos' || !id) return undefined;
+    let vivo = true;
+    api.get(`/campaigns/${id}/eventos`, { params: { limit: 150 } })
+      .then(({ data }) => { if (vivo) setEventos(data); })
+      .catch(() => { if (vivo) setEventos({ itens: [], erros: [], total: 0 }); });
+    return () => { vivo = false; };
+  }, [aba, id]);
+
   const contagemAba = {
     timeline:    pubs.length,
     contas:      contas.total,
@@ -198,6 +224,7 @@ export default function CampaignDetail() {
     publicacoes: pubs.length,
     comentarios: contagemComentarios,
     problemas:   contagemProblemas,
+    eventos:     eventos?.total ?? 0,
   };
 
   /* ── Estados de carga ──────────────────────────────────────────────────── */
@@ -305,6 +332,9 @@ export default function CampaignDetail() {
           </TabsContent>
           <TabsContent value="publicacoes">
             <PublicationsView publicacoes={pubs} onAbrir={setSelecionada} contagem={estatisticas} />
+          </TabsContent>
+          <TabsContent value="eventos">
+            <EventosView dados={eventos} />
           </TabsContent>
           <TabsContent value="comentarios">
             <CommentsView

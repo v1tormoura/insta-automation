@@ -713,3 +713,134 @@ export function PlanoCompleto({ publicacoes, onAbrir }) {
     </div>
   );
 }
+
+/* ── Eventos ────────────────────────────────────────────────────────────────
+   A aba "Problemas" mostra o ESTADO de cada publicação; esta mostra o CAMINHO.
+   São perguntas diferentes: uma responde "o que está errado agora", a outra
+   "o que aconteceu para chegar aqui".
+
+   A segunda é a que faltava. Quando uma campanha inteira falhava, o estado
+   final dizia "falhou" — o resultado, escondendo se nenhuma chegou a tentar ou
+   se três publicaram e a quarta pegou 407. */
+
+const TOM_DO_EVENTO = (evento) => {
+  if (/FAILED|ERROR|CANCEL/i.test(evento)) return 'var(--mf-danger-500)';
+  if (/OK|PUBLISHED|COMPLETED/i.test(evento)) return 'var(--mf-success-500)';
+  if (/SCHEDULED|STARTED|RETRY/i.test(evento)) return 'var(--mf-mod-jobs)';
+  return 'var(--mf-text-3)';
+};
+
+const hora = (iso) => {
+  try {
+    return new Date(iso).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  } catch { return ''; }
+};
+
+export function EventosView({ dados }) {
+  if (!dados) {
+    return <div className="mf-skel" style={{ height: 180, borderRadius: 'var(--mf-r-md)' }} />;
+  }
+
+  if (!dados.itens?.length) {
+    return (
+      <div className="mf-empty">
+        <div className="mf-empty__t">Nenhum evento registrado</div>
+        <div className="mf-empty__d">
+          Os eventos aparecem conforme a campanha executa. Campanhas que rodaram
+          antes desta versão não têm histórico — ele começa a partir de agora.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)' }}>
+
+      {/* O resumo por código vem primeiro porque é ele que aponta a causa:
+          quinze eventos com PROXY_ERROR são UMA frase; quinze linhas para ler
+          uma a uma, não. */}
+      {dados.erros?.length > 0 && (
+        <div style={{
+          border: '1px solid color-mix(in oklch, var(--mf-danger-500) 26%, transparent)',
+          background: 'var(--mf-danger-bg)', borderRadius: 'var(--mf-r-md)',
+          padding: 'var(--mf-4) var(--mf-5)',
+        }}>
+          <div className="mf-mono" style={{
+            fontSize: 'var(--mf-t-nano)', letterSpacing: '.1em', textTransform: 'uppercase',
+            color: 'var(--mf-danger-500)', marginBottom: 'var(--mf-3)',
+          }}>
+            Erros por causa
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-2)' }}>
+            {dados.erros.map(e => (
+              <div key={e.codigo} style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--mf-3)' }}>
+                <span className="mf-mono" style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>
+                  {e.codigo}
+                </span>
+                <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)' }}>
+                  {e.ocorrencias}× · último {hora(e.ultimo)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {dados.itens.map(ev => (
+          <div key={ev._id} style={{
+            display: 'grid', gridTemplateColumns: '8px minmax(0,1fr) auto',
+            gap: 'var(--mf-4)', alignItems: 'start',
+            padding: 'var(--mf-3) 0',
+            borderBottom: '1px solid var(--mf-border-subtle)',
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: 'var(--mf-r-full)', marginTop: 7,
+              background: TOM_DO_EVENTO(ev.evento),
+            }} />
+            <div style={{ minWidth: 0 }}>
+              <span className="mf-mono" style={{
+                fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)', fontWeight: 500,
+              }}>
+                {ev.evento}
+              </span>
+              {ev.errorCode && (
+                <span className="mf-mono" style={{
+                  marginLeft: 'var(--mf-3)', fontSize: 'var(--mf-t-nano)',
+                  color: 'var(--mf-danger-500)',
+                }}>
+                  {ev.errorCode}
+                </span>
+              )}
+              {ev.error && (
+                <div style={{
+                  fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)',
+                  marginTop: 3, lineHeight: 1.5, overflowWrap: 'anywhere',
+                }}>
+                  {ev.error}
+                </div>
+              )}
+              {(ev.attempt > 1 || ev.durationMs > 0) && (
+                <div className="mf-mono" style={{
+                  fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 3,
+                }}>
+                  {ev.attempt > 1 ? `tentativa ${ev.attempt}` : ''}
+                  {ev.attempt > 1 && ev.durationMs > 0 ? ' · ' : ''}
+                  {ev.durationMs > 0 ? `${ev.durationMs} ms` : ''}
+                </div>
+              )}
+            </div>
+            <span className="mf-mono" style={{
+              fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
+              whiteSpace: 'nowrap', paddingTop: 2,
+            }}>
+              {hora(ev.criadoEm)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

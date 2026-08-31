@@ -37,6 +37,9 @@ router.post('/:id/cancel', ctrl.cancel);
 router.post('/:id/retry-failed', ctrl.retryFailed);
 
 /* ── Publicações ───────────────────────────────────────────────────────────── */
+/* A linha do tempo da campanha. Fica antes das publicações porque a pergunta
+   "o que aconteceu?" vem antes de "qual publicação". */
+router.get ('/:id/eventos',                            ctrl.eventos);
 router.get ('/:id/publications',                       ctrl.listPublications);
 router.get ('/:id/publications/:publicationId',        ctrl.getPublication);
 router.post('/:id/publications/:publicationId/retry',  ctrl.retryPublication);

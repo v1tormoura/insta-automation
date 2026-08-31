@@ -282,6 +282,46 @@ exports.remove = async (req, res) => {
  * Nesta fase apenas prepara o estado — nada é enviado ao Instagram. A execução
  * é da fase 8.
  */
+/**
+ * GET /campaigns/:id/eventos
+ *
+ * A linha do tempo. Existe porque o estado final de uma campanha —
+ * "falhou" — diz o resultado e esconde o caminho: não distingue "nenhuma
+ * tentou" de "três publicaram e a quarta pegou 407".
+ *
+ * O resumo por código vem junto porque é ele que aponta a causa: quinze
+ * eventos com `PROXY_ERROR` são uma frase; quinze linhas para ler, não.
+ */
+exports.eventos = async (req, res) => {
+  try {
+    const campanha = await _buscarCampanha(req.params.id);
+    const CampaignEvent = require('../models/CampaignEvent');
+
+    const limite = Math.min(300, Math.max(1, Number(req.query.limit) || 100));
+    const filtro = { campaignId: campanha._id };
+    if (req.query.publicationId) filtro.publicationId = String(req.query.publicationId);
+
+    const [itens, porCodigo] = await Promise.all([
+      CampaignEvent.find(filtro).sort({ criadoEm: -1 }).limit(limite).lean(),
+      CampaignEvent.aggregate([
+        { $match: { campaignId: campanha._id, errorCode: { $ne: '' } } },
+        { $group: { _id: '$errorCode', n: { $sum: 1 }, ultimo: { $max: '$criadoEm' } } },
+        { $sort: { n: -1 } },
+        { $limit: 8 },
+      ]),
+    ]);
+
+    res.json({
+      itens,
+      erros: porCodigo.map(e => ({ codigo: e._id, ocorrencias: e.n, ultimo: e.ultimo })),
+      total: itens.length,
+    });
+  } catch (err) {
+    const status = err.code === 'CAMPAIGN_NOT_FOUND' ? 404 : 500;
+    res.status(status).json({ error: err.message, code: err.code || 'EVENTOS_ERRO' });
+  }
+};
+
 exports.start = async (req, res) => {
   try {
     const campanha = await _buscarCampanha(req.params.id);
@@ -306,11 +346,26 @@ exports.start = async (req, res) => {
     // "Publicar campanha" produzem 16 jobs para 16 publicações, não 32.
     const r = await executor.agendarCampanha(campanha._id);
 
+    /* Confere o ambiente e devolve junto — sem bloquear.
+    
+       Subir uma campanha com o proxy fora do ar produzia dezesseis publicações
+       falhando uma a uma, e só ao fim dava para entender por quê. A conferência
+       custa segundos e diz de saída que nada vai passar.
+       
+       Não bloqueia porque agendar é reversível e a conferência pode errar: uma
+       instabilidade de dez segundos não deveria impedir quem quer agendar
+       mesmo assim. */
+    let ambiente = null;
+    try {
+      ambiente = await require('../services/preflightConexao').conferir();
+    } catch { /* diagnóstico não derruba o agendamento */ }
+
     return res.json({
       campaign:   campanhaSegura(campanha),
       scheduled:  r.agendadas,
       alreadyQueued: r.jaExistiam,
       total:      executaveis,
+      ambiente,
     });
   } catch (err) {
     return _responderErro(res, err);

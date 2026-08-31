@@ -417,14 +417,14 @@
 .toast-error {
   border-color: color-mix(in oklch, var(--mf-danger-500) 40%, transparent);
   box-shadow: 0 12px 36px rgba(0,0,0,.4), 0 0 20px color-mix(in oklch, var(--mf-danger-500) 12%, transparent);
-  color: #ffe4e9;
+  color: var(--mf-text);
 }
 .toast-error svg { color: var(--mf-danger-500); }
 
 .toast-warning {
   border-color: color-mix(in oklch, var(--mf-warning-500) 42%, transparent);
   box-shadow: 0 12px 36px rgba(0,0,0,.4), 0 0 20px color-mix(in oklch, var(--mf-warning-500) 12%, transparent);
-  color: #fff4e0;
+  color: var(--mf-text);
 }
 .toast-warning svg { color: var(--mf-warning-500); }
 

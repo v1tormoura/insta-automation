@@ -1568,7 +1568,21 @@ describe('FASE 11 — campanha controlada 2×2', () => {
     await chamar(ctrl.start, { params: { id } });
 
     expect(db.posts).toHaveLength(0);
-    expect(mockHttp).toHaveLength(0);
+
+    /* O invariante é "iniciar NÃO publica", e ele continua inteiro: nenhuma
+       chamada pode ir ao Instagram.
+
+       A asserção era `mockHttp` vazio, o que é mais largo que a intenção — e
+       passou a reprovar quando `start` ganhou a conferência de ambiente, que
+       consulta o `/healthz` do NOSSO contêiner. Essa chamada não publica nada;
+       ela existe para dizer, antes de dezesseis publicações falharem uma a uma,
+       que o proxy está fora do ar.
+
+       Estreitar aqui é o oposto de afrouxar: a asserção passa a nomear o que
+       protege em vez de proibir qualquer tráfego. */
+    const paraInstagram = mockHttp.filter(c => !String(c.url).includes('/healthz'));
+    expect(paraInstagram).toHaveLength(0);
+
     expect(db.publications.every(p => !p.publishedAt)).toBe(true);
     expect(db.publications.every(p => !p.instagramMediaId)).toBe(true);
   });

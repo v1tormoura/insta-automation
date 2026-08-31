@@ -154,6 +154,32 @@ function registrarEvento(evento, dados = {}) {
   };
   for (const k of Object.keys(linha)) if (linha[k] === undefined) delete linha[k];
   console.log(`[Campaign] ${evento}`, JSON.stringify(linha));
+
+  /* E grava. O `console.log` serve a quem está no terminal no instante em que
+     a coisa acontece — e a mais ninguém, nem ao mesmo alguém no dia seguinte.
+     A pergunta de uma campanha que não publicou é sempre "o que aconteceu?", e
+     sem histórico a única resposta é o estado final: "falhou", que diz o
+     resultado e esconde o caminho.
+
+     Sem `await` e engolindo o próprio erro: registrar não pode atrasar nem
+     derrubar uma publicação. Um evento perdido é ruim; uma publicação perdida
+     por causa do registro dela seria pior. */
+  if (dados.campaignId) {
+    try {
+      require('../models/CampaignEvent').create({
+        campaignId:    dados.campaignId,
+        publicationId: dados.publicationId || null,
+        accountId:     dados.accountId || null,
+        evento,
+        errorCode:     linha.errorCode  || '',
+        error:         linha.error      || '',
+        mediaId:       linha.mediaId    || '',
+        attempt:       linha.attempt    || 0,
+        durationMs:    linha.durationMs || 0,
+      }).catch(() => {});
+    } catch { /* modelo indisponível não derruba a execução */ }
+  }
+
   return linha;
 }
 
