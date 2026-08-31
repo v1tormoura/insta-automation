@@ -32,7 +32,7 @@ export default function CommentEditor({
       {/* Liga/desliga */}
       <div style={{
         display:'flex', alignItems:'center', gap:12, flexWrap:'wrap',
-        background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
+        background:'color-mix(in oklch, var(--mf-surface-1) 55%, transparent)', border:'1px solid var(--mf-border)',
         borderRadius: 'var(--mf-r-lg)', padding:'13px 16px', marginBottom: ativo ? 14 : 0,
       }}>
         <button onClick={alternar} role="switch" aria-checked={ativo} style={{
@@ -73,7 +73,7 @@ export default function CommentEditor({
 
           {/* Atraso */}
           <div style={{
-            background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
+            background:'color-mix(in oklch, var(--mf-surface-1) 55%, transparent)', border:'1px solid var(--mf-border)',
             borderRadius: 'var(--mf-r-lg)', padding:16,
           }}>
             <label style={{ display:'block', fontSize: 'var(--mf-t-xs)', fontWeight:700, marginBottom:6 }}>

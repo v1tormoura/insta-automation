@@ -134,7 +134,7 @@ export default function Scheduler() {
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)' }}
           >
             <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 12 }}>Filtro por data</h3>
             <input
@@ -160,11 +160,11 @@ export default function Scheduler() {
             initial={{ opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow: 'hidden', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow: 'hidden', backdropFilter: 'blur(12px)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--mf-border)' }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
-              <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>{filteredPosts.length} itens</span>
+              <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>{filteredPosts.length} itens</span>
             </div>
 
             <div style={{ padding: 12 }}>
@@ -182,7 +182,7 @@ export default function Scheduler() {
                       transition={{ delay: i * 0.03 }}
                       style={{
                         display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
-                        background: 'oklch(0.12 0.04 235 / 0.6)', borderRadius: 'var(--mf-r-md)',
+                        background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)',
                         border: '1px solid var(--mf-border)',
                         borderLeft: `3px solid ${post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)'}`,
                       }}

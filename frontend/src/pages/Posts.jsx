@@ -32,7 +32,7 @@ function LegendDropdown({ legends, value, onChange }) {
         onClick={() => setOpen(v => !v)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'oklch(0.10 0.03 235 / 0.8)',
+          background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)',
           border: `1px solid ${open ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
           borderRadius: open ? '9px 9px 0 0' : 9,
           padding: '9px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer', textAlign: 'left',
@@ -52,7 +52,7 @@ function LegendDropdown({ legends, value, onChange }) {
       {open && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-          background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid var(--mf-border)',
+          background: 'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)', border: '1px solid var(--mf-border)',
           borderTop: 'none', borderRadius: '0 0 10px 10px',
           boxShadow: '0 16px 40px oklch(0 0 0 / 0.55)', maxHeight: 220, overflowY: 'auto',
           backdropFilter: 'blur(16px)',
@@ -128,7 +128,7 @@ function MediaCard({ file, index, onRemove }) {
   return (
     <div style={{
       position: 'relative', borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
-      background: 'oklch(0.12 0.04 235)', border: '1px solid var(--mf-border)',
+      background: 'var(--mf-bg)', border: '1px solid var(--mf-border)',
       aspectRatio: '9/16',
     }}>
       <button
@@ -509,7 +509,7 @@ export default function Posts() {
                     style={{
                       padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       border: `1.5px solid ${mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
-                      background: mediaSource === 'upload' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'oklch(0.12 0.04 235)',
+                      background: mediaSource === 'upload' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-bg)',
                       color: mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
                       fontWeight: mediaSource === 'upload' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                     }}
@@ -523,7 +523,7 @@ export default function Posts() {
                     style={{
                       padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       border: `1.5px solid ${mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
-                      background: mediaSource === 'library' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'oklch(0.12 0.04 235)',
+                      background: mediaSource === 'library' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-bg)',
                       color: mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
                       fontWeight: mediaSource === 'library' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                     }}
@@ -589,7 +589,7 @@ export default function Posts() {
                             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
                             const src = isVideo ? `${API_URL}/uploads/${(m.filename||'').replace(/\.[^.]+$/,'')}.thumb.jpg` : `${API_URL}${m.url || `/uploads/${m.filename}`}`;
                             return (
-                              <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'oklch(0.12 0.04 235)' }}>
+                              <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'var(--mf-bg)' }}>
                                 <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
                                 <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
                                    style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)', cursor: 'pointer', fontSize: 'var(--mf-t-nano)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -844,7 +844,7 @@ export default function Posts() {
                     <div key={m.id} onClick={() => setProcessMode(m.id)}
                       style={{
                         padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
-                        background: processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
+                        background: processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                         borderColor: processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
                         transition: 'all var(--mf-fast) var(--mf-ease-out)',
                       }}>

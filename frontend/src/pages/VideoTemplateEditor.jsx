@@ -44,7 +44,7 @@ const DEFAULT_TEMPLATE = {
 };
 
 const CARD = {
-  background: 'oklch(0.16 0.05 235 / 0.85)',
+  background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
   border: '1px solid var(--mf-border)',
   borderRadius: 'var(--mf-r-lg)',
   backdropFilter: 'blur(12px)',
@@ -88,7 +88,7 @@ function Field({ label, children }) {
 function ImageElementRow({ el, onChange, onRemove }) {
   const upd = (k, v) => onChange({ ...el, [k]: v });
   return (
-    <div style={{ background: 'oklch(0.12 0.04 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding: 12 }}>
+    <div style={{ background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: 'var(--mf-info-500)' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginRight: 5, verticalAlign: 'middle' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -131,7 +131,7 @@ function ImageElementRow({ el, onChange, onRemove }) {
 function TextElementRow({ el, onChange, onRemove }) {
   const upd = (k, v) => onChange({ ...el, [k]: v });
   return (
-    <div style={{ background: 'oklch(0.12 0.04 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding: 12 }}>
+    <div style={{ background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: 'var(--mf-success-500)' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginRight: 5, verticalAlign: 'middle' }}><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>

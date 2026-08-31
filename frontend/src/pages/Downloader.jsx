@@ -32,8 +32,8 @@ async function dlFile(url, filename) {
   setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
 }
 
-const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-const inputStyle = { flex:1, minWidth:200, padding:'9px 14px', background:'oklch(0.10 0.03 235 / 0.8)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
+const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+const inputStyle = { flex:1, minWidth:200, padding:'9px 14px', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
 
 const IC_DL = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -151,7 +151,7 @@ export default function Downloader() {
           </button>
         </div>
         {error && (
-          <div style={{ marginTop:10, padding:'9px 12px', background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-xs)' }}>
+          <div style={{ marginTop:10, padding:'9px 12px', background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-xs)' }}>
             {error}
           </div>
         )}
@@ -161,7 +161,7 @@ export default function Downloader() {
       {profile && (
         <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }}
           style={{ ...cardStyle, padding:'18px 20px', marginBottom:14, display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
-          <div style={{ width:64, height:64, borderRadius: 'var(--mf-r-full)', overflow:'hidden', border:'2px solid var(--mf-mod, var(--mf-accent-500))', flexShrink:0, background:'oklch(0.12 0.04 235)' }}>
+          <div style={{ width:64, height:64, borderRadius: 'var(--mf-r-full)', overflow:'hidden', border:'2px solid var(--mf-mod, var(--mf-accent-500))', flexShrink:0, background:'var(--mf-bg)' }}>
             <img
               src={proxyImg(profile.profile_pic_url)}
               alt={profile.username}
@@ -214,7 +214,7 @@ export default function Downloader() {
       )}
 
       {!loading && profile && media.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>📭</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Nenhuma mídia encontrada</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Este perfil não tem mídias públicas disponíveis.</div>
@@ -222,7 +222,7 @@ export default function Downloader() {
       )}
 
       {!profile && !loading && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.4)', border:'1px dashed var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 40%, transparent)', border:'1px dashed var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>⬇️</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Baixe mídias de qualquer perfil</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Digite um username acima e clique em Buscar.</div>
@@ -237,7 +237,7 @@ function MediaTile({ item, sel, onToggle, onDownload }) {
   const [hover, setHover] = useState(false);
   return (
     <div onClick={onToggle} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ position:'relative', aspectRatio:'1', borderRadius: 'var(--mf-r-md)', overflow:'hidden', cursor:'pointer', border:`2px solid ${sel ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent'}`, transition:'border-color .12s', background:'oklch(0.12 0.04 235)' }}>
+      style={{ position:'relative', aspectRatio:'1', borderRadius: 'var(--mf-r-md)', overflow:'hidden', cursor:'pointer', border:`2px solid ${sel ? 'var(--mf-mod, var(--mf-accent-500))' : 'transparent'}`, transition:'border-color .12s', background:'var(--mf-bg)' }}>
       {item.thumb && (
         <img src={`${API}/image-proxy?url=${encodeURIComponent(item.thumb)}`} alt="" loading="lazy"
           style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}

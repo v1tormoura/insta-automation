@@ -410,7 +410,7 @@ function LoginModal({ loginModal, loginPwd, setLoginPwd, loginBusy, onSubmit, on
       <motion.div
         initial={{scale:.93,y:20,opacity:0}} animate={{scale:1,y:0,opacity:1}} exit={{scale:.93,y:20,opacity:0}}
         transition={{type:'spring',damping:22,stiffness:280}}
-        style={{background:'oklch(0.15 0.05 235/0.98)',border:'1px solid oklch(0.65 0.18 280/0.3)',borderRadius: 'var(--mf-r-xl)',width:'100%',maxWidth:400,
+        style={{background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)',border:'1px solid oklch(0.65 0.18 280/0.3)',borderRadius: 'var(--mf-r-xl)',width:'100%',maxWidth:400,
           /* A largura já cedia. Sem teto de altura, um modal mais alto que
              a tela leva o botão de confirmar para fora do alcance. */
           maxHeight:'calc(100vh - 40px)',overflowY:'auto',boxShadow:'0 32px 80px rgba(0,0,0,.5)'}}
@@ -429,7 +429,7 @@ function LoginModal({ loginModal, loginPwd, setLoginPwd, loginBusy, onSubmit, on
           </div>
           <label style={{display:'block',fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Senha do Instagram</label>
           <input type="password" value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onSubmit()} placeholder="Digite a senha..." autoFocus
-            style={{width:'100%',boxSizing:'border-box',padding:'11px 14px',borderRadius: 'var(--mf-r-md)',border:'1px solid oklch(0.65 0.18 280/0.3)',background:'oklch(0.11 0.04 235)',color:'var(--mf-text)',fontSize: 'var(--mf-t-sm)',outline:'none'}}/>
+            style={{width:'100%',boxSizing:'border-box',padding:'11px 14px',borderRadius: 'var(--mf-r-md)',border:'1px solid oklch(0.65 0.18 280/0.3)',background:'var(--mf-bg)',color:'var(--mf-text)',fontSize: 'var(--mf-t-sm)',outline:'none'}}/>
           <div style={{display:'flex',gap:8,marginTop:14}}>
             <button onClick={onClose} style={{flex:1,padding:'10px 0',borderRadius: 'var(--mf-r-md)',border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--mf-text-3)',cursor:'pointer',fontWeight:600,fontSize: 'var(--mf-t-sm)'}}>Cancelar</button>
             <motion.button whileHover={{scale:1.02}} whileTap={{scale:.98}} onClick={onSubmit} disabled={loginBusy||!loginPwd.trim()} style={{
@@ -560,7 +560,7 @@ export default function Warmup() {
   if(loading) return (
     <PageShell icon={pageIcon} title="Aquecimento de Contas" subtitle="Centro de controle de aquecimento orgânico" accent="green">
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        {[1,2,3].map(i=><div key={i} style={{height:140,borderRadius: 'var(--mf-r-xl)',background:'oklch(0.14 0.04 235/0.5)',animation:'wm-pulse-bg 1.6s ease-in-out infinite'}}/>)}
+        {[1,2,3].map(i=><div key={i} style={{height:140,borderRadius: 'var(--mf-r-xl)',background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)',animation:'wm-pulse-bg 1.6s ease-in-out infinite'}}/>)}
       </div>
     </PageShell>
   );
@@ -576,9 +576,9 @@ export default function Warmup() {
 
       {/* ── KPI row ── */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10,marginBottom:20}}>
-        <KpiTile label="Total contas"    value={n0} color="var(--mf-text)"  bg="oklch(0.14 0.04 235/0.5)" border="oklch(1 0 0/0.08)" delay={0}    icon="📱"/>
+        <KpiTile label="Total contas"    value={n0} color="var(--mf-text)"  bg="color-mix(in oklch, var(--mf-surface-1) 50%, transparent)" border="oklch(1 0 0/0.08)" delay={0}    icon="📱"/>
         <KpiTile label="Aquecendo"       value={n1} color="var(--mf-success-500)"      bg="color-mix(in oklch, var(--mf-success-500) 6%, transparent)"       border="color-mix(in oklch, var(--mf-success-500) 20%, transparent)" delay={.05}  icon="🔥" sub={activeCount>0?accounts.filter(a=>a.warmupActive).map(a=>`@${a.username}`).join(', '):undefined}/>
-        <KpiTile label="Contas saudáveis"value={n2} color="var(--mf-mod, var(--mf-accent-500))"  bg="oklch(0.14 0.04 235/0.5)" border="color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)" delay={.1}  icon="✅"/>
+        <KpiTile label="Contas saudáveis"value={n2} color="var(--mf-mod, var(--mf-accent-500))"  bg="color-mix(in oklch, var(--mf-surface-1) 50%, transparent)" border="color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)" delay={.1}  icon="✅"/>
         <KpiTile label="Ações no log"    value={n3} color="var(--mf-mod-publicar)"      bg="color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)"     border="color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)" delay={.15} icon="📋"/>
       </div>
 
@@ -587,7 +587,7 @@ export default function Warmup() {
         <motion.div initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{delay:.2,duration:.3}}
           style={{
             marginBottom:20,padding:'14px 20px',borderRadius: 'var(--mf-r-lg)',
-            background:activeCount>0?'color-mix(in oklch, var(--mf-success-500) 6%, transparent)':'oklch(0.15 0.05 235/0.6)',
+            background:activeCount>0?'color-mix(in oklch, var(--mf-success-500) 6%, transparent)':'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)',
             border:`1px solid ${activeCount>0?'color-mix(in oklch, var(--mf-success-500) 25%, transparent)':'oklch(1 0 0/0.07)'}`,
             display:'flex',alignItems:'center',gap:14,backdropFilter:'blur(12px)',
           }}
@@ -635,7 +635,7 @@ export default function Warmup() {
       {/* ── Tips ── */}
       {accounts.length>0&&(
         <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.4}}
-          style={{marginTop:16,padding:'14px 20px',borderRadius: 'var(--mf-r-lg)',background:'oklch(0.15 0.05 235/0.6)',border:'1px solid oklch(1 0 0/0.07)',display:'flex',gap:12,backdropFilter:'blur(12px)'}}>
+          style={{marginTop:16,padding:'14px 20px',borderRadius: 'var(--mf-r-lg)',background:'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)',border:'1px solid oklch(1 0 0/0.07)',display:'flex',gap:12,backdropFilter:'blur(12px)'}}>
           <span style={{fontSize: 'var(--mf-t-h1)',flexShrink:0}}>💡</span>
           <div style={{fontSize: 'var(--mf-t-xs)',color:'var(--mf-text-2)',lineHeight:1.7}}>
             <strong>Leve</strong> para contas novas · <strong>Médio</strong> para contas estabelecidas · <strong>Agressivo</strong> apenas para contas experientes.
@@ -645,11 +645,11 @@ export default function Warmup() {
       )}
 
       {/* ── Activity log ── */}
-      <div style={{marginTop:20,background:'oklch(0.15 0.05 235/0.9)',border:'1px solid oklch(1 0 0/0.08)',borderRadius: 'var(--mf-r-xl)',overflow:'hidden',backdropFilter:'blur(20px)'}}>
+      <div style={{marginTop:20,background:'color-mix(in oklch, var(--mf-surface-1) 90%, transparent)',border:'1px solid oklch(1 0 0/0.08)',borderRadius: 'var(--mf-r-xl)',overflow:'hidden',backdropFilter:'blur(20px)'}}>
         <div style={{padding:'14px 20px',borderBottom:'1px solid oklch(1 0 0/0.07)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:9}}>
             <span style={{fontWeight:700,fontSize: 'var(--mf-t-body)',color:'var(--mf-text)'}}>Log de Atividade</span>
-            {logs.length>0&&<span style={{fontSize: 'var(--mf-t-micro)',fontWeight:700,padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',background:'oklch(0.10 0.03 235/0.6)',color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{logs.length}</span>}
+            {logs.length>0&&<span style={{fontSize: 'var(--mf-t-micro)',fontWeight:700,padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)',color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{logs.length}</span>}
             {activeCount>0&&(
               <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize: 'var(--mf-t-nano)',color:'var(--mf-success-500)',fontWeight:700}}>
                 <span style={{width:5,height:5,borderRadius: 'var(--mf-r-full)',background:'var(--mf-success-500)',display:'inline-block',animation:'wm-pulse 1.5s infinite'}}/>
@@ -678,7 +678,7 @@ export default function Warmup() {
                   background:entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 3%, transparent)':'transparent',
                   transition:'background .15s',
                 }}
-                onMouseEnter={e=>e.currentTarget.style.background=entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 6%, transparent)':'oklch(0.12 0.04 235/0.3)'}
+                onMouseEnter={e=>e.currentTarget.style.background=entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 6%, transparent)':'color-mix(in oklch, var(--mf-bg) 30%, transparent)'}
                 onMouseLeave={e=>e.currentTarget.style.background=entry.status==='error'?'color-mix(in oklch, var(--mf-danger-500) 3%, transparent)':'transparent'}
               >
                 {/* Icon */}

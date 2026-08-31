@@ -79,7 +79,7 @@ export default function Ranking() {
   const pageActions = (
     <div style={{ display:'flex', gap:8, alignItems:'center' }}>
       {/* Period pills */}
-      <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
+      <div style={{ display:'flex', gap:3, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
         {PERIODS.map(p => (
           <button key={p.key} onClick={() => setPeriod(p.key)} style={{
             height:26, padding:'0 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
@@ -92,7 +92,7 @@ export default function Ranking() {
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <>
@@ -124,7 +124,7 @@ export default function Ranking() {
         <div style={cardStyle}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Posts — {metricLabel}</h3>
-            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{posts.length} posts</span>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{posts.length} posts</span>
           </div>
 
           {loading ? (
@@ -163,7 +163,7 @@ export default function Ranking() {
                 </div>
 
                 {/* Thumbnail */}
-                <div style={{ width:52, height:52, borderRadius: 'var(--mf-r-sm)', overflow:'hidden', background:'oklch(0.10 0.03 235 / 0.5)', flexShrink:0 }}>
+                <div style={{ width:52, height:52, borderRadius: 'var(--mf-r-sm)', overflow:'hidden', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', flexShrink:0 }}>
                   {post.thumbnail
                     ? <img src={post.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                     : <div style={{ width:'100%', height:'100%', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-h1)' }}>
@@ -176,11 +176,11 @@ export default function Ranking() {
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text)', marginBottom:5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     @{post.username || post.accountId}
-                    <span style={{ marginLeft:8, fontSize: 'var(--mf-t-nano)', fontWeight:600, padding:'1px 6px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', color:'var(--mf-text-3)' }}>
+                    <span style={{ marginLeft:8, fontSize: 'var(--mf-t-nano)', fontWeight:600, padding:'1px 6px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', color:'var(--mf-text-3)' }}>
                       {post.mediaType === 'VIDEO' ? 'Reel' : post.mediaType === 'CAROUSEL_ALBUM' ? 'Carrossel' : 'Foto'}
                     </span>
                   </div>
-                  <div style={{ height:4, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', marginBottom:4 }}>
+                  <div style={{ height:4, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', overflow:'hidden', marginBottom:4 }}>
                     <motion.div
                       initial={{ width:0 }}
                       animate={{ width:`${pct}%` }}

@@ -406,7 +406,7 @@ function LoopModal({ onClose, onCreated }) {
                   : <span className="lm-section-count">{form.mediaFiles.length}</span>}
               </div>
               {/* Source toggle */}
-              <div style={{ display: 'flex', background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: 2, gap: 2, marginRight: 4 }}>
+              <div style={{ display: 'flex', background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: 2, gap: 2, marginRight: 4 }}>
                 {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
                   <button key={src} type="button"
                     onClick={() => setMediaSource(src)}
@@ -655,7 +655,7 @@ function LoopModal({ onClose, onCreated }) {
                 <div key={m.id} onClick={() => setForm(f => ({ ...f, processMode: m.id }))}
                   style={{
                     padding: '9px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
-                    background: form.processMode === m.id ? `${m.color}14` : 'oklch(0.10 0.03 235 / 0.5)',
+                    background: form.processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                     borderColor: form.processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
                     transition: 'all var(--mf-fast) var(--mf-ease-out)',
                   }}>

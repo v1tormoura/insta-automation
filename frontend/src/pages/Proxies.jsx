@@ -8,9 +8,9 @@ import { EsqueletoTabela } from '../components/Estados';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const BADGE = {
-  online:      { bg:'oklch(0.22 0.06 150 / 0.6)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Online' },
-  offline:     { bg:'oklch(0.22 0.06 15 / 0.6)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Offline' },
-  nao_testado: { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'Não testado' },
+  online:      { bg:'color-mix(in oklch, var(--mf-success-500) 13%, transparent)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Online' },
+  offline:     { bg:'color-mix(in oklch, var(--mf-danger-500) 13%, transparent)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Offline' },
+  nao_testado: { bg:'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color:'var(--mf-text-3)', border:'color-mix(in oklch, var(--mf-surface-3) 35%, transparent)', label:'Não testado' },
 };
 
 export default function Proxies() {
@@ -152,9 +152,9 @@ export default function Proxies() {
     </div>
   );
 
-  const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-  const modalStyle = { position:'fixed', inset:0, background:'oklch(0.06 0.02 235 / 0.85)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
-  const modalBoxStyle = { background:'oklch(0.14 0.04 235 / 0.98)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding:'20px 24px',
+  const cardStyle  = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const modalStyle = { position:'fixed', inset:0, background:'color-mix(in oklch, var(--mf-bg) 85%, transparent)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
+  const modalBoxStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding:'20px 24px',
     /* `minWidth: 380` sozinho estourava a tela de 320px em 60 pixels — o
        modal ficava mais largo que o aparelho e a página passava a rolar
        de lado. `min()` mantém os 380 onde cabem e cede onde não cabem.
@@ -163,12 +163,12 @@ export default function Proxies() {
     width:'min(380px, calc(100vw - 32px))', boxSizing:'border-box',
     maxHeight:'calc(100vh - 32px)', overflowY:'auto',
     boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
-  const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', boxSizing:'border-box', outline:'none' };
-  const thStyle    = { padding:'10px 14px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
+  const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', boxSizing:'border-box', outline:'none' };
+  const thStyle    = { padding:'10px 14px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'color-mix(in oklch, var(--mf-bg) 40%, transparent)' };
   const tdStyle    = { padding:'11px 14px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
 
   function ProxyBadge({ status }) {
-    const b = BADGE[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'—' };
+    const b = BADGE[status] || { bg:'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color:'var(--mf-text-3)', border:'color-mix(in oklch, var(--mf-surface-3) 35%, transparent)', label:'—' };
     return <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:b.bg, color:b.color, border:`1px solid ${b.border}` }}>{b.label}</span>;
   }
 
@@ -315,7 +315,7 @@ export default function Proxies() {
               </thead>
               <tbody>
                 {accounts.map((account, i) => (
-                  <tr key={account._id} style={{ background: i % 2 === 0 ? 'transparent' : 'oklch(0.12 0.04 235 / 0.2)' }}>
+                  <tr key={account._id} style={{ background: i % 2 === 0 ? 'transparent' : 'color-mix(in oklch, var(--mf-bg) 20%, transparent)' }}>
                     <td style={tdStyle}>
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         {account.avatar

@@ -44,7 +44,7 @@ const GlassCard = ({ children, className = '', delay = 0, noPad = false }) => (
     <div 
       className={`relative overflow-hidden rounded-3xl backdrop-blur-xl border shadow-2xl transition-all hover:border-white/10 ${className}`}
       style={{ 
-        background: 'oklch(0.14 0.04 235 / 0.85)', 
+        background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', 
         borderColor: 'var(--mf-border-subtle)',
         boxShadow: '0 20px 40px -10px rgba(0,0,0,0.5)',
         padding: noPad ? 0 : '24px'
@@ -94,7 +94,7 @@ const MetricCard = ({ title, value, prefix = "", suffix = "", trend, icon: Icon,
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border backdrop-blur-xl p-4 shadow-2xl" style={{ background: 'oklch(0.16 0.05 235 / 0.95)', borderColor: 'var(--mf-border)' }}>
+    <div className="rounded-xl border backdrop-blur-xl p-4 shadow-2xl" style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 95%, transparent)', borderColor: 'var(--mf-border)' }}>
       <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--mf-text-2)' }}>{label}</div>
       <div className="flex flex-col gap-2">
         {payload.map((entry, index) => (

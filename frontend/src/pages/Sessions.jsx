@@ -9,15 +9,15 @@ import { EsqueletoTabela } from '../components/Estados';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const STATUS_MAP = {
-  ok:        { bg:'oklch(0.22 0.06 150 / 0.6)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Sessão OK'  },
-  em_uso:    { bg:'oklch(0.22 0.06 270 / 0.6)', color:'var(--mf-mod-publicar)', border:'oklch(0.38 0.12 270 / 0.35)', label:'Em uso'     },
-  expirada:  { bg:'oklch(0.22 0.06 60 / 0.6)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Expirada'   },
-  sem_sessao:{ bg:'oklch(0.22 0.06 60 / 0.6)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Sem sessão' },
-  erro_login:{ bg:'oklch(0.22 0.06 15 / 0.6)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Erro login' },
+  ok:        { bg:'color-mix(in oklch, var(--mf-success-500) 13%, transparent)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Sessão OK'  },
+  em_uso:    { bg:'color-mix(in oklch, var(--mf-mod-publicar) 13%, transparent)', color:'var(--mf-mod-publicar)', border:'oklch(0.38 0.12 270 / 0.35)', label:'Em uso'     },
+  expirada:  { bg:'color-mix(in oklch, var(--mf-warning-500) 13%, transparent)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Expirada'   },
+  sem_sessao:{ bg:'color-mix(in oklch, var(--mf-warning-500) 13%, transparent)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Sem sessão' },
+  erro_login:{ bg:'color-mix(in oklch, var(--mf-danger-500) 13%, transparent)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Erro login' },
 };
 
 function StatusBadge({ status }) {
-  const s = STATUS_MAP[status] || { bg:'oklch(0.18 0.02 240 / 0.6)', color:'var(--mf-text-3)', border:'oklch(0.28 0.04 240 / 0.35)', label:'Sessão OK' };
+  const s = STATUS_MAP[status] || { bg:'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color:'var(--mf-text-3)', border:'color-mix(in oklch, var(--mf-surface-3) 35%, transparent)', label:'Sessão OK' };
   return <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', background:s.bg, color:s.color, border:`1px solid ${s.border}`, whiteSpace:'nowrap' }}>{s.label}</span>;
 }
 
@@ -70,15 +70,15 @@ export default function Sessions() {
 
   const pageActions = (
     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 6%, transparent)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
         <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
         Monitoramento ativo
       </div>
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-  const thStyle   = { padding:'10px 14px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'oklch(0.12 0.04 235 / 0.4)' };
+  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const thStyle   = { padding:'10px 14px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'color-mix(in oklch, var(--mf-bg) 40%, transparent)' };
   const tdStyle   = { padding:'11px 14px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
 
   return (
@@ -121,7 +121,7 @@ export default function Sessions() {
                   </td></tr>
                 )}
                 {sessions.map((session, i) => (
-                  <tr key={session._id} style={{ background: i % 2 === 0 ? 'transparent' : 'oklch(0.12 0.04 235 / 0.2)' }}>
+                  <tr key={session._id} style={{ background: i % 2 === 0 ? 'transparent' : 'color-mix(in oklch, var(--mf-bg) 20%, transparent)' }}>
                     <td style={tdStyle}>
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         {session.avatar

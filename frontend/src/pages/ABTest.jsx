@@ -8,8 +8,8 @@ const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M'
 
 const EMPTY_FORM = { name: '', accountId: '', igMediaIdA: '', igMediaIdB: '', durationHours: '48' };
 
-const cardStyle  = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', boxSizing:'border-box', outline:'none', fontFamily:'var(--font)' };
+const cardStyle  = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', boxSizing:'border-box', outline:'none', fontFamily:'var(--font)' };
 const labelStyle = { fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', display:'block', marginBottom:5, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' };
 
 export default function ABTest() {
@@ -68,7 +68,7 @@ export default function ABTest() {
     <PageShell icon={pageIcon} title="A/B Teste de Capa" subtitle="Compare dois Reels publicados para descobrir qual capa converte mais" accent="purple">
 
       {error && (
-        <div style={{ background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-md)', padding:'10px 14px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)', marginBottom:14 }}>
+        <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-md)', padding:'10px 14px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)', marginBottom:14 }}>
           {error}
         </div>
       )}
@@ -91,7 +91,7 @@ export default function ABTest() {
                     <div style={{ fontWeight:700, fontSize: 'var(--mf-t-body)', color:'var(--mf-text)' }}>{test.name}</div>
                     <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:2 }}>@{test.accountId?.username} · {test.durationHours}h</div>
                   </div>
-                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.22 0.06 150 / 0.5)', color:'var(--mf-success-500)', border:'1px solid oklch(0.38 0.12 150 / 0.3)', flexShrink:0 }}>● Em andamento</span>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 11%, transparent)', color:'var(--mf-success-500)', border:'1px solid oklch(0.38 0.12 150 / 0.3)', flexShrink:0 }}>● Em andamento</span>
                 </div>
 
                 <div style={{ padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
@@ -99,7 +99,7 @@ export default function ABTest() {
                     { v:a, label:'Variante A', color:'var(--mf-mod, var(--mf-accent-500))',   id:a.igMediaId },
                     { v:b, label:'Variante B', color:'var(--mf-mod-publicar)', id:b.igMediaId },
                   ].map(({ v, label, color, id }) => (
-                    <div key={label} style={{ background:`oklch(0.12 0.04 235 / 0.5)`, border:`1px solid var(--mf-border)`, borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
+                    <div key={label} style={{ background:`color-mix(in oklch, var(--mf-bg) 50%, transparent)`, border:`1px solid var(--mf-border)`, borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                         <div style={{ fontWeight:700, color, fontSize: 'var(--mf-t-sm)' }}>{label}</div>
                         {id && <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{id.slice(0,10)}…</span>}
@@ -109,7 +109,7 @@ export default function ABTest() {
                         <div><div style={{ fontWeight:700, fontSize: 'var(--mf-t-body)', color:'var(--mf-text)' }}>{fmtK(v.likes)}</div><div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>Likes</div></div>
                         <div><div style={{ fontWeight:700, fontSize: 'var(--mf-t-body)', color:'var(--mf-success-500)' }}>{fmtK(v.saves)}</div><div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>Saves</div></div>
                       </div>
-                      <div style={{ height:5, background:'oklch(0.10 0.03 235 / 0.6)', borderRadius: 'var(--mf-r-xs)' }}>
+                      <div style={{ height:5, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-xs)' }}>
                         <div style={{ height:'100%', borderRadius: 'var(--mf-r-xs)', background:color, width:`${pct(v.views)}%`, transition:'width .4s' }} />
                       </div>
                     </div>
@@ -165,7 +165,7 @@ export default function ABTest() {
           )}
 
           {!loading && tests.length === 0 && (
-            <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+            <div style={{ textAlign:'center', padding:'48px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
               <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>🧪</div>
               <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Nenhum teste ainda</div>
               <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Crie o primeiro A/B teste usando o formulário ao lado.</div>

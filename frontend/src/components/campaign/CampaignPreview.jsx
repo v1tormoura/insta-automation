@@ -347,7 +347,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
           return (
             <div key={chave} style={{
               borderRadius: 'var(--mf-r-md)', padding:'9px 12px',
-              background:'oklch(0.12 0.04 235 / 0.5)',
+              background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
               border:`1px solid ${falhou ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'var(--mf-border)'}`,
             }}>
               <button onClick={() => setExpandida(aberta ? null : chave)} style={{

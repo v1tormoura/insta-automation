@@ -578,7 +578,7 @@ export default function VideoEditorPage() {
       {/* ── Confirm Modal ── */}
       {confirmOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setConfirmOpen(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'oklch(0.13 0.04 235)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '24px 26px', width: 400, maxWidth: '100%',
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '24px 26px', width: 400, maxWidth: '100%',
             /* Teto de altura com rolagem interna: sem ele, um modal mais
                alto que a viewport esconde o próprio botão de confirmar. */
             maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
@@ -628,7 +628,7 @@ export default function VideoEditorPage() {
       {/* ══════════════════════════════════════════════════════════
           LEFT PANEL — Files
       ══════════════════════════════════════════════════════════ */}
-      <div style={{ width: 278, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--mf-border)', background: 'oklch(0.095 0.03 235 / 0.98)', flexShrink: 0 }}>
+      <div style={{ width: 278, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 98%, transparent)', flexShrink: 0 }}>
 
         {/* Header */}
         <div style={{ padding: '11px 12px 9px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
@@ -710,7 +710,7 @@ export default function VideoEditorPage() {
       {/* ══════════════════════════════════════════════════════════
           CENTER PANEL — Preview
       ══════════════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'oklch(0.065 0.022 235)', overflow: 'auto', gap: 14, padding: '20px 20px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--mf-bg)', overflow: 'auto', gap: 14, padding: '20px 20px' }}>
 
         <CanvasPreview tmpl={tmpl} previewUrl={previewUrl} onVideoWindowChange={onVideoWindowChange} />
 
@@ -740,7 +740,7 @@ export default function VideoEditorPage() {
       {/* ══════════════════════════════════════════════════════════
           RIGHT PANEL — Settings
       ══════════════════════════════════════════════════════════ */}
-      <div style={{ width: 310, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--mf-border)', background: 'oklch(0.095 0.03 235 / 0.98)', flexShrink: 0 }}>
+      <div style={{ width: 310, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 98%, transparent)', flexShrink: 0 }}>
         <div style={{ padding: '11px 14px 9px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
           <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Configurações do template</span>
         </div>

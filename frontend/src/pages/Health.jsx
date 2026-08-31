@@ -343,7 +343,7 @@ export default function Health() {
       {/* Filters */}
       <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:18, flexWrap:'wrap' }}>
         <div className="pill-scroll-x" style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', gap:4, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3, width:'max-content' }}>
+          <div style={{ display:'flex', gap:4, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3, width:'max-content' }}>
             {[
               { v:'all',      l:'Todas' },
               { v:'saudavel', l:'Saudáveis' },
@@ -371,7 +371,7 @@ export default function Health() {
           {filtered.map(acc => <AccountCard key={acc._id} account={acc} />)}
         </div>
       ) : (
-        <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--mf-text-3)', background:'oklch(0.16 0.05 235 / 0.5)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>
+        <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>🩺</div>
           <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:600, color:'var(--mf-text-3)' }}>Nenhuma conta nesse filtro</div>
         </div>

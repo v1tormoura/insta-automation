@@ -125,7 +125,7 @@ export default function ConnectedAccountsMetrics() {
       }}>
         {[1, 2, 3, 4].map(i => (
           <div key={i} style={{
-            background: 'oklch(0.14 0.04 235 / 0.7)',
+            background: 'color-mix(in oklch, var(--mf-surface-1) 70%, transparent)',
             borderRadius: 'var(--mf-r-lg)',
             padding: 16,
             height: 110,
@@ -192,7 +192,7 @@ export default function ConnectedAccountsMetrics() {
             value={period}
             onChange={e => setPeriod(e.target.value)}
             style={{
-              background: 'oklch(0.12 0.04 235)',
+              background: 'var(--mf-bg)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-sm)',
               color: 'var(--mf-text-2)',
@@ -231,7 +231,7 @@ export default function ConnectedAccountsMetrics() {
 
       {noAccounts ? (
         <div style={{
-          background: 'oklch(0.14 0.04 235 / 0.6)',
+          background: 'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)',
           border: '1px dashed var(--mf-border-strong)',
           borderRadius: 'var(--mf-r-lg)',
           padding: '24px 16px',
@@ -280,7 +280,7 @@ export default function ConnectedAccountsMetrics() {
 
             {/* Card 1: Alcance Total */}
             <div style={{
-              background: 'oklch(0.15 0.05 235 / 0.8)',
+              background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
@@ -303,7 +303,7 @@ export default function ConnectedAccountsMetrics() {
 
             {/* Card 2: Seguidores Totais */}
             <div style={{
-              background: 'oklch(0.15 0.05 235 / 0.8)',
+              background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
@@ -326,7 +326,7 @@ export default function ConnectedAccountsMetrics() {
 
             {/* Card 3: Melhor Post */}
             <div style={{
-              background: 'oklch(0.15 0.05 235 / 0.8)',
+              background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
               padding: '12px 14px',
@@ -350,7 +350,7 @@ export default function ConnectedAccountsMetrics() {
                       width: 38,
                       height: 48,
                       borderRadius: 'var(--mf-r-sm)',
-                      background: 'oklch(0.10 0.03 235)',
+                      background: 'var(--mf-bg)',
                       overflow: 'hidden',
                       flexShrink: 0,
                       position: 'relative',
@@ -412,7 +412,7 @@ export default function ConnectedAccountsMetrics() {
 
             {/* Card 4: Visualizações dos Stories */}
             <div style={{
-              background: 'oklch(0.15 0.05 235 / 0.8)',
+              background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
               padding: '14px 16px',
@@ -459,7 +459,7 @@ export default function ConnectedAccountsMetrics() {
                 transition={{ duration: 0.2 }}
                 style={{
                   marginTop: 12,
-                  background: 'oklch(0.13 0.04 235 / 0.9)',
+                  background: 'color-mix(in oklch, var(--mf-bg) 90%, transparent)',
                   border: '1px solid var(--mf-border)',
                   borderRadius: 'var(--mf-r-md)',
                   padding: 12,
@@ -479,7 +479,7 @@ export default function ConnectedAccountsMetrics() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
-                        background: 'oklch(0.11 0.03 235)',
+                        background: 'var(--mf-bg)',
                         border: '1px solid var(--mf-border)',
                         borderRadius: 'var(--mf-r-sm)',
                         padding: '6px 10px',

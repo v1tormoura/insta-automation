@@ -90,7 +90,7 @@ export default function VariableInserter({ onInsert, compacto = false }) {
         <div style={{
           position: 'absolute', zIndex: 60, top: 'calc(100% + 6px)', left: 0,
           minWidth: 240, maxHeight: 260, overflowY: 'auto', padding: 6,
-          borderRadius: 'var(--mf-r-md)', background: 'oklch(0.13 0.04 235 / 0.98)',
+          borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-bg) 98%, transparent)',
           border: '1px solid var(--mf-border-strong)', boxShadow: 'var(--mf-shadow-3)',
           backdropFilter: 'blur(12px)',
         }}>

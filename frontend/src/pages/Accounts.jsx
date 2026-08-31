@@ -1007,7 +1007,7 @@ export default function Accounts() {
 
           return (
         <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} style={{
-          background: `linear-gradient(135deg, rgba(${accentBg},.07) 0%, oklch(0.16 0.05 235 / 0.6) 100%)`,
+          background: `linear-gradient(135deg, rgba(${accentBg},.07) 0%, color-mix(in oklch, var(--mf-surface-1) 60%, transparent) 100%)`,
           border: `1px solid rgba(${accentBg},${proxyStatus.ativo ? '.35' : '.18'})`,
           borderLeft: `3px solid ${accent}`,
           borderRadius: 'var(--mf-r-lg)', padding: 16, marginBottom: 20,
@@ -1065,7 +1065,7 @@ export default function Accounts() {
               onKeyDown={e => { if (e.key === 'Enter' && !proxyStatus.ativo) testarProxyGlobal(); }}
               style={{
                 flex: 1, minWidth: 240, padding: '9px 12px', borderRadius: 'var(--mf-r-md)', fontFamily:'var(--mf-mono)',
-                border: '1px solid var(--mf-border)', background: 'oklch(0.12 0.04 235 / 0.75)',
+                border: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 75%, transparent)',
                 color: 'var(--mf-text)', fontSize: 'var(--mf-t-xs)', opacity: proxyStatus.ativo ? 0.55 : 1,
               }}
             />
@@ -1220,7 +1220,7 @@ export default function Accounts() {
               <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
                 onClick={() => selectMode && toggleSelect(account._id)}
                 style={{
-                  background: isSel ? 'oklch(0.17 0.08 270 / 0.92)' : `oklch(0.16 0.05 235 / 0.92)`,
+                  background: isSel ? 'color-mix(in oklch, var(--mf-mod-publicar) 12%, var(--mf-surface-1))' : `color-mix(in oklch, var(--mf-surface-1) 92%, transparent)`,
                   border:     isSel ? '1px solid color-mix(in oklch, var(--mf-primary-500) 45%, transparent)' : `1px solid var(--mf-border)`,
                   borderLeft:`3px solid ${hc}`,
                   borderRadius: 'var(--mf-r-lg)', overflow:'hidden',
@@ -1235,7 +1235,7 @@ export default function Accounts() {
                   <div style={{
                     position:'absolute', top:8, right:10, width:18, height:18, borderRadius: 'var(--mf-r-xs)', zIndex:2,
                     border:`1.5px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border-strong)'}`,
-                    background: isSel ? 'var(--mf-primary-300)' : 'oklch(0.12 0.04 235 / 0.75)',
+                    background: isSel ? 'var(--mf-primary-300)' : 'color-mix(in oklch, var(--mf-bg) 75%, transparent)',
                     display:'grid', placeItems:'center', transition:'all .15s',
                   }}>
                     {isSel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text)" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
@@ -1259,7 +1259,7 @@ export default function Accounts() {
                         {account.username?.charAt(0)?.toUpperCase() || 'I'}
                       </div>
                       {/* status dot */}
-                      <span style={{ position:'absolute', bottom:1, right:1, width:9, height:9, borderRadius: 'var(--mf-r-full)', background:hc, border:'2px solid oklch(0.16 0.05 235)', boxShadow:`0 0 6px ${hc}` }} />
+                      <span style={{ position:'absolute', bottom:1, right:1, width:9, height:9, borderRadius: 'var(--mf-r-full)', background:hc, border:'2px solid var(--mf-surface-1)', boxShadow:`0 0 6px ${hc}` }} />
                     </div>
 
                     <div style={{ flex:1, minWidth:0 }}>
@@ -1435,7 +1435,7 @@ export default function Accounts() {
               initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
               style={{
                 position:'fixed', bottom:'calc(28px + env(safe-area-inset-bottom, 0px))', left:'50%', transform:'translateX(-50%)',
-                background:'oklch(0.18 0.06 235 / 0.97)',
+                background:'color-mix(in oklch, var(--mf-primary-500) 12%, var(--mf-surface-1))',
                 border:'1px solid var(--mf-border-strong)',
                 borderRadius: 'var(--mf-r-lg)', padding:'10px 16px',
                 display:'flex', alignItems:'center', gap:10, flexWrap:'wrap',
@@ -1719,7 +1719,7 @@ export default function Accounts() {
                 {lbl('FOTO DE PERFIL')}
                 <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                   <div style={{ width:54, height:54, borderRadius: 'var(--mf-r-full)', overflow:'hidden', flexShrink:0,
-                    border:'1px solid var(--mf-border-strong)', background:'oklch(0.12 0.04 235)', display:'grid', placeItems:'center' }}>
+                    border:'1px solid var(--mf-border-strong)', background:'var(--mf-bg)', display:'grid', placeItems:'center' }}>
                     {perfilPreview
                       ? <img src={perfilPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                       : perfilModal.avatar

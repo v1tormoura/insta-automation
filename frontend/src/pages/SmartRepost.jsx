@@ -87,7 +87,7 @@ export default function SmartRepost() {
           { label: 'Ativas', val: stats.activeRules ?? '—', color: 'var(--mf-success-500)' },
           { label: 'Na fila', val: queue.length, color: 'var(--mf-primary-300)' },
         ].map(s => (
-          <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 'var(--mf-r-sm)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
+          <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
             <span style={{ fontWeight: 700, color: s.color, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--mf-mono)' }}>{s.val}</span>
             <span style={{ color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</span>
           </div>
@@ -99,7 +99,7 @@ export default function SmartRepost() {
     </>
   );
 
-  const cardStyle = { background: 'oklch(0.16 0.05 235 / 0.85)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)', overflow: 'hidden' };
+  const cardStyle = { background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)', overflow: 'hidden' };
   const cardHdStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 };
   const cardTitleStyle = { fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 };
 
@@ -149,7 +149,7 @@ export default function SmartRepost() {
             </div>
 
             {creating && (
-              <form onSubmit={createRule} style={{ marginTop:16, padding:'14px', background:'oklch(0.10 0.03 235 / 0.6)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)', display:'flex', flexDirection:'column', gap:10 }}>
+              <form onSubmit={createRule} style={{ marginTop:16, padding:'14px', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)', display:'flex', flexDirection:'column', gap:10 }}>
                 <div className="input-wrap">
                   <label className="input-label">Nome da regra</label>
                   <input className="input" required placeholder="Ex: Top Virais Semanais" value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value}))} />
@@ -199,14 +199,14 @@ export default function SmartRepost() {
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
             <div style={cardHdStyle}>
               <h3 style={cardTitleStyle}>Fila de reposts</h3>
-              <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{queue.length} agendados</span>
+              <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{queue.length} agendados</span>
             </div>
             {queue.length === 0
               ? <div style={{ textAlign:'center', padding:'30px 0', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>Fila vazia</div>
               : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {queue.map((item, i) => (
                     <motion.div key={i} initial={{ opacity:0, y:5 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.04 }}
-                      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'oklch(0.12 0.04 235 / 0.6)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)' }}>
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)' }}>
                       <div style={{ width:36, height:36, borderRadius: 'var(--mf-r-md)', background:'rgba(30,111,255,.12)', color:'var(--indigo)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                       </div>

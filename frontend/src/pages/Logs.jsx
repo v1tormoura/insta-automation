@@ -6,15 +6,15 @@ import PageShell from '../components/PageShell';
 import { EsqueletoTabela } from '../components/Estados';
 
 const STATUS_META = {
-  concluido:        { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'oklch(0.22 0.06 150 / 0.5)' },
-  erro:             { label: 'Erro',        color: 'var(--mf-danger-500)', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
-  processando:      { label: 'Processando', color: 'var(--mf-primary-300)', bg: 'oklch(0.22 0.06 270 / 0.5)' },
-  agendado:         { label: 'Agendado',    color: 'var(--mf-warning-500)', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
-  pendente:         { label: 'Pendente',    color: 'var(--mf-text-3)', bg: 'oklch(0.18 0.02 240 / 0.5)' },
-  done:             { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'oklch(0.22 0.06 150 / 0.5)' },
-  done_with_errors: { label: 'Com erros',   color: 'var(--mf-warning-500)', bg: 'oklch(0.22 0.06 60 / 0.5)'  },
-  running:          { label: 'Executando',  color: 'var(--mf-primary-300)', bg: 'oklch(0.22 0.06 270 / 0.5)' },
-  error:            { label: 'Erro',        color: 'var(--mf-danger-500)', bg: 'oklch(0.22 0.06 15 / 0.5)'  },
+  concluido:        { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'color-mix(in oklch, var(--mf-success-500) 11%, transparent)' },
+  erro:             { label: 'Erro',        color: 'var(--mf-danger-500)', bg: 'color-mix(in oklch, var(--mf-danger-500) 11%, transparent)'  },
+  processando:      { label: 'Processando', color: 'var(--mf-primary-300)', bg: 'color-mix(in oklch, var(--mf-mod-publicar) 11%, transparent)' },
+  agendado:         { label: 'Agendado',    color: 'var(--mf-warning-500)', bg: 'color-mix(in oklch, var(--mf-warning-500) 11%, transparent)'  },
+  pendente:         { label: 'Pendente',    color: 'var(--mf-text-3)', bg: 'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)' },
+  done:             { label: 'Concluído',   color: 'var(--mf-success-500)', bg: 'color-mix(in oklch, var(--mf-success-500) 11%, transparent)' },
+  done_with_errors: { label: 'Com erros',   color: 'var(--mf-warning-500)', bg: 'color-mix(in oklch, var(--mf-warning-500) 11%, transparent)'  },
+  running:          { label: 'Executando',  color: 'var(--mf-primary-300)', bg: 'color-mix(in oklch, var(--mf-mod-publicar) 11%, transparent)' },
+  error:            { label: 'Erro',        color: 'var(--mf-danger-500)', bg: 'color-mix(in oklch, var(--mf-danger-500) 11%, transparent)'  },
 };
 
 const svgIcon = (d, w = 16) => (
@@ -46,7 +46,7 @@ function EntryCard({ entry, i }) {
       animate={{ opacity:1, y:0 }}
       transition={{ delay: Math.min(i * 0.02, .3), duration:.2 }}
       style={{
-        background:'oklch(0.16 0.05 235 / 0.85)',
+        background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
         border:'1px solid var(--mf-border)',
         borderLeft:`3px solid ${m.color}`,
         borderRadius: 'var(--mf-r-md)', padding:'12px 16px',
@@ -169,13 +169,13 @@ export default function Logs() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.22 0.06 150 / 0.25)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 6%, transparent)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
       <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
       Tempo real
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <PageShell icon={pageIcon} title="Logs do Sistema" subtitle="Histórico completo de publicações e automações." accent="cyan" actions={pageActions}>
@@ -222,7 +222,7 @@ export default function Logs() {
         )}
 
         {!loading && !filtered.length && (
-          <div style={{ textAlign:'center', padding:'48px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+          <div style={{ textAlign:'center', padding:'48px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
             <div style={{ marginBottom:12, color:'var(--mf-text-3)' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
             </div>

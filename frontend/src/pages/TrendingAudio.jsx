@@ -42,7 +42,7 @@ export default function TrendingAudio() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
+    <div style={{ display:'flex', gap:3, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
       {PERIODS.map(p => (
         <button key={p} onClick={() => setPeriod(p)} style={{
           height:26, padding:'0 14px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
@@ -54,7 +54,7 @@ export default function TrendingAudio() {
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <PageShell icon={pageIcon} title="Áudio Trending" subtitle="Reels com melhor desempenho do período — rankeados por visualizações" accent="pink" actions={pageActions}>
@@ -68,7 +68,7 @@ export default function TrendingAudio() {
       )}
 
       {!loading && !error && items.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>🎵</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Sem Reels sincronizados</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Sincronize os insights das contas para ver os melhores Reels.</div>
@@ -99,7 +99,7 @@ export default function TrendingAudio() {
                         <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:2 }}>{age !== null ? `${age}d atrás` : ''}</div>
                       </div>
                     </div>
-                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.2)' : 'oklch(0.18 0.02 240 / 0.6)', color: idx < 3 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', border:`1px solid ${idx < 3 ? 'oklch(0.72 0.19 196 / 0.35)' : 'var(--mf-border)'}`, flexShrink:0, marginLeft:6 }}>#{idx + 1}</span>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.2)' : 'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color: idx < 3 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', border:`1px solid ${idx < 3 ? 'oklch(0.72 0.19 196 / 0.35)' : 'var(--mf-border)'}`, flexShrink:0, marginLeft:6 }}>#{idx + 1}</span>
                   </div>
 
                   {item.caption && (
@@ -109,7 +109,7 @@ export default function TrendingAudio() {
                   )}
 
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
-                    <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', borderRadius: 'var(--mf-r-md)', padding:'8px 10px', textAlign:'center' }}>
+                    <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'8px 10px', textAlign:'center' }}>
                       <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.videoViews)}</div>
                       <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2 }}>Views</div>
                     </div>

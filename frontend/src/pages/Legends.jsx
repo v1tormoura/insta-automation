@@ -75,13 +75,13 @@ export default function Legends() {
   );
 
   const pageActions = (
-    <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
+    <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
       {legends.length} legendas
     </span>
   );
 
   const cardStyle = {
-    background: 'oklch(0.16 0.05 235 / 0.85)',
+    background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
     border: '1px solid var(--mf-border)',
     borderRadius: 'var(--mf-r-lg)',
     backdropFilter: 'blur(12px)',
@@ -158,7 +158,7 @@ export default function Legends() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Legendas salvas</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'oklch(0.10 0.03 235 / 0.8)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color var(--mf-fast) var(--mf-ease-out)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '5px 10px', flex: 1, minWidth: 160, transition: 'border-color var(--mf-fast) var(--mf-ease-out)' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--mf-text)', fontSize: 'var(--mf-t-xs)', width: '100%' }} />
                 </div>
@@ -177,7 +177,7 @@ export default function Legends() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03, duration: 0.2 }}
                   style={{
-                    background: 'oklch(0.12 0.04 235 / 0.7)',
+                    background: 'color-mix(in oklch, var(--mf-bg) 70%, transparent)',
                     border: `1px solid ${editId === legend._id ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
                     borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
                     boxShadow: editId === legend._id ? '0 0 0 2px color-mix(in oklch, var(--mf-primary-500) 20%, transparent)' : 'none',

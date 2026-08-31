@@ -882,7 +882,7 @@ function PerformanceTable({ stats }) {
 function InsightCard({ icon, title, value, sub, detail, color }) {
   return (
     <motion.div variants={fadeUp} whileHover={{ y:-3, boxShadow:`0 16px 44px rgba(0,0,0,.52), 0 0 0 1px ${color}25` }} transition={spring}
-      style={{ background:'oklch(0.16 0.05 235 / 0.75)', border:`1px solid ${color}20`, borderRadius: 'var(--mf-r-lg)', padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}
+      style={{ background:'color-mix(in oklch, var(--mf-surface-1) 75%, transparent)', border:`1px solid ${color}20`, borderRadius: 'var(--mf-r-lg)', padding:'16px 18px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}
       className="sheen">
       <div style={{ position:'absolute', top:-20, right:-14, width:80, height:80, borderRadius: 'var(--mf-r-full)', background:`${color}08`, pointerEvents:'none' }} />
       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -1289,7 +1289,7 @@ export default function Dashboard() {
             <motion.div key={title} variants={fadeUp} initial="hidden" animate="show" transition={{ delay:.1+i*.05, duration:.35, ease }}
               whileHover={{ y:-2, borderColor:'color-mix(in oklch, var(--mf-mod-contas) 22%, transparent)', boxShadow:'0 10px 32px rgba(0,0,0,.45)' }}
             >
-              <Link to={to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius: 'var(--mf-r-lg)', background:'oklch(0.16 0.05 235 / 0.88)', border:'1px solid var(--mf-border)', backdropFilter:'blur(14px)', cursor:'pointer', width:'100%', transition:'all .22s cubic-bezier(.4,0,.2,1)' }} className="sheen">
+              <Link to={to} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius: 'var(--mf-r-lg)', background:'color-mix(in oklch, var(--mf-surface-1) 88%, transparent)', border:'1px solid var(--mf-border)', backdropFilter:'blur(14px)', cursor:'pointer', width:'100%', transition:'all .22s cubic-bezier(.4,0,.2,1)' }} className="sheen">
                 <span className="quick-icon"><Icon size={22} /></span>
                 <span className="quick-copy"><strong>{title}</strong><small>{subtitle}</small></span>
                 <ChevronRight className="quick-chevron" size={18} />

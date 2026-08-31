@@ -56,7 +56,7 @@ export default function Faturamento() {
     </svg>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 
   return (
     <PageShell
@@ -83,7 +83,7 @@ export default function Faturamento() {
                 onKeyDown={e => e.key === 'Enter' && saveGoal()}
                 placeholder="Ex: 5000,00"
                 autoFocus
-                style={{ flex:1, height:38, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid oklch(0.72 0.19 196 / 0.3)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none' }}
+                style={{ flex:1, height:38, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid oklch(0.72 0.19 196 / 0.3)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none' }}
               />
               <button onClick={saveGoal} style={{ height:38, padding:'0 16px', borderRadius: 'var(--mf-r-sm)', background:'var(--mf-mod, var(--mf-accent-500))', color:'var(--mf-bg)', border:'none', fontWeight:700, cursor:'pointer' }}>Salvar</button>
               <button onClick={() => setEditGoal(false)} className="btn-ghost" style={{ height:38, padding:'0 12px', borderRadius: 'var(--mf-r-sm)' }}>Cancelar</button>
@@ -103,7 +103,7 @@ export default function Faturamento() {
             </div>
           </div>
 
-          <div style={{ height:10, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', marginBottom:8 }}>
+          <div style={{ height:10, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', overflow:'hidden', marginBottom:8 }}>
             <motion.div
               initial={{ width:0 }}
               animate={{ width:`${pct}%` }}
@@ -135,7 +135,7 @@ export default function Faturamento() {
                 <input
                   type="text" value={amount} onChange={e => setAmount(e.target.value)}
                   placeholder="0,00" required
-                  style={{ width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', boxSizing:'border-box', outline:'none' }}
+                  style={{ width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', boxSizing:'border-box', outline:'none' }}
                 />
               </div>
               <div>
@@ -143,7 +143,7 @@ export default function Faturamento() {
                 <input
                   type="text" value={desc} onChange={e => setDesc(e.target.value)}
                   placeholder="Ex: Produto X, Serviço Y"
-                  style={{ width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'oklch(0.10 0.03 235 / 0.8)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', boxSizing:'border-box', outline:'none' }}
+                  style={{ width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', boxSizing:'border-box', outline:'none' }}
                 />
               </div>
               <button type="submit" className="btn-primary" style={{ height:42, borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -157,7 +157,7 @@ export default function Faturamento() {
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} style={cardStyle}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Histórico do mês</h3>
-            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</span>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</span>
           </div>
           <div style={{ maxHeight:300, overflowY:'auto' }}>
             {thisMonth.length === 0 ? (

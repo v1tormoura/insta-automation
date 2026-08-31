@@ -7,7 +7,7 @@ import PageShell from '../components/PageShell';
 import { EsqueletoGrade } from '../components/Estados';
 
 const CARD = {
-  background: 'oklch(0.16 0.05 235 / 0.85)',
+  background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
   border: '1px solid var(--mf-border)',
   borderRadius: 'var(--mf-r-lg)',
   backdropFilter: 'blur(12px)',
@@ -88,7 +88,7 @@ export default function VideoTemplates() {
 
   const pageActions = (
     <>
-      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
+      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
         {templates.length} templates
       </span>
       <button

@@ -243,7 +243,7 @@ export default function CaptionEditor({
   );
 
   return (
-    <div style={{ background:'oklch(0.16 0.05 235 / 0.55)', border:'1px solid var(--mf-border)',
+    <div style={{ background:'color-mix(in oklch, var(--mf-surface-1) 55%, transparent)', border:'1px solid var(--mf-border)',
       borderRadius: 'var(--mf-r-lg)', padding:16, marginBottom:14 }}>
 
       <h3 style={{ margin:'0 0 12px', fontSize: 'var(--mf-t-sm)', fontWeight:700 }}>{titulo}</h3>
@@ -342,7 +342,7 @@ export default function CaptionEditor({
               return (
                 <div key={l.chave} style={{
                   border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'9px 11px',
-                  background:'oklch(0.12 0.04 235 / 0.5)',
+                  background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:6 }}>
                     <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, overflow:'hidden',

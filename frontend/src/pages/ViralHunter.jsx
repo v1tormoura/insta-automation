@@ -64,7 +64,7 @@ export default function ViralHunter() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
+    <div style={{ display:'flex', gap:3, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
       {[['top','🔥 Top'], ['recent','🕐 Recentes']].map(([v, l]) => (
         <button key={v} onClick={() => setType(v)} style={{
           height:26, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
@@ -76,8 +76,8 @@ export default function ViralHunter() {
     </div>
   );
 
-  const cardStyle = { background:'oklch(0.16 0.05 235 / 0.85)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-  const inputStyle = { flex:1, minWidth:200, padding:'9px 9px 9px 30px', background:'oklch(0.10 0.03 235 / 0.8)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
+  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
+  const inputStyle = { flex:1, minWidth:200, padding:'9px 9px 9px 30px', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
 
   return (
     <PageShell icon={pageIcon} title="Caçador de Virais" subtitle="Mine os vídeos mais virais do seu nicho direto da API do Instagram" accent="cyan" actions={pageActions}>
@@ -110,11 +110,11 @@ export default function ViralHunter() {
         const isTokenErr = /oauth|cannot parse|invalid.*token/i.test(error);
         const isNoAcct   = /nenhuma conta/i.test(error);
         return (
-          <div style={{ background:'oklch(0.22 0.06 15 / 0.4)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-md)', padding:'14px 18px', marginBottom:14 }}>
+          <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-md)', padding:'14px 18px', marginBottom:14 }}>
             <div style={{ color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)', fontWeight:700, marginBottom:8 }}>⚠️ {error}</div>
             {isTokenErr && (
               <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.7 }}>
-                A busca por hashtags usa o endpoint <code style={{ background:'oklch(0.12 0.04 235)', padding:'1px 5px', borderRadius: 'var(--mf-r-xs)' }}>ig_hashtag_search</code> da Meta.
+                A busca por hashtags usa o endpoint <code style={{ background:'var(--mf-bg)', padding:'1px 5px', borderRadius: 'var(--mf-r-xs)' }}>ig_hashtag_search</code> da Meta.
                 Acesse <a href="/accounts" style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>Contas</a> e reconecte sua conta.
               </div>
             )}
@@ -129,7 +129,7 @@ export default function ViralHunter() {
 
       {/* Empty states */}
       {!searched && !error && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>⚡</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Pronto para minerar</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Digite uma hashtag do seu nicho e clique em Minerar para encontrar os vídeos mais virais.</div>
@@ -137,7 +137,7 @@ export default function ViralHunter() {
       )}
 
       {searched && !loading && !error && items.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'oklch(0.16 0.05 235 / 0.5)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>🎬</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Nenhum vídeo encontrado</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Sem vídeos nessa hashtag ou a conta não tem permissão para buscar este conteúdo.</div>
@@ -176,7 +176,7 @@ export default function ViralHunter() {
               >
                 <div style={{ height:3, background: idx < 3 ? 'linear-gradient(90deg,var(--mf-mod, var(--mf-accent-500)),oklch(0.68 0.18 270))' : 'var(--mf-border)' }} />
 
-                <div style={{ height:130, background:'linear-gradient(135deg,oklch(0.12 0.04 235),oklch(0.16 0.05 235))', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}>
+                <div style={{ height:130, background:'linear-gradient(135deg,var(--mf-bg),var(--mf-surface-1))', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}>
                   {thumb
                     ? <img src={thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
                     : <span style={{ fontSize: 'var(--mf-t-display)' }}>🎬</span>

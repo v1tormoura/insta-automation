@@ -174,7 +174,7 @@ export default function Limpador() {
   const hasDone      = items.some(it => it.status === 'done' || it.status === 'error');
 
   const cardStyle = {
-    background: 'oklch(0.16 0.05 235 / 0.85)',
+    background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
     border: '1px solid var(--mf-border)',
     borderRadius: 'var(--mf-r-lg)',
     overflow: 'hidden',
@@ -217,7 +217,7 @@ export default function Limpador() {
                 )}
               </h3>
               {hasDone && !running && (
-                <button onClick={clearDone} style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding:'3px 10px', cursor:'pointer' }}>
+                <button onClick={clearDone} style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding:'3px 10px', cursor:'pointer' }}>
                   Limpar concluídos
                 </button>
               )}
@@ -308,7 +308,7 @@ export default function Limpador() {
                   <div key={m.key} onClick={() => !running && setMode(m.key)} style={{
                     padding:'14px 16px', borderRadius: 'var(--mf-r-md)', cursor: running ? 'default' : 'pointer', transition:'.15s',
                     border:`1.5px solid ${sel ? m.badgeColor + '66' : 'var(--mf-border)'}`,
-                    background: sel ? m.badgeBg : 'oklch(0.12 0.04 235 / 0.4)',
+                    background: sel ? m.badgeBg : 'color-mix(in oklch, var(--mf-bg) 40%, transparent)',
                     opacity: running && !sel ? 0.5 : 1,
                   }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
@@ -318,7 +318,7 @@ export default function Limpador() {
                       </div>
                       <span style={{
                         fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', letterSpacing:.8,
-                        background: sel ? m.badgeBg : 'oklch(0.10 0.03 235 / 0.5)',
+                        background: sel ? m.badgeBg : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                         color: sel ? m.badgeColor : 'var(--mf-text-3)',
                         border:`1px solid ${sel ? m.badgeColor + '40' : 'transparent'}`,
                       }}>{m.badge}</span>
@@ -366,7 +366,7 @@ export default function Limpador() {
 
           {/* Seletor de preset — aparece só no modo watermark */}
           {mode === 'watermark' && (
-            <div style={{ background:'oklch(0.14 0.04 235 / 0.8)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
+            <div style={{ background:'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
               <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
                 Plataforma / Posição
               </div>
@@ -380,7 +380,7 @@ export default function Limpador() {
                       style={{
                         fontSize: 'var(--mf-t-micro)', fontWeight:700, padding:'5px 12px', borderRadius: 'var(--mf-r-sm)', cursor: running ? 'default' : 'pointer',
                         border:`1.5px solid ${sel ? 'color-mix(in oklch, var(--mf-warning-500) 60%, transparent)' : 'var(--mf-border)'}`,
-                        background: sel ? 'color-mix(in oklch, var(--mf-warning-500) 15%, transparent)' : 'oklch(0.11 0.03 235 / 0.5)',
+                        background: sel ? 'color-mix(in oklch, var(--mf-warning-500) 15%, transparent)' : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                         color: sel ? 'var(--mf-warning-500)' : 'var(--mf-text-3)',
                         transition:'.15s',
                       }}
@@ -406,7 +406,7 @@ export default function Limpador() {
 
           {/* Progresso geral enquanto processa */}
           {running && (
-            <div style={{ background:'oklch(0.12 0.04 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
+            <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
               <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginBottom:6, fontWeight:600 }}>
                 ⚙ Processando — os downloads iniciam automaticamente
               </div>
@@ -447,7 +447,7 @@ function FileRow({ item, running, mode, onRemove }) {
   return (
     <div style={{
       display:'flex', alignItems:'center', gap:10, padding:'9px 10px', borderRadius: 'var(--mf-r-md)',
-      background:'oklch(0.12 0.04 235 / 0.5)',
+      background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
       border:`1px solid ${status === 'done' ? 'color-mix(in oklch, var(--mf-success-500) 20%, transparent)' : status === 'error' ? 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)' : 'var(--mf-border)'}`,
     }}>
       {/* Type icon */}
@@ -482,7 +482,7 @@ function FileRow({ item, running, mode, onRemove }) {
 
           {/* Progress bar */}
           {(status === 'uploading' || status === 'processing') && (
-            <div style={{ flex:1, height:3, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden', position:'relative' }}>
+            <div style={{ flex:1, height:3, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', overflow:'hidden', position:'relative' }}>
               {status === 'uploading' ? (
                 <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,var(--mf-primary-500),var(--mf-mod-publicar))', borderRadius: 'var(--mf-r-full)', transition:'width .3s' }} />
               ) : (

@@ -78,7 +78,7 @@ export default function LegendLibraryModal({
   };
   const campo = {
     height: 32, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)',
-    background: 'oklch(0.10 0.03 235)', color: 'var(--mf-text)',
+    background: 'var(--mf-bg)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };
 
@@ -87,7 +87,7 @@ export default function LegendLibraryModal({
       onClick={e => { if (e.target === e.currentTarget) onFechar?.(); }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 999, display: 'grid', placeItems: 'center', padding: 20 }}>
       <div style={{
-        background: 'oklch(0.14 0.04 235)', padding: 20, borderRadius: 'var(--mf-r-lg)',
+        background: 'var(--mf-surface-1)', padding: 20, borderRadius: 'var(--mf-r-lg)',
         width: 'min(620px, 100%)', maxHeight: '85vh', display: 'flex', flexDirection: 'column',
         border: '1px solid var(--mf-border)',
       }}>

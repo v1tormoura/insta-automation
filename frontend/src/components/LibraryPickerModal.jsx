@@ -167,11 +167,11 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={e => e.target === e.currentTarget && onClose()}
-        style={{ position: 'fixed', inset: 0, background: 'oklch(0.06 0.02 235 / 0.85)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', zIndex: 9999, padding: 16 }}
+        style={{ position: 'fixed', inset: 0, background: 'color-mix(in oklch, var(--mf-bg) 85%, transparent)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', zIndex: 9999, padding: 16 }}
       >
         <motion.div
           initial={{ opacity: 0, y: 24, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12 }}
-          style={{ background: 'oklch(0.14 0.04 235 / 0.98)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', width: 'min(820px, 100%)', maxHeight: 'min(90dvh,90vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--mf-shadow-3)' }}
+          style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', width: 'min(820px, 100%)', maxHeight: 'min(90dvh,90vh)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--mf-shadow-3)' }}
         >
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
@@ -198,7 +198,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
                     fontWeight: activeFolder === f ? 600 : 400, fontSize: 'var(--mf-t-xs)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                   }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📁 {f === 'default' ? 'Geral' : f}</span>
-                  <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', background: 'oklch(0.10 0.03 235 / 0.5)', borderRadius: 'var(--mf-r-sm)', padding: '1px 5px', flexShrink: 0, marginLeft: 4 }}>{folderCounts[f] || 0}</span>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', background: 'color-mix(in oklch, var(--mf-bg) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', padding: '1px 5px', flexShrink: 0, marginLeft: 4 }}>{folderCounts[f] || 0}</span>
                 </button>
               ))}
               {/* Upload na sidebar */}

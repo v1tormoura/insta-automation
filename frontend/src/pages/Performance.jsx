@@ -119,7 +119,7 @@ export default function Performance() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', gap:3, background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
+    <div style={{ display:'flex', gap:3, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
       {[['7d','7 dias'],['30d','30 dias'],['90d','90 dias']].map(([k,l]) => (
         <button key={k} onClick={() => setPeriod(k)} style={{
           height:28, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
@@ -132,7 +132,7 @@ export default function Performance() {
   );
 
   const cardStyle = {
-    background:'oklch(0.16 0.05 235 / 0.85)',
+    background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
     border:'1px solid var(--mf-border)',
     borderRadius: 'var(--mf-r-lg)', overflow:'hidden',
     backdropFilter:'blur(12px)',
@@ -215,7 +215,7 @@ export default function Performance() {
                           borderBottom: i < data.byAccount.length - 1 ? '1px solid var(--mf-border)' : 'none',
                           cursor:'pointer', transition:'background .15s',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'oklch(0.12 0.04 235 / 0.4)'}
+                        onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in oklch, var(--mf-bg) 40%, transparent)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
                         {/* Avatar com rank */}
@@ -223,7 +223,7 @@ export default function Performance() {
                           <div style={{
                             width:42, height:42, borderRadius: 'var(--mf-r-full)', overflow:'hidden',
                             border:`2px solid ${i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' : 'var(--mf-border)'}`,
-                            background:'oklch(0.10 0.03 235 / 0.6)',
+                            background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)',
                           }}>
                             {src
                               ? <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display='none'; }} />
@@ -236,8 +236,8 @@ export default function Performance() {
                           <div style={{
                             position:'absolute', bottom:-2, right:-4,
                             width:17, height:17, borderRadius: 'var(--mf-r-full)',
-                            background: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'var(--mf-mod-publicar)' : 'oklch(0.20 0.05 235)',
-                            border:'2px solid oklch(0.16 0.05 235)',
+                            background: i === 0 ? 'var(--mf-mod, var(--mf-accent-500))' : i === 1 ? 'var(--mf-mod-publicar)' : 'var(--mf-surface-2)',
+                            border:'2px solid var(--mf-surface-1)',
                             display:'flex', alignItems:'center', justifyContent:'center',
                             fontSize: 'var(--mf-t-nano)', fontWeight:900,
                             color: i < 2 ? 'var(--mf-bg)' : 'var(--mf-text-3)',
@@ -306,7 +306,7 @@ export default function Performance() {
                           <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)' }}>{tp.icon} {tp.label}</span>
                           <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-text)', fontFamily:'var(--mf-mono)' }}>{count} <span style={{ color:'var(--mf-text-3)', fontWeight:400 }}>({pct}%)</span></span>
                         </div>
-                        <div style={{ height:5, borderRadius: 'var(--mf-r-full)', background:'oklch(0.10 0.03 235 / 0.6)', overflow:'hidden' }}>
+                        <div style={{ height:5, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', overflow:'hidden' }}>
                           <motion.div
                             initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.5, delay:.15 }}
                             style={{ height:'100%', borderRadius: 'var(--mf-r-full)', background:tp.color }}
@@ -337,7 +337,7 @@ export default function Performance() {
                       color:'var(--mf-warning-500)', icon:'🔖',
                     },
                   ].map(m => (
-                    <div key={m.label} style={{ background:'oklch(0.10 0.03 235 / 0.6)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'10px 12px' }}>
+                    <div key={m.label} style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'10px 12px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3 }}>
                         <span style={{ fontSize: 'var(--mf-t-xs)' }}>{m.icon}</span>
                         <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{m.label}</span>

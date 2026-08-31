@@ -82,7 +82,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
             style={{
               width: '100%', boxSizing: 'border-box',
               padding: '6px 10px 6px 28px',
-              background: 'oklch(0.10 0.03 235 / 0.8)',
+              background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)', outline: 'none',
             }}
@@ -160,7 +160,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 gap: 5, padding: '10px 6px 8px', borderRadius: 'var(--mf-r-md)', position: 'relative',
                 border:     `1px solid ${isSel ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
-                background: isSel ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'oklch(0.10 0.03 235 / 0.6)',
+                background: isSel ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'color-mix(in oklch, var(--mf-bg) 60%, transparent)',
                 cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)', textAlign: 'center', outline: 'none',
                 boxShadow: isSel ? '0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 25%, transparent)' : 'none',
               }}
@@ -201,7 +201,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                 <div style={{
                   position: 'absolute', right: -1, bottom: -1,
                   width: 10, height: 10, borderRadius: 'var(--mf-r-full)',
-                  background: dotClr, border: '2px solid oklch(0.12 0.04 235)',
+                  background: dotClr, border: '2px solid var(--mf-bg)',
                 }} />
               </div>
 

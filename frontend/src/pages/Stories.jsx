@@ -269,7 +269,7 @@ export default function Stories() {
             { label: 'Duração', val: totalMin < 60 ? `${totalMin} min` : `${(totalMin/60).toFixed(1)}h`, color: 'var(--mf-warning-500)' },
             { label: 'Intervalo', val: `${interval} min`, color: 'var(--mf-success-500)' },
           ].map(s => (
-            <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', background: 'oklch(0.10 0.03 235 / 0.6)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
+            <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
               <span style={{ color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</span>
               <strong style={{ color: s.color, fontFamily: 'var(--mf-mono)' }}>{s.val}</strong>
             </div>
@@ -344,16 +344,16 @@ export default function Stories() {
                     <div key={m.id} onClick={() => toggleMedia(m.id)} style={{
                       position: 'relative', height: 165,
                       border: `1px solid ${m.selected ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
-                      background: 'oklch(0.12 0.04 235)', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', cursor: 'pointer', transition: '.18s',
+                      background: 'var(--mf-bg)', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', cursor: 'pointer', transition: '.18s',
                       boxShadow: m.selected ? '0 0 0 2px oklch(0.82 0.19 196 / 0.2)' : 'none',
                     }}>
-                      <div style={{ height: 138, overflow: 'hidden', background: 'oklch(0.10 0.03 235)', position: 'relative' }}>
+                      <div style={{ height: 138, overflow: 'hidden', background: 'var(--mf-bg)', position: 'relative' }}>
                         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 60%,oklch(0 0 0 / 0.52))' }} />
                         {m.type === 'video'
                           ? <video src={m.url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                           : <img src={m.url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         }
-                        <div style={{ position: 'absolute', left: 8, top: 8, width: 18, height: 18, borderRadius: 'var(--mf-r-full)', display: 'grid', placeItems: 'center', background: m.selected ? 'var(--mf-mod, var(--mf-accent-500))' : 'oklch(0.15 0.04 235)', border: `1px solid ${m.selected ? 'var(--mf-surface-3)' : 'var(--mf-border-strong)'}`, boxShadow: '0 3px 9px oklch(0 0 0 / 0.3)', color: 'var(--mf-bg)', zIndex: 1 }}>
+                        <div style={{ position: 'absolute', left: 8, top: 8, width: 18, height: 18, borderRadius: 'var(--mf-r-full)', display: 'grid', placeItems: 'center', background: m.selected ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-surface-1)', border: `1px solid ${m.selected ? 'var(--mf-surface-3)' : 'var(--mf-border-strong)'}`, boxShadow: '0 3px 9px oklch(0 0 0 / 0.3)', color: 'var(--mf-bg)', zIndex: 1 }}>
                           {m.selected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
                         </div>
                       </div>
@@ -366,9 +366,9 @@ export default function Stories() {
                     <div key={m.id} onClick={() => toggleMedia(m.id)} style={{
                       display: 'grid', gridTemplateColumns: '60px 1fr auto', alignItems: 'center', gap: 10,
                       height: 52, border: `1px solid ${m.selected ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
-                      background: 'oklch(0.12 0.04 235)', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', cursor: 'pointer', padding: '0 12px 0 0',
+                      background: 'var(--mf-bg)', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', cursor: 'pointer', padding: '0 12px 0 0',
                     }}>
-                      <div style={{ height: '100%', overflow: 'hidden', background: 'oklch(0.10 0.03 235)' }}>
+                      <div style={{ height: '100%', overflow: 'hidden', background: 'var(--mf-bg)' }}>
                         {m.type === 'video'
                           ? <video src={m.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           : <img src={m.url} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -477,7 +477,7 @@ export default function Stories() {
                 </div>
                 <button onClick={() => setLinkOn(p => !p)} style={{
                   width: 31, height: 19, borderRadius: 'var(--mf-r-full)', padding: 2,
-                  background: linkOn ? 'var(--mf-mod, var(--mf-accent-500))' : 'oklch(0.12 0.04 235)', border: '1px solid var(--mf-border)', cursor: 'pointer',
+                  background: linkOn ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-bg)', border: '1px solid var(--mf-border)', cursor: 'pointer',
                   display: 'flex', justifyContent: linkOn ? 'flex-end' : 'flex-start', transition: 'all var(--mf-normal) var(--mf-ease-out)', flexShrink: 0,
                 }}>
                   <span style={{ width: 13, height: 13, borderRadius: 'var(--mf-r-full)', background: linkOn ? 'var(--mf-bg)' : 'var(--mf-text-3)', transition: 'all var(--mf-normal) var(--mf-ease-out)', display: 'block' }} />
@@ -486,12 +486,12 @@ export default function Stories() {
 
               {linkOn && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'oklch(0.10 0.03 235)', border: '1px solid oklch(0.82 0.19 196 / 0.25)', borderRadius: 'var(--mf-r-sm)' }}>
+                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'var(--mf-bg)', border: '1px solid oklch(0.82 0.19 196 / 0.25)', borderRadius: 'var(--mf-r-sm)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                     <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
                       style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' }} />
                   </div>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'oklch(0.10 0.03 235)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)' }}>
+                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker (ex: Ver oferta, Clique aqui)"
                       maxLength={35}
@@ -511,7 +511,7 @@ export default function Stories() {
                         position: 'relative', width: 186, flexShrink: 0, aspectRatio: '9 / 16',
                         borderRadius: 'var(--mf-r-md)', overflow: 'hidden', cursor: 'crosshair',
                         border: '1px solid var(--mf-border-strong)',
-                        background: 'linear-gradient(160deg, oklch(0.20 0.05 260), oklch(0.12 0.04 235))',
+                        background: 'linear-gradient(160deg, var(--mf-surface-2), var(--mf-bg))',
                       }}
                     >
                       {/* A mídia entra como <img> com object-fit: cover — mesmo
@@ -639,7 +639,7 @@ export default function Stories() {
 
 const PANEL = {
   border: '1px solid var(--mf-border)',
-  background: 'oklch(0.16 0.05 235 / 0.85)',
+  background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
   borderRadius: 'var(--mf-r-md)',
   overflow: 'hidden',
   backdropFilter: 'blur(12px)',
@@ -657,10 +657,10 @@ const PANEL_HEAD = {
 const PANEL_TITLE = { margin: 0, fontSize: 'var(--mf-t-sm)', fontWeight: 700, letterSpacing: '-.2px', color: 'var(--mf-text)' };
 const DARK_BTN = {
   height: 30, borderRadius: 'var(--mf-r-sm)', padding: '0 10px', display: 'flex', alignItems: 'center', gap: 6,
-  background: 'oklch(0.12 0.04 235)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-micro)', fontWeight: 650, cursor: 'pointer',
+  background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-micro)', fontWeight: 650, cursor: 'pointer',
 };
 const VIEW_BTN = {
   width: 30, height: 30, borderRadius: 'var(--mf-r-sm)', display: 'grid', placeItems: 'center',
-  color: 'var(--mf-text-3)', background: 'oklch(0.12 0.04 235)', border: '1px solid var(--mf-border)', cursor: 'pointer',
+  color: 'var(--mf-text-3)', background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', cursor: 'pointer',
 };
-const VIEW_BTN_ON = { background: 'oklch(0.18 0.05 235)', color: 'var(--mf-text)' };
+const VIEW_BTN_ON = { background: 'var(--mf-surface-1)', color: 'var(--mf-text)' };

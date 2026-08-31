@@ -8,7 +8,7 @@ import PageShell from '../components/PageShell';
 import { EsqueletoTabela, Bloco } from '../components/Estados';
 
 const CARD = {
-  background: 'oklch(0.16 0.05 235 / 0.85)',
+  background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
   border: '1px solid var(--mf-border)',
   borderRadius: 'var(--mf-r-lg)',
   backdropFilter: 'blur(12px)',

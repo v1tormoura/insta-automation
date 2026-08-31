@@ -50,7 +50,7 @@ function Avatar({ account }) {
     return (
       <div style={{
         width: 44, height: 44, borderRadius: 'var(--mf-r-full)', flexShrink: 0,
-        background: 'oklch(0.25 0.05 270)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'color-mix(in oklch, var(--mf-mod-publicar) 12%, var(--mf-surface-1))', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 'var(--mf-t-h1)', fontWeight: 700, color: 'var(--mf-text-2)',
       }}>
         {initials}
