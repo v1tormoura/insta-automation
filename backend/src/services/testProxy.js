@@ -52,7 +52,14 @@ function _motivoDaRecusa(proxyUrl) {
     }, res => {
       let corpo = '';
       res.on('data', c => { corpo += c; });
-      res.on('end', () => resolve(String(corpo).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160)));
+      res.on('end', () => {
+        /* A frase da linha de status vem primeiro. Fornecedor de proxy
+           costuma pôr o motivo ali — `407 TRAFFIC_EXHAUSTED` diz numa palavra
+           o que o corpo às vezes nem repete. */
+        const frase = String(res.statusMessage || '').trim();
+        const texto = String(corpo).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        resolve([frase, texto].filter(Boolean).join(' · ').slice(0, 180));
+      });
     });
     req.on('timeout', () => { req.destroy(); resolve(''); });
     req.on('error', () => resolve(''));
@@ -137,20 +144,46 @@ async function testProxy(proxy) {
   const motivo = await _motivoDaRecusa(url);
   const codigo = bruto.status || 0;
 
+  const traduzido = motivo ? _traduzir(motivo) : '';
+
   let texto;
-  if (codigo === 407) {
+  if (traduzido) {
+    // Quando dá para explicar, a explicação vem PRIMEIRO. O código continua
+    // junto para quem for falar com o suporte do fornecedor.
+    texto = `O proxy recusou: ${traduzido}`;
+    if (motivo) texto += ` (${motivo})`;
+  } else if (codigo === 407) {
     texto = 'O proxy recusou a credencial (407)';
+    if (motivo) texto += ` — respondeu: "${motivo}"`;
   } else if (codigo) {
     texto = `Proxy respondeu HTTP ${codigo}`;
+    if (motivo) texto += ` — respondeu: "${motivo}"`;
   } else {
     texto = bruto.error || 'Falha desconhecida';
+    if (motivo) texto += ` — o proxy respondeu: "${motivo}"`;
   }
-  if (motivo) texto += ` — o proxy respondeu: "${motivo}"`;
 
   return { ...bruto, error: texto };
 }
 
 /* O 407 do túnel CONNECT chega dentro da mensagem de erro, não como resposta. */
+/* O que os fornecedores dizem, traduzido. A lista é curta de propósito: só
+   entram códigos que eu VI acontecer, porque inventar tradução para código
+   que nunca apareceu produz explicação convincente e errada. */
+const _MOTIVOS = Object.freeze({
+  TRAFFIC_EXHAUSTED: 'a cota de tráfego do plano acabou — renove ou compre mais no painel do fornecedor',
+  QUOTA_EXCEEDED:    'a cota do plano foi excedida',
+  SUBSCRIPTION_EXPIRED: 'a assinatura venceu',
+  AUTH_FAILED:       'usuário ou senha do proxy incorretos',
+  INVALID_USER:      'o usuário do proxy não existe neste fornecedor',
+  IP_NOT_ALLOWED:    'este servidor não está na lista de IPs autorizados do fornecedor',
+});
+
+function _traduzir(motivo) {
+  const chave = Object.keys(_MOTIVOS).find(k => motivo.toUpperCase().includes(k));
+  return chave ? _MOTIVOS[chave] : '';
+}
+
 function _codigoNoErro(err) {
   const m = /statusCode=(\d{3})|(4\d\d|5\d\d)/.exec(String(err?.message || ''));
   return m ? Number(m[1] || m[2]) : 0;
