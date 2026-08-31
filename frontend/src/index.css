@@ -354,7 +354,7 @@ a { text-decoration: none; color: inherit; }
 .drawer {
   position: relative; left: auto; top: auto;
   height: 100vh; height: 100dvh; width: 224px; flex-shrink: 0;
-  background: oklch(0.12 0.04 235 / 0.98);
+  background: color-mix(in oklch, var(--mf-bg) 98%, transparent);
   border-right: 1px solid oklch(1 0 0 / 0.07);
   display: flex; flex-direction: column;
   z-index: 50;
@@ -609,8 +609,8 @@ a { text-decoration: none; color: inherit; }
 
 /* premium card — uses .glass + .lift */
 .card-premium {
-  background: oklch(0.16 0.05 235 / 0.92);
-  border: 1px solid oklch(1 0 0 / 0.09);
+  background: color-mix(in oklch, var(--mf-surface-1) 92%, transparent);
+  border: 1px solid var(--mf-border);
   border-radius: var(--radius-xl);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   position: relative; overflow: hidden;
@@ -1273,7 +1273,14 @@ table { table-layout: auto; }
   position: sticky;
   left: 0;
   z-index: 1;
-  background: oklch(0.14 0.04 235);
+  /* Precisa ser OPACO: sem fundo, o conteúdo das outras colunas passa por
+     baixo ao rolar na horizontal e o nome da conta fica ilegível.
+
+     Mas tem que ser a MESMA cor do painel, não uma própria. Era
+     `oklch(0.14 0.04 235)` cravado — croma 0.04, a paleta antiga — e o
+     resultado é a faixa azul mais escura sobre a coluna da esquerda, como se
+     aquela metade da tabela fosse outra coisa. */
+  background: var(--mf-surface-1);
 }
 
 /* H6 — Hide non-critical columns on narrow mobile */

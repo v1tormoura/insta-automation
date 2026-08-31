@@ -62,7 +62,7 @@
 
 /* ── Metric cards ────────────────────────────────────── */
 .metric-grid {
-  display: grid; gap: 12px;
+  display: grid; gap: var(--mf-4);
   /* Colunas EXPLÍCITAS, e só 1, 2 ou 4 — nunca 3.
 
      A grade tem seis cartões, mas oito unidades de coluna: quatro simples e
@@ -112,26 +112,31 @@
 }
 
 /* ── Bloco de métrica ──────────────────────────────────────────────────────
-   A grade inteira vira UM bloco. Os vãos de 1px, pintados pela cor de fundo
-   do container, viram as divisórias — assim não há moldura por métrica nem
-   borda solta no fim de fileira, que é o defeito de pôr `border-right` em
-   cada item quando a contagem de colunas muda com a largura. */
-.metric-grid {
-  gap: 1px;
-  background: var(--mf-border);
-  border: 1px solid var(--mf-border);
-  border-radius: var(--mf-r-md);
-  overflow: hidden;
-}
+   Blocos SEPARADOS, cada um com a sua moldura.
+
+   Cheguei a uni-los num bloco só, com os vãos de 1px fazendo as divisórias —
+   é o que se vê em painel de produto denso, e resolve elegantemente a borda
+   solta no fim de fileira. Mas separados foi a preferência, e aqui ela vale
+   mais que a referência: quem opera este painel lê as quatro métricas como
+   quatro coisas, não como uma leitura contínua.
+
+   O que NÃO volta é o cartão antigo. Sem as quatro camadas decorativas, sem
+   orbe, sem 168px de altura mínima — a moldura separa, e é só o que ela faz. */
 .metric-card {
   background: var(--mf-surface-1);
-  border: none; border-radius: 0;
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-r-md);
+  box-shadow: var(--mf-shadow-1);
   padding: var(--mf-4) var(--mf-5);
   display: flex; flex-direction: column; justify-content: space-between;
   gap: var(--mf-4); min-height: 104px;
-  transition: background var(--mf-fast) var(--mf-ease-out);
+  transition: background var(--mf-fast) var(--mf-ease-out),
+              border-color var(--mf-fast) var(--mf-ease-out);
 }
-.metric-card:hover { background: var(--mf-surface-2); }
+.metric-card:hover {
+  background: var(--mf-surface-2);
+  border-color: var(--mf-border-strong);
+}
 
 .metric-card__rot {
   font-size: var(--mf-t-nano); font-weight: 500;
