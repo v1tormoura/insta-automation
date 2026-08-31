@@ -33,7 +33,7 @@ async function dlFile(url, filename) {
 }
 
 const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-const inputStyle = { flex:1, minWidth:200, padding:'9px 14px', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
+const inputStyle = { flex:1, minWidth:200, padding:'8px 12px', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
 
 const IC_DL = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -136,7 +136,7 @@ export default function Downloader() {
     <PageShell icon={pageIcon} title="Baixar Perfil" subtitle="Baixe todas as mídias de qualquer perfil público sem perder qualidade." accent="cyan" actions={pageActions}>
 
       {/* Search */}
-      <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }} style={{ ...cardStyle, padding:'16px 18px', marginBottom:14 }}>
+      <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }} style={{ ...cardStyle, padding:'16px 16px', marginBottom:14 }}>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <input
             value={username}
@@ -145,13 +145,13 @@ export default function Downloader() {
             placeholder="@username ou username"
             style={inputStyle}
           />
-          <button className="btn-primary" style={{ height:38, padding:'0 20px', borderRadius: 'var(--mf-r-sm)', opacity:(loading || !username.trim()) ? .5 : 1 }}
+          <button className="btn-primary" style={{ height:38, padding:'0 16px', borderRadius: 'var(--mf-r-sm)', opacity:(loading || !username.trim()) ? .5 : 1 }}
             onClick={handleSearch} disabled={loading || !username.trim()}>
             {loading ? '⏳ Buscando…' : '🔍 Buscar'}
           </button>
         </div>
         {error && (
-          <div style={{ marginTop:10, padding:'9px 12px', background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-xs)' }}>
+          <div style={{ marginTop:10, padding:'8px 12px', background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-xs)' }}>
             {error}
           </div>
         )}
@@ -160,7 +160,7 @@ export default function Downloader() {
       {/* Profile card */}
       {profile && (
         <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }}
-          style={{ ...cardStyle, padding:'18px 20px', marginBottom:14, display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
+          style={{ ...cardStyle, padding:'16px 16px', marginBottom:14, display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ width:64, height:64, borderRadius: 'var(--mf-r-full)', overflow:'hidden', border:'2px solid var(--mf-mod, var(--mf-accent-500))', flexShrink:0, background:'var(--mf-bg)' }}>
             <img
               src={proxyImg(profile.profile_pic_url)}
@@ -172,7 +172,7 @@ export default function Downloader() {
           <div style={{ flex:1, minWidth:160 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
               <span style={{ fontWeight:800, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)' }}>@{profile.username}</span>
-              {profile.is_verified && <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 7px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.50 0.17 245 / 0.2)', color:'var(--mf-info-500)', border:'1px solid oklch(0.50 0.17 245 / 0.3)' }}>✓ verificado</span>}
+              {profile.is_verified && <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.50 0.17 245 / 0.2)', color:'var(--mf-info-500)', border:'1px solid oklch(0.50 0.17 245 / 0.3)' }}>✓ verificado</span>}
             </div>
             {profile.full_name && <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginBottom:6 }}>{profile.full_name}</div>}
             <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
@@ -185,7 +185,7 @@ export default function Downloader() {
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'center', flexShrink:0, flexWrap:'wrap' }}>
             <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{media.length} carregados</span>
-            <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'6px 12px', borderRadius: 'var(--mf-r-sm)', color: allSel ? 'var(--mf-danger-500)' : undefined }} onClick={toggleAll}>
+            <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', color: allSel ? 'var(--mf-danger-500)' : undefined }} onClick={toggleAll}>
               {allSel ? 'Desmarcar todos' : 'Selecionar todos'}
             </button>
           </div>
@@ -205,7 +205,7 @@ export default function Downloader() {
 
           {hasMore && (
             <div style={{ textAlign:'center', marginBottom:20 }}>
-              <button className="btn-ghost" style={{ padding:'9px 28px', fontSize: 'var(--mf-t-sm)', borderRadius: 'var(--mf-r-md)' }} onClick={loadMore} disabled={loadingMore}>
+              <button className="btn-ghost" style={{ padding:'8px 24px', fontSize: 'var(--mf-t-sm)', borderRadius: 'var(--mf-r-md)' }} onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? 'Carregando…' : 'Carregar mais'}
               </button>
             </div>
@@ -214,7 +214,7 @@ export default function Downloader() {
       )}
 
       {!loading && profile && media.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 16px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>📭</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Nenhuma mídia encontrada</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Este perfil não tem mídias públicas disponíveis.</div>
@@ -222,7 +222,7 @@ export default function Downloader() {
       )}
 
       {!profile && !loading && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 40%, transparent)', border:'1px dashed var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 16px', background:'color-mix(in oklch, var(--mf-surface-1) 40%, transparent)', border:'1px dashed var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>⬇️</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Baixe mídias de qualquer perfil</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Digite um username acima e clique em Buscar.</div>
@@ -244,14 +244,14 @@ function MediaTile({ item, sel, onToggle, onDownload }) {
           onError={e => { e.target.style.display = 'none'; }} />
       )}
       {item.type !== 'image' && (
-        <div style={{ position:'absolute', top:5, right:5, background:'oklch(0 0 0 / 0.72)', backdropFilter:'blur(4px)', borderRadius: 'var(--mf-r-xs)', padding:'2px 6px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text)' }}>
+        <div style={{ position:'absolute', top:5, right:5, background:'oklch(0 0 0 / 0.72)', backdropFilter:'blur(4px)', borderRadius: 'var(--mf-r-xs)', padding:'2px 4px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text)' }}>
           {item.type === 'video' ? '▶ vídeo' : `⊕ ${item.count}`}
         </div>
       )}
       <div style={{ position:'absolute', inset:0, background: hover ? 'oklch(0 0 0 / 0.42)' : 'oklch(0 0 0 / 0)', display:'flex', alignItems:'flex-end', justifyContent:'flex-end', padding:6, transition:'background .12s' }}>
         {hover && (
           <button onClick={onDownload} title="Baixar"
-            style={{ background:'var(--mf-surface-3)', border:'none', borderRadius: 'var(--mf-r-sm)', padding:'5px 7px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            style={{ background:'var(--mf-surface-3)', border:'none', borderRadius: 'var(--mf-r-sm)', padding:'4px 8px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>

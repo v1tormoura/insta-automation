@@ -215,7 +215,7 @@ export default function CaptionEditor({
             <span key={v} title={ok ? 'Será substituída na publicação' : 'Não existe — será publicada como texto'}
               style={{
                 fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700,
-                padding:'2px 6px', borderRadius: 'var(--mf-r-xs)',
+                padding:'2px 4px', borderRadius: 'var(--mf-r-xs)',
                 background: ok ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
                 color:      ok ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-danger-500)',
                 border: `1px solid ${ok ? 'color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)'}`,
@@ -237,7 +237,7 @@ export default function CaptionEditor({
 
   const botaoAcao = (rotulo, aoClicar, cor = 'var(--mf-text-3)') => (
     <button onClick={aoClicar} style={{
-      padding:'5px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight:700, cursor:'pointer',
+      padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight:700, cursor:'pointer',
       background:'var(--mf-border-subtle)', color: cor, border:'1px solid var(--mf-border)',
     }}>{rotulo}</button>
   );
@@ -254,7 +254,7 @@ export default function CaptionEditor({
           const ativo = mode === m.id;
           return (
             <button key={m.id} onClick={() => onModeChange(m.id)} title={m.desc} style={{
-              textAlign:'left', padding:'9px 11px', borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'all .15s',
+              textAlign:'left', padding:'8px 12px', borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'all .15s',
               background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)' : 'var(--mf-border-subtle)',
               border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : 'var(--mf-border)'}`,
             }}>
@@ -309,7 +309,7 @@ export default function CaptionEditor({
                   const feitas = contents.filter(c => ler('byAccountContent', `${a.id}__${c.id}`).trim()).length;
                   return (
                     <button key={a.id} onClick={() => setContaAtiva(a.id)} style={{
-                      padding:'6px 11px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
+                      padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
                       background: ativa ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)' : 'var(--mf-border-subtle)',
                       color:      ativa ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
                       border:     `1px solid ${ativa ? 'color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)' : 'var(--mf-border)'}`,
@@ -341,7 +341,7 @@ export default function CaptionEditor({
               const texto = ler(mapaAtual, l.chave);
               return (
                 <div key={l.chave} style={{
-                  border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'9px 11px',
+                  border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'8px 12px',
                   background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:6 }}>
@@ -375,7 +375,7 @@ export default function CaptionEditor({
             })}
 
             {!linhas.length && (
-              <div style={{ padding:'22px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>
+              <div style={{ padding:'24px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>
                 {mode === 'per_account'
                   ? 'Selecione contas na etapa anterior.'
                   : 'Selecione conteúdos na etapa anterior.'}

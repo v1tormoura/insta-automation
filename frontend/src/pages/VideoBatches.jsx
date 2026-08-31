@@ -96,7 +96,7 @@ function NewBatchModal({ onClose, onCreated }) {
         animate={{ scale: 1, y: 0 }}
         style={{ ...CARD, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--mf-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
           <h3 style={{ margin: 0, fontSize: 'var(--mf-t-h2)', fontWeight: 700, color: 'var(--mf-text)' }}>Novo Lote de Vídeo</h3>
           <button onClick={onClose} className="btn-ghost" style={{ padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-h1)', lineHeight: 1 }}>×</button>
         </div>
@@ -139,7 +139,7 @@ function NewBatchModal({ onClose, onCreated }) {
             <div
               onClick={() => fileRef.current?.click()}
               style={{
-                border: '2px dashed var(--mf-border-strong)', borderRadius: 'var(--mf-r-md)', padding: '18px 14px',
+                border: '2px dashed var(--mf-border-strong)', borderRadius: 'var(--mf-r-md)', padding: '16px 12px',
                 textAlign: 'center', cursor: 'pointer', transition: 'border-color var(--mf-fast) var(--mf-ease-out)',
               }}
               onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--mf-primary-300)'; }}
@@ -162,7 +162,7 @@ function NewBatchModal({ onClose, onCreated }) {
             {files.length > 0 && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {files.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', background: 'var(--mf-border-subtle)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', background: 'var(--mf-border-subtle)', borderRadius: 'var(--mf-r-sm)', padding: '4px 8px' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mf-info-500)" strokeWidth="2.5" strokeLinecap="round"><path d="M15 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                     <span style={{ fontFamily: 'var(--mf-mono)', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
@@ -174,8 +174,8 @@ function NewBatchModal({ onClose, onCreated }) {
           </div>
 
           <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
-            <button type="button" className="btn-ghost" onClick={onClose} style={{ flex: 1, padding: '9px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)' }}>Cancelar</button>
-            <button type="submit" className="btn-primary" disabled={saving} style={{ flex: 2, padding: '9px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <button type="button" className="btn-ghost" onClick={onClose} style={{ flex: 1, padding: '8px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)' }}>Cancelar</button>
+            <button type="submit" className="btn-primary" disabled={saving} style={{ flex: 2, padding: '8px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               {saving ? 'Criando…' : `Criar Lote (${files.length} vídeo${files.length !== 1 ? 's' : ''})`}
             </button>
           </div>
@@ -220,10 +220,10 @@ export default function VideoBatches() {
 
   const pageActions = (
     <>
-      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
+      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 8px' }}>
         {batches.length} lotes
       </span>
-      <button className="btn-primary" onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)' }}>
+      <button className="btn-primary" onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)' }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Novo Lote
       </button>
@@ -236,16 +236,16 @@ export default function VideoBatches() {
       <AnimatePresence>{showNew && <NewBatchModal onClose={() => setShowNew(false)} onCreated={onCreated} />}</AnimatePresence>
 
       <PageShell icon={pageIcon} title="Lotes de Vídeo" subtitle="Renderize múltiplos vídeos em lote com o mesmo template" accent="green" actions={pageActions}>
-        <div style={{ padding: '16px 20px' }}>
+        <div style={{ padding: '16px 16px' }}>
           {loading ? (
             <EsqueletoLista itens={4} />
           ) : !batches.length ? (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ ...CARD, padding: '60px 20px', textAlign: 'center' }}>
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ ...CARD, padding: '60px 16px', textAlign: 'center' }}>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--mf-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 16px', display: 'block' }}>
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
               <p style={{ color: 'var(--mf-text-3)', marginBottom: 16, fontSize: 'var(--mf-t-body)' }}>Nenhum lote criado ainda.</p>
-              <button className="btn-primary" onClick={() => setShowNew(true)} style={{ padding: '8px 20px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)' }}>Criar primeiro lote</button>
+              <button className="btn-primary" onClick={() => setShowNew(true)} style={{ padding: '8px 16px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)' }}>Criar primeiro lote</button>
             </motion.div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -262,7 +262,7 @@ export default function VideoBatches() {
                     style={{ ...CARD, cursor: 'pointer' }}
                     onClick={() => navigate(`/video-batches/${batch._id}`)}
                   >
-                    <div style={{ padding: '12px 14px' }}>
+                    <div style={{ padding: '12px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -297,7 +297,7 @@ export default function VideoBatches() {
                         {batch.status === 'processing' && (
                           <button
                             className="btn-ghost"
-                            style={{ padding: '3px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)' }}
+                            style={{ padding: '2px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)' }}
                             onClick={e => { e.stopPropagation(); cancelBatch(batch._id); }}
                           >
                             Cancelar

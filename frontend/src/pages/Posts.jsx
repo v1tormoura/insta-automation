@@ -35,7 +35,7 @@ function LegendDropdown({ legends, value, onChange }) {
           background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)',
           border: `1px solid ${open ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
           borderRadius: open ? '9px 9px 0 0' : 9,
-          padding: '9px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer', textAlign: 'left',
+          padding: '8px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer', textAlign: 'left',
           color: selected ? 'var(--mf-text)' : 'var(--mf-text-3)',
           transition: 'border-color var(--mf-fast) var(--mf-ease-out)',
           boxShadow: open ? '0 0 0 3px oklch(0.82 0.19 196 / 0.08)' : 'none',
@@ -62,7 +62,7 @@ function LegendDropdown({ legends, value, onChange }) {
               key={l._id || 'empty'}
               onClick={() => { onChange(l._id); setOpen(false); }}
               style={{
-                padding: '9px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer',
+                padding: '8px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer',
                 color: l._id === '' ? 'var(--mf-text-3)' : l._id === value ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)',
                 background: l._id !== '' && l._id === value ? 'oklch(0.82 0.19 196 / 0.08)' : 'transparent',
                 borderBottom: i < legends.length ? '1px solid var(--mf-border-subtle)' : 'none',
@@ -160,7 +160,7 @@ function MediaCard({ file, index, onRemove }) {
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         background: 'linear-gradient(transparent, oklch(0 0 0 / 0.78))',
-        padding: '22px 6px 5px', pointerEvents: 'none',
+        padding: '24px 4px 4px', pointerEvents: 'none',
       }}>
         <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'oklch(1 0 0)', textShadow:'0 1px 2px oklch(0 0 0 / 0.6)', fontFamily: 'var(--mf-mono)' }}>
           #{index + 1}
@@ -381,10 +381,10 @@ export default function Posts() {
   /* ── Header actions ── */
   const pageActions = (
     <>
-      <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-sm)', padding: '7px 14px', borderRadius: 'var(--mf-r-sm)' }} type="button" onClick={retryAllErrors} disabled={retryingAll}>
+      <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-sm)', padding: '8px 12px', borderRadius: 'var(--mf-r-sm)' }} type="button" onClick={retryAllErrors} disabled={retryingAll}>
         ↻ {retryingAll ? 'Reprocessando...' : 'Reprocessar vencidos'}
       </button>
-      <button className="btn-primary" style={{ fontSize: 'var(--mf-t-sm)', padding: '7px 16px', borderRadius: 'var(--mf-r-sm)', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, minWidth: 120, justifyContent: 'center', opacity: posting ? 0.8 : 1 }} type="button"
+      <button className="btn-primary" style={{ fontSize: 'var(--mf-t-sm)', padding: '8px 16px', borderRadius: 'var(--mf-r-sm)', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, minWidth: 120, justifyContent: 'center', opacity: posting ? 0.8 : 1 }} type="button"
         disabled={posting}
         onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
         {posting ? (
@@ -480,7 +480,7 @@ export default function Posts() {
                     opcoes={[{ value:'upload', label:'Upload' }, { value:'library', label:'Biblioteca' }]}
                     valor={mediaSource} onChange={setMediaSource} mod="publicar"
                   />
-                  <span className="mf-mono" style={{ fontSize:'var(--mf-t-micro)', borderRadius:'var(--mf-r-full)', padding:'3px 10px', whiteSpace:'nowrap',
+                  <span className="mf-mono" style={{ fontSize:'var(--mf-t-micro)', borderRadius:'var(--mf-r-full)', padding:'2px 8px', whiteSpace:'nowrap',
                     background:'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)',
                     color:'var(--mf-mod-contas)',
                     border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 26%, transparent)' }}>
@@ -507,7 +507,7 @@ export default function Posts() {
                   <button type="button"
                     onClick={() => setMediaSource('upload')}
                     style={{
-                      padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       border: `1.5px solid ${mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
                       background: mediaSource === 'upload' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-bg)',
                       color: mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
@@ -521,7 +521,7 @@ export default function Posts() {
                   <button type="button"
                     onClick={() => { setMediaSource('library'); setShowLibPicker(true); }}
                     style={{
-                      padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       border: `1.5px solid ${mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
                       background: mediaSource === 'library' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-bg)',
                       color: mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
@@ -572,7 +572,7 @@ export default function Posts() {
                 ) : (
                   <>
                     <button type="button" onClick={() => setShowLibPicker(true)}
-                      style={{ width: '100%', padding: '18px 16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
+                      style={{ width: '100%', padding: '16px 16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                       <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600 }}>Escolher da biblioteca</span>
                       <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Selecione mídias já enviadas nas suas pastas</span>
@@ -593,7 +593,7 @@ export default function Posts() {
                                 <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
                                 <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
                                    style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)', cursor: 'pointer', fontSize: 'var(--mf-t-nano)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 3px' }}>
+                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 2px' }}>
                                   <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{i+1} {m.originalName || m.filename}</div>
                                 </div>
                               </div>
@@ -783,7 +783,7 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Publicações simultâneas</h3>
-                <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 'var(--mf-r-full)', padding: '2px 10px' }}>
+                <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>
                   {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
                 </span>
               </div>
@@ -843,14 +843,14 @@ export default function Posts() {
                   {processModes.map(m => (
                     <div key={m.id} onClick={() => setProcessMode(m.id)}
                       style={{
-                        padding: '10px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
+                        padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
                         background: processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                         borderColor: processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
                         transition: 'all var(--mf-fast) var(--mf-ease-out)',
                       }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
                         <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
+                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
                       </div>
                       <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
                     </div>

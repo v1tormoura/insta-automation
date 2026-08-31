@@ -35,7 +35,7 @@ function FormField({ label, value, onChange, placeholder, type = 'text', hint, r
         placeholder={placeholder}
         autoComplete="off"
         style={{
-          width: '100%', boxSizing: 'border-box', padding: '9px 12px',
+          width: '100%', boxSizing: 'border-box', padding: '8px 12px',
           borderRadius: 'var(--mf-r-md)', border: '1px solid var(--border)',
           background: 'var(--bg3)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)',
           fontFamily: 'var(--mf-mono)', outline: 'none',
@@ -143,7 +143,7 @@ export default function ApiMeta() {
 
       {/* ── Configuração para o painel Meta ─────────────────── */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-lg)', padding: '20px 22px', marginBottom: 24 }}>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-lg)', padding: '16px 24px', marginBottom: 24 }}>
           <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 800, color: 'var(--mf-mod-publicar)', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>Configuração do App Meta</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 4 }}>Copie esses valores no painel Meta Developers</div>
           <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginBottom: 16 }}>
@@ -151,14 +151,14 @@ export default function ApiMeta() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {configRows.map(({ label, value }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-md)', padding: '10px 14px' }}>
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-md)', padding: '8px 12px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)', marginBottom: 2 }}>{label}</div>
                   <div style={{ fontSize: 'var(--mf-t-xs)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
                 </div>
                 <button
                   onClick={() => copy(value, label)}
-                  style={{ flexShrink: 0, padding: '5px 10px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: copiedKey === label ? 'color-mix(in oklch, var(--mf-success-500) 15%, transparent)' : 'var(--bg2)', color: copiedKey === label ? 'var(--mf-success-500)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all var(--mf-normal) var(--mf-ease-out)' }}
+                  style={{ flexShrink: 0, padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: copiedKey === label ? 'color-mix(in oklch, var(--mf-success-500) 15%, transparent)' : 'var(--bg2)', color: copiedKey === label ? 'var(--mf-success-500)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all var(--mf-normal) var(--mf-ease-out)' }}
                 >
                   {copiedKey === label ? <><IcoCheck /> Copiado</> : <><IcoCopy /> Copiar</>}
                 </button>
@@ -182,7 +182,7 @@ export default function ApiMeta() {
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom: 12 }}>🔑</div>
           <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 6 }}>Nenhum app configurado</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text-3)', marginBottom: 20 }}>Adicione pelo menos um app Meta para usar o fluxo OAuth.</div>
-          <button onClick={openNew} style={{ padding: '10px 22px', borderRadius: 'var(--mf-r-md)', border: 'none', background: 'var(--mf-mod-publicar)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer' }}>Adicionar primeiro app</button>
+          <button onClick={openNew} style={{ padding: '8px 24px', borderRadius: 'var(--mf-r-md)', border: 'none', background: 'var(--mf-mod-publicar)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer' }}>Adicionar primeiro app</button>
         </motion.div>
       )}
 
@@ -192,7 +192,7 @@ export default function ApiMeta() {
             <motion.div key={app._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * .04 }}>
               <div style={{
                 background: 'var(--card)', border: `1px solid ${app.isDefault ? 'color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)' : 'var(--border)'}`,
-                borderRadius: 'var(--mf-r-lg)', padding: '18px 20px',
+                borderRadius: 'var(--mf-r-lg)', padding: '16px 16px',
                 boxShadow: app.isDefault ? '0 0 0 1px color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)' : 'none',
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -231,7 +231,7 @@ export default function ApiMeta() {
                     {!app.isDefault && (
                       <button
                         onClick={() => setDefault(app._id)}
-                        style={{ padding: '6px 12px', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent)', color: 'var(--mf-mod-publicar)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer' }}
+                        style={{ padding: '4px 12px', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent)', color: 'var(--mf-mod-publicar)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer' }}
                       >
                         Usar como padrão
                       </button>
@@ -261,7 +261,7 @@ export default function ApiMeta() {
 
       {/* ── Dica sobre múltiplos apps ─── */}
       {!loading && apps.length > 0 && (
-        <div style={{ marginTop: 20, background: 'color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)', borderRadius: 'var(--mf-r-md)', padding: '14px 16px', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.7 }}>
+        <div style={{ marginTop: 20, background: 'color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)', borderRadius: 'var(--mf-r-md)', padding: '12px 16px', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.7 }}>
           <strong style={{ color: 'var(--mf-text-2)' }}>Como usar múltiplos apps:</strong> O app marcado como <strong>Padrão</strong> é usado automaticamente no fluxo OAuth. Ao conectar uma conta em <strong>Contas</strong>, você pode escolher qual app usar no dropdown que aparece no modal de conexão.
         </div>
       )}
@@ -290,11 +290,11 @@ export default function ApiMeta() {
             <FormField label="Meta Login Config ID (opcional)" value={form.loginConfigId} onChange={v => setForm(f => ({ ...f, loginConfigId: v }))} placeholder="deixe vazio para login padrão" hint="Apenas necessário se você criou uma configuração de login customizada" />
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-              <button onClick={closeForm} style={{ padding: '9px 20px', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={closeForm} style={{ padding: '8px 16px', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
               <button
                 onClick={saveForm}
                 disabled={saving}
-                style={{ padding: '9px 22px', borderRadius: 'var(--mf-r-md)', border: 'none', background: 'var(--mf-mod-publicar)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}
+                style={{ padding: '8px 24px', borderRadius: 'var(--mf-r-md)', border: 'none', background: 'var(--mf-mod-publicar)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}
               >
                 {saving ? <><span style={{ width:14, height:14, border:'2px solid var(--mf-border-strong)', borderTopColor:'var(--mf-text)', borderRadius: 'var(--mf-r-full)', display:'inline-block', animation:'spin .7s linear infinite' }} /> Salvando...</> : `${editId ? 'Salvar alterações' : 'Criar app'}`}
               </button>

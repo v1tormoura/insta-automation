@@ -214,7 +214,7 @@ export default function ConnectedAccountsMetrics() {
               background: 'var(--mf-border-subtle)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-sm)',
-              padding: '5px 8px',
+              padding: '4px 8px',
               color: 'var(--mf-text-3)',
               cursor: 'pointer',
               display: 'flex',
@@ -258,7 +258,7 @@ export default function ConnectedAccountsMetrics() {
               background: 'var(--mf-surface-1)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
-              padding: '14px 16px',
+              padding: '12px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
@@ -283,7 +283,7 @@ export default function ConnectedAccountsMetrics() {
               background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
-              padding: '14px 16px',
+              padding: '12px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
@@ -306,7 +306,7 @@ export default function ConnectedAccountsMetrics() {
               background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
-              padding: '14px 16px',
+              padding: '12px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
@@ -329,7 +329,7 @@ export default function ConnectedAccountsMetrics() {
               background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
-              padding: '12px 14px',
+              padding: '12px 12px',
               position: 'relative',
               overflow: 'hidden',
               display: 'flex',
@@ -379,7 +379,7 @@ export default function ConnectedAccountsMetrics() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', padding: '6px 0' }}>
+                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', padding: '4px 0' }}>
                     Nenhum post no período
                   </div>
                 )}
@@ -392,7 +392,7 @@ export default function ConnectedAccountsMetrics() {
                   onClick={() => setShowAccountsDetail(!showAccountsDetail)}
                   style={{
                     marginTop: 6,
-                    padding: '3px 0',
+                    padding: '2px 0',
                     background: 'transparent',
                     border: 'none',
                     color: 'var(--mf-mod, var(--mf-accent-500))',
@@ -415,7 +415,7 @@ export default function ConnectedAccountsMetrics() {
               background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-lg)',
-              padding: '14px 16px',
+              padding: '12px 16px',
               position: 'relative',
               overflow: 'hidden',
             }}>
@@ -482,7 +482,7 @@ export default function ConnectedAccountsMetrics() {
                         background: 'var(--mf-bg)',
                         border: '1px solid var(--mf-border)',
                         borderRadius: 'var(--mf-r-sm)',
-                        padding: '6px 10px',
+                        padding: '4px 8px',
                       }}
                     >
                       {acc.thumbnailUrl ? (

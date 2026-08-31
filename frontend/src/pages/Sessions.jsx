@@ -18,7 +18,7 @@ const STATUS_MAP = {
 
 function StatusBadge({ status }) {
   const s = STATUS_MAP[status] || { bg:'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color:'var(--mf-text-3)', border:'color-mix(in oklch, var(--mf-surface-3) 35%, transparent)', label:'Sessão OK' };
-  return <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', background:s.bg, color:s.color, border:`1px solid ${s.border}`, whiteSpace:'nowrap' }}>{s.label}</span>;
+  return <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:s.bg, color:s.color, border:`1px solid ${s.border}`, whiteSpace:'nowrap' }}>{s.label}</span>;
 }
 
 export default function Sessions() {
@@ -70,7 +70,7 @@ export default function Sessions() {
 
   const pageActions = (
     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 6%, transparent)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'4px 12px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 6%, transparent)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
         <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
         Monitoramento ativo
       </div>
@@ -78,8 +78,8 @@ export default function Sessions() {
   );
 
   const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-  const thStyle   = { padding:'10px 14px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'color-mix(in oklch, var(--mf-bg) 40%, transparent)' };
-  const tdStyle   = { padding:'11px 14px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
+  const thStyle   = { padding:'8px 12px', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.07em', fontFamily:'var(--mf-mono)', borderBottom:'1px solid var(--mf-border)', textAlign:'left', background:'color-mix(in oklch, var(--mf-bg) 40%, transparent)' };
+  const tdStyle   = { padding:'12px 12px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', borderBottom:'1px solid var(--mf-border-subtle)', verticalAlign:'middle' };
 
   return (
     <>
@@ -90,7 +90,7 @@ export default function Sessions() {
         <div className="resp-grid-5" style={{ marginBottom:14 }}>
           {STATS.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
-              style={{ ...cardStyle, padding:'14px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
+              style={{ ...cardStyle, padding:'12px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
               <div style={{ fontSize: 'var(--mf-t-display)', fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
               <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:3, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
             </motion.div>
@@ -143,8 +143,8 @@ export default function Sessions() {
                     </td>
                     <td style={tdStyle}>
                       <div style={{ display:'flex', gap:6 }}>
-                        <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 10px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => openSession(session._id)}>Abrir</button>
-                        <button className="btn-primary" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 10px', borderRadius: 'var(--mf-r-sm)', opacity: loadingId === session._id ? .5 : 1 }}
+                        <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => openSession(session._id)}>Abrir</button>
+                        <button className="btn-primary" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', opacity: loadingId === session._id ? .5 : 1 }}
                           onClick={() => testSession(session._id)} disabled={loadingId === session._id}>
                           {loadingId === session._id ? 'Testando...' : 'Testar'}
                         </button>

@@ -221,7 +221,7 @@ export default function Stories() {
       onClick={publish}
       disabled={loading || !selected.length || !selectedMedia.length}
       className="btn-primary"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, opacity: (loading || !selected.length || !selectedMedia.length) ? 0.5 : 1 }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, opacity: (loading || !selected.length || !selectedMedia.length) ? 0.5 : 1 }}
     >
       {loading ? (
         <>
@@ -250,7 +250,7 @@ export default function Stories() {
       >
         {/* Banner de status em segundo plano */}
         {bgStatus?.running && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
               <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: 'var(--mf-mod, var(--mf-accent-500))' }}>
@@ -269,7 +269,7 @@ export default function Stories() {
             { label: 'Duração', val: totalMin < 60 ? `${totalMin} min` : `${(totalMin/60).toFixed(1)}h`, color: 'var(--mf-warning-500)' },
             { label: 'Intervalo', val: `${interval} min`, color: 'var(--mf-success-500)' },
           ].map(s => (
-            <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
+            <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 8px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
               <span style={{ color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</span>
               <strong style={{ color: s.color, fontFamily: 'var(--mf-mono)' }}>{s.val}</strong>
             </div>
@@ -333,7 +333,7 @@ export default function Stories() {
               {medias.length > 0 && (
                 <div className={gridMode ? 'stories-media-grid' : ''}
                   style={{
-                    padding: '15px 19px 10px',
+                    padding: '16px 16px 8px',
                     display: 'grid',
                     gridTemplateColumns: gridMode ? undefined : '1fr',
                     gap: 10, maxHeight: 330, overflowY: 'auto',
@@ -387,7 +387,7 @@ export default function Stories() {
               )}
 
               {/* Footer */}
-              <div style={{ minHeight: 54, borderTop: '1px solid var(--mf-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 19px', flexWrap: 'wrap', gap: 8, marginTop: medias.length > 0 ? 0 : 4 }}>
+              <div style={{ minHeight: 54, borderTop: '1px solid var(--mf-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px', flexWrap: 'wrap', gap: 8, marginTop: medias.length > 0 ? 0 : 4 }}>
                 <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-mod, var(--mf-accent-500))', fontFamily: 'var(--mf-mono)' }}>{selectedMedia.length} selecionadas</span>
                 <div style={{ display: 'flex', gap: 20 }}>
                   <button onClick={clearSelection} style={{ background: 'transparent', border: 'none', color: 'var(--mf-danger-500)', fontSize: 'var(--mf-t-micro)', fontWeight: 600, cursor: 'pointer' }}>Limpar seleção</button>
@@ -403,9 +403,9 @@ export default function Stories() {
                   <h3 style={PANEL_TITLE}>Resultado</h3>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{results.successCount} de {results.total} publicados</span>
                 </div>
-                <div style={{ padding: '8px 19px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ padding: '8px 16px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {(results.results || []).map((r, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-xs)' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-xs)' }}>
                       <span style={{ width: 8, height: 8, borderRadius: 'var(--mf-r-full)', background: r.status === 'success' ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', flexShrink: 0, display: 'inline-block' }} />
                       <strong>@{r.username}</strong>
                       <span style={{ color: r.status === 'success' ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', flex: 1 }}>
@@ -432,7 +432,7 @@ export default function Stories() {
               <div style={{ ...PANEL_HEAD, borderRadius: '11px 11px 0 0' }}>
                 <h3 style={PANEL_TITLE}>Contas</h3>
               </div>
-              <div style={{ padding: '10px 14px 14px' }}>
+              <div style={{ padding: '8px 12px 12px' }}>
                 {contasCarregando && !accounts.length
                   ? <EsqueletoLista itens={3} />
                   : <AccountPicker
@@ -445,13 +445,13 @@ export default function Stories() {
 
             {/* Intervalo */}
             <div style={PANEL}>
-              <div style={{ minHeight: 56, padding: '14px 18px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ minHeight: 56, padding: '12px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h3 style={{ ...PANEL_TITLE, margin: 0 }}>Intervalo entre stories</h3>
                   <p style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', margin: '4px 0 0' }}>Aguarda este tempo entre cada publicação.</p>
                 </div>
               </div>
-              <div style={{ padding: '4px 18px 18px' }}>
+              <div style={{ padding: '4px 16px 16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginBottom: 8 }}>
                   <span>Intervalo entre stories</span>
                   <strong style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)' }}>{interval} {interval === 1 ? 'minuto' : 'minutos'}</strong>
@@ -486,12 +486,12 @@ export default function Stories() {
 
               {linkOn && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'var(--mf-bg)', border: '1px solid oklch(0.82 0.19 196 / 0.25)', borderRadius: 'var(--mf-r-sm)' }}>
+                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', background: 'var(--mf-bg)', border: '1px solid oklch(0.82 0.19 196 / 0.25)', borderRadius: 'var(--mf-r-sm)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                     <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
                       style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' }} />
                   </div>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)' }}>
+                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker (ex: Ver oferta, Clique aqui)"
                       maxLength={35}
@@ -526,7 +526,7 @@ export default function Stories() {
 
                       {!selectedMedia.length && (
                         <div style={{ position:'absolute', inset:0, display:'grid', placeItems:'center',
-                          fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textAlign:'center', padding:'0 14px', lineHeight:1.5 }}>
+                          fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textAlign:'center', padding:'0 12px', lineHeight:1.5 }}>
                           Selecione uma mídia para ver o enquadramento real
                         </div>
                       )}
@@ -549,7 +549,7 @@ export default function Stories() {
                             width: `${cx.width * 100}%`, height: `${cx.height * 100}%`,
                             transform: 'translate(-50%, -50%)',
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            gap: 3, padding: '0 5px 0 4px', pointerEvents: 'none',
+                            gap: 3, padding: '0 4px 0 4px', pointerEvents: 'none',
                             background: 'var(--mf-text)', color: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-full)',
                             boxShadow: 'var(--mf-shadow-2)',
                           }}>
@@ -571,7 +571,7 @@ export default function Stories() {
                           const ativo = Math.abs(linkPos.x - p.x) < 0.02 && Math.abs(linkPos.y - p.y) < 0.02;
                           return (
                             <button key={p.rotulo} onClick={() => setLinkPos({ x: p.x, y: p.y })} style={{
-                              padding: '5px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
+                              padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
                               background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)' : 'var(--mf-border-subtle)',
                               color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))'        : 'var(--mf-text-3)',
                               border:     ativo ? '1px solid color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : '1px solid var(--mf-border)',
@@ -656,7 +656,7 @@ const PANEL_HEAD = {
 };
 const PANEL_TITLE = { margin: 0, fontSize: 'var(--mf-t-sm)', fontWeight: 700, letterSpacing: '-.2px', color: 'var(--mf-text)' };
 const DARK_BTN = {
-  height: 30, borderRadius: 'var(--mf-r-sm)', padding: '0 10px', display: 'flex', alignItems: 'center', gap: 6,
+  height: 30, borderRadius: 'var(--mf-r-sm)', padding: '0 8px', display: 'flex', alignItems: 'center', gap: 6,
   background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-micro)', fontWeight: 650, cursor: 'pointer',
 };
 const VIEW_BTN = {

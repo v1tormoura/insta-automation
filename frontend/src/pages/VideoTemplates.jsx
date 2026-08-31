@@ -88,13 +88,13 @@ export default function VideoTemplates() {
 
   const pageActions = (
     <>
-      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 10px' }}>
+      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 8px' }}>
         {templates.length} templates
       </span>
       <button
         className="btn-primary"
         onClick={() => navigate('/video-templates/new')}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)' }}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Novo Template
@@ -106,20 +106,20 @@ export default function VideoTemplates() {
     <>
       <Toast toast={toast} onClose={() => setToast(null)} />
       <PageShell icon={pageIcon} title="Templates de Vídeo" subtitle="Defina layouts reutilizáveis para renderização em lote" accent="purple" actions={pageActions}>
-        <div style={{ padding: '16px 20px' }}>
+        <div style={{ padding: '16px 16px' }}>
           {loading ? (
             <EsqueletoGrade itens={6} minimo={180} />
           ) : !templates.length ? (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              style={{ ...CARD, padding: '60px 20px', textAlign: 'center' }}
+              style={{ ...CARD, padding: '60px 16px', textAlign: 'center' }}
             >
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--mf-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ margin: '0 auto 16px' }}>
                 <rect x="2" y="2" width="20" height="20" rx="3"/><path d="M8 2v20M16 2v20M2 8h6M2 16h6M16 8h6M16 16h6"/>
               </svg>
               <p style={{ color: 'var(--mf-text-3)', marginBottom: 16, fontSize: 'var(--mf-t-body)' }}>Nenhum template criado ainda.</p>
-              <button className="btn-primary" onClick={() => navigate('/video-templates/new')} style={{ padding: '8px 20px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)' }}>
+              <button className="btn-primary" onClick={() => navigate('/video-templates/new')} style={{ padding: '8px 16px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-body)' }}>
                 Criar primeiro template
               </button>
             </motion.div>
@@ -140,7 +140,7 @@ export default function VideoTemplates() {
                     style={{ ...CARD }}
                   >
                     {/* Header */}
-                    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--mf-border)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ padding: '12px 12px', borderBottom: '1px solid var(--mf-border)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                       <div style={{
                         width: 36, height: 36, borderRadius: 'var(--mf-r-md)', flexShrink: 0,
                         background: 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)',
@@ -160,7 +160,7 @@ export default function VideoTemplates() {
                     </div>
 
                     {/* Info */}
-                    <div style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <div style={{ padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '2px 8px' }}>
                         {tmpl.canvas?.width}×{tmpl.canvas?.height}
                       </span>
@@ -177,11 +177,11 @@ export default function VideoTemplates() {
                     </div>
 
                     {/* Footer */}
-                    <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderTop: '1px solid var(--mf-border)' }}>
+                    <div style={{ display: 'flex', gap: 6, padding: '8px 8px', borderTop: '1px solid var(--mf-border)' }}>
                       <button
                         className="btn-ghost"
                         onClick={() => navigate(`/video-templates/${tmpl._id}/edit`)}
-                        style={{ flex: 1, padding: '5px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                        style={{ flex: 1, padding: '4px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
                         Editar
@@ -189,7 +189,7 @@ export default function VideoTemplates() {
                       <button
                         className="btn-ghost"
                         onClick={() => duplicate(tmpl._id)}
-                        style={{ flex: 1, padding: '5px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                        style={{ flex: 1, padding: '4px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                         Duplicar
@@ -197,7 +197,7 @@ export default function VideoTemplates() {
                       <button
                         className={isDel ? 'btn-danger' : 'btn-ghost'}
                         onClick={() => remove(tmpl._id)}
-                        style={{ padding: '5px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)' }}
+                        style={{ padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)' }}
                         title={isDel ? 'Clique novamente para confirmar' : 'Excluir'}
                       >
                         {isDel ? 'Confirmar?' : (
@@ -208,7 +208,7 @@ export default function VideoTemplates() {
 
                     {/* Usage */}
                     {tmpl.usageCount > 0 && (
-                      <div style={{ padding: '4px 14px 8px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
+                      <div style={{ padding: '4px 12px 8px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
                         Usado em {tmpl.usageCount} lote{tmpl.usageCount !== 1 ? 's' : ''}
                       </div>
                     )}

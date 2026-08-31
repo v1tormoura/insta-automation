@@ -75,12 +75,12 @@ export default function AiCaptionModal({
   if (!aberta) return null;
 
   const campo = {
-    padding: '8px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', width: '100%',
+    padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', width: '100%',
     background: 'var(--mf-bg)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };
   const chip = (ativo) => ({
-    padding: '5px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
+    padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
     background: ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)' : 'var(--mf-border-subtle)',
     color:      ativo ? 'var(--mf-mod-publicar)'              : 'var(--mf-text-3)',
     border:     ativo ? '1px solid color-mix(in oklch, var(--mf-mod-publicar) 40%, transparent)' : '1px solid var(--mf-border)',
@@ -101,7 +101,7 @@ export default function AiCaptionModal({
           <>
             <p style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', lineHeight: 1.7, margin: '8px 0 0' }}>
               A geração por IA não está configurada neste servidor. Para ativar, defina
-              <code style={{ margin: '0 4px', padding: '1px 5px', borderRadius: 'var(--mf-r-xs)', background: 'var(--mf-border)' }}>ANTHROPIC_API_KEY</code>
+              <code style={{ margin: '0 4px', padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: 'var(--mf-border)' }}>ANTHROPIC_API_KEY</code>
               no arquivo <strong>.env</strong> do backend e reinicie o container.
             </p>
             <div style={{ marginTop: 18, textAlign: 'right' }}>
@@ -138,7 +138,7 @@ export default function AiCaptionModal({
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)' }}>
                     Variações
                     <select value={quantidade} onChange={e => setQuantidade(Number(e.target.value))}
-                      style={{ ...campo, width: 62, padding: '5px 6px', cursor: 'pointer' }}>
+                      style={{ ...campo, width: 62, padding: '4px 4px', cursor: 'pointer' }}>
                       {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </label>
@@ -186,7 +186,7 @@ export default function AiCaptionModal({
               <button onClick={onFechar} style={{ ...chip(false), padding: '8px 16px' }}>Fechar</button>
               <button onClick={gerar} disabled={gerando || status === null}
                 style={{
-                  padding: '8px 18px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight: 700,
+                  padding: '8px 16px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight: 700,
                   cursor: gerando ? 'default' : 'pointer',
                   background: 'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)', color: 'var(--mf-mod-publicar)',
                   border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)', opacity: gerando ? .6 : 1,

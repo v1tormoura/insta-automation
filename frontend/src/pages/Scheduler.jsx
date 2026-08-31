@@ -85,7 +85,7 @@ export default function Scheduler() {
   );
 
   const pageActions = (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 28, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 28, padding: '0 8px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)' }}>
       <span style={{ width: 6, height: 6, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-success-500)', display: 'inline-block', animation: 'sched-pulse 1.5s infinite' }} />
       Scheduler ativo
     </span>
@@ -117,7 +117,7 @@ export default function Scheduler() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05, duration: 0.25 }}
               style={{
-                textAlign: 'center', padding: '18px 10px', borderRadius: 'var(--mf-r-lg)',
+                textAlign: 'center', padding: '16px 8px', borderRadius: 'var(--mf-r-lg)',
                 background: s.bg, border: `1px solid ${s.border}`,
                 backdropFilter: 'blur(12px)',
               }}
@@ -145,7 +145,7 @@ export default function Scheduler() {
               style={{ width: '100%', boxSizing: 'border-box' }}
             />
             {selectedDate && (
-              <button className="btn-ghost" onClick={() => setSelectedDate('')} style={{ marginTop: 8, width: '100%', padding: '6px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)' }}>
+              <button className="btn-ghost" onClick={() => setSelectedDate('')} style={{ marginTop: 8, width: '100%', padding: '4px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)' }}>
                 Limpar filtro
               </button>
             )}
@@ -162,7 +162,7 @@ export default function Scheduler() {
             transition={{ duration: 0.25 }}
             style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow: 'hidden', backdropFilter: 'blur(12px)' }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--mf-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
               <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>{filteredPosts.length} itens</span>
             </div>
@@ -171,7 +171,7 @@ export default function Scheduler() {
               {primeiraCarga && !filteredPosts.length ? (
                 <EsqueletoLista itens={4} />
               ) : filteredPosts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>Nenhum agendamento encontrado</div>
+                <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>Nenhum agendamento encontrado</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {filteredPosts.map((post, i) => (
@@ -181,7 +181,7 @@ export default function Scheduler() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}
                       style={{
-                        display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
+                        display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 12px',
                         background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)',
                         border: '1px solid var(--mf-border)',
                         borderLeft: `3px solid ${post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)'}`,
@@ -205,7 +205,7 @@ export default function Scheduler() {
                         </div>
                       </div>
                       <span style={{
-                        fontSize: 'var(--mf-t-micro)', fontWeight: 700, padding: '3px 9px', borderRadius: 'var(--mf-r-full)',
+                        fontSize: 'var(--mf-t-micro)', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--mf-r-full)',
                         fontFamily: 'var(--mf-mono)',
                         background: post.status === 'agendado' ? 'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',
                         color: post.status === 'agendado' ? 'var(--mf-warning-500)' : 'var(--mf-success-500)',

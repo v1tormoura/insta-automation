@@ -410,7 +410,7 @@ function LoopModal({ onClose, onCreated }) {
                 {[['upload','⬆ Upload'],['library','📁 Biblioteca']].map(([src, lbl]) => (
                   <button key={src} type="button"
                     onClick={() => setMediaSource(src)}
-                    style={{ padding: '3px 9px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)', fontWeight: mediaSource === src ? 700 : 400, cursor: 'pointer', border: 'none', transition: 'all var(--mf-fast) var(--mf-ease-out)',
+                    style={{ padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)', fontWeight: mediaSource === src ? 700 : 400, cursor: 'pointer', border: 'none', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                       background: mediaSource === src ? 'oklch(0.60 0.22 295)' : 'transparent',
                       color: mediaSource === src ? 'var(--mf-text)' : 'var(--mf-text-3)',
                     }}>{lbl}</button>
@@ -654,14 +654,14 @@ function LoopModal({ onClose, onCreated }) {
               {processModes.map(m => (
                 <div key={m.id} onClick={() => setForm(f => ({ ...f, processMode: m.id }))}
                   style={{
-                    padding: '9px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
+                    padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
                     background: form.processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                     borderColor: form.processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
                     transition: 'all var(--mf-fast) var(--mf-ease-out)',
                   }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                     <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: form.processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
                   </div>
                   <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
                 </div>
@@ -797,11 +797,11 @@ export default function LoopPage() {
         onClick={handleGenThumbs}
         disabled={genThumb === 'loading'}
         title="Gerar thumbnails para vídeos antigos que não têm preview"
-        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'6px 13px', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-md)', border:'1px solid var(--border)', background:'transparent', color: genThumb === 'done' ? 'var(--mf-success-500)' : genThumb === 'error' ? 'var(--mf-danger-500)' : 'var(--mf-text-2)', cursor: genThumb === 'loading' ? 'default' : 'pointer', transition:'color .2s' }}>
+        style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 12px', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-md)', border:'1px solid var(--border)', background:'transparent', color: genThumb === 'done' ? 'var(--mf-success-500)' : genThumb === 'error' ? 'var(--mf-danger-500)' : 'var(--mf-text-2)', cursor: genThumb === 'loading' ? 'default' : 'pointer', transition:'color .2s' }}>
         {genThumb === 'loading' ? <RefreshCw size={12} className="spin" /> : <Film size={12} />}
         {genThumb === 'done' ? 'Pronto!' : genThumb === 'error' ? 'Erro' : 'Gerar thumbs'}
       </button>
-      <button className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 16px', fontSize: 'var(--mf-t-sm)', fontWeight:700, borderRadius: 'var(--mf-r-md)' }} onClick={() => setShowModal(true)}>
+      <button className="btn-primary" style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 16px', fontSize: 'var(--mf-t-sm)', fontWeight:700, borderRadius: 'var(--mf-r-md)' }} onClick={() => setShowModal(true)}>
         <Plus size={14} /> Novo loop
       </button>
     </>
@@ -971,7 +971,7 @@ export default function LoopPage() {
               onClick={e => e.stopPropagation()}
               style={{ maxWidth: 400, padding: 0, overflow: 'hidden' }}
             >
-              <div style={{ padding: '28px 28px 8px', textAlign: 'center' }}>
+              <div style={{ padding: '24px 24px 8px', textAlign: 'center' }}>
                 <div style={{ width: 56, height: 56, borderRadius: 'var(--mf-r-lg)', background: 'oklch(0.4 0.18 15 / 0.15)', border: '1px solid oklch(0.5 0.18 15 / 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
                   <Trash2 size={24} style={{ color: 'oklch(0.65 0.2 15)' }} />
                 </div>
@@ -985,11 +985,11 @@ export default function LoopPage() {
               <div style={{ display: 'flex', gap: 10, padding: '0 24px 24px' }}>
                 <button
                   onClick={() => setDeleteModal(null)}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--mf-border-strong)', background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight: 600, cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)' }}
+                  style={{ flex: 1, padding: '8px 0', borderRadius: 'var(--mf-r-md)', border: '1px solid var(--mf-border-strong)', background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight: 600, cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)' }}
                 >Cancelar</button>
                 <button
                   onClick={confirmDelete}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 'var(--mf-r-md)', border: '1px solid oklch(0.5 0.2 15 / 0.5)', background: 'oklch(0.5 0.22 15)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)' }}
+                  style={{ flex: 1, padding: '8px 0', borderRadius: 'var(--mf-r-md)', border: '1px solid oklch(0.5 0.2 15 / 0.5)', background: 'oklch(0.5 0.22 15)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight: 700, cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)' }}
                 >Excluir loop</button>
               </div>
             </motion.div>

@@ -51,7 +51,7 @@ function StatusBadge({ status }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
-      padding: '3px 9px', borderRadius: 'var(--mf-r-full)',
+      padding: '2px 8px', borderRadius: 'var(--mf-r-full)',
       fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: s.cor,
       background: `color-mix(in oklch, ${s.cor} 12%, transparent)`,
       border: `1px solid color-mix(in oklch, ${s.cor} 26%, transparent)`,
@@ -283,7 +283,7 @@ function JobCard({ job, onAction }) {
 
       {/* Error */}
       {job.lastError && (
-        <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding: '6px 10px' }}>
+        <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding: '4px 8px' }}>
           {job.lastError.slice(0, 120)}
         </div>
       )}
@@ -292,30 +292,30 @@ function JobCard({ job, onAction }) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
         {(isActive || isPaused) && !isPaused && (
           <button onClick={() => onAction(job._id, 'pause')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color: 'var(--mf-mod-publicar)', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color: 'var(--mf-mod-publicar)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.pause} Pausar
           </button>
         )}
         {isPaused && (
           <button onClick={() => onAction(job._id, 'resume')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', color: 'var(--mf-success-500)', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', color: 'var(--mf-success-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.play} Retomar
           </button>
         )}
         {isActive && (
           <button onClick={() => onAction(job._id, 'cancel')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color: 'var(--mf-danger-500)', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color: 'var(--mf-danger-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.stop} Cancelar
           </button>
         )}
         {(isCompleted || isCancelled) && (
           <button onClick={() => onAction(job._id, 'rerun')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)', color: 'var(--mf-info-500)', cursor: 'pointer', fontWeight: 600 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)', color: 'var(--mf-info-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.refresh} Reexecutar
           </button>
         )}
         <button onClick={() => onAction(job._id, 'delete')}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-3)', cursor: 'pointer', marginLeft: 'auto' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-3)', cursor: 'pointer', marginLeft: 'auto' }}>
           {ICONS.trash}
         </button>
       </div>
@@ -438,7 +438,7 @@ export default function JobManager() {
             >
               {f.label}
               {counts[f.key] > 0 && (
-                <span className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', borderRadius: 'var(--mf-r-full)', padding: '1px 6px',
+                <span className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', borderRadius: 'var(--mf-r-full)', padding: '2px 4px',
                   background: ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 20%, transparent)' : 'var(--mf-surface-3)' }}>
                   {counts[f.key]}
                 </span>
@@ -462,7 +462,7 @@ export default function JobManager() {
           {ICONS.warn} <span style={{ minWidth: 0 }}>{error}</span>
           <button onClick={load} style={{ marginLeft: 'auto', flexShrink: 0, background: 'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
             border: '1px solid oklch(0.64 0.22 20 / 0.28)', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer',
-            color: 'var(--mf-danger-500)', padding: '4px 10px', fontSize: 'var(--mf-t-xs)', fontWeight: 600 }}>Tentar novamente</button>
+            color: 'var(--mf-danger-500)', padding: '4px 8px', fontSize: 'var(--mf-t-xs)', fontWeight: 600 }}>Tentar novamente</button>
         </div>
       )}
 

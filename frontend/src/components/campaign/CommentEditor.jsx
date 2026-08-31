@@ -33,7 +33,7 @@ export default function CommentEditor({
       <div style={{
         display:'flex', alignItems:'center', gap:12, flexWrap:'wrap',
         background:'color-mix(in oklch, var(--mf-surface-1) 55%, transparent)', border:'1px solid var(--mf-border)',
-        borderRadius: 'var(--mf-r-lg)', padding:'13px 16px', marginBottom: ativo ? 14 : 0,
+        borderRadius: 'var(--mf-r-lg)', padding:'12px 16px', marginBottom: ativo ? 14 : 0,
       }}>
         <button onClick={alternar} role="switch" aria-checked={ativo} style={{
           width:42, height:24, borderRadius: 'var(--mf-r-md)', padding:2, flexShrink:0, cursor:'pointer',

@@ -68,7 +68,7 @@ export default function ABTest() {
     <PageShell icon={pageIcon} title="A/B Teste de Capa" subtitle="Compare dois Reels publicados para descobrir qual capa converte mais" accent="purple">
 
       {error && (
-        <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-md)', padding:'10px 14px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)', marginBottom:14 }}>
+        <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.35)', borderRadius: 'var(--mf-r-md)', padding:'8px 12px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)', marginBottom:14 }}>
           {error}
         </div>
       )}
@@ -86,20 +86,20 @@ export default function ABTest() {
             const pct  = v => Math.round(((v||0) / maxV) * 100);
             return (
               <motion.div key={test._id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.04 }} style={cardStyle}>
-                <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--mf-border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <div>
                     <div style={{ fontWeight:700, fontSize: 'var(--mf-t-body)', color:'var(--mf-text)' }}>{test.name}</div>
                     <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:2 }}>@{test.accountId?.username} · {test.durationHours}h</div>
                   </div>
-                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 11%, transparent)', color:'var(--mf-success-500)', border:'1px solid oklch(0.38 0.12 150 / 0.3)', flexShrink:0 }}>● Em andamento</span>
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 11%, transparent)', color:'var(--mf-success-500)', border:'1px solid oklch(0.38 0.12 150 / 0.3)', flexShrink:0 }}>● Em andamento</span>
                 </div>
 
-                <div style={{ padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div style={{ padding:'12px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
                     { v:a, label:'Variante A', color:'var(--mf-mod, var(--mf-accent-500))',   id:a.igMediaId },
                     { v:b, label:'Variante B', color:'var(--mf-mod-publicar)', id:b.igMediaId },
                   ].map(({ v, label, color, id }) => (
-                    <div key={label} style={{ background:`color-mix(in oklch, var(--mf-bg) 50%, transparent)`, border:`1px solid var(--mf-border)`, borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
+                    <div key={label} style={{ background:`color-mix(in oklch, var(--mf-bg) 50%, transparent)`, border:`1px solid var(--mf-border)`, borderRadius: 'var(--mf-r-md)', padding:'12px 12px' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                         <div style={{ fontWeight:700, color, fontSize: 'var(--mf-t-sm)' }}>{label}</div>
                         {id && <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{id.slice(0,10)}…</span>}
@@ -116,9 +116,9 @@ export default function ABTest() {
                   ))}
                 </div>
 
-                <div style={{ padding:'10px 16px', borderTop:'1px solid var(--mf-border)', display:'flex', gap:8 }}>
-                  <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'5px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => endTest(test._id)}>Encerrar</button>
-                  <button className="btn-danger" style={{ fontSize: 'var(--mf-t-xs)', padding:'5px 10px', borderRadius: 'var(--mf-r-sm)', marginLeft:'auto' }} onClick={() => deleteTest(test._id)}>🗑</button>
+                <div style={{ padding:'8px 16px', borderTop:'1px solid var(--mf-border)', display:'flex', gap:8 }}>
+                  <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => endTest(test._id)}>Encerrar</button>
+                  <button className="btn-danger" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', marginLeft:'auto' }} onClick={() => deleteTest(test._id)}>🗑</button>
                 </div>
               </motion.div>
             );
@@ -136,8 +136,8 @@ export default function ABTest() {
                     <div style={{ fontWeight:600, fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>{test.name}</div>
                     <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:2 }}>@{test.accountId?.username} · {test.durationHours}h</div>
                   </div>
-                  <button className="btn-primary" style={{ fontSize: 'var(--mf-t-micro)', padding:'5px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => startTest(test._id)}>▶ Iniciar</button>
-                  <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'5px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => deleteTest(test._id)}>✕</button>
+                  <button className="btn-primary" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => startTest(test._id)}>▶ Iniciar</button>
+                  <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => deleteTest(test._id)}>✕</button>
                 </div>
               ))}
             </motion.div>
@@ -158,14 +158,14 @@ export default function ABTest() {
                     <div style={{ fontWeight:600, fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>{test.name}</div>
                     <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:2 }}>Variante <strong style={{ color:'var(--mf-success-500)' }}>{test.winner}</strong> venceu</div>
                   </div>
-                  <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'5px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => deleteTest(test._id)}>✕</button>
+                  <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => deleteTest(test._id)}>✕</button>
                 </div>
               ))}
             </motion.div>
           )}
 
           {!loading && tests.length === 0 && (
-            <div style={{ textAlign:'center', padding:'48px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+            <div style={{ textAlign:'center', padding:'48px 16px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
               <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>🧪</div>
               <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Nenhum teste ainda</div>
               <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Crie o primeiro A/B teste usando o formulário ao lado.</div>
@@ -192,7 +192,7 @@ export default function ABTest() {
               </select>
             </div>
 
-            <div style={{ background:'oklch(0.72 0.19 196 / 0.07)', border:'1px solid oklch(0.72 0.19 196 / 0.18)', borderRadius: 'var(--mf-r-md)', padding:'10px 12px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.7 }}>
+            <div style={{ background:'oklch(0.72 0.19 196 / 0.07)', border:'1px solid oklch(0.72 0.19 196 / 0.18)', borderRadius: 'var(--mf-r-md)', padding:'8px 12px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.7 }}>
               Publique os dois Reels no Instagram, depois cole o <strong>Media ID</strong> de cada um.<br />
               O ID fica na URL do post: instagram.com/reel/<strong>ABC123xyz</strong>/
             </div>

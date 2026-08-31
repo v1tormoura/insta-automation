@@ -164,7 +164,7 @@ export default function Campaigns() {
                   border:'1px solid var(--mf-border)', borderLeft:`3px solid ${st.cor}`,
                   containerType:'inline-size', minWidth:0,
                 }}>
-                <div style={{ padding:'13px 14px 11px' }}>
+                <div style={{ padding:'12px 12px 12px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:9, alignItems:'flex-start' }}>
                     {/* O nome abre o painel da campanha. O card inteiro não é
                         clicável porque já contém os botões de pausar/cancelar —
@@ -186,7 +186,7 @@ export default function Campaigns() {
                       )}
                     </div>
                     <span style={{ flexShrink:0, display:'inline-flex', alignItems:'center', gap:6,
-                      fontSize:'var(--mf-t-micro)', fontWeight:600, padding:'3px 9px',
+                      fontSize:'var(--mf-t-micro)', fontWeight:600, padding:'2px 8px',
                       borderRadius:'var(--mf-r-full)', color:st.cor,
                       background:`color-mix(in oklch, ${st.cor} 12%, transparent)`,
                       border:`1px solid color-mix(in oklch, ${st.cor} 26%, transparent)` }}>
@@ -269,7 +269,7 @@ export default function Campaigns() {
    passava fundo e cor separados, e a borda vinha de concatenar '44' no hex
    — o que só funcionava para cor em hexadecimal de seis dígitos. */
 const botao = (cor) => ({
-  padding:'5px 11px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-micro)',
+  padding:'4px 12px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-micro)',
   fontWeight:600, cursor:'pointer', color: cor,
   background: `color-mix(in oklch, ${cor} 12%, transparent)`,
   border: `1px solid color-mix(in oklch, ${cor} 28%, transparent)`,

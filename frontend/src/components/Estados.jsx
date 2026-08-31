@@ -220,7 +220,7 @@ export function Falha({ titulo = 'Não foi possível carregar', descricao, detal
         )}
         {detalhe && (
           <div style={{
-            marginTop: 'var(--mf-2)', padding: '6px 9px', borderRadius: 'var(--mf-r-sm)',
+            marginTop: 'var(--mf-2)', padding: '4px 8px', borderRadius: 'var(--mf-r-sm)',
             background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)',
             fontFamily: 'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
             overflowX: 'auto', whiteSpace: 'nowrap',
@@ -228,7 +228,7 @@ export function Falha({ titulo = 'Não foi possível carregar', descricao, detal
         )}
         {onTentar && (
           <button onClick={onTentar} style={{
-            marginTop: 'var(--mf-3)', padding: '6px 14px', borderRadius: 'var(--mf-r-sm)',
+            marginTop: 'var(--mf-3)', padding: '4px 12px', borderRadius: 'var(--mf-r-sm)',
             fontSize: 'var(--mf-t-xs)', fontWeight: 700, cursor: 'pointer',
             background: 'color-mix(in oklch, var(--mf-danger-500) 13%, transparent)',
             color: 'var(--mf-danger-500)',

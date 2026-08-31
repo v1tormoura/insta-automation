@@ -87,7 +87,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
           : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#1e3a5f' }}><Flame size={40} /></div>
         }
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(to bottom,rgba(0,0,0,.35) 0%,transparent 40%,rgba(0,0,0,.65) 100%)' }} />
-        <div style={{ position:'absolute', top:8, left:8, background:'rgba(0,0,0,.65)', color:'var(--mf-text)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', padding:'2px 6px', borderRadius: 'var(--mf-r-xs)' }}>
+        <div style={{ position:'absolute', top:8, left:8, background:'rgba(0,0,0,.65)', color:'var(--mf-text)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', padding:'2px 4px', borderRadius: 'var(--mf-r-xs)' }}>
           {mediaLabel(ins.mediaType)}
         </div>
 
@@ -112,7 +112,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
       </div>
 
       {/* Card body */}
-      <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:10, flex:1 }}>
+      <div style={{ padding:'12px 12px', display:'flex', flexDirection:'column', gap:10, flex:1 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
           <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-mod, var(--mf-accent-500))', display:'inline-block', flexShrink:0 }} />
           {fmtDate(ins.postedAt)}
@@ -127,7 +127,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(55px,100%), 1fr))', gap:6 }}>
           {metrics.map(({ label, val }) => (
-            <div key={label} style={{ background:'var(--mf-surface-1)', borderRadius: 'var(--mf-r-sm)', padding:'6px 8px', textAlign:'center' }}>
+            <div key={label} style={{ background:'var(--mf-surface-1)', borderRadius: 'var(--mf-r-sm)', padding:'4px 8px', textAlign:'center' }}>
               <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)' }}>{fmtK(val)}</div>
               <div style={{ fontSize: 'var(--mf-t-nano)',  fontWeight:600, color:'#4a6a8a', letterSpacing:'.06em' }}>{label}</div>
             </div>
@@ -138,7 +138,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
           <button
             onClick={() => onRepublish(ins)}
             style={{
-              marginTop:'auto', width:'100%', padding:'10px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
+              marginTop:'auto', width:'100%', padding:'8px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
               background:'linear-gradient(135deg,color-mix(in oklch, var(--mf-mod-contas) 18%, transparent),color-mix(in oklch, var(--mf-primary-500) 18%, transparent))',
               color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-xs)', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
               borderTop:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)',
@@ -227,7 +227,7 @@ function RepublishModal({ ins, onClose, accounts }) {
   };
 
   const btnStyle = active => ({
-    flex:1, padding:'7px 0', borderRadius: 'var(--mf-r-sm)', border:`1px solid ${active ? 'color-mix(in oklch, var(--mf-mod-contas) 50%, transparent)' : 'color-mix(in oklch, var(--mf-border-strong) 40%, transparent)'}`,
+    flex:1, padding:'8px 0', borderRadius: 'var(--mf-r-sm)', border:`1px solid ${active ? 'color-mix(in oklch, var(--mf-mod-contas) 50%, transparent)' : 'color-mix(in oklch, var(--mf-border-strong) 40%, transparent)'}`,
     background: active ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-surface-1)',
     color: active ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', fontWeight:600, cursor:'pointer',
   });
@@ -235,7 +235,7 @@ function RepublishModal({ ins, onClose, accounts }) {
   return (
     <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,.7)', backdropFilter:'blur(6px)', padding:16 }}>
       <div style={{ background:'rgba(8,20,44,.97)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 60%, transparent)', borderRadius: 'var(--mf-r-lg)', width:'100%', maxWidth:780, maxHeight:'90vh', overflow:'auto', boxShadow:'0 24px 80px rgba(0,0,0,.6)' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid color-mix(in oklch, var(--mf-border-strong) 35%, transparent)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:'1px solid color-mix(in oklch, var(--mf-border-strong) 35%, transparent)' }}>
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:8, fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)' }}>
               <Send size={16} style={{ color:'var(--mf-mod, var(--mf-accent-500))' }} /> Republicar post
@@ -247,7 +247,7 @@ function RepublishModal({ ins, onClose, accounts }) {
           <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--mf-text-3)', padding:4 }}><X size={18} /></button>
         </div>
         <div className="modal-sidebar">
-          <div style={{ padding:'20px 18px', borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
+          <div style={{ padding:'16px 16px', borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
             <div style={{ aspectRatio:'9/16', borderRadius: 'var(--mf-r-md)', overflow:'hidden', background:'var(--mf-surface-1)', marginBottom:12 }}>
               {thumbSrc
                 ? <img src={thumbSrc} alt="" onError={() => setImgErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
@@ -259,7 +259,7 @@ function RepublishModal({ ins, onClose, accounts }) {
               {mediaLabel(ins.mediaType)}
             </div>
           </div>
-          <div style={{ padding:'20px 22px', display:'flex', flexDirection:'column', gap:16 }}>
+          <div style={{ padding:'16px 24px', display:'flex', flexDirection:'column', gap:16 }}>
             <AccountSelector accounts={accounts} selectedAccounts={selectedAccounts} onToggle={toggle} onSelectAll={selectAll} onClearAll={clearAll} sourceId={ins.accountId} />
 
             {/* Legenda */}
@@ -279,14 +279,14 @@ function RepublishModal({ ins, onClose, accounts }) {
                 <>
                   <textarea value={customCaption} onChange={e => setCustomCaption(e.target.value)} maxLength={2200} rows={4}
                     placeholder="Digite a nova legenda..."
-                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'10px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
+                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
                   <div style={{ textAlign:'right', fontSize: 'var(--mf-t-nano)', color:'var(--mf-border-strong)', marginTop:2 }}>{customCaption.length}/2200</div>
                 </>
               )}
               {captionMode === 'saved' && (
                 <div style={{ position:'relative' }}>
                   <select value={savedLegendId} onChange={e => setSavedLegendId(e.target.value)}
-                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: savedLegendId ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', padding:'8px 28px 8px 10px', outline:'none', appearance:'none', cursor:'pointer' }}>
+                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: savedLegendId ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', padding:'8px 24px 8px 8px', outline:'none', appearance:'none', cursor:'pointer' }}>
                     <option value="">Selecione uma legenda salva...</option>
                     {legends.map(l => <option key={l._id} value={l._id}>{l.name || l.text?.slice(0,50)}</option>)}
                   </select>
@@ -309,7 +309,7 @@ function RepublishModal({ ins, onClose, accounts }) {
                       </div>
                     </div>
                   : <button onClick={() => coverInputRef.current?.click()}
-                      style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius: 'var(--mf-r-sm)', border:'1px dashed color-mix(in oklch, var(--mf-border-strong) 60%, transparent)', background:'var(--mf-surface-1)', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', cursor:'pointer' }}>
+                      style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', border:'1px dashed color-mix(in oklch, var(--mf-border-strong) 60%, transparent)', background:'var(--mf-surface-1)', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', cursor:'pointer' }}>
                       <ImagePlus size={14} /> Escolher imagem de capa
                     </button>
                 }
@@ -321,10 +321,10 @@ function RepublishModal({ ins, onClose, accounts }) {
             {error && <ErrorBox msg={error} />}
           </div>
         </div>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12, padding:'16px 22px', borderTop:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
-          <button onClick={onClose} style={{ padding:'9px 20px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'transparent', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', cursor:'pointer' }}>Cancelar</button>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12, padding:'16px 24px', borderTop:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
+          <button onClick={onClose} style={{ padding:'8px 16px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'transparent', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', cursor:'pointer' }}>Cancelar</button>
           <button onClick={submit} disabled={loading || done}
-            style={{ padding:'9px 22px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: loading||done?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: loading?.7:1 }}>
+            style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: loading||done?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: loading?.7:1 }}>
             {done ? '✓ Enviado!' : loading ? <><RefreshCw size={14} style={{ animation:'spin 1s linear infinite' }}/> Enviando...</> : <><Send size={14}/> Republicar ({selectedAccounts.length})</>}
           </button>
         </div>
@@ -424,7 +424,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
       <div style={{ background:'rgba(8,20,44,.97)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 60%, transparent)', borderRadius: 'var(--mf-r-lg)', width:'100%', maxWidth:860, maxHeight:'92vh', overflow:'auto', boxShadow:'0 24px 80px rgba(0,0,0,.6)' }}>
 
         {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid color-mix(in oklch, var(--mf-border-strong) 35%, transparent)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:'1px solid color-mix(in oklch, var(--mf-border-strong) 35%, transparent)' }}>
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:8, fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)' }}>
               <Layers3 size={16} style={{ color:'var(--mf-mod, var(--mf-accent-500))' }} /> Republicar {insArray.length} posts
@@ -438,7 +438,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
 
         <div className="modal-half">
           {/* Left: thumbnail grid */}
-          <div style={{ padding:'18px 18px', borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', maxHeight:520, overflowY:'auto' }}>
+          <div style={{ padding:'16px 16px', borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', maxHeight:520, overflowY:'auto' }}>
             <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-text-3)', marginBottom:10, letterSpacing:'.06em' }}>POSTS SELECIONADOS ({insArray.length})</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(90px,100%), 1fr))', gap:8 }}>
               {insArray.map((ins, i) => {
@@ -461,7 +461,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           </div>
 
           {/* Right: settings */}
-          <div style={{ padding:'18px 22px', display:'flex', flexDirection:'column', gap:16, maxHeight:520, overflowY:'auto' }}>
+          <div style={{ padding:'16px 24px', display:'flex', flexDirection:'column', gap:16, maxHeight:520, overflowY:'auto' }}>
             <AccountSelector accounts={accounts} selectedAccounts={selectedAccounts} onToggle={toggle} onSelectAll={selectAll} onClearAll={clearAll} />
             <PostSettings postType={postType} setPostType={setPostType} cleanMode={cleanMode} setCleanMode={setCleanMode} interval={interval} setInterval={setInterval} />
 
@@ -471,7 +471,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
               <div style={{ display:'flex', gap:4, marginBottom:8 }}>
                 {[['original','Original'],['custom','Nova legenda'],['saved','Legenda salva']].map(([m,l]) => (
                   <button key={m} onClick={() => setCaptionMode(m)}
-                    style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'5px 4px', borderRadius: 'var(--mf-r-sm)', border: captionMode===m ? '1px solid var(--mf-mod, var(--mf-accent-500))' : '1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background: captionMode===m ? 'rgba(34,215,255,.1)' : 'transparent', color: captionMode===m ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', cursor:'pointer', fontWeight: captionMode===m ? 700 : 400 }}>{l}</button>
+                    style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'4px 4px', borderRadius: 'var(--mf-r-sm)', border: captionMode===m ? '1px solid var(--mf-mod, var(--mf-accent-500))' : '1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background: captionMode===m ? 'rgba(34,215,255,.1)' : 'transparent', color: captionMode===m ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', cursor:'pointer', fontWeight: captionMode===m ? 700 : 400 }}>{l}</button>
                 ))}
               </div>
               {captionMode === 'original' && (
@@ -481,14 +481,14 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
                 <>
                   <textarea value={customCaption} onChange={e => setCustomCaption(e.target.value)} maxLength={2200} rows={3}
                     placeholder="Digite a legenda para todos os posts..."
-                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'10px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
+                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
                   <div style={{ textAlign:'right', fontSize: 'var(--mf-t-nano)', color:'var(--mf-border-strong)', marginTop:2 }}>{customCaption.length}/2200</div>
                 </>
               )}
               {captionMode === 'saved' && (
                 <div style={{ position:'relative' }}>
                   <select value={savedLegendId} onChange={e => setSavedLegendId(e.target.value)}
-                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: savedLegendId ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', padding:'8px 28px 8px 10px', outline:'none', appearance:'none', cursor:'pointer', boxSizing:'border-box' }}>
+                    style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: savedLegendId ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', padding:'8px 24px 8px 8px', outline:'none', appearance:'none', cursor:'pointer', boxSizing:'border-box' }}>
                     <option value="">— Escolha uma legenda —</option>
                     {legends.map(l => <option key={l._id} value={l._id}>{l.title}{l.category ? ` (${l.category})` : ''}</option>)}
                   </select>
@@ -503,7 +503,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
                 <label style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text-2)', display:'block', marginBottom:6 }}>Capa do reel (opcional)</label>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                   <button onClick={() => coverInputRef.current?.click()}
-                    style={{ padding:'7px 14px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'var(--mf-surface-1)', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-xs)', cursor:'pointer', display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                    style={{ padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'var(--mf-surface-1)', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-xs)', cursor:'pointer', display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                     <ImagePlus size={13} /> {coverFile ? 'Trocar capa' : 'Adicionar capa'}
                   </button>
                   {coverPreview && (
@@ -525,7 +525,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
 
             {/* Progress */}
             {progress && (
-              <div style={{ background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'10px 14px' }}>
+              <div style={{ background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginBottom:6 }}>
                   <span>Progresso</span>
                   <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{progress.done}/{progress.total}</span>
@@ -542,10 +542,10 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
         </div>
 
         {/* Footer */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12, padding:'16px 22px', borderTop:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
-          <button onClick={onClose} style={{ padding:'9px 20px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'transparent', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', cursor:'pointer' }}>Cancelar</button>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12, padding:'16px 24px', borderTop:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
+          <button onClick={onClose} style={{ padding:'8px 16px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'transparent', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', cursor:'pointer' }}>Cancelar</button>
           <button onClick={submit} disabled={!!progress || done}
-            style={{ padding:'9px 22px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: (progress||done)?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: progress?.7:1 }}>
+            style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: (progress||done)?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: progress?.7:1 }}>
             {done
               ? '✓ Todos enviados!'
               : progress
@@ -576,14 +576,14 @@ function AccountSelector({ accounts, selectedAccounts, onToggle, onSelectAll, on
           const isCreator = acc._id === sourceId || acc.igUserId === sourceId;
           const checked   = selectedAccounts.includes(acc._id);
           return (
-            <label key={acc._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 10px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', background: checked?'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)':'transparent', border:`1px solid ${checked?'color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)':'transparent'}` }}>
+            <label key={acc._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', background: checked?'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)':'transparent', border:`1px solid ${checked?'color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)':'transparent'}` }}>
               <input type="checkbox" checked={checked} onChange={() => onToggle(acc._id)} style={{ accentColor:'var(--mf-mod, var(--mf-accent-500))', width:15, height:15, cursor:'pointer' }} />
               {acc.avatar
                 ? <img src={proxyImg(acc.avatar)} alt="" style={{ width:26, height:26, borderRadius: 'var(--mf-r-full)', objectFit:'cover', flexShrink:0 }} />
                 : <span style={{ width:26, height:26, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-nano)', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{acc.username?.slice(0,2).toUpperCase()}</span>
               }
               <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text)', flex:1 }}>@{acc.username}</span>
-              {isCreator && <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.06em', background:'color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', padding:'1px 6px', borderRadius: 'var(--mf-r-xs)' }}>CREATOR</span>}
+              {isCreator && <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.06em', background:'color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', padding:'2px 4px', borderRadius: 'var(--mf-r-xs)' }}>CREATOR</span>}
             </label>
           );
         })}
@@ -597,7 +597,7 @@ function CaptionField({ caption, setCaption }) {
     <div>
       <label style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text-2)', display:'block', marginBottom:6 }}>Legenda</label>
       <textarea value={caption} onChange={e => setCaption(e.target.value)} maxLength={2200} rows={4}
-        style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'10px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
+        style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
       <div style={{ textAlign:'right', fontSize: 'var(--mf-t-nano)', color:'var(--mf-border-strong)', marginTop:2 }}>{caption.length}/2200</div>
     </div>
   );
@@ -614,7 +614,7 @@ function PostSettings({ postType, setPostType, cleanMode, setCleanMode, interval
           <label style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontWeight:600, display:'block', marginBottom:4 }}>{label}</label>
           <div style={{ position:'relative' }}>
             <select value={value} onChange={e => setValue(e.target.value)}
-              style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 28px 8px 10px', outline:'none', appearance:'none', cursor:'pointer' }}>
+              style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 24px 8px 8px', outline:'none', appearance:'none', cursor:'pointer' }}>
               {options.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <ChevronDown size={12} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none' }} />
@@ -624,7 +624,7 @@ function PostSettings({ postType, setPostType, cleanMode, setCleanMode, interval
       <div>
         <label style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontWeight:600, display:'block', marginBottom:4 }}>Intervalo (min)</label>
         <input type="number" min={1} value={interval} onChange={e => setInterval(e.target.value)}
-          style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 10px', outline:'none', boxSizing:'border-box' }} />
+          style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 8px', outline:'none', boxSizing:'border-box' }} />
       </div>
     </div>
   );
@@ -635,7 +635,7 @@ function ScheduleField({ scheduled, setScheduled }) {
     <div>
       <label style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontWeight:600, display:'block', marginBottom:4 }}>📅 Agendar (opcional)</label>
       <input type="datetime-local" value={scheduled} onChange={e => setScheduled(e.target.value)}
-        style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: scheduled?'var(--mf-text)':'var(--mf-border-strong)', fontSize: 'var(--mf-t-xs)', padding:'8px 10px', outline:'none', boxSizing:'border-box' }} />
+        style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: scheduled?'var(--mf-text)':'var(--mf-border-strong)', fontSize: 'var(--mf-t-xs)', padding:'8px 8px', outline:'none', boxSizing:'border-box' }} />
       <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-border-strong)', marginTop:3 }}>Vazio = publica agora respeitando o intervalo entre contas.</div>
     </div>
   );
@@ -803,7 +803,7 @@ export default function TopPosts() {
           <div style={{ display:'flex', gap:10 }}>
             <button
               onClick={toggleSelectMode}
-              style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 18px', borderRadius: 'var(--mf-r-md)', border:`1px solid ${selectMode?'color-mix(in oklch, var(--mf-mod-contas) 50%, transparent)':'color-mix(in oklch, var(--mf-border-strong) 40%, transparent)'}`, background: selectMode?'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)':'color-mix(in oklch, var(--mf-border-strong) 10%, transparent)', color: selectMode?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight:600, cursor:'pointer' }}>
+              style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:`1px solid ${selectMode?'color-mix(in oklch, var(--mf-mod-contas) 50%, transparent)':'color-mix(in oklch, var(--mf-border-strong) 40%, transparent)'}`, background: selectMode?'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)':'color-mix(in oklch, var(--mf-border-strong) 10%, transparent)', color: selectMode?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight:600, cursor:'pointer' }}>
               <CheckSquare size={15} /> {selectMode ? 'Cancelar seleção' : 'Selecionar posts'}
             </button>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -813,7 +813,7 @@ export default function TopPosts() {
                 </span>
               )}
               <button onClick={handleSync} disabled={syncing}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 18px', borderRadius: 'var(--mf-r-md)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-sm)', fontWeight:600, cursor: syncing?'not-allowed':'pointer', opacity: syncing?.7:1, whiteSpace:'nowrap' }}>
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-sm)', fontWeight:600, cursor: syncing?'not-allowed':'pointer', opacity: syncing?.7:1, whiteSpace:'nowrap' }}>
                 <RefreshCw size={15} style={{ animation: syncing?'spin 1s linear infinite':'none' }} /> {syncing ? 'Sincronizando…' : 'Sync'}
               </button>
             </div>
@@ -826,7 +826,7 @@ export default function TopPosts() {
         <div style={{ display:'flex', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
           {METRICS.map(m => (
             <button key={m} onClick={() => setMetric(m)}
-              style={{ padding:'7px 14px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer', letterSpacing:'.04em',
+              style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer', letterSpacing:'.04em',
                 background: metric===m?'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)':'transparent', color: metric===m?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)',
                 borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
               {m}
@@ -836,7 +836,7 @@ export default function TopPosts() {
         <div style={{ display:'flex', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
           {PERIODS.map(p => (
             <button key={p} onClick={() => setPeriod(p)}
-              style={{ padding:'7px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
+              style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
                 background: period===p?'color-mix(in oklch, var(--mf-primary-500) 25%, transparent)':'transparent', color: period===p?'var(--mf-primary-300)':'var(--mf-text-3)',
                 borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
               {p}
@@ -846,7 +846,7 @@ export default function TopPosts() {
         <div style={{ display:'flex', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
           {TYPES.map(t => (
             <button key={t} onClick={() => setType(t)}
-              style={{ padding:'7px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
+              style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
                 background: type===t?'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)':'transparent', color: type===t?'#c084fc':'var(--mf-text-3)',
                 borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
               {t}
@@ -855,7 +855,7 @@ export default function TopPosts() {
         </div>
         <div style={{ position:'relative', marginLeft:'auto' }}>
           <select value={accountId} onChange={e => setAccountId(e.target.value)}
-            style={{ background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', color: accountId?'var(--mf-text)':'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'7px 28px 7px 12px', outline:'none', appearance:'none', cursor:'pointer', minWidth:140 }}>
+            style={{ background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', color: accountId?'var(--mf-text)':'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'8px 24px 8px 12px', outline:'none', appearance:'none', cursor:'pointer', minWidth:140 }}>
             <option value="">Todas as contas</option>
             {accounts.map(a => <option key={a._id} value={a._id}>@{a.username}</option>)}
           </select>
@@ -881,7 +881,7 @@ export default function TopPosts() {
       {primeiraCarga && insights.length === 0 ? (
         <div className="tp-hpad"><EsqueletoGrade itens={8} minimo={200} /></div>
       ) : insights.length === 0 ? (
-        <div style={{ padding:'60px 28px', textAlign:'center' }}>
+        <div style={{ padding:'60px 24px', textAlign:'center' }}>
           <div style={{ fontSize: 'var(--mf-t-body)', color:'var(--mf-text-3)', marginBottom:8 }}>Nenhum post encontrado para o período selecionado.</div>
           <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-border-strong)' }}>Clique em "Sincronizar" para importar dados das contas conectadas via API.</div>
         </div>
@@ -906,7 +906,7 @@ export default function TopPosts() {
         <div style={{
           position:'fixed', bottom:'calc(24px + env(safe-area-inset-bottom, 0px))', left:'50%', transform:'translateX(-50%)',
           background:'rgba(8,20,44,.97)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 40%, transparent)',
-          borderRadius: 'var(--mf-r-lg)', padding:'14px 20px', display:'flex', alignItems:'center', gap:12,
+          borderRadius: 'var(--mf-r-lg)', padding:'12px 16px', display:'flex', alignItems:'center', gap:12,
           boxShadow:'0 8px 40px rgba(0,0,0,.5)', backdropFilter:'blur(12px)', zIndex:500,
           maxWidth:'calc(100vw - 32px)', width:'max-content',
         }}>
@@ -920,7 +920,7 @@ export default function TopPosts() {
           </button>
           <button
             onClick={() => setBulkRepublish(selectedInsights)}
-            style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8, padding:'10px 20px', borderRadius: 'var(--mf-r-md)', border:'none', background:'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer' }}>
+            style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'none', background:'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer' }}>
             <Layers3 size={14} /> Republicar {selectedIds.size} posts
           </button>
         </div>

@@ -15,7 +15,7 @@ function fmt(v) {
 }
 
 const modalOverlay = { position:'fixed', inset:0, background:'color-mix(in oklch, var(--mf-bg) 85%, transparent)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
-const modalBox     = { background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding:'20px 24px', width:'min(460px,calc(100vw - 32px))', boxSizing:'border-box',
+const modalBox     = { background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding:'16px 24px', width:'min(460px,calc(100vw - 32px))', boxSizing:'border-box',
   /* A largura já cedia; a altura não. Um modal mais alto que a tela
      empurra o botão de confirmar para fora do alcance. */
   maxHeight:'calc(100vh - 32px)', overflowY:'auto', boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' };
@@ -141,8 +141,8 @@ export default function MediaLibrary() {
 
   const pageActions = (
     <div style={{ display:'flex', gap:8 }}>
-      <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'6px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setNewFolderOpen(true)}>📁 Nova pasta</button>
-      <label className="btn-primary" style={{ cursor:'pointer', fontSize: 'var(--mf-t-xs)', padding:'6px 14px', borderRadius: 'var(--mf-r-sm)', display:'flex', alignItems:'center' }}>
+      <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setNewFolderOpen(true)}>📁 Nova pasta</button>
+      <label className="btn-primary" style={{ cursor:'pointer', fontSize: 'var(--mf-t-xs)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', display:'flex', alignItems:'center' }}>
         <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple style={{ display:'none' }}
           onChange={e => upload(Array.from(e.target.files || []))} />
         {uploading ? '⏳ Enviando...' : '⬆️ Upload'}
@@ -159,17 +159,17 @@ export default function MediaLibrary() {
 
           {/* Sidebar de pastas */}
           <div style={{ background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', position:'sticky', top:20 }}>
-            <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ padding:'12px 12px', borderBottom:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', fontFamily:'var(--mf-mono)' }}>Pastas</span>
               <button onClick={() => setNewFolderOpen(true)} style={{ width:22, height:22, borderRadius: 'var(--mf-r-sm)', background:'oklch(0.68 0.18 270 / 0.15)', border:'1px solid oklch(0.68 0.18 270 / 0.3)', color:'oklch(0.68 0.18 270)', cursor:'pointer', fontSize: 'var(--mf-t-body)', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
             </div>
             <div style={{ padding:'8px' }}>
               {folders.length === 0 && (
-                <div style={{ padding:'12px 10px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textAlign:'center' }}>Clique em "+" para criar uma pasta.</div>
+                <div style={{ padding:'12px 8px', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textAlign:'center' }}>Clique em "+" para criar uma pasta.</div>
               )}
               {folders.map(f => (
                 <div key={f} onClick={() => setActive(f)}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'7px 10px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', marginBottom:2, background: activeFolder === f ? 'oklch(0.68 0.18 270 / 0.15)' : 'transparent', border: activeFolder === f ? '1px solid oklch(0.68 0.18 270 / 0.25)' : '1px solid transparent', transition:'all .15s' }}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', marginBottom:2, background: activeFolder === f ? 'oklch(0.68 0.18 270 / 0.15)' : 'transparent', border: activeFolder === f ? '1px solid oklch(0.68 0.18 270 / 0.25)' : '1px solid transparent', transition:'all .15s' }}
                   onMouseEnter={e => { if (activeFolder !== f) e.currentTarget.style.background = 'var(--mf-border-subtle)'; }}
                   onMouseLeave={e => { if (activeFolder !== f) e.currentTarget.style.background = 'transparent'; }}
                 >
@@ -178,13 +178,13 @@ export default function MediaLibrary() {
                     <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: activeFolder === f ? 600 : 400, color: activeFolder === f ? 'oklch(0.80 0.16 270)' : 'var(--mf-text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f}</span>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
-                    <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'1px 6px' }}>{folderCounts[f] || 0}</span>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'2px 4px' }}>{folderCounts[f] || 0}</span>
                     <button onClick={e => { e.stopPropagation(); deleteFolder(f); }} style={{ width:17, height:17, borderRadius: 'var(--mf-r-xs)', background:'transparent', border:'none', color:'var(--mf-text-3)', cursor:'pointer', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ borderTop:'1px solid var(--mf-border)', padding:'10px 14px', display:'flex', flexDirection:'column', gap:5 }}>
+            <div style={{ borderTop:'1px solid var(--mf-border)', padding:'8px 12px', display:'flex', flexDirection:'column', gap:5 }}>
               {[
                 { l:'Total',   v:files.filter(f => !f.filename?.startsWith('__folder_')).length, c:'oklch(0.68 0.18 270)' },
                 { l:'Vídeos',  v:files.filter(f => f.type === 'video').length,                    c:'oklch(0.72 0.2 270)'  },
@@ -212,7 +212,7 @@ export default function MediaLibrary() {
 
             {/* Drop zone */}
             <label
-              style={{ marginBottom:14, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', padding:'20px', borderRadius: 'var(--mf-r-md)', border:`2px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`, background: dragOver ? 'oklch(0.72 0.19 196 / 0.06)' : 'color-mix(in oklch, var(--mf-bg) 40%, transparent)', transition:'.15s' }}
+              style={{ marginBottom:14, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', padding:'16px', borderRadius: 'var(--mf-r-md)', border:`2px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`, background: dragOver ? 'oklch(0.72 0.19 196 / 0.06)' : 'color-mix(in oklch, var(--mf-bg) 40%, transparent)', transition:'.15s' }}
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={e => { e.preventDefault(); setDragOver(false); upload(Array.from(e.dataTransfer.files)); }}
@@ -246,21 +246,21 @@ export default function MediaLibrary() {
                       ) : (
                         <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--mf-t-display)' }}>📄</div>
                       )}
-                      <span style={{ position:'absolute', top:6, left:6, fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 6px', borderRadius: 'var(--mf-r-xs)', background: item.type === 'video' ? 'oklch(0.68 0.18 270 / 0.85)' : 'oklch(0.72 0.18 150 / 0.85)', color:'var(--mf-text)', letterSpacing:.4 }}>
+                      <span style={{ position:'absolute', top:6, left:6, fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xs)', background: item.type === 'video' ? 'oklch(0.68 0.18 270 / 0.85)' : 'oklch(0.72 0.18 150 / 0.85)', color:'var(--mf-text)', letterSpacing:.4 }}>
                         {item.type === 'video' ? 'VID' : 'IMG'}
                       </span>
                     </div>
-                    <div style={{ padding:'8px 10px' }}>
+                    <div style={{ padding:'8px 8px' }}>
                       <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={item.originalName}>{item.originalName}</div>
                       <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2 }}>{fmt(item.size)}</div>
                     </div>
-                    <div style={{ display:'flex', gap:6, padding:'0 10px 10px' }}>
+                    <div style={{ display:'flex', gap:6, padding:'0 8px 8px' }}>
                       <button onClick={() => { setMoveItem(item); setMoveTarget(folders.find(f => f !== item.folder) || folders[0] || ''); }}
-                        style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'5px 0', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', color:'var(--mf-text-2)', cursor:'pointer' }}>
+                        style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'4px 0', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', color:'var(--mf-text-2)', cursor:'pointer' }}>
                         Mover
                       </button>
                       <button onClick={() => deleteFile(item._id)}
-                        style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'5px 0', borderRadius: 'var(--mf-r-sm)', border:'1px solid oklch(0.38 0.12 15 / 0.3)', background:'color-mix(in oklch, var(--mf-danger-500) 4%, transparent)', color:'var(--mf-danger-500)', cursor:'pointer' }}>
+                        style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'4px 0', borderRadius: 'var(--mf-r-sm)', border:'1px solid oklch(0.38 0.12 15 / 0.3)', background:'color-mix(in oklch, var(--mf-danger-500) 4%, transparent)', color:'var(--mf-danger-500)', cursor:'pointer' }}>
                         Excluir
                       </button>
                     </div>
@@ -268,7 +268,7 @@ export default function MediaLibrary() {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 40%, transparent)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>
+              <div style={{ textAlign:'center', padding:'48px 16px', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 40%, transparent)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>
                 <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>📂</div>
                 <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:600, color:'var(--mf-text-2)' }}>Pasta vazia</div>
                 <div style={{ fontSize: 'var(--mf-t-xs)', marginTop:4 }}>Arraste arquivos ou clique em "Upload" para adicionar mídias.</div>
@@ -290,8 +290,8 @@ export default function MediaLibrary() {
                 onKeyDown={e => e.key === 'Enter' && createFolder()} autoFocus />
               <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:6 }}>Use letras minúsculas, números e hífens.</div>
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
-                <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'7px 14px' }} onClick={() => setNewFolderOpen(false)}>Cancelar</button>
-                <button className="btn-primary" style={{ borderRadius: 'var(--mf-r-sm)', padding:'7px 16px' }} onClick={createFolder} disabled={!newFolderName.trim() || savingFolder}>
+                <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }} onClick={() => setNewFolderOpen(false)}>Cancelar</button>
+                <button className="btn-primary" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 16px' }} onClick={createFolder} disabled={!newFolderName.trim() || savingFolder}>
                   {savingFolder ? 'Criando...' : 'Criar pasta'}
                 </button>
               </div>
@@ -316,8 +316,8 @@ export default function MediaLibrary() {
                 ))}
               </select>
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
-                <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'7px 14px' }} onClick={() => setMoveItem(null)}>Cancelar</button>
-                <button className="btn-primary" style={{ borderRadius: 'var(--mf-r-sm)', padding:'7px 16px' }} onClick={moveFile}>Mover</button>
+                <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }} onClick={() => setMoveItem(null)}>Cancelar</button>
+                <button className="btn-primary" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 16px' }} onClick={moveFile}>Mover</button>
               </div>
             </div>
           </div>
@@ -340,7 +340,7 @@ export default function MediaLibrary() {
         {/* Confirm delete */}
         {confirmModal && (
           <div style={{ ...modalOverlay, zIndex:10000 }} onClick={e => e.target === e.currentTarget && setConfirmModal(null)}>
-            <div style={{ background:'linear-gradient(160deg, var(--mf-bg), var(--mf-bg))', border:'1px solid oklch(0.38 0.12 15 / 0.25)', borderRadius: 'var(--mf-r-xl)', padding:'28px 28px 24px', width:'min(420px,92vw)', boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' }}>
+            <div style={{ background:'linear-gradient(160deg, var(--mf-bg), var(--mf-bg))', border:'1px solid oklch(0.38 0.12 15 / 0.25)', borderRadius: 'var(--mf-r-xl)', padding:'24px 24px 24px', width:'min(420px,92vw)', boxShadow:'0 24px 60px oklch(0 0 0 / 0.6)' }}>
               <div style={{ width:52, height:52, borderRadius: 'var(--mf-r-lg)', background:'color-mix(in oklch, var(--mf-danger-500) 7%, transparent)', border:'1px solid oklch(0.38 0.12 15 / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18 }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--mf-danger-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/>
@@ -363,10 +363,10 @@ export default function MediaLibrary() {
               }
               <div style={{ height:1, background:'var(--mf-border)', margin:'20px 0' }} />
               <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-                <button onClick={() => setConfirmModal(null)} className="btn-ghost" style={{ borderRadius: 'var(--mf-r-md)', padding:'9px 20px' }}>Cancelar</button>
+                <button onClick={() => setConfirmModal(null)} className="btn-ghost" style={{ borderRadius: 'var(--mf-r-md)', padding:'8px 16px' }}>Cancelar</button>
                 <button
                   onClick={() => confirmModal.type === 'folder' ? doDeleteFolder(confirmModal.name) : doDeleteFile(confirmModal.id)}
-                  style={{ padding:'9px 22px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer', background:'linear-gradient(135deg,var(--mf-danger-500),var(--mf-danger-500))', border:'1px solid oklch(0.38 0.12 15 / 0.4)', color:'var(--mf-text)', boxShadow:'0 4px 14px oklch(0.38 0.12 15 / 0.35)' }}
+                  style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer', background:'linear-gradient(135deg,var(--mf-danger-500),var(--mf-danger-500))', border:'1px solid oklch(0.38 0.12 15 / 0.4)', color:'var(--mf-text)', boxShadow:'0 4px 14px oklch(0.38 0.12 15 / 0.35)' }}
                 >
                   Excluir
                 </button>

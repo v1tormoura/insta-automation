@@ -195,7 +195,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
   if (carregando) {
     return (
-      <div style={{ padding:'34px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
+      <div style={{ padding:'32px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
         Gerando o plano…
       </div>
     );
@@ -207,7 +207,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
         display:'flex', gap:13, alignItems:'flex-start',
         background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
         border:'1px solid color-mix(in oklch, var(--mf-danger-500) 32%, transparent)',
-        borderRadius: 'var(--mf-r-lg)', padding:'16px 18px',
+        borderRadius: 'var(--mf-r-lg)', padding:'16px 16px',
       }}>
         <span style={{
           width:32, height:32, borderRadius: 'var(--mf-r-md)', flexShrink:0, display:'grid', placeItems:'center',
@@ -229,7 +229,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
             {erro.resumo}
           </div>
           <div style={{
-            marginTop:9, padding:'7px 10px', borderRadius: 'var(--mf-r-sm)',
+            marginTop:9, padding:'8px 8px', borderRadius: 'var(--mf-r-sm)',
             background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)',
             fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)',
             overflowX:'auto', whiteSpace:'nowrap',
@@ -237,7 +237,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
           <button
             onClick={() => setTentativa(t => t + 1)}
-            style={{ marginTop:12, padding:'7px 15px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700,
+            style={{ marginTop:12, padding:'8px 16px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700,
               cursor:'pointer',
               background:'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)',
               color:'var(--mf-danger-500)',
@@ -255,7 +255,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
 
   const cartao = (valor, rotulo, cor) => (
     <div style={{ background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)',
-      borderRadius: 'var(--mf-r-md)', padding:'11px 13px', minWidth:98, flex:1 }}>
+      borderRadius: 'var(--mf-r-md)', padding:'12px 12px', minWidth:98, flex:1 }}>
       <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-h1)', fontWeight:800, color: cor || 'var(--mf-text)' }}>
         {valor}
       </div>
@@ -265,7 +265,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
   );
 
   const seletor = (valor, aoMudar, itens, vazio) => (
-    <select className="input" style={{ fontSize: 'var(--mf-t-micro)', padding:'5px 8px', maxWidth:190 }}
+    <select className="input" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', maxWidth:190 }}
       value={valor} onChange={e => aoMudar(e.target.value)}>
       <option value="">{vazio}</option>
       {itens.map(i => <option key={i.id} value={i.id}>{i.label}</option>)}
@@ -295,7 +295,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
       {/* Bloqueio explícito quando há erro */}
       {comErro.length > 0 && (
         <div style={{ background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)',
-          borderRadius: 'var(--mf-r-md)', padding:'13px 15px' }}>
+          borderRadius: 'var(--mf-r-md)', padding:'12px 16px' }}>
           <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-danger-500)', marginBottom:7 }}>
             {comErro.length} {comErro.length === 1 ? 'publicação precisa' : 'publicações precisam'} de correção
           </div>
@@ -324,7 +324,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
           const ativo = filtro === f.id;
           return (
             <button key={f.id} onClick={() => setFiltro(f.id)} style={{
-              padding:'5px 11px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight:700, cursor:'pointer',
+              padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight:700, cursor:'pointer',
               background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
               color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
               border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 32%, transparent)' : 'var(--mf-border)'}`,
@@ -346,7 +346,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
           const aberta = expandida === chave;
           return (
             <div key={chave} style={{
-              borderRadius: 'var(--mf-r-md)', padding:'9px 12px',
+              borderRadius: 'var(--mf-r-md)', padding:'8px 12px',
               background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
               border:`1px solid ${falhou ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'var(--mf-border)'}`,
             }}>

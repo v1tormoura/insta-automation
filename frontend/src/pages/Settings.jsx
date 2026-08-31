@@ -44,7 +44,7 @@ export default function Settings() {
   );
 
   const pageActions = (
-    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'5px 12px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 6%, transparent)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-success-500)', padding:'4px 12px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-success-500) 6%, transparent)', border:'1px solid oklch(0.38 0.12 150 / 0.3)' }}>
       <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
       Configurações ativas
     </div>
@@ -112,12 +112,12 @@ export default function Settings() {
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   {SYS_ROWS.map((s, i) => (
                     <motion.div key={s.label} initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:.15 + i * .04 }}
-                      style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)' }}>
+                      style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 8px', borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)' }}>
                         <span style={{ width:7, height:7, borderRadius: 'var(--mf-r-full)', background: s.ok ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', display:'inline-block', boxShadow: s.ok ? '0 0 6px var(--mf-success-500)' : '0 0 6px var(--mf-danger-500)' }} />
                         {s.label}
                       </div>
-                      <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'1px 8px', borderRadius: 'var(--mf-r-full)', background: s.ok ? 'color-mix(in oklch, var(--mf-success-500) 13%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 13%, transparent)', color: s.ok ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', border:`1px solid ${s.ok ? 'oklch(0.38 0.12 150 / 0.35)' : 'oklch(0.38 0.12 15 / 0.35)'}` }}>
+                      <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background: s.ok ? 'color-mix(in oklch, var(--mf-success-500) 13%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 13%, transparent)', color: s.ok ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', border:`1px solid ${s.ok ? 'oklch(0.38 0.12 150 / 0.35)' : 'oklch(0.38 0.12 15 / 0.35)'}` }}>
                         {s.ok ? 'OK' : 'Offline'}
                       </span>
                     </motion.div>

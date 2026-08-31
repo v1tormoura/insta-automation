@@ -182,7 +182,7 @@ export default function ConfigNotificacoes() {
       accent="cyan"
       actions={cfg ? acoes : null}
     >
-      <div style={{ padding: '8px 20px 40px', display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)' }}>
+      <div style={{ padding: '8px 16px 40px', display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)' }}>
 
         {!cfg && <EsqueletoLista itens={3} />}
 
@@ -205,7 +205,7 @@ export default function ConfigNotificacoes() {
                         color: ativa ? 'var(--mf-primary-500)' : 'var(--mf-text)' }}>{m.rotulo}</span>
                       <span style={{ flex: 1 }} />
                       <span style={{
-                        fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '1px 7px',
+                        fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 8px',
                         borderRadius: 'var(--mf-r-full)',
                         background: ligada ? 'var(--mf-success-bg)' : 'var(--mf-border-subtle)',
                         color: ligada ? 'var(--mf-success-500)' : 'var(--mf-text-3)',
@@ -244,7 +244,7 @@ export default function ConfigNotificacoes() {
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {TEMAS.map(t => (
                         <button key={t} onClick={() => mudarModelo('tema', t)} style={{
-                          fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '4px 10px',
+                          fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '4px 8px',
                           borderRadius: 'var(--mf-r-full)', cursor: 'pointer',
                           background: modelo.tema === t ? 'var(--mf-surface-3)' : 'transparent',
                           color: modelo.tema === t ? 'var(--mf-text)' : 'var(--mf-text-3)',
@@ -325,7 +325,7 @@ export default function ConfigNotificacoes() {
                 {painel('Comportamento', <>
                   {METRICAS.map(m => (
                     <label key={m.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0',
+                      display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0',
                       borderBottom: '1px solid var(--mf-border-subtle)', cursor: 'pointer',
                     }}>
                       <input type="checkbox" checked={!!cfg.ativos[m.id]}
@@ -336,7 +336,7 @@ export default function ConfigNotificacoes() {
                     </label>
                   ))}
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0',
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0',
                     borderBottom: '1px solid var(--mf-border-subtle)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={!!cfg.ativos.global}
                       onChange={e => setCfg(c => ({ ...c, ativos: { ...c.ativos, global: e.target.checked } }))} />
@@ -347,7 +347,7 @@ export default function ConfigNotificacoes() {
 
                   {/* Notificação do navegador: a permissão só é pedida ao ligar
                       este interruptor. Ver o comentário em SmartActivity.jsx. */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '7px 0',
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '8px 0',
                     cursor: diagnostico.pode ? 'pointer' : 'not-allowed',
                     opacity: diagnostico.pode ? 1 : .55 }}>
                     <input type="checkbox" checked={navegadorLigado}
@@ -390,7 +390,7 @@ export default function ConfigNotificacoes() {
                         <button key={ms}
                           onClick={() => setCfg(c => ({ ...c, exibicao: { ...c.exibicao, duracaoMs: ms } }))}
                           style={{
-                            fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '5px 11px',
+                            fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '4px 12px',
                             borderRadius: 'var(--mf-r-sm)', cursor: 'pointer',
                             background: cfg.exibicao.duracaoMs === ms ? 'var(--mf-surface-3)' : 'transparent',
                             color: cfg.exibicao.duracaoMs === ms ? 'var(--mf-text)' : 'var(--mf-text-3)',

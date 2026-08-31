@@ -45,7 +45,7 @@ export default function TrendingAudio() {
     <div style={{ display:'flex', gap:3, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3 }}>
       {PERIODS.map(p => (
         <button key={p} onClick={() => setPeriod(p)} style={{
-          height:26, padding:'0 14px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
+          height:26, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
           border:'none', cursor:'pointer', transition:'.15s',
           background: period === p ? 'oklch(0.70 0.22 330)' : 'transparent',
           color: period === p ? 'var(--mf-text)' : 'var(--mf-text-3)',
@@ -68,7 +68,7 @@ export default function TrendingAudio() {
       )}
 
       {!loading && !error && items.length === 0 && (
-        <div style={{ textAlign:'center', padding:'60px 20px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
+        <div style={{ textAlign:'center', padding:'60px 16px', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:12 }}>🎵</div>
           <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', marginBottom:6 }}>Sem Reels sincronizados</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Sincronize os insights das contas para ver os melhores Reels.</div>
@@ -90,7 +90,7 @@ export default function TrendingAudio() {
               >
                 <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${color},transparent)` }} />
 
-                <div style={{ padding:'16px 14px 14px' }}>
+                <div style={{ padding:'16px 12px 12px' }}>
                   <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <div style={{ width:44, height:44, borderRadius: 'var(--mf-r-md)', background:`${color}1a`, border:`1px solid ${color}38`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--mf-t-h1)', flexShrink:0 }}>🎬</div>
@@ -109,11 +109,11 @@ export default function TrendingAudio() {
                   )}
 
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
-                    <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'8px 10px', textAlign:'center' }}>
+                    <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'8px 8px', textAlign:'center' }}>
                       <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.videoViews)}</div>
                       <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2 }}>Views</div>
                     </div>
-                    <div style={{ background:'oklch(0.72 0.18 150 / 0.08)', border:'1px solid oklch(0.72 0.18 150 / 0.18)', borderRadius: 'var(--mf-r-md)', padding:'8px 10px', textAlign:'center' }}>
+                    <div style={{ background:'oklch(0.72 0.18 150 / 0.08)', border:'1px solid oklch(0.72 0.18 150 / 0.18)', borderRadius: 'var(--mf-r-md)', padding:'8px 8px', textAlign:'center' }}>
                       <div style={{ fontWeight:700, fontSize: 'var(--mf-t-h2)', color:'var(--mf-success-500)', fontVariantNumeric:'tabular-nums' }}>{fmtK(item.likeCount)}</div>
                       <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2 }}>Likes</div>
                     </div>
@@ -121,11 +121,11 @@ export default function TrendingAudio() {
 
                   <div style={{ display:'flex', gap:6 }}>
                     {item.permalink ? (
-                      <a href={item.permalink} target="_blank" rel="noreferrer" className="btn-primary" style={{ flex:1, justifyContent:'center', display:'flex', alignItems:'center', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', padding:'7px 0', textDecoration:'none' }}>🔗 Ver no Instagram</a>
+                      <a href={item.permalink} target="_blank" rel="noreferrer" className="btn-primary" style={{ flex:1, justifyContent:'center', display:'flex', alignItems:'center', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', padding:'8px 0', textDecoration:'none' }}>🔗 Ver no Instagram</a>
                     ) : (
-                      <button className="btn-ghost" style={{ flex:1, borderRadius: 'var(--mf-r-sm)', padding:'7px 0', fontSize: 'var(--mf-t-xs)', opacity:.5 }} disabled>Sem link</button>
+                      <button className="btn-ghost" style={{ flex:1, borderRadius: 'var(--mf-r-sm)', padding:'8px 0', fontSize: 'var(--mf-t-xs)', opacity:.5 }} disabled>Sem link</button>
                     )}
-                    <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'7px 10px', fontSize: 'var(--mf-t-body)' }} onClick={() => { if (item.permalink) { navigator.clipboard.writeText(item.permalink); copy(item.igMediaId); } }}>
+                    <button className="btn-ghost" style={{ borderRadius: 'var(--mf-r-sm)', padding:'8px 8px', fontSize: 'var(--mf-t-body)' }} onClick={() => { if (item.permalink) { navigator.clipboard.writeText(item.permalink); copy(item.igMediaId); } }}>
                       {copied === item.igMediaId ? '✓' : '⎘'}
                     </button>
                   </div>

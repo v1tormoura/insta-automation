@@ -211,13 +211,13 @@ export default function Limpador() {
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
                 Arquivos de entrada
                 {items.length > 0 && (
-                  <span style={{ marginLeft:8, fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-mod, var(--mf-accent-500))', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'1px 8px' }}>
+                  <span style={{ marginLeft:8, fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-mod, var(--mf-accent-500))', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'2px 8px' }}>
                     {items.length}
                   </span>
                 )}
               </h3>
               {hasDone && !running && (
-                <button onClick={clearDone} style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding:'3px 10px', cursor:'pointer' }}>
+                <button onClick={clearDone} style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding:'2px 8px', cursor:'pointer' }}>
                   Limpar concluídos
                 </button>
               )}
@@ -230,7 +230,7 @@ export default function Limpador() {
                 onDragLeave={() => setDragOver(false)}
                 onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
                 style={{
-                  display:'block', padding:'28px 16px', textAlign:'center',
+                  display:'block', padding:'24px 16px', textAlign:'center',
                   border:`1.5px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'oklch(0.72 0.19 196 / 0.25)'}`,
                   borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'.2s',
                   background: dragOver ? 'color-mix(in oklch, var(--mf-mod-contas) 6%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 2%, transparent)',
@@ -301,12 +301,12 @@ export default function Limpador() {
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Modo de limpeza</h3>
             </div>
-            <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ padding:'12px 12px', display:'flex', flexDirection:'column', gap:8 }}>
               {MODES.map(m => {
                 const sel = mode === m.key;
                 return (
                   <div key={m.key} onClick={() => !running && setMode(m.key)} style={{
-                    padding:'14px 16px', borderRadius: 'var(--mf-r-md)', cursor: running ? 'default' : 'pointer', transition:'.15s',
+                    padding:'12px 16px', borderRadius: 'var(--mf-r-md)', cursor: running ? 'default' : 'pointer', transition:'.15s',
                     border:`1.5px solid ${sel ? m.badgeColor + '66' : 'var(--mf-border)'}`,
                     background: sel ? m.badgeBg : 'color-mix(in oklch, var(--mf-bg) 40%, transparent)',
                     opacity: running && !sel ? 0.5 : 1,
@@ -317,7 +317,7 @@ export default function Limpador() {
                         <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color: sel ? m.badgeColor : 'var(--mf-text)' }}>{m.label}</span>
                       </div>
                       <span style={{
-                        fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 9px', borderRadius: 'var(--mf-r-full)', letterSpacing:.8,
+                        fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', letterSpacing:.8,
                         background: sel ? m.badgeBg : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                         color: sel ? m.badgeColor : 'var(--mf-text-3)',
                         border:`1px solid ${sel ? m.badgeColor + '40' : 'transparent'}`,
@@ -367,10 +367,10 @@ export default function Limpador() {
           {/* Seletor de preset — aparece só no modo watermark */}
           {mode === 'watermark' && (
             <div style={{ background:'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
-              <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
+              <div style={{ padding:'8px 12px', borderBottom:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
                 Plataforma / Posição
               </div>
-              <div style={{ padding:'10px 12px', display:'flex', flexWrap:'wrap', gap:6 }}>
+              <div style={{ padding:'8px 12px', display:'flex', flexWrap:'wrap', gap:6 }}>
                 {WM_PRESETS.map(p => {
                   const sel = wmPreset === p.key;
                   return (
@@ -378,7 +378,7 @@ export default function Limpador() {
                       onClick={() => !running && setWmPreset(p.key)}
                       title={p.desc}
                       style={{
-                        fontSize: 'var(--mf-t-micro)', fontWeight:700, padding:'5px 12px', borderRadius: 'var(--mf-r-sm)', cursor: running ? 'default' : 'pointer',
+                        fontSize: 'var(--mf-t-micro)', fontWeight:700, padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', cursor: running ? 'default' : 'pointer',
                         border:`1.5px solid ${sel ? 'color-mix(in oklch, var(--mf-warning-500) 60%, transparent)' : 'var(--mf-border)'}`,
                         background: sel ? 'color-mix(in oklch, var(--mf-warning-500) 15%, transparent)' : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
                         color: sel ? 'var(--mf-warning-500)' : 'var(--mf-text-3)',
@@ -389,7 +389,7 @@ export default function Limpador() {
                 })}
               </div>
               {wmPreset === 'auto' && (
-                <div style={{ padding:'8px 14px', borderTop:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', lineHeight:1.5 }}>
+                <div style={{ padding:'8px 12px', borderTop:'1px solid var(--mf-border)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', lineHeight:1.5 }}>
                   Auto analisa 3 frames e detecta a região mais estática. Falha em vídeos estáticos — selecione a plataforma acima.
                 </div>
               )}
@@ -406,7 +406,7 @@ export default function Limpador() {
 
           {/* Progresso geral enquanto processa */}
           {running && (
-            <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px' }}>
+            <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 12px' }}>
               <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginBottom:6, fontWeight:600 }}>
                 ⚙ Processando — os downloads iniciam automaticamente
               </div>
@@ -446,7 +446,7 @@ function FileRow({ item, running, mode, onRemove }) {
 
   return (
     <div style={{
-      display:'flex', alignItems:'center', gap:10, padding:'9px 10px', borderRadius: 'var(--mf-r-md)',
+      display:'flex', alignItems:'center', gap:10, padding:'8px 8px', borderRadius: 'var(--mf-r-md)',
       background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
       border:`1px solid ${status === 'done' ? 'color-mix(in oklch, var(--mf-success-500) 20%, transparent)' : status === 'error' ? 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)' : 'var(--mf-border)'}`,
     }}>

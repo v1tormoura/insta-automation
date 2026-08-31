@@ -258,13 +258,13 @@ export default function ContentPicker({
   const ACENTO = 'var(--mf-mod-campanhas, var(--mf-accent-500))';
 
   const campo = {
-    height: 36, padding: '0 11px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)',
+    height: 36, padding: '0 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)',
     background: 'var(--mf-surface-2)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };
 
   const botao = (ativo) => ({
-    padding: '7px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
+    padding: '8px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
     transition: 'all var(--mf-fast) var(--mf-ease-out)',
     background: ativo ? `color-mix(in oklch, ${ACENTO} 14%, transparent)` : 'var(--mf-surface-2)',
     color:      ativo ? ACENTO : 'var(--mf-text-3)',
@@ -285,7 +285,7 @@ export default function ContentPicker({
           ['upload',     'Enviar novos', 'Do seu computador'],
         ].map(([id, titulo, sub]) => (
           <button key={id} onClick={() => setAba(id)} style={{
-            flex: 1, padding: '9px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', textAlign: 'left',
+            flex: 1, padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', textAlign: 'left',
             border: 'none', transition: 'all var(--mf-fast) var(--mf-ease-out)',
             background: aba === id ? `color-mix(in oklch, ${ACENTO} 15%, transparent)` : 'transparent',
             color:      aba === id ? ACENTO : 'var(--mf-text-3)',
@@ -308,7 +308,7 @@ export default function ContentPicker({
           }}
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: 10, padding: '38px 20px', borderRadius: 'var(--mf-r-lg)', textAlign: 'center',
+            gap: 10, padding: '38px 16px', borderRadius: 'var(--mf-r-lg)', textAlign: 'center',
             cursor: enviando ? 'default' : 'pointer',
             border: `1.5px dashed ${arrastando ? ACENTO : 'var(--mf-border-strong)'}`,
             background: arrastando
@@ -425,7 +425,7 @@ export default function ContentPicker({
                       title={capa ? `Capa: ${nomeDe(capa)} — clique para trocar` : 'Definir a capa deste vídeo'}
                       style={{
                         marginTop: 5, width: '100%', display: 'flex', alignItems: 'center', gap: 5,
-                        padding: '4px 6px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', textAlign: 'left',
+                        padding: '4px 4px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', textAlign: 'left',
                         fontSize: 'var(--mf-t-nano)', fontWeight: 750, transition: 'all var(--mf-fast) var(--mf-ease-out)',
                         background: capa
                           ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)'
@@ -448,7 +448,7 @@ export default function ContentPicker({
                     </button>
                   ) : (
                     <div style={{
-                      marginTop: 5, fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', padding: '5px 2px',
+                      marginTop: 5, fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', padding: '4px 2px',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }} title={nomeDe(m)}>{nomeDe(m)}</div>
                   )}
@@ -590,7 +590,7 @@ export default function ContentPicker({
 
           {!carregando && !itens.length && (
             <div style={{
-              gridColumn: '1/-1', padding: '34px 0', textAlign: 'center', color: 'var(--mf-text-3)',
+              gridColumn: '1/-1', padding: '32px 0', textAlign: 'center', color: 'var(--mf-text-3)',
               fontSize: 'var(--mf-t-sm)', background: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-md)', lineHeight: 1.7,
             }}>
               {buscaAtiva || tipo || pasta
@@ -603,7 +603,7 @@ export default function ContentPicker({
 
       {itens.length < total && (
         <button onClick={() => setLimite(l => l + PAGINA)} disabled={carregando}
-          style={{ ...botao(false), alignSelf: 'center', padding: '9px 18px' }}>
+          style={{ ...botao(false), alignSelf: 'center', padding: '8px 16px' }}>
           {carregando ? 'Carregando…' : `Carregar mais (${total - itens.length} restantes)`}
         </button>
       )}
@@ -624,7 +624,7 @@ export default function ContentPicker({
             background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
             borderRadius: 'var(--mf-r-xl)', boxShadow: 'var(--mf-shadow-3)',
           }}>
-            <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--mf-border)' }}>
+            <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid var(--mf-border)' }}>
               <h3 style={{ margin: '0 0 4px', fontSize: 'var(--mf-t-h2)', fontWeight: 750, color: 'var(--mf-text)' }}>
                 {modalCapa === TODOS ? `Capa para os ${totalVideos} vídeos` : 'Capa do vídeo'}
               </h3>
@@ -638,7 +638,7 @@ export default function ContentPicker({
               </p>
             </div>
 
-            <div style={{ padding: '14px 20px', display: 'flex', gap: 8, flexWrap: 'wrap',
+            <div style={{ padding: '12px 16px', display: 'flex', gap: 8, flexWrap: 'wrap',
               borderBottom: '1px solid var(--mf-border)' }}>
               <label style={{
                 ...botao(false), cursor: enviando ? 'default' : 'pointer',
@@ -657,7 +657,7 @@ export default function ContentPicker({
               )}
             </div>
 
-            <div style={{ padding: '14px 20px', overflowY: 'auto', flex: 1, scrollbarWidth: 'thin' }}>
+            <div style={{ padding: '12px 16px', overflowY: 'auto', flex: 1, scrollbarWidth: 'thin' }}>
               {imagensDisponiveis.length ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(88px,1fr))', gap: 9 }}>
                   {imagensDisponiveis.map(img => {
@@ -689,13 +689,13 @@ export default function ContentPicker({
                   })}
                 </div>
               ) : (
-                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center', padding: '22px 0', lineHeight: 1.7 }}>
+                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center', padding: '24px 0', lineHeight: 1.7 }}>
                   Nenhuma imagem na biblioteca ainda.<br />Envie uma acima para usar como capa.
                 </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px',
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px',
               borderTop: '1px solid var(--mf-border)' }}>
               <button onClick={() => setModalCapa(null)} style={botao(false)}>Fechar</button>
             </div>

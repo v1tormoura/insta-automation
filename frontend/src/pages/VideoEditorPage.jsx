@@ -103,7 +103,7 @@ function Acc({ title, id, open, toggle, children, count }) {
     <div style={{ borderBottom: '1px solid var(--mf-border-subtle)' }}>
       <button onClick={() => toggle(id)} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 7,
-        padding: '9px 14px', background: 'none', border: 'none',
+        padding: '8px 12px', background: 'none', border: 'none',
         color: open ? 'var(--mf-text)' : 'var(--mf-text-2)', cursor: 'pointer',
         transition: 'color .14s', textAlign: 'left',
       }}>
@@ -111,9 +111,9 @@ function Acc({ title, id, open, toggle, children, count }) {
           <polygon points="0,0 8,4 0,8" fill="currentColor" opacity="0.55" />
         </svg>
         <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.07em', flex: 1 }}>{title}</span>
-        {count != null && <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', background: 'var(--mf-border)', borderRadius: 'var(--mf-r-xl)', padding: '1px 6px' }}>{count}</span>}
+        {count != null && <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', background: 'var(--mf-border)', borderRadius: 'var(--mf-r-xl)', padding: '2px 4px' }}>{count}</span>}
       </button>
-      {open && <div style={{ padding: '2px 14px 14px' }}>{children}</div>}
+      {open && <div style={{ padding: '2px 12px 12px' }}>{children}</div>}
     </div>
   );
 }
@@ -282,7 +282,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
             position: 'absolute', bottom: 22, left: '50%', transform: 'translateX(-50%)',
             zIndex: 15, fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)',
             color: 'color-mix(in oklch, var(--mf-info-500) 85%, transparent)', background: 'rgba(0,0,0,.65)',
-            padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', pointerEvents: 'none', whiteSpace: 'nowrap',
+            padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', pointerEvents: 'none', whiteSpace: 'nowrap',
           }}>
             x:{vX} y:{vY} · {vW}×{vH}
           </div>
@@ -335,7 +335,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'linear-gradient(var(--mf-border-subtle) 1px,transparent 1px),linear-gradient(90deg,var(--mf-border-subtle) 1px,transparent 1px)', backgroundSize: `${Math.round(W/4*scale)}px ${Math.round(H/8*scale)}px`, zIndex: 0 }} />
 
       {/* Badge de dimensão */}
-      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'oklch(1 0 0 / 0.86)', background: 'rgba(0,0,0,.45)', padding: '2px 5px', borderRadius: 'var(--mf-r-xs)', zIndex: 25 }}>{W}×{H}</div>
+      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 7, fontFamily: 'var(--mf-mono)', color: 'oklch(1 0 0 / 0.86)', background: 'rgba(0,0,0,.45)', padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', zIndex: 25 }}>{W}×{H}</div>
     </div>
   );
 }
@@ -569,7 +569,7 @@ export default function VideoEditorPage() {
 
   // ── INP shorthand ────────────────────────────────────────────────────────────
   const INP = { width: '100%', boxSizing: 'border-box' };
-  const CARD_SM = { background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '9px 10px' };
+  const CARD_SM = { background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '8px 8px' };
 
   return (
     <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -578,7 +578,7 @@ export default function VideoEditorPage() {
       {/* ── Confirm Modal ── */}
       {confirmOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setConfirmOpen(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '24px 26px', width: 400, maxWidth: '100%',
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '24px 24px', width: 400, maxWidth: '100%',
             /* Teto de altura com rolagem interna: sem ele, um modal mais
                alto que a viewport esconde o próprio botão de confirmar. */
             maxHeight: 'calc(100vh - 40px)', overflowY: 'auto' }}>
@@ -616,8 +616,8 @@ export default function VideoEditorPage() {
               <input className="inp" value={batchName} onChange={e => setBatchName(e.target.value)} placeholder={`Lote ${new Date().toLocaleDateString('pt-BR')}`} style={INP} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmOpen(false)} className="btn-ghost" style={{ flex: 1, padding: '9px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)' }}>Cancelar</button>
-              <button onClick={startProcessing} disabled={saving} style={{ flex: 2, padding: '9px 0', borderRadius: 'var(--mf-r-sm)', border: 'none', cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--mf-border)' : 'linear-gradient(135deg,var(--mf-success-500),var(--mf-success-500))', color: saving ? 'var(--mf-text-3)' : 'var(--mf-text)', fontWeight: 700, fontSize: 'var(--mf-t-body)' }}>
+              <button onClick={() => setConfirmOpen(false)} className="btn-ghost" style={{ flex: 1, padding: '8px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)' }}>Cancelar</button>
+              <button onClick={startProcessing} disabled={saving} style={{ flex: 2, padding: '8px 0', borderRadius: 'var(--mf-r-sm)', border: 'none', cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--mf-border)' : 'linear-gradient(135deg,var(--mf-success-500),var(--mf-success-500))', color: saving ? 'var(--mf-text-3)' : 'var(--mf-text)', fontWeight: 700, fontSize: 'var(--mf-t-body)' }}>
                 {saving ? '⚙ Criando…' : `▶ Processar ${selectedCount} vídeo${selectedCount !== 1 ? 's' : ''}`}
               </button>
             </div>
@@ -631,21 +631,21 @@ export default function VideoEditorPage() {
       <div style={{ width: 278, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 98%, transparent)', flexShrink: 0 }}>
 
         {/* Header */}
-        <div style={{ padding: '11px 12px 9px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
+        <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
           <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 9 }}>
             Arquivos · {files.length} carregados
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => fileInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <button onClick={() => fileInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '4px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
               Vídeos
             </button>
-            <button onClick={() => folderInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <button onClick={() => folderInputRef.current?.click()} className="btn-ghost" style={{ flex: 1, padding: '4px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
               Pasta
             </button>
             {files.length > 0 && (
-              <button onClick={clearFiles} className="btn-ghost" style={{ padding: '6px 9px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)' }} title="Limpar lista">
+              <button onClick={clearFiles} className="btn-ghost" style={{ padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)' }} title="Limpar lista">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
               </button>
             )}
@@ -657,14 +657,14 @@ export default function VideoEditorPage() {
 
         {/* Selection bar */}
         {files.length > 0 && (
-          <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--mf-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ padding: '4px 12px', borderBottom: '1px solid var(--mf-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)' }}>
               {selectedCount}/{files.length} selecionados
             </span>
             <div style={{ display: 'flex', gap: 5 }}>
-              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: true })))}  className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Todos</button>
-              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: false })))} className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Nenhum</button>
-              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: !f.selected })))} className="btn-ghost" style={{ padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Inverter</button>
+              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: true })))}  className="btn-ghost" style={{ padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Todos</button>
+              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: false })))} className="btn-ghost" style={{ padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Nenhum</button>
+              <button onClick={() => setFiles(fs => fs.map(f => ({ ...f, selected: !f.selected })))} className="btn-ghost" style={{ padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)' }}>Inverter</button>
             </div>
           </div>
         )}
@@ -673,7 +673,7 @@ export default function VideoEditorPage() {
         <div ref={listRef} onScroll={e => setScrollTop(e.currentTarget.scrollTop)} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
           {files.length === 0
             ? (
-              <div style={{ padding: '50px 14px', textAlign: 'center' }}>
+              <div style={{ padding: '48px 12px', textAlign: 'center' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--mf-border-strong)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10 }}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <p style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', margin: 0, lineHeight: 1.5 }}>Clique em <strong>Vídeos</strong> ou arraste arquivos</p>
               </div>
@@ -682,7 +682,7 @@ export default function VideoEditorPage() {
               <div style={{ height: files.length * ITEM_H, position: 'relative' }}>
                 <div style={{ position: 'absolute', top: visStart * ITEM_H, left: 0, right: 0 }}>
                   {files.slice(visStart, visEnd).map(item => (
-                    <div key={item.id} onClick={() => selectPreview(item)} style={{ height: ITEM_H, display: 'flex', alignItems: 'center', gap: 8, padding: '0 11px', cursor: 'pointer', borderBottom: '1px solid var(--mf-border-subtle)', background: previewId === item.id ? 'oklch(0.55 0.18 235 / 0.13)' : 'transparent', borderLeft: `2px solid ${previewId === item.id ? 'var(--mf-info-500)' : 'transparent'}`, transition: 'background .1s' }}>
+                    <div key={item.id} onClick={() => selectPreview(item)} style={{ height: ITEM_H, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', cursor: 'pointer', borderBottom: '1px solid var(--mf-border-subtle)', background: previewId === item.id ? 'oklch(0.55 0.18 235 / 0.13)' : 'transparent', borderLeft: `2px solid ${previewId === item.id ? 'var(--mf-info-500)' : 'transparent'}`, transition: 'background .1s' }}>
                       <input type="checkbox" checked={item.selected} onChange={e => { e.stopPropagation(); setFiles(fs => fs.map(f => f.id === item.id ? { ...f, selected: e.target.checked } : f)); }} onClick={e => e.stopPropagation()} style={{ flexShrink: 0, accentColor: 'var(--mf-success-500)' }} />
                       <FileThumbnail fileItem={item} cache={thumbCache.current} />
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -700,7 +700,7 @@ export default function VideoEditorPage() {
         </div>
 
         {/* Output info */}
-        <div style={{ padding: '9px 12px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
+        <div style={{ padding: '8px 12px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
           <div style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 5 }}>Saída dos renders</div>
           <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'var(--mf-border-subtle)', borderRadius: 'var(--mf-r-xs)', padding: '4px 8px' }}>uploads/renders/&lt;lote&gt;/</div>
           <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-border-strong)', marginTop: 4, lineHeight: 1.4 }}>Download disponível pelo painel do lote após processamento.</div>
@@ -710,13 +710,13 @@ export default function VideoEditorPage() {
       {/* ══════════════════════════════════════════════════════════
           CENTER PANEL — Preview
       ══════════════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--mf-bg)', overflow: 'auto', gap: 14, padding: '20px 20px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--mf-bg)', overflow: 'auto', gap: 14, padding: '16px 16px' }}>
 
         <CanvasPreview tmpl={tmpl} previewUrl={previewUrl} onVideoWindowChange={onVideoWindowChange} />
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', maxWidth: 340, width: '100%' }}>
           <input className="inp" value={tmpl.name} onChange={e => setT('name', e.target.value)} placeholder="Nome do template…" style={{ flex: 1 }} />
-          <button onClick={saveTemplate} className="btn-ghost" style={{ padding: '8px 14px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', flexShrink: 0 }}>
+          <button onClick={saveTemplate} className="btn-ghost" style={{ padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', flexShrink: 0 }}>
             Salvar
           </button>
         </div>
@@ -741,7 +741,7 @@ export default function VideoEditorPage() {
           RIGHT PANEL — Settings
       ══════════════════════════════════════════════════════════ */}
       <div style={{ width: 310, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 98%, transparent)', flexShrink: 0 }}>
-        <div style={{ padding: '11px 14px 9px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
+        <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid var(--mf-border)', flexShrink: 0 }}>
           <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Configurações do template</span>
         </div>
 
@@ -770,7 +770,7 @@ export default function VideoEditorPage() {
           <Acc title="Enquadramento" id="enquadramento" open={sections.enquadramento} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {FIT_OPTS.map(opt => (
-                <label key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '7px 9px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: videoEl?.fit === opt.id ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${videoEl?.fit === opt.id ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}`, transition: 'background .12s' }}>
+                <label key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: videoEl?.fit === opt.id ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${videoEl?.fit === opt.id ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}`, transition: 'background .12s' }}>
                   <input type="radio" name="fit" value={opt.id} checked={videoEl?.fit === opt.id} onChange={() => updEl(videoEl.id, { fit: opt.id })} style={{ marginTop: 2, accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: 'var(--mf-text)' }}>{opt.label}</div>
@@ -798,14 +798,14 @@ export default function VideoEditorPage() {
 
             {/* Lista de templates enviados */}
             {(tmpl.templatePng?.templates || []).map((t, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 'var(--mf-r-sm)', background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', marginBottom: 6 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)', marginBottom: 6 }}>
                 <img
                   src={t.url?.startsWith('http') ? t.url : `${api.defaults.baseURL.replace(/\/$/, '')}${t.url}`}
                   alt=""
                   style={{ width: 44, height: 28, objectFit: 'cover', borderRadius: 'var(--mf-r-xs)', flexShrink: 0, background: 'var(--mf-border)' }}
                 />
                 <span style={{ flex: 1, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                <button onClick={() => removeTplPng(i)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)', flexShrink: 0 }}>✕</button>
+                <button onClick={() => removeTplPng(i)} className="btn-ghost" style={{ padding: '2px 8px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)', flexShrink: 0 }}>✕</button>
               </div>
             ))}
 
@@ -930,7 +930,7 @@ export default function VideoEditorPage() {
                 <div key={el.id} style={CARD_SM}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: 'var(--mf-info-500)' }}>{el.label || 'Imagem'}</span>
-                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)' }}>✕</button>
+                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '2px 8px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)' }}>✕</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     <Fld label="Variável {{VAR}}" span2><input className="inp" value={el.source} onChange={e => updEl(el.id, { source: e.target.value })} placeholder="{{LOGO}}" style={INP} /></Fld>
@@ -941,7 +941,7 @@ export default function VideoEditorPage() {
                   </div>
                 </div>
               ))}
-              <button onClick={addImageEl} className="btn-ghost" style={{ padding: '7px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <button onClick={addImageEl} className="btn-ghost" style={{ padding: '8px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Adicionar overlay
               </button>
@@ -955,7 +955,7 @@ export default function VideoEditorPage() {
                 <div key={el.id} style={CARD_SM}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: 'var(--mf-success-500)' }}>{el.label || 'Texto'}</span>
-                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '1px 7px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)' }}>✕</button>
+                    <button onClick={() => removeEl(el.id)} className="btn-ghost" style={{ padding: '2px 8px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)' }}>✕</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     <Fld label="Texto ou {{VAR}}" span2><input className="inp" value={el.text} onChange={e => updEl(el.id, { text: e.target.value })} placeholder="{{TITULO}}" style={INP} /></Fld>
@@ -971,7 +971,7 @@ export default function VideoEditorPage() {
                   </div>
                 </div>
               ))}
-              <button onClick={addTextEl} className="btn-ghost" style={{ padding: '7px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <button onClick={addTextEl} className="btn-ghost" style={{ padding: '8px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Adicionar texto
               </button>
@@ -1015,7 +1015,7 @@ export default function VideoEditorPage() {
           <Acc title="Qualidade" id="qualidade" open={sections.qualidade} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {QUALITY_OPTS.map(q => (
-                <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '7px 9px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}` }}>
+                <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}` }}>
                   <input type="radio" name="quality" checked={tmpl.output?.crf === q.crf} onChange={() => { setT('output.crf', q.crf); setT('output.preset', q.preset); }} style={{ accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
                   <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>{q.label}</span>
                 </label>
@@ -1035,7 +1035,7 @@ export default function VideoEditorPage() {
         </div>
 
         {/* Process button */}
-        <div style={{ padding: '11px 12px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
+        <div style={{ padding: '12px 12px', borderTop: '1px solid var(--mf-border)', flexShrink: 0 }}>
           {selectedCount === 0 && files.length > 0 && (
             <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'center', margin: '0 0 8px' }}>Marque os vídeos na lista para processar</p>
           )}
@@ -1046,7 +1046,7 @@ export default function VideoEditorPage() {
             onClick={() => selectedCount > 0 && !saving && setConfirmOpen(true)}
             disabled={selectedCount === 0 || saving}
             style={{
-              width: '100%', padding: '11px 0', borderRadius: 'var(--mf-r-md)', border: 'none',
+              width: '100%', padding: '12px 0', borderRadius: 'var(--mf-r-md)', border: 'none',
               cursor: selectedCount === 0 || saving ? 'not-allowed' : 'pointer',
               background: selectedCount > 0 && !saving
                 ? 'linear-gradient(135deg, var(--mf-success-500) 0%, var(--mf-success-500) 100%)'

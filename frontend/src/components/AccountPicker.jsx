@@ -81,7 +81,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
             onChange={e => setSearch(e.target.value)}
             style={{
               width: '100%', boxSizing: 'border-box',
-              padding: '6px 10px 6px 28px',
+              padding: '4px 8px 4px 24px',
               background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)',
               border: '1px solid var(--mf-border)',
               borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)', outline: 'none',
@@ -92,7 +92,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
           type="button"
           onClick={toggleFiltered}
           style={{
-            flexShrink: 0, fontSize: 'var(--mf-t-micro)', fontWeight: 700, padding: '5px 11px', borderRadius: 'var(--mf-r-sm)',
+            flexShrink: 0, fontSize: 'var(--mf-t-micro)', fontWeight: 700, padding: '4px 12px', borderRadius: 'var(--mf-r-sm)',
             background:   allSel ? 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-info-500) 10%, transparent)',
             color:        allSel ? 'var(--mf-danger-500)'               : 'var(--mf-info-500)',
             border:       `1px solid ${allSel ? 'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' : 'color-mix(in oklch, var(--mf-info-500) 30%, transparent)'}`,
@@ -113,7 +113,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
             type="button"
             onClick={() => setStatusTab(t.key)}
             style={{
-              fontSize: 'var(--mf-t-micro)', fontWeight: 600, padding: '4px 10px', borderRadius: 'var(--mf-r-sm)',
+              fontSize: 'var(--mf-t-micro)', fontWeight: 600, padding: '4px 8px', borderRadius: 'var(--mf-r-sm)',
               border:       `1px solid ${statusTab === t.key ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
               background:   statusTab === t.key ? 'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)' : 'transparent',
               color:        statusTab === t.key ? 'var(--mf-primary-300)' : 'var(--mf-text-3)',
@@ -140,7 +140,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
         WebkitOverflowScrolling: 'touch',
       }}>
         {filtered.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '28px 0', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '24px 0', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
             {search ? 'Nenhuma conta encontrada' : 'Nenhuma conta disponível'}
           </div>
         )}
@@ -158,7 +158,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
               onClick={() => toggleOne(acc._id)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 5, padding: '10px 6px 8px', borderRadius: 'var(--mf-r-md)', position: 'relative',
+                gap: 5, padding: '8px 4px 8px', borderRadius: 'var(--mf-r-md)', position: 'relative',
                 border:     `1px solid ${isSel ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-border)'}`,
                 background: isSel ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'color-mix(in oklch, var(--mf-bg) 60%, transparent)',
                 cursor: 'pointer', transition: 'all var(--mf-fast) var(--mf-ease-out)', textAlign: 'center', outline: 'none',

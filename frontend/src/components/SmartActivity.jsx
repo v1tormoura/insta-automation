@@ -423,7 +423,7 @@ export function PilhaDeAvisos() {
         <div style={{
           alignSelf: 'flex-end', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
           background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)',
-          borderRadius: 'var(--mf-r-full)', padding: '3px 10px', pointerEvents: 'auto',
+          borderRadius: 'var(--mf-r-full)', padding: '2px 8px', pointerEvents: 'auto',
         }}>
           +{aguardando} na fila
         </div>

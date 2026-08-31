@@ -64,7 +64,7 @@ function AccountCard({ account }) {
       onMouseLeave={e => e.currentTarget.style.borderColor = 'color-mix(in oklch, var(--mf-border-strong) 50%, transparent)'}
     >
       {/* ── Cabeçalho ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px 14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 16px 12px' }}>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           {account.avatar ? (
             <img
@@ -85,7 +85,7 @@ function AccountCard({ account }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)' }}>@{account.username}</span>
             {account.accountType && (
-              <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', color: 'var(--mf-mod-contas)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', textTransform: 'uppercase', letterSpacing: .5 }}>
+              <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', color: 'var(--mf-mod-contas)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', textTransform: 'uppercase', letterSpacing: .5 }}>
                 {account.accountType}
               </span>
             )}
@@ -94,7 +94,7 @@ function AccountCard({ account }) {
         </div>
 
         {/* Badge status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '5px 11px', borderRadius: 'var(--mf-r-xl)', background: st.bg, border: `1px solid ${st.color}33` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '4px 12px', borderRadius: 'var(--mf-r-xl)', background: st.bg, border: `1px solid ${st.color}33` }}>
           <span style={{ width: 6, height: 6, borderRadius: 'var(--mf-r-full)', background: st.dot, display: 'inline-block', boxShadow: `0 0 6px ${st.dot}` }} />
           <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: st.color }}>{st.label}</span>
         </div>
@@ -106,7 +106,7 @@ function AccountCard({ account }) {
         const tokenInvalid = account.healthStatus === 'token_invalido' || tokenExpired;
         const apiOk = (account.hasApiToken && !tokenInvalid) || isMobileAccount;
         return (
-          <div style={{ padding: '0 18px 14px', display: 'flex', gap: 8 }}>
+          <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
             {apiOk ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1, padding: '8px 12px', borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-success-500)', boxShadow: '0 0 6px var(--mf-success-500)', flexShrink: 0, display: 'inline-block' }} />
@@ -142,7 +142,7 @@ function AccountCard({ account }) {
 
       {/* ── Token de acesso (barra de progresso) ── */}
       {account.hasApiToken && (
-        <div style={{ padding: '0 18px 12px' }}>
+        <div style={{ padding: '0 16px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 'var(--mf-t-micro)', color: '#475569', fontWeight: 500 }}>Validade do token</span>
             <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, color: account.healthStatus === 'token_invalido' ? 'var(--mf-danger-500)' : tokenColor }}>
@@ -171,7 +171,7 @@ function AccountCard({ account }) {
       <div style={{ height: 1, background: 'color-mix(in oklch, var(--mf-border-strong) 30%, transparent)', margin: '0 18px' }} />
 
       {/* ── Linhas de info ── */}
-      <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 9 }}>
 
         {/* Última sincronização / último login */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -299,11 +299,11 @@ export default function Health() {
 
   const pageActions = (
     <>
-      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-success-500)', fontWeight:700 }}>
+      <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-success-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 20%, transparent)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-success-500)', fontWeight:700 }}>
         <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', display:'inline-block', boxShadow:'0 0 6px var(--mf-success-500)' }} />
         Automação ativa
       </span>
-      <button onClick={checkNow} disabled={checking} className="btn-primary" style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)' }}>
+      <button onClick={checkNow} disabled={checking} className="btn-primary" style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)' }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={checking ? { animation:'spin 1s linear infinite' } : {}}>
           <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
         </svg>
@@ -330,7 +330,7 @@ export default function Health() {
             transition={{ delay: i * 0.04, duration: 0.22 }}
             style={{
               background:`${s.color}0d`, border:`1px solid ${s.color}2a`,
-              borderRadius: 'var(--mf-r-md)', padding:'14px 12px', textAlign:'center',
+              borderRadius: 'var(--mf-r-md)', padding:'12px 12px', textAlign:'center',
               backdropFilter:'blur(12px)',
             }}
           >
@@ -371,7 +371,7 @@ export default function Health() {
           {filtered.map(acc => <AccountCard key={acc._id} account={acc} />)}
         </div>
       ) : (
-        <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>
+        <div style={{ textAlign:'center', padding:'48px 16px', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>🩺</div>
           <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:600, color:'var(--mf-text-3)' }}>Nenhuma conta nesse filtro</div>
         </div>

@@ -48,7 +48,7 @@ function Trilha({ etapa, setEtapa }) {
   const progresso = total > 1 ? (etapa / (total - 1)) * 100 : 0;
 
   return (
-    <div style={{ padding:'2px 0 6px', overflowX:'auto', scrollbarWidth:'thin' }}>
+    <div style={{ padding:'2px 0 4px', overflowX:'auto', scrollbarWidth:'thin' }}>
       <div style={{ position:'relative', display:'grid',
         gridTemplateColumns:`repeat(${total}, minmax(74px, 1fr))`, minWidth:'min(100%, 620px)' }}>
 
@@ -492,7 +492,7 @@ export default function CampaignWizard() {
           value={buscaConta} onChange={e => setBuscaConta(e.target.value)} />
         {[['todas','Todas'], ['mobile','API Mobile'], ['oficial','Oficial'], ['saudavel','Saudáveis']].map(([id, r]) => (
           <button key={id} onClick={() => setFiltroConta(id)} style={{
-            padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
+            padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
             background: filtroConta === id ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
             color:      filtroConta === id ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
             border:     `1px solid ${filtroConta === id ? 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'var(--mf-border)'}`,
@@ -504,7 +504,7 @@ export default function CampaignWizard() {
             ? f.accountIds.filter(id => !visiveis.includes(id))
             : [...new Set([...f.accountIds, ...visiveis])],
         }))} style={{
-          padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
+          padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
           background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)',
         }}>{todasMarcadas ? 'Desmarcar' : 'Selecionar todas'}</button>
       </div>
@@ -522,7 +522,7 @@ export default function CampaignWizard() {
           const saudavel = !c.healthStatus || c.healthStatus === 'ativa';
           return (
             <button key={c._id} onClick={() => alternar(c._id)} style={{
-              display:'flex', alignItems:'center', gap:10, padding:'9px 11px', borderRadius: 'var(--mf-r-md)',
+              display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius: 'var(--mf-r-md)',
               textAlign:'left', cursor:'pointer', transition:'all .15s cubic-bezier(.4,0,.2,1)',
               background: marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 10%, var(--mf-surface-2))' : 'var(--mf-surface-2)',
               border: `1px solid ${marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 42%, transparent)' : 'var(--mf-border)'}`,
@@ -539,11 +539,11 @@ export default function CampaignWizard() {
                   @{c.username}
                 </div>
                 <div style={{ display:'flex', gap:5, marginTop:3, flexWrap:'wrap' }}>
-                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'1px 6px', borderRadius: 'var(--mf-r-xl)',
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xl)',
                     background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)' }}>
                     {c.provider === 'instagrapi' ? 'API Mobile' : 'Oficial'}
                   </span>
-                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'1px 6px', borderRadius: 'var(--mf-r-xl)',
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xl)',
                     background: saudavel ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)',
                     color: saudavel ? 'var(--mf-success-500)' : 'var(--mf-danger-500)' }}>
                     {saudavel ? 'Saudável' : c.healthStatus}
@@ -554,7 +554,7 @@ export default function CampaignWizard() {
           );
         })}
         {!contasFiltradas.length && (
-          <div style={{ gridColumn:'1/-1', padding:'26px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
+          <div style={{ gridColumn:'1/-1', padding:'24px 0', textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
             Nenhuma conta encontrada com esse filtro.
           </div>
         )}
@@ -606,7 +606,7 @@ export default function CampaignWizard() {
       />
 
       <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'var(--mf-border-subtle)',
-        border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'11px 13px', lineHeight:1.65 }}>
+        border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 12px', lineHeight:1.65 }}>
         A prioridade na hora de publicar é <strong>conta + conteúdo</strong> → <strong>conta</strong> →
         <strong> conteúdo</strong> → <strong>geral</strong>. Campo vazio cai para o nível seguinte, então
         dá para preencher só as exceções e deixar o resto na legenda geral.
@@ -632,7 +632,7 @@ export default function CampaignWizard() {
 
       {form.commentMode !== 'disabled' && (
         <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', background:'var(--mf-border-subtle)',
-          border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'11px 13px',
+          border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 12px',
           lineHeight:1.65, marginTop:14 }}>
           O comentário é agendado como tarefa própria — não trava o processamento das
           outras publicações enquanto espera o atraso.
@@ -648,7 +648,7 @@ export default function CampaignWizard() {
           const ativa = form.strategy.mode === e.id;
           return (
             <button key={e.id} onClick={() => mudarEm('strategy', 'mode', e.id)} style={{
-              textAlign:'left', padding:'12px 14px', borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'all .15s',
+              textAlign:'left', padding:'12px 12px', borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'all .15s',
               background: ativa ? 'color-mix(in oklch, var(--mf-mod-contas) 9%, transparent)' : 'var(--mf-border-subtle)',
               border: `1px solid ${ativa ? 'color-mix(in oklch, var(--mf-mod-contas) 38%, transparent)' : 'var(--mf-border)'}`,
             }}>
@@ -722,7 +722,7 @@ export default function CampaignWizard() {
             const ativo = s.weekdays.includes(d.n);
             return (
               <button key={d.n} onClick={() => alternarDia(d.n)} style={{
-                padding:'7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
+                padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
                 background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
                 color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
                 border:     `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'var(--mf-border)'}`,
@@ -768,7 +768,7 @@ export default function CampaignWizard() {
     /* Resumo antes do detalhe: são os três números que decidem se o plano está
        certo, e estavam perdidos no meio de oito linhas de igual peso. */
     const resumo = (n, rot, cor) => (
-      <div key={rot} style={{ flex:'1 1 110px', padding:'11px 13px', borderRadius: 'var(--mf-r-md)',
+      <div key={rot} style={{ flex:'1 1 110px', padding:'12px 12px', borderRadius: 'var(--mf-r-md)',
         background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)' }}>
         <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-h1)', fontWeight:750, color:cor,
           lineHeight:1.1, fontVariantNumeric:'tabular-nums' }}>{n}</div>
@@ -811,14 +811,14 @@ export default function CampaignWizard() {
       </>)}
 
       <div style={{ fontSize: 'var(--mf-t-micro)', lineHeight:1.7, color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)',
-        border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px', marginBottom:14 }}>
+        border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'12px 12px', marginBottom:14 }}>
         Ao publicar, o servidor grava exatamente o plano acima. A campanha fica visível na página
         dela antes de qualquer publicação sair — <strong>nada é enviado ao Instagram agora</strong>.
       </div>
 
       {erro && (
         <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)',
-          border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'12px 14px', marginBottom:14 }}>
+          border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'12px 12px', marginBottom:14 }}>
           <strong>{erro.code}</strong>
           <div style={{ marginTop:4, lineHeight:1.6 }}>{erro.message}</div>
           {!!erro.ids?.length && (
@@ -856,7 +856,7 @@ export default function CampaignWizard() {
         </button>
       }
     >
-      <div style={{ padding: '8px 20px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ padding: '8px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Trilha etapa={etapa} setEtapa={setEtapa} />
 
         <AnimatePresence mode="wait">
@@ -891,7 +891,7 @@ export default function CampaignWizard() {
           position:'sticky', bottom:0, zIndex:20,
           display:'flex', justifyContent:'space-between', alignItems:'center', gap:10,
           flexWrap:'wrap', marginTop:4,
-          padding:'12px 14px',
+          padding:'12px 12px',
           borderRadius: 'var(--mf-r-lg)',
           border:'1px solid var(--mf-border)',
           background:'color-mix(in oklch, var(--mf-surface-1) 88%, transparent)',

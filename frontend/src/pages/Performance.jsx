@@ -158,8 +158,8 @@ export default function Performance() {
         <div style={{ textAlign:'center', padding:60, color:'var(--mf-text-3)' }}>
           <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:10 }}>⚠️</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:8 }}>Erro ao carregar dados</div>
-          {errMsg && <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 18%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 14px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
-          <button onClick={load} style={{ padding:'8px 20px', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--mf-text-2)', cursor:'pointer', fontSize: 'var(--mf-t-sm)', fontWeight:600 }}>↺ Tentar novamente</button>
+          {errMsg && <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 18%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:14, maxWidth:420, margin:'0 auto 14px', wordBreak:'break-word' }}>{errMsg}</div>}
+          <button onClick={load} style={{ padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--mf-text-2)', cursor:'pointer', fontSize: 'var(--mf-t-sm)', fontWeight:600 }}>↺ Tentar novamente</button>
         </div>
       ) : (
         <>
@@ -170,7 +170,7 @@ export default function Performance() {
                 key={k.label}
                 initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
                 transition={{ delay:i*.04, duration:.22 }}
-                style={{ padding:'16px 18px', borderRadius: 'var(--mf-r-lg)', background:k.bg, border:`1px solid ${k.border}`, backdropFilter:'blur(12px)', display:'flex', flexDirection:'column', gap:5 }}
+                style={{ padding:'16px 16px', borderRadius: 'var(--mf-r-lg)', background:k.bg, border:`1px solid ${k.border}`, backdropFilter:'blur(12px)', display:'flex', flexDirection:'column', gap:5 }}
               >
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <div style={{ fontSize: 'var(--mf-t-display)', fontWeight:800, color:k.color, letterSpacing:-1, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{k.val}</div>
@@ -184,13 +184,13 @@ export default function Performance() {
           <div className="layout-2col">
             {/* ── Top Contas ── */}
             <motion.div initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
                 <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Contas</h3>
                 <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
               </div>
 
               {data.byAccount.length === 0 ? (
-                <div style={{ padding:'28px 20px', textAlign:'center' }}>
+                <div style={{ padding:'24px 16px', textAlign:'center' }}>
                   <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:8 }}>📊</div>
                   <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:600, color:'var(--mf-text-2)', marginBottom:6 }}>Nenhum insight sincronizado</div>
                   <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.6 }}>
@@ -292,11 +292,11 @@ export default function Performance() {
             {/* ── Tipo de conteúdo + Engajamento ── */}
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid var(--mf-border)' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
                   <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Tipo de Conteúdo</h3>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{totalTyped} posts</span>
                 </div>
-                <div style={{ padding:'16px 18px' }}>
+                <div style={{ padding:'16px 16px' }}>
                   {types.map(tp => {
                     const count = data.byType[tp.key] || 0;
                     const pct   = totalTyped > 0 ? ((count / totalTyped) * 100).toFixed(0) : 0;
@@ -320,7 +320,7 @@ export default function Performance() {
 
               {/* Engagement summary */}
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25, delay:.06 }}
-                style={{ ...cardStyle, padding:'16px 18px' }}>
+                style={{ ...cardStyle, padding:'16px 16px' }}>
                 <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Métricas de engajamento</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
@@ -337,7 +337,7 @@ export default function Performance() {
                       color:'var(--mf-warning-500)', icon:'🔖',
                     },
                   ].map(m => (
-                    <div key={m.label} style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'10px 12px' }}>
+                    <div key={m.label} style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'8px 12px' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3 }}>
                         <span style={{ fontSize: 'var(--mf-t-xs)' }}>{m.icon}</span>
                         <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{m.label}</span>

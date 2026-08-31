@@ -73,11 +73,11 @@ export default function LegendLibraryModal({
   if (!aberta) return null;
 
   const botao = {
-    padding: '7px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
+    padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
     background: 'var(--mf-border-subtle)', color: 'var(--mf-text-2)', border: '1px solid var(--mf-border)',
   };
   const campo = {
-    height: 32, padding: '0 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)',
+    height: 32, padding: '0 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)',
     background: 'var(--mf-bg)', color: 'var(--mf-text)',
     border: '1px solid var(--mf-border)', outline: 'none',
   };

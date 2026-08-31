@@ -74,7 +74,7 @@ export default function Segmentado({
             style={{
               position: 'relative', zIndex: 1, minWidth: 0,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--mf-1)',
-              padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer',
+              padding: '4px 8px', border: 'none', background: 'none', cursor: 'pointer',
               borderRadius: 'calc(var(--mf-r-md) - 3px)',
               fontSize: 'var(--mf-t-xs)', fontWeight: 600, whiteSpace: 'nowrap',
               /* No tom neutro a cor do módulo é um cinza próximo demais do

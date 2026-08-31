@@ -87,13 +87,13 @@ export default function SmartRepost() {
           { label: 'Ativas', val: stats.activeRules ?? '—', color: 'var(--mf-success-500)' },
           { label: 'Na fila', val: queue.length, color: 'var(--mf-primary-300)' },
         ].map(s => (
-          <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
+          <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
             <span style={{ fontWeight: 700, color: s.color, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--mf-mono)' }}>{s.val}</span>
             <span style={{ color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</span>
           </div>
         ))}
       </div>
-      <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)', fontWeight: 700 }} onClick={() => setCreating(v => !v)}>
+      <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-sm)', fontWeight: 700 }} onClick={() => setCreating(v => !v)}>
         + Nova regra
       </button>
     </>
@@ -119,12 +119,12 @@ export default function SmartRepost() {
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={cardStyle}>
             <div style={cardHdStyle}>
               <h3 style={cardTitleStyle}>Regras</h3>
-              <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 10px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setCreating(v => !v)}>+ Nova</button>
+              <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setCreating(v => !v)}>+ Nova</button>
             </div>
 
             {loading && <EsqueletoLista itens={3} />}
             {!loading && rules.length === 0 && (
-              <div style={{ textAlign:'center', padding:'20px 0' }}>
+              <div style={{ textAlign:'center', padding:'16px 0' }}>
                 <div style={{ fontSize: 'var(--mf-t-body)', color:'var(--mf-text-3)' }}>Sem regras ainda</div>
               </div>
             )}
@@ -133,7 +133,7 @@ export default function SmartRepost() {
               {rules.map((rule, idx) => {
                 const color = RULE_COLORS[idx % RULE_COLORS.length];
                 return (
-                  <div key={rule._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', background: rule.active ? 'var(--mf-border-subtle)' : 'transparent', border:`1px solid ${rule.active ? color+'33' : 'var(--mf-border)'}`, borderRadius: 'var(--mf-r-md)', transition:'.2s' }}>
+                  <div key={rule._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 12px', background: rule.active ? 'var(--mf-border-subtle)' : 'transparent', border:`1px solid ${rule.active ? color+'33' : 'var(--mf-border)'}`, borderRadius: 'var(--mf-r-md)', transition:'.2s' }}>
                     <div style={{ width:8, height:8, borderRadius: 'var(--mf-r-full)', background: rule.active ? color : 'var(--mf-text-3)', boxShadow: rule.active ? `0 0 7px ${color}` : 'none', flexShrink:0 }} />
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontWeight:600, fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>{rule.name}</div>
@@ -142,14 +142,14 @@ export default function SmartRepost() {
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0, fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginRight:6, fontFamily:'var(--mf-mono)' }}>{rule.runsCount} exec.</div>
                     <div className={`toggle${rule.active ? ' on' : ''}`} onClick={() => toggle(rule._id)} style={{ flexShrink:0 }} />
-                    <button className="btn-ghost" style={{ padding:'3px 8px', fontSize: 'var(--mf-t-micro)', borderRadius: 'var(--mf-r-sm)' }} onClick={() => deleteRule(rule._id)}>✕</button>
+                    <button className="btn-ghost" style={{ padding:'2px 8px', fontSize: 'var(--mf-t-micro)', borderRadius: 'var(--mf-r-sm)' }} onClick={() => deleteRule(rule._id)}>✕</button>
                   </div>
                 );
               })}
             </div>
 
             {creating && (
-              <form onSubmit={createRule} style={{ marginTop:16, padding:'14px', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)', display:'flex', flexDirection:'column', gap:10 }}>
+              <form onSubmit={createRule} style={{ marginTop:16, padding:'12px', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)', display:'flex', flexDirection:'column', gap:10 }}>
                 <div className="input-wrap">
                   <label className="input-label">Nome da regra</label>
                   <input className="input" required placeholder="Ex: Top Virais Semanais" value={form.name} onChange={e => setForm(f=>({...f, name:e.target.value}))} />
@@ -202,11 +202,11 @@ export default function SmartRepost() {
               <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{queue.length} agendados</span>
             </div>
             {queue.length === 0
-              ? <div style={{ textAlign:'center', padding:'30px 0', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>Fila vazia</div>
+              ? <div style={{ textAlign:'center', padding:'32px 0', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-body)' }}>Fila vazia</div>
               : <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {queue.map((item, i) => (
                     <motion.div key={i} initial={{ opacity:0, y:5 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.04 }}
-                      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)' }}>
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', borderRadius: 'var(--mf-r-md)', border:'1px solid var(--mf-border)' }}>
                       <div style={{ width:36, height:36, borderRadius: 'var(--mf-r-md)', background:'rgba(30,111,255,.12)', color:'var(--indigo)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                       </div>
@@ -242,7 +242,7 @@ export default function SmartRepost() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop:20, padding:'12px 14px', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.6 }}>
+          <div style={{ marginTop:20, padding:'12px 12px', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.6 }}>
             O job de repost roda automaticamente a cada hora e verifica quais posts atingiram as condições das regras ativas.
           </div>
         </motion.div>

@@ -105,7 +105,7 @@ export default function Login() {
           background: 'color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)',
           borderRight: '1px solid var(--mf-border)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-          padding: '44px 36px', boxSizing: 'border-box',
+          padding: '48px 32px', boxSizing: 'border-box',
         }}>
           <Meteors number={14} />
 
@@ -162,7 +162,7 @@ export default function Login() {
         </div>
 
         {/* Form panel */}
-        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'clamp(28px, 7vw, 44px) clamp(20px, 5vw, 40px)', boxSizing:'border-box' }}>
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'clamp(24px, 7vw, 48px) clamp(16px, 5vw, 40px)', boxSizing:'border-box' }}>
           <div style={{ width:'100%', maxWidth:320 }}>
             <BlurFade delay={0.15}>
               <div style={{ marginBottom:28 }}>
@@ -193,7 +193,7 @@ export default function Login() {
                       style={{
                         width:'100%', background:'var(--mf-border-subtle)',
                         border:'1px solid var(--border)',
-                        borderRadius: 'var(--mf-r-md)', padding:'11px 12px 11px 36px',
+                        borderRadius: 'var(--mf-r-md)', padding:'12px 12px 12px 32px',
                         color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
                         boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
                         fontFamily:'var(--font)',
@@ -216,7 +216,7 @@ export default function Login() {
                       style={{
                         width:'100%', background:'var(--mf-border-subtle)',
                         border:'1px solid var(--border)',
-                        borderRadius: 'var(--mf-r-md)', padding:'11px 40px 11px 36px',
+                        borderRadius: 'var(--mf-r-md)', padding:'12px 40px 12px 32px',
                         color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
                         boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
                         fontFamily:'var(--font)',
@@ -240,7 +240,7 @@ export default function Login() {
                       transition={{ duration:.2 }}
                       style={{
                         background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 22%, transparent)',
-                        borderRadius: 'var(--mf-r-sm)', padding:'10px 14px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)',
+                        borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', color:'var(--mf-danger-500)', fontSize: 'var(--mf-t-sm)',
                       }}
                     >
                       {error}

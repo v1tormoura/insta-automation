@@ -100,7 +100,7 @@ export default function VariableInserter({ onInsert, compacto = false }) {
               type="button"
               onClick={() => { onInsert(`{${v}}`); setAberto(false); }}
               style={{
-                display: 'block', width: '100%', textAlign: 'left', padding: '7px 9px',
+                display: 'block', width: '100%', textAlign: 'left', padding: '8px 8px',
                 borderRadius: 'var(--mf-r-sm)', border: 'none', background: 'transparent', cursor: 'pointer',
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--mf-border)'}

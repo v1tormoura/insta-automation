@@ -74,7 +74,7 @@ export default function Faturamento() {
             {goal ? 'Editar meta' : 'Definir meta'}
           </button>
         </div>
-        <div style={{ padding:'16px 18px' }}>
+        <div style={{ padding:'16px 16px' }}>
           {editGoal && (
             <div style={{ display:'flex', gap:8, marginBottom:20 }}>
               <input
@@ -128,7 +128,7 @@ export default function Faturamento() {
           <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Registrar venda</h3>
           </div>
-          <div style={{ padding:'14px 16px' }}>
+          <div style={{ padding:'12px 16px' }}>
             <form onSubmit={addEntry} style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div>
                 <label style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', display:'block', marginBottom:5, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>Valor (R$) *</label>
@@ -169,7 +169,7 @@ export default function Faturamento() {
               [...thisMonth].reverse().map((e, i) => (
                 <div key={e.id} style={{
                   display:'flex', justifyContent:'space-between', alignItems:'center',
-                  padding:'10px 16px',
+                  padding:'8px 16px',
                   borderBottom: i < thisMonth.length - 1 ? '1px solid var(--mf-border)' : 'none',
                 }}>
                   <div>
@@ -180,7 +180,7 @@ export default function Faturamento() {
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <span style={{ fontSize: 'var(--mf-t-body)', fontWeight:800, color:'var(--mf-mod, var(--mf-accent-500))', fontVariantNumeric:'tabular-nums' }}>{fmtBRL(e.amount)}</span>
-                    <button onClick={() => removeEntry(e.id)} className="btn-ghost" style={{ padding:'2px 7px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-body)', lineHeight:1 }}
+                    <button onClick={() => removeEntry(e.id)} className="btn-ghost" style={{ padding:'2px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-body)', lineHeight:1 }}
                       onMouseEnter={ev => ev.currentTarget.style.color = 'var(--mf-danger-500)'}
                       onMouseLeave={ev => ev.currentTarget.style.color = ''}
                     >×</button>

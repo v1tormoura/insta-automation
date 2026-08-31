@@ -71,7 +71,7 @@ function HourBars({ hours, peakHour }) {
 
   return (
     <div ref={ref} style={{position:'relative',userSelect:'none'}}>
-      <div style={{display:'flex',gap:2,alignItems:'flex-end',height:80,padding:'0 1px'}}>
+      <div style={{display:'flex',gap:2,alignItems:'flex-end',height:80,padding:'0 2px'}}>
         {hours.map(h=>{
           const pct=Math.max(h.avgEngagement/maxV,h.count>0?0.04:0.02);
           const isPeak=h.hour===peakHour;
@@ -111,7 +111,7 @@ function HourBars({ hours, peakHour }) {
                       left:'50%',transform:'translateX(-50%)',
                       background:'var(--mf-bg)',
                       border:`1px solid ${isPeak?'oklch(0.72 0.19 196/0.4)':'oklch(1 0 0/0.1)'}`,
-                      borderRadius: 'var(--mf-r-sm)',padding:'6px 10px',
+                      borderRadius: 'var(--mf-r-sm)',padding:'4px 8px',
                       fontSize: 'var(--mf-t-nano)',whiteSpace:'nowrap',zIndex:20,
                       pointerEvents:'none',
                       boxShadow:'0 8px 24px rgba(0,0,0,.4)',
@@ -140,7 +140,7 @@ function HourBars({ hours, peakHour }) {
       }}/>}
 
       {/* x-axis */}
-      <div style={{display:'flex',justifyContent:'space-between',marginTop:6,padding:'0 1px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginTop:6,padding:'0 2px'}}>
         {['00h','04h','08h','12h','16h','20h','23h'].map(h=>(
           <span key={h} style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontFamily:'var(--mf-mono)'}}>{h}</span>
         ))}
@@ -197,7 +197,7 @@ function AccountCard({ a, idx }) {
       <div style={{height:2,background:`linear-gradient(90deg,oklch(0.72 0.19 196/${0.15+idx*0.1}),transparent)`}}/>
 
       {/* Header */}
-      <div style={{padding:'20px 22px 16px',display:'flex',gap:16,alignItems:'flex-start'}}>
+      <div style={{padding:'16px 24px 16px',display:'flex',gap:16,alignItems:'flex-start'}}>
         {/* Avatar */}
         <div style={{flexShrink:0,position:'relative'}}>
           <div style={{
@@ -238,7 +238,7 @@ function AccountCard({ a, idx }) {
           flexShrink:0,textAlign:'center',
           background:'oklch(0.72 0.19 196/0.07)',
           border:'1px solid oklch(0.72 0.19 196/0.18)',
-          borderRadius: 'var(--mf-r-lg)',padding:'12px 18px',
+          borderRadius: 'var(--mf-r-lg)',padding:'12px 16px',
           position:'relative',overflow:'hidden',
         }}>
           <div style={{
@@ -261,7 +261,7 @@ function AccountCard({ a, idx }) {
       </div>
 
       {/* Quick metrics */}
-      <div style={{margin:'0 22px',padding:'10px 14px',borderRadius: 'var(--mf-r-md)',background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',display:'flex',gap:0,marginBottom:14}}>
+      <div style={{margin:'0 22px',padding:'8px 12px',borderRadius: 'var(--mf-r-md)',background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)',display:'flex',gap:0,marginBottom:14}}>
         {[
           {label:'Janela ideal',value:bestWindow,color:'var(--mf-mod-publicar)'},
           {label:'Pico eng.',value:String(peakEng),color:'var(--mf-mod, var(--mf-accent-500))'},
@@ -275,21 +275,21 @@ function AccountCard({ a, idx }) {
       </div>
 
       {/* Bar chart */}
-      <div style={{padding:'0 22px 6px'}}>
+      <div style={{padding:'0 24px 4px'}}>
         <HourBars hours={a.hours} peakHour={a.peakHour}/>
       </div>
 
       {/* Heat row */}
-      <div style={{padding:'8px 22px 14px', overflowX:'auto'}}>
+      <div style={{padding:'8px 24px 12px', overflowX:'auto'}}>
         <HeatRow hours={a.hours} peakHour={a.peakHour}/>
       </div>
 
       {/* Top hours footer */}
-      <div style={{borderTop:'1px solid oklch(1 0 0/0.07)',padding:'10px 22px',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
+      <div style={{borderTop:'1px solid oklch(1 0 0/0.07)',padding:'8px 24px',display:'flex',gap:7,flexWrap:'wrap',alignItems:'center'}}>
         <span style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginRight:2}}>Top:</span>
         {topHours.map((h,i)=>(
           <span key={h.hour} style={{
-            fontSize: 'var(--mf-t-micro)',fontWeight:700,padding:'3px 10px',borderRadius: 'var(--mf-r-xl)',
+            fontSize: 'var(--mf-t-micro)',fontWeight:700,padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',
             background:i===0?'oklch(0.72 0.19 196/0.14)':'color-mix(in oklch, var(--mf-bg) 70%, transparent)',
             color:i===0?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)',
             border:`1px solid ${i===0?'oklch(0.72 0.19 196/0.3)':'oklch(1 0 0/0.07)'}`,
@@ -335,7 +335,7 @@ function HeroCard({ data, period }) {
         position:'relative',overflow:'hidden',
         background:'linear-gradient(145deg,var(--mf-surface-1),var(--mf-bg))',
         border:'1px solid oklch(1 0 0/0.08)',
-        borderRadius: 'var(--mf-r-xl)',padding:'28px 28px 22px',
+        borderRadius: 'var(--mf-r-xl)',padding:'24px 24px 24px',
         marginBottom:20,
         boxShadow:'0 4px 32px rgba(0,0,0,.12)',
       }}
@@ -357,7 +357,7 @@ function HeroCard({ data, period }) {
             <div style={{fontSize: 'var(--mf-t-h1)',fontWeight:700,color:'var(--mf-mod, var(--mf-accent-500))',opacity:.7}}>h</div>
           </div>
           {isPeakNow?(
-            <div style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,padding:'4px 10px',borderRadius: 'var(--mf-r-xl)',background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',width:'fit-content'}}>
+            <div style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:8,padding:'4px 8px',borderRadius: 'var(--mf-r-xl)',background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',width:'fit-content'}}>
               <span style={{width:5,height:5,borderRadius: 'var(--mf-r-full)',background:'var(--mf-success-500)',display:'inline-block',animation:'bt-pulse 1.4s infinite'}}/>
               <span style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-success-500)',fontWeight:700}}>AGORA É O PICO</span>
             </div>
@@ -394,7 +394,7 @@ function HeroCard({ data, period }) {
         <motion.div
           initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{delay:.3,duration:.3}}
           style={{
-            marginTop:18,padding:'10px 16px',
+            marginTop:18,padding:'8px 16px',
             borderRadius: 'var(--mf-r-md)',
             background:'oklch(0.72 0.19 196/0.06)',
             border:'1px solid oklch(0.72 0.19 196/0.14)',
@@ -440,7 +440,7 @@ export default function BestTimes() {
   const pageActions=(
     <div style={{display:'flex',gap:8,alignItems:'center'}}>
       <button onClick={()=>fetchData(true)} className="btn-ghost" disabled={refreshing||loading}
-        style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius: 'var(--mf-r-sm)',fontSize: 'var(--mf-t-sm)'}}>
+        style={{display:'flex',alignItems:'center',gap:6,padding:'8px 12px',borderRadius: 'var(--mf-r-sm)',fontSize: 'var(--mf-t-sm)'}}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
           style={{animation:refreshing?'bt-spin 1s linear infinite':'none'}}>
           <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
@@ -478,13 +478,13 @@ export default function BestTimes() {
       )}
 
       {error&&(
-        <div style={{background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)',border:'1px solid oklch(0.38 0.12 15/0.35)',borderRadius: 'var(--mf-r-md)',padding:'14px 18px',color:'var(--mf-danger-500)',fontSize: 'var(--mf-t-sm)'}}>
+        <div style={{background:'color-mix(in oklch, var(--mf-danger-500) 9%, transparent)',border:'1px solid oklch(0.38 0.12 15/0.35)',borderRadius: 'var(--mf-r-md)',padding:'12px 16px',color:'var(--mf-danger-500)',fontSize: 'var(--mf-t-sm)'}}>
           {error}
         </div>
       )}
 
       {!loading&&!error&&accounts.length===0&&(
-        <div style={{textAlign:'center',padding:'80px 20px',background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)',border:'1px solid oklch(1 0 0/0.07)',borderRadius: 'var(--mf-r-xl)'}}>
+        <div style={{textAlign:'center',padding:'80px 16px',background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)',border:'1px solid oklch(1 0 0/0.07)',borderRadius: 'var(--mf-r-xl)'}}>
           <div style={{fontSize: 'var(--mf-t-display)',marginBottom:14,opacity:.5}}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{display:'block',margin:'0 auto'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
