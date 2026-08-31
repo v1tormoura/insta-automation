@@ -651,7 +651,11 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   display: grid;
   grid-template-columns: var(--mf-sidebar) minmax(0, 1fr);
   min-height: 100vh;
-  min-height: 100dvh;
+  /* `svh`, não `dvh`. O `dvh` acompanha a barra do navegador móvel aparecendo
+     e sumindo ao rolar, e uma altura mínima que muda faz a página saltar a
+     cada gesto. `svh` é a MENOR altura possível: não muda, e o layout fica
+     parado. O `vh` acima continua como reserva para navegador antigo. */
+  min-height: 100svh;
   transition: grid-template-columns var(--mf-normal) var(--mf-ease-out);
 }
 .mf-app[data-collapsed='true'] { grid-template-columns: var(--mf-sidebar-c) minmax(0, 1fr); }
@@ -673,8 +677,10 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   background: var(--mf-surface-1);
   border-right: 1px solid var(--mf-border);
   display: flex; flex-direction: column;
-  position: sticky; top: 0; height: 100vh; height: 100dvh;
+  position: sticky; top: 0; height: 100vh; height: 100svh;
   overflow: hidden;
+  transition: width var(--mf-normal) var(--mf-ease-out),
+              box-shadow var(--mf-normal) var(--mf-ease-out);
 }
 .mf-side__brand {
   display: flex; align-items: center; gap: var(--mf-3);
@@ -1226,6 +1232,53 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
     animation: mf-fade var(--mf-fast) var(--mf-ease-out);
   }
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   ABRIR AO PASSAR O CURSOR
+
+   Recolhida, a barra abre quando o cursor entra e fecha quando ele sai. O
+   ganho é ter o rail o tempo todo — com os 200px de volta para o conteúdo — e
+   ainda assim ler os rótulos sem clicar em nada.
+
+   Duas decisões que fazem a diferença entre útil e irritante:
+
+   1. Ela SOBREPÕE o conteúdo, não o empurra. Empurrar reflui a página inteira
+      a cada passagem do cursor, e o texto que a pessoa estava lendo pula.
+      A coluna da grade continua com 56px; só o elemento cresce por cima.
+
+   2. Há um atraso de 140ms para abrir e nenhum para fechar. Sem ele, o cursor
+      atravessando a barra a caminho de outra coisa a escancara — o gesto mais
+      comum vira o acidente mais comum. Fechar é instantâneo porque ninguém
+      quer esperar para recuperar a tela.
+
+   Só onde existe cursor de verdade: em toque, `:hover` gruda depois do
+   primeiro toque e a barra ficaria aberta até tocarem em outro lugar. */
+@media (min-width: 1025px) and (hover: hover) and (pointer: fine) {
+  .mf-app[data-collapsed='true'] .mf-side {
+    width: var(--mf-sidebar-c);
+    z-index: var(--mf-z-drawer);
+    transition-delay: 0ms;
+  }
+  .mf-app[data-collapsed='true'] .mf-side:hover {
+    width: var(--mf-sidebar);
+    box-shadow: var(--mf-shadow-3);
+    transition-delay: 140ms;
+  }
+  /* Os rótulos aparecem junto. `display` não anima, e é o certo aqui: texto
+     surgindo por opacidade dentro de uma caixa que ainda está crescendo fica
+     espremido no meio do caminho. */
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item__txt,
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__label,
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__name { display: block; }
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item {
+    justify-content: flex-start; padding-inline: var(--mf-3);
+  }
+  /* A dica do rail some enquanto está aberta: o rótulo já está ao lado do
+     ícone, e os dois juntos são ruído. */
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item[data-dica]:hover::after {
+    opacity: 0;
+  }
+}
+
 @media (min-width: 1025px) { .mf-only-mobile { display: none !important; } }
 
 /* ══════════════════════════════════════════════════════════════════════════
