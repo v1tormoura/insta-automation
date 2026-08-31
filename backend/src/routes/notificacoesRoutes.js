@@ -179,6 +179,72 @@ router.post('/push/inscrever', async (req, res) => {
   }
 });
 
+/**
+ * Envia um aviso de TESTE aos aparelhos inscritos.
+ *
+ * ── Por que ele não grava nada
+ *
+ * O comentário no topo deste arquivo diz que não existe rota que CRIE
+ * notificação, e continua valendo: um endpoint de criação daria a qualquer
+ * chamador o poder de forjar conquista, e o histórico deixaria de ser um
+ * registro do que aconteceu.
+ *
+ * Este envia sem persistir. A distinção é exatamente essa: ele exercita a
+ * ENTREGA — chave VAPID, inscrição do aparelho, service worker, permissão do
+ * navegador — sem inventar um marco que ninguém atingiu. A central continua
+ * mostrando só o que aconteceu de verdade.
+ *
+ * ── Por que ele precisa existir
+ *
+ * Sem isto, a única forma de saber se o push funciona é esperar um marco real.
+ * Quem acabou de ligar o aviso no celular fica sem resposta por horas, e se
+ * algo estiver errado — permissão negada, iOS sem o app na tela de início,
+ * inscrição de um aparelho que já não existe — a descoberta vem tarde e sem
+ * relação aparente com o que foi feito.
+ */
+router.post('/push/testar', async (req, res) => {
+  try {
+    const webPush = require('../services/smartActivity/webPush');
+    if (!webPush.disponivel()) {
+      return res.status(400).json({
+        error: 'O servidor não tem chaves VAPID configuradas.',
+        code: 'SEM_VAPID',
+      });
+    }
+
+    const cfg = await thresholds.carregar();
+    const modelo = cfg.mensagens?.storyViews || templates.PADRAO.storyViews;
+    const vars = templates.contexto({
+      conta: { username: 'sua_conta' },
+      insight: { igMediaId: 'teste', mediaType: 'STORY', likeCount: 87,
+                 commentsCount: 12, shareCount: 4, reach: 940,
+                 postedAt: new Date(Date.now() - 2 * 3600 * 1000) },
+      threshold: 1000, valor: 1024, metricType: 'storyViews',
+    });
+
+    /* Usa o MODELO CONFIGURADO, não um texto fixo. Assim o teste também
+       responde "a minha mensagem editada está certa?" — que é a segunda
+       pergunta de quem acabou de mexer no editor. */
+    const r = await webPush.enviar({
+      _id:      'teste',
+      titulo:   templates.render(modelo.titulo, vars),
+      mensagem: templates.render(modelo.mensagem, vars),
+      tema:     modelo.tema || 'story',
+      username: 'sua_conta',
+      teste:    true,
+    });
+
+    res.json({
+      ...r,
+      mensagem: r.enviados
+        ? `Enviado para ${r.enviados} aparelho(s).`
+        : 'Nenhum aparelho inscrito — ligue o aviso no aparelho antes de testar.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'TESTE_ERRO' });
+  }
+});
+
 router.post('/push/cancelar', async (req, res) => {
   try {
     const webPush = require('../services/smartActivity/webPush');

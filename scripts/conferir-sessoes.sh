@@ -54,7 +54,27 @@ const mongoose = require("mongoose");
   }).select("username _id provider instagrapiSession healthStatus consecutiveFailures proxy lastSuccessfulRequestAt");
 
   if (!contas.length) {
-    console.log("  Nenhuma conta com sessão instagrapi.");
+    /* "Nenhuma conta com sessão" descreve e não explica, e a diferença entre
+       as duas causas é tudo: não haver conta cadastrada é uma coisa, haver
+       nove que nunca completaram um login é outra bem diferente.
+
+       `provider` só vira "instagrapi" DEPOIS de um login bem-sucedido. Conta
+       recém-cadastrada nasce como "official" e sem sessão — então zero aqui,
+       com contas no banco, significa que nenhuma delas jamais conectou. */
+    const Account = require("/app/src/models/Account");
+    const total = await Account.countDocuments({});
+    if (!total) {
+      console.log("  Não há nenhuma conta cadastrada. Adicione uma em Contas.");
+    } else {
+      console.log("  " + total + " conta(s) cadastrada(s), e NENHUMA chegou a conectar.");
+      console.log("");
+      console.log("  A sessão só passa a existir depois de um login que deu certo — e");
+      console.log("  o login sai pelo proxy. Enquanto ele recusar, nenhuma conta");
+      console.log("  consegue completar a conexão, e não há sessão para conferir.");
+      console.log("");
+      console.log("  Confira o proxy primeiro:");
+      console.log("    ./scripts/sondar-proxy.sh");
+    }
     await mongoose.disconnect();
     return;
   }

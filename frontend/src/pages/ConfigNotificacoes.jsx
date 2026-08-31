@@ -45,6 +45,28 @@ export default function ConfigNotificacoes() {
   /* Por que o interruptor não pode ser ligado, quando não pode. Um botão que
      não faz nada e não diz por quê é pior que um botão ausente. */
   const [diagnostico] = useState(() => notificacaoDoNavegador.diagnostico());
+  const [testando, setTestando] = useState(false);
+
+  /* Envia um aviso real aos aparelhos inscritos, SEM gravar nada na central.
+     A distinção importa: a central é o registro do que aconteceu, e um teste
+     que se grava ali inventaria um marco que ninguém atingiu. */
+  async function testarAviso() {
+    setTestando(true);
+    try {
+      const { data } = await api.post('/notificacoes/push/testar');
+      aviso(data.enviados ? 'success' : 'info',
+            data.enviados ? 'Enviado' : 'Nenhum aparelho',
+            data.mensagem);
+    } catch (e) {
+      const d = e.response?.data;
+      aviso('error', 'Não deu para enviar',
+            d?.code === 'SEM_VAPID'
+              ? 'O servidor ainda não tem chaves de push configuradas.'
+              : (d?.error || 'Tente de novo em instantes.'));
+    } finally {
+      setTestando(false);
+    }
+  }
 
   const aviso = (type, title, message) => setToast({ type, title, message, id: Date.now() });
 
@@ -383,7 +405,20 @@ export default function ConfigNotificacoes() {
                     </span>
                   </label>
 
-                  <div style={{ marginTop: 'var(--mf-3)' }}>
+                  {/* Sem isto, a única forma de saber se o aviso chega é
+                      esperar um marco real — horas, e sem relação aparente
+                      com o que foi feito aqui. O teste usa a SUA mensagem
+                      configurada, então responde duas perguntas de uma vez:
+                      "chega no aparelho?" e "o texto que editei está certo?" */}
+                  <button onClick={testarAviso} disabled={testando}
+                    className="mf-btn mf-btn--ghost"
+                    style={{ marginTop: 'var(--mf-3)', width: '100%',
+                             opacity: testando ? .6 : 1,
+                             cursor: testando ? 'wait' : 'pointer' }}>
+                    {testando ? 'Enviando…' : 'Enviar um aviso de teste agora'}
+                  </button>
+
+                  <div style={{ marginTop: 'var(--mf-4)' }}>
                     {rotulo('SOME DEPOIS DE')}
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {[4000, 6000, 9000, 0].map(ms => (

@@ -206,3 +206,48 @@ describe('inscrição', () => {
     expect(mockInscricoes).toHaveLength(0);
   });
 });
+
+describe('aviso de teste', () => {
+  /* ── Por que o teste de entrega não grava nada
+     
+     Não existe rota que CRIE notificação, e isso é deliberado: um endpoint de
+     criação daria a qualquer chamador o poder de forjar conquista, e a central
+     deixaria de ser o registro do que aconteceu.
+     
+     O aviso de teste exercita a ENTREGA — chave VAPID, inscrição do aparelho,
+     service worker, permissão do navegador — sem inventar um marco. É a
+     diferença entre "provar que o cano funciona" e "despejar água nele". */
+
+  test('envia sem persistir: usa o mesmo enviar, com um id que não é do banco', async () => {
+    mockInscricoes.push(inscricao('s1', 'https://push/aparelho'));
+
+    const r = await webPush.enviar({
+      _id: 'teste', titulo: 'Seu Story está bombando 🚀',
+      mensagem: '@sua_conta chegou a 1.024 visualizações.',
+      tema: 'story', username: 'sua_conta', teste: true,
+    });
+
+    expect(r.enviados).toBe(1);
+    const corpo = JSON.parse(mockEnviados[0].corpo);
+    expect(corpo.id).toBe('teste');
+  });
+
+  test('sem aparelho inscrito, não finge que enviou', async () => {
+    // A tela precisa dizer "ligue o aviso no aparelho antes de testar" — um
+    // "enviado!" sem destinatário faria a pessoa procurar o defeito no celular.
+    const r = await webPush.enviar({ _id: 'teste', titulo: 'x', mensagem: 'y' });
+    expect(r.enviados).toBe(0);
+  });
+
+  test('a rota de teste existe e NÃO grava notificação', () => {
+    const fonte = require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'src', 'routes', 'notificacoesRoutes.js'), 'utf8');
+    const i = fonte.indexOf("router.post('/push/testar'");
+    expect(i).toBeGreaterThan(-1);
+    const bloco = fonte.slice(i, i + 2400);
+    // Nenhuma escrita no modelo dentro do bloco da rota.
+    expect(bloco).not.toMatch(/Notificacao\.(create|insertMany|updateOne|findOneAndUpdate)/);
+    // E usa o modelo CONFIGURADO, para o teste também validar o texto editado.
+    expect(bloco).toMatch(/cfg\.mensagens/);
+  });
+});
