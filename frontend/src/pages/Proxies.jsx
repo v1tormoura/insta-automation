@@ -26,6 +26,45 @@ export default function Proxies() {
   const [bulkRelatorio, setBulkRelatorio]   = useState(null);
   const [bulkAplicando, setBulkAplicando]   = useState(false);
   const [pool, setPool] = useState({ resumo: null, itens: [] });
+
+  /* Consumo do proxy. A cota acabou sem aviso porque ninguém a media — não
+     havia painel, número nem tendência, e a primeira notícia foi o serviço
+     parar depois de quatro dias e meio. */
+  const [consumo, setConsumo] = useState(null);
+  const [planoForm, setPlanoForm] = useState({ totalGb: '', usadoGb: '', renovaEm: '' });
+  const [salvandoPlano, setSalvandoPlano] = useState(false);
+
+  const carregarConsumo = async () => {
+    try {
+      const { data } = await api.get('/proxy/consumo');
+      setConsumo(data);
+      setPlanoForm(f => ({ ...f,
+        totalGb: f.totalGb || (data.plano.totalGb || ''),
+        renovaEm: f.renovaEm || (data.plano.renovaEm || '') }));
+    } catch { /* a página funciona sem o consumo */ }
+  };
+
+  const salvarPlano = async () => {
+    setSalvandoPlano(true);
+    try {
+      const { data } = await api.put('/proxy/plano', {
+        totalGb: planoForm.totalGb || undefined,
+        usadoGb: planoForm.usadoGb || undefined,
+        renovaEm: planoForm.renovaEm || undefined,
+      });
+      setConsumo(c => ({ ...(c || {}), projecao: data.projecao }));
+      setPlanoForm(f => ({ ...f, usadoGb: '' }));
+      await carregarConsumo();
+      showToast('success', 'Registrado',
+        data.projecao?.conhecido
+          ? `${data.projecao.diasRestantes ?? '—'} dia(s) de cota no ritmo atual.`
+          : data.projecao?.motivo || 'Leitura guardada.');
+    } catch (e) {
+      showToast('error', 'Não deu para salvar', e.response?.data?.error || 'Tente de novo.');
+    } finally {
+      setSalvandoPlano(false);
+    }
+  };
   const [testandoPool, setTestandoPool] = useState(false);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
@@ -66,7 +105,9 @@ export default function Proxies() {
   }
 
   useEffect(() => {
-    loadAccounts(); loadPool();
+    loadAccounts(); loadPool(); carregarConsumo();
+    /* O consumo fica FORA do intervalo: ele muda por dia, não por segundo, e
+       repetir a consulta a cada meio minuto seria gasto sem retorno. */
     const t = setInterval(() => { loadAccounts(); loadPool(); }, 30000);
     return () => clearInterval(t);
   }, []);
@@ -187,6 +228,77 @@ export default function Proxies() {
             </motion.div>
           ))}
         </div>
+
+        {/* ── Consumo da cota ───────────────────────────────────────────────
+            Acima do pool porque a pergunta "quanto ainda tenho" vem antes de
+            "quais tenho". Foi a ausência desta resposta que deixou o produto
+            parado quatro dias e meio. */}
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.03 }}
+          style={{ ...cardStyle, padding:'var(--mf-4) var(--mf-5)', marginBottom:'var(--mf-4)' }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:'var(--mf-3)', flexWrap:'wrap', marginBottom:'var(--mf-4)' }}>
+            <h3 style={{ fontSize:'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
+              Cota do plano
+            </h3>
+            <span style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
+              {consumo?.projecao?.conhecido
+                ? `${consumo.projecao.mbPorOperacao} MB por operação · ${consumo.projecao.operacoesPorDia}/dia`
+                : 'medindo operações; informe o consumo do painel para projetar'}
+            </span>
+          </div>
+
+          {consumo?.projecao?.conhecido ? (
+            <>
+              <div style={{ display:'flex', alignItems:'baseline', gap:'var(--mf-4)', flexWrap:'wrap', marginBottom:'var(--mf-3)' }}>
+                <span className="mf-mono" style={{ fontSize:'var(--mf-t-h1)', fontWeight:300,
+                  letterSpacing:'-.03em', color:'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>
+                  {consumo.projecao.restanteGb} GB
+                </span>
+                <span style={{ fontSize:'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>
+                  de {consumo.projecao.totalGb} GB · {consumo.projecao.percentualUsado}% usado
+                </span>
+                {consumo.projecao.diasRestantes !== null && (
+                  <span className="mf-mono" style={{ marginLeft:'auto', fontSize:'var(--mf-t-sm)',
+                    color: consumo.projecao.diasRestantes <= 5 ? 'var(--mf-danger-500)' : 'var(--mf-text-2)' }}>
+                    ~{consumo.projecao.diasRestantes} dia(s)
+                  </span>
+                )}
+              </div>
+              <div style={{ height:6, borderRadius:'var(--mf-r-full)', background:'var(--mf-surface-2)', overflow:'hidden' }}>
+                <div style={{ height:'100%', width:`${Math.min(100, consumo.projecao.percentualUsado)}%`,
+                  background: consumo.projecao.percentualUsado >= 85 ? 'var(--mf-danger-500)' : 'var(--mf-primary-500)',
+                  transition:'width .3s' }} />
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize:'var(--mf-t-sm)', color:'var(--mf-text-2)', margin:'0 0 var(--mf-3)', maxWidth:'62ch' }}>
+              {/* Honestidade sobre o método: medimos o que dá, e pedimos só o
+                  que não temos como saber. Um número inventado de bytes daria
+                  uma projeção convincente e errada. */}
+              {consumo?.projecao?.motivo || 'Bytes só o fornecedor sabe. O sistema conta as operações que passam pelo proxy e aprende quanto cada uma custa a partir de duas leituras do painel dele.'}
+            </p>
+          )}
+
+          <div style={{ display:'flex', gap:'var(--mf-3)', flexWrap:'wrap', alignItems:'flex-end', marginTop:'var(--mf-4)' }}>
+            <label style={{ flex:'1 1 120px', minWidth:0 }}>
+              <span style={{ display:'block', fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)',
+                fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.1em', marginBottom:4 }}>Plano (GB)</span>
+              <input className="mf-input" type="number" min="0" step="0.1" value={planoForm.totalGb}
+                onChange={e => setPlanoForm(f => ({ ...f, totalGb: e.target.value }))}
+                placeholder="ex.: 50" style={{ width:'100%' }} />
+            </label>
+            <label style={{ flex:'1 1 120px', minWidth:0 }}>
+              <span style={{ display:'block', fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)',
+                fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.1em', marginBottom:4 }}>Usado hoje (GB)</span>
+              <input className="mf-input" type="number" min="0" step="0.01" value={planoForm.usadoGb}
+                onChange={e => setPlanoForm(f => ({ ...f, usadoGb: e.target.value }))}
+                placeholder="o que o painel marca" style={{ width:'100%' }} />
+            </label>
+            <button className="mf-btn mf-btn--primary" onClick={salvarPlano} disabled={salvandoPlano}
+              style={{ opacity: salvandoPlano ? .6 : 1 }}>
+              {salvandoPlano ? 'Salvando…' : 'Registrar leitura'}
+            </button>
+          </div>
+        </motion.div>
 
         {/* ── Pool de proxies ──────────────────────────────────────────────
             Fica ACIMA da tabela por conta de propósito: é aqui que os proxies

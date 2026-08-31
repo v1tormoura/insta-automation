@@ -135,7 +135,36 @@ async function _erros() {
   };
 }
 
+async function _cota() {
+  /* O aviso que teria evitado a semana. A verificação de proxy avisa quando já
+     parou; esta avisa ANTES, enquanto ainda dá para renovar sem interromper
+     nada.
+
+     Só fala quando há projeção de verdade — duas leituras do painel do
+     fornecedor. Sem elas, o silêncio é a resposta honesta: um alerta baseado
+     em estimativa inventada gasta a atenção que o alerta real vai precisar. */
+  const { projetar } = require('./consumoDeProxy');
+  const p = await projetar();
+  if (!p.conhecido) return null;
+
+  const poucoTempo = p.diasRestantes !== null && p.diasRestantes <= 5;
+  const quaseCheio = p.percentualUsado >= 85;
+  if (!poucoTempo && !quaseCheio) return null;
+
+  const quando = p.diasRestantes !== null
+    ? `No ritmo atual, acaba em cerca de ${p.diasRestantes} dia(s).`
+    : 'Sem ritmo suficiente para estimar quando acaba.';
+
+  return {
+    titulo: `Cota do proxy em ${p.percentualUsado}%`,
+    mensagem: `${p.restanteGb} GB de ${p.totalGb} GB restantes. ${quando} `
+            + 'Renove antes de acabar — quando acaba, tudo para de uma vez.',
+    prioridade: p.diasRestantes !== null && p.diasRestantes <= 2 ? 'alta' : 'normal',
+  };
+}
+
 const VERIFICACOES = Object.freeze({
+  cota:    _cota,
   proxy:   _proxy,
   pool:    _pool,
   sessoes: _sessoes,

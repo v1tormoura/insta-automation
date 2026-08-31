@@ -200,6 +200,52 @@ router.post('/distribuir', async (req, res) => {
 // isso reservando um proxy por conta no instante da conexão, sem ninguém ter
 // de lembrar de atribuir.
 
+/* ── Consumo ────────────────────────────────────────────────────────────────
+   A cota acabou sem aviso porque ninguém a media. Estas duas rotas dão o
+   número e a projeção — e pedem a você a única parte que o sistema não tem
+   como saber: quanto o painel do fornecedor marca. */
+
+router.get('/consumo', async (_req, res) => {
+  try {
+    const consumo = require('../services/consumoDeProxy');
+    const [projecao, historico, plano] = await Promise.all([
+      consumo.projetar(),
+      consumo.serie(14),
+      consumo.lerPlano(),
+    ]);
+    res.json({
+      projecao,
+      plano: { totalGb: plano?.totalGb || 0, renovaEm: plano?.renovaEm || '' },
+      historico: historico.map(d => ({
+        dia: d.dia, operacoes: d.operacoes || 0, porOrigem: d.porOrigem || {},
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'CONSUMO_ERRO' });
+  }
+});
+
+router.put('/plano', async (req, res) => {
+  try {
+    const { totalGb, usadoGb, renovaEm } = req.body || {};
+    const num = v => (v === undefined || v === null || v === '' ? undefined : Number(v));
+
+    const t = num(totalGb), u = num(usadoGb);
+    if (t !== undefined && (!Number.isFinite(t) || t <= 0)) {
+      return res.status(400).json({ error: 'O total do plano precisa ser um número maior que zero.', code: 'TOTAL_INVALIDO' });
+    }
+    if (u !== undefined && (!Number.isFinite(u) || u < 0)) {
+      return res.status(400).json({ error: 'O consumo precisa ser um número.', code: 'USADO_INVALIDO' });
+    }
+
+    const consumo = require('../services/consumoDeProxy');
+    await consumo.gravarPlano({ totalGb: t, usadoGb: u, renovaEm });
+    res.json({ ok: true, projecao: await consumo.projetar() });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'PLANO_ERRO' });
+  }
+});
+
 router.get('/pool', async (req, res) => {
   try {
     const { listar, resumo, recuperarOrfaos } = require('../services/proxyPool');

@@ -109,6 +109,20 @@ async function resolveProxyFor(account) {
   return (await resolverComOrigem(account)).url;
 }
 
+/* Contabiliza a saída. Registrado AQUI, no funil, e não em cada consumidor:
+   publicação, sincronização, login e health check passam todos por
+   `resolverComOrigem`, e espalhar a chamada seria quatro chances de esquecer
+   uma — com o sintoma de a projeção de consumo ficar otimista sem ninguém
+   entender por quê.
+
+   Sem `await` de propósito: contabilidade não pode atrasar publicação. */
+function _contabilizar(origem) {
+  if (origem === 'nenhum') return;
+  try {
+    require('./consumoDeProxy').registrar(origem).catch(() => {});
+  } catch { /* módulo indisponível não derruba a resolução */ }
+}
+
 /**
  * O mesmo que `resolveProxyFor`, mas dizendo DE ONDE o proxy veio.
  *
@@ -121,7 +135,7 @@ async function resolveProxyFor(account) {
  */
 async function resolverComOrigem(account) {
   const own = String(account?.proxy || '').trim();
-  if (own) return { url: normalizeProxy(own), origem: 'conta' };
+  if (own) { _contabilizar('conta'); return { url: normalizeProxy(own), origem: 'conta' }; }
 
   const id = account?._id;
   if (id) {
@@ -133,6 +147,7 @@ async function resolverComOrigem(account) {
         // para o proxy aparecer na tela de Contas como qualquer outro.
         const Account = require('../models/Account');
         await Account.updateOne({ _id: id }, { $set: { proxy: doPool } });
+        _contabilizar('pool');
         return { url: normalizeProxy(doPool), origem: 'pool' };
       }
     } catch (err) {
@@ -143,7 +158,9 @@ async function resolverComOrigem(account) {
   }
 
   const global = await getGlobalProxyUrl();
-  return { url: global, origem: global ? 'global' : 'nenhum' };
+  const origem = global ? 'global' : 'nenhum';
+  _contabilizar(origem);
+  return { url: global, origem };
 }
 
 module.exports = {
