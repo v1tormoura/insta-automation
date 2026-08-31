@@ -75,6 +75,18 @@ class StoryInsightsRequest(BaseModel):
     detalhar_faltantes: bool = True
 
 
+class MediaInsightsRequest(BaseModel):
+    account_id: str
+    # Quantas publicacoes recentes ler. 12 cobre bem a janela em que uma
+    # metrica ainda sobe; ler o feed inteiro a cada ciclo gastaria requisicao
+    # em post de meses atras que nao muda mais.
+    quantidade: int = 12
+    # Tentar o endpoint de insights (alcance e impressoes reais). So funciona
+    # em conta profissional; quando falha, os contadores publicos continuam
+    # valendo e a resposta diz de onde cada numero veio.
+    tentar_insights: bool = True
+
+
 class ProfileEditRequest(BaseModel):
     account_id: str
     # Campos ausentes (None) não são alterados — account_edit sobrescreve o que

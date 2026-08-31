@@ -2,7 +2,7 @@ import asyncio
 import logging
 from fastapi import APIRouter, HTTPException
 
-from ..models import StoryInsightsRequest
+from ..models import StoryInsightsRequest, MediaInsightsRequest
 from .. import session_pool
 
 logger = logging.getLogger(__name__)
@@ -186,3 +186,161 @@ def _melhor_thumb(item: dict) -> str:
         return str(melhor.get("url") or "")
     except Exception:  # noqa: BLE001
         return ""
+
+
+# ── Insight de PUBLICAÇÃO ─────────────────────────────────────────────────────
+#
+# ── Por que este endpoint existe
+#
+# Story e post tinham fontes diferentes, e só a de story funcionava sem token
+# da Meta. O serviço de métricas de post exige `accessToken` + `igUserId`, o
+# caminho Graph API — numa base só instagrapi ele encontrava zero contas e não
+# fazia nada, para sempre. O painel mostrava "visualizações de post: LIGADO", e
+# a opção não tinha como funcionar.
+#
+# ── Dois caminhos, e por que os dois
+#
+# 1. `insights_media(pk)` devolve ALCANCE e IMPRESSÕES de verdade, que é o que
+#    o Instagram mostra ao dono do post. Só existe em conta profissional
+#    (comercial ou criador de conteúdo) — numa conta pessoal a chamada falha, e
+#    falhar é o comportamento correto dela.
+#
+# 2. Os contadores públicos do próprio objeto de mídia — curtidas, comentários
+#    e reproduções — existem em qualquer conta.
+#
+# Tentamos (1) e caímos em (2). Cada item diz de onde veio cada número, porque
+# a diferença importa: alcance ausente não é alcance zero, e tratar os dois
+# como iguais faria o painel afirmar que ninguém viu a publicação.
+
+_TIPO_POR_CODIGO = {1: "IMAGE", 2: "VIDEO", 8: "CAROUSEL_ALBUM"}
+
+
+def _numero(*candidatos) -> int:
+    """Primeiro candidato que seja número não nulo. Zero e None são diferentes:
+    zero é medição, None é ausência, e a ordem dos candidatos existe para não
+    confundir os dois."""
+    for c in candidatos:
+        if isinstance(c, (int, float)) and c is not None:
+            return int(c)
+    return 0
+
+
+def _insights_da_midia(client, pk: str) -> dict | None:
+    """Alcance e impressões reais. Devolve None quando a conta não é profissional."""
+    fn = getattr(client, "insights_media", None)
+    if not callable(fn):
+        return None
+    try:
+        bruto = fn(pk) or {}
+    except Exception as e:  # noqa: BLE001
+        # Conta pessoal, post antigo demais ou endpoint mudado. Nenhum dos três
+        # é erro nosso, e nenhum deve derrubar a leitura dos contadores.
+        logger.info("insights_media indisponível em %s (%s)", pk, type(e).__name__)
+        return None
+
+    # A resposta aninha os números em `inline_insights_node.metrics`, e o
+    # formato variou entre versões — por isso a busca é tolerante.
+    no = bruto.get("inline_insights_node") or bruto
+    metricas = no.get("metrics") if isinstance(no, dict) else None
+    if not isinstance(metricas, dict):
+        metricas = bruto if isinstance(bruto, dict) else {}
+
+    alcance = _numero(metricas.get("reach_count"), metricas.get("reach"))
+    impressoes = _numero(metricas.get("impression_count"), metricas.get("impressions"))
+    salvos = _numero(metricas.get("save_count"), metricas.get("saved"))
+    compart = _numero(metricas.get("share_count"), metricas.get("shares"))
+
+    if not (alcance or impressoes):
+        return None
+    return {"reach": alcance, "impressions": impressoes, "saved": salvos, "shares": compart}
+
+
+@router.post("/media")
+async def media_insights(body: MediaInsightsRequest):
+    """Métricas das publicações recentes da conta."""
+    if not session_pool.is_loaded(body.account_id):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "SESSION_NOT_LOADED", "message": "Chame /session/load antes de ler insights"},
+        )
+
+    entry = await session_pool.get_entry(body.account_id)
+    async with entry["lock"]:
+        client = entry["client"]
+        loop = asyncio.get_running_loop()
+
+        def _coletar():
+            user_id = client.user_id
+            if not user_id:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "NO_USER_ID", "message": "Sessão sem user_id — refaça o login da conta."},
+                )
+
+            quantas = max(1, min(50, int(body.quantidade or 12)))
+            midias = client.user_medias(user_id, amount=quantas)
+
+            saida = []
+            for m in midias:
+                pk = str(getattr(m, "pk", "") or "")
+                if not pk:
+                    continue
+
+                tipo = _TIPO_POR_CODIGO.get(getattr(m, "media_type", 1), "IMAGE")
+                produto = str(getattr(m, "product_type", "") or "")
+                # Reel é vídeo para efeito de métrica, mesmo quando o código do
+                # tipo diz outra coisa — é o que a pessoa espera ver no painel.
+                if produto in ("clips", "igtv"):
+                    tipo = "VIDEO"
+
+                reproducoes = _numero(getattr(m, "play_count", None), getattr(m, "view_count", None))
+                curtidas = _numero(getattr(m, "like_count", None))
+                comentarios = _numero(getattr(m, "comment_count", None))
+
+                item = {
+                    "media_id": pk,
+                    "media_type": tipo,
+                    "product_type": produto,
+                    "code": str(getattr(m, "code", "") or ""),
+                    "caption": (getattr(m, "caption_text", "") or "")[:2200],
+                    "thumbnail_url": str(getattr(m, "thumbnail_url", "") or ""),
+                    "taken_at": getattr(m, "taken_at", None).isoformat() if getattr(m, "taken_at", None) else None,
+                    "like_count": curtidas,
+                    "comment_count": comentarios,
+                    "video_views": reproducoes,
+                    "reach": 0,
+                    "impressions": 0,
+                    "saved_count": 0,
+                    "share_count": 0,
+                    "fonte": "contadores",
+                }
+
+                if body.tentar_insights:
+                    extra = _insights_da_midia(client, pk)
+                    if extra:
+                        item.update({
+                            "reach": extra["reach"],
+                            "impressions": extra["impressions"],
+                            "saved_count": extra["saved"],
+                            "share_count": extra["shares"],
+                            "fonte": "insights",
+                        })
+
+                saida.append(item)
+            return saida
+
+        try:
+            itens = await loop.run_in_executor(None, _coletar)
+        except HTTPException:
+            raise
+        except Exception as e:  # noqa: BLE001
+            code = session_pool.classify_error(e)
+            logger.warning("media_insights: %s para conta %s (%s)", code, body.account_id, type(e).__name__)
+            raise HTTPException(status_code=502, detail={"code": code, "message": str(e)[:200]})
+
+    comInsights = sum(1 for i in itens if i["fonte"] == "insights")
+    logger.info(
+        "media_insights: %s publicação(ões) da conta %s — %s com alcance real",
+        len(itens), body.account_id, comInsights,
+    )
+    return {"itens": itens, "total": len(itens), "com_insights": comInsights}

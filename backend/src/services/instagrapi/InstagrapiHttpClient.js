@@ -19,6 +19,13 @@ const TIMEOUT_COMMENT  = 30_000;   // ms
 // que o do comentario. O lock fica acima do timeout, para nunca expirar antes.
 const TIMEOUT_STORY_INSIGHTS  = 60_000;   // ms
 const LOCK_TTL_STORY_INSIGHTS = 90_000;   // ms
+
+/* Maior que o de story: em conta profissional o serviço faz uma chamada de
+   insights POR publicação, e doze publicações são doze idas ao Instagram. Um
+   limite curto aqui abortaria no meio e a conta ficaria sem métrica nenhuma —
+   pior que demorar. */
+const TIMEOUT_MEDIA_INSIGHTS  = 120_000;  // ms
+const LOCK_TTL_MEDIA_INSIGHTS = 150_000;  // ms
 const LOCK_TTL_COMMENT = 45_000;   // ms — acima do timeout, para o lock nunca
                                    // expirar com a requisição ainda em voo
 
@@ -412,6 +419,32 @@ class InstagrapiHttpClient {
         '/insights/stories',
         { account_id: accountId },
         TIMEOUT_STORY_INSIGHTS,
+      );
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /**
+   * Métricas das publicações recentes.
+   *
+   * O par deste método é o `storyInsights`, e a diferença entre os dois é a
+   * razão de existir: métrica de POST vinha só da Graph API, que exige token
+   * da Meta. Numa base só instagrapi aquele caminho encontrava zero contas e
+   * não fazia nada — a opção "visualizações de post" ficava ligada no painel
+   * sem ter como funcionar.
+   *
+   * O tempo limite é maior que o de story porque o serviço pode fazer uma
+   * chamada de insights POR publicação quando a conta é profissional.
+   */
+  async mediaInsights(account, quantidade = 12) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_MEDIA_INSIGHTS, async () => {
+      await this.ensureSession(account);
+      const result = await this._post(
+        '/insights/media',
+        { account_id: accountId, quantidade },
+        TIMEOUT_MEDIA_INSIGHTS,
       );
       if (result.settings) await this._sm.save(accountId, result.settings);
       return result;

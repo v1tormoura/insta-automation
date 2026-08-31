@@ -202,19 +202,109 @@ async function syncAccountInsights(account) {
   }
 }
 
+/**
+ * Métricas de publicação pela sessão instagrapi.
+ *
+ * ── O que este caminho consegue, e o que não consegue
+ *
+ * Curtidas, comentários e reproduções vêm dos contadores públicos e existem em
+ * qualquer conta. Alcance e impressões vêm do endpoint de insights do próprio
+ * Instagram, que só responde para conta PROFISSIONAL — em conta pessoal a
+ * chamada falha, e falhar ali é o comportamento correto.
+ *
+ * Quando o alcance não vem, ele fica em zero e o `engagementScore` é calculado
+ * sobre reproduções. Zero aqui significa "não medido", não "ninguém viu" — a
+ * distinção importa porque o segundo seria uma afirmação falsa sobre o post.
+ */
+async function syncAccountInsightsInstagrapi(account) {
+  const { getProvider } = require('../providers/ProviderFactory');
+  const now = new Date();
+
+  let resposta;
+  try {
+    const provider = getProvider(account);
+    resposta = await provider.mediaInsights(account, 12);
+  } catch (err) {
+    return { synced: 0, error: err.message?.slice(0, 120) || 'falha' };
+  }
+
+  const itens = resposta?.itens || [];
+  let synced = 0;
+
+  for (const m of itens) {
+    try {
+      const likeCount     = m.like_count    || 0;
+      const commentsCount = m.comment_count || 0;
+      const shareCount    = m.share_count   || 0;
+      const savedCount    = m.saved_count   || 0;
+      const reach         = m.reach         || 0;
+      const impressions   = m.impressions   || 0;
+      const videoViews    = m.video_views   || 0;
+
+      const totalInteractions = likeCount + commentsCount + shareCount + savedCount;
+      // A MESMA fórmula do caminho Graph. Duas fórmulas para a mesma métrica
+      // fariam o ranking mudar de critério conforme a origem da conta, e
+      // ninguém entenderia por que dois posts iguais pontuam diferente.
+      const engagementScore = likeCount + commentsCount * 3 + shareCount * 5 + savedCount * 4
+        + Math.floor((videoViews || impressions) * 0.1);
+
+      await Insight.findOneAndUpdate(
+        { igMediaId: m.media_id },
+        {
+          accountId: account._id,
+          username:  account.username,
+          igMediaId: m.media_id,
+          mediaType: m.media_type || 'IMAGE',
+          thumbnailUrl: m.thumbnail_url || '',
+          permalink: m.code ? `https://www.instagram.com/p/${m.code}/` : '',
+          caption:   m.caption || '',
+          postedAt:  m.taken_at ? new Date(m.taken_at) : null,
+          likeCount, commentsCount, shareCount, savedCount,
+          reach, impressions, videoViews, totalInteractions, engagementScore,
+          syncedAt: now,
+        },
+        { upsert: true, new: true }
+      );
+      synced++;
+    } catch (err) {
+      console.warn(`[InsightSync/instagrapi] ${m.media_id}: ${err.message}`);
+    }
+  }
+
+  const comAlcance = itens.filter(i => i.fonte === 'insights').length;
+  return { synced, total: itens.length, comAlcance };
+}
+
 async function syncAllInsights() {
   if (_running) return { skipped: true };
   _running = true;
   const results = [];
   try {
+    /* DUAS fontes, e antes só uma era varrida.
+
+       Esta consulta pedia `accessToken` e `igUserId` — o caminho Graph API.
+       Numa base só instagrapi ela devolvia zero contas e o ciclo não fazia
+       nada, para sempre: métrica de post nunca atualizava, os marcos de
+       "visualizações de post" nunca disparavam, e o painel mostrava a opção
+       ligada sem ter como funcionar.
+
+       Agora cada conta vai pelo caminho que ela TEM. Graph quando há token da
+       Meta; instagrapi quando há sessão. Conta com os dois usa Graph, que traz
+       alcance e impressões oficiais. */
     const accounts = await Account.find({
-      accessToken: { $nin: [null, ''] },
-      igUserId:    { $nin: [null, ''] },
-    }).select('username accessToken igUserId healthStatus tokenExpiresAt');
+      $or: [
+        { accessToken: { $nin: [null, ''] }, igUserId: { $nin: [null, ''] } },
+        { provider: 'instagrapi' },
+        { instagrapiSession: { $nin: [null, ''] } },
+      ],
+    }).select('username accessToken igUserId provider instagrapiSession healthStatus tokenExpiresAt');
 
     for (const acc of accounts) {
-      const r = await syncAccountInsights(acc);
-      results.push({ username: acc.username, ...r });
+      const temGraph = !!(acc.accessToken && acc.igUserId);
+      const r = temGraph
+        ? await syncAccountInsights(acc)
+        : await syncAccountInsightsInstagrapi(acc);
+      results.push({ username: acc.username, via: temGraph ? 'graph' : 'instagrapi', ...r });
     }
     broadcast('insights', { action: 'synced', count: results.length });
 
@@ -248,7 +338,7 @@ function startInsightAutoSync(intervalMs = 30 * 60 * 1000) {
 }
 
 module.exports = {
-  syncAllInsights, syncAccountInsights, startInsightAutoSync,
+  syncAllInsights, syncAccountInsights, syncAccountInsightsInstagrapi, startInsightAutoSync,
   // Compartilhados com o sync de stories: uma segunda implementação de chamada
   // ao Graph divergiria na escolha da base (graph.instagram vs graph.facebook),
   // que é justamente a parte que quebra em silêncio.

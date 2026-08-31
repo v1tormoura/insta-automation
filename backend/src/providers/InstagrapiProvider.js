@@ -64,6 +64,11 @@ class InstagrapiProvider extends InstagramProvider {
    * Existe só no provider instagrapi: a Graph API tem caminho próprio para isso
    * (edge /stories + /insights), tratado em storyInsightSync.
    */
+  async mediaInsights(account, quantidade = 12) {
+    if (!this._http) throw this._notReady('mediaInsights');
+    return this._http.mediaInsights(account, quantidade);
+  }
+
   async storyInsights(account) {
     if (!this._http) throw this._notReady('storyInsights');
     return this._http.storyInsights(account);
