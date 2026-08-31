@@ -99,25 +99,60 @@
 .metric-grid > .metric-wide { grid-column: 1 / -1; }
 @media (min-width: 1200px) { .metric-grid > .metric-wide { grid-column: span 2; } }
 
-.metric-card, .wide-metric, .panel, .quick-action {
-  background: oklch(0.16 0.05 235 / 0.92);
+.wide-metric, .panel, .quick-action {
+  /* Era `oklch(0.16 0.05 235 / 0.92)`, cravado. Croma 0.05 num fundo de
+     painel é a paleta anterior congelada num literal: o redirecionamento de
+     tokens passava ao largo, e estes blocos continuariam com a cor velha
+     enquanto o resto do app mudava. Literal em superfície é sempre isso —
+     uma parte do produto que para de acompanhar as outras. */
+  background: var(--mf-surface-1);
   border: 1px solid var(--mf-border);
-  box-shadow: 0 4px 20px rgba(0,0,0,.4), inset 0 1px 0 var(--mf-border-subtle);
+  box-shadow: var(--mf-shadow-1);
   overflow: hidden; position: relative;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
+/* ── Bloco de métrica ──────────────────────────────────────────────────────
+   A grade inteira vira UM bloco. Os vãos de 1px, pintados pela cor de fundo
+   do container, viram as divisórias — assim não há moldura por métrica nem
+   borda solta no fim de fileira, que é o defeito de pôr `border-right` em
+   cada item quando a contagem de colunas muda com a largura. */
+.metric-grid {
+  gap: 1px;
+  background: var(--mf-border);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-r-md);
+  overflow: hidden;
+}
 .metric-card {
-  min-height: 168px; border-radius: 18px; padding: 0;
-  display: flex; flex-direction: column;
-  transition: border-color .25s, box-shadow .25s, transform .25s;
+  background: var(--mf-surface-1);
+  border: none; border-radius: 0;
+  padding: var(--mf-4) var(--mf-5);
+  display: flex; flex-direction: column; justify-content: space-between;
+  gap: var(--mf-4); min-height: 104px;
+  transition: background var(--mf-fast) var(--mf-ease-out);
 }
-.metric-card:hover {
-  border-color: oklch(0.82 0.19 196 / 0.25);
-  box-shadow: 0 0 0 1px oklch(0.82 0.19 196 / 0.10), 0 0 28px oklch(0.82 0.19 196 / 0.12), 0 16px 48px rgba(0,0,0,.5);
-  transform: translateY(-2px);
+.metric-card:hover { background: var(--mf-surface-2); }
+
+.metric-card__rot {
+  font-size: var(--mf-t-nano); font-weight: 500;
+  letter-spacing: .12em; text-transform: uppercase;
 }
+.metric-card__num {
+  /* Peso 300 numa fonte variável de 100 a 900: instância real, não falso
+     claro. Um número grande em peso leve lê como dado medido; o mesmo número
+     em 700 lê como anúncio. */
+  font-size: clamp(1.75rem, 1.2rem + 1.4cqw, 2.25rem);
+  font-weight: 300; line-height: 1.05; letter-spacing: -.03em;
+  color: var(--mf-text); margin-top: var(--mf-2);
+  font-variant-numeric: tabular-nums;
+}
+.metric-card__pe {
+  display: flex; align-items: center; gap: var(--mf-3);
+}
+.metric-card__meta {
+  font-size: var(--mf-t-xs); color: var(--mf-text-3); min-width: 0;
+}
+.metric-card__spark { width: 64px; height: 20px; margin-left: auto; flex-shrink: 0; }
 .wide-metric:hover, .panel:hover {
   border-color: color-mix(in oklch, var(--mf-mod-contas) 18%, transparent);
 }
@@ -156,20 +191,6 @@
 .metric-line  { position: absolute; z-index: 2; left: 12px; right: 12px; bottom: 8px; height: 25px; opacity: .95; }
 
 /* ── KPI 3D orbs — preserved ─────────────────────────── */
-.kpi-orb { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; }
-.kpi-orb-cyan {
-  background: radial-gradient(circle at 35% 30%, oklch(0.95 0.05 220 / 0.9), oklch(0.55 0.18 220 / 0.6) 50%, oklch(0.2 0.1 250 / 0.9) 100%);
-  box-shadow: oklch(0.78 0.15 220 / 0.5) 0 0 20px inset, rgba(0,180,220,0.4) 0 0 30px, rgba(0,130,200,0.2) 0 0 60px;
-}
-.kpi-orb-warm {
-  background: radial-gradient(circle at 35% 30%, oklch(0.95 0.1 65 / 0.95), oklch(0.7 0.2 50 / 0.7) 50%, oklch(0.3 0.15 35 / 0.9) 100%);
-  box-shadow: oklch(0.85 0.15 65 / 0.5) 0 0 20px inset, rgba(255,140,0,0.4) 0 0 30px, rgba(220,100,0,0.2) 0 0 60px;
-}
-.kpi-orb-violet {
-  background: radial-gradient(circle at 35% 30%, oklch(0.95 0.08 300 / 0.9), oklch(0.6 0.2 295 / 0.7) 50%, oklch(0.2 0.12 295 / 0.9) 100%);
-  box-shadow: oklch(0.8 0.15 295 / 0.5) 0 0 20px inset, rgba(140,92,246,0.4) 0 0 30px, rgba(100,60,200,0.2) 0 0 60px;
-}
-
 /* ── Classic orb visual — preserved ─────────────────── */
 .visual { position: absolute; right: 10px; bottom: 11px; width: 106px; height: 91px; pointer-events: none; z-index: 1; }
 .visual.compact { right: 18px; bottom: 4px; transform: scale(.77); transform-origin: right bottom; }
@@ -222,7 +243,17 @@
   transition: border-color .15s;
 }
 .wide-actions button:hover { border-color: var(--border2); color: var(--mf-text); }
-.delta-chip { color: #5fe9a9; font-size: 11px; font-weight: 750; padding: 4px 6px; border-radius: 5px; background: rgba(17,208,126,.1); border: 1px solid rgba(24,224,135,.22); }
+/* Verde cravado em três lugares: texto, fundo e borda. Trocar a paleta
+   deixava este chip para trás — e um indicador de crescimento com a cor
+   "quase certa" é pior que um errado, porque ninguém desconfia dele. */
+.delta-chip {
+  color: var(--mf-success-500);
+  font-size: var(--mf-t-micro); font-weight: 600;
+  padding: 2px var(--mf-2); border-radius: var(--mf-r-xs);
+  background: var(--mf-success-bg);
+  border: 1px solid color-mix(in oklch, var(--mf-success-500) 26%, transparent);
+  font-variant-numeric: tabular-nums;
+}
 .delta-chip.negative { color: var(--mf-text-2); background: var(--mf-border-subtle); border-color: var(--border); }
 .wide-line { position: absolute; left: 13px; right: 13px; bottom: 7px; height: 27px; z-index: 2; }
 

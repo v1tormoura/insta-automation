@@ -211,72 +211,55 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
   const gid = `mg-${String(title).replace(/\W+/g, '')}`;
 
   return (
-    /* As quatro camadas decorativas — filete no topo, textura de grade,
-       brilho no canto e o brilho diagonal do `.sheen` — não são enfeite
-       gratuito: são a assinatura visual do produto. Numa primeira passagem
-       eu as removi junto com os hexadecimais, e o card ficou correto e sem
-       personalidade. Voltam aqui amarradas à cor do módulo, então mudam de
-       matiz com a área em vez de serem sempre cianas. */
+    /* Bloco, não cartão.
+
+       Ele era um `.mf-card` com quatro camadas decorativas empilhadas —
+       filete no topo, textura de grade, halo no canto e o brilho diagonal do
+       `.sheen` — mais um orbe de 62px, com 154px de altura mínima. Cada
+       camada era defensável sozinha; somadas, produziam exatamente a queixa
+       do redesign: excesso de elemento e cartão em todo lugar.
+
+       O que sobrou é o que a pessoa vem buscar: rótulo, número, contexto,
+       tendência. A separação entre um bloco e o vizinho passou a ser o vão da
+       própria grade, de 1px — sem moldura por bloco, e sem borda solta no fim
+       de fileira, que é o defeito de pôr `border-right` em cada item.
+
+       O número em peso 300 não é capricho: a Geist é variável de 100 a 900,
+       então 300 é instância real, e um número grande em peso leve lê como
+       dado medido, enquanto o mesmo número em 700 lê como anúncio. */
     <motion.article
-      variants={fadeUp} transition={{ duration: .4, ease, delay }}
-      whileHover={{ y: -3 }}
-      className="mf-card mf-card--hover sheen"
-      style={{ '--mf-mod': cor, display: 'flex', flexDirection: 'column', minHeight: 154 }}
+      variants={fadeUp} transition={{ duration: .35, ease, delay }}
+      className="metric-card"
+      style={{ '--mf-mod': cor }}
     >
-      {/* Filete de luz no topo: sugere a borda superior pegando luz, que é o
-          que faz a superfície parecer levantada e não pintada. */}
-      <span aria-hidden="true" style={{ position: 'absolute', top: 0, left: 20, right: 20, height: 1,
-        background: 'linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-mod) 45%, transparent), transparent)' }} />
-
-      {/* Textura de grade com máscara radial: densa no canto superior
-          esquerdo e dissolvendo para o resto, para não competir com o
-          número — que é o que o olho vem buscar. */}
-      <span aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-        backgroundImage: 'linear-gradient(color-mix(in oklch, var(--mf-mod) 4%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklch, var(--mf-mod) 4%, transparent) 1px, transparent 1px)',
-        backgroundSize: '26px 26px',
-        maskImage: 'radial-gradient(at left top, black 20%, transparent 80%)',
-        WebkitMaskImage: 'radial-gradient(at left top, black 20%, transparent 80%)' }} />
-
-      {/* Halo no canto inferior direito, atrás do fim da linha do gráfico. */}
-      <span aria-hidden="true" style={{ position: 'absolute', inset: 'auto -12px -18px auto', width: 70, height: 70,
-        borderRadius: 'var(--mf-r-full)', pointerEvents: 'none',
-        background: 'radial-gradient(circle, color-mix(in oklch, var(--mf-mod) 14%, transparent) 0%, transparent 70%)' }} />
-
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-        gap: 'var(--mf-3)', padding: 'var(--mf-4) var(--mf-5) var(--mf-3)', flex: 1,
-        position: 'relative', zIndex: 1 }}>
+      <div className="metric-card__topo">
         <div style={{ minWidth: 0 }}>
           {/* O rótulo usa a cor do módulo, não o cinza: é ele que diz de que
               área é o número, e em cinza essa informação se perdia. */}
-          <div className="mf-mono mf-trunc" style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600,
-            letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 8,
-            color: 'color-mix(in oklch, var(--mf-mod) 78%, var(--mf-text-3))' }}>{title}</div>
-          <div className="mf-mono" style={{
-            fontSize: 'clamp(1.9rem, 1.3rem + 1.8cqw, 2.5rem)', fontWeight: 700,
-            lineHeight: 1, letterSpacing: '-.04em', color: 'var(--mf-text)',
-          }}>
+          <div className="mf-mono mf-trunc metric-card__rot"
+               style={{ color: 'color-mix(in oklch, var(--mf-mod) 72%, var(--mf-text-3))' }}>{title}</div>
+          <div className="mf-mono metric-card__num">
             <NumberTicker value={Number(String(value).replace(/\D/g, '')) || 0} />
           </div>
-          <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 6 }}>{meta}</div>
         </div>
-        {/* Sem sufixo por matiz: o orbe monta a esfera a partir de --mf-mod,
-            que este card já define pela intenção da métrica. */}
-        <div className="kpi-orb" style={{ width: 62, height: 62 }} />
       </div>
 
-      <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"
-        style={{ width: '100%', height: 42, display: 'block', position: 'relative', zIndex: 1 }}>
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--mf-mod)" stopOpacity=".30" />
-            <stop offset="100%" stopColor="var(--mf-mod)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={`M ${d} L 100,40 L 0,40 Z`} fill={`url(#${gid})`} />
-        <path d={`M ${d}`} fill="none" stroke="var(--mf-mod)" strokeWidth="1.5"
-          vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="100" cy={pontos[pontos.length - 1]?.split(',')[1] || 20} r="2.4" fill="var(--mf-mod)" />
-      </svg>
+      <div className="metric-card__pe">
+        <span className="mf-trunc metric-card__meta">{meta}</span>
+        {nums.length > 2 && (
+          <svg viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"
+               className="metric-card__spark">
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="var(--mf-mod)" stopOpacity=".25" />
+                <stop offset="100%" stopColor="var(--mf-mod)" stopOpacity="1" />
+              </linearGradient>
+            </defs>
+            <path d={`M ${d}`} fill="none" stroke={`url(#${gid})`} strokeWidth="1.5"
+                  vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
     </motion.article>
   );
 }

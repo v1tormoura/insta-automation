@@ -437,41 +437,7 @@
    gradiente lê-se como um disco chapado.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-[data-mf] .kpi-orb {
-  --orbe: var(--mf-mod, var(--mf-accent-500));
-  border-radius: var(--mf-r-full);
-  flex-shrink: 0;
-  background: radial-gradient(
-    circle at 35% 30%,
-    color-mix(in oklch, var(--orbe) 25%, white) 0%,
-    color-mix(in oklch, var(--orbe) 92%, white) 26%,
-    var(--orbe) 52%,
-    color-mix(in oklch, var(--orbe) 45%, black) 78%,
-    color-mix(in oklch, var(--orbe) 22%, black) 100%
-  );
-  box-shadow:
-    inset -6px -6px 18px oklch(0 0 0 / 0.45),
-    inset 4px 4px 14px color-mix(in oklch, var(--orbe) 35%, transparent),
-    0 0 26px color-mix(in oklch, var(--orbe) 32%, transparent),
-    0 0 58px color-mix(in oklch, var(--orbe) 14%, transparent);
-}
 
-/* Um brilho especular pequeno e deslocado. É o detalhe que separa "esfera"
-   de "círculo com gradiente". */
-[data-mf] .kpi-orb::after {
-  content: '';
-  position: absolute;
-  inset: 14% auto auto 20%;
-  width: 22%; height: 16%;
-  border-radius: var(--mf-r-full);
-  background: oklch(1 0 0 / 0.55);
-  filter: blur(3px);
-}
-[data-mf] .kpi-orb { position: relative; overflow: hidden; }
-
-@media (prefers-reduced-motion: reduce) {
-  [data-mf] .kpi-orb { animation: none; }
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    QUEM ROLA A PÁGINA
