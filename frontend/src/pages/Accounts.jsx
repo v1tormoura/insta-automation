@@ -84,6 +84,12 @@ export default function Accounts() {
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
   const [bulkDeleting,   setBulkDeleting]   = useState(false);
   const [instaModal,     setInstaModal]     = useState(null);
+
+  /* Conferência de ambiente. Separa "o ambiente não está pronto" de "o
+     Instagram recusou esta conta" — dois problemas com donos diferentes que
+     produziam a mesma tela de erro, e por isso mandavam trocar senha quando a
+     causa era a cota do proxy. */
+  const [preflight, setPreflight] = useState(null);
   const [rateLimitExpiry, setRateLimitExpiry] = useState(null);
   const [cooldownSecs,    setCooldownSecs]    = useState(0);
 
@@ -294,6 +300,25 @@ export default function Accounts() {
   }, [rateLimitExpiry]);
 
   // Restore cooldown from localStorage when username changes in modal
+  /* Ao abrir o modal, confere o ambiente uma vez. Não bloqueia: um bloqueio
+     transformaria diagnóstico em portão, e diagnóstico errado vira portão
+     errado — uma instabilidade de dez segundos impediria quem quer tentar
+     assim mesmo. */
+  /* Uma chave, não duas expressões no array. `!!instaModal` ali dentro é
+     expressão complexa: o compilador não consegue conferir a lista, e a regra
+     de dependências deixa de valer justamente onde ela protege. */
+  const chavePreflight = instaModal ? (instaModal.accountId || 'nova') : '';
+  useEffect(() => {
+    if (!chavePreflight) { setPreflight(null); return undefined; }
+    let vivo = true;
+    setPreflight({ carregando: true });
+    const params = chavePreflight === 'nova' ? {} : { accountId: chavePreflight };
+    api.get('/accounts/preflight', { params })
+      .then(({ data }) => { if (vivo) setPreflight(data); })
+      .catch(() => { if (vivo) setPreflight(null); });
+    return () => { vivo = false; };
+  }, [chavePreflight]);
+
   useEffect(() => {
     const uname = instaModal?.username?.trim().replace(/^@/, '') || '';
     if (!uname) { setCooldownSecs(0); setRateLimitExpiry(null); return; }
@@ -1935,6 +1960,27 @@ export default function Accounts() {
                         onKeyDown={e => e.key === 'Enter' && !instaModal.loading && !blocked && connectInstagrapi()}
                         disabled={instaModal.loading || blocked} />
                     </>)}
+                    {preflight && !preflight.carregando && !preflight.pronto && (
+                      <div style={{ fontSize:'var(--mf-t-xs)', lineHeight:1.6, marginBottom:12,
+                        background:'var(--mf-warning-bg)',
+                        border:'1px solid color-mix(in oklch, var(--mf-warning-500) 28%, transparent)',
+                        borderRadius:'var(--mf-r-sm)', padding:'8px 12px' }}>
+                        <strong style={{ color:'var(--mf-warning-500)' }}>Antes de tentar: </strong>
+                        <span style={{ color:'var(--mf-text-2)' }}>{preflight.veredito}</span>
+                        {Object.entries(preflight.itens || {})
+                          .filter(([, v]) => !v.ok && v.conserto)
+                          .map(([k, v]) => (
+                            <div key={k} className="mf-mono" style={{ marginTop:6, fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
+                              {v.detalhe} · {v.conserto}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                    {preflight?.pronto && preflight.itens?.proxy?.ip && (
+                      <div className="mf-mono" style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginBottom:12 }}>
+                        Ambiente pronto · saída {preflight.itens.proxy.ip} ({preflight.itens.proxy.origem})
+                      </div>
+                    )}
                     <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6, background:'color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }}>
                       A senha é usada apenas para login e <strong>nunca é salva</strong>. Se a conta tiver 2FA, o código será pedido na próxima etapa.
                     </div>

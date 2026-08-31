@@ -116,8 +116,12 @@ async function resolveProxyFor(account) {
    entender por quê.
 
    Sem `await` de propósito: contabilidade não pode atrasar publicação. */
-function _contabilizar(origem) {
-  if (origem === 'nenhum') return;
+function _contabilizar(origem, ligado = true) {
+  /* A conferência de ambiente resolve o proxy só para TESTÁ-LO. Contar ali
+     inflaria a métrica que ela mesma ajuda a interpretar: abrir o modal de
+     conectar várias vezes engordaria o consumo do dia sem nenhuma operação
+     ter saído. */
+  if (!ligado || origem === 'nenhum') return;
   try {
     require('./consumoDeProxy').registrar(origem).catch(() => {});
   } catch { /* módulo indisponível não derruba a resolução */ }
@@ -133,9 +137,9 @@ function _contabilizar(origem) {
  *
  * @returns {{url: string, origem: 'conta'|'pool'|'global'|'nenhum'}}
  */
-async function resolverComOrigem(account) {
+async function resolverComOrigem(account, { contabilizar = true } = {}) {
   const own = String(account?.proxy || '').trim();
-  if (own) { _contabilizar('conta'); return { url: normalizeProxy(own), origem: 'conta' }; }
+  if (own) { _contabilizar('conta', contabilizar); return { url: normalizeProxy(own), origem: 'conta' }; }
 
   const id = account?._id;
   if (id) {
@@ -147,7 +151,7 @@ async function resolverComOrigem(account) {
         // para o proxy aparecer na tela de Contas como qualquer outro.
         const Account = require('../models/Account');
         await Account.updateOne({ _id: id }, { $set: { proxy: doPool } });
-        _contabilizar('pool');
+        _contabilizar('pool', contabilizar);
         return { url: normalizeProxy(doPool), origem: 'pool' };
       }
     } catch (err) {
@@ -159,7 +163,7 @@ async function resolverComOrigem(account) {
 
   const global = await getGlobalProxyUrl();
   const origem = global ? 'global' : 'nenhum';
-  _contabilizar(origem);
+  _contabilizar(origem, contabilizar);
   return { url: global, origem };
 }
 

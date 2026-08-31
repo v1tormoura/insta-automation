@@ -1545,6 +1545,30 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
  *   200 { available: true, exists: false }       — o @ não existe
  *   200 { available: true, exists: true, ... }   — existe, com dados públicos
  */
+/**
+ * Conferência de ambiente antes de conectar.
+ *
+ * Separa "o ambiente não está pronto" de "o Instagram recusou esta conta" —
+ * dois problemas com donos diferentes que produziam a mesma tela de erro de
+ * login, e por isso mandavam trocar senha quando a causa era a cota do proxy.
+ *
+ * Aceita `?accountId=` para testar o proxy DAQUELA conta; sem ele, testa o que
+ * uma conta nova receberia.
+ */
+router.get('/preflight', async (req, res) => {
+  try {
+    const { conferir } = require('../services/preflightConexao');
+    let conta = null;
+    if (req.query.accountId) {
+      conta = await Account.findById(String(req.query.accountId))
+        .select('proxy username _id').lean().catch(() => null);
+    }
+    res.json(await conferir(conta));
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'PREFLIGHT_ERRO' });
+  }
+});
+
 router.get('/check-username/:username', async (req, res) => {
   const alvo = String(req.params.username || '').trim().replace(/^@/, '').toLowerCase();
   if (!alvo) return res.status(400).json({ error: 'username é obrigatório' });
