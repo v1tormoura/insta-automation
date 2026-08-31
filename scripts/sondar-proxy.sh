@@ -77,6 +77,20 @@ if r.get("candidatos"):
         print("  " + c["molde"].ljust(24) + marca)
     print("")
 
+pf = r.get("preflight")
+if pf:
+    # A linha de base falhou, então o molde não é a causa. Estas camadas
+    # separam rede de credencial de tradução da URL — quatro causas que a
+    # palavra "ProxyError" não distingue.
+    print("── Sondagem em camadas ───────────────────────")
+    print("  destino                 " + str(pf.get("destino", "?")))
+    print("  1. DNS resolve          " + str(pf.get("dns", "-")))
+    print("  2. porta abre           " + str(pf.get("tcp", "-")))
+    print("  3. CONNECT à mão        " + str(pf.get("connect_manual", "-")))
+    print("  4. requests, URL crua   " + str(pf.get("requests_cru", "-")))
+    print("  5. requests, codificado " + str(pf.get("requests_codificado", "-")))
+    print("")
+
 for e in r.get("erros", []):
     print("  erro: " + e)
 

@@ -327,6 +327,119 @@ _MOLDES_CANDIDATOS = [
 ]
 
 
+def _preflight_proxy(url: str) -> dict:
+    """
+    Separa REDE de CREDENCIAL de PARSING quando o proxy recusa.
+
+    ── Por que em camadas
+
+    "ProxyError" é uma palavra só para quatro coisas: o nome não resolve, a
+    porta não abre, o fornecedor recusou a credencial, ou a biblioteca montou
+    a requisição errado. As quatro têm soluções diferentes, e a mensagem
+    "confira credencial e porta" manda investigar duas delas ignorando as
+    outras duas.
+
+    ── A quarta é a que ninguém procura
+
+    O mesmo proxy funciona pelo Node e falha pelo Python. Quando isso acontece
+    com uma credencial que tem `;` ou `_` no usuário — comum em fornecedor com
+    parâmetro de geolocalização — a suspeita é como cada biblioteca monta o
+    cabeçalho a partir da URL.
+
+    Por isso o teste 3 monta o `Proxy-Authorization` À MÃO, com os mesmos bytes
+    que o Node manda, e os testes 4 e 5 deixam o `requests` montar — cru e com
+    o usuário percent-codificado. Se o 3 passa e o 4 falha, o problema não é o
+    proxy nem a senha: é a tradução da URL.
+    """
+    import base64
+    import socket
+    from urllib.parse import urlsplit, quote
+
+    r: dict = {}
+    p = urlsplit(url if "://" in url else "http://" + url)
+    host, porta = p.hostname, (p.port or 80)
+    usuario = p.username or ""
+    senha = p.password or ""
+    r["destino"] = f"{host}:{porta}"
+
+    # 1. O nome resolve?
+    try:
+        r["dns"] = socket.gethostbyname(host)
+    except Exception as e:  # noqa: BLE001
+        r["dns"] = f"FALHOU ({type(e).__name__})"
+        r["conclusao"] = "O nome do proxy não resolve DNS de dentro do contêiner."
+        return r
+
+    # 2. A porta abre?
+    try:
+        with socket.create_connection((host, porta), timeout=10):
+            r["tcp"] = "abre"
+    except Exception as e:  # noqa: BLE001
+        r["tcp"] = f"FALHOU ({type(e).__name__})"
+        r["conclusao"] = "A porta não abre. Firewall, porta errada, ou fornecedor fora."
+        return r
+
+    # 3. CONNECT com o cabeçalho montado à mão — os mesmos bytes do Node.
+    def _connect_manual() -> str:
+        cred = base64.b64encode(f"{usuario}:{senha}".encode()).decode()
+        pedido = (
+            "CONNECT api.ipify.org:443 HTTP/1.1\r\n"
+            "Host: api.ipify.org:443\r\n"
+            f"Proxy-Authorization: Basic {cred}\r\n"
+            "\r\n"
+        ).encode()
+        with socket.create_connection((host, porta), timeout=15) as sock:
+            sock.sendall(pedido)
+            resposta = sock.recv(256).decode("latin-1", "replace")
+        return resposta.split("\r\n", 1)[0].strip()
+
+
+    try:
+        r["connect_manual"] = _connect_manual()
+    except Exception as e:  # noqa: BLE001
+        r["connect_manual"] = f"FALHOU ({type(e).__name__})"
+
+    # 4 e 5. Deixando o `requests` montar: URL crua e com o usuário codificado.
+    import requests
+
+    def _via_requests(u: str) -> str:
+        try:
+            resp = requests.get("https://api.ipify.org", proxies={"http": u, "https": u}, timeout=20)
+            return f"OK {resp.text.strip()}"
+        except Exception as e:  # noqa: BLE001
+            return f"FALHOU ({type(e).__name__})"
+
+    r["requests_cru"] = _via_requests(url)
+    url_codificada = f"{p.scheme}://{quote(usuario, safe='')}:{quote(senha, safe='')}@{host}:{porta}"
+    r["requests_codificado"] = _via_requests(url_codificada)
+
+    manual_ok = r["connect_manual"].startswith("HTTP/1.1 200") or r["connect_manual"].startswith("HTTP/1.0 200")
+    cru_ok = r["requests_cru"].startswith("OK")
+    cod_ok = r["requests_codificado"].startswith("OK")
+
+    if cru_ok:
+        r["conclusao"] = "O proxy responde normalmente pelo requests. O erro é outro."
+    elif cod_ok:
+        r["conclusao"] = (
+            "Funciona SÓ com o usuário percent-codificado. A credencial tem "
+            "caractere que o requests não traduz sozinho — é preciso codificar "
+            "antes de entregar a URL à biblioteca."
+        )
+    elif manual_ok:
+        r["conclusao"] = (
+            "O proxy ACEITA a credencial no CONNECT montado à mão, e recusa "
+            "quando o requests monta. O problema é a tradução da URL, não o "
+            "proxy nem a senha."
+        )
+    else:
+        r["conclusao"] = (
+            "O proxy recusa a credencial em todas as formas. Aí é o fornecedor: "
+            "senha trocada, assinatura vencida ou saldo zerado. Resposta ao "
+            f"CONNECT: {r['connect_manual']}"
+        )
+    return r
+
+
 def _sondar_moldes(proxy: str) -> dict:
     """Mede cada candidato duas vezes. IP igual = o fornecedor entendeu."""
     import requests
@@ -357,7 +470,11 @@ def _sondar_moldes(proxy: str) -> dict:
             return saida
     except Exception as e:  # noqa: BLE001
         saida["erros"].append(f"linha de base: {type(e).__name__}"[:120])
-        saida["conclusao"] = "O proxy não respondeu. Confira credencial e porta."
+        # Falhou sem molde nenhum, então não é o molde. Sondar em camadas é o
+        # que separa rede de credencial de parsing — dizer "confira credencial
+        # e porta" mandaria investigar duas causas ignorando as outras duas.
+        saida["preflight"] = _preflight_proxy(proxy)
+        saida["conclusao"] = saida["preflight"].get("conclusao", "O proxy não respondeu.")
         return saida
 
     for indice, molde in enumerate(_MOLDES_CANDIDATOS):
