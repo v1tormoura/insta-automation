@@ -1125,6 +1125,22 @@ const INSTA_ERROR_MESSAGES = {
 };
 
 function _igUserMessage(code, detail) {
+  /* PROXY_ERROR primeiro, e antes da mensagem curada.
+
+     A curada dizia "verifique se o proxy está ativo e funcionando", e no caso
+     real o proxy ESTAVA ativo e funcionando — a credencial foi aceita e o que
+     acabou foi a cota de tráfego do plano. Aquela frase manda reiniciar,
+     testar e trocar senha; nada disso chega perto da causa, e o motivo estava
+     escrito na resposta do fornecedor o tempo todo:
+
+       Tunnel connection failed: 407 TRAFFIC_EXHAUSTED
+
+     Quando dá para ler o motivo, ele ganha da frase genérica. Quando não dá,
+     a genérica continua valendo. */
+  if (code === 'PROXY_ERROR') {
+    const motivo = require('../utils/motivoProxy').traduzir(String(detail || ''));
+    if (motivo) return `O proxy recusou a conexão: ${motivo}`;
+  }
   if (INSTA_ERROR_MESSAGES[code]) return INSTA_ERROR_MESSAGES[code];
   // Código não mapeado (UNKNOWN_ERROR): mostrar o motivo real é melhor que
   // chutar "credenciais incorretas" — o palpite manda o usuário trocar a senha

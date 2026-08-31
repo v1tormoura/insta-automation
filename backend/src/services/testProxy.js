@@ -167,22 +167,7 @@ async function testProxy(proxy) {
 }
 
 /* O 407 do túnel CONNECT chega dentro da mensagem de erro, não como resposta. */
-/* O que os fornecedores dizem, traduzido. A lista é curta de propósito: só
-   entram códigos que eu VI acontecer, porque inventar tradução para código
-   que nunca apareceu produz explicação convincente e errada. */
-const _MOTIVOS = Object.freeze({
-  TRAFFIC_EXHAUSTED: 'a cota de tráfego do plano acabou — renove ou compre mais no painel do fornecedor',
-  QUOTA_EXCEEDED:    'a cota do plano foi excedida',
-  SUBSCRIPTION_EXPIRED: 'a assinatura venceu',
-  AUTH_FAILED:       'usuário ou senha do proxy incorretos',
-  INVALID_USER:      'o usuário do proxy não existe neste fornecedor',
-  IP_NOT_ALLOWED:    'este servidor não está na lista de IPs autorizados do fornecedor',
-});
-
-function _traduzir(motivo) {
-  const chave = Object.keys(_MOTIVOS).find(k => motivo.toUpperCase().includes(k));
-  return chave ? _MOTIVOS[chave] : '';
-}
+const { traduzir: _traduzir } = require('../utils/motivoProxy');
 
 function _codigoNoErro(err) {
   const m = /statusCode=(\d{3})|(4\d\d|5\d\d)/.exec(String(err?.message || ''));
