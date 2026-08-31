@@ -33,102 +33,27 @@ import { fileURLToPath } from 'node:url';
  * mais. Um teste com valores copiados testa o passado.
  */
 
+import {
+  oklchParaRgb, luminancia as lumRgb, contraste as crRgb,
+  contrasteComTint as crTintRgb, noGamut as gamutRgb,
+  bloco, tokensOklch, tokensOklchComAlfa,
+} from './cor.js';
+
 const ler = (rel) =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
-/* ── Bloco de declarações ──────────────────────────────────────────────────
-   Recorta do seletor até a chave que o fecha, contando aninhamento. Um
-   `indexOf('}')` pararia na primeira regra interna e devolveria meia paleta. */
-function bloco(css, seletor) {
-  const i = css.indexOf(seletor);
-  if (i < 0) throw new Error(`seletor não encontrado: ${seletor}`);
-  let j = css.indexOf('{', i) + 1;
-  let nivel = 1;
-  const inicio = j;
-  while (j < css.length && nivel > 0) {
-    if (css[j] === '{') nivel++;
-    else if (css[j] === '}') nivel--;
-    j++;
-  }
-  return css.slice(inicio, j - 1);
-}
-
-/* Só as cores opacas. Borda e sombra são branco/preto translúcido: o contraste
-   delas depende do que está atrás em cada tela, e afirmar um número aqui seria
-   inventar um fundo que o teste não conhece. */
-function tokens(texto) {
-  const fora = {};
-  const re = /--(mf-[\w-]+)\s*:\s*oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)/g;
-  for (const m of texto.matchAll(re)) {
-    fora[m[1]] = [Number(m[2]), Number(m[3]), Number(m[4])];
-  }
-  return fora;
-}
-
-/* Tokens com alfa: `oklch(L C H / A)`. Usados para o fundo dos crachás. */
-function tokensComAlfa(texto) {
-  const fora = {};
-  const re = /--(mf-[\w-]+)\s*:\s*oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\/\s*([\d.]+)\s*\)/g;
-  for (const m of texto.matchAll(re)) {
-    fora[m[1]] = { cor: [Number(m[2]), Number(m[3]), Number(m[4])], alfa: Number(m[5]) };
-  }
-  return fora;
-}
-
-/* ── OKLCH → sRGB ─────────────────────────────────────────────────────────── */
-function paraRgb(L, C, h) {
-  const hr = (h * Math.PI) / 180;
-  const a = C * Math.cos(hr);
-  const b = C * Math.sin(hr);
-  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
-  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
-  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
-  return [
-    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
-  ];
-}
-
-/* A quantização não é preciosismo: é o passo que transformou 4.50 em 4.49 e
-   fez um valor "aprovado" reprovar na tela. Medir em ponto flutuante mede uma
-   cor que o monitor nunca exibe. */
-function canal8(c) {
-  const v = Math.max(0, Math.min(1, c));
-  const g = v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055;
-  return Math.round(g * 255) / 255;
-}
-
-function luminancia([L, C, h]) {
-  const [r, g, b] = paraRgb(L, C, h).map(canal8).map((c) =>
-    c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  );
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function razao(a, b) {
-  const [x, y] = [luminancia(a), luminancia(b)];
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
-
-/* Contraste de uma cor sobre uma camada translúcida DELA MESMA por cima de uma
-   superfície — que é exatamente como um crachá pinta. Medir a cor contra a
-   superfície nua dá um número melhor do que a tela mostra: o tint aproxima o
-   fundo da cor do texto e come contraste. No escuro isso era a diferença entre
-   4.19 (real) e 5.14 (medida ingênua). */
-function razaoComTint(cor, alfa, superficie) {
-  const c = paraRgb(...cor).map(canal8);
-  const s = paraRgb(...superficie).map(canal8);
-  const fundo = c.map((v, i) => alfa * v + (1 - alfa) * s[i]);
-  const lin = (x) => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4);
-  const lz = (p) => 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2]);
-  const [x, y] = [lz(c), lz(fundo)];
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
-
-function noGamut([L, C, h]) {
-  return paraRgb(L, C, h).every((v) => v >= -0.001 && v <= 1.001);
-}
+/* Adaptadores finos: as asserções deste arquivo falam em ternas OKLCH, o
+   módulo de cor fala em sRGB linear. A álgebra mora lá, num lugar só, para as
+   duas paletas do produto medirem com a MESMA conta — inclusive a quantização
+   em 8 bits, que é o passo que já transformou um 4.50 aprovado num 4.49
+   reprovado na tela. */
+const rgb = ([L, C, h]) => oklchParaRgb(L, C, h);
+const tokens = (t) => tokensOklch(t, 'mf');
+const tokensComAlfa = (t) => tokensOklchComAlfa(t, 'mf');
+const luminancia = (t) => lumRgb(rgb(t));
+const razao = (a, b) => crRgb(rgb(a), rgb(b));
+const razaoComTint = (cor, alfa, sup) => crTintRgb(rgb(cor), alfa, rgb(sup));
+const noGamut = (t) => gamutRgb(rgb(t));
 
 /* ── As paletas, lidas dos arquivos que o produto usa ──────────────────────
    O tema claro sobrescreve só parte dos tokens; o resto continua vindo do

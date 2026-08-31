@@ -58,7 +58,11 @@
   --g-ok:    #31d96d;
   --g-warn:  #f5af20;
   --g-crit:  #fd736d;
-  --g-rare:  #ff39b5;   /* eventos raros — nunca decorativo */
+  /* Subiu de #ff39b5 para passar 4.5:1 sobre a superfície mais alta. O
+     teste pegou em 4.20 — e a alternativa era reclassificar o token como
+     "interface, não carrega texto", que teria sido a mesma armadilha de
+     medir contra a pergunta conveniente. Custou 0.05 de luminosidade. */
+  --g-rare:  #ff4ec5;   /* eventos raros — nunca decorativo */
 
   /* Tinta escura para ficar SOBRE cor viva. Um único token: botão primário,
      crachá cheio e selo usam todos o mesmo, e trocar a marca não deixa
