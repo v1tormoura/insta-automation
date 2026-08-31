@@ -198,6 +198,11 @@ startAutoSync();
 startDailyReset();
 startFastSync();
 startSessionKeepAlive();
+
+/* Vigia do sistema. A cota do proxy acabou e o produto ficou parado quatro
+   dias e meio sem que nada avisasse — a descoberta veio pelas contas ficarem
+   estranhas, e aí a causa já estava a quatro dias do sintoma. */
+require('./services/vigiaDoSistema').iniciar();
 startHealthCheck();
 // startLoopJob() — desativado; loops antigos foram arquivados, novos usam Job Engine
 startInsightAutoSync();
