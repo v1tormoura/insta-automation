@@ -83,9 +83,34 @@ async function _keepAliveInstagrapi(account) {
     // pingSession persiste o estado atualizado.
     await http.pingSession(account);
 
+    /* `recordSuccess`, e não dois carimbos escritos à mão.
+
+       Este é o defeito que fazia a conta viva aparecer como expirada, e o
+       comentário do passo 1 aqui em cima já descrevia o conserto que o código
+       não tinha: "o keep-alive era exatamente o que traria a conta de volta ao
+       chamar `recordSuccess`". Ele nunca chamava.
+
+       O efeito era um contador só de ida. Uma janela ruim — o proxy sem cota,
+       por exemplo — enchia `consecutiveFailures` até cinco pelo próprio
+       keep-alive. A partir daí `validate()` respondia "5 falhas consecutivas —
+       relogin necessário" para sempre, enquanto o ping seguia passando a cada
+       ciclo, porque a sessão estava perfeitamente boa. O painel dizia sessão
+       expirada, o Instagram dizia que não, e nada no sistema tinha permissão
+       para desempatar.
+
+       `recordSuccess` zera o contador, marca a sessão como VALID e carimba o
+       último sucesso — as três coisas de uma vez, no lugar onde a regra mora. */
+    await sm.recordSuccess(accountId);
+
     await Account.findByIdAndUpdate(accountId, {
-      lastSessionKeepAlive:    new Date(),
-      lastSuccessfulRequestAt: new Date(),
+      lastSessionKeepAlive: new Date(),
+      /* O rótulo de saúde também precisa ser desfeito: é ele que a tela mostra,
+         e quem o escreveu foi o ramo de falha logo abaixo. Só este valor é
+         limpo — "restrita" e "banida" dizem outra coisa, e um ping que passa
+         não é prova contra elas. */
+      ...(account.healthStatus === 'sessao_expirada'
+        ? { healthStatus: 'ativa', lastError: '' }
+        : {}),
     });
     console.log(`✅ [KeepAlive] ${label} (instagrapi) — sessão renovada`);
     return { status: 'ok' };

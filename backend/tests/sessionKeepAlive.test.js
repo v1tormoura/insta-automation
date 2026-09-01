@@ -235,3 +235,82 @@ describe('_keepAliveInstagrapi: lock liberado em erro', () => {
     expect(mockSm.releaseLock).toHaveBeenCalledWith('acc1', LOCK_TOKEN);
   });
 });
+
+/**
+ * ── O contador que só sabia subir
+ *
+ * O keep-alive escrevia `lastSuccessfulRequestAt` à mão e NUNCA chamava
+ * `recordSuccess`. O comentário do próprio arquivo já dizia que ele "era
+ * exatamente o que traria a conta de volta ao chamar recordSuccess" — só que
+ * a chamada não existia.
+ *
+ * O efeito: uma janela ruim (o proxy sem cota, por exemplo) enchia
+ * `consecutiveFailures` até cinco pelo próprio keep-alive. A partir daí
+ * `validate()` respondia "5 falhas consecutivas — relogin necessário" para
+ * sempre, enquanto o ping seguia passando a cada ciclo, porque a sessão estava
+ * boa. O painel dizia expirada, o Instagram dizia que não, e nada tinha
+ * permissão para desempatar.
+ */
+describe('_keepAliveInstagrapi: o ping que passa desfaz o estrago', () => {
+  test('ping bem-sucedido chama recordSuccess', async () => {
+    mockSm.validate.mockResolvedValue({ valid: true, status: 'VALID', reason: '' });
+    mockSm.acquireLock.mockResolvedValue(LOCK_TOKEN);
+    mockHttp.ensureSession.mockResolvedValue(undefined);
+    mockHttp.pingSession.mockResolvedValue({ valid: true });
+
+    await _keepAliveInstagrapi(ACCOUNT);
+
+    expect(mockSm.recordSuccess).toHaveBeenCalledWith('acc1');
+  });
+
+  test('conta presa em "5 falhas" volta sozinha quando o ping passa', async () => {
+    /* `validate()` diz inválida por falhas antigas, e o keep-alive testa mesmo
+       assim — é essa insistência que dá a chance de a conta se recuperar. Sem
+       o `recordSuccess` no fim, a chance é desperdiçada todo ciclo. */
+    mockSm.validate.mockResolvedValue({
+      valid: false, status: 'FAILED', reason: '5 falhas consecutivas — relogin necessário',
+    });
+    mockSm.acquireLock.mockResolvedValue(LOCK_TOKEN);
+    mockHttp.ensureSession.mockResolvedValue(undefined);
+    mockHttp.pingSession.mockResolvedValue({ valid: true });
+
+    const r = await _keepAliveInstagrapi(ACCOUNT);
+
+    expect(r.status).toBe('ok');
+    expect(mockSm.recordSuccess).toHaveBeenCalledWith('acc1');
+    expect(mockHttp.login).not.toHaveBeenCalled();   // sem pedir senha nenhuma
+  });
+
+  test('limpa o rótulo "sessão expirada" que o próprio keep-alive escreveu', async () => {
+    /* O contador zerado não basta: quem a tela mostra é `healthStatus`, e foi o
+       ramo de falha deste mesmo arquivo que o escreveu. Sem limpar, a conta
+       continua vermelha na tela com a sessão funcionando. */
+    mockSm.validate.mockResolvedValue({ valid: true, status: 'VALID', reason: '' });
+    mockSm.acquireLock.mockResolvedValue(LOCK_TOKEN);
+    mockHttp.ensureSession.mockResolvedValue(undefined);
+    mockHttp.pingSession.mockResolvedValue({ valid: true });
+
+    await _keepAliveInstagrapi({ ...ACCOUNT, healthStatus: 'sessao_expirada' });
+
+    const [, update] = Account.findByIdAndUpdate.mock.calls.at(-1);
+    expect(update.healthStatus).toBe('ativa');
+    expect(update.lastError).toBe('');
+  });
+
+  test('não apaga "banida" nem "restrita" — um ping que passa não é prova contra elas', async () => {
+    /* Conta restrita responde ping normalmente; o alcance é que está cortado.
+       Sobrescrever o rótulo aqui apagaria um diagnóstico verdadeiro e mais
+       grave, e a pessoa pararia de procurar. */
+    mockSm.validate.mockResolvedValue({ valid: true, status: 'VALID', reason: '' });
+    mockSm.acquireLock.mockResolvedValue(LOCK_TOKEN);
+    mockHttp.ensureSession.mockResolvedValue(undefined);
+    mockHttp.pingSession.mockResolvedValue({ valid: true });
+
+    for (const rotulo of ['restrita', 'banida']) {
+      Account.findByIdAndUpdate.mockClear();
+      await _keepAliveInstagrapi({ ...ACCOUNT, healthStatus: rotulo });
+      const [, update] = Account.findByIdAndUpdate.mock.calls.at(-1);
+      expect(update.healthStatus).toBeUndefined();
+    }
+  });
+});

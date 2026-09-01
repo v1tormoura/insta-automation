@@ -224,6 +224,18 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
       results.views    = (results.views || 0) + r.views;
       results.storyViews = (results.storyViews || 0) + r.storyViews;
       results.errors.push(...r.errors);
+
+      /* Um ciclo que agiu é a prova mais forte que existe de que a sessão está
+         viva — são várias idas ao Instagram, aceitas. Sem avisar o
+         SessionManager, essa prova se perde: a conta pode seguir aquecendo
+         normalmente e continuar marcada como expirada por falhas antigas que
+         nada mais tem permissão para perdoar. */
+      if (r.likes + r.follows + r.views + r.storyViews > 0) {
+        try {
+          const { getSessionManager } = require('../services/instagrapi/SessionManager');
+          await getSessionManager().recordSuccess(String(account._id));
+        } catch { /* contabilidade de sessão não derruba o aquecimento */ }
+      }
     } else {
       if (actions.includes('scroll_reels')) await scrollReels(account, limits, results);
       if (actions.includes('like_posts'))   await likeExplorePosts(account, limits, results);
