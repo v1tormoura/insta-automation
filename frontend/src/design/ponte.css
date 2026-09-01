@@ -1216,12 +1216,40 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   .mf-app, .mf-app[data-collapsed='true'] { grid-template-columns: minmax(0, 1fr); }
   .mf-side {
     position: fixed; inset: 0 auto 0 0; width: var(--mf-sidebar);
+    /* `height: auto` desfaz o `100svh` da regra base. Com `top` e `bottom`
+       fixados, a altura passa a ser a da janela de verdade — e acompanha a
+       barra do navegador aparecendo e sumindo, em vez de ficar com uma altura
+       de 812px que sobra ou falta conforme o momento. */
+    height: auto;
     z-index: var(--mf-z-drawer);
     transform: translateX(-100%);
     transition: transform var(--mf-normal) var(--mf-ease-out);
     box-shadow: var(--mf-shadow-3);
   }
   .mf-app[data-drawer='true'] .mf-side { transform: translateX(0); }
+
+  /* ── A página para de andar embaixo da gaveta ───────────────────────
+
+     A gaveta é `fixed` e não se move — isso já estava certo. O que se movia era
+     o CONTEÚDO ATRÁS dela: com o menu aberto, qualquer arrasto rolava a página
+     de baixo, e ao fechar a pessoa estava em outro lugar da tela. No dedo, a
+     leitura é "a barra fica se mexendo", porque o que se percebe é o
+     deslocamento relativo entre as duas coisas.
+
+     E havia um segundo caminho para o mesmo efeito: a lista de navegação rola
+     por dentro, e ao chegar ao fim dela o gesto ENCADEIA para o corpo da
+     página. Quem desliza até "Sair" continua o movimento e leva a página junto,
+     sem ter tocado fora da barra. `overscroll-behavior: contain` corta a
+     emenda — o gesto morre onde a lista acaba.
+
+     O trinco vai no `html`, e não só no `body`: o `overflow` do `body` só
+     governa a janela quando o `html` não tem overflow próprio — e aqui ele
+     tem (`overflow-x: hidden`, para conter estouro lateral). Com isso a
+     propagação não acontece, e travar só o `body` não trava nada: foi o que a
+     medição mostrou. Quem rola é o `html`, então é nele que o trinco entra. */
+  html:has(.mf-app[data-drawer='true']),
+  body:has(.mf-app[data-drawer='true']) { overflow: hidden; }
+  .mf-side__nav { overscroll-behavior: contain; }
   .mf-app[data-collapsed='true'] .mf-nav-item__txt,
   .mf-app[data-collapsed='true'] .mf-side__label,
   .mf-app[data-collapsed='true'] .mf-side__name { display: block; }
