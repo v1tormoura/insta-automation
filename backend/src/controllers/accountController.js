@@ -63,6 +63,12 @@ exports.getAccounts = async (req, res) => {
       obj.hasIgSession         = !!(obj.igSession || obj.rawWebSessionid);
       obj.hasApiToken          = !!(obj.igUserId && obj.accessToken);
       obj.hasInstagrapiSession = !!obj.instagrapiSession;
+      /* Link em story: a regra do vencimento mora aqui, e só aqui. Deixar o
+         frontend compará-la de novo criaria duas verdades sobre a mesma coisa,
+         e a tela acabaria dizendo "ativo" sobre um token que a publicação já
+         considera vencido. */
+      obj.linkEmStoryAtivo = !!obj.fbPageId
+        && !(obj.fbTokenExpiresAt && new Date(obj.fbTokenExpiresAt) < new Date());
       delete obj.totpSecret;
       delete obj.password;
       delete obj.igSession;

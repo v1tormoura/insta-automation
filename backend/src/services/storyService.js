@@ -16,15 +16,70 @@ const { postStoryPuppeteer } = require('./storyPuppeteer');
 
 const IG_GRAPH = 'https://graph.instagram.com/v21.0';
 
+const FB_GRAPH = 'https://graph.facebook.com/v21.0';
+
 const delay = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * A conexão que permite figurinha de link, quando existe.
+ *
+ * ── Por que existe uma segunda conexão
+ *
+ * O token do Instagram Login publica story e RECUSA o link: a Graph responde
+ * 9007. Link exige token vindo do Facebook Login, emitido para uma Página. São
+ * dois fluxos, dois tokens, e — o que morde — dois HOSTS: o token da Página não
+ * é aceito em graph.instagram.com.
+ *
+ * ── Por que busca no banco
+ *
+ * `fbAccessToken` é `select: false`, então quem carregou a conta para publicar
+ * quase nunca o tem em mãos. Sem esta busca, o story sairia sem link por
+ * AUSÊNCIA DE CAMPO — indistinguível, para quem olha, de conta sem conexão.
+ * `fbPageId` não é escondido e serve de sinal: se ele está lá, o token existe.
+ */
+async function _conexaoDeLink(account) {
+  if (!account || !account.fbPageId) return null;
+
+  const vencido = account.fbTokenExpiresAt && new Date(account.fbTokenExpiresAt) < new Date();
+  if (vencido) {
+    console.log(`[Story] @${account.username}: conexão de link vencida — reative em Contas`);
+    return null;
+  }
+
+  let token = account.fbAccessToken;
+  if (!token && account._id) {
+    /* SEM `.lean()`. O campo é cifrado em repouso e só volta legível pelo getter
+       do schema, que o lean não executa — com ele, o token cifrado seguiria
+       para a Meta como se fosse o token, e a recusa falaria de autorização
+       inválida sem nenhuma pista de que o problema é criptografia. */
+    const doc = await Account.findById(account._id)
+      .select('+fbAccessToken fbIgUserId').catch(() => null);
+    token = (doc && doc.fbAccessToken) || '';
+    if (doc && doc.fbIgUserId && !account.fbIgUserId) account.fbIgUserId = doc.fbIgUserId;
+  }
+  if (!token) return null;
+
+  const igUserId = account.fbIgUserId || '';
+  if (!igUserId) return null;
+
+  return { token, igUserId, host: FB_GRAPH };
+}
 
 // ── Graph API ─────────────────────────────────────────────────────────────────
 
 async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
   const isVideo = /\.(mp4|mov|avi|webm)$/i.test(imageUrl);
+  /* A conexão do Facebook entra SÓ quando há link a colocar. Story sem link já
+     funciona pelo caminho de sempre, e trocar o token dele por outro seria
+     arriscar a publicação que funciona para não ganhar nada. */
+  const viaLink = linkUrl ? await _conexaoDeLink(account) : null;
+  const base    = viaLink ? viaLink.host     : IG_GRAPH;
+  const token   = viaLink ? viaLink.token    : account.accessToken;
+  const alvoId  = viaLink ? viaLink.igUserId : account.igUserId;
+
   const params = new URLSearchParams({
     media_type:   'STORIES',
-    access_token: account.accessToken,
+    access_token: token,
   });
   if (isVideo) {
     params.set('video_url', imageUrl);
@@ -37,7 +92,7 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
   }
 
   // Passo 1: Criar container
-  const containerRes = await fetch(`${IG_GRAPH}/${account.igUserId}/media`, {
+  const containerRes = await fetch(`${base}/${alvoId}/media`, {
     method: 'POST',
     body: params,
   });
@@ -46,7 +101,15 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
   if (container.error) {
     // Erro 9007 = permissão de link sticker não disponível → tenta sem link
     if (container.error.code === 9007 && linkUrl) {
-      console.log(`⚠️  Link sticker não disponível via Graph API para @${account.username} — postando sem link`);
+      /* Duas causas com o mesmo código, e a diferença decide o que fazer:
+         SEM a conexão do Facebook, 9007 é esperado e a saída é ativá-la; COM
+         ela, 9007 significa que a Meta recusou por outro motivo — tipicamente
+         a conta não está em modo comercial ou perdeu o vínculo com a Página. */
+      console.log(viaLink
+        ? `⚠️  @${account.username}: a Meta recusou o link mesmo com a conexão do Facebook ativa `
+          + `(a conta é comercial e está vinculada à Página "${account.fbPageName || '?'}"?) — postando sem link`
+        : `⚠️  @${account.username}: link em story exige a conexão do Facebook `
+          + `(botão "Ativar link em story" em Contas) — postando sem link`);
       return postStoryGraphAPI(account, { imageUrl, linkUrl: null, linkText: null });
     }
     throw new Error(container.error.message || 'Erro ao criar container de Story');
@@ -58,7 +121,7 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
   // Para vídeo: polling de status até ficar pronto
   if (isVideo) {
     for (let i = 0; i < 12; i++) {
-      const statusRes = await fetch(`${IG_GRAPH}/${container.id}?fields=status_code&access_token=${account.accessToken}`);
+      const statusRes = await fetch(`${base}/${container.id}?fields=status_code&access_token=${token}`);
       const status = await statusRes.json();
       if (status.status_code === 'FINISHED') break;
       if (status.status_code === 'ERROR') throw new Error('Erro no processamento do vídeo pelo Instagram');
@@ -66,11 +129,11 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
     }
   }
 
-  const publishRes = await fetch(`${IG_GRAPH}/${account.igUserId}/media_publish`, {
+  const publishRes = await fetch(`${base}/${alvoId}/media_publish`, {
     method: 'POST',
     body: new URLSearchParams({
       creation_id:  container.id,
-      access_token: account.accessToken,
+      access_token: token,
     }),
   });
   const published = await publishRes.json();
@@ -79,9 +142,10 @@ async function postStoryGraphAPI(account, { imageUrl, linkUrl, linkText }) {
     throw new Error(published.error.message || 'Erro ao publicar Story');
   }
 
-  console.log(`✅ [Story Graph] @${account.username} — id ${published.id}${linkUrl ? ' (link_sticker_url enviado)' : ''}`);
+  console.log(`✅ [Story Graph] @${account.username} — id ${published.id}`
+    + `${linkUrl ? ` (link via ${viaLink ? `Página ${account.fbPageName || account.fbPageId}` : 'Instagram Login'})` : ''}`);
   console.log(`[Story Graph] container response:`, JSON.stringify(container).slice(0, 200));
-  return { id: published.id, method: 'graph', withLink: !!linkUrl };
+  return { id: published.id, method: 'graph', withLink: !!linkUrl, viaPagina: !!viaLink };
 }
 
 // ── Private API ───────────────────────────────────────────────────────────────

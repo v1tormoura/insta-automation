@@ -171,6 +171,31 @@ const accountSchema = new mongoose.Schema(
       default: '',
     },
 
+    /* ── Graph API via Facebook Login ────────────────────────────────────
+       O OAuth do Instagram (`instagram_business_*`) publica story, mas NÃO
+       aceita figurinha de link: a Graph responde erro 9007. Link em story
+       exige token vindo do Facebook Login, ligado a uma Página, com a conta
+       do Instagram no modo comercial.
+       
+       São dois tokens porque são dois fluxos de autorização diferentes, e a
+       conta pode ter um sem o outro. Guardar num campo só faria o segundo
+       login apagar o primeiro. */
+    fbAccessToken: {
+      type: String,
+      default: '',
+      select: false,
+    },
+    fbPageId:   { type: String, default: '' },
+    fbPageName: { type: String, default: '' },
+
+    /* O id do Instagram COMO O FACEBOOK o enumera. Parece redundante com
+       `igUserId` e não é: aquele veio do Instagram Login, este vem do
+       `instagram_business_account` da Página. Assumir que são o mesmo número e
+       errar publicaria o story no lugar errado — ou em lugar nenhum, com um
+       erro que não diz que a causa foi um id de outro espaço. */
+    fbIgUserId: { type: String, default: '' },
+    fbTokenExpiresAt: { type: Date, default: null },
+
     tokenExpiresAt: {
       type: Date,
       default: null,
@@ -297,32 +322,35 @@ accountSchema.index({ provider: 1 });
 
 const { encrypt: _encryptToken, decrypt: _decryptToken } = require('../services/tokenEncryption');
 
-accountSchema.path('accessToken')
-  .get(function (v) { try { return _decryptToken(v); } catch { return v; } })
-  .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
+/* Uma LISTA, e não um bloco por campo.
+   
+   Eram dois campos com o mesmo tratamento repetido em quatro lugares — getter,
+   setter e duas metades do hook de update. Acrescentar um terceiro token
+   significava lembrar dos quatro, e o custo de esquecer um deles não é um bug
+   comum: é token gravado em texto puro no banco, em silêncio, descoberto só
+   por alguém que abra a coleção.
+   
+   Com a lista, o campo novo entra em um lugar. */
+const CAMPOS_CIFRADOS = ['accessToken', 'instagrapiSession', 'fbAccessToken'];
 
-accountSchema.path('instagrapiSession')
-  .get(function (v) { try { return _decryptToken(v); } catch { return v; } })
-  .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
+for (const campo of CAMPOS_CIFRADOS) {
+  accountSchema.path(campo)
+    .get(function (v) { try { return _decryptToken(v); } catch { return v; } })
+    .set(function (v) { try { return _encryptToken(v); } catch { return v; } });
+}
 
-// findByIdAndUpdate / updateOne bypass path setters → encrypt here
+// findByIdAndUpdate / updateOne ignoram os setters do schema → cifra aqui.
 accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], async function () {
   const u = this.getUpdate();
-  const rawToken = u?.accessToken ?? u?.$set?.accessToken;
-  if (rawToken && typeof rawToken === 'string') {
+  if (!u) return;
+  for (const campo of CAMPOS_CIFRADOS) {
+    const cru = u?.[campo] ?? u?.$set?.[campo];
+    if (!cru || typeof cru !== 'string') continue;
     try {
-      const enc = _encryptToken(rawToken);
-      if (u.accessToken !== undefined)       u.accessToken       = enc;
-      if (u.$set?.accessToken !== undefined) u.$set.accessToken  = enc;
-    } catch { /* leave as-is on error */ }
-  }
-  const rawSession = u?.instagrapiSession ?? u?.$set?.instagrapiSession;
-  if (rawSession && typeof rawSession === 'string') {
-    try {
-      const enc = _encryptToken(rawSession);
-      if (u.instagrapiSession !== undefined)       u.instagrapiSession       = enc;
-      if (u.$set?.instagrapiSession !== undefined) u.$set.instagrapiSession  = enc;
-    } catch { /* leave as-is on error */ }
+      const cifrado = _encryptToken(cru);
+      if (u[campo] !== undefined)       u[campo]       = cifrado;
+      if (u.$set?.[campo] !== undefined) u.$set[campo] = cifrado;
+    } catch { /* mantém como está em caso de erro */ }
   }
 });
 
