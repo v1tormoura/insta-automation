@@ -207,7 +207,8 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
   const querDescoberta = actions.includes('scroll_reels')
     || actions.includes('like_posts')
     || actions.includes('follow')
-    || actions.includes('view_stories');
+    || actions.includes('view_stories')
+    || actions.includes('comment_posts');
 
   if (querDescoberta) {
     const { ciclo, temSessaoMobile } = require('../services/aquecimentoMobile');
@@ -219,8 +220,9 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
         registrar: (acao, detalhe, extras) =>
           log(account._id, account.username, acao, detalhe, extras),
       });
-      results.likes   += r.likes;
-      results.follows += r.follows;
+      results.likes    += r.likes;
+      results.comments += r.comments;
+      results.follows  += r.follows;
       results.views    = (results.views || 0) + r.views;
       results.storyViews = (results.storyViews || 0) + r.storyViews;
       results.errors.push(...r.errors);
@@ -230,7 +232,7 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
          SessionManager, essa prova se perde: a conta pode seguir aquecendo
          normalmente e continuar marcada como expirada por falhas antigas que
          nada mais tem permissão para perdoar. */
-      if (r.likes + r.follows + r.views + r.storyViews > 0) {
+      if (r.likes + r.comments + r.follows + r.views + r.storyViews > 0) {
         try {
           const { getSessionManager } = require('../services/instagrapi/SessionManager');
           await getSessionManager().recordSuccess(String(account._id));
@@ -239,9 +241,10 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
     } else {
       if (actions.includes('scroll_reels')) await scrollReels(account, limits, results);
       if (actions.includes('like_posts'))   await likeExplorePosts(account, limits, results);
-      if (actions.includes('follow') || actions.includes('view_stories')) {
+      if (actions.includes('follow') || actions.includes('view_stories')
+          || actions.includes('comment_posts')) {
         await log(account._id, account.username, 'error',
-          'Seguir e ver stories só existem pela API mobile — entre pelo card "Mobile" da conta em Contas',
+          'Seguir, ver stories e comentar em posts de outros só existem pela API mobile — entre pelo card "Mobile" da conta em Contas',
           { status: 'error' });
       }
     }
@@ -312,7 +315,7 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
      não ter resumo — não distingue "nada a fazer" de "nada funcionou". */
   const partes = [];
   if (results.likes)      partes.push(`${results.likes} curtidas`);
-  if (results.comments)   partes.push(`${results.comments} respostas`);
+  if (results.comments)   partes.push(`${results.comments} comentários`);
   if (results.follows)    partes.push(`${results.follows} follows`);
   if (results.views)      partes.push(`${results.views} visualizações`);
   if (results.storyViews) partes.push(`${results.storyViews} stories vistos`);

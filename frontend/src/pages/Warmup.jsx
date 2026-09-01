@@ -25,6 +25,7 @@ const ACTIONS = [
   { value:'scroll_reels', label:'Ver Reels',          sub:'e curtir alguns', icon:'🎬', color:'var(--mf-mod-publicar)', api:'mobile' },
   { value:'like_posts',   label:'Curtir Explorar',    sub:'de outros perfis', icon:'🔍', color:'var(--mf-success-500)', api:'mobile' },
   { value:'view_stories', label:'Ver stories',        sub:'a mais segura',  icon:'👀', color:'var(--mf-info-500)', api:'mobile' },
+  { value:'comment_posts',label:'Comentar',           sub:'em posts de outros', icon:'✍️', color:'var(--mf-warning-500)', api:'mobile' },
   { value:'follow',       label:'Seguir perfis',      sub:'use com cuidado', icon:'➕', color:'var(--mf-warning-500)', api:'mobile' },
 ];
 
@@ -394,7 +395,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                     <input type="number" min={1} max={100} value={cfg.maxLikes} onChange={e=>updateCfg(account._id,'maxLikes',Number(e.target.value))} style={inputStyle}/>
                   </div>
                 )}
-                {cfg.actions?.includes('comments')&&(
+                {(cfg.actions?.includes('comments')||cfg.actions?.includes('comment_posts'))&&(
                   <div style={{flex:1}}>
                     <div style={labelStyle}>Max comentários</div>
                     <input type="number" min={1} max={50} value={cfg.maxComments} onChange={e=>updateCfg(account._id,'maxComments',Number(e.target.value))} style={inputStyle}/>
@@ -418,7 +419,10 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
               </div>
 
               {/* Comment list */}
-              {cfg.actions?.includes('comments')&&(
+              {/* A mesma lista serve para responder no próprio perfil e para
+                  comentar em post de terceiro. Duas listas separadas seriam
+                  duas coisas para manter dizendo quase o mesmo. */}
+              {(cfg.actions?.includes('comments')||cfg.actions?.includes('comment_posts'))&&(
                 <div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
                     <div style={labelStyle}>Comentários (um por linha)</div>

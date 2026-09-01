@@ -25,6 +25,7 @@
  *   ver        → marca como visto (barato, invisível, sempre)
  *   curtir     → nas mídias descobertas, com intervalo entre uma e outra
  *   stories    → dos perfis descobertos
+ *   comentar   → em post de terceiro, com o texto que você cadastrou
  *   seguir     → a ação mais vigiada, com o menor teto
  *
  * ── Por que a ordem importa
@@ -34,9 +35,22 @@
  * antes, tem um padrão que nenhum uso humano produz — e é justamente o padrão
  * que se quer evitar ao "aquecer" uma conta.
  *
- * Seguir vem por último e com o menor teto porque é a única ação pública e
- * difícil de desfazer. Se o ciclo for interrompido no meio, o que ficou para
- * trás são visualizações e curtidas, não uma lista de perfis seguidos.
+ * Comentar e seguir vêm por último, nessa ordem, porque são as duas ações
+ * públicas. Comentário dá para apagar; follow não se desfaz sem outra ação. Se
+ * o ciclo for interrompido no meio, o que ficou para trás são visualizações e
+ * curtidas — não uma lista de perfis seguidos.
+ *
+ * ── Sobre comentar em post de terceiro
+ *
+ * É a ação com a pior relação entre risco e ganho do conjunto. "🔥🔥🔥" embaixo
+ * do post de um desconhecido é literalmente o padrão que a detecção de spam do
+ * Instagram procura, e ela é pública e atribuível — diferente de uma curtida,
+ * que some no meio de milhares.
+ *
+ * Ela existe porque foi pedida, e com duas proteções que não são opcionais: o
+ * teto sai do que VOCÊ configurou (nunca de um padrão generoso), e um comentário
+ * repetido é pior que nenhum, então o texto nunca se repete dentro do ciclo
+ * enquanto houver alternativa cadastrada.
  */
 
 const ESPERA_PADRAO = { min: 8000, max: 20000 };
@@ -98,9 +112,10 @@ async function ciclo(account, {
   /* Quanto descobrir: o suficiente para as ações pedidas, com folga. Pedir 30
      para gastar 3 é uma varredura larga no Instagram sem contrapartida — e
      varredura larga é o comportamento que se está tentando não ter. */
-  const querCurtir  = acoes.includes('like_posts') || acoes.includes('scroll_reels');
-  const querSeguir  = acoes.includes('follow');
-  const querStories = acoes.includes('view_stories');
+  const querCurtir    = acoes.includes('like_posts') || acoes.includes('scroll_reels');
+  const querSeguir    = acoes.includes('follow');
+  const querStories   = acoes.includes('view_stories');
+  const querComentar  = acoes.includes('comment_posts');
 
   /* `|| padrão` está errado aqui: zero é escolha, não ausência. Quem configurou
      "0 follows" pediu explicitamente para não seguir ninguém, e o `||`
@@ -109,10 +124,17 @@ async function ciclo(account, {
      aquecimento. */
   const teto = (valor, padrao) => (Number.isFinite(valor) && valor >= 0 ? valor : padrao);
 
-  const tetoCurtidas = querCurtir  ? teto(limites.maxLikes,   5) : 0;
-  const tetoFollows  = querSeguir  ? teto(limites.maxFollows, 2) : 0;
-  const tetoStories  = querStories ? teto(limites.maxStories, 3) : 0;
-  const quantidade   = Math.min(30, Math.max(5, tetoCurtidas + tetoFollows + tetoStories + 3));
+  const tetoCurtidas    = querCurtir   ? teto(limites.maxLikes,   5) : 0;
+  const tetoFollows     = querSeguir   ? teto(limites.maxFollows, 2) : 0;
+  const tetoStories     = querStories  ? teto(limites.maxStories, 3) : 0;
+  /* Padrão 1, e não o `maxReplies` da intensidade: aquele foi calibrado para
+     responder no PRÓPRIO perfil, onde comentar é natural e esperado. Reusá-lo
+     aqui levaria uma conta em intensidade agressiva a largar quinze comentários
+     em posts de desconhecidos por ciclo. */
+  const tetoComentarios = querComentar ? teto(limites.maxComments, 1) : 0;
+
+  const quantidade = Math.min(30, Math.max(5,
+    tetoCurtidas + tetoFollows + tetoStories + tetoComentarios + 3));
 
   // ── 1. Descobrir ────────────────────────────────────────────────────────
   let itens = [];
@@ -200,7 +222,39 @@ async function ciclo(account, {
     }
   }
 
-  // ── 5. Seguir ───────────────────────────────────────────────────────────
+  // ── 5. Comentar em post de terceiro ─────────────────────────────────────
+  if (tetoComentarios > 0) {
+    const textos = _textosDisponiveis(account.warmupComments);
+    if (!textos.length) {
+      /* Sem texto cadastrado, a alternativa seria inventar um. Um comentário
+         genérico escolhido pelo sistema é exatamente o que caracteriza spam —
+         e seria posto em nome de quem não escolheu escrevê-lo. */
+      await registrar('error',
+        'Comentar em posts de outros está ligado, mas não há texto cadastrado — escreva os comentários na configuração da conta',
+        { status: 'error' });
+    } else {
+      const usados = new Set();
+      for (const item of embaralhar(itens).slice(0, tetoComentarios)) {
+        try {
+          await pausa();
+          const texto = _proximoTexto(textos, usados);
+          await prov.comment(account, { mediaId: item.media_id, text: texto });
+          resultado.comments++;
+          await registrar('comment', `Comentou em @${item.username || '?'}: "${texto}"`,
+            { targetUser: item.username, targetPostId: item.media_pk || item.media_id });
+        } catch (e) {
+          resultado.errors.push(`comentar: ${e.message}`);
+          if (_pedeParaEsperar(e)) {
+            await registrar('error', 'O Instagram pediu para esperar — comentários interrompidos neste ciclo',
+              { status: 'error', error: e.message });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // ── 6. Seguir ───────────────────────────────────────────────────────────
   if (tetoFollows > 0) {
     for (const perfil of _perfisUnicos(itens).slice(0, tetoFollows)) {
       try {
@@ -237,6 +291,28 @@ function _perfisUnicos(itens) {
   return saida;
 }
 
+/** Os textos cadastrados, limpos. Sem lista, devolve vazio — nunca um padrão. */
+function _textosDisponiveis(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .map(t => String(t || '').trim())
+    .filter(Boolean);
+}
+
+/**
+ * Um texto ainda não usado neste ciclo.
+ *
+ * Repetir o mesmo comentário em posts diferentes na mesma janela de minutos é
+ * o traço mais fácil de detectar que existe. Quando a lista acaba, aí sim
+ * reaproveita — mas só depois de ter gastado todas as alternativas.
+ */
+function _proximoTexto(textos, usados) {
+  const livres = textos.filter(t => !usados.has(t));
+  const pool = livres.length ? livres : (usados.clear(), textos);
+  const escolhido = pool[Math.floor(Math.random() * pool.length)];
+  usados.add(escolhido);
+  return escolhido;
+}
+
 function _sortearHashtag(lista) {
   const limpas = (Array.isArray(lista) ? lista : [])
     .map(h => String(h || '').replace(/^#/, '').trim())
@@ -257,4 +333,4 @@ function _pedeParaEsperar(e) {
   return /please wait|try again later|rate.?limit|too many/i.test(String(e?.message || ''));
 }
 
-module.exports = { ciclo, temSessaoMobile, _perfisUnicos, _pedeParaEsperar, embaralhar };
+module.exports = { ciclo, temSessaoMobile, _perfisUnicos, _pedeParaEsperar, _proximoTexto, embaralhar };

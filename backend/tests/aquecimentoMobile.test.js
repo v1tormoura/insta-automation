@@ -278,3 +278,107 @@ describe('perfis únicos', () => {
     expect(r.map(p => p.user_id).sort()).toEqual(['a', 'b']);
   });
 });
+
+/**
+ * Comentar em post de terceiro.
+ *
+ * É a ação com a pior relação entre risco e ganho do conjunto: pública,
+ * atribuível, e "🔥🔥🔥" embaixo do post de um desconhecido é literalmente o
+ * padrão que a detecção de spam procura. Ela existe porque foi pedida, e os
+ * testes aqui protegem as proteções — não o caminho feliz.
+ */
+describe('comentar em posts de outros', () => {
+  const comTextos = (...t) => conta({ warmupComments: t });
+
+  test('comenta usando os textos cadastrados', async () => {
+    const prov = providerFake({ comment: jest.fn(async () => ({ commentId: 'k1' })) });
+    const r = await rodar(comTextos('Muito bom!'), {
+      provider: prov, acoes: ['comment_posts'], limites: { maxComments: 1 },
+    });
+
+    expect(prov.comment).toHaveBeenCalledTimes(1);
+    const [, arg] = prov.comment.mock.calls[0];
+    expect(arg.text).toBe('Muito bom!');
+    expect(arg.mediaId).toMatch(/^m\d/);
+    expect(r.comments).toBe(1);
+  });
+
+  test('não repete o mesmo texto dentro do ciclo', async () => {
+    /* O mesmo comentário em posts diferentes na mesma janela de minutos é o
+       traço mais fácil de detectar que existe. */
+    const prov = providerFake({ comment: jest.fn(async () => ({})) });
+    await rodar(comTextos('A', 'B', 'C'), {
+      provider: prov, acoes: ['comment_posts'], limites: { maxComments: 3 },
+    });
+
+    const usados = prov.comment.mock.calls.map(c => c[1].text);
+    expect(usados).toHaveLength(3);
+    expect(new Set(usados).size).toBe(3);
+  });
+
+  test('sem texto cadastrado, não inventa nenhum', async () => {
+    /* Um comentário genérico escolhido pelo sistema é exatamente o que
+       caracteriza spam — e sairia em nome de quem não escolheu escrevê-lo. */
+    const prov = providerFake({ comment: jest.fn(async () => ({})) });
+    const linhas = [];
+    const r = await rodar(comTextos(), {
+      provider: prov, acoes: ['comment_posts'], limites: { maxComments: 2 },
+      registrar: async (a, d) => linhas.push(d),
+    });
+
+    expect(prov.comment).not.toHaveBeenCalled();
+    expect(r.comments).toBe(0);
+    expect(linhas.join(' ')).toMatch(/não há texto cadastrado/i);
+  });
+
+  test('teto zero não comenta', async () => {
+    const prov = providerFake({ comment: jest.fn(async () => ({})) });
+    await rodar(comTextos('A'), {
+      provider: prov, acoes: ['comment_posts'], limites: { maxComments: 0 },
+    });
+    expect(prov.comment).not.toHaveBeenCalled();
+  });
+
+  test('vem depois de curtir e antes de seguir', async () => {
+    /* Comentário dá para apagar; follow não se desfaz sem outra ação. Se o
+       ciclo for cortado no meio, o que fica para trás é o menos grave. */
+    const prov = providerFake({
+      comment: jest.fn(async () => { prov.chamadas.push('comentar'); return {}; }),
+    });
+    await rodar(comTextos('A'), {
+      provider: prov, acoes: ['like_posts', 'comment_posts', 'follow'],
+      limites: { maxLikes: 1, maxComments: 1, maxFollows: 1 },
+    });
+
+    const i = prov.chamadas.lastIndexOf('comentar');
+    expect(i).toBeGreaterThan(prov.chamadas.lastIndexOf('curtir'));
+    expect(i).toBeLessThan(prov.chamadas.lastIndexOf('seguir'));
+  });
+
+  test('"espere um pouco" interrompe os comentários do ciclo', async () => {
+    let n = 0;
+    const prov = providerFake({
+      comment: jest.fn(async () => {
+        if (++n === 2) throw Object.assign(new Error('Please wait a few minutes'), {});
+        return {};
+      }),
+    });
+    const r = await rodar(comTextos('A', 'B', 'C', 'D'), {
+      provider: prov, acoes: ['comment_posts'], limites: { maxComments: 4 },
+    });
+
+    expect(prov.comment).toHaveBeenCalledTimes(2);
+    expect(r.comments).toBe(1);
+  });
+
+  test('o teto padrão é 1, não o da intensidade', async () => {
+    /* `maxReplies` foi calibrado para responder no PRÓPRIO perfil, onde
+       comentar é natural. Reusá-lo aqui levaria a conta agressiva a largar
+       quinze comentários em posts de desconhecidos por ciclo. */
+    const prov = providerFake({ comment: jest.fn(async () => ({})) });
+    await rodar(comTextos('A', 'B', 'C', 'D', 'E'), {
+      provider: prov, acoes: ['comment_posts'], limites: { maxReplies: 15 },
+    });
+    expect(prov.comment).toHaveBeenCalledTimes(1);
+  });
+});
