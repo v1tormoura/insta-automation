@@ -134,7 +134,11 @@ services:
       #   Oxylabs                      -sessid-{sessao}
       #   IPRoyal                      _session-{sessao}_lifetime-30m
       # Vazio desliga a fixacao (use com IP dedicado, que nao rotaciona).
-      PROXY_SESSAO_MOLDE: ${PROXY_SESSAO_MOLDE-;session.{sessao}}
+      # Vazio = sem fixação de IP por conta. Opt-in de propósito: fornecedor
+      # que não reconhece o sufixo recusa a credencial inteira com 407, e aí
+      # nenhuma conta loga. Ponha a sintaxe do SEU fornecedor aqui só depois
+      # de confirmar com scripts/sondar-proxy.sh (ex.: ";session.{sessao}").
+      PROXY_SESSAO_MOLDE: ${PROXY_SESSAO_MOLDE-}
     volumes:
       - uploads:/app/uploads
     # No ports: — internal Docker network only; never exposed to the host

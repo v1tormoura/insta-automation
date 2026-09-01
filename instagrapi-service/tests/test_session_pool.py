@@ -654,7 +654,34 @@ def test_resposta_vazia_conta_como_falha():
 BASE = "http://cliente__cr.br;state.saopaulo:SENHA@host.exemplo.io:11000"
 
 
-def test_cada_conta_recebe_um_ip_diferente():
+@pytest.fixture
+def molde_ligado(monkeypatch):
+    """
+    A fixação é opt-in — o padrão é DESLIGADO, porque fornecedor que não
+    reconhece o sufixo recusa a credencial inteira com 407 e aí nenhuma conta
+    loga. Os testes abaixo medem como o sufixo é montado, o que só faz sentido
+    com ele ligado; quem guarda o padrão é `test_a_fixacao_vem_desligada`.
+    """
+    monkeypatch.setenv("PROXY_SESSAO_MOLDE", ";session.{sessao}")
+
+
+def test_a_fixacao_vem_desligada_por_padrao(monkeypatch):
+    """
+    O padrão era ligado, e o custo de errar era total: o fornecedor recusa a
+    credencial INTEIRA com 407 — o mesmo 407 de senha errada — e nenhuma conta
+    consegue entrar. Pior, o teste de proxy do painel usa a URL crua, sem
+    molde, e passa: quem investiga conclui que o proxy está bom e vai procurar
+    o defeito nas contas.
+
+    Desligado, o IP rotaciona, que é pior para o Instagram e incomparavelmente
+    melhor que não conseguir logar.
+    """
+    from app.session_pool import moldar_proxy_por_conta
+    monkeypatch.delenv("PROXY_SESSAO_MOLDE", raising=False)
+    assert moldar_proxy_por_conta(BASE, "conta-A") == BASE
+
+
+def test_cada_conta_recebe_um_ip_diferente(molde_ligado):
     from app.session_pool import moldar_proxy_por_conta
     a = moldar_proxy_por_conta(BASE, "conta-A")
     b = moldar_proxy_por_conta(BASE, "conta-B")
@@ -662,7 +689,7 @@ def test_cada_conta_recebe_um_ip_diferente():
     assert "session." in a and "session." in b
 
 
-def test_a_mesma_conta_sempre_pede_o_mesmo_ip():
+def test_a_mesma_conta_sempre_pede_o_mesmo_ip(molde_ligado):
     """
     Derivado do account_id, não sorteado: precisa sobreviver a restart. Um
     identificador novo a cada reinício pediria um IP novo, e a conta
@@ -672,14 +699,14 @@ def test_a_mesma_conta_sempre_pede_o_mesmo_ip():
     assert moldar_proxy_por_conta(BASE, "conta-A") == moldar_proxy_por_conta(BASE, "conta-A")
 
 
-def test_nao_acumula_ao_aplicar_duas_vezes():
+def test_nao_acumula_ao_aplicar_duas_vezes(molde_ligado):
     """Login repetido não pode empilhar identificadores no nome de usuário."""
     from app.session_pool import moldar_proxy_por_conta
     uma = moldar_proxy_por_conta(BASE, "conta-A")
     assert moldar_proxy_por_conta(uma, "conta-A") == uma
 
 
-def test_preserva_host_porta_e_senha():
+def test_preserva_host_porta_e_senha(molde_ligado):
     from app.session_pool import moldar_proxy_por_conta
     r = moldar_proxy_por_conta(BASE, "conta-A")
     assert r.endswith("@host.exemplo.io:11000")
@@ -687,7 +714,7 @@ def test_preserva_host_porta_e_senha():
     assert r.startswith("http://cliente__cr.br;state.saopaulo;session.")
 
 
-def test_preserva_os_parametros_de_geolocalizacao():
+def test_preserva_os_parametros_de_geolocalizacao(molde_ligado):
     """Perder o `cr.br` faria o IP sair de outro país — pior que não fixar."""
     from app.session_pool import moldar_proxy_por_conta
     r = moldar_proxy_por_conta(BASE, "conta-A")
@@ -724,7 +751,7 @@ def test_proxy_vazio_nao_quebra():
     assert moldar_proxy_por_conta("", "conta-A") == ""
 
 
-def test_lembrar_proxy_ja_guarda_moldado():
+def test_lembrar_proxy_ja_guarda_moldado(molde_ligado):
     """
     O molde acontece num ponto só. Se `lembrar_proxy` guardasse a URL crua,
     cada consumidor teria de moldar — e esquecer um faria a conta trocar de

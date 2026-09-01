@@ -592,13 +592,28 @@ def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
 
     Molde vazio desliga a fixação e devolve a URL intacta — é o caminho para
     quem usa IP dedicado, onde não há rotação para conter.
+
+    ── Por que o padrão é DESLIGADO
+
+    Era ligado, com `;session.{sessao}`. O fornecedor que não reconhece esse
+    parâmetro não o ignora: ele recusa a credencial INTEIRA e responde 407, o
+    mesmo 407 de senha errada. Nesse estado NENHUMA conta loga — e o teste de
+    proxy do painel passa, porque ele usa a URL crua, sem molde. Quem investiga
+    conclui que o proxy está bom e vai procurar o defeito nas contas.
+
+    Um padrão cuja falha é "o produto inteiro para de funcionar, apontando para
+    o lugar errado" não pode ser o padrão. Ligado, o ganho é IP estável por
+    conta; desligado, o IP rotaciona — pior para o Instagram, e ainda assim
+    incomparavelmente melhor que não conseguir entrar.
+
+    Então a fixação virou opt-in: quem confirmou que o fornecedor aceita põe
+    `PROXY_SESSAO_MOLDE` com a sintaxe dele. `scripts/sondar-proxy.sh` e
+    `scripts/descobrir-chave-de-sessao.sh` existem para descobrir qual é.
     """
     if not url:
         return url
 
-    molde = os.getenv("PROXY_SESSAO_MOLDE")
-    if molde is None:
-        molde = ";session.{sessao}"
+    molde = os.getenv("PROXY_SESSAO_MOLDE") or ""
     if not molde.strip():
         return url
 

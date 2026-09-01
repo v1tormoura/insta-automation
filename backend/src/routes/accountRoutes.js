@@ -1809,6 +1809,23 @@ router.post('/:id/instagrapi-login', async (req, res) => {
       }
 
       await _markInstagrapiConnected(accountId);
+
+      /* Guarda a senha para o próximo login ser um clique.
+     
+         Este endpoint dizia que a senha "nunca é persistida", e a consequência
+         era digitá-la de novo toda vez que a sessão precisasse ser refeita —
+         que é justamente a queixa. O campo `password` da conta já existe e já é
+         usado por outros fluxos (login-private, importação em lote); a
+         diferença é que agora ele é cifrado em repouso, como os tokens.
+     
+         Só grava depois do login DAR CERTO: senha errada guardada faria o
+         botão de um clique falhar sozinho para sempre, sem ninguém entender
+         por quê. */
+      try {
+        const doc = await Account.findById(accountId);
+        if (doc) { doc.password = password.trim(); await doc.save(); }
+      } catch { /* não guardar a senha não invalida o login que acabou de passar */ }
+
       await _fetchAndSaveProfile(http, account, account.username);
       broadcast('accounts', { action: 'synced' });
       res.json({ success: true, accountId, message: `@${account.username} conectada via API Mobile` });

@@ -114,3 +114,25 @@ describe('o mesmo motivo serve os dois caminhos', () => {
     expect(iMotivo).toBeLessThan(iCurada);
   });
 });
+
+describe('NO_USER — o 407 que o nosso próprio sufixo causa', () => {
+  const { traduzir } = require('../src/utils/motivoProxy');
+
+  test('aponta o molde de sessão antes de qualquer outra hipótese', () => {
+    /* Foi o que apareceu na tela: `Tunnel connection failed: 407 NO_USER`.
+       O fornecedor não ignora o `;session.x` que acrescentávamos ao nome de
+       usuário — ele recusa a credencial inteira. Como o teste de proxy do
+       painel usa a URL crua e PASSA, a leitura natural é culpar a conta ou a
+       senha, e é por isso que a frase precisa nomear o molde. */
+    const frase = traduzir('OSError: Tunnel connection failed: 407 NO_USER');
+    expect(frase).toMatch(/PROXY_SESSAO_MOLDE/);
+    expect(frase).toMatch(/vazio/i);
+  });
+
+  test('não é confundido com INVALID_USER, que tem outro conserto', () => {
+    /* Um pede para esvaziar o molde; o outro, para conferir a credencial.
+       Trocar os dois manda mexer no lugar errado. */
+    expect(traduzir('407 INVALID_USER')).toMatch(/confira se a credencial/i);
+    expect(traduzir('407 INVALID_USER')).not.toMatch(/PROXY_SESSAO_MOLDE/);
+  });
+});

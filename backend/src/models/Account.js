@@ -351,7 +351,15 @@ const { encrypt: _encryptToken, decrypt: _decryptToken } = require('../services/
    por alguém que abra a coleção.
    
    Com a lista, o campo novo entra em um lugar. */
-const CAMPOS_CIFRADOS = ['accessToken', 'instagrapiSession', 'fbAccessToken'];
+/* `password` entra aqui. Ela já era guardada — vários fluxos dependem dela
+   (login-private, init-mobile-session, importação em lote) — só que em texto
+   puro no banco. Cifrar não é mudança de comportamento: o getter devolve em
+   claro e o setter cifra ao gravar, então quem lê e escreve nem percebe.
+
+   A migração é sozinha e sem script: `decrypt` deixa passar valor que não está
+   cifrado, então as senhas antigas continuam funcionando e cada regravação
+   converte a sua. */
+const CAMPOS_CIFRADOS = ['accessToken', 'instagrapiSession', 'fbAccessToken', 'password'];
 
 for (const campo of CAMPOS_CIFRADOS) {
   accountSchema.path(campo)

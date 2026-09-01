@@ -37,6 +37,13 @@ const _MOTIVOS = Object.freeze({
     'usuário ou senha do proxy incorretos — confira a credencial no painel do fornecedor',
   INVALID_USER:
     'este usuário não existe no fornecedor — confira se a credencial é da conta certa',
+  /* Visto em 01/09/2026, com PROXY_SESSAO_MOLDE ligado. O fornecedor não
+     ignora o sufixo `;session.x` que acrescentávamos ao usuário: ele recusa a
+     credencial INTEIRA e chama isso de NO_USER. Como o teste do painel usa a
+     URL crua e passa, a leitura natural é culpar a conta — por isso a frase
+     nomeia o molde antes de qualquer outra hipótese. */
+  NO_USER:
+    'o fornecedor não reconhece este usuário de proxy — se PROXY_SESSAO_MOLDE estiver preenchido, é o sufixo de sessão que ele recusa; deixe-o vazio e teste de novo',
   IP_NOT_ALLOWED:
     'este servidor não está na lista de IPs autorizados — adicione o IP dele no fornecedor',
 });
