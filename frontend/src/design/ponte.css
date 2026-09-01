@@ -831,8 +831,10 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
      A saturação no desfoque não é enfeite: sem ela, o `backdrop-filter`
      acinzenta o que passa por trás, e um acento vivo cruzando a topbar
      apareceria lavado. */
-  background: color-mix(in oklch, var(--mf-bg) 78%, transparent);
-  backdrop-filter: blur(12px) saturate(1.4);
+  /* Sólida, pelo mesmo motivo do cabeçalho de página: com 78% o conteúdo
+     passava por baixo e aparecia ao rolar, e a barra superior é o último lugar
+     onde se quer texto competindo com números fantasma. */
+  background: var(--mf-bg);
   position: sticky; top: 0; z-index: var(--mf-z-sticky);
   padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
 }
@@ -892,6 +894,38 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 }
 .mf-page-head__s { color: var(--mf-text-3); font-size: var(--mf-t-sm); margin: var(--mf-1) 0 0; }
 .mf-page-head__acts { display: flex; gap: var(--mf-2); flex-wrap: wrap; flex-shrink: 0; }
+
+/* ── Cabeçalho de página no celular ─────────────────────────────────
+
+   Dois problemas, um em cada eixo.
+
+   Na horizontal: os botões têm `white-space: nowrap` e `flex-shrink: 0`, então
+   não encolhem nem quebram — quatro deles ("Proxies em massa", "Sincronizar",
+   "Conectar Instagram", "Conectar via API") simplesmente estouram para fora da
+   tela de 375px. Viram grade: cada botão ocupa uma coluna inteira quando duas
+   não cabem, e aí nenhum rótulo precisa ser cortado.
+
+   Na vertical: com os botões empilhados, o cabeçalho passa de 200px. Grudado no
+   topo, ele comeria um terço de um celular de 812px de altura o tempo todo. No
+   desktop ficar fixo ajuda — sobra tela; no celular é o contrário, então ele
+   rola junto com o conteúdo. Quem continua fixo é a barra superior, que é onde
+   moram o menu e a busca.
+
+   `!important` porque o `position: sticky` vem inline do PageShell, e regra de
+   folha não ganha de estilo inline sem ele. */
+@media (max-width: 640px) {
+  .mf-page-head {
+    position: static !important;
+    box-shadow: none !important;
+    padding-block: var(--mf-4) var(--mf-3);
+  }
+  .mf-page-head__acts {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  }
+  .mf-page-head__acts > * { width: 100%; }
+}
 
 /* ── Grid ────────────────────────────────────────────────────────────────
    `auto-fit` + `minmax` resolve a responsividade sem breakpoint: as colunas

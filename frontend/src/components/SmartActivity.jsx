@@ -342,6 +342,24 @@ export function SmartActivityProvider({ children }) {
     try { await api.post('/notificacoes/lidas'); } catch { /* idem */ }
   }, []);
 
+  /**
+   * Apaga as notificações já lidas.
+   *
+   * Só as lidas — o que ainda não foi visto não pode sumir por um clique de
+   * limpeza. É essa restrição que torna a ação segura o bastante para não pedir
+   * confirmação: no pior caso você perde o histórico do que já leu, nunca o
+   * aviso que ainda não abriu.
+   *
+   * Remove da tela antes de o servidor responder. A lista é um espelho do
+   * banco, e o próximo `carregar()` corrige se algo falhar — esperar a
+   * viagem de rede para uma ação sem risco só faria o botão parecer travado.
+   */
+  const apagarLidas = useCallback(async () => {
+    setPersistidas(l => l.filter(n => !n.lidaEm));
+    try { await api.delete('/notificacoes/lidas'); }
+    catch { carregar(); }
+  }, [carregar]);
+
   /* O evento de sistema vira um cartão com a mesma forma do marco — assim a
      Central desenha os dois com o mesmo componente, sem um "se for do tipo X". */
   const itens = useMemo(() => {
@@ -362,8 +380,8 @@ export function SmartActivityProvider({ children }) {
 
   const valor = useMemo(() => ({
     itens, naoLidas, visiveis, aguardando: fila.length,
-    dispensar, marcarLida, marcarTodas, recarregar: carregar,
-  }), [itens, naoLidas, visiveis, fila.length, dispensar, marcarLida, marcarTodas, carregar]);
+    dispensar, marcarLida, marcarTodas, apagarLidas, recarregar: carregar,
+  }), [itens, naoLidas, visiveis, fila.length, dispensar, marcarLida, marcarTodas, apagarLidas, carregar]);
 
   return <ContextoSmartActivity.Provider value={valor}>{children}</ContextoSmartActivity.Provider>;
 }
@@ -450,7 +468,11 @@ function agrupar(itens) {
 }
 
 export function SinoDeNotificacoes() {
-  const { itens, naoLidas, marcarLida, marcarTodas } = useSmartActivity();
+  const { itens, naoLidas, marcarLida, marcarTodas, apagarLidas } = useSmartActivity();
+  /* Só as PERSISTIDAS contam. As efêmeras vivem na memória da aba e somem
+     sozinhas; oferecer "apagar" para elas prometeria uma limpeza que o botão
+     não faz. */
+  const lidas = itens.filter(n => n.lidaEm && !n.efemera).length;
   const [aberta, setAberta] = useState(false);
   const caixaRef = useRef(null);
 
@@ -515,6 +537,27 @@ export function SinoDeNotificacoes() {
                 background: 'transparent', border: 'none',
                 color: 'var(--mf-primary-500)', padding: 0,
               }}>Marcar todas como lidas</button>
+            )}
+            {/* Aparece só quando há o que apagar, e diz quantas — "Apagar
+                lidas" sem número não deixa ninguém prever o que vai sumir. */}
+            {lidas > 0 && (
+              <button onClick={apagarLidas}
+                title={`Apagar ${lidas} notificação(ões) já lida(s). As não lidas ficam.`}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
+                  background: 'transparent', border: 'none',
+                  color: 'var(--mf-text-3)', padding: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--mf-danger-500)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--mf-text-3)'; }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                </svg>
+                Apagar lidas ({lidas})
+              </button>
             )}
           </div>
 

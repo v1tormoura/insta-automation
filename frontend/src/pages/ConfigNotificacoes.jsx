@@ -45,29 +45,14 @@ export default function ConfigNotificacoes() {
   /* Por que o interruptor não pode ser ligado, quando não pode. Um botão que
      não faz nada e não diz por quê é pior que um botão ausente. */
   const [diagnostico] = useState(() => notificacaoDoNavegador.diagnostico());
-  const [testando, setTestando] = useState(false);
+  /* Guarda QUAL aviso está sendo testado, não um booleano. Com três botões,
+     um `testando` compartilhado acenderia os três de uma vez e ninguém saberia
+     qual está em voo. */
+  const [testando, setTestando] = useState('');
 
   /* Envia um aviso real aos aparelhos inscritos, SEM gravar nada na central.
      A distinção importa: a central é o registro do que aconteceu, e um teste
      que se grava ali inventaria um marco que ninguém atingiu. */
-  async function testarAviso() {
-    setTestando(true);
-    try {
-      const { data } = await api.post('/notificacoes/push/testar');
-      aviso(data.enviados ? 'success' : 'info',
-            data.enviados ? 'Enviado' : 'Nenhum aparelho',
-            data.mensagem);
-    } catch (e) {
-      const d = e.response?.data;
-      aviso('error', 'Não deu para enviar',
-            d?.code === 'SEM_VAPID'
-              ? 'O servidor ainda não tem chaves de push configuradas.'
-              : (d?.error || 'Tente de novo em instantes.'));
-    } finally {
-      setTestando(false);
-    }
-  }
-
   const aviso = (type, title, message) => setToast({ type, title, message, id: Date.now() });
 
   const carregar = useCallback(async () => {
@@ -95,6 +80,51 @@ export default function ConfigNotificacoes() {
     if (!cfg) return { titulo: '', mensagem: '', tema: 'milestone' };
     return cfg.mensagens[metrica] || cfg.modelosPadrao[metrica] || { titulo: '', mensagem: '', tema: 'milestone' };
   }, [cfg, metrica]);
+
+  /* Depois de `modelo`, porque lê `modelo`.
+
+     Estava acima da declaração: funcionava, porque só é CHAMADA depois, mas o
+     compilador do React não consegue preservar a memoização atravessando um
+     `const` ainda não inicializado — e a memoização que ele desiste de manter
+     é a do próprio `modelo`, que o editor relê a cada tecla. */
+  /**
+   * @param {string} alvo — 'storyViews' | 'contentViews' | 'reach'
+   * @param {boolean} comRascunho — manda o texto da tela em vez do gravado
+   */
+  async function testarAviso(alvo = metrica, comRascunho = true) {
+    setTestando(alvo);
+    try {
+      /* O rascunho vai junto. Sem isso, testar o texto que você acabou de
+         escrever exigiria salvar antes — e salvar para descobrir que a frase
+         ficou ruim é a ordem errada de fazer as duas coisas. */
+      const corpo = { metrica: alvo };
+      if (comRascunho && alvo === metrica && modelo) {
+        corpo.modelo = { titulo: modelo.titulo, mensagem: modelo.mensagem, tema: modelo.tema };
+      }
+      const { data } = await api.post('/notificacoes/push/testar', corpo);
+      aviso(data.enviados ? 'success' : 'info',
+            data.enviados ? `Enviado — ${data.aviso}` : 'Nenhum aparelho',
+            data.mensagem);
+    } catch (e) {
+      const d = e.response?.data;
+      aviso('error', 'Não deu para enviar',
+            d?.code === 'SEM_VAPID'
+              ? 'O servidor ainda não tem chaves de push configuradas.'
+              : (d?.error || 'Tente de novo em instantes.'));
+    } finally {
+      setTestando('');
+    }
+  }
+
+  /* Testa os três em sequência, e não em paralelo: três notificações chegando
+     no mesmo instante viram uma pilha em que não se lê nenhuma, e o objetivo
+     aqui é justamente olhar cada uma. */
+  async function testarTodos() {
+    for (const m of METRICAS) {
+      await testarAviso(m.id, false);
+      await new Promise(r => setTimeout(r, 1200));
+    }
+  }
 
   const mudarModelo = (campo, valor) => {
     setCfg(c => ({
@@ -276,6 +306,21 @@ export default function ConfigNotificacoes() {
                     </div>
                   </div>
 
+                  {/* Testar ESTE aviso, com o texto que está na tela agora.
+                      A pergunta que se faz ao escrever uma mensagem é "como
+                      ela vai chegar no celular?", e o cartão de exemplo ao
+                      lado responde só metade: ele mostra o layout, não o
+                      aviso do sistema operacional. */}
+                  <button onClick={() => testarAviso(metrica, true)} disabled={!!testando}
+                    className="mf-btn mf-btn--secondary"
+                    style={{ marginTop: 'var(--mf-4)', width: '100%',
+                             opacity: testando ? .6 : 1,
+                             cursor: testando ? 'wait' : 'pointer' }}>
+                    {testando === metrica
+                      ? 'Enviando…'
+                      : `Testar este aviso no aparelho`}
+                  </button>
+
                   {invalidas.length > 0 && (
                     <div style={{
                       marginTop: 'var(--mf-3)', padding: 'var(--mf-2) var(--mf-3)',
@@ -410,13 +455,30 @@ export default function ConfigNotificacoes() {
                       com o que foi feito aqui. O teste usa a SUA mensagem
                       configurada, então responde duas perguntas de uma vez:
                       "chega no aparelho?" e "o texto que editei está certo?" */}
-                  <button onClick={testarAviso} disabled={testando}
-                    className="mf-btn mf-btn--ghost"
-                    style={{ marginTop: 'var(--mf-3)', width: '100%',
-                             opacity: testando ? .6 : 1,
-                             cursor: testando ? 'wait' : 'pointer' }}>
-                    {testando ? 'Enviando…' : 'Enviar um aviso de teste agora'}
-                  </button>
+                  <div style={{ marginTop: 'var(--mf-3)', display: 'grid', gap: 6 }}>
+                    {/* Um por aviso, e não um "testar" genérico. Com três
+                        mensagens para calibrar, saber QUAL chegou é metade da
+                        informação — e um teste só de Stories nunca revelaria
+                        um erro no de Alcance. */}
+                    {METRICAS.map(m => (
+                      <button key={m.id} onClick={() => testarAviso(m.id, false)} disabled={!!testando}
+                        className="mf-btn mf-btn--ghost"
+                        style={{ width: '100%', justifyContent: 'space-between',
+                                 opacity: testando && testando !== m.id ? .5 : 1,
+                                 cursor: testando ? 'wait' : 'pointer' }}>
+                        <span>Testar aviso de {m.rotulo}</span>
+                        <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+                          {testando === m.id ? 'enviando…' : 'enviar'}
+                        </span>
+                      </button>
+                    ))}
+                    <button onClick={testarTodos} disabled={!!testando}
+                      className="mf-btn mf-btn--ghost"
+                      style={{ width: '100%', opacity: testando ? .6 : 1,
+                               cursor: testando ? 'wait' : 'pointer' }}>
+                      {testando ? 'Enviando…' : 'Testar os três, um a um'}
+                    </button>
+                  </div>
 
                   <div style={{ marginTop: 'var(--mf-4)' }}>
                     {rotulo('SOME DEPOIS DE')}

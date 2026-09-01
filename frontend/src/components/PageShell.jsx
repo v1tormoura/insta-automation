@@ -44,11 +44,22 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
         /* Continua fixo ao rolar, como antes — mas agora ancorado abaixo da
            barra superior, que também é sticky. Sem esse deslocamento os dois
            disputariam a mesma faixa e o título sumiria atrás dela. */
+        /* Fundo SÓLIDO, e não vidro.
+
+           Era `--mf-bg` a 88% com desfoque. Os 12% restantes bastavam para o
+           conteúdo passar por baixo e aparecer: rolando a página de Contas, os
+           cartões de métricas cruzavam o cabeçalho e o título ficava por cima de
+           números fantasma. Vidro funciona sobre fotografia e cor chapada;
+           sobre uma grade densa de dados ele vira ruído exatamente no elemento
+           que precisa estar mais legível da página.
+
+           A sombra substitui o desfoque no papel de dizer "isto está por
+           cima" — e diz isso sem deixar nada atravessar. */
         style={{
           position: 'sticky', top: 'var(--mf-topbar)', zIndex: 20,
-          background: 'color-mix(in oklch, var(--mf-bg) 88%, transparent)',
-          backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          background: 'var(--mf-bg)',
           borderBottom: '1px solid var(--mf-border)',
+          boxShadow: '0 6px 16px -12px oklch(0 0 0 / 0.55)',
         }}
       >
         {icon && (

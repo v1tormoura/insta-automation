@@ -40,6 +40,126 @@ function tokenBarPct(days) {
   return Math.min(100, (days / 60) * 100);
 }
 
+/**
+ * Resumo de saúde.
+ *
+ * ── O que estava errado
+ *
+ * Eram seis blocos idênticos — Total, Saudáveis, Atenção, Risco, Banidas,
+ * Restritas — com o mesmo tamanho, o mesmo peso e, na prática, quatro zeros.
+ * Um zero ocupando o mesmo espaço visual de um número que importa não é
+ * informação neutra: é ruído que obriga a ler os seis para descobrir que não
+ * havia nada para ver.
+ *
+ * ── O que esta tela existe para responder
+ *
+ * Uma pergunta só: "tem alguma conta com problema?". O resto é detalhe de
+ * quem já respondeu "sim" e quer saber qual.
+ *
+ * Então a resposta vem primeiro e grande, a distribuição vem como uma barra
+ * (que mostra proporção sem exigir aritmética), e os estados aparecem na
+ * legenda só quando têm alguém dentro. Zero não vira bloco — vira ausência,
+ * que é como zero se parece.
+ */
+function ResumoDeSaude({ resumo, restritas, total, ultimaVerificacao }) {
+  const problemas = resumo.atencao + resumo.risco + resumo.banida + restritas;
+  const tudoBem = problemas === 0 && total > 0;
+
+  /* A ordem é do pior para o melhor, e não alfabética nem por tamanho: a
+     barra é lida da esquerda, e o que precisa de ação tem de estar onde o
+     olho chega primeiro. */
+  const faixas = [
+    { chave: 'banida',   rotulo: 'Banidas',   n: resumo.banida,   cor: 'var(--mf-danger-500)' },
+    { chave: 'risco',    rotulo: 'Risco',     n: resumo.risco,    cor: 'var(--mf-danger-500)' },
+    { chave: 'atencao',  rotulo: 'Atenção',   n: resumo.atencao,  cor: 'var(--mf-warning-500)' },
+    { chave: 'restrita', rotulo: 'Restritas', n: restritas,       cor: 'var(--mf-warning-500)' },
+    { chave: 'saudavel', rotulo: 'Saudáveis', n: resumo.saudavel, cor: 'var(--mf-success-500)' },
+  ].filter(f => f.n > 0);
+
+  const corPrincipal = problemas === 0 ? 'var(--mf-success-500)' : 'var(--mf-warning-500)';
+
+  return (
+    <section style={{
+      display: 'grid', gap: 'var(--mf-5)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+      alignItems: 'center',
+      background: 'var(--mf-surface-1)',
+      border: '1px solid var(--mf-border)',
+      borderRadius: 'var(--mf-r-lg)',
+      padding: 'var(--mf-5)',
+    }}>
+      {/* A resposta */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-4)', minWidth: 0 }}>
+        <span style={{
+          width: 52, height: 52, borderRadius: 'var(--mf-r-lg)', flexShrink: 0,
+          display: 'grid', placeItems: 'center',
+          color: corPrincipal,
+          background: `color-mix(in oklch, ${corPrincipal} 12%, transparent)`,
+          border: `1px solid color-mix(in oklch, ${corPrincipal} 28%, transparent)`,
+        }}>
+          {tudoBem ? (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+          ) : (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+          )}
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: 'var(--mf-t-display)', fontWeight: 800, lineHeight: 1,
+            letterSpacing: '-0.03em', color: corPrincipal,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {tudoBem ? total : problemas}
+          </div>
+          <div style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text-2)', marginTop: 4 }}>
+            {total === 0
+              ? 'nenhuma conta cadastrada'
+              : tudoBem
+                ? `${total === 1 ? 'conta saudável' : 'contas saudáveis'} — nada exige ação`
+                : `${problemas === 1 ? 'conta precisa' : 'contas precisam'} de atenção`}
+          </div>
+        </div>
+      </div>
+
+      {/* A distribuição */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          display: 'flex', height: 8, borderRadius: 'var(--mf-r-full)',
+          overflow: 'hidden', background: 'var(--mf-surface-3)', gap: 2,
+        }}>
+          {faixas.map(f => (
+            <div key={f.chave}
+              title={`${f.rotulo}: ${f.n}`}
+              style={{ flex: f.n, background: f.cor, minWidth: 3 }} />
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mf-3)', marginTop: 'var(--mf-3)' }}>
+          {faixas.map(f => (
+            <span key={f.chave} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: 'var(--mf-r-full)', background: f.cor, flexShrink: 0 }} />
+              {f.rotulo}
+              <b style={{ color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{f.n}</b>
+            </span>
+          ))}
+          {!faixas.length && (
+            <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)' }}>
+              Sem contas para classificar.
+            </span>
+          )}
+        </div>
+        {ultimaVerificacao && (
+          <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 'var(--mf-3)' }}>
+            Última verificação {timeAgo(ultimaVerificacao)} · atualiza sozinho a cada 10s
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function AccountCard({ account }) {
   const st = statusCfg(account.level, account.healthStatus);
   const tokenColor = tokenBarColor(account.tokenDaysLeft);
@@ -282,14 +402,14 @@ export default function Health() {
         a.level === filter
       );
 
-  const summaryItems = [
-    { label: 'Total',       value: data.summary.total,    color: 'var(--mf-primary-500)' },
-    { label: 'Saudáveis',   value: data.summary.saudavel, color: 'var(--mf-success-500)' },
-    { label: 'Atenção',     value: data.summary.atencao,  color: 'var(--mf-warning-500)' },
-    { label: 'Risco',       value: data.summary.risco,    color: 'var(--mf-danger-500)' },
-    { label: 'Banidas',     value: data.summary.banida,   color: 'var(--mf-danger-500)' },
-    { label: 'Restritas',    value: data.accounts.filter(a => a.healthStatus === 'restrita').length, color: 'var(--mf-warning-500)' },
-  ];
+  const restritas = data.accounts.filter(a => a.healthStatus === 'restrita').length;
+
+  /* A verificação mais recente entre todas as contas. Uma data por conta não
+     diz nada sozinha; o que se quer saber é se o painel inteiro está fresco. */
+  const ultimaVerificacao = data.accounts.reduce((maisNova, a) => {
+    const d = a.lastHealthCheck || a.lastSync;
+    return d && (!maisNova || new Date(d) > new Date(maisNova)) ? d : maisNova;
+  }, null);
 
   const pageIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -320,43 +440,50 @@ export default function Health() {
       accent="green"
       actions={pageActions}
     >
-      {/* Stats */}
-      <div className="resp-grid-6" style={{ marginBottom: 20 }}>
-        {summaryItems.map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity:0, y:8 }}
-            animate={{ opacity:1, y:0 }}
-            transition={{ delay: i * 0.04, duration: 0.22 }}
-            style={{
-              background:`${s.color}0d`, border:`1px solid ${s.color}2a`,
-              borderRadius: 'var(--mf-r-md)', padding:'12px 12px', textAlign:'center',
-              backdropFilter:'blur(12px)',
-            }}
-          >
-            <div style={{ fontSize: 'var(--mf-t-display)', fontWeight:800, color:s.color, letterSpacing:-1, lineHeight:1, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-            <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:4, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
-          </motion.div>
-        ))}
-      </div>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: .25 }} style={{ marginBottom: 'var(--mf-5)' }}>
+        <ResumoDeSaude
+          resumo={data.summary}
+          restritas={restritas}
+          total={data.summary.total}
+          ultimaVerificacao={ultimaVerificacao}
+        />
+      </motion.div>
 
       {/* Filters */}
       <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:18, flexWrap:'wrap' }}>
         <div className="pill-scroll-x" style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', gap:4, background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:3, width:'max-content' }}>
+            {/* Cada filtro leva a própria contagem. Sem ela é preciso clicar
+                para descobrir que o filtro está vazio — e um filtro vazio é
+                exatamente o que não vale a pena clicar. */}
             {[
-              { v:'all',      l:'Todas' },
-              { v:'saudavel', l:'Saudáveis' },
-              { v:'atencao',  l:'Atenção' },
-              { v:'risco',    l:'Risco' },
-              { v:'banida',   l:'Banidas' },
+              { v:'all',      l:'Todas',     n: data.accounts.length },
+              { v:'saudavel', l:'Saudáveis', n: data.summary.saudavel },
+              { v:'atencao',  l:'Atenção',   n: data.summary.atencao + restritas },
+              { v:'risco',    l:'Risco',     n: data.summary.risco },
+              { v:'banida',   l:'Banidas',   n: data.summary.banida },
             ].map(f => (
-              <button key={f.v} onClick={() => setFilter(f.v)} style={{
-                height:28, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer', fontWeight:600, fontSize: 'var(--mf-t-xs)',
-                background: filter === f.v ? 'var(--mf-primary-500)' : 'transparent',
-                color:      filter === f.v ? 'var(--mf-text)'    : 'var(--mf-text-3)',
-                transition: 'all var(--mf-fast) var(--mf-ease-out)',
-              }}>{f.l}</button>
+              <button key={f.v} onClick={() => setFilter(f.v)}
+                disabled={f.n === 0 && f.v !== 'all'}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:6,
+                  height:30, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'none',
+                  cursor: f.n === 0 && f.v !== 'all' ? 'default' : 'pointer',
+                  fontWeight:600, fontSize: 'var(--mf-t-xs)',
+                  opacity: f.n === 0 && f.v !== 'all' ? .45 : 1,
+                  background: filter === f.v ? 'var(--mf-primary-500)' : 'transparent',
+                  color:      filter === f.v ? 'var(--mf-primary-fg)' : 'var(--mf-text-3)',
+                  transition: 'all var(--mf-fast) var(--mf-ease-out)',
+                }}>
+                {f.l}
+                <span style={{
+                  fontSize: 'var(--mf-t-nano)', fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+                  padding: '1px 5px', borderRadius: 'var(--mf-r-full)',
+                  background: filter === f.v ? 'oklch(1 0 0 / 0.22)' : 'var(--mf-surface-3)',
+                  color: filter === f.v ? 'var(--mf-primary-fg)' : 'var(--mf-text-2)',
+                }}>{f.n}</span>
+              </button>
             ))}
           </div>
         </div>

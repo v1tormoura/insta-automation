@@ -57,6 +57,27 @@ router.post('/lidas', async (_req, res) => {
   }
 });
 
+/**
+ * Apaga as notificações JÁ LIDAS.
+ *
+ * Só as lidas, e é isso que torna a ação segura o bastante para não pedir
+ * confirmação em modal: o que ainda não foi visto não pode sumir por um clique
+ * de limpeza. Uma "apagar tudo" apagaria justamente o aviso que a pessoa ainda
+ * não abriu — e avisos aqui são a única memória de coisas que aconteceram
+ * enquanto o app estava fechado.
+ *
+ * Devolve quantas saíram, para a tela poder dizer o que fez em vez de só
+ * atualizar a lista em silêncio.
+ */
+router.delete('/lidas', async (_req, res) => {
+  try {
+    const r = await Notificacao.deleteMany({ lidaEm: { $ne: null } });
+    res.json({ ok: true, apagadas: r.deletedCount || 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'NOTIFICACAO_ERRO' });
+  }
+});
+
 /** Configuração efetiva + as variáveis que o editor pode oferecer. */
 router.get('/config', async (_req, res) => {
   try {
@@ -212,14 +233,35 @@ router.post('/push/testar', async (req, res) => {
       });
     }
 
+    /* Qual aviso testar, e com qual texto.
+
+       Antes era sempre `storyViews`, e com o texto JÁ SALVO. Isso deixava duas
+       perguntas sem resposta: "o meu aviso de alcance está certo?" e "como vai
+       ficar o texto que acabei de escrever?". A segunda é a mais frequente —
+       ninguém quer salvar para descobrir que a frase ficou ruim.
+
+       `modelo` vindo do corpo tem precedência sobre o gravado, justamente para
+       o editor poder testar rascunho. Só os campos enviados: um título
+       rascunhado com a mensagem salva é um teste legítimo. */
+    const metrica = ['storyViews', 'contentViews', 'reach'].includes(req.body?.metrica)
+      ? req.body.metrica
+      : 'storyViews';
+
     const cfg = await thresholds.carregar();
-    const modelo = cfg.mensagens?.storyViews || templates.PADRAO.storyViews;
+    const salvo = cfg.mensagens?.[metrica] || templates.PADRAO[metrica];
+    const rascunho = req.body?.modelo || {};
+    const modelo = {
+      titulo:   rascunho.titulo   ?? salvo.titulo,
+      mensagem: rascunho.mensagem ?? salvo.mensagem,
+      tema:     rascunho.tema     ?? salvo.tema,
+    };
+
     const vars = templates.contexto({
       conta: { username: 'sua_conta' },
       insight: { igMediaId: 'teste', mediaType: 'STORY', likeCount: 87,
                  commentsCount: 12, shareCount: 4, reach: 940,
                  postedAt: new Date(Date.now() - 2 * 3600 * 1000) },
-      threshold: 1000, valor: 1024, metricType: 'storyViews',
+      threshold: 1000, valor: 1024, metricType: metrica,
     });
 
     /* Usa o MODELO CONFIGURADO, não um texto fixo. Assim o teste também
@@ -234,10 +276,17 @@ router.post('/push/testar', async (req, res) => {
       teste:    true,
     });
 
+    /* O nome do aviso volta junto. Com três testes possíveis, "Enviado para 2
+       aparelhos" não diz QUAL chegou — e quem está calibrando três mensagens
+       precisa saber a qual delas o que apareceu no celular corresponde. */
+    const NOMES = { storyViews: 'Stories', contentViews: 'Conteúdo', reach: 'Alcance' };
+
     res.json({
       ...r,
+      metrica,
+      aviso: NOMES[metrica],
       mensagem: r.enviados
-        ? `Enviado para ${r.enviados} aparelho(s).`
+        ? `Aviso de ${NOMES[metrica]} enviado para ${r.enviados} aparelho(s).`
         : 'Nenhum aparelho inscrito — ligue o aviso no aparelho antes de testar.',
     });
   } catch (err) {
