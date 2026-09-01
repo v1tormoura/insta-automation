@@ -125,3 +125,37 @@ class PublishCommentRequest(BaseModel):
     # extra ao Instagram só para descobrir o dono da mídia.
     media_id: str
     text: str
+
+
+# ── Aquecimento ──────────────────────────────────────────────────────────────
+# Um modelo por ação, e não um único com um campo "acao". O modelo único
+# aceitaria `{acao: "seguir"}` sem `user_id` e só falharia dentro da rota, com
+# uma mensagem que fala do Instagram em vez de falar do pedido malformado.
+
+class WarmupDescobrirRequest(BaseModel):
+    account_id: str
+    # 'reels' (padrão), 'hashtag' ou 'feed'.
+    fonte: str = "reels"
+    hashtag: Optional[str] = None
+    amount: int = 10
+
+
+class WarmupCurtirRequest(BaseModel):
+    account_id: str
+    media_id: str
+
+
+class WarmupVistoRequest(BaseModel):
+    account_id: str
+    media_ids: list[str] = []
+
+
+class WarmupSeguirRequest(BaseModel):
+    account_id: str
+    user_id: str
+
+
+class WarmupStoriesRequest(BaseModel):
+    account_id: str
+    user_id: str
+    amount: int = 5

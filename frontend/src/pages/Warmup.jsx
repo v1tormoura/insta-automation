@@ -12,11 +12,27 @@ const DEFAULT_COMMENTS = [
   'Sensacional!','🙌','Maravilhoso!','Show!','💪','Que demais!',
 ];
 
+/* As duas primeiras ações agem só dentro da PRÓPRIA conta: os comentários dos
+   próprios posts. É o alcance máximo da API oficial, e por isso elas dizem
+   "no seu perfil" — sem essa palavra, "Curtir comentários" parece alcançar o
+   Instagram inteiro, e a pessoa liga o aquecimento esperando outra coisa.
+
+   As de baixo precisam da API mobile e são as que produzem atividade fora da
+   conta, que é o que aquecimento significa. */
 const ACTIONS = [
-  { value:'likes',        label:'Curtir comentários', icon:'❤️', color:'var(--mf-danger-500)', api:'oficial' },
-  { value:'comments',     label:'Responder posts',    icon:'💬', color:'var(--mf-info-500)', api:'oficial' },
-  { value:'scroll_reels', label:'Rolar Reels',        icon:'🎬', color:'var(--mf-mod-publicar)', api:'privada' },
-  { value:'like_posts',   label:'Curtir Explorar',    icon:'🔍', color:'var(--mf-success-500)', api:'privada' },
+  { value:'likes',        label:'Curtir comentários', sub:'no seu perfil',  icon:'❤️', color:'var(--mf-danger-500)', api:'oficial' },
+  { value:'comments',     label:'Responder',          sub:'no seu perfil',  icon:'💬', color:'var(--mf-info-500)', api:'oficial' },
+  { value:'scroll_reels', label:'Ver Reels',          sub:'e curtir alguns', icon:'🎬', color:'var(--mf-mod-publicar)', api:'mobile' },
+  { value:'like_posts',   label:'Curtir Explorar',    sub:'de outros perfis', icon:'🔍', color:'var(--mf-success-500)', api:'mobile' },
+  { value:'view_stories', label:'Ver stories',        sub:'a mais segura',  icon:'👀', color:'var(--mf-info-500)', api:'mobile' },
+  { value:'follow',       label:'Seguir perfis',      sub:'use com cuidado', icon:'➕', color:'var(--mf-warning-500)', api:'mobile' },
+];
+
+/* De onde sai o conteúdo do aquecimento mobile. */
+const FONTES = [
+  { v:'reels',   label:'Reels',   desc:'O que o app mostraria a esta conta. Funciona sem configurar nada.' },
+  { v:'hashtag', label:'Hashtag', desc:'Dentro de um assunto — constrói um sinal de nicho, não aleatório.' },
+  { v:'feed',    label:'Feed',    desc:'Só de quem a conta já segue. Em conta nova, vem vazio.' },
 ];
 
 const INTENSITY = [
@@ -28,11 +44,17 @@ const INTENSITY = [
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const avatarSrc = av => av ? (av.startsWith('http') ? `${API_BASE}/image-proxy?url=${encodeURIComponent(av)}` : `${API_BASE}${av}`) : null;
 const BAD_HEALTH = ['restrita','banida','token_invalido','sessao_expirada','desconectada'];
-const LOG_COLOR  = { like:'var(--mf-danger-500)',comment:'var(--mf-info-500)',follow:'var(--mf-success-500)',scroll:'var(--mf-mod-publicar)',cycle_start:'var(--mf-warning-500)',cycle_done:'var(--mf-success-500)',error:'var(--mf-danger-500)' };
-const LOG_ICON   = { like:'❤️',comment:'💬',follow:'➕',scroll:'🎬',cycle_start:'🔥',cycle_done:'✅',error:'❌' };
+const LOG_COLOR  = { like:'var(--mf-danger-500)',comment:'var(--mf-info-500)',follow:'var(--mf-success-500)',view:'var(--mf-text-3)',story_view:'var(--mf-info-500)',scroll:'var(--mf-mod-publicar)',cycle_start:'var(--mf-warning-500)',cycle_done:'var(--mf-success-500)',error:'var(--mf-danger-500)' };
+const LOG_ICON   = { like:'❤️',comment:'💬',follow:'➕',view:'👁',story_view:'👀',scroll:'🎬',cycle_start:'🔥',cycle_done:'✅',error:'❌' };
 
 function defaultCfg() {
-  return { intensity:'leve', actions:['likes'], intervalMinutes:30, maxDurationHours:2, maxLikes:6, maxComments:2, commentList:DEFAULT_COMMENTS.join('\n') };
+  /* Padrão: ver stories. É a ação mais segura do conjunto — ninguém é
+     notificado, nada é público, e mesmo assim é sinal de atividade. Começar por
+     "curtir comentários no próprio perfil", como antes, é começar pela única
+     que não aquece nada. */
+  return { intensity:'leve', actions:['view_stories'], intervalMinutes:30, maxDurationHours:2,
+           maxLikes:6, maxComments:2, maxFollows:2, maxStories:3,
+           fonte:'reels', hashtags:'', commentList:DEFAULT_COMMENTS.join('\n') };
 }
 
 function fmtNum(v) { const n=Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); }
@@ -92,7 +114,13 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
   const src=avatarSrc(account.avatar);
   const hlth=healthMeta(account.healthStatus);
   const intCfg=INTENSITY.find(i=>i.v===cfg.intensity)||INTENSITY[0];
-  const needsPrivate=cfg.actions?.some(a=>['scroll_reels','like_posts'].includes(a));
+  /* O que habilita estas ações é a sessão do instagrapi, não a da biblioteca
+     antiga do Node. Eram coisas diferentes tratadas como a mesma: a tela dizia
+     "sessão ativa" olhando `hasSession`, e o ciclo tentava usar outra sessão,
+     que não existia. */
+  const acoesMobile=ACTIONS.filter(a=>a.api==='mobile').map(a=>a.value);
+  const needsMobile=cfg.actions?.some(a=>acoesMobile.includes(a));
+  const temMobile=!!account.temMobile;
   const tokenDaysLeft=account.tokenExpiresAt?Math.ceil((new Date(account.tokenExpiresAt)-Date.now())/86400000):null;
   const tokenExpiry=account.tokenExpiresAt?new Date(account.tokenExpiresAt).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}):null;
 
@@ -159,9 +187,12 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
               <span style={{padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',fontSize: 'var(--mf-t-nano)',fontWeight:700,color:hlth.color,background:hlth.bg,border:`1px solid ${hlth.color}30`}}>
                 ● {hlth.label}
               </span>
-              {account.hasSession&&(
-                <span style={{padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',fontSize: 'var(--mf-t-nano)',fontWeight:700,color:'var(--mf-mod-publicar)',background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)'}}>
-                  🔐 API Privada
+              {/* A que importa para o aquecimento é esta. A etiqueta antiga
+                  falava da sessão da biblioteca do Node, que nenhuma ação usa
+                  mais quando existe a mobile. */}
+              {temMobile&&(
+                <span style={{padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',fontSize: 'var(--mf-t-nano)',fontWeight:700,color:'var(--mf-success-500)',background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)'}}>
+                  📱 API Mobile
                 </span>
               )}
             </div>
@@ -261,16 +292,18 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                     <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',marginTop:1}}>Sem senha adicional</div>
                   </div>
                 </div>
-                <div style={{borderRadius: 'var(--mf-r-md)',padding:'8px 12px',border:`1px solid ${account.hasSession?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)'}`,background:account.hasSession?'color-mix(in oklch, var(--mf-success-500) 5%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 5%, transparent)',display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize: 'var(--mf-t-body)'}}>{account.hasSession?'✅':'🔐'}</span>
+                {/* O painel fala da sessão que o ciclo REALMENTE usa. Antes
+                    dizia "Sessão ativa" olhando a sessão da biblioteca antiga
+                    do Node, enquanto o aquecimento tentava usar outra — a tela
+                    afirmava estar pronta e o ciclo terminava vazio. */}
+                <div style={{borderRadius: 'var(--mf-r-md)',padding:'8px 12px',border:`1px solid ${temMobile?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)'}`,background:temMobile?'color-mix(in oklch, var(--mf-success-500) 5%, transparent)':'color-mix(in oklch, var(--mf-mod-publicar) 5%, transparent)',display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize: 'var(--mf-t-body)'}}>{temMobile?'✅':'📱'}</span>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize: 'var(--mf-t-micro)',fontWeight:700,color:account.hasSession?'var(--mf-success-500)':'var(--mf-mod-publicar)'}}>{account.hasSession?'Sessão ativa':'API Privada'}</div>
-                    <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',marginTop:1}}>Reels e Explorar</div>
+                    <div style={{fontSize: 'var(--mf-t-micro)',fontWeight:700,color:temMobile?'var(--mf-success-500)':'var(--mf-mod-publicar)'}}>{temMobile?'API Mobile ativa':'API Mobile'}</div>
+                    <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',marginTop:1}}>Explorar, hashtags e stories</div>
                   </div>
-                  {account.hasSession?(
-                    <button onClick={()=>onLogout(account._id)} style={{fontSize: 'var(--mf-t-nano)',padding:'2px 8px',borderRadius: 'var(--mf-r-xs)',border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)',background:'color-mix(in oklch, var(--mf-danger-500) 7%, transparent)',color:'var(--mf-danger-500)',cursor:'pointer',flexShrink:0}}>Sair</button>
-                  ):(
-                    <button onClick={()=>onOpenLogin({accountId:account._id,username:account.username})} style={{fontSize: 'var(--mf-t-nano)',padding:'2px 8px',borderRadius: 'var(--mf-r-xs)',border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)',background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',color:'var(--mf-mod-publicar)',cursor:'pointer',flexShrink:0}}>Login</button>
+                  {!temMobile&&(
+                    <a href="/accounts" style={{fontSize: 'var(--mf-t-nano)',padding:'2px 8px',borderRadius: 'var(--mf-r-xs)',border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)',background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',color:'var(--mf-mod-publicar)',cursor:'pointer',flexShrink:0,textDecoration:'none',fontWeight:700}}>Ativar</a>
                   )}
                 </div>
               </div>
@@ -298,7 +331,7 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
                   {ACTIONS.map(a=>{
                     const on=cfg.actions?.includes(a.value);
-                    const noSession=a.api==='privada'&&!account.hasSession;
+                    const noSession=a.api==='mobile'&&!temMobile;
                     return (
                       <button key={a.value} onClick={()=>toggleAction(account._id,a.value)} style={{
                         padding:'8px 8px',borderRadius: 'var(--mf-r-sm)',cursor:'pointer',fontWeight:700,fontSize: 'var(--mf-t-micro)',
@@ -309,19 +342,46 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                         display:'flex',alignItems:'center',gap:7,
                       }}>
                         <span style={{fontSize: 'var(--mf-t-sm)'}}>{a.icon}</span>
-                        <div>
+                        <div style={{minWidth:0}}>
                           <div>{a.label}</div>
-                          <div style={{fontSize: 'var(--mf-t-nano)',fontWeight:400,color:noSession&&on?'var(--mf-warning-500)':'var(--mf-text-3)',opacity:.8}}>
-                            {a.api==='privada'?(noSession?'⚠ requer sessão':'✓ sessão ativa'):'API Oficial'}
+                          <div style={{fontSize: 'var(--mf-t-nano)',fontWeight:400,color:noSession&&on?'var(--mf-warning-500)':'var(--mf-text-3)',opacity:.85}}>
+                            {a.api==='mobile'?(noSession?'⚠ requer Mobile':a.sub):`Oficial · ${a.sub}`}
                           </div>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-                {needsPrivate&&!account.hasSession&&(
+                {needsMobile&&!temMobile&&(
                   <div style={{marginTop:8,padding:'8px 12px',borderRadius: 'var(--mf-r-sm)',background:'color-mix(in oklch, var(--mf-warning-500) 7%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)',fontSize: 'var(--mf-t-nano)',color:'var(--mf-warning-500)'}}>
-                    ⚠ Clique em <strong>Login</strong> acima para ativar as ações de API Privada.
+                    ⚠ Estas ações precisam da API Mobile. Em <a href="/accounts" style={{color:'inherit',fontWeight:800}}>Contas</a>, clique no botão <strong>Mobile</strong> da conta — é um clique só.
+                  </div>
+                )}
+
+                {/* Fonte do conteúdo. Só aparece quando há ação mobile ligada:
+                    para "curtir comentários no próprio perfil" ela não decide
+                    nada, e um campo que não afeta nada é ruído. */}
+                {needsMobile&&(
+                  <div style={{marginTop:10}}>
+                    <div style={labelStyle}>De onde vem o conteúdo</div>
+                    <div style={{display:'flex',gap:6}}>
+                      {FONTES.map(f=>(
+                        <button key={f.v} onClick={()=>updateCfg(account._id,'fonte',f.v)} title={f.desc} style={{
+                          flex:1,padding:'7px 0',borderRadius: 'var(--mf-r-sm)',cursor:'pointer',fontWeight:700,fontSize: 'var(--mf-t-micro)',
+                          background:cfg.fonte===f.v?'color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)':'var(--bg3)',
+                          color:cfg.fonte===f.v?'var(--mf-mod-publicar)':'var(--mf-text-3)',
+                          border:`1px solid ${cfg.fonte===f.v?'color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)':'var(--border)'}`,
+                        }}>{f.label}</button>
+                      ))}
+                    </div>
+                    <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',marginTop:4}}>
+                      {FONTES.find(f=>f.v===cfg.fonte)?.desc}
+                    </div>
+                    {cfg.fonte==='hashtag'&&(
+                      <input value={cfg.hashtags||''} onChange={e=>updateCfg(account._id,'hashtags',e.target.value)}
+                        placeholder="moda, estilo, lookdodia — separadas por vírgula"
+                        style={{...inputStyle,marginTop:6}}/>
+                    )}
                   </div>
                 )}
               </div>
@@ -338,6 +398,21 @@ function AccountCard({ account, cfg, expanded, onExpand, onStart, onStop, onOpen
                   <div style={{flex:1}}>
                     <div style={labelStyle}>Max comentários</div>
                     <input type="number" min={1} max={50} value={cfg.maxComments} onChange={e=>updateCfg(account._id,'maxComments',Number(e.target.value))} style={inputStyle}/>
+                  </div>
+                )}
+                {cfg.actions?.includes('view_stories')&&(
+                  <div style={{flex:1}}>
+                    <div style={labelStyle}>Max perfis (stories)</div>
+                    <input type="number" min={0} max={30} value={cfg.maxStories} onChange={e=>updateCfg(account._id,'maxStories',Number(e.target.value))} style={inputStyle}/>
+                  </div>
+                )}
+                {cfg.actions?.includes('follow')&&(
+                  <div style={{flex:1}}>
+                    {/* Mínimo zero de propósito: "ligar a ação e não seguir
+                        ninguém" é uma escolha válida enquanto se observa como a
+                        conta reage. */}
+                    <div style={labelStyle}>Max follows</div>
+                    <input type="number" min={0} max={20} value={cfg.maxFollows} onChange={e=>updateCfg(account._id,'maxFollows',Number(e.target.value))} style={inputStyle}/>
                   </div>
                 )}
               </div>
@@ -478,8 +553,12 @@ export default function Warmup() {
           actions:a.warmupActions?.length?a.warmupActions:['likes'],
           intervalMinutes:a.warmupInterval||30,
           maxDurationHours:a.warmupMaxDuration??2,
-          maxLikes:a.warmupMaxLikes||6,
-          maxComments:a.warmupMaxComments||2,
+          maxLikes:a.warmupMaxLikes??6,
+          maxComments:a.warmupMaxComments??2,
+          maxFollows:a.warmupMaxFollows??2,
+          maxStories:a.warmupMaxStories??3,
+          fonte:a.warmupFonte||'reels',
+          hashtags:(a.warmupHashtags||[]).join(', '),
           commentList:(a.warmupComments?.length?a.warmupComments:DEFAULT_COMMENTS).join('\n'),
         };
       });
@@ -503,7 +582,14 @@ export default function Warmup() {
   async function startWarmup(id){
     const cfg=configs[id]; if(!cfg?.actions?.length) return toast.warning('Selecione ao menos uma ação.');
     const comments=cfg.commentList.split('\n').map(s=>s.trim()).filter(Boolean);
-    try{ await api.post(`/warmup/${id}/start`,{...cfg,commentList:comments,maxDurationHours:cfg.maxDurationHours||0}); toast.success('Aquecimento iniciado!'); load(); loadLogs(); }
+    const tags=String(cfg.hashtags||'').split(/[,\n]/).map(t=>t.replace(/^#/,'').trim()).filter(Boolean);
+    try{
+      await api.post(`/warmup/${id}/start`,{
+        ...cfg, commentList:comments, hashtags:tags,
+        maxDurationHours:cfg.maxDurationHours||0,
+      });
+      toast.success('Aquecimento iniciado!'); load(); loadLogs();
+    }
     catch(err){ toast.error(err.response?.data?.error||err.message); }
   }
 

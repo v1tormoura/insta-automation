@@ -29,6 +29,15 @@ const LOCK_TTL_MEDIA_INSIGHTS = 150_000;  // ms
 const LOCK_TTL_COMMENT = 45_000;   // ms — acima do timeout, para o lock nunca
                                    // expirar com a requisição ainda em voo
 
+/* Aquecimento: cada chamada é UMA ação no Instagram, não um upload. O que pode
+   demorar é a descoberta, que traz uma lista; curtir e seguir são uma
+   requisição só. O lock fica curto de propósito — o intervalo entre ações do
+   ciclo é medido em dezenas de segundos, e segurar a conta travada durante essa
+   espera impediria a publicação de uma campanha que caísse no meio. */
+const TIMEOUT_WARMUP_DESCOBRIR = 60_000;
+const TIMEOUT_WARMUP_ACAO      = 30_000;
+const LOCK_TTL_WARMUP          = 90_000;
+
 /**
  * HTTP client for the Docker-internal Python instagrapi service.
  *
@@ -503,6 +512,65 @@ class InstagrapiHttpClient {
         media_path: _toContainerPath(postData.media),
         caption:    postData.caption || '',
       }, TIMEOUT_MEDIA);
+      if (result.settings) await this._sm.save(accountId, result.settings);
+      return result;
+    });
+  }
+
+  /* ── Aquecimento ────────────────────────────────────────────────────────
+     Primitivas. O ritmo, os limites e o registro no log ficam no job do Node,
+     que já os tem: repetir a decisão aqui criaria duas versões dela. */
+
+  /**
+   * Mídias para o ciclo agir sobre elas.
+   * @param {Object} account
+   * @param {{fonte?: 'reels'|'hashtag'|'feed', hashtag?: string, amount?: number}} [opcoes]
+   * @returns {Promise<{itens: Array<{media_id,media_pk,code,media_type,user_id,username,like_count}>, fonte: string}>}
+   */
+  async warmupDescobrir(account, { fonte = 'reels', hashtag = '', amount = 10 } = {}) {
+    return this._acaoDeAquecimento(account, '/warmup/descobrir', {
+      fonte, hashtag: hashtag || null, amount,
+    }, TIMEOUT_WARMUP_DESCOBRIR);
+  }
+
+  /** Curte uma mídia devolvida por `warmupDescobrir`. */
+  async warmupCurtir(account, mediaId) {
+    return this._acaoDeAquecimento(account, '/warmup/curtir', { media_id: String(mediaId || '') });
+  }
+
+  /**
+   * Marca mídias como vistas.
+   *
+   * Barata e invisível para terceiros — ninguém é notificado de que você viu um
+   * post. É a ação mais segura do aquecimento, e a única que faz sentido
+   * executar sozinha numa conta recém-criada.
+   */
+  async warmupVisto(account, mediaIds) {
+    return this._acaoDeAquecimento(account, '/warmup/visto', {
+      media_ids: (Array.isArray(mediaIds) ? mediaIds : [mediaIds]).map(String).filter(Boolean),
+    });
+  }
+
+  /** Segue um perfil. A ação mais vigiada — o teto por ciclo é do job. */
+  async warmupSeguir(account, userId) {
+    return this._acaoDeAquecimento(account, '/warmup/seguir', { user_id: String(userId || '') });
+  }
+
+  /** Vê os stories de um perfil e os marca como vistos. */
+  async warmupStories(account, userId, amount = 5) {
+    return this._acaoDeAquecimento(account, '/warmup/stories', {
+      user_id: String(userId || ''), amount,
+    });
+  }
+
+  async _acaoDeAquecimento(account, endpoint, corpo, timeoutMs = TIMEOUT_WARMUP_ACAO) {
+    const accountId = String(account._id);
+    return this._sm.withLock(accountId, LOCK_TTL_WARMUP, async () => {
+      await this.ensureSession(account);
+      const result = await this._post(endpoint, { account_id: accountId, ...corpo }, timeoutMs);
+      /* A sessão volta atualizada a cada ação e precisa ser gravada. Sem isto,
+         a conta acumula estado no serviço e o perde no primeiro reinício — e o
+         sintoma seria a sessão "expirar" sozinha depois de um deploy. */
       if (result.settings) await this._sm.save(accountId, result.settings);
       return result;
     });

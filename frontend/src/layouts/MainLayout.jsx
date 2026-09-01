@@ -220,14 +220,20 @@ export default function MainLayout({ children }) {
      A leitura tolera localStorage indisponível (janela anônima, storage
      bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
      inteiro em vez de só perder uma preferência. */
+  /* Chave nova de propósito. A anterior (`mf-sidebar-aberta`) guardava escolhas
+     feitas com o botão que dizia "Recolher" enquanto expandia — quem clicou
+     ficou com "fixar aberta" gravado sem ter pedido isso, e o hover parava de
+     funcionar para sempre. Reaproveitar a chave preservaria justamente o
+     engano; com uma nova, todo mundo volta ao rail e quem realmente quer a
+     barra presa aberta clica uma vez, agora lendo o que o botão faz. */
   const [recolhida, setRecolhida] = useState(() => {
-    try { return localStorage.getItem('mf-sidebar-aberta') !== '1'; }
+    try { return localStorage.getItem('mf-sidebar-fixa') !== '1'; }
     catch { return true; }
   });
 
   const alternarSidebar = () => setRecolhida(r => {
     const nova = !r;
-    try { localStorage.setItem('mf-sidebar-aberta', nova ? '0' : '1'); } catch { /* sem preferência */ }
+    try { localStorage.setItem('mf-sidebar-fixa', nova ? '0' : '1'); } catch { /* sem preferência */ }
     return nova;
   });
   const [paleta, setPaleta]       = useState(false);
@@ -299,9 +305,28 @@ export default function MainLayout({ children }) {
           </nav>
 
           <div style={{ padding: 'var(--mf-3)', borderTop: '1px solid var(--mf-border)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-1)' }}>
-            <button className="mf-nav-item" onClick={alternarSidebar}>
-              <span className="mf-nav-item__ico">{ICONS.chevron}</span>
-              <span className="mf-nav-item__txt"><span className="mf-nav-item__t">Recolher</span></span>
+            {/* O rótulo segue o ESTADO, não o botão.
+
+                Antes dizia "Recolher" sempre, e a armadilha era esta: no rail,
+                passar o cursor abre a barra e revela este botão ainda dizendo
+                "Recolher" — clicá-lo FIXA a barra aberta e grava a preferência.
+                A partir daí o cursor não abre mais nada, porque não há mais o
+                que abrir, e o produto fica com a barra presa aberta sem
+                caminho visível de volta. Foi o que aconteceu.
+
+                Com o rótulo honesto, o mesmo clique continua fazendo o mesmo,
+                mas a pessoa lê antes o que vai acontecer. */}
+            <button className="mf-nav-item" onClick={alternarSidebar}
+              data-dica={recolhida ? 'Fixar aberta' : 'Recolher'}
+              title={recolhida ? 'Fixar a barra aberta' : 'Recolher — depois basta passar o cursor para abrir'}
+              aria-label={recolhida ? 'Fixar a barra aberta' : 'Recolher a barra'}>
+              <span className="mf-nav-item__ico"
+                style={{ transform: recolhida ? 'rotate(180deg)' : 'none', transition: 'transform var(--mf-normal) var(--mf-ease-out)' }}>
+                {ICONS.chevron}
+              </span>
+              <span className="mf-nav-item__txt">
+                <span className="mf-nav-item__t">{recolhida ? 'Fixar aberta' : 'Recolher'}</span>
+              </span>
             </button>
             <button className="mf-nav-item" onClick={logout}>
               <span className="mf-nav-item__ico">{ICONS.logout}</span>

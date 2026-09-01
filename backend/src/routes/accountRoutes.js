@@ -1819,6 +1819,87 @@ router.post('/:id/instagrapi-login', async (req, res) => {
 });
 
 /**
+ * POST /accounts/:id/mobile-1clique
+ *
+ * Entrar na API mobile sem digitar nada.
+ *
+ * ── O que NÃO dá para fazer, e por quê
+ *
+ * O token da API oficial não vira sessão mobile. Não é limitação nossa nem
+ * falta de implementação: são dois sistemas de autenticação diferentes. O
+ * token oficial é emitido pela Meta por OAuth e só é aceito nos endereços
+ * públicos da Graph. A sessão mobile é a de um APARELHO logado no aplicativo,
+ * com identificador de dispositivo próprio, e o Instagram só a emite para quem
+ * apresenta a senha (ou um sessionid já existente). Não há conversão entre as
+ * duas, em nenhuma direção.
+ *
+ * ── O que esta rota faz
+ *
+ * Encadeia os dois caminhos que dispensam digitação:
+ *
+ *   1. A sessão já existe e continua válida → só recarrega. Sem senha, sem rede
+ *      até o Instagram além do necessário. É o caso da maioria das vezes.
+ *   2. A senha da conta está guardada → faz o login com ela.
+ *
+ * Sobra um único caso em que é preciso digitar: conta sem senha guardada e sem
+ * sessão. Aí a resposta diz `SEM_SENHA`, e a tela pede a senha UMA vez — dali
+ * em diante este botão resolve sozinho.
+ */
+router.post('/:id/mobile-1clique', async (req, res) => {
+  const account = await Account.findById(req.params.id).catch(() => null);
+  if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
+
+  const accountId = String(account._id);
+  const http = _getHttp();
+
+  try {
+    await _withLoginLock(accountId, async () => {
+      // 1. Sessão existente
+      const restore = await _tryRestoreSession(account, http);
+      if (restore.networkError) { _handleInstagrapiError(restore.err, res); return; }
+      if (restore.restored) {
+        await _markInstagrapiConnected(accountId);
+        await _fetchAndSaveProfile(http, account, account.username);
+        broadcast('accounts', { action: 'synced' });
+        res.json({ success: true, via: 'sessao', accountId,
+                   message: `@${account.username} — sessão mobile reativada` });
+        return;
+      }
+
+      // 2. Senha guardada
+      const senha = account.password;
+      if (!senha) {
+        /* Código próprio, e não um erro genérico: a tela precisa distinguir
+           "faltou informação, peça uma vez" de "o Instagram recusou", que têm
+           reações completamente diferentes. */
+        res.status(409).json({
+          code: 'SEM_SENHA',
+          error: 'Esta conta ainda não tem senha guardada.',
+          comoResolver: 'Informe a senha uma vez. Depois disso, este botão entra sozinho.',
+        });
+        return;
+      }
+
+      const result = await http.login(account, account.username, senha, '');
+
+      if (result.status === 'TWO_FACTOR_REQUIRED') {
+        res.status(202).json({ status: 'TWO_FACTOR_REQUIRED', accountId,
+                               message: _igUserMessage('TWO_FACTOR_REQUIRED') });
+        return;
+      }
+
+      await _markInstagrapiConnected(accountId);
+      await _fetchAndSaveProfile(http, account, account.username);
+      broadcast('accounts', { action: 'synced' });
+      res.json({ success: true, via: 'senha', accountId,
+                 message: `@${account.username} conectada na API Mobile` });
+    });
+  } catch (err) {
+    _handleInstagrapiError(err, res, accountId);
+  }
+});
+
+/**
  * POST /accounts/:id/instagrapi-disconnect
  * Remove a sessão instagrapi e restaura o provider para 'official'.
  */

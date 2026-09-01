@@ -1,7 +1,7 @@
 import inspect
 import logging
 from fastapi import FastAPI
-from .routes import session, publish, profile, insights
+from .routes import session, publish, profile, insights, warmup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,6 +21,7 @@ app.include_router(session.router)
 app.include_router(publish.router)
 app.include_router(profile.router)
 app.include_router(insights.router)
+app.include_router(warmup.router)
 
 
 @app.on_event("startup")

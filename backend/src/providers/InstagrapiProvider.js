@@ -104,6 +104,38 @@ class InstagrapiProvider extends InstagramProvider {
     return this._http.changeProfilePicture(account, imagePath);
   }
 
+  /* ── Aquecimento ──────────────────────────────────────────────────────────
+     Primitivas da API mobile. O aquecimento pela API oficial só alcança os
+     comentários dos posts da própria conta — a conta conversando consigo
+     mesma, que não é atividade orgânica nenhuma. Por aqui ele alcança o
+     Explorar, as hashtags, o feed e os stories dos outros, que é o que uma
+     pessoa de verdade faz no aplicativo. */
+
+  async warmupDescobrir(account, opcoes) {
+    if (!this._http) throw this._notReady('warmupDescobrir');
+    return this._http.warmupDescobrir(account, opcoes);
+  }
+
+  async warmupCurtir(account, mediaId) {
+    if (!this._http) throw this._notReady('warmupCurtir');
+    return this._http.warmupCurtir(account, mediaId);
+  }
+
+  async warmupVisto(account, mediaIds) {
+    if (!this._http) throw this._notReady('warmupVisto');
+    return this._http.warmupVisto(account, mediaIds);
+  }
+
+  async warmupSeguir(account, userId) {
+    if (!this._http) throw this._notReady('warmupSeguir');
+    return this._http.warmupSeguir(account, userId);
+  }
+
+  async warmupStories(account, userId, amount) {
+    if (!this._http) throw this._notReady('warmupStories');
+    return this._http.warmupStories(account, userId, amount);
+  }
+
   async invalidateSession(accountId) {
     await this.sessionManager.invalidate(String(accountId));
     if (this._http) await this._http.evictSession(String(accountId));

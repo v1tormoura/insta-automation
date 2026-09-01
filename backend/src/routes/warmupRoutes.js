@@ -9,7 +9,7 @@ const { startWarmup, stopWarmupAndSave, getActiveJobs } = require('../jobs/warmu
 // GET /warmup — lista status de todas as contas
 router.get('/', async (req, res) => {
   try {
-    const accounts = await Account.find({}, 'username avatar name followers following postsCount accountType healthStatus tokenExpiresAt warmupActive warmupIntensity warmupActions warmupInterval warmupMaxLikes warmupMaxComments warmupMaxFollows warmupComments igSession');
+    const accounts = await Account.find({}, 'username avatar name followers following postsCount accountType healthStatus tokenExpiresAt warmupActive warmupIntensity warmupActions warmupInterval warmupMaxLikes warmupMaxComments warmupMaxFollows warmupMaxStories warmupComments warmupFonte warmupHashtags warmupMaxDuration igSession instagrapiSession provider');
     const activeIds = getActiveJobs();
     const data = accounts.map(a => ({
       _id:             a._id,
@@ -32,6 +32,16 @@ router.get('/', async (req, res) => {
       warmupComments:      a.warmupComments    || [],
       running:         activeIds.includes(String(a._id)),
       hasSession:      !!(a.igSession && a.igSession !== 'use_cookies' && a.igSession.length > 10),
+      warmupMaxStories: a.warmupMaxStories ?? 3,
+      warmupMaxDuration: a.warmupMaxDuration || 0,
+      warmupFonte:     a.warmupFonte || 'reels',
+      warmupHashtags:  a.warmupHashtags || [],
+      provider:        a.provider || 'official',
+      /* O que decide quais ações funcionam. Sem sessão mobile, seguir e ver
+         stories não têm por onde acontecer, e a tela precisa dizer isso ANTES
+         de a pessoa ligar o aquecimento e esperar meia hora por um ciclo
+         vazio. Vai como booleano: a sessão em si nunca sai daqui. */
+      temMobile:       !!a.instagrapiSession,
     }));
     res.json(data);
   } catch (err) {
@@ -97,8 +107,22 @@ router.post('/:id/logout', async (req, res) => {
 // POST /warmup/:id/start
 router.post('/:id/start', async (req, res) => {
   try {
-    const { intensity = 'leve', actions = ['likes'], intervalMinutes = 30, maxLikes = 6, maxComments = 2, maxFollows = 4, commentList = [] } = req.body;
-    const result = await startWarmup(req.params.id, { intensity, actions, intervalMinutes, maxLikes, maxComments, maxFollows, commentList });
+    /* `maxDurationHours` estava fora desta lista e chegava sempre indefinido ao
+       job — o encerramento automático por duração existia, era configurável na
+       tela, e nunca disparava. Campo que a interface oferece e o servidor
+       descarta é pior que campo ausente: a pessoa confia nele. */
+    const {
+      intensity = 'leve', actions = ['likes'], intervalMinutes = 30,
+      maxLikes = 6, maxComments = 2, maxFollows = 4, maxStories = 3,
+      commentList = [], maxDurationHours = 0,
+      fonte = 'reels', hashtags = [],
+    } = req.body;
+
+    const result = await startWarmup(req.params.id, {
+      intensity, actions, intervalMinutes,
+      maxLikes, maxComments, maxFollows, maxStories,
+      commentList, maxDurationHours, fonte, hashtags,
+    });
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });

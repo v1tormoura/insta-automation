@@ -297,6 +297,26 @@ const accountSchema = new mongoose.Schema(
     warmupMaxFollows: { type: Number, default: 4 },
     warmupComments: { type: [String], default: [] },
 
+    /* De onde sai o conteúdo do aquecimento mobile.
+
+       'reels'   — o que o aplicativo mostraria a esta conta. Padrão porque
+                   funciona sem configuração e sem a conta seguir ninguém.
+       'hashtag' — dentro de um assunto. Uma conta de moda curtindo moda
+                   constrói um sinal; curtindo o que calhar, não constrói nada.
+       'feed'    — só serve a quem já segue gente. Em conta nova devolve vazio,
+                   e por isso não é o padrão. */
+    warmupFonte:    { type: String, enum: ['reels', 'hashtag', 'feed'], default: 'reels' },
+    warmupHashtags: { type: [String], default: [] },
+    warmupMaxStories: { type: Number, default: 3 },
+
+    /* Estes dois o job já gravava — e o mongoose descartava, porque não
+       estavam declarados aqui. Em modo estrito (o padrão), um campo fora do
+       schema some do `findByIdAndUpdate` sem erro nenhum: o job "salvava" a
+       duração máxima, a leitura seguinte não a encontrava, e o encerramento
+       automático nunca acontecia. */
+    warmupMaxDuration: { type: Number, default: 0 },
+    warmupStartedAt:   { type: Date,   default: null },
+
     // ─── Divulgação automática (Promo) ───────────────────────────────────
     promoEnabled:        { type: Boolean, default: false },
     promoLink:           { type: String,  default: '' },

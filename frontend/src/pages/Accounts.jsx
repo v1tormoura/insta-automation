@@ -376,6 +376,50 @@ export default function Accounts() {
      acrescenta é a única coisa que o outro token não faz — a figurinha de link,
      que a Meta só libera para token emitido para uma Página. */
 
+  /* ── Entrar na API mobile em um clique ────────────────────────────────────
+
+     O token da API oficial NÃO vira sessão mobile — são dois sistemas de
+     autenticação diferentes. O oficial é emitido pela Meta por OAuth e só vale
+     nos endereços públicos da Graph; a sessão mobile é a de um aparelho logado
+     no aplicativo, e o Instagram só a emite para quem apresenta a senha ou um
+     sessionid. Não existe conversão entre as duas.
+
+     O que dá para eliminar é a digitação repetida: o servidor tenta primeiro
+     reativar a sessão que já existe e, se não houver, entra com a senha
+     guardada. Só sobra um caso pedindo teclado — conta sem senha guardada e sem
+     sessão — e aí é uma vez só. */
+
+  async function entrarNoMobile(account) {
+    const key = `mobile:${account._id}`;
+    setConnecting(p => ({ ...p, [key]: true }));
+    try {
+      const { data } = await api.post(`/accounts/${account._id}/mobile-1clique`);
+      if (data?.status === 'TWO_FACTOR_REQUIRED') {
+        showToast('warning', 'Falta o código', 'Esta conta usa verificação em duas etapas.');
+        openInstaModal(account);
+        return;
+      }
+      showToast('success', 'API Mobile ativa',
+        data?.via === 'sessao'
+          ? `@${account.username} — sessão reativada, sem precisar da senha`
+          : `@${account.username} entrou com a senha guardada`);
+      loadAccounts();
+    } catch (err) {
+      const d = err.response?.data || {};
+      if (d.code === 'SEM_SENHA') {
+        /* Uma vez só. O modal já existe e trata 2FA e desafio — abrir aqui
+           evita construir um segundo caminho de login que teria de aprender as
+           mesmas coisas de novo. */
+        showToast('info', 'Senha necessária uma vez', d.comoResolver || '');
+        openInstaModal(account);
+        return;
+      }
+      showToast('error', 'Não foi possível entrar', d.error || err.message);
+    } finally {
+      setConnecting(p => ({ ...p, [key]: false }));
+    }
+  }
+
   async function ativarLinkEmStory(account) {
     const key = `link:${account._id}`;
     setConnecting(p => ({ ...p, [key]: true }));
@@ -1482,6 +1526,27 @@ export default function Accounts() {
                       border:     needsRecon ? '1px solid color-mix(in oklch, var(--mf-danger-500) 28%, transparent)' : '1px solid color-mix(in oklch, var(--mf-success-500) 25%, transparent)',
                     }}
                   ><IcoCheck /> API</button>
+
+                  {/* API Mobile em um clique. É ela que destrava o aquecimento
+                      de verdade (Explorar, hashtags, stories de outros perfis) e
+                      o story com link sem depender de Página do Facebook. */}
+                  <button
+                    onClick={() => account.hasInstagrapiSession
+                      ? openInstaModal(account)
+                      : entrarNoMobile(account)}
+                    disabled={!!connecting[`mobile:${account._id}`]}
+                    title={account.hasInstagrapiSession
+                      ? 'API Mobile ativa — clique para gerenciar a sessão'
+                      : 'Entrar na API Mobile. Destrava o aquecimento completo e o story com link.'}
+                    style={{ display:'flex', alignItems:'center', gap:4, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
+                      background: account.hasInstagrapiSession ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : 'var(--mf-border-subtle)',
+                      color:      account.hasInstagrapiSession ? 'var(--mf-success-500)' : 'var(--mf-text-3)',
+                      border:     account.hasInstagrapiSession ? '1px solid color-mix(in oklch, var(--mf-success-500) 28%, transparent)' : '1px solid var(--mf-border)',
+                    }}
+                  >
+                    {connecting[`mobile:${account._id}`] ? <span className="mf-spin" /> : <IcoPhone />}
+                    <span>{account.hasInstagrapiSession ? 'Mobile on' : 'Mobile'}</span>
+                  </button>
 
                   {/* Link em story. Só para contas da API oficial: nas contas
                       instagrapi o link já sai nativo, e o botão seria um

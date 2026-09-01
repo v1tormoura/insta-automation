@@ -45,10 +45,17 @@ async function log(accountId, username, action, detail = '', opts = {}) {
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const rand  = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+/* Tetos por intensidade.
+
+   `maxFollows` e `maxStories` entraram com o aquecimento mobile. Os números de
+   follow são deliberadamente pequenos em relação aos de curtida: seguir é
+   público, é o que o Instagram mais vigia, e é a ação que uma conta nova menos
+   deveria emitir em rajada. Ver stories é quase de graça, então tem o teto
+   mais alto — é sinal de atividade sem custo de reputação. */
 const INTENSITY_LIMITS = {
-  leve:      { maxReplies: 3,  maxLikes: 5,  maxScrollReels: 5,  maxPostLikes: 3,  delayMin: 8000,  delayMax: 20000 },
-  medio:     { maxReplies: 8,  maxLikes: 15, maxScrollReels: 12, maxPostLikes: 8,  delayMin: 4000,  delayMax: 10000 },
-  agressivo: { maxReplies: 15, maxLikes: 30, maxScrollReels: 20, maxPostLikes: 15, delayMin: 2000,  delayMax: 6000  },
+  leve:      { maxReplies: 3,  maxLikes: 5,  maxScrollReels: 5,  maxPostLikes: 3,  maxFollows: 2, maxStories: 3, delayMin: 8000,  delayMax: 20000 },
+  medio:     { maxReplies: 8,  maxLikes: 15, maxScrollReels: 12, maxPostLikes: 8,  maxFollows: 5, maxStories: 8, delayMin: 4000,  delayMax: 10000 },
+  agressivo: { maxReplies: 15, maxLikes: 30, maxScrollReels: 20, maxPostLikes: 15, maxFollows: 10, maxStories: 15, delayMin: 2000,  delayMax: 6000  },
 };
 
 const COMMENT_TEMPLATES = [
@@ -56,6 +63,35 @@ const COMMENT_TEMPLATES = [
   'Que lindo!', '😍', 'Top demais!', '💯', 'Amei!', '👌',
   'Sensacional!', '🙌', 'Maravilhoso!', 'Show!', '💪', 'Que demais!',
 ];
+
+/**
+ * Os tetos que valem para este ciclo.
+ *
+ * A intensidade dá o piso e, sobretudo, o INTERVALO entre ações — que é a parte
+ * que a pessoa não deveria ter de calibrar. Por cima dela vêm os números
+ * escolhidos no formulário.
+ *
+ * Isto era um defeito de verdade: o formulário gravava `warmupMaxLikes`,
+ * `warmupMaxComments` e `warmupMaxFollows` na conta, e o ciclo lia apenas
+ * `INTENSITY_LIMITS`. Os campos existiam, salvavam, apareciam preenchidos ao
+ * reabrir — e não tinham efeito nenhum sobre o que acontecia. O sintoma é o
+ * pior tipo: nada quebra, o número simplesmente é ignorado.
+ *
+ * Zero é uma escolha legítima ("não quero follows"), então a checagem é por
+ * `Number.isFinite` e não por valor verdadeiro — `|| padrão` transformaria zero
+ * no padrão e tiraria justamente a opção mais conservadora.
+ */
+function limitesDaConta(account, intensity) {
+  const base = INTENSITY_LIMITS[intensity] || INTENSITY_LIMITS.leve;
+  const escolhido = (valor, padrao) => (Number.isFinite(valor) && valor >= 0 ? valor : padrao);
+  return {
+    ...base,
+    maxLikes:   escolhido(account.warmupMaxLikes,    base.maxLikes),
+    maxReplies: escolhido(account.warmupMaxComments, base.maxReplies),
+    maxFollows: escolhido(account.warmupMaxFollows,  base.maxFollows),
+    maxStories: escolhido(account.warmupMaxStories,  base.maxStories),
+  };
+}
 
 function pickComment(templates) {
   const list = (templates?.length) ? templates : COMMENT_TEMPLATES;
@@ -149,7 +185,7 @@ async function likeExplorePosts(account, limits, results) {
 async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
   const token  = account.accessToken;
   const userId = account.igUserId;
-  const limits = INTENSITY_LIMITS[intensity] || INTENSITY_LIMITS.leve;
+  const limits = limitesDaConta(account, intensity);
   const commentTemplates = account.warmupComments?.length ? account.warmupComments : COMMENT_TEMPLATES;
 
   const results = { likes: 0, comments: 0, follows: 0, errors: [] };
@@ -157,14 +193,46 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
   await log(account._id, account.username, 'cycle_start',
     `Iniciando ciclo ${intensity}`, { status: 'info' });
 
-  // ── Rolar Reels (Private API) ──
-  if (actions.includes('scroll_reels')) {
-    await scrollReels(account, limits, results);
-  }
+  /* ── Ações de descoberta ────────────────────────────────────────────────
 
-  // ── Curtir posts do Explorar (Private API) ──
-  if (actions.includes('like_posts')) {
-    await likeExplorePosts(account, limits, results);
+     Com sessão mobile, elas vão pelo instagrapi e realmente acontecem. Sem
+     ela, seguem pela biblioteca antiga do Node, que exige uma sessão que
+     quase nenhuma conta tem — o caminho que vinha registrando "requer sessão
+     privada" e devolvendo ciclos de zero ação.
+
+     O `if` é por SESSÃO, não por `provider`: uma conta marcada como oficial que
+     fez o login mobile depois tem de usar o caminho que funciona, e é
+     exatamente esse o fluxo novo (conecta pela API oficial, depois entra no
+     mobile pelo card de Contas). */
+  const querDescoberta = actions.includes('scroll_reels')
+    || actions.includes('like_posts')
+    || actions.includes('follow')
+    || actions.includes('view_stories');
+
+  if (querDescoberta) {
+    const { ciclo, temSessaoMobile } = require('../services/aquecimentoMobile');
+
+    if (temSessaoMobile(account)) {
+      const r = await ciclo(account, {
+        limites: limits,
+        acoes:   actions,
+        registrar: (acao, detalhe, extras) =>
+          log(account._id, account.username, acao, detalhe, extras),
+      });
+      results.likes   += r.likes;
+      results.follows += r.follows;
+      results.views    = (results.views || 0) + r.views;
+      results.storyViews = (results.storyViews || 0) + r.storyViews;
+      results.errors.push(...r.errors);
+    } else {
+      if (actions.includes('scroll_reels')) await scrollReels(account, limits, results);
+      if (actions.includes('like_posts'))   await likeExplorePosts(account, limits, results);
+      if (actions.includes('follow') || actions.includes('view_stories')) {
+        await log(account._id, account.username, 'error',
+          'Seguir e ver stories só existem pela API mobile — entre pelo card "Mobile" da conta em Contas',
+          { status: 'error' });
+      }
+    }
   }
 
   // ── Ações via API Oficial ──
@@ -227,7 +295,19 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
     }
   }
 
-  const summary = `Ciclo concluído — ${results.likes} curtidas, ${results.comments} respostas`;
+  /* O resumo lista só o que aconteceu. Antes ele dizia sempre "0 curtidas, 0
+     comentários, 0 follows", e um resumo que só sabe dizer zero é o mesmo que
+     não ter resumo — não distingue "nada a fazer" de "nada funcionou". */
+  const partes = [];
+  if (results.likes)      partes.push(`${results.likes} curtidas`);
+  if (results.comments)   partes.push(`${results.comments} respostas`);
+  if (results.follows)    partes.push(`${results.follows} follows`);
+  if (results.views)      partes.push(`${results.views} visualizações`);
+  if (results.storyViews) partes.push(`${results.storyViews} stories vistos`);
+
+  const summary = partes.length
+    ? `Ciclo concluído — ${partes.join(', ')}`
+    : `Ciclo concluído sem ações${results.errors.length ? ` — ${results.errors[0]}` : ''}`;
   await log(account._id, account.username, 'cycle_done', summary, { status: 'success' });
   broadcast('warmup', { action: 'cycle_done', username: account.username, ...results });
   return { status: 'ok', ...results };
@@ -236,7 +316,7 @@ async function warmupAccount(account, intensity = 'leve', actions = ['likes']) {
 /* ──────────────────── Job scheduler ──────────────────── */
 const _activeJobs = new Map();
 
-async function startWarmup(accountId, { intensity, actions, intervalMinutes, maxLikes, maxComments, maxFollows, commentList, maxDurationHours }) {
+async function startWarmup(accountId, { intensity, actions, intervalMinutes, maxLikes, maxComments, maxFollows, maxStories, commentList, maxDurationHours, fonte, hashtags }) {
   const account = await Account.findById(accountId);
   if (!account) throw new Error('Conta não encontrada');
 
@@ -280,7 +360,12 @@ async function startWarmup(accountId, { intensity, actions, intervalMinutes, max
     warmupMaxLikes:      maxLikes    || 6,
     warmupMaxComments:   maxComments || 2,
     warmupMaxFollows:    maxFollows  || 4,
+    warmupMaxStories:    maxStories  || 3,
     warmupComments:      Array.isArray(commentList) ? commentList : [],
+    warmupFonte:         ['reels', 'hashtag', 'feed'].includes(fonte) ? fonte : 'reels',
+    warmupHashtags:      Array.isArray(hashtags)
+      ? hashtags.map(h => String(h || '').replace(/^#/, '').trim()).filter(Boolean).slice(0, 12)
+      : [],
     warmupMaxDuration:   maxDurationHours || 0,
     warmupStartedAt:     new Date(),
   });
