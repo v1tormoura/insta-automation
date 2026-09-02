@@ -169,7 +169,11 @@ describe.each(Object.entries(TEMAS))('tema %s', (nome, tema) => {
       : bloco(cssTokens, '[data-mf] {');
 
     const porReferencia = INTERFACE.filter(nome => {
-      const m = fonte.match(new RegExp(`--${nome}\s*:\s*([^;]+);`));
+      /* `\\s` com barra dupla: dentro de template literal, `\s` não é escape
+         reconhecido e vira só `s` — a regex passaria a procurar a letra "s".
+         Funcionava por acaso (o `[^;]+` absorvia os espaços), e um teste que
+         funciona por acaso é um teste que para de funcionar sem aviso. */
+      const m = fonte.match(new RegExp(`--${nome}\\s*:\\s*([^;]+);`));
       return m && m[1].includes('var(');
     });
 

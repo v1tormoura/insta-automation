@@ -701,7 +701,23 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   box-shadow: var(--mf-glow-primary);
 }
 .mf-side__name { font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
-.mf-side__nav { flex: 1; overflow-y: auto; padding: var(--mf-3) var(--mf-2); }
+/* `overflow-x: hidden` EXPLÍCITO, e não por descuido.
+
+   A regra que morde: quando um eixo deixa de ser `visible`, o outro também
+   não pode continuar sendo — `overflow-y: auto` sozinho faz o `overflow-x`
+   computar como `auto`. Basta um rótulo um pixel mais largo que o rail e
+   nasce uma barra horizontal, junto com a possibilidade de arrastar a lista
+   para o lado e esconder os ícones.
+
+   Isso existia calado enquanto a barra era cinza sobre fundo escuro. Ao
+   colocar o ciano, ela apareceu — o defeito não é novo, a visibilidade é. */
+.mf-side__nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--mf-3) var(--mf-2);
+  overscroll-behavior: contain;
+}
 /* A barra da lateral tinha regra própria em cinza, e ela ganhava da global por
    ser mais específica — então o único lugar onde a barra é vista o tempo todo
    era justamente o que ficava de fora do ciano. */
@@ -808,29 +824,27 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 .mf-app[data-collapsed='true'] .mf-side__name { display: none; }
 .mf-app[data-collapsed='true'] .mf-nav-item { justify-content: center; padding-inline: 0; }
 
-/* Dica do rail. O `title` nativo do navegador leva quase um segundo para
-   aparecer — tempo suficiente para quem procura um destino desistir e abrir a
-   sidebar. Desenhada, ela responde na hora. Só existe recolhida: aberta, o
-   rótulo já está ali ao lado. */
-.mf-app[data-collapsed='true'] .mf-nav-item[data-dica]::after {
-  content: attr(data-dica);
-  position: absolute; left: calc(100% + 10px); top: 50%;
-  transform: translateY(-50%) translateX(-4px);
-  background: var(--mf-surface-3); color: var(--mf-text);
-  border: 1px solid var(--mf-border-strong);
-  padding: var(--mf-1) var(--mf-3); border-radius: var(--mf-r-sm);
-  font-size: var(--mf-t-xs); font-weight: 500; white-space: nowrap;
-  box-shadow: var(--mf-shadow-2);
-  opacity: 0; pointer-events: none;
-  transition: opacity var(--mf-fast) var(--mf-ease-out),
-              transform var(--mf-fast) var(--mf-ease-out);
-  z-index: var(--mf-z-drawer);
-}
-.mf-app[data-collapsed='true'] .mf-nav-item[data-dica]:hover::after {
-  opacity: 1; transform: translateY(-50%) translateX(0);
-}
+/* ── A dica do rail foi removida ───────────────────────────────────
 
-/* ── Barra superior ──────────────────────────────────────────────────────*/
+   Era um `::after` com `left: calc(100% + 10px)` — uma caixa saindo para fora
+   da barra. Elemento absoluto fora do conteúdo conta para a rolagem do
+   contêner, e era ele que criava a BARRA HORIZONTAL na lateral: dava para
+   arrastar a lista para o lado e esconder os ícones. Invisível enquanto a
+   barra de rolagem era cinza sobre fundo escuro; óbvia depois do ciano.
+
+   E ela nunca aparecia. Em nenhum estado alcançável:
+
+     ≥ 1025px com mouse — passar o cursor no item é passar o cursor na barra,
+                          e a barra abre; havia até uma regra explicitamente
+                          zerando a opacidade nesse caso;
+     < 1025px           — vira gaveta, e a gaveta mostra os rótulos;
+     toque              — não existe hover.
+
+   Ou seja: custo real, benefício zero. O atributo `data-dica` continua sendo
+   escrito no HTML — se um dia a abertura por cursor sair, a dica volta com
+   este bloco de volta e nada mais.
+
+   ── Barra superior ──────────────────────────────────────────────────────*/
 .mf-top {
   height: var(--mf-topbar); flex-shrink: 0;
   display: flex; align-items: center; gap: var(--mf-3);
@@ -1198,7 +1212,9 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   background: transparent; color: var(--mf-text);
   font-size: var(--mf-t-body); outline: none; flex-shrink: 0;
 }
-.mf-cmd__list { overflow-y: auto; padding: var(--mf-2); }
+/* Mesmo motivo do `.mf-side__nav`: um resultado longo não pode virar barra
+   horizontal na paleta de comandos. */
+.mf-cmd__list { overflow-y: auto; overflow-x: hidden; padding: var(--mf-2); }
 .mf-cmd__group { font-size: var(--mf-t-micro); font-weight: 700; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--mf-text-3); padding: var(--mf-3) var(--mf-3) var(--mf-1); }
 .mf-cmd__item {
@@ -1313,7 +1329,9 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
      medição mostrou. Quem rola é o `html`, então é nele que o trinco entra. */
   html:has(.mf-app[data-drawer='true']),
   body:has(.mf-app[data-drawer='true']) { overflow: hidden; }
-  .mf-side__nav { overscroll-behavior: contain; }
+  /* `overscroll-behavior: contain` na `.mf-side__nav` subiu para a regra base,
+     junto do `overflow-x: hidden` — vale nos dois tamanhos, e declarado duas
+     vezes só faria a próxima pessoa procurar a diferença entre elas. */
   .mf-app[data-collapsed='true'] .mf-nav-item__txt,
   .mf-app[data-collapsed='true'] .mf-side__label,
   .mf-app[data-collapsed='true'] .mf-side__name { display: block; }
@@ -1363,11 +1381,6 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__name { display: block; }
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item {
     justify-content: flex-start; padding-inline: var(--mf-3);
-  }
-  /* A dica do rail some enquanto está aberta: o rótulo já está ao lado do
-     ícone, e os dois juntos são ruído. */
-  .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item[data-dica]:hover::after {
-    opacity: 0;
   }
 }
 
