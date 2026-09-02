@@ -351,10 +351,57 @@ export default function Accounts() {
 
     const oauth = params.get('oauth');
     if (!oauth) return;
-    if (oauth === 'success') { showToast('success', 'Conta conectada!', `@${params.get('username') || ''} adicionada via Meta API`); loadAccounts(); }
+    if (oauth === 'success') {
+      const uname = params.get('username') || '';
+      showToast('success', 'Conta conectada!', `@${uname} adicionada via Meta API`);
+      loadAccounts();
+
+      /* ── A emenda ──────────────────────────────────────────────────────
+         Antes, conectar pela API oficial e depois pela mobile eram duas
+         viagens: você voltava da Meta, via "conectada", e tinha de procurar o
+         botão Mobile no card para começar tudo de novo.
+
+         Não dá para dispensar a senha — o token que a Meta devolve não contém
+         credencial nenhuma, e a sessão mobile é a de um APARELHO logado no
+         aplicativo, que o Instagram só emite para quem apresenta senha ou
+         sessionid. O que dá para dispensar é a SEGUNDA VIAGEM: a senha é
+         pedida aqui, no mesmo instante, com a conta já identificada.
+
+         Continua sendo uma escolha — o botão Cancelar fecha e a conta segue
+         perfeitamente conectada pela via oficial. */
+      if (uname) {
+        /* Com prazo. Sem ele, um @ que nunca aparece na lista deixaria o pedido
+           pendurado, e o modal pularia numa atualização qualquer minutos depois
+           — fora de contexto, e sem a pessoa entender de onde veio. */
+        setEmendaMobile({ username: uname, ate: Date.now() + 60_000 });
+      }
+    }
     else if (oauth === 'error') { showToast('error', 'Erro na conexão', params.get('msg') || 'Falha no OAuth'); }
     window.history.replaceState({}, '', '/accounts');
   }, []);
+
+  /* Guarda o @ da conta que acabou de conectar pela via oficial, para abrir o
+     login mobile assim que ela aparecer na lista. Não dá para abrir de imediato:
+     `loadAccounts` é assíncrono, e o modal precisa do `_id` para saber em qual
+     conta gravar a sessão — sem ele, o login criaria uma conta duplicada. */
+  const [emendaMobile, setEmendaMobile] = useState(null);
+
+  useEffect(() => {
+    if (!emendaMobile) return;
+    if (Date.now() > emendaMobile.ate) { setEmendaMobile(null); return; }
+    /* `accounts`, e não `safeAccounts`: aquele é declarado 600 linhas abaixo, e
+       referenciar um `const` antes da declaração funciona aqui — o callback do
+       efeito só roda depois do render — mas é o mesmo padrão que faz o
+       compilador do React desistir de memoizar o que estiver no meio. */
+    const lista = Array.isArray(accounts) ? accounts : [];
+    const conta = lista.find(
+      a => (a.username || '').toLowerCase() === emendaMobile.username.toLowerCase());
+    if (!conta) return;                       // ainda não chegou na lista
+    setEmendaMobile(null);
+    if (conta.hasInstagrapiSession) return;   // já tem: nada a pedir
+    openInstaModal(conta);
+    setInstaModal(m => (m ? { ...m, emenda: true } : m));
+  }, [emendaMobile, accounts]);
 
   async function openOAuthConnect(account) {
     const key = account?._id || 'new';
@@ -2059,9 +2106,11 @@ export default function Accounts() {
               {/* Header */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
-                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : 'Conectar Instagram'}</h3>
+                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : instaModal.emenda ? 'Falta só a API Mobile' : 'Conectar Instagram'}</h3>
                   <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:3 }}>
-                    {isCodeStep ? `@${uname} — código necessário` : 'API Mobile — sessão duradoura'}
+                    {isCodeStep ? `@${uname} — código necessário`
+                      : instaModal.emenda ? `@${uname} já está conectada pela API oficial`
+                      : 'API Mobile — sessão duradoura'}
                   </div>
                 </div>
                 <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor:'pointer' }}>×</button>
