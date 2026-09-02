@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
@@ -41,12 +41,81 @@ export default function Stories() {
 
   /* Converte o clique no preview 9:16 em coordenadas normalizadas do story.
      É o mesmo sistema que o Instagram usa: 0,0 é o canto superior esquerdo. */
-  function posicionarSticker(e) {
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    const y = Math.min(1, Math.max(0, (e.clientY - r.top)  / r.height));
-    setLinkPos({ x: Number(x.toFixed(3)), y: Number(y.toFixed(3)) });
+  function coordenadasDoEvento(elemento, clientX, clientY) {
+    const r = elemento.getBoundingClientRect();
+    return {
+      x: Number(Math.min(1, Math.max(0, (clientX - r.left) / r.width)).toFixed(3)),
+      y: Number(Math.min(1, Math.max(0, (clientY - r.top) / r.height)).toFixed(3)),
+    };
   }
+
+  function posicionarSticker(e) {
+    setLinkPos(coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY));
+  }
+
+  /* ── Arrastar a figurinha ─────────────────────────────────────────────────
+
+     Clicar já posicionava, e clicar é bom para um salto grande. Mas ajustar
+     dois por cento é uma sequência de cliques às cegas — você não vê o
+     resultado enquanto mira, só depois de soltar. Arrastando, a pílula
+     acompanha o dedo e a posição final é a que você viu antes de largar.
+
+     `setPointerCapture` é o que faz o gesto sobreviver a sair da caixa: sem
+     ele, arrastar um pouco além da borda entrega o evento a outro elemento e o
+     movimento morre no meio, deixando a figurinha onde não se queria. */
+  /* Largura do preview e a altura que ela implica no 9:16. Numa constante
+     porque a fonte da pílula é calculada a partir dela: com o número repetido,
+     mudar a largura da caixa deixaria a fonte para trás e o preview voltaria a
+     divergir do que é queimado. */
+  const PREVIEW_LARGURA = 260;
+  const PREVIEW_ALTURA  = Math.round(PREVIEW_LARGURA * 16 / 9);
+
+  const [arrastando, setArrastando] = useState(false);
+
+  function iniciarArrasto(e) {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setArrastando(true);
+    setLinkPos(coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY));
+  }
+
+  function moverArrasto(e) {
+    if (!arrastando) return;
+    e.preventDefault();
+    setLinkPos(coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY));
+  }
+
+  function soltarArrasto(e) {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    setArrastando(false);
+  }
+
+  /**
+   * O corte que o renderizador aplica quando o texto não cabe na pílula.
+   *
+   * Espelha `gerarPngFfmpeg`: `maxChars = (largura - altura*1.1) / (fonte*0.58)`,
+   * com a fonte em 34% da altura. É corte seco, sem reticência — e por isso o
+   * preview precisa mostrá-lo: com reticência a pessoa entende "tem mais
+   * texto"; com corte seco ela precisa ver que o fim sumiu, para encurtar.
+   *
+   * Ao mexer em um dos dois lados, mexa no outro.
+   */
+  function cortarComoOBackend(texto, larguraPx, alturaPx) {
+    const tamanho = Math.round(alturaPx * 0.34);
+    const maxChars = Math.max(6, Math.floor((larguraPx - alturaPx * 1.1) / (tamanho * 0.58)));
+    const g = [...String(texto)];
+    return g.length <= maxChars ? String(texto) : g.slice(0, maxChars).join('');
+  }
+
+  /* A figurinha resolvida: rótulo, caixa e o corte que o renderizador aplicaria.
+     Num lugar só — a pílula do preview e o aviso de corte precisam do MESMO
+     resultado, e recalcular em cada um abriria a porta para eles discordarem. */
+  const figurinha = useMemo(() => {
+    const cheio = rotuloSticker(linkUrl, linkLabel);
+    const caixa = caixaSticker(cheio, linkPos.x, linkPos.y);
+    const visivel = cortarComoOBackend(cheio, caixa.width * 1080, 96);
+    return { cheio, caixa, visivel, cortado: visivel.length < cheio.length };
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [linkUrl, linkLabel, linkPos.x, linkPos.y]);
 
   const PRESETS_STICKER = [
     { rotulo: 'Topo',   x: 0.5, y: 0.15 },
@@ -128,13 +197,17 @@ export default function Stories() {
     api.get('/accounts').then(r => {
       const accs = r.data.accounts || r.data || [];
       setAccounts(accs);
-      if (!selected.length) {
-        setSelected(
-          accs
-            .filter(a => a.hasApiToken || a.hasInstagrapiSession || a.hasIgSession || a.healthStatus === 'ativa' || a.accessToken || a.igSession)
-            .map(a => a._id)
-        );
-      }
+      /* Nenhuma conta vem marcada.
+
+         Antes todas as conectadas entravam selecionadas. Numa tela cujo botão
+         se chama "Publicar agora", um estado inicial que já escolheu por você
+         é a forma mais fácil de publicar na conta errada — e o erro é público
+         e não se desfaz. Marcar quatro contas custa quatro cliques; despublicar
+         um story de uma conta que não era para ter recebido, não custa nada
+         porque não dá.
+
+         O rascunho continua sendo restaurado (mais acima): retomar o que VOCÊ
+         escolheu é diferente de escolher por você. */
     }).catch(() => {});
   }, []);
 
@@ -506,10 +579,25 @@ export default function Stories() {
                   <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
                     <div
                       onClick={posicionarSticker}
-                      title="Clique para posicionar a figurinha"
+                      onPointerDown={iniciarArrasto}
+                      onPointerMove={moverArrasto}
+                      onPointerUp={soltarArrasto}
+                      onPointerCancel={soltarArrasto}
+                      title="Arraste a figurinha, ou clique para posicionar"
                       style={{
-                        position: 'relative', width: 186, flexShrink: 0, aspectRatio: '9 / 16',
-                        borderRadius: 'var(--mf-r-md)', overflow: 'hidden', cursor: 'crosshair',
+                        /* 186 → 260. O preview é uma miniatura de um story de
+                           1080px: a 186px tudo dentro dele fica em 17% do
+                           tamanho, e a pílula vira uma tarja de 16px de altura.
+                           Mais largura é o que torna a posição escolhível com
+                           precisão, que é a única coisa que esta caixa faz.
+
+                           `touch-action: none` para o arrasto funcionar no
+                           celular: sem isso o navegador interpreta o gesto como
+                           rolagem da página e a figurinha nem se mexe. */
+                        position: 'relative', width: PREVIEW_LARGURA, maxWidth: '100%',
+                        flexShrink: 0, aspectRatio: '9 / 16', touchAction: 'none',
+                        borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
+                        cursor: arrastando ? 'grabbing' : 'crosshair',
                         border: '1px solid var(--mf-border-strong)',
                         background: 'linear-gradient(160deg, var(--mf-surface-2), var(--mf-bg))',
                       }}
@@ -540,8 +628,7 @@ export default function Stories() {
                       {/* Figurinha no tamanho REAL — mesma caixa que o backend
                           queima na mídia (caixaSticker espelha o cálculo dele). */}
                       {(() => {
-                        const rotulo = rotuloSticker(linkUrl, linkLabel);
-                        const cx = caixaSticker(rotulo, linkPos.x, linkPos.y);
+                        const { caixa: cx, visivel: rotulo } = figurinha;
                         return (
                           <div style={{
                             position: 'absolute',
@@ -553,10 +640,28 @@ export default function Stories() {
                             background: 'var(--mf-text)', color: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-full)',
                             boxShadow: 'var(--mf-shadow-2)',
                           }}>
+                            {/* A fonte acompanha a pílula, como no renderizador.
+
+                                Era `--mf-t-nano` fixo — 10px dentro de uma
+                                pílula que, na escala do preview, tem 24px de
+                                altura. O texto não cabia e saía cortado com
+                                reticências, sugerindo que o story sairia assim.
+                                Não sairia: a caixa é dimensionada A PARTIR do
+                                texto, então na mídia de 1080px ele sempre coube.
+                                O preview mentia, e mentia para pior.
+
+                                34% da altura é a mesma proporção que
+                                `storyStickerRenderer` usa (`hPx * 0.34`), o que
+                                faz esta caixa ser uma miniatura fiel em vez de
+                                uma aproximação. Sem `ellipsis`: com a fonte
+                                certa, o texto cabe por construção — e se um dia
+                                não couber, transbordar é o aviso correto de que
+                                as duas contas divergiram. */}
                             <span style={{
-                              flex: 1, minWidth: 0, fontSize: 'var(--mf-t-nano)', fontWeight: 800,
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              textAlign: 'center',
+                              flex: 1, minWidth: 0,
+                              fontSize: `${Math.max(4, cx.height * PREVIEW_ALTURA * 0.34)}px`,
+                              fontWeight: 800, whiteSpace: 'nowrap',
+                              textAlign: 'center', lineHeight: 1,
                             }}>{rotulo}</span>
                             <span style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', flexShrink: 0 }}>›</span>
                           </div>
@@ -583,8 +688,27 @@ export default function Stories() {
                         x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
                       </div>
                       <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>
-                        Clique no preview para posicionar. A figurinha é desenhada na própria mídia nesse tamanho e nessa posição, e a área de toque do link vai exatamente em cima dela.
+                        Arraste a figurinha até onde quiser — ou clique num ponto para ela ir direto.
+                        Ela é desenhada na própria mídia nesse tamanho e nessa posição, e a área de
+                        toque do link fica exatamente em cima dela.
                       </div>
+
+                      {/* O aviso do corte.
+
+                          O renderizador corta seco, sem reticência. Sem este
+                          aviso a pessoa vê o texto completo no campo, um texto
+                          menor no preview, e não tem como saber que o segundo é
+                          o que vai para o Instagram. */}
+                      {figurinha.cortado && (
+                          <div style={{ marginTop: 8, fontSize: 'var(--mf-t-nano)', lineHeight: 1.5,
+                            color: 'var(--mf-warning-500)',
+                            background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
+                            border: '1px solid color-mix(in oklch, var(--mf-warning-500) 24%, transparent)',
+                            borderRadius: 'var(--mf-r-sm)', padding: '6px 9px' }}>
+                            O texto não cabe na figurinha e vai sair cortado em
+                            “{figurinha.visivel}”. Encurte para caber inteiro.
+                          </div>
+                      )}
                     </div>
                   </div>
                 </div>
