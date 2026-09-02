@@ -122,3 +122,72 @@ describe('tolerância', () => {
     expect(r.itens.servico.detalhe).toMatch(/8s/);
   });
 });
+
+/**
+ * Proxy que troca de IP entre requisições.
+ *
+ * ── O que ele causa
+ *
+ * Um login não é uma requisição: são seis em sequência — prefill, candidates,
+ * launcher/sync, qe/sync, accounts/login. Proxy rotativo troca de endereço
+ * entre elas, e o Instagram vê a sessão nascendo espalhada por seis IPs. A
+ * resposta a isso é o checkpoint: "foi você?".
+ *
+ * ── Por que passava batido
+ *
+ * A conferência media UMA vez, via o proxy responder, e dizia "ambiente
+ * pronto". O desafio que vinha depois parecia não ter relação nenhuma com o
+ * proxy — ele tinha acabado de ser aprovado na tela.
+ *
+ * Duas medições separam "o proxy responde" de "o proxy responde do MESMO
+ * lugar", que são coisas diferentes e só a segunda serve para logar.
+ */
+describe('proxy rotativo', () => {
+  test('IP diferente entre duas medições vira alerta, não aprovação silenciosa', async () => {
+    mockTestProxy
+      .mockResolvedValueOnce({ ok: true, ip: '200.1.1.1', latencyMs: 300 })
+      .mockResolvedValueOnce({ ok: true, ip: '200.9.9.9', latencyMs: 310 });
+
+    const r = await conferir();
+
+    expect(r.pronto).toBe(true);              // não bloqueia: dá para tentar
+    expect(r.itens.proxy.rotativo).toBe(true);
+    expect(r.itens.proxy.detalhe).toMatch(/mudou/i);
+    expect(r.veredito).toMatch(/verificação extra/i);
+    /* A frase precisa desfazer a conclusão errada antes que ela se forme: o
+       desafio aparece depois de a senha ser aceita, e a leitura natural é
+       culpar a senha. */
+    expect(r.veredito).toMatch(/não é a senha/i);
+  });
+
+  test('mesmo IP nas duas: aprovado sem alarde', async () => {
+    mockTestProxy.mockResolvedValue({ ok: true, ip: '200.1.1.1', latencyMs: 300 });
+    const r = await conferir();
+    expect(r.itens.proxy.rotativo).toBeUndefined();
+    expect(r.veredito).toMatch(/Instagram recusando esta conta/i);
+  });
+
+  test('a segunda medição falhando não vira "rotativo"', async () => {
+    /* Uma instabilidade de dez segundos não é prova de rotação, e chamar de
+       rotativo mandaria mexer na configuração do fornecedor sem motivo. */
+    mockTestProxy
+      .mockResolvedValueOnce({ ok: true, ip: '200.1.1.1', latencyMs: 300 })
+      .mockResolvedValueOnce({ ok: false, error: 'timeout' });
+
+    const r = await conferir();
+    expect(r.itens.proxy.ok).toBe(true);
+    expect(r.itens.proxy.rotativo).toBeUndefined();
+  });
+
+  test('o conserto aponta o painel do fornecedor, não o nosso código', async () => {
+    /* Sessão fixa se liga no fornecedor. Mandar procurar aqui dentro faria
+       perder tempo num lugar onde não há o que ajustar. */
+    mockTestProxy
+      .mockResolvedValueOnce({ ok: true, ip: '1.1.1.1' })
+      .mockResolvedValueOnce({ ok: true, ip: '2.2.2.2' });
+
+    const r = await conferir();
+    expect(r.itens.proxy.conserto).toMatch(/painel do fornecedor/i);
+    expect(r.itens.proxy.conserto).toMatch(/sticky|fixa/i);
+  });
+});

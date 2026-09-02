@@ -76,10 +76,40 @@ async function _proxy(account) {
   }
 
   const r = await testProxy(url);
-  return r.ok
-    ? { ok: true, origem, detalhe: `responde · saída ${r.ip}`, ip: r.ip, latenciaMs: r.latencyMs }
-    : { ok: false, origem, detalhe: r.error || 'não respondeu',
-        conserto: 'Confira em Proxies. Se disser cota, renove no painel do fornecedor.' };
+  if (!r.ok) {
+    return { ok: false, origem, detalhe: r.error || 'não respondeu',
+             conserto: 'Confira em Proxies. Se disser cota, renove no painel do fornecedor.' };
+  }
+
+  /* ── Segunda medição: o IP se mantém? ──────────────────────────────────
+
+     Um login não é uma requisição — são seis em sequência (prefill,
+     candidates, launcher/sync, qe/sync, accounts/login). Proxy rotativo troca
+     de endereço entre elas, e o Instagram vê a sessão nascendo espalhada por
+     seis IPs. A resposta a isso é o checkpoint: "foi você?".
+
+     Isso passava batido aqui. A conferência media UMA vez, via o proxy
+     responder, e dizia "ambiente pronto" — e o desafio que vinha depois
+     parecia não ter relação nenhuma com o proxy, porque o proxy tinha
+     acabado de ser aprovado.
+
+     Não bloqueia: dá para conectar com proxy rotativo, e às vezes passa. Mas
+     quem vai tentar merece saber que o próximo erro provável é uma
+     verificação extra, e que a causa não é a senha. */
+  const segundo = await testProxy(url).catch(() => ({ ok: false }));
+  const rotativo = !!(segundo.ok && segundo.ip && r.ip && segundo.ip !== r.ip);
+
+  if (rotativo) {
+    return {
+      ok: true, alerta: true, origem, ip: r.ip, latenciaMs: r.latencyMs, rotativo: true,
+      detalhe: `responde, mas o IP MUDOU entre duas medições (${r.ip} → ${segundo.ip})`,
+      conserto: 'No painel do fornecedor, troque o tipo de sessão de "Rotativo" para '
+              + 'fixa/sticky. Ou rode scripts/sondar-proxy.sh para descobrir a sintaxe '
+              + 'de sessão fixa que ele aceita e ponha em PROXY_SESSAO_MOLDE.',
+    };
+  }
+
+  return { ok: true, origem, detalhe: `responde · saída ${r.ip}`, ip: r.ip, latenciaMs: r.latencyMs };
 }
 
 /**
@@ -97,7 +127,14 @@ async function conferir(account = null) {
   const bloqueios = Object.entries(itens).filter(([, v]) => !v.ok).map(([k]) => k);
 
   let veredito;
-  if (!bloqueios.length && proxy.alerta) {
+  if (!bloqueios.length && proxy.rotativo) {
+    /* Antes de "sem proxy", porque é o caso mais grave dos dois avisos: sem
+       proxy o login costuma passar; com proxy rotativo ele costuma passar e
+       DEPOIS pedir verificação, que é bem mais confuso de diagnosticar. */
+    veredito = 'O proxy troca de IP entre requisições. Um login são seis requisições seguidas — '
+             + 'o Instagram vê a sessão nascendo de endereços diferentes e costuma pedir '
+             + 'verificação extra. Não é a senha.';
+  } else if (!bloqueios.length && proxy.alerta) {
     veredito = 'O ambiente está pronto, mas sem proxy: a conta vai sair pelo IP do servidor.';
   } else if (!bloqueios.length) {
     veredito = 'Ambiente pronto. Se o login falhar agora, é o Instagram recusando esta conta.';
