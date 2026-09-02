@@ -827,8 +827,15 @@ def explicar_recusa_de_proxy(account_id: str) -> str:
     """
     cru = _proxies_crus.get(account_id)
     moldado = _proxies.get(account_id)
-    if not cru or not moldado or cru == moldado:
+    if not cru:
         return ""
+
+    # Sem molde aplicado não há sufixo para culpar — mas ainda há o que dizer:
+    # o proxy desta conta pode estar quebrado enquanto o global funciona. Era
+    # aqui que a explicação calava justamente no caso mais confuso, aquele em
+    # que o painel mostra o proxy "ativo" e a conta não conecta.
+    if not moldado or cru == moldado:
+        return _comparar_com_o_global(cru)
 
     # Sem `or` com o antigo padrão: aqui o molde só serve para NOMEAR o sufixo
     # na explicação, e esta função só chega aqui quando um molde foi de fato
@@ -856,6 +863,55 @@ def explicar_recusa_de_proxy(account_id: str) -> str:
     return (
         " — a credencial é recusada mesmo SEM o molde de sessão, então o "
         "problema é a própria credencial, não a fixação de IP."
+    ) + _comparar_com_o_global(cru)
+
+
+def proxy_responde(url: str | None, timeout: float = 8.0) -> bool:
+    """O proxy deixa passar uma requisição? Sem exceção para quem chama."""
+    if not url:
+        return False
+    try:
+        import requests
+        r = requests.get(
+            "https://api.ipify.org",
+            proxies={"http": url, "https": url},
+            timeout=timeout,
+        )
+        return r.status_code == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _comparar_com_o_global(cru: str) -> str:
+    """
+    O proxy DESTA conta está quebrado, ou o fornecedor inteiro está fora?
+
+    ── Por que a pergunta importa
+
+    As duas situações produzem exatamente o mesmo 407 na tela, e têm consertos
+    opostos: uma é "troque o proxy desta conta", a outra é "fale com o
+    fornecedor". Sem separá-las, o log manda investigar os dois.
+
+    E há um caso em que a diferença é gritante: o painel mostra o proxy GLOBAL
+    "ativo e funcionando" enquanto a conta falha — porque a conta usa um proxy
+    PRÓPRIO, que é outro endereço, com outra credencial. Quem lê o painel
+    conclui que o proxy está bom, e está: só não é o que a conta usa.
+    """
+    global_url = os.getenv("GLOBAL_PROXY")
+    if not global_url or global_url == cru:
+        return ""                       # não há com o que comparar
+
+    if not proxy_responde(global_url):
+        return (
+            " O proxy global também não responde — o problema não é desta "
+            "conta, é do fornecedor ou do plano."
+        )
+
+    return (
+        " O proxy PRÓPRIO desta conta é recusado, mas o proxy GLOBAL funciona. "
+        "Troque ou remova o proxy desta conta em Contas → Proxy para ela sair "
+        "pelo global. (É por isso que o painel mostra o proxy ativo e a conta "
+        "não conecta: são dois endereços diferentes.)"
     )
 
 

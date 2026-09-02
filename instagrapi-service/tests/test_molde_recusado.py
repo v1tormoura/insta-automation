@@ -201,3 +201,60 @@ class TestUrlJaMoldadaPeloChamador:
         # Sem molde configurado não há sufixo conhecido para remover, e remover
         # por palpite arriscaria cortar um parâmetro do fornecedor.
         assert session_pool.desmoldar(moldada, "conta-1") == moldada
+
+
+class TestProxyDaContaVersusGlobal:
+    """
+    O caso que o log não sabia explicar.
+
+    O painel mostra o proxy GLOBAL "ativo e funcionando", com IP de saída e
+    tudo, e a conta não conecta. Não é contradição: a conta tem proxy PRÓPRIO,
+    outro endereço e outra credencial. Quem lê o painel conclui que o proxy
+    está bom — e está. Só não é o que a conta usa.
+
+    Os dois casos dão o mesmo 407 na tela e têm consertos opostos: um é "troque
+    o proxy desta conta", o outro é "fale com o fornecedor".
+    """
+
+    DA_CONTA = "http://usuario_ruim:SENHA@host.exemplo.io:11000"
+    GLOBAL = "http://usuario_bom:SENHA@host.exemplo.io:823"
+
+    def test_proxy_da_conta_ruim_e_global_bom(self, monkeypatch):
+        monkeypatch.setenv("GLOBAL_PROXY", self.GLOBAL)
+        monkeypatch.setenv("PROXY_SESSAO_MOLDE", "")
+        session_pool.lembrar_proxy("conta-1", self.DA_CONTA)
+
+        with patch("requests.get", return_value=_resposta(200)):
+            texto = session_pool.explicar_recusa_de_proxy("conta-1")
+
+        assert "PR\u00d3PRIO desta conta" in texto
+        assert "global" in texto.lower()
+
+    def test_fornecedor_inteiro_fora(self, monkeypatch):
+        """Global também não responde: o conserto não é trocar o proxy da
+        conta, e mandar trocar faria perder tempo no lugar errado."""
+        monkeypatch.setenv("GLOBAL_PROXY", self.GLOBAL)
+        monkeypatch.setenv("PROXY_SESSAO_MOLDE", "")
+        session_pool.lembrar_proxy("conta-1", self.DA_CONTA)
+
+        with patch("requests.get", return_value=_resposta(407)):
+            texto = session_pool.explicar_recusa_de_proxy("conta-1")
+
+        assert "fornecedor ou do plano" in texto
+
+    def test_conta_usando_o_proprio_global_nao_compara(self, monkeypatch):
+        """Sem dois endereços não há comparação a fazer, e sondar de novo o
+        mesmo proxy só gastaria uma requisição para não dizer nada."""
+        monkeypatch.setenv("GLOBAL_PROXY", self.GLOBAL)
+        monkeypatch.setenv("PROXY_SESSAO_MOLDE", "")
+        session_pool.lembrar_proxy("conta-1", self.GLOBAL)
+
+        with patch("requests.get", return_value=_resposta(200)) as g:
+            assert session_pool.explicar_recusa_de_proxy("conta-1") == ""
+            g.assert_not_called()
+
+    def test_sem_global_configurado(self, monkeypatch):
+        monkeypatch.delenv("GLOBAL_PROXY", raising=False)
+        monkeypatch.setenv("PROXY_SESSAO_MOLDE", "")
+        session_pool.lembrar_proxy("conta-1", self.DA_CONTA)
+        assert session_pool.explicar_recusa_de_proxy("conta-1") == ""

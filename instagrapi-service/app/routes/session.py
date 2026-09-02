@@ -121,6 +121,13 @@ async def login(body: LoginRequest):
             # A origem vem do Node, que é quem sabe: aqui só chega a URL.
             origem=(getattr(body, "proxy_origem", None)
                     or ("global_env" if proxy else "direto")),
+            # Se o nosso sufixo de sessão está nesta URL. O `_mascarar_proxy`
+            # esconde o usuário — corretamente, é credencial — e com isso o log
+            # deixava de responder a pergunta mais frequente diante de um 407:
+            # "o fornecedor recusou a credencial, ou recusou o que a gente
+            # acrescentou nela?". Um booleano resolve sem expor nada.
+            moldado=bool(proxy and session_pool._sufixo_do_molde(body.account_id)
+                         and session_pool._sufixo_do_molde(body.account_id) in proxy),
         )
 
         # E de qual IP o Instagram vai enxergar esta sessão. A linha acima diz
