@@ -747,3 +747,83 @@ select.lm-input   { cursor:pointer; }
   color:var(--mf-mod, var(--mf-accent-500)); font-weight:600;
 }
 .lm-ftab--upload { border-style:dashed; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   O QUE VEM A SEGUIR
+
+   Antes isto era um selo — `em —` — do mesmo tamanho de "0 ciclos" e "30m",
+   perdido numa fila de cinco chips de peso igual. Cinco coisas com a mesma
+   importância visual é o mesmo que nenhuma delas ser importante, e quem abre
+   esta tela quer saber uma só: o que vai ser postado, e quando.
+
+   Agora é a linha principal do cartão. Os números que competiam com ela
+   viraram rodapé, em cinza, onde ficam disponíveis sem disputar o olho.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lc-prox {
+  display: flex; align-items: center; gap: var(--mf-4);
+  padding: 10px 12px; margin: 6px 0 2px;
+  border-radius: var(--mf-r-md);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+}
+
+.lc-prox-tempo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+/* Tabular porque o número muda a cada segundo. Sem isso a linha inteira
+   treme, já que os dígitos têm larguras diferentes numa fonte proporcional. */
+.lc-prox-tempo strong {
+  font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--mf-text);
+}
+.lc-prox-tempo span { font-size: .70rem; color: var(--mf-text-3); }
+
+/* Os quatro estados. A cor é o significado, não decoração: verde conta,
+   âmbar pede atenção, cinza está parado de propósito. */
+.lc-prox--espera  { border-color: color-mix(in oklch, var(--mf-primary-500) 25%, transparent);
+                    background: color-mix(in oklch, var(--mf-primary-500) 6%, var(--mf-surface-2)); }
+.lc-prox--espera  .lc-prox-tempo strong { color: var(--mf-primary-500); }
+
+.lc-prox--conta   { border-color: color-mix(in oklch, var(--mf-success-500) 30%, transparent);
+                    background: color-mix(in oklch, var(--mf-success-500) 7%, var(--mf-surface-2)); }
+.lc-prox--conta   .lc-prox-tempo strong { color: var(--mf-success-500); }
+
+.lc-prox--atencao { border-color: color-mix(in oklch, var(--mf-warning-500) 28%, transparent);
+                    background: color-mix(in oklch, var(--mf-warning-500) 7%, var(--mf-surface-2)); }
+.lc-prox--atencao .lc-prox-tempo strong { color: var(--mf-warning-500); font-size: .95rem; }
+
+.lc-prox--parado  .lc-prox-tempo strong { color: var(--mf-text-3); font-size: .95rem; }
+
+/* A mídia que sai na próxima, ao lado da contagem — as duas metades da mesma
+   resposta ("o quê" e "quando") lado a lado, e não em cantos opostos. */
+.lc-prox-alvo { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.lc-prox-alvo-txt { display: flex; flex-direction: column; gap: 1px; }
+.lc-prox-rotulo {
+  font-size: .58rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mf-text-3);
+}
+.lc-prox-pos {
+  font-family: var(--mf-mono); font-size: .70rem; font-weight: 600;
+  color: var(--mf-text-2); font-variant-numeric: tabular-nums;
+}
+
+/* ── Progresso da rodada ───────────────────────────────────────────────────
+   Responde "falta muito?" sem exigir subtração entre dois números. */
+.lc-barra {
+  height: 3px; border-radius: 999px; overflow: hidden;
+  background: var(--mf-surface-3);
+  margin: 2px 0 4px;
+}
+.lc-barra i {
+  display: block; height: 100%; border-radius: 999px;
+  background: var(--mf-primary-500);
+  transition: width .4s var(--mf-ease-out);
+}
+
+@media (max-width: 560px) {
+  /* No celular a mídia vai para baixo da contagem: lado a lado, sobram uns
+     120px para o número, e ele quebra no meio. */
+  .lc-prox { flex-direction: column; align-items: stretch; gap: 8px; }
+  .lc-prox-alvo { align-self: flex-start; }
+}

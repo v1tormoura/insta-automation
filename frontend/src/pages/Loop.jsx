@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { proximoPasso, proximaMidia } from './loopProximo';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
@@ -73,14 +74,22 @@ function timeAgo(date) {
   if (s < 3600) return `${Math.floor(s / 60)}min atrás`;
   return `${Math.floor(s / 3600)}h atrás`;
 }
-function timeUntil(date) {
-  if (!date) return '—';
-  const s = Math.floor((new Date(date) - Date.now()) / 1000);
-  if (s <= 0) return 'agora';
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}min`;
-  return `${Math.floor(s / 3600)}h`;
+/* Um relógio compartilhado por todos os cartões.
+
+   Cada cartão com o próprio `setInterval` faria N timers para exibir a MESMA
+   passagem de tempo, e eles dessincronizariam: dois cartões marcando segundos
+   diferentes na mesma tela é o tipo de detalhe que faz a interface parecer
+   quebrada sem nada estar errado. */
+function useRelogio(ligado) {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    if (!ligado) return undefined;
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [ligado]);
+  return agora;
 }
+
 function formatNum(n) {
   if (n == null) return null;
   if (n === 0) return '0';
@@ -105,7 +114,15 @@ function healthCls(s) {
 function LoopCard({ loop, onToggle, onDelete, onHistory }) {
   const running     = loop.status === 'ativo';
   const mediaCount  = loop.mediaFiles?.length || 0;
-  const processando = loop._jobStatus === 'running' ? 1 : 0;
+  const processando = loop._jobStatus === 'running';
+
+  /* O relógio só corre para loop ativo com horário marcado. Um cartão pausado
+     não tem nada contando, e manter o timer aceso ali seria trabalho por
+     segundo para redesenhar exatamente a mesma coisa. */
+  const agora    = useRelogio(running && !!loop.nextRunAt);
+  const passo    = proximoPasso(loop, agora);
+  const proxima  = proximaMidia(loop);
+  const restante = proxima ? proxima.total - proxima.indice : 0;
 
   return (
     <motion.div
@@ -143,18 +160,51 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
             <button onClick={() => onDelete(loop)} className="del"><Trash2 size={12} /></button>
           </div>
         </div>
+        {/* ── O que vem a seguir ──────────────────────────────────────────
+            Era o selo `em —`, do mesmo tamanho de "0 ciclos" e "30m". Quem
+            abre esta tela quer uma coisa: o que vai ser postado, e quando.
+            Agora isso é a linha principal do cartão, e os números que antes
+            competiam com ela viraram rodapé. */}
+        <div className={`lc-prox lc-prox--${passo.tom}`}>
+          <div className="lc-prox-tempo">
+            <strong>{passo.titulo}</strong>
+            <span>{passo.detalhe}</span>
+          </div>
+
+          {proxima && running && (
+            <div className="lc-prox-alvo">
+              <LoopThumb filename={proxima.arquivo} index={proxima.indice} />
+              <div className="lc-prox-alvo-txt">
+                <span className="lc-prox-rotulo">Próxima</span>
+                {/* Posição na fila, não só o total: "#9 de 28" diz onde o
+                    ciclo está; "28 mídias" diz o mesmo desde o primeiro dia. */}
+                <span className="lc-prox-pos">
+                  #{proxima.indice + 1} de {proxima.total}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Progresso da rodada. A barra responde "falta muito?" sem exigir
+            aritmética entre dois números. */}
+        {mediaCount > 0 && running && (
+          <div className="lc-barra" title={`${restante} de ${mediaCount} restantes nesta rodada`}>
+            <i style={{ width: `${((proxima?.indice || 0) / mediaCount) * 100}%` }} />
+          </div>
+        )}
+
         <div className="lc-meta">
           <span className="lc-sub">{loop.type} · {mediaCount} mídias</span>
           <div className="lc-chips">
-            <span className="lc-chip"><Clock size={9} /> {loop.intervalMinutes}m</span>
-            {mediaCount > 0 && (
-              <span className="lc-chip lc-chip--fila">
-                FILA: {mediaCount}, {processando} processando
-              </span>
+            <span className="lc-chip"><Clock size={9} /> a cada {loop.intervalMinutes}m</span>
+            {processando && (
+              <span className="lc-chip lc-chip--fila">enviando agora</span>
             )}
-            <span className="lc-chip">{loop.roundsCompleted || loop.postsCount || 0} ciclos</span>
-            {running && <span className="lc-chip lc-chip--next">em {timeUntil(loop.nextRunAt)}</span>}
-            {loop.lastRunAt && <span className="lc-chip">{timeAgo(loop.lastRunAt)}</span>}
+            <span className="lc-chip">
+              {loop.roundsCompleted || loop.postsCount || 0} publicados
+            </span>
+            {loop.lastRunAt && <span className="lc-chip">última {timeAgo(loop.lastRunAt)}</span>}
           </div>
         </div>
         {loop.lastError && (
