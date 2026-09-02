@@ -5,6 +5,10 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import Segmentado from '../components/Segmentado';
+/* A mesma contagem do Loop. Um segundo relógio, escrito de novo, escreveria
+   "12min" de um jeito aqui e "12 min" de outro lá — e as duas telas do mesmo
+   produto passariam a discordar sobre como se diz a mesma coisa. */
+import { contagem } from './loopProximo';
 
 /**
  * Listagem de campanhas (fase 5).
@@ -56,6 +60,33 @@ export default function Campaigns() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  /**
+   * Apaga a campanha e o seu histórico.
+   *
+   * Só para campanha parada — o botão nem aparece nas outras. Apagar uma que
+   * está rodando deixaria publicações enfileiradas sem dono: elas sairiam de
+   * qualquer jeito, e não haveria onde ver que saíram.
+   */
+  async function excluir(c) {
+    const publicadas = c.publicadas || 0;
+    /* `texto`, e não `aviso`: há uma função `aviso()` no escopo de fora, e um
+       `const` com o mesmo nome a sombreia — a chamada logo abaixo tentaria
+       invocar uma string. O build não vê isso; só o clique veria. */
+    const texto = publicadas
+      ? `Excluir "${c.name}"?\n\nAs ${publicadas} publicação(ões) já feitas continuam no Instagram — o que sai daqui é o plano e o histórico desta campanha.`
+      : `Excluir "${c.name}"?\n\nNada foi publicado por ela. O plano e o histórico saem.`;
+    if (!window.confirm(texto)) return;
+
+    try {
+      await api.delete(`/campaigns/${c._id}`);
+      aviso('success', 'Campanha excluída', c.name);
+      carregar();
+    } catch (e) {
+      aviso('error', 'Não deu para excluir',
+        e.response?.data?.error || e.message);
+    }
+  }
+
   async function carregar() {
     setCarregando(true);
     try {
@@ -74,6 +105,29 @@ export default function Campaigns() {
   }
 
   useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [pagina, status]);
+
+  /* Tempo real. Uma campanha rodando muda de estado sozinha — publica, falha,
+     agenda a próxima — e sem isto a tela ficava congelada no instante em que
+     foi aberta, com um progresso que só andava se a pessoa recarregasse.
+
+     Só quando há campanha viva na tela: com todas concluídas não há o que
+     mudar, e pedir a cada dez segundos seria trabalho para confirmar que nada
+     aconteceu. */
+  const temViva = campanhas.some(c => ['scheduled', 'running'].includes(c.status));
+  useEffect(() => {
+    if (!temViva) return undefined;
+    const t = setInterval(carregar, 10_000);
+    return () => clearInterval(t);
+    /* eslint-disable-next-line */
+  }, [temViva, pagina, status]);
+
+  /* O relógio da contagem, um para todos os cards — ver o comentário no Loop. */
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    if (!temViva) return undefined;
+    const t = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [temViva]);
 
   // Busca com espera: evita uma requisição por tecla digitada.
   useEffect(() => {
@@ -203,6 +257,42 @@ export default function Campaigns() {
                     <span>{total} publicações</span>
                   </div>
 
+                  {/* ── O que vem a seguir ────────────────────────────────
+                      O card contava "4 / 12" e "criada 31/08" — dois fatos
+                      sobre o passado. Quem abre esta tela com uma campanha
+                      rodando quer saber quando sai a próxima. */}
+                  {(() => {
+                    const viva = ['scheduled', 'running'].includes(c.status);
+                    if (!viva) return null;
+                    const falta = c.proximaEm ? contagem(c.proximaEm, agora) : null;
+                    return (
+                      <div style={{ marginTop:'var(--mf-3)', display:'flex', alignItems:'center',
+                        gap:'var(--mf-3)', padding:'8px 10px', borderRadius:'var(--mf-r-md)',
+                        border:`1px solid color-mix(in oklch, ${falta ? 'var(--mf-primary-500)' : 'var(--mf-warning-500)'} 24%, transparent)`,
+                        background:`color-mix(in oklch, ${falta ? 'var(--mf-primary-500)' : 'var(--mf-warning-500)'} 6%, var(--mf-surface-2))` }}>
+                        <div style={{ minWidth:0, flex:1 }}>
+                          <div style={{ fontSize:'var(--mf-t-body)', fontWeight:700, letterSpacing:'-0.02em',
+                            fontVariantNumeric:'tabular-nums',
+                            color: falta ? 'var(--mf-primary-500)' : 'var(--mf-warning-500)' }}>
+                            {falta === 'agora' ? 'Publicando agora' : falta || 'Sem próxima agendada'}
+                          </div>
+                          <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1 }}>
+                            {falta && falta !== 'agora' ? 'até a próxima publicação'
+                              : falta === 'agora' ? 'uma publicação está saindo'
+                              : 'a campanha está ativa, mas nada foi agendado'}
+                          </div>
+                        </div>
+                        {/* Estado da fila em números, onde o olho já está. */}
+                        <div className="mf-mono" style={{ textAlign:'right', flexShrink:0,
+                          fontSize:'var(--mf-t-nano)', color:'var(--mf-text-2)', lineHeight:1.5 }}>
+                          <div>{c.pendentes || 0} na fila</div>
+                          {c.emCurso > 0 && <div style={{ color:'var(--mf-success-500)' }}>{c.emCurso} saindo</div>}
+                          {c.falhas > 0 && <div style={{ color:'var(--mf-danger-500)' }}>{c.falhas} falhas</div>}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Progresso */}
                   <div style={{ marginTop:'var(--mf-3)' }}>
                     <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
@@ -220,6 +310,16 @@ export default function Campaigns() {
 
                 <div style={{ height:1, background:'var(--mf-border-subtle)' }} />
                 <div style={{ padding:'var(--mf-2)', display:'flex', gap:'var(--mf-2)', flexWrap:'wrap' }}>
+                  {/* Porta explícita para o detalhe.
+
+                      O nome da campanha já abria o painel, mas título não parece
+                      botão — sem sublinhado, sem ícone, sem nada que diga "clique".
+                      Quem não sabia que dava, não descobria; e é lá que estão o
+                      plano, os eventos e as estatísticas em tempo real. */}
+                  <button onClick={() => navigate(`/campaigns/${c._id}`)}
+                    style={{ ...botao('var(--mf-primary-500)'), fontWeight:700 }}>
+                    Abrir
+                  </button>
                   {['scheduled', 'running'].includes(c.status) && (
                     <button onClick={() => acao(c._id, 'pause', 'Pausada')} style={botao('var(--mf-warning-500)')}>
                       Pausar
@@ -238,6 +338,23 @@ export default function Campaigns() {
                   {(c.failedPublications > 0) && (
                     <button onClick={() => acao(c._id, 'retry-failed', 'Falhas reprogramadas')} style={botao('var(--mf-mod-publicar)')}>
                       Reexecutar falhas
+                    </button>
+                  )}
+
+                  {/* Excluir, e só depois de a campanha ter parado.
+
+                      Apagar uma campanha rodando deixaria publicações
+                      enfileiradas sem dono — elas sairiam de qualquer jeito, e
+                      não haveria onde ver que saíram. Cancelar primeiro é uma
+                      etapa a mais e é a que torna o apagar seguro.
+
+                      A confirmação diz o que se perde, não "tem certeza?":
+                      certeza sobre o quê é a pergunta que ninguém responde. */}
+                  {['cancelled', 'completed', 'draft'].includes(c.status) && (
+                    <button
+                      onClick={() => excluir(c)}
+                      style={{ ...botao('var(--mf-danger-500)'), marginLeft:'auto' }}>
+                      Excluir
                     </button>
                   )}
                 </div>

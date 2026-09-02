@@ -188,8 +188,57 @@ exports.list = async (req, res) => {
       Campaign.countDocuments(filtro),
     ]);
 
+    /* ── O que vem a seguir, para cada card ──────────────────────────────
+
+       O detalhe da campanha já respondia isso (`svc.proximaPublicacao`), mas a
+       LISTA não — e a lista é onde se olha primeiro. O card mostrava "4 / 12" e
+       "criada 31/08", dois fatos sobre o passado, e nada sobre o que vai
+       acontecer.
+
+       Um agregado só, e não uma consulta por campanha: com vinte campanhas na
+       tela, o `findOne` por card seriam vinte idas ao banco a cada
+       atualização da página.
+
+       `$min` sobre as pendentes dá o horário da próxima; a contagem por status
+       vem junto na mesma passagem, porque percorrer duas vezes a mesma coleção
+       para responder duas perguntas sobre ela é desperdício. */
+    const ids = campanhas.map(c => c._id);
+    const resumo = ids.length ? await CampaignPublication.aggregate([
+      { $match: { campaignId: { $in: ids } } },
+      { $group: {
+        _id: '$campaignId',
+        proximaEm: {
+          $min: {
+            $cond: [
+              { $in: ['$status', ['pending', 'scheduled', 'processing']] },
+              '$scheduledAt',
+              null,
+            ],
+          },
+        },
+        pendentes:  { $sum: { $cond: [{ $in: ['$status', ['pending', 'scheduled']] }, 1, 0] } },
+        emCurso:    { $sum: { $cond: [{ $eq: ['$status', 'processing'] }, 1, 0] } },
+        publicadas: { $sum: { $cond: [{ $eq: ['$status', 'published'] }, 1, 0] } },
+        falhas:     { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+      } },
+    ]).catch(() => []) : [];
+
+    const porCampanha = Object.fromEntries(
+      resumo.map(r => [String(r._id), r])
+    );
+
     return res.json({
-      campaigns: campanhas.map(campanhaSegura),
+      campaigns: campanhas.map(c => {
+        const r = porCampanha[String(c._id)] || {};
+        return {
+          ...campanhaSegura(c),
+          proximaEm:  r.proximaEm || null,
+          pendentes:  r.pendentes  || 0,
+          emCurso:    r.emCurso    || 0,
+          publicadas: r.publicadas || 0,
+          falhas:     r.falhas     || 0,
+        };
+      }),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 0 },
     });
   } catch (err) {
