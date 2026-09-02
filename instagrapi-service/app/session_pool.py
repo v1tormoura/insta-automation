@@ -153,13 +153,47 @@ def _build_retry():
     """
     comum = dict(total=2, connect=2, read=0, status=0, status_forcelist=[], backoff_factor=1.5)
     try:
-        return _Retry(allowed_methods=None, **comum)
+        return _RetrySemInsistirNo407(allowed_methods=None, **comum)
     except TypeError:
         # urllib3 < 1.26 usa o nome antigo
         try:
-            return _Retry(method_whitelist=None, **comum)
+            return _RetrySemInsistirNo407(method_whitelist=None, **comum)
         except TypeError:
             return _Retry(total=0)  # última reserva: comportamento anterior
+
+
+class _RetrySemInsistirNo407(_Retry):
+    """
+    Repete falha de conexão, menos quando o proxy recusou a credencial.
+
+    ── Por que a exceção
+
+    `connect=2` existe para o túnel TLS que cai no meio — falha momentânea, e
+    repetir resolve. Um 407 não é momentâneo: o proxy acabou de dizer que não
+    conhece este usuário, e vai dizer o mesmo daqui a três segundos.
+
+    O custo de não distinguir era medido em relógio. Cada requisição virava
+    três tentativas com espera crescente, e o login faz seis requisições antes
+    da primeira que importa: 31 segundos para chegar ao mesmo 407 que a
+    primeira já tinha dado. A pessoa esperava meio minuto por uma resposta que
+    o sistema tinha no primeiro segundo.
+
+    ── Por texto, e não por código
+
+    O 407 do CONNECT chega embrulhado em ProxyError → OSError. O código HTTP
+    não sobrevive à viagem; a frase sobrevive. Casar texto é frágil em geral e
+    é o que existe aqui — e o pior caso é voltar a insistir, que é o
+    comportamento antigo.
+    """
+
+    def increment(self, method=None, url=None, response=None, error=None,
+                  _pool=None, _stacktrace=None):
+        if error is not None and _e_recusa_de_proxy(error):
+            # Zera o que resta: o urllib3 levanta MaxRetryError na sequência e a
+            # exceção original chega a quem chamou, como se as tentativas
+            # tivessem acabado. Sem inventar um caminho de erro novo.
+            raise error
+        return super().increment(method, url, response, error, _pool, _stacktrace)
 
 
 def _patch_client_retries(client: Client) -> None:
@@ -955,11 +989,37 @@ def conferir_ip_de_saida(client, account_id: str, proxy: str | None) -> str | No
         )
         return ip
     except Exception as e:  # noqa: BLE001
+        # ── "Não consegui medir" e "o proxy nos recusa" não são a mesma coisa
+        #
+        # Seguir sem a medição é certo quando ela falhou por conta própria — o
+        # ipify fora do ar, um tempo esgotado. Aí o login pode muito bem passar.
+        #
+        # Um 407 é outra coisa: o proxy acabou de dizer que não aceita esta
+        # credencial, e ele vai dizer o mesmo para as seis requisições do login.
+        # Seguir ali custava 18 segundos para chegar exatamente onde já
+        # estávamos — e a pessoa esperava 31 segundos por um erro que o sistema
+        # conhecia aos 13.
+        if _e_recusa_de_proxy(e):
+            _slog("PROXY_RECUSOU_NA_SONDAGEM", account_id)
+            raise
         logger.warning(
             "não foi possível confirmar o IP de saída da conta %s (%s) — o login "
             "segue, mas sem saber por qual endereço", account_id, e,
         )
         return None
+
+
+def _e_recusa_de_proxy(e: Exception) -> bool:
+    """
+    O proxy recusou a credencial?
+
+    Por texto porque é assim que a informação chega: o 407 do CONNECT vem
+    embrulhado em ProxyError → OSError, e o código HTTP não sobrevive à
+    viagem — só a frase "Tunnel connection failed: 407" sobrevive.
+    """
+    texto = str(e)
+    return "407" in texto and ("Tunnel connection failed" in texto
+                              or "Unable to connect to proxy" in texto)
 
 
 def esquecer_ips_confirmados() -> None:

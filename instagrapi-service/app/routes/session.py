@@ -136,7 +136,24 @@ async def login(body: LoginRequest):
         # login usa, com os mesmos proxies. Um proxy que aceita a conexão e
         # ainda assim sai pelo IP do servidor falha em silêncio, e só a
         # medição separa isso de "configurado corretamente".
-        await loop_ip_de_saida(client, body.account_id, proxy)
+        # A sondagem agora LEVANTA quando o proxy recusa a credencial, em vez de
+        # seguir sem a medição. Ela roda fora do `try` que classifica erros de
+        # login, então a classificação precisa acontecer aqui — sem isto, a
+        # recusa viraria um 500 sem diagnóstico, que é pior que os 31 segundos
+        # que ela veio economizar.
+        try:
+            await loop_ip_de_saida(client, body.account_id, proxy)
+        except Exception as e:  # noqa: BLE001
+            if session_pool._e_recusa_de_proxy(e):
+                session_pool._slog(
+                    "LOGIN_ABORTADO_NA_SONDAGEM", body.account_id,
+                    motivo="o proxy recusou a credencial; as seis requisicoes do "
+                           "login receberiam a mesma resposta",
+                )
+                await session_pool.remove_entry(body.account_id)
+                _raise_for_code("PROXY_ERROR", e, (body.password,),
+                                account_id=body.account_id)
+            raise
 
         # Run the blocking Instagram I/O in a thread so the asyncio event loop
         # stays responsive to other requests during the 20-90 s login round-trip.
