@@ -91,12 +91,30 @@
 
      Ninguém vai a 100% além do ciano: violeta e verde no limite do gamut
      viram neon puro (#8800ff, #00dc00), que não é vivo, é berrante. */
-  --mf-mod-contas:    oklch(0.78 0.19 213);   /* ciano   — #00d4ff  a marca */
-  --mf-mod-publicar:  oklch(0.72 0.22 285);   /* violeta — #9b88ff  a segunda voz */
-  --mf-mod-campanhas: oklch(0.75 0.26 350);   /* magenta — #ff4ec5 */
-  --mf-mod-jobs:      oklch(0.80 0.16 78);    /* âmbar   — #f5af20 */
-  --mf-mod-metricas:  oklch(0.78 0.20 150);   /* verde   — #31d96d */
-  --mf-mod-sistema:   oklch(0.68 0.020 250);  /* neutro — matiz do tema */
+  /* ── Uma cor só ────────────────────────────────────────────────────────
+
+     Eram cinco matizes, uma por módulo. A ideia era território: você saberia
+     em que parte do produto está pela cor. Na prática o que se via era um
+     arco-íris — ícone violeta ao lado de ícone magenta ao lado de âmbar, e
+     nenhum deles significando "clique aqui".
+
+     Agora todas apontam para o ciano da marca. O produto inteiro fala uma
+     língua, e a distinção entre "isto é interativo" e "isto é conteúdo" passa
+     a ser feita pela cor, que é para o que ela serve melhor.
+
+     Os tokens continuam existindo, e é isso que torna a decisão reversível:
+     `--mf-mod-jobs` ainda é lido em dezenas de lugares. Devolver o âmbar é
+     mudar esta linha, não caçar usos.
+
+     O que NÃO virou ciano: sucesso, alerta e erro. Verde, âmbar e vermelho
+     ali não são estilo — são o significado. Pintá-los de ciano apagaria a
+     diferença entre "publicou" e "falhou". */
+  --mf-mod-contas:    oklch(0.78 0.19 213);
+  --mf-mod-publicar:  oklch(0.78 0.19 213);
+  --mf-mod-campanhas: oklch(0.78 0.19 213);
+  --mf-mod-jobs:      oklch(0.78 0.19 213);
+  --mf-mod-metricas:  oklch(0.78 0.19 213);
+  --mf-mod-sistema:   oklch(0.78 0.19 213);
 
   /* ── Superfícies ───────────────────────────────────────────────────────
      O fundo é uma cor escolhida, não derivada: #0e2a3d, o azul da barra de

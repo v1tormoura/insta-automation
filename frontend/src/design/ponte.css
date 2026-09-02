@@ -353,10 +353,14 @@
    fina e escura; onde os dois existem, sai acabada.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* O polegar é CIANO, e não cinza que fica ciano no hover. Numa tela escura a
+   barra fina em ciano lê como parte do produto; em cinza ela lê como
+   sobra do sistema operacional. Em 45% ela aparece sem competir com o
+   conteúdo, e vai a cheio quando o cursor a encontra. */
 [data-mf],
 [data-mf] * {
   scrollbar-width: thin;
-  scrollbar-color: var(--mf-border-strong) transparent;
+  scrollbar-color: color-mix(in oklch, var(--mf-primary-500) 45%, transparent) transparent;
 }
 
 [data-mf] ::-webkit-scrollbar,
@@ -376,7 +380,7 @@
    do ponteiro continua com os 10px da barra. */
 [data-mf] ::-webkit-scrollbar-thumb,
 [data-mf]::-webkit-scrollbar-thumb {
-  background-color: var(--mf-border-strong);
+  background-color: color-mix(in oklch, var(--mf-primary-500) 45%, transparent);
   border: 2px solid transparent;
   background-clip: content-box;
   border-radius: var(--mf-r-full);
@@ -384,11 +388,11 @@
 }
 [data-mf] ::-webkit-scrollbar-thumb:hover,
 [data-mf]::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 55%, var(--mf-border-strong));
+  background-color: color-mix(in oklch, var(--mf-primary-500) 75%, transparent);
 }
 [data-mf] ::-webkit-scrollbar-thumb:active,
 [data-mf]::-webkit-scrollbar-thumb:active {
-  background-color: var(--mf-mod, var(--mf-accent-500));
+  background-color: var(--mf-primary-500);
 }
 
 /* As setas das pontas somem. Elas rolam três pixels por clique, ninguém as
@@ -698,8 +702,17 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 }
 .mf-side__name { font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
 .mf-side__nav { flex: 1; overflow-y: auto; padding: var(--mf-3) var(--mf-2); }
+/* A barra da lateral tinha regra própria em cinza, e ela ganhava da global por
+   ser mais específica — então o único lugar onde a barra é vista o tempo todo
+   era justamente o que ficava de fora do ciano. */
 .mf-side__nav::-webkit-scrollbar { width: 6px; }
-.mf-side__nav::-webkit-scrollbar-thumb { background: var(--mf-border-strong); border-radius: var(--mf-r-full); }
+.mf-side__nav::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--mf-primary-500) 50%, transparent);
+  border-radius: var(--mf-r-full);
+}
+.mf-side__nav::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--mf-primary-500) 80%, transparent);
+}
 
 .mf-side__group { margin-bottom: var(--mf-4); }
 .mf-side__label {
@@ -925,6 +938,23 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
   }
   .mf-page-head__acts > * { width: 100%; }
+}
+
+/* ── Escolhido ──────────────────────────────────────────────
+
+   O que separa uma opção escolhida das outras hoje é só a borda mudar de tom —
+   diferença que se perde numa tela cheia de cartões. Um anel de 1px em ciano
+   mais um halo baixo resolve: o cartão escolhido parece ACESO, e os vizinhos
+   continuam apagados sem precisar ser escurecidos.
+
+   Duas sombras e nenhum `border`: mexer na borda mudaria a caixa e empurraria
+   o layout um pixel a cada troca de seleção. `box-shadow` desenha por fora e
+   não ocupa espaço. */
+.mf-escolhido {
+  border-color: color-mix(in oklch, var(--mf-primary-500) 55%, transparent) !important;
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 45%, transparent),
+              0 6px 26px -10px color-mix(in oklch, var(--mf-primary-500) 60%, transparent);
+  background: color-mix(in oklch, var(--mf-primary-500) 6%, var(--mf-surface-1));
 }
 
 /* ── Grid ────────────────────────────────────────────────────────────────
