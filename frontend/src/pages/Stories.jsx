@@ -316,13 +316,13 @@ export default function Stories() {
                 onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
                 style={{
                   margin: '0 19px', height: 112,
-                  border: `1.5px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'oklch(0.82 0.19 196 / 0.3)'}`,
+                  border: `1.5px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'color-mix(in oklch, var(--mf-primary-500) 30%, transparent)'}`,
                   borderRadius: 'var(--mf-r-md)',
-                  background: dragOver ? 'oklch(0.82 0.19 196 / 0.06)' : 'oklch(0.82 0.19 196 / 0.02)',
+                  background: dragOver ? 'color-mix(in oklch, var(--mf-primary-500) 6%, transparent)' : 'color-mix(in oklch, var(--mf-primary-500) 2%, transparent)',
                   display: 'grid', justifyItems: 'center', alignContent: 'center', gap: 7, cursor: 'pointer', transition: 'all var(--mf-normal) var(--mf-ease-out)',
                 }}>
                 <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={e => addFiles(e.target.files)} />
-                <div style={{ width: 34, height: 34, borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.08)', display: 'grid', placeItems: 'center', color: 'var(--mf-mod, var(--mf-accent-500))' }}>
+                <div style={{ width: 34, height: 34, borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--mf-mod, var(--mf-accent-500))' }}>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
                 </div>
                 <strong style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>Arraste fotos ou vídeos para enviar</strong>
@@ -345,7 +345,7 @@ export default function Stories() {
                       position: 'relative', height: 165,
                       border: `1px solid ${m.selected ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
                       background: 'var(--mf-bg)', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', cursor: 'pointer', transition: '.18s',
-                      boxShadow: m.selected ? '0 0 0 2px oklch(0.82 0.19 196 / 0.2)' : 'none',
+                      boxShadow: m.selected ? '0 0 0 2px color-mix(in oklch, var(--mf-primary-500) 20%, transparent)' : 'none',
                     }}>
                       <div style={{ height: 138, overflow: 'hidden', background: 'var(--mf-bg)', position: 'relative' }}>
                         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg,transparent 60%,oklch(0 0 0 / 0.52))' }} />
@@ -486,7 +486,7 @@ export default function Stories() {
 
               {linkOn && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', background: 'var(--mf-bg)', border: '1px solid oklch(0.82 0.19 196 / 0.25)', borderRadius: 'var(--mf-r-sm)' }}>
+                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', background: 'var(--mf-bg)', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)', borderRadius: 'var(--mf-r-sm)' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                     <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
                       style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' }} />
@@ -598,11 +598,11 @@ export default function Stories() {
                 marginTop: 16, width: '100%', height: 48, borderRadius: 'var(--mf-r-md)', border: 'none',
                 cursor: loading || !selected.length || !selectedMedia.length ? 'not-allowed' : 'pointer',
                 background: loading || !selected.length || !selectedMedia.length
-                  ? 'oklch(0.82 0.19 196 / 0.15)'
-                  : 'linear-gradient(135deg, oklch(0.74 0.20 196), oklch(0.82 0.19 196))',
-                color: loading || !selected.length || !selectedMedia.length ? 'oklch(0.82 0.19 196 / 0.5)' : 'var(--mf-bg)',
+                  ? 'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)'
+                  : 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-primary-500))',
+                color: loading || !selected.length || !selectedMedia.length ? 'color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : 'var(--mf-bg)',
                 fontSize: 'var(--mf-t-sm)', fontWeight: 750, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                boxShadow: loading || !selected.length || !selectedMedia.length ? 'none' : '0 8px 22px oklch(0.82 0.19 196 / 0.25)',
+                boxShadow: loading || !selected.length || !selectedMedia.length ? 'none' : '0 8px 22px color-mix(in oklch, var(--mf-primary-500) 25%, transparent)',
                 transition: 'all var(--mf-normal) var(--mf-ease-out)',
               }}>
                 {loading ? (

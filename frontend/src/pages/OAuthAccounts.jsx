@@ -119,7 +119,10 @@ function AccountCard({ account, metaAppId, onAction }) {
             {account.accountType && (
               <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', padding: '2px 4px', borderRadius: 'var(--mf-r-xs)',
                 background: account.accountType === 'BUSINESS' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)',
-                color: account.accountType === 'BUSINESS' ? 'var(--mf-mod, var(--mf-accent-500))' : '#c084fc',
+                /* A distinção entre comercial e pessoal fica — só deixa de ser violeta
+                   contra ciano e passa a ser aceso contra apagado, que é a mesma
+                   informação dentro da paleta. */
+                color: account.accountType === 'BUSINESS' ? 'var(--mf-primary-500)' : 'var(--mf-text-3)',
                 fontFamily: 'var(--mf-mono)', textTransform: 'uppercase',
               }}>
                 {account.accountType === 'BUSINESS' ? 'Business' : account.accountType === 'CREATOR' ? 'Creator' : account.accountType}

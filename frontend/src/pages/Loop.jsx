@@ -411,7 +411,7 @@ function LoopModal({ onClose, onCreated }) {
                   <button key={src} type="button"
                     onClick={() => setMediaSource(src)}
                     style={{ padding: '2px 8px', borderRadius: 'var(--mf-r-xs)', fontSize: 'var(--mf-t-nano)', fontWeight: mediaSource === src ? 700 : 400, cursor: 'pointer', border: 'none', transition: 'all var(--mf-fast) var(--mf-ease-out)',
-                      background: mediaSource === src ? 'oklch(0.60 0.22 295)' : 'transparent',
+                      background: mediaSource === src ? 'var(--mf-primary-600)' : 'transparent',
                       color: mediaSource === src ? 'var(--mf-text)' : 'var(--mf-text-3)',
                     }}>{lbl}</button>
                 ))}
@@ -468,7 +468,7 @@ function LoopModal({ onClose, onCreated }) {
             ) : (
               <>
                 <button type="button" onClick={() => setShowLibPicker(true)}
-                  style={{ width: '100%', marginTop: 8, padding: '16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
+                  style={{ width: '100%', marginTop: 8, padding: '16px', border: '1.5px dashed color-mix(in oklch, var(--mf-primary-500) 35%, transparent)', borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-primary-500) 4%, transparent)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                   <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600 }}>Escolher da biblioteca</span>
                   <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Selecione mídias já salvas nas suas pastas</span>

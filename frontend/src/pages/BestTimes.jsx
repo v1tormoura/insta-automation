@@ -91,11 +91,11 @@ function HourBars({ hours, peakHour }) {
                 <div style={{
                   width:'100%',height:'100%',borderRadius:'3px 3px 0 0',
                   background: isPeak
-                    ? 'linear-gradient(180deg,oklch(0.82 0.19 196),oklch(0.65 0.19 196/0.55))'
+                    ? 'linear-gradient(180deg,var(--mf-primary-500),color-mix(in oklch, var(--mf-primary-500) 55%, transparent))'
                     : isHigh
-                      ? 'oklch(0.70 0.18 196/0.45)'
+                      ? 'color-mix(in oklch, var(--mf-primary-500) 45%, transparent)'
                       : `oklch(0.65 0.16 196/${0.09+pct*0.22})`,
-                  boxShadow: isPeak ? '0 0 12px oklch(0.72 0.19 196/0.6),0 0 24px oklch(0.72 0.19 196/0.18)' : isHov ? '0 0 6px oklch(0.72 0.19 196/0.2)' : 'none',
+                  boxShadow: isPeak ? '0 0 12px color-mix(in oklch, var(--mf-primary-500) 60%, transparent),0 0 24px color-mix(in oklch, var(--mf-primary-500) 18%, transparent)' : isHov ? '0 0 6px color-mix(in oklch, var(--mf-primary-500) 20%, transparent)' : 'none',
                   transition:'box-shadow .15s',
                   opacity:h.count===0?0.22:1,
                 }}/>
@@ -110,7 +110,7 @@ function HourBars({ hours, peakHour }) {
                       position:'absolute',bottom:'calc(100% + 8px)',
                       left:'50%',transform:'translateX(-50%)',
                       background:'var(--mf-bg)',
-                      border:`1px solid ${isPeak?'oklch(0.72 0.19 196/0.4)':'oklch(1 0 0/0.1)'}`,
+                      border:`1px solid ${isPeak?'color-mix(in oklch, var(--mf-primary-500) 40%, transparent)':'oklch(1 0 0/0.1)'}`,
                       borderRadius: 'var(--mf-r-sm)',padding:'4px 8px',
                       fontSize: 'var(--mf-t-nano)',whiteSpace:'nowrap',zIndex:20,
                       pointerEvents:'none',
@@ -161,7 +161,7 @@ function HeatRow({ hours, peakHour }) {
           <div key={h.hour} title={`${padH(h.hour)}h · eng.${h.avgEngagement}`} style={{
             height:6,borderRadius: 'var(--mf-r-xs)',
             background: isPeak?'var(--mf-mod, var(--mf-accent-500))':h.count===0?'oklch(1 0 0/0.05)':`oklch(0.68 0.18 196/${0.06+i*0.45})`,
-            boxShadow: isPeak?'0 0 6px oklch(0.72 0.19 196/0.7)':'none',
+            boxShadow: isPeak?'0 0 6px color-mix(in oklch, var(--mf-primary-500) 70%, transparent)':'none',
             transition:'transform .15s',cursor:'default',
           }}/>
         );
@@ -202,9 +202,9 @@ function AccountCard({ a, idx }) {
         <div style={{flexShrink:0,position:'relative'}}>
           <div style={{
             width:58,height:58,borderRadius: 'var(--mf-r-full)',overflow:'hidden',
-            border:'2px solid oklch(0.72 0.19 196/0.25)',
+            border:'2px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)',
             background:'var(--mf-bg)',
-            boxShadow:'0 0 0 4px oklch(0.72 0.19 196/0.06)',
+            boxShadow:'0 0 0 4px color-mix(in oklch, var(--mf-primary-500) 6%, transparent)',
           }}>
             {src
               ?<img src={src} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
@@ -236,14 +236,14 @@ function AccountCard({ a, idx }) {
         {/* Peak callout */}
         <div style={{
           flexShrink:0,textAlign:'center',
-          background:'oklch(0.72 0.19 196/0.07)',
-          border:'1px solid oklch(0.72 0.19 196/0.18)',
+          background:'color-mix(in oklch, var(--mf-primary-500) 7%, transparent)',
+          border:'1px solid color-mix(in oklch, var(--mf-primary-500) 18%, transparent)',
           borderRadius: 'var(--mf-r-lg)',padding:'12px 16px',
           position:'relative',overflow:'hidden',
         }}>
           <div style={{
             position:'absolute',inset:0,
-            background:'radial-gradient(circle at 50% 0%,oklch(0.72 0.19 196/0.08),transparent 70%)',
+            background:'radial-gradient(circle at 50% 0%,color-mix(in oklch, var(--mf-primary-500) 8%, transparent),transparent 70%)',
             pointerEvents:'none',
           }}/>
           <div style={{fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:5}}>Melhor hora</div>
@@ -290,10 +290,10 @@ function AccountCard({ a, idx }) {
         {topHours.map((h,i)=>(
           <span key={h.hour} style={{
             fontSize: 'var(--mf-t-micro)',fontWeight:700,padding:'2px 8px',borderRadius: 'var(--mf-r-xl)',
-            background:i===0?'oklch(0.72 0.19 196/0.14)':'color-mix(in oklch, var(--mf-bg) 70%, transparent)',
+            background:i===0?'color-mix(in oklch, var(--mf-primary-500) 14%, transparent)':'color-mix(in oklch, var(--mf-bg) 70%, transparent)',
             color:i===0?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)',
-            border:`1px solid ${i===0?'oklch(0.72 0.19 196/0.3)':'oklch(1 0 0/0.07)'}`,
-            boxShadow:i===0?'0 0 8px oklch(0.72 0.19 196/0.15)':'none',
+            border:`1px solid ${i===0?'color-mix(in oklch, var(--mf-primary-500) 30%, transparent)':'oklch(1 0 0/0.07)'}`,
+            boxShadow:i===0?'0 0 8px color-mix(in oklch, var(--mf-primary-500) 15%, transparent)':'none',
           }}>
             {padH(h.hour)}h {i===0&&'★'}
           </span>
@@ -341,8 +341,8 @@ function HeroCard({ data, period }) {
       }}
     >
       {/* Background glow orbs */}
-      <div style={{position:'absolute',top:-80,right:-60,width:260,height:260,borderRadius: 'var(--mf-r-full)',background:'oklch(0.72 0.19 196/0.05)',filter:'blur(50px)',pointerEvents:'none'}}/>
-      <div style={{position:'absolute',bottom:-60,left:-40,width:180,height:180,borderRadius: 'var(--mf-r-full)',background:'oklch(0.65 0.18 280/0.04)',filter:'blur(40px)',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',top:-80,right:-60,width:260,height:260,borderRadius: 'var(--mf-r-full)',background:'color-mix(in oklch, var(--mf-primary-500) 5%, transparent)',filter:'blur(50px)',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',bottom:-60,left:-40,width:180,height:180,borderRadius: 'var(--mf-r-full)',background:'color-mix(in oklch, var(--mf-primary-500) 4%, transparent)',filter:'blur(40px)',pointerEvents:'none'}}/>
 
       <div style={{display:'flex',gap:28,alignItems:'stretch',flexWrap:'wrap',position:'relative'}}>
         {/* Feature KPI */}
@@ -351,7 +351,7 @@ function HeroCard({ data, period }) {
             Pico global
           </div>
           <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-            <div style={{fontSize:56,fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-2,textShadow:'0 0 40px oklch(0.72 0.19 196/0.4)'}}>
+            <div style={{fontSize:56,fontWeight:900,color:'var(--mf-mod, var(--mf-accent-500))',lineHeight:1,fontVariantNumeric:'tabular-nums',letterSpacing:-2,textShadow:'0 0 40px color-mix(in oklch, var(--mf-primary-500) 40%, transparent)'}}>
               {padH(peakNum)}
             </div>
             <div style={{fontSize: 'var(--mf-t-h1)',fontWeight:700,color:'var(--mf-mod, var(--mf-accent-500))',opacity:.7}}>h</div>
@@ -396,8 +396,8 @@ function HeroCard({ data, period }) {
           style={{
             marginTop:18,padding:'8px 16px',
             borderRadius: 'var(--mf-r-md)',
-            background:'oklch(0.72 0.19 196/0.06)',
-            border:'1px solid oklch(0.72 0.19 196/0.14)',
+            background:'color-mix(in oklch, var(--mf-primary-500) 6%, transparent)',
+            border:'1px solid color-mix(in oklch, var(--mf-primary-500) 14%, transparent)',
             display:'flex',alignItems:'center',gap:10,
           }}
         >

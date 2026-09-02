@@ -268,12 +268,19 @@
   --mf-primary-700: oklch(0.390 0.12 213);
   --mf-primary-fg:  oklch(0.99 0.004 213);   /* claro sobre o ciano escuro */
 
-  --mf-accent-300:  oklch(0.68 0.11 195);
-  --mf-accent-500:  oklch(0.515 0.13 195);
-  --mf-accent-700:  oklch(0.400 0.11 195);
+  /* LITERAIS, e não `var(--mf-primary-600)`.
 
-  /* Faltava. Herdado do tema escuro, dava 2,45 sobre o fundo claro. */
-  --mf-flare-500:   oklch(0.65 0.27 350);
+     O teste de contraste lê estes arquivos com uma expressão regular que casa
+     `oklch(...)` — ele não resolve `var()`. Escrito como referência, o token
+     fica INVISÍVEL para o teste, que então mede o valor do tema escuro e
+     reprova. Pior: se o valor claro estivesse errado de verdade, o teste
+     também não veria. Um literal a mais aqui é o preço de o teste continuar
+     enxergando o que ele existe para vigiar. */
+  --mf-accent-300:  oklch(0.450 0.14 213);
+  --mf-accent-500:  oklch(0.450 0.14 213);
+  --mf-accent-700:  oklch(0.450 0.14 213);
+
+  --mf-flare-500:   oklch(0.450 0.14 213);
 
   --mf-success-500: oklch(0.465 0.129 150);
   --mf-success-bg:  oklch(0.465 0.129 150 / 0.11);
@@ -281,18 +288,23 @@
   --mf-warning-bg:  oklch(0.490 0.095 75 / 0.11);
   --mf-danger-500:  oklch(0.500 0.187 25);
   --mf-danger-bg:   oklch(0.500 0.187 25 / 0.11);
-  --mf-info-500:    oklch(0.480 0.118 245);
-  --mf-info-bg:     oklch(0.480 0.118 245 / 0.11);
+  /* `info` acompanha o ciano, como no tema escuro. Os dois em literal e no
+     mesmo matiz: o teste confere que a cor do crácha e o fundo dele não
+     divergem, e foi assim que a divergência apareceu — o fundo virou ciano e a
+     letra ficou azul-violeta. */
+  --mf-info-500:    oklch(0.450 0.14 213);
+  --mf-info-bg:     oklch(0.450 0.14 213 / 0.11);
 
-  /* Módulos descem de luminosidade pelo mesmo motivo do primary, mantendo o
-     matiz — a pista de navegação é o MATIZ, e ele precisa sobreviver à troca
-     de tema para a pessoa não ter de reaprender o produto no modo claro. */
+  /* Todos no ciano, como no tema escuro — só mais escuros, porque sobre fundo
+     claro o ciano vivo dá 1,5:1 e some. A luminosidade é que muda entre os
+     temas; o matiz é o mesmo nos dois, e é isso que faz o produto parecer o
+     mesmo produto ao trocar de tema. */
   --mf-mod-contas:    oklch(0.510 0.15 213);
-  --mf-mod-publicar:  oklch(0.500 0.20 285);
-  --mf-mod-campanhas: oklch(0.520 0.19 350);
-  --mf-mod-jobs:      oklch(0.530 0.12 75);
-  --mf-mod-metricas:  oklch(0.500 0.14 150);
-  --mf-mod-sistema:   oklch(0.480 0.02 241);
+  --mf-mod-publicar:  oklch(0.510 0.15 213);
+  --mf-mod-campanhas: oklch(0.510 0.15 213);
+  --mf-mod-jobs:      oklch(0.510 0.15 213);
+  --mf-mod-metricas:  oklch(0.510 0.15 213);
+  --mf-mod-sistema:   oklch(0.510 0.15 213);
 
   --mf-grade: oklch(0.22 0.02 241 / 0.035);
 

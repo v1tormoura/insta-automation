@@ -10,7 +10,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const STATUS_MAP = {
   ok:        { bg:'color-mix(in oklch, var(--mf-success-500) 13%, transparent)', color:'var(--mf-success-500)', border:'oklch(0.38 0.12 150 / 0.35)', label:'Sessão OK'  },
-  em_uso:    { bg:'color-mix(in oklch, var(--mf-mod-publicar) 13%, transparent)', color:'var(--mf-mod-publicar)', border:'oklch(0.38 0.12 270 / 0.35)', label:'Em uso'     },
+  em_uso:    { bg:'color-mix(in oklch, var(--mf-mod-publicar) 13%, transparent)', color:'var(--mf-mod-publicar)', border:'color-mix(in oklch, var(--mf-primary-500) 35%, transparent)', label:'Em uso'     },
   expirada:  { bg:'color-mix(in oklch, var(--mf-warning-500) 13%, transparent)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Expirada'   },
   sem_sessao:{ bg:'color-mix(in oklch, var(--mf-warning-500) 13%, transparent)',  color:'var(--mf-warning-500)', border:'oklch(0.38 0.12 60 / 0.35)',  label:'Sem sessão' },
   erro_login:{ bg:'color-mix(in oklch, var(--mf-danger-500) 13%, transparent)',  color:'var(--mf-danger-500)', border:'oklch(0.38 0.12 15 / 0.35)',  label:'Erro login' },
@@ -55,11 +55,11 @@ export default function Sessions() {
   const busy     = sessions.filter(s => s.sessionStatus === 'em_uso').length;
 
   const STATS = [
-    { label:'Total',       value:sessions.length, color:'oklch(0.68 0.18 270)' },
+    { label:'Total',       value:sessions.length, color:'var(--mf-primary-600)' },
     { label:'Sessões OK',  value:ok,              color:'oklch(0.72 0.18 150)' },
     { label:'Expiradas',   value:expired,         color:'oklch(0.78 0.17 60)'  },
     { label:'Sem sessão',  value:noSess,          color:'oklch(0.78 0.17 60)'  },
-    { label:'Em uso',      value:busy,            color:'oklch(0.72 0.2 270)'  },
+    { label:'Em uso',      value:busy,            color:'var(--mf-primary-500)'  },
   ];
 
   const pageIcon = (
@@ -126,7 +126,7 @@ export default function Sessions() {
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         {session.avatar
                           ? <img src={`${API_BASE}${session.avatar}`} alt="" style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', objectFit:'cover' }} />
-                          : <div style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', background:'oklch(0.72 0.2 270 / 0.15)', border:'1px solid oklch(0.72 0.2 270 / 0.25)', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'oklch(0.72 0.2 270)' }}>{session.username?.charAt(0)?.toUpperCase() || 'I'}</div>
+                          : <div style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-primary-500)' }}>{session.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                         }
                         <div>
                           <div style={{ fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)' }}>@{session.username}</div>

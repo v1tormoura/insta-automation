@@ -174,7 +174,7 @@ export default function ViralHunter() {
                 transition={{ delay:idx*.03, duration:.18 }}
                 style={{ ...cardStyle, borderRadius: 'var(--mf-r-md)' }}
               >
-                <div style={{ height:3, background: idx < 3 ? 'linear-gradient(90deg,var(--mf-mod, var(--mf-accent-500)),oklch(0.68 0.18 270))' : 'var(--mf-border)' }} />
+                <div style={{ height:3, background: idx < 3 ? 'linear-gradient(90deg,var(--mf-mod, var(--mf-accent-500)),var(--mf-primary-600))' : 'var(--mf-border)' }} />
 
                 <div style={{ height:130, background:'linear-gradient(135deg,var(--mf-bg),var(--mf-surface-1))', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}>
                   {thumb
@@ -182,7 +182,7 @@ export default function ViralHunter() {
                     : <span style={{ fontSize: 'var(--mf-t-display)' }}>🎬</span>
                   }
                   <div style={{ position:'absolute', top:8, left:8 }}>
-                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-md)', background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.9)' : 'oklch(0 0 0 / 0.6)', color: idx < 3 ? 'var(--mf-bg)' : '#aaa' }}>#{idx + 1}</span>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-md)', background: idx < 3 ? 'color-mix(in oklch, var(--mf-primary-500) 90%, transparent)' : 'oklch(0 0 0 / 0.6)', color: idx < 3 ? 'var(--mf-bg)' : '#aaa' }}>#{idx + 1}</span>
                   </div>
                   {isDone && (
                     <div style={{ position:'absolute', inset:0, background:'oklch(0.72 0.18 150 / 0.25)', display:'flex', alignItems:'center', justifyContent:'center' }}>

@@ -161,7 +161,7 @@ export default function MediaLibrary() {
           <div style={{ background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', position:'sticky', top:20 }}>
             <div style={{ padding:'12px 12px', borderBottom:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', fontFamily:'var(--mf-mono)' }}>Pastas</span>
-              <button onClick={() => setNewFolderOpen(true)} style={{ width:22, height:22, borderRadius: 'var(--mf-r-sm)', background:'oklch(0.68 0.18 270 / 0.15)', border:'1px solid oklch(0.68 0.18 270 / 0.3)', color:'oklch(0.68 0.18 270)', cursor:'pointer', fontSize: 'var(--mf-t-body)', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
+              <button onClick={() => setNewFolderOpen(true)} style={{ width:22, height:22, borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)', color:'var(--mf-primary-600)', cursor:'pointer', fontSize: 'var(--mf-t-body)', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
             </div>
             <div style={{ padding:'8px' }}>
               {folders.length === 0 && (
@@ -169,13 +169,13 @@ export default function MediaLibrary() {
               )}
               {folders.map(f => (
                 <div key={f} onClick={() => setActive(f)}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', marginBottom:2, background: activeFolder === f ? 'oklch(0.68 0.18 270 / 0.15)' : 'transparent', border: activeFolder === f ? '1px solid oklch(0.68 0.18 270 / 0.25)' : '1px solid transparent', transition:'all .15s' }}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', marginBottom:2, background: activeFolder === f ? 'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)' : 'transparent', border: activeFolder === f ? '1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)' : '1px solid transparent', transition:'all .15s' }}
                   onMouseEnter={e => { if (activeFolder !== f) e.currentTarget.style.background = 'var(--mf-border-subtle)'; }}
                   onMouseLeave={e => { if (activeFolder !== f) e.currentTarget.style.background = 'transparent'; }}
                 >
                   <div style={{ display:'flex', alignItems:'center', gap:7, minWidth:0 }}>
                     <span style={{ fontSize: 'var(--mf-t-sm)' }}>📁</span>
-                    <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: activeFolder === f ? 600 : 400, color: activeFolder === f ? 'oklch(0.80 0.16 270)' : 'var(--mf-text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f}</span>
+                    <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: activeFolder === f ? 600 : 400, color: activeFolder === f ? 'var(--mf-primary-500)' : 'var(--mf-text-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f}</span>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
                     <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'2px 4px' }}>{folderCounts[f] || 0}</span>
@@ -186,8 +186,8 @@ export default function MediaLibrary() {
             </div>
             <div style={{ borderTop:'1px solid var(--mf-border)', padding:'8px 12px', display:'flex', flexDirection:'column', gap:5 }}>
               {[
-                { l:'Total',   v:files.filter(f => !f.filename?.startsWith('__folder_')).length, c:'oklch(0.68 0.18 270)' },
-                { l:'Vídeos',  v:files.filter(f => f.type === 'video').length,                    c:'oklch(0.72 0.2 270)'  },
+                { l:'Total',   v:files.filter(f => !f.filename?.startsWith('__folder_')).length, c:'var(--mf-primary-600)' },
+                { l:'Vídeos',  v:files.filter(f => f.type === 'video').length,                    c:'var(--mf-primary-500)'  },
                 { l:'Imagens', v:files.filter(f => f.type === 'image').length,                    c:'oklch(0.72 0.18 150)' },
               ].map(s => (
                 <div key={s.l} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -212,7 +212,7 @@ export default function MediaLibrary() {
 
             {/* Drop zone */}
             <label
-              style={{ marginBottom:14, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', padding:'16px', borderRadius: 'var(--mf-r-md)', border:`2px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`, background: dragOver ? 'oklch(0.72 0.19 196 / 0.06)' : 'color-mix(in oklch, var(--mf-bg) 40%, transparent)', transition:'.15s' }}
+              style={{ marginBottom:14, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', padding:'16px', borderRadius: 'var(--mf-r-md)', border:`2px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`, background: dragOver ? 'color-mix(in oklch, var(--mf-primary-500) 6%, transparent)' : 'color-mix(in oklch, var(--mf-bg) 40%, transparent)', transition:'.15s' }}
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={e => { e.preventDefault(); setDragOver(false); upload(Array.from(e.dataTransfer.files)); }}
@@ -235,7 +235,7 @@ export default function MediaLibrary() {
                 {shown.map((item, i) => (
                   <motion.div key={item._id} initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.02 }}
                     style={{ background:'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'oklch(0.68 0.18 270 / 0.4)'}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'color-mix(in oklch, var(--mf-primary-500) 40%, transparent)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mf-border)'}
                   >
                     <div onClick={() => setPreview(item)} style={{ width:'100%', aspectRatio:'1', background:'var(--mf-bg)', cursor:'pointer', position:'relative', overflow:'hidden' }}>
@@ -246,7 +246,7 @@ export default function MediaLibrary() {
                       ) : (
                         <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--mf-t-display)' }}>📄</div>
                       )}
-                      <span style={{ position:'absolute', top:6, left:6, fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xs)', background: item.type === 'video' ? 'oklch(0.68 0.18 270 / 0.85)' : 'oklch(0.72 0.18 150 / 0.85)', color:'var(--mf-text)', letterSpacing:.4 }}>
+                      <span style={{ position:'absolute', top:6, left:6, fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xs)', background: item.type === 'video' ? 'color-mix(in oklch, var(--mf-primary-500) 85%, transparent)' : 'oklch(0.72 0.18 150 / 0.85)', color:'var(--mf-text)', letterSpacing:.4 }}>
                         {item.type === 'video' ? 'VID' : 'IMG'}
                       </span>
                     </div>

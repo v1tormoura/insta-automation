@@ -21,7 +21,7 @@
 }
 .promo-toast--success { background: oklch(0.72 0.18 150 / 0.92); }
 .promo-toast--error   { background: oklch(0.52 0.20 15 / 0.92); }
-.promo-toast--info    { background: oklch(0.55 0.22 270 / 0.92); }
+.promo-toast--info    { background: color-mix(in oklch, var(--mf-primary-500) 92%, transparent); }
 
 @keyframes promo-slide-in {
   from { opacity: 0; transform: translateX(20px); }
@@ -34,8 +34,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: oklch(0.55 0.22 270 / 0.07);
-  border: 1px solid oklch(0.55 0.22 270 / 0.2);
+  background: color-mix(in oklch, var(--mf-primary-500) 7%, transparent);
+  border: 1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent);
   border-radius: 10px;
   font-size: 12px;
   color: var(--text2);
@@ -46,8 +46,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: oklch(0.68 0.18 270);
-  box-shadow: 0 0 6px oklch(0.68 0.18 270);
+  background: var(--mf-primary-600);
+  box-shadow: 0 0 6px var(--mf-primary-600);
   flex-shrink: 0;
 }
 
@@ -82,7 +82,7 @@
 
 /* ── Card ── */
 .promo-card {
-  background: oklch(0.16 0.05 235 / 0.85);
+  background: color-mix(in oklch, var(--mf-primary-500) 85%, transparent);
   border: 1px solid oklch(1 0 0 / 0.07);
   border-radius: 16px;
   padding: 20px;
@@ -94,8 +94,8 @@
 }
 
 .promo-card--active {
-  border-color: oklch(0.55 0.22 270 / 0.4);
-  box-shadow: 0 0 0 1px oklch(0.55 0.22 270 / 0.12), 0 8px 32px oklch(0 0 0 / 0.15);
+  border-color: color-mix(in oklch, var(--mf-primary-500) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 12%, transparent), 0 8px 32px oklch(0 0 0 / 0.15);
 }
 
 /* ── Card head ── */
@@ -195,12 +195,12 @@
 }
 
 .promo-toggle input:checked + .promo-toggle-knob {
-  background: oklch(0.55 0.22 270 / 0.25);
-  border-color: oklch(0.68 0.18 270);
+  background: color-mix(in oklch, var(--mf-primary-500) 25%, transparent);
+  border-color: var(--mf-primary-600);
 }
 
 .promo-toggle input:checked + .promo-toggle-knob::before {
-  background: oklch(0.72 0.18 270);
+  background: var(--mf-primary-500);
   transform: translateX(20px);
 }
 
@@ -241,7 +241,7 @@
   box-sizing: border-box;
 }
 
-.promo-input:focus { border-color: oklch(0.68 0.18 270); }
+.promo-input:focus { border-color: var(--mf-primary-600); }
 .promo-input:disabled { opacity: .45; cursor: not-allowed; }
 .promo-input::placeholder { color: var(--text3); }
 
@@ -255,7 +255,7 @@
   padding: 1px 4px;
   border-radius: 4px;
   font-size: 10px;
-  color: oklch(0.75 0.14 270);
+  color: var(--mf-primary-500);
 }
 
 /* ── Features ── */
@@ -274,7 +274,7 @@
 }
 
 .promo-feat--on {
-  border-color: oklch(0.55 0.22 270 / 0.3);
+  border-color: color-mix(in oklch, var(--mf-primary-500) 30%, transparent);
 }
 
 .promo-feat-head {
@@ -303,8 +303,8 @@
   flex-shrink: 0;
 }
 
-.promo-feat-icon--comment { background: oklch(0.50 0.17 245 / 0.12); color: oklch(0.65 0.18 245); }
-.promo-feat-icon--story   { background: oklch(0.65 0.22 330 / 0.12); color: oklch(0.70 0.22 330); }
+.promo-feat-icon--comment { background: color-mix(in oklch, var(--mf-primary-500) 12%, transparent); color: oklch(0.65 0.18 245); }
+.promo-feat-icon--story   { background: color-mix(in oklch, var(--mf-primary-500) 12%, transparent); color: var(--mf-primary-500); }
 .promo-feat-icon--bio     { background: oklch(0.72 0.18 150 / 0.12); color: oklch(0.72 0.18 150); }
 
 .promo-feat-name {
@@ -340,9 +340,9 @@
 }
 
 .promo-test-btn:not(:disabled):hover {
-  border-color: oklch(0.68 0.18 270);
-  color: oklch(0.72 0.18 270);
-  background: oklch(0.55 0.22 270 / 0.08);
+  border-color: var(--mf-primary-600);
+  color: var(--mf-primary-500);
+  background: color-mix(in oklch, var(--mf-primary-500) 8%, transparent);
 }
 
 .promo-test-btn:disabled { opacity: .35; cursor: not-allowed; }
@@ -365,7 +365,7 @@
   transition: border-color .15s;
 }
 
-.promo-template:focus { border-color: oklch(0.68 0.18 270); }
+.promo-template:focus { border-color: var(--mf-primary-600); }
 .promo-template:disabled { opacity: .45; cursor: not-allowed; }
 .promo-template::placeholder { color: var(--text3); }
 
@@ -373,7 +373,7 @@
 .promo-save-btn {
   width: 100%;
   padding: 11px;
-  background: linear-gradient(135deg, oklch(0.55 0.22 270), oklch(0.68 0.18 270));
+  background: linear-gradient(135deg, var(--mf-primary-600), var(--mf-primary-600));
   border: none;
   border-radius: 10px;
   color: #fff;

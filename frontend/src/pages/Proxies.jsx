@@ -173,8 +173,8 @@ export default function Proxies() {
   const notTested  = accounts.filter(a => a.proxy && a.proxyStatus === 'nao_testado').length;
 
   const STATS = [
-    { label:'Contas',        value:accounts.length, color:'oklch(0.68 0.18 270)' },
-    { label:'Configurados',  value:configured,      color:'oklch(0.72 0.19 196)' },
+    { label:'Contas',        value:accounts.length, color:'var(--mf-primary-600)' },
+    { label:'Configurados',  value:configured,      color:'var(--mf-primary-500)' },
     { label:'Online',        value:online,          color:'oklch(0.72 0.18 150)' },
     { label:'Offline',       value:offline,         color:'oklch(0.63 0.2 15)'   },
     { label:'Não testados',  value:notTested,       color:'oklch(0.55 0.04 240)' },
@@ -432,7 +432,7 @@ export default function Proxies() {
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                         {account.avatar
                           ? <img src={`${API_BASE}${account.avatar}`} alt="" style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', objectFit:'cover' }} />
-                          : <div style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', background:'oklch(0.68 0.18 270 / 0.15)', border:'1px solid oklch(0.68 0.18 270 / 0.25)', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'oklch(0.68 0.18 270)' }}>{account.username?.charAt(0)?.toUpperCase() || 'I'}</div>
+                          : <div style={{ width:32, height:32, borderRadius: 'var(--mf-r-sm)', background:'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)', display:'grid', placeItems:'center', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-primary-600)' }}>{account.username?.charAt(0)?.toUpperCase() || 'I'}</div>
                         }
                         <div>
                           <div style={{ fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)' }}>@{account.username}</div>

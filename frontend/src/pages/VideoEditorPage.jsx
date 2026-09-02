@@ -243,7 +243,7 @@ function CanvasPreview({ tmpl, previewUrl, onVideoWindowChange }) {
           }}>
             {previewUrl
               ? <video key={previewUrl} src={previewUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: objFit }} autoPlay muted loop playsInline />
-              : <div style={{ width: '100%', height: '100%', background: 'oklch(0.55 0.18 235 / 0.09)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              : <div style={{ width: '100%', height: '100%', background: 'color-mix(in oklch, var(--mf-primary-500) 9%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span style={{ fontSize: 'var(--mf-t-nano)', color: 'color-mix(in oklch, var(--mf-info-500) 40%, transparent)', fontFamily: 'var(--mf-mono)', userSelect: 'none' }}>VÍDEO</span>
                 </div>
             }
@@ -682,7 +682,7 @@ export default function VideoEditorPage() {
               <div style={{ height: files.length * ITEM_H, position: 'relative' }}>
                 <div style={{ position: 'absolute', top: visStart * ITEM_H, left: 0, right: 0 }}>
                   {files.slice(visStart, visEnd).map(item => (
-                    <div key={item.id} onClick={() => selectPreview(item)} style={{ height: ITEM_H, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', cursor: 'pointer', borderBottom: '1px solid var(--mf-border-subtle)', background: previewId === item.id ? 'oklch(0.55 0.18 235 / 0.13)' : 'transparent', borderLeft: `2px solid ${previewId === item.id ? 'var(--mf-info-500)' : 'transparent'}`, transition: 'background .1s' }}>
+                    <div key={item.id} onClick={() => selectPreview(item)} style={{ height: ITEM_H, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', cursor: 'pointer', borderBottom: '1px solid var(--mf-border-subtle)', background: previewId === item.id ? 'color-mix(in oklch, var(--mf-primary-500) 13%, transparent)' : 'transparent', borderLeft: `2px solid ${previewId === item.id ? 'var(--mf-info-500)' : 'transparent'}`, transition: 'background .1s' }}>
                       <input type="checkbox" checked={item.selected} onChange={e => { e.stopPropagation(); setFiles(fs => fs.map(f => f.id === item.id ? { ...f, selected: e.target.checked } : f)); }} onClick={e => e.stopPropagation()} style={{ flexShrink: 0, accentColor: 'var(--mf-success-500)' }} />
                       <FileThumbnail fileItem={item} cache={thumbCache.current} />
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -770,7 +770,7 @@ export default function VideoEditorPage() {
           <Acc title="Enquadramento" id="enquadramento" open={sections.enquadramento} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {FIT_OPTS.map(opt => (
-                <label key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: videoEl?.fit === opt.id ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${videoEl?.fit === opt.id ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}`, transition: 'background .12s' }}>
+                <label key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: videoEl?.fit === opt.id ? 'color-mix(in oklch, var(--mf-primary-500) 16%, transparent)' : 'var(--mf-border-subtle)', border: `1px solid ${videoEl?.fit === opt.id ? 'color-mix(in oklch, var(--mf-primary-500) 38%, transparent)' : 'var(--mf-border)'}`, transition: 'background .12s' }}>
                   <input type="radio" name="fit" value={opt.id} checked={videoEl?.fit === opt.id} onChange={() => updEl(videoEl.id, { fit: opt.id })} style={{ marginTop: 2, accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: 'var(--mf-text)' }}>{opt.label}</div>
@@ -813,7 +813,7 @@ export default function VideoEditorPage() {
             <button
               onClick={() => pngInputRef.current?.click()}
               className="btn-ghost"
-              style={{ width: '100%', padding: '8px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10, border: '1px dashed oklch(0.55 0.18 235 / 0.45)', color: 'var(--mf-info-500)' }}
+              style={{ width: '100%', padding: '8px 0', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 10, border: '1px dashed color-mix(in oklch, var(--mf-primary-500) 45%, transparent)', color: 'var(--mf-info-500)' }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               {(tmpl.templatePng?.templates || []).length > 0 ? '+ Adicionar outro (rotação)' : 'Escolher Template PNG'}
@@ -1015,7 +1015,7 @@ export default function VideoEditorPage() {
           <Acc title="Qualidade" id="qualidade" open={sections.qualidade} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {QUALITY_OPTS.map(q => (
-                <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'oklch(0.55 0.18 235 / 0.16)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'oklch(0.65 0.18 235 / 0.38)' : 'var(--mf-border)'}` }}>
+                <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'color-mix(in oklch, var(--mf-primary-500) 16%, transparent)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'color-mix(in oklch, var(--mf-primary-500) 38%, transparent)' : 'var(--mf-border)'}` }}>
                   <input type="radio" name="quality" checked={tmpl.output?.crf === q.crf} onChange={() => { setT('output.crf', q.crf); setT('output.preset', q.preset); }} style={{ accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
                   <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>{q.label}</span>
                 </label>

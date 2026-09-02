@@ -54,13 +54,15 @@
   /* Um passo mais claro e mais verde que o primary (195° contra 213°). Serve
      ao que precisa saltar SOBRE uma superfície que já é ciano — sem ele, um
      destaque dentro de um cartão primário desapareceria no próprio fundo. */
-  --mf-accent-300:  oklch(0.90 0.13 195);
-  --mf-accent-500:  oklch(0.82 0.17 195);
-  --mf-accent-700:  oklch(0.60 0.14 195);
+  --mf-accent-300:  oklch(0.90 0.13 213);
+  --mf-accent-500:  oklch(0.82 0.17 213);
+  --mf-accent-700:  oklch(0.60 0.14 213);
 
   /* Magenta em dose pequena: só para o que é excepcional (campanha ativa,
      item premium). Usado em área grande, vira ruído. */
-  --mf-flare-500:   oklch(0.75 0.26 350);
+  /* Sem uso hoje. Apontado para o ciano para que um uso futuro não reintroduza
+     magenta sem ninguém decidir isso. */
+  --mf-flare-500:   oklch(0.78 0.19 213);
 
   /* ── Semântica de estado ───────────────────────────────────────────────
      Uma cor por significado. Componente nenhum escolhe verde por conta
@@ -74,8 +76,11 @@
   --mf-warning-bg:  oklch(0.80 0.16 78 / 0.13);
   --mf-danger-500:  oklch(0.72 0.17 25);
   --mf-danger-bg:   oklch(0.72 0.17 25 / 0.13);
-  --mf-info-500:    oklch(0.74 0.15 245);
-  --mf-info-bg:     oklch(0.74 0.15 245 / 0.13);
+  /* `info` é a mais fraca das semânticas: não é sucesso nem erro, é "aviso
+     neutro". Num produto ciano, o aviso neutro ser um azul DIFERENTE do azul
+     do produto lê como inconsistência, não como significado. */
+  --mf-info-500:    oklch(0.78 0.19 213);
+  --mf-info-bg:     oklch(0.78 0.19 213 / 0.13);
 
   /* ── Cor por módulo ────────────────────────────────────────────────────
      Cada área do produto tem um matiz fixo. O usuário aprende o lugar pela

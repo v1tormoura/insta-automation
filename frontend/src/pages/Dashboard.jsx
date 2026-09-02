@@ -527,7 +527,7 @@ function LoopsPanel({ loops }) {
     <div style={{ ...card, display:'flex', flexDirection:'column', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)' }} className="lift">
       {/* purple ambient orb */}
       <div style={{ position:'absolute', top:-60, right:-40, width:180, height:180, borderRadius: 'var(--mf-r-full)', background:'radial-gradient(circle,color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent),transparent 70%)', pointerEvents:'none' }} />
-      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,oklch(0.65 0.22 295 / 0.55),transparent)' }} />
+      <div style={{ position:'absolute', top:0, left:20, right:20, height:1, background:'linear-gradient(90deg,transparent,color-mix(in oklch, var(--mf-primary-500) 55%, transparent),transparent)' }} />
 
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border-subtle)', flexShrink:0 }}>
@@ -609,7 +609,7 @@ function LoopsPanel({ loops }) {
                 </div>
                 <div style={{ marginTop:7, height:3, background:'var(--mf-border)', borderRadius: 'var(--mf-r-xs)', overflow:'hidden' }}>
                   <motion.div initial={{ width:0 }} animate={{ width:`${pct}%` }} transition={{ duration:.7, ease }}
-                    style={{ height:'100%', borderRadius: 'var(--mf-r-xs)', background: isDone ? 'linear-gradient(90deg,var(--mf-success-500),var(--mf-success-500))' : 'linear-gradient(90deg,#6d28d9,var(--mf-mod-publicar))', boxShadow: isDone ? '0 0 8px color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : '0 0 8px color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }} />
+                    style={{ height:'100%', borderRadius: 'var(--mf-r-xs)', background: isDone ? 'linear-gradient(90deg,var(--mf-success-500),var(--mf-success-500))' : 'linear-gradient(90deg,var(--mf-primary-600),var(--mf-mod-publicar))', boxShadow: isDone ? '0 0 8px color-mix(in oklch, var(--mf-success-500) 50%, transparent)' : '0 0 8px color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }} />
                 </div>
               </motion.div>
             );
@@ -1315,8 +1315,8 @@ export default function Dashboard() {
                         <AreaChart data={forecastData} margin={{ top:10, right:4, left:-28, bottom:0 }}>
                           <defs>
                             <linearGradient id="fg-chart" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%"   stopColor="#26c7ff" stopOpacity={.3} />
-                              <stop offset="100%" stopColor="#26c7ff" stopOpacity={0}  />
+                              <stop offset="0%"   stopColor="var(--mf-primary-500)" stopOpacity={.3} />
+                              <stop offset="100%" stopColor="var(--mf-primary-500)" stopOpacity={0}  />
                             </linearGradient>
                             <linearGradient id="fg-chart-amber" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%"   stopColor="var(--mf-warning-500)" stopOpacity={.35} />

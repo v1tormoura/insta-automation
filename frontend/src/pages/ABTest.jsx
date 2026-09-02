@@ -192,7 +192,7 @@ export default function ABTest() {
               </select>
             </div>
 
-            <div style={{ background:'oklch(0.72 0.19 196 / 0.07)', border:'1px solid oklch(0.72 0.19 196 / 0.18)', borderRadius: 'var(--mf-r-md)', padding:'8px 12px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.7 }}>
+            <div style={{ background:'color-mix(in oklch, var(--mf-primary-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 18%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'8px 12px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.7 }}>
               Publique os dois Reels no Instagram, depois cole o <strong>Media ID</strong> de cada um.<br />
               O ID fica na URL do post: instagram.com/reel/<strong>ABC123xyz</strong>/
             </div>

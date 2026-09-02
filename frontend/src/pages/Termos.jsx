@@ -9,7 +9,7 @@ export default function Termos() {
           <p style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)' }}>Última atualização: julho de 2026</p>
         </div>
 
-        <div style={{ background:'oklch(0.55 0.22 270 / 0.07)', border:'1px solid oklch(0.55 0.22 270 / 0.2)', borderRadius: 'var(--mf-r-md)', padding:'16px 16px', marginBottom:32 }}>
+        <div style={{ background:'color-mix(in oklch, var(--mf-primary-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', borderRadius: 'var(--mf-r-md)', padding:'16px 16px', marginBottom:32 }}>
           <div style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-2)', lineHeight:1.6 }}>
             <strong style={{ color:'var(--mf-text)' }}>Operado por:</strong> 67.761.040 VITOR MARCELO MOURA DA SILVA<br />
             <strong style={{ color:'var(--mf-text)' }}>CNPJ:</strong> 67.761.040/0001-27<br />

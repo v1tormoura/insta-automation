@@ -8,10 +8,10 @@ const PERIODS = ['7d','30d'];
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
 const NICHE_COLORS = [
-  'oklch(0.68 0.18 270)',
-  'oklch(0.72 0.19 196)',
-  'oklch(0.70 0.22 330)',
-  'oklch(0.68 0.22 280)',
+  'var(--mf-primary-600)',
+  'var(--mf-primary-500)',
+  'var(--mf-primary-500)',
+  'var(--mf-primary-600)',
   'oklch(0.78 0.17 60)',
   'oklch(0.72 0.18 150)',
   'oklch(0.72 0.20 35)',
@@ -47,7 +47,7 @@ export default function TrendingAudio() {
         <button key={p} onClick={() => setPeriod(p)} style={{
           height:26, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,
           border:'none', cursor:'pointer', transition:'.15s',
-          background: period === p ? 'oklch(0.70 0.22 330)' : 'transparent',
+          background: period === p ? 'var(--mf-primary-500)' : 'transparent',
           color: period === p ? 'var(--mf-text)' : 'var(--mf-text-3)',
         }}>{p}</button>
       ))}
@@ -99,7 +99,7 @@ export default function TrendingAudio() {
                         <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:2 }}>{age !== null ? `${age}d atrás` : ''}</div>
                       </div>
                     </div>
-                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background: idx < 3 ? 'oklch(0.72 0.19 196 / 0.2)' : 'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color: idx < 3 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', border:`1px solid ${idx < 3 ? 'oklch(0.72 0.19 196 / 0.35)' : 'var(--mf-border)'}`, flexShrink:0, marginLeft:6 }}>#{idx + 1}</span>
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:800, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background: idx < 3 ? 'color-mix(in oklch, var(--mf-primary-500) 20%, transparent)' : 'color-mix(in oklch, var(--mf-surface-1) 60%, transparent)', color: idx < 3 ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)', border:`1px solid ${idx < 3 ? 'color-mix(in oklch, var(--mf-primary-500) 35%, transparent)' : 'var(--mf-border)'}`, flexShrink:0, marginLeft:6 }}>#{idx + 1}</span>
                   </div>
 
                   {item.caption && (

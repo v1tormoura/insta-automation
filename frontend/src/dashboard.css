@@ -100,7 +100,7 @@
 @media (min-width: 1200px) { .metric-grid > .metric-wide { grid-column: span 2; } }
 
 .wide-metric, .panel, .quick-action {
-  /* Era `oklch(0.16 0.05 235 / 0.92)`, cravado. Croma 0.05 num fundo de
+  /* Era `color-mix(in oklch, var(--mf-primary-500) 92%, transparent)`, cravado. Croma 0.05 num fundo de
      painel é a paleta anterior congelada num literal: o redirecionamento de
      tokens passava ao largo, e estes blocos continuariam com a cor velha
      enquanto o resto do app mudava. Literal em superfície é sempre isso —
@@ -171,7 +171,7 @@
 }
 .card-top-line {
   position: absolute; top: 0; left: 20px; right: 20px; height: 1px; pointer-events: none; z-index: 3;
-  background: linear-gradient(90deg, transparent, oklch(0.82 0.19 196 / 0.38), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-primary-500) 38%, transparent), transparent);
 }
 .metric-content {
   position: relative; z-index: 2; flex: 1;

@@ -231,7 +231,7 @@ export default function Limpador() {
                 onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
                 style={{
                   display:'block', padding:'24px 16px', textAlign:'center',
-                  border:`1.5px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'oklch(0.72 0.19 196 / 0.25)'}`,
+                  border:`1.5px dashed ${dragOver ? 'var(--mf-mod, var(--mf-accent-500))' : 'color-mix(in oklch, var(--mf-primary-500) 25%, transparent)'}`,
                   borderRadius: 'var(--mf-r-md)', cursor:'pointer', transition:'.2s',
                   background: dragOver ? 'color-mix(in oklch, var(--mf-mod-contas) 6%, transparent)' : 'color-mix(in oklch, var(--mf-mod-contas) 2%, transparent)',
                 }}

@@ -38,7 +38,7 @@ function LegendDropdown({ legends, value, onChange }) {
           padding: '8px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer', textAlign: 'left',
           color: selected ? 'var(--mf-text)' : 'var(--mf-text-3)',
           transition: 'border-color var(--mf-fast) var(--mf-ease-out)',
-          boxShadow: open ? '0 0 0 3px oklch(0.82 0.19 196 / 0.08)' : 'none',
+          boxShadow: open ? '0 0 0 3px color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'none',
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -64,14 +64,14 @@ function LegendDropdown({ legends, value, onChange }) {
               style={{
                 padding: '8px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer',
                 color: l._id === '' ? 'var(--mf-text-3)' : l._id === value ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)',
-                background: l._id !== '' && l._id === value ? 'oklch(0.82 0.19 196 / 0.08)' : 'transparent',
+                background: l._id !== '' && l._id === value ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'transparent',
                 borderBottom: i < legends.length ? '1px solid var(--mf-border-subtle)' : 'none',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 transition: 'background .1s',
                 fontStyle: l._id === '' ? 'italic' : 'normal',
               }}
               onMouseEnter={e => { if (l._id !== value) e.currentTarget.style.background = 'var(--mf-border-subtle)'; }}
-              onMouseLeave={e => { if (l._id !== value) e.currentTarget.style.background = l._id === value ? 'oklch(0.82 0.19 196 / 0.08)' : 'transparent'; }}
+              onMouseLeave={e => { if (l._id !== value) e.currentTarget.style.background = l._id === value ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'transparent'; }}
             >
               {l.title}
             </div>
@@ -572,7 +572,7 @@ export default function Posts() {
                 ) : (
                   <>
                     <button type="button" onClick={() => setShowLibPicker(true)}
-                      style={{ width: '100%', padding: '16px 16px', border: '1.5px dashed oklch(0.82 0.19 196 / 0.35)', borderRadius: 'var(--mf-r-md)', background: 'oklch(0.82 0.19 196 / 0.04)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
+                      style={{ width: '100%', padding: '16px 16px', border: '1.5px dashed color-mix(in oklch, var(--mf-primary-500) 35%, transparent)', borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-primary-500) 4%, transparent)', cursor: 'pointer', color: 'var(--mf-mod, var(--mf-accent-500))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                       <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600 }}>Escolher da biblioteca</span>
                       <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Selecione mídias já enviadas nas suas pastas</span>
@@ -783,7 +783,7 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <h3 style={cardH3Style}>Publicações simultâneas</h3>
-                <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'oklch(0.82 0.19 196 / 0.1)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid oklch(0.82 0.19 196 / 0.2)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>
+                <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-primary-500) 10%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>
                   {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
                 </span>
               </div>

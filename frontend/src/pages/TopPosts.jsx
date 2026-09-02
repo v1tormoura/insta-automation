@@ -324,7 +324,7 @@ function RepublishModal({ ins, onClose, accounts }) {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12, padding:'16px 24px', borderTop:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
           <button onClick={onClose} style={{ padding:'8px 16px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'transparent', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', cursor:'pointer' }}>Cancelar</button>
           <button onClick={submit} disabled={loading || done}
-            style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: loading||done?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: loading?.7:1 }}>
+            style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: loading||done?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,var(--mf-primary-500),var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: loading?.7:1 }}>
             {done ? '✓ Enviado!' : loading ? <><RefreshCw size={14} style={{ animation:'spin 1s linear infinite' }}/> Enviando...</> : <><Send size={14}/> Republicar ({selectedAccounts.length})</>}
           </button>
         </div>
@@ -531,7 +531,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
                   <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{progress.done}/{progress.total}</span>
                 </div>
                 <div style={{ height:4, background:'color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-xs)', overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${(progress.done/progress.total)*100}%`, background:'linear-gradient(90deg,#0ea5e9,var(--mf-primary-500))', transition:'width .3s', borderRadius: 'var(--mf-r-xs)' }} />
+                  <div style={{ height:'100%', width:`${(progress.done/progress.total)*100}%`, background:'linear-gradient(90deg,var(--mf-primary-500),var(--mf-primary-500))', transition:'width .3s', borderRadius: 'var(--mf-r-xs)' }} />
                 </div>
                 {progress.error && <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', marginTop:6 }}>{progress.error}</div>}
               </div>
@@ -545,7 +545,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:12, padding:'16px 24px', borderTop:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)' }}>
           <button onClick={onClose} style={{ padding:'8px 16px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', background:'transparent', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', cursor:'pointer' }}>Cancelar</button>
           <button onClick={submit} disabled={!!progress || done}
-            style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: (progress||done)?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: progress?.7:1 }}>
+            style={{ padding:'8px 24px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor: (progress||done)?'not-allowed':'pointer', background: done?'color-mix(in oklch, var(--mf-success-500) 20%, transparent)':'linear-gradient(135deg,var(--mf-primary-500),var(--mf-primary-500))', color: done?'var(--mf-success-500)':'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, display:'flex', alignItems:'center', gap:8, opacity: progress?.7:1 }}>
             {done
               ? '✓ Todos enviados!'
               : progress
@@ -847,7 +847,7 @@ export default function TopPosts() {
           {TYPES.map(t => (
             <button key={t} onClick={() => setType(t)}
               style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
-                background: type===t?'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)':'transparent', color: type===t?'#c084fc':'var(--mf-text-3)',
+                background: type===t?'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)':'transparent', color: type===t?'var(--mf-primary-500)':'var(--mf-text-3)',
                 borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
               {t}
             </button>
@@ -920,7 +920,7 @@ export default function TopPosts() {
           </button>
           <button
             onClick={() => setBulkRepublish(selectedInsights)}
-            style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'none', background:'linear-gradient(135deg,#0ea5e9,var(--mf-primary-500))', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer' }}>
+            style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'none', background:'linear-gradient(135deg,var(--mf-primary-500),var(--mf-primary-500))', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer' }}>
             <Layers3 size={14} /> Republicar {selectedIds.size} posts
           </button>
         </div>

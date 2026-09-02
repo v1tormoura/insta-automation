@@ -70,19 +70,19 @@
    ════════════════════════════════════════════════════════ */
 :root {
   /* ── oklch semantic tokens ──────────── */
-  --primary:          oklch(0.82 0.19 196);
+  --primary:          var(--mf-primary-500);
   --primary-fg:       oklch(0.12 0.03 250);
-  --primary-glow:     oklch(0.82 0.19 196 / 0.22);
-  --primary-glow-lg:  oklch(0.82 0.19 196 / 0.42);
+  --primary-glow:     color-mix(in oklch, var(--mf-primary-500) 22%, transparent);
+  --primary-glow-lg:  color-mix(in oklch, var(--mf-primary-500) 42%, transparent);
 
-  --card:             oklch(0.16 0.05 235 / 0.92);
+  --card:             color-mix(in oklch, var(--mf-primary-500) 92%, transparent);
   --card-border:      oklch(1 0 0 / 0.07);
-  --card-border-alt:  oklch(0.82 0.19 196 / 0.22);
-  --card-shine:       oklch(0.82 0.19 196 / 0.30);
+  --card-border-alt:  color-mix(in oklch, var(--mf-primary-500) 22%, transparent);
+  --card-shine:       color-mix(in oklch, var(--mf-primary-500) 30%, transparent);
 
-  --glow:             oklch(0.82 0.19 196 / 0.22);
-  --glow-sm:          oklch(0.82 0.19 196 / 0.14);
-  --glow-lg:          oklch(0.82 0.19 196 / 0.45);
+  --glow:             color-mix(in oklch, var(--mf-primary-500) 22%, transparent);
+  --glow-sm:          color-mix(in oklch, var(--mf-primary-500) 14%, transparent);
+  --glow-lg:          color-mix(in oklch, var(--mf-primary-500) 45%, transparent);
 
   /* ── Brand hex palette ──────────────── */
   /* Aponta para o token, não repete o valor. Escrito por extenso, este `--bg`
@@ -96,16 +96,23 @@
   --bg5: #1c2e50;
 
   --cyan:  #00d4ff;
-  --cyan2: #00aacc;
+  --cyan2: var(--mf-primary-600);
   --cyan3: rgba(0,212,255,.10);
   --cyan4: rgba(0,212,255,.05);
 
-  --blue:   #3b82f6;
-  --blue2:  #2563eb;
-  --blue3:  rgba(59,130,246,.12);
-  --indigo: #6366f1;
-  --purple: #8b5cf6;
-  --pink:   #ec4899;
+  /* Paleta legada. Ela existe de antes do sistema em `design/`, e ainda é
+     carregada — `--purple` e `--pink` chegavam à tela por `.badge-purple` e
+     pelo gradiente da marca, que era ciano → azul → roxo.
+
+     Azul, índigo, roxo e rosa passam a ser o ciano da marca em três
+     luminosidades. Verde, vermelho, âmbar e laranja ficam: ali a cor é o
+     significado, e um crachá de erro em ciano não avisa ninguém de nada. */
+  --blue:   #00d4ff;
+  --blue2:  #00a8cc;
+  --blue3:  rgba(0,212,255,.12);
+  --indigo: #00a8cc;
+  --purple: #00c2ea;
+  --pink:   #00d4ff;
   --green:  #10b981;
   --red:    #f43f5e;
   --amber:  #f59e0b;
@@ -418,12 +425,12 @@ a { text-decoration: none; color: inherit; }
 /* Active state */
 .drawer-item.active {
   color: #fff;
-  background: linear-gradient(105deg, oklch(0.82 0.19 196 / 0.11) 0%, oklch(0.82 0.19 196 / 0.03) 100%);
-  border-color: oklch(0.82 0.19 196 / 0.12);
+  background: linear-gradient(105deg, color-mix(in oklch, var(--mf-primary-500) 11%, transparent) 0%, color-mix(in oklch, var(--mf-primary-500) 3%, transparent) 100%);
+  border-color: color-mix(in oklch, var(--mf-primary-500) 12%, transparent);
 }
 .drawer-item.active svg {
   color: var(--cyan);
-  filter: drop-shadow(0 0 7px oklch(0.82 0.19 196 / 0.6));
+  filter: drop-shadow(0 0 7px color-mix(in oklch, var(--mf-primary-500) 60%, transparent));
 }
 /* left glow bar */
 .drawer-item.active::after {
@@ -431,21 +438,21 @@ a { text-decoration: none; color: inherit; }
   position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px;
   background: linear-gradient(180deg, var(--cyan) 0%, var(--blue) 100%);
   border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 8px var(--glow), 0 0 16px oklch(0.82 0.19 196 / 0.3);
+  box-shadow: 0 0 8px var(--glow), 0 0 16px color-mix(in oklch, var(--mf-primary-500) 30%, transparent);
 }
 /* gradient overlay */
 .drawer-item.active::before {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(90deg, oklch(0.82 0.19 196 / 0.06), transparent 65%);
+  background: linear-gradient(90deg, color-mix(in oklch, var(--mf-primary-500) 6%, transparent), transparent 65%);
   pointer-events: none; border-radius: 9px;
 }
 
 /* pill bg for layoutId animation */
 .nav-pill-bg {
   position: absolute; inset: 0; border-radius: 9px;
-  background: linear-gradient(105deg, oklch(0.82 0.19 196 / 0.10) 0%, transparent 70%);
-  border: 1px solid oklch(0.82 0.19 196 / 0.10);
+  background: linear-gradient(105deg, color-mix(in oklch, var(--mf-primary-500) 10%, transparent) 0%, transparent 70%);
+  border: 1px solid color-mix(in oklch, var(--mf-primary-500) 10%, transparent);
   z-index: 0; pointer-events: none;
 }
 
@@ -457,7 +464,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text3); margin-top: 1px; line-height: 1.1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.drawer-item.active .drawer-item-sub { color: oklch(0.82 0.19 196 / 0.55); }
+.drawer-item.active .drawer-item-sub { color: color-mix(in oklch, var(--mf-primary-500) 55%, transparent); }
 
 /* ── Footer / user ─────────────────────────────── */
 .drawer-footer { padding: 10px 10px 12px; border-top: 1px solid oklch(1 0 0 / 0.06); flex-shrink: 0; }
@@ -476,10 +483,10 @@ a { text-decoration: none; color: inherit; }
 }
 .drawer-avatar {
   width: 32px; height: 32px; border-radius: 50%;
-  background: linear-gradient(135deg, oklch(0.45 0.22 295), oklch(0.55 0.20 250));
+  background: linear-gradient(135deg, var(--mf-primary-600), oklch(0.55 0.20 250));
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
-  box-shadow: 0 0 12px oklch(0.45 0.22 295 / 0.4);
+  box-shadow: 0 0 12px color-mix(in oklch, var(--mf-primary-500) 40%, transparent);
 }
 
 .drawer-collapse-btn {
@@ -621,13 +628,13 @@ a { text-decoration: none; color: inherit; }
 .card-premium::before {
   content: '';
   position: absolute; top: 0; left: 18px; right: 18px; height: 1px;
-  background: linear-gradient(90deg, transparent, oklch(0.82 0.19 196 / 0.32), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--mf-primary-500) 32%, transparent), transparent);
   pointer-events: none;
 }
 .card-premium:hover {
   transform: translateY(-2px);
-  border-color: oklch(0.82 0.19 196 / 0.22);
-  box-shadow: 0 16px 44px rgba(0,0,0,.5), 0 0 0 1px oklch(0.82 0.19 196 / 0.1);
+  border-color: color-mix(in oklch, var(--mf-primary-500) 22%, transparent);
+  box-shadow: 0 16px 44px rgba(0,0,0,.5), 0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 10%, transparent);
 }
 
 /* ════════════════════════════════════════════════════════

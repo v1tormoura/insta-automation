@@ -192,7 +192,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                 )}
                 <div style={{
                   width: 38, height: 38, borderRadius: 'var(--mf-r-full)',
-                  background: 'oklch(0.45 0.22 295)',
+                  background: 'var(--mf-primary-600)',
                   display: src ? 'none' : 'grid',
                   placeItems: 'center', fontSize: 'var(--mf-t-sm)', fontWeight: 800, color: 'var(--mf-text)',
                   border: `2px solid ${isSel ? 'var(--mf-primary-300)' : 'var(--mf-border)'}`,

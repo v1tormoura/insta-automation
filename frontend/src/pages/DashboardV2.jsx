@@ -298,7 +298,7 @@ function DashboardV2() {
                 </div>
               </div>
               <button className="px-5 py-2.5 rounded-xl text-sm font-bold text-black flex items-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_color-mix(in_oklch,_var(--mf-mod-contas)_40%,_transparent)]"
-                      style={{ background: 'linear-gradient(135deg, var(--mf-mod-contas), #00aacc)' }}>
+                      style={{ background: 'linear-gradient(135deg, var(--mf-mod-contas), var(--mf-primary-600))' }}>
                 <Plus size={16} /> Conectar Conta
               </button>
             </div>

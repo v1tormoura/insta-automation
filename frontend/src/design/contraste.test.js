@@ -153,6 +153,29 @@ describe.each(Object.entries(TEMAS))('tema %s', (nome, tema) => {
     expect(falhas).toEqual([]);
   });
 
+  test('todo token de interface é literal, e não `var()`', () => {
+    /* O leitor destes arquivos casa `oklch(...)` por expressão regular — ele
+       não resolve `var()`. Um token escrito como referência fica INVISÍVEL: o
+       teste mede o valor do outro tema no lugar dele, e a cor real nunca é
+       conferida por ninguém.
+
+       Aconteceu: um codemod trocou quatro literais do tema claro por
+       `var(--mf-primary-600)`. Ali o teste até reprovou, porque o valor
+       herdado por acaso falhava. Se tivesse passado, quatro tokens teriam
+       saído da vigilância em silêncio — e este teste existe justamente para
+       que ninguém descubra isso pela tela. */
+    const fonte = tema === claro
+      ? bloco(cssAvancado, "[data-mf][data-tema='claro'] {")
+      : bloco(cssTokens, '[data-mf] {');
+
+    const porReferencia = INTERFACE.filter(nome => {
+      const m = fonte.match(new RegExp(`--${nome}\s*:\s*([^;]+);`));
+      return m && m[1].includes('var(');
+    });
+
+    expect(porReferencia).toEqual([]);
+  });
+
   test('acento e cor de módulo passam o mínimo de interface', () => {
     const falhas = [];
     for (const c of INTERFACE) {

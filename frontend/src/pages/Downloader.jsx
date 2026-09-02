@@ -172,7 +172,7 @@ export default function Downloader() {
           <div style={{ flex:1, minWidth:160 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
               <span style={{ fontWeight:800, fontSize: 'var(--mf-t-h2)', color:'var(--mf-text)' }}>@{profile.username}</span>
-              {profile.is_verified && <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:'oklch(0.50 0.17 245 / 0.2)', color:'var(--mf-info-500)', border:'1px solid oklch(0.50 0.17 245 / 0.3)' }}>✓ verificado</span>}
+              {profile.is_verified && <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', color:'var(--mf-info-500)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)' }}>✓ verificado</span>}
             </div>
             {profile.full_name && <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginBottom:6 }}>{profile.full_name}</div>}
             <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>

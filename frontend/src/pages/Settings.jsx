@@ -80,7 +80,7 @@ export default function Settings() {
                   style={{
                     width:44, height:24, borderRadius: 'var(--mf-r-full)', cursor:'pointer', flexShrink:0,
                     background: settings.headless ? 'var(--mf-mod, var(--mf-accent-500))' : 'color-mix(in oklch, var(--mf-surface-2) 80%, transparent)',
-                    border: settings.headless ? '1px solid oklch(0.72 0.19 196 / 0.5)' : '1px solid var(--mf-border)',
+                    border: settings.headless ? '1px solid color-mix(in oklch, var(--mf-primary-500) 50%, transparent)' : '1px solid var(--mf-border)',
                     position:'relative', transition:'background .2s, border .2s',
                   }}
                 >
@@ -100,7 +100,7 @@ export default function Settings() {
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Modo atual</h3>
             </div>
             <div style={{ padding:'16px' }}>
-              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, marginBottom:8, color: settings.headless ? 'var(--mf-success-500)' : 'oklch(0.68 0.18 270)' }}>
+              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, marginBottom:8, color: settings.headless ? 'var(--mf-success-500)' : 'var(--mf-primary-600)' }}>
                 {settings.headless ? '🤫 Oculto / Headless' : '👁️ Visível / Navegador aberto'}
               </div>
               <p style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.6, margin:'0 0 16px' }}>

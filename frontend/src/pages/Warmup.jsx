@@ -489,7 +489,7 @@ function LoginModal({ loginModal, loginPwd, setLoginPwd, loginBusy, onSubmit, on
       <motion.div
         initial={{scale:.93,y:20,opacity:0}} animate={{scale:1,y:0,opacity:1}} exit={{scale:.93,y:20,opacity:0}}
         transition={{type:'spring',damping:22,stiffness:280}}
-        style={{background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)',border:'1px solid oklch(0.65 0.18 280/0.3)',borderRadius: 'var(--mf-r-xl)',width:'100%',maxWidth:400,
+        style={{background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)',border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)',borderRadius: 'var(--mf-r-xl)',width:'100%',maxWidth:400,
           /* A largura já cedia. Sem teto de altura, um modal mais alto que
              a tela leva o botão de confirmar para fora do alcance. */
           maxHeight:'calc(100vh - 40px)',overflowY:'auto',boxShadow:'0 32px 80px rgba(0,0,0,.5)'}}
@@ -508,7 +508,7 @@ function LoginModal({ loginModal, loginPwd, setLoginPwd, loginBusy, onSubmit, on
           </div>
           <label style={{display:'block',fontSize: 'var(--mf-t-nano)',color:'var(--mf-text-3)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>Senha do Instagram</label>
           <input type="password" value={loginPwd} onChange={e=>setLoginPwd(e.target.value)} onKeyDown={e=>e.key==='Enter'&&onSubmit()} placeholder="Digite a senha..." autoFocus
-            style={{width:'100%',boxSizing:'border-box',padding:'12px 12px',borderRadius: 'var(--mf-r-md)',border:'1px solid oklch(0.65 0.18 280/0.3)',background:'var(--mf-bg)',color:'var(--mf-text)',fontSize: 'var(--mf-t-sm)',outline:'none'}}/>
+            style={{width:'100%',boxSizing:'border-box',padding:'12px 12px',borderRadius: 'var(--mf-r-md)',border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)',background:'var(--mf-bg)',color:'var(--mf-text)',fontSize: 'var(--mf-t-sm)',outline:'none'}}/>
           <div style={{display:'flex',gap:8,marginTop:14}}>
             <button onClick={onClose} style={{flex:1,padding:'8px 0',borderRadius: 'var(--mf-r-md)',border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--mf-text-3)',cursor:'pointer',fontWeight:600,fontSize: 'var(--mf-t-sm)'}}>Cancelar</button>
             <motion.button whileHover={{scale:1.02}} whileTap={{scale:.98}} onClick={onSubmit} disabled={loginBusy||!loginPwd.trim()} style={{

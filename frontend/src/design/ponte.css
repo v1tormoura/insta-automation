@@ -275,7 +275,7 @@
 [data-mf] .inp:focus,
 [data-mf] .input:focus {
   border-color: var(--mf-primary-500);
-  box-shadow: 0 0 0 3px oklch(0.62 0.24 285 / 0.18);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mf-primary-500) 18%, transparent);
 }
 [data-mf] .inp::placeholder,
 [data-mf] .input::placeholder { color: var(--mf-text-3); }
@@ -1086,7 +1086,7 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 .mf-badge[data-tone='success'] { background: var(--mf-success-bg); color: var(--mf-success-500); border-color: oklch(0.72 0.17 155 / 0.25); }
 .mf-badge[data-tone='warning'] { background: var(--mf-warning-bg); color: var(--mf-warning-500); border-color: oklch(0.80 0.16 78 / 0.25); }
 .mf-badge[data-tone='danger']  { background: var(--mf-danger-bg);  color: var(--mf-danger-500);  border-color: oklch(0.64 0.22 20 / 0.25); }
-.mf-badge[data-tone='info']    { background: var(--mf-info-bg);    color: var(--mf-info-500);    border-color: oklch(0.72 0.14 240 / 0.25); }
+.mf-badge[data-tone='info']    { background: var(--mf-info-bg);    color: var(--mf-info-500);    border-color: color-mix(in oklch, var(--mf-primary-500) 25%, transparent); }
 /* "Processando" pulsa. Estado que muda sozinho precisa parecer vivo, senão
    o usuário recarrega a página achando que travou. */
 .mf-badge[data-tone='info'] .mf-badge__dot { animation: mf-pulse 1.6s var(--mf-ease-inout) infinite; }
@@ -1140,7 +1140,7 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 }
 .mf-input:focus, .mf-select:focus {
   border-color: var(--mf-primary-500);
-  box-shadow: 0 0 0 3px oklch(0.62 0.24 285 / 0.18);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mf-primary-500) 18%, transparent);
 }
 .mf-input::placeholder { color: var(--mf-text-3); }
 .mf-field { display: flex; flex-direction: column; gap: var(--mf-2); min-width: 0; }

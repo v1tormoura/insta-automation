@@ -83,7 +83,7 @@ export default function Faturamento() {
                 onKeyDown={e => e.key === 'Enter' && saveGoal()}
                 placeholder="Ex: 5000,00"
                 autoFocus
-                style={{ flex:1, height:38, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid oklch(0.72 0.19 196 / 0.3)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none' }}
+                style={{ flex:1, height:38, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none' }}
               />
               <button onClick={saveGoal} style={{ height:38, padding:'0 16px', borderRadius: 'var(--mf-r-sm)', background:'var(--mf-mod, var(--mf-accent-500))', color:'var(--mf-bg)', border:'none', fontWeight:700, cursor:'pointer' }}>Salvar</button>
               <button onClick={() => setEditGoal(false)} className="btn-ghost" style={{ height:38, padding:'0 12px', borderRadius: 'var(--mf-r-sm)' }}>Cancelar</button>
@@ -108,7 +108,7 @@ export default function Faturamento() {
               initial={{ width:0 }}
               animate={{ width:`${pct}%` }}
               transition={{ duration:.7, ease:'easeOut' }}
-              style={{ height:'100%', borderRadius: 'var(--mf-r-full)', background: reached ? 'var(--mf-success-500)' : 'linear-gradient(90deg, var(--mf-mod, var(--mf-accent-500)), #00b8d9)' }}
+              style={{ height:'100%', borderRadius: 'var(--mf-r-full)', background: reached ? 'var(--mf-success-500)' : 'linear-gradient(90deg, var(--mf-mod, var(--mf-accent-500)), var(--mf-primary-600))' }}
             />
           </div>
 

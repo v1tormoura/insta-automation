@@ -193,8 +193,8 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
               {allFoldersForSidebar.map(f => (
                 <button key={f} type="button" onClick={() => setActive(f)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 8px', margin: '0 6px 2px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', border: 'none', textAlign: 'left',
-                    background: activeFolder === f ? 'oklch(0.68 0.18 270 / 0.15)' : 'transparent',
-                    color: activeFolder === f ? 'oklch(0.80 0.16 270)' : 'var(--mf-text-2)',
+                    background: activeFolder === f ? 'color-mix(in oklch, var(--mf-primary-500) 15%, transparent)' : 'transparent',
+                    color: activeFolder === f ? 'var(--mf-primary-500)' : 'var(--mf-text-2)',
                     fontWeight: activeFolder === f ? 600 : 400, fontSize: 'var(--mf-t-xs)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                   }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📁 {f === 'default' ? 'Geral' : f}</span>
