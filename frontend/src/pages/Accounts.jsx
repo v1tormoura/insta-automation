@@ -344,6 +344,15 @@ export default function Accounts() {
    * três cópias divergem, e a que ficar para trás falha em silêncio, que é
    * exatamente o que aconteceu.
    */
+  /* Referência sempre atual para `entrarNoMobile`.
+
+     A função é recriada a cada render, então citá-la nas dependências do efeito
+     o faria rodar a cada render; deixá-la de fora silencia o aviso e guarda um
+     fechamento velho para o dia em que ela passar a ler estado que muda. A ref
+     resolve os dois: o efeito depende só do que importa, e a chamada é sempre
+     a versão desta renderização. */
+  const entrarNoMobileRef = useRef(null);
+
   const pedirMobileDepois = useCallback((username) => {
     setEmendaMobile(criarPedido(username));
   }, []);
@@ -410,8 +419,16 @@ export default function Accounts() {
     setEmendaMobile(null);
     if (acao !== 'abrir') return;             // desistir, ou já tem sessão
 
-    openInstaModal(conta);
-    setInstaModal(m => (m ? { ...m, emenda: true } : m));
+    /* `entrarNoMobile`, e não o modal direto.
+
+       Abrir o modal de cara pedia a senha mesmo quando o sistema já tinha como
+       entrar sozinho — sessão anterior ainda válida, ou senha guardada de uma
+       conexão passada. Pedir o que já se tem é a pior forma de pedir: sugere
+       que nada do que foi feito antes valeu.
+
+       Ele tenta reativar a sessão, depois a senha guardada, e só abre o modal
+       quando não resta nenhum dos dois. */
+    entrarNoMobileRef.current?.(conta, { emenda: true });
   }, [emendaMobile, accounts]);
 
   async function openOAuthConnect(account) {
@@ -447,7 +464,12 @@ export default function Accounts() {
      guardada. Só sobra um caso pedindo teclado — conta sem senha guardada e sem
      sessão — e aí é uma vez só. */
 
-  async function entrarNoMobile(account) {
+  /**
+   * @param {object} account
+   * @param {{emenda?: boolean}} [ctx] — veio logo depois da conexão oficial?
+   *   Só muda o texto do modal quando ele precisa aparecer.
+   */
+  async function entrarNoMobile(account, ctx = {}) {
     const key = `mobile:${account._id}`;
     setConnecting(p => ({ ...p, [key]: true }));
     try {
@@ -470,6 +492,7 @@ export default function Accounts() {
            mesmas coisas de novo. */
         showToast('info', 'Senha necessária uma vez', d.comoResolver || '');
         openInstaModal(account);
+        if (ctx.emenda) setInstaModal(m => (m ? { ...m, emenda: true } : m));
         return;
       }
       showToast('error', 'Não foi possível entrar', d.error || err.message);
@@ -477,6 +500,8 @@ export default function Accounts() {
       setConnecting(p => ({ ...p, [key]: false }));
     }
   }
+
+  entrarNoMobileRef.current = entrarNoMobile;
 
   async function ativarLinkEmStory(account) {
     const key = `link:${account._id}`;
