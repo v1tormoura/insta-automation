@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { criarPedido, decidirEmenda } from './emendaMobile';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -329,6 +330,24 @@ export default function Accounts() {
     } catch { /* localStorage unavailable */ }
   }, [instaModal?.username]);
 
+  const [emendaMobile, setEmendaMobile] = useState(null);
+
+  /**
+   * Pede a API Mobile logo depois da conexão oficial.
+   *
+   * Chamada pelos TRÊS caminhos que completam a conexão oficial — o
+   * redirecionamento da Meta, colar a URL de retorno, e conectar por token.
+   * Eu tinha ligado só no primeiro, e quem usou os outros dois não via nada
+   * acontecer: a conta conectava e o fluxo simplesmente acabava ali.
+   *
+   * É por isso que a decisão mora numa função e não repetida em cada `then`:
+   * três cópias divergem, e a que ficar para trás falha em silêncio, que é
+   * exatamente o que aconteceu.
+   */
+  const pedirMobileDepois = useCallback((username) => {
+    setEmendaMobile(criarPedido(username));
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     /* O retorno do Facebook chega pela mesma porta e precisa ser lido aqui:
@@ -369,12 +388,7 @@ export default function Accounts() {
 
          Continua sendo uma escolha — o botão Cancelar fecha e a conta segue
          perfeitamente conectada pela via oficial. */
-      if (uname) {
-        /* Com prazo. Sem ele, um @ que nunca aparece na lista deixaria o pedido
-           pendurado, e o modal pularia numa atualização qualquer minutos depois
-           — fora de contexto, e sem a pessoa entender de onde veio. */
-        setEmendaMobile({ username: uname, ate: Date.now() + 60_000 });
-      }
+      pedirMobileDepois(uname);
     }
     else if (oauth === 'error') { showToast('error', 'Erro na conexão', params.get('msg') || 'Falha no OAuth'); }
     window.history.replaceState({}, '', '/accounts');
@@ -384,21 +398,18 @@ export default function Accounts() {
      login mobile assim que ela aparecer na lista. Não dá para abrir de imediato:
      `loadAccounts` é assíncrono, e o modal precisa do `_id` para saber em qual
      conta gravar a sessão — sem ele, o login criaria uma conta duplicada. */
-  const [emendaMobile, setEmendaMobile] = useState(null);
 
+
+  /* A regra mora em `emendaMobile.js`, testada sozinha. Aqui só o efeito
+     colateral — o que a página FAZ com a decisão. Repetir a regra aqui criaria
+     duas versões dela, e a que não tem teste é a que erra. */
   useEffect(() => {
-    if (!emendaMobile) return;
-    if (Date.now() > emendaMobile.ate) { setEmendaMobile(null); return; }
-    /* `accounts`, e não `safeAccounts`: aquele é declarado 600 linhas abaixo, e
-       referenciar um `const` antes da declaração funciona aqui — o callback do
-       efeito só roda depois do render — mas é o mesmo padrão que faz o
-       compilador do React desistir de memoizar o que estiver no meio. */
-    const lista = Array.isArray(accounts) ? accounts : [];
-    const conta = lista.find(
-      a => (a.username || '').toLowerCase() === emendaMobile.username.toLowerCase());
-    if (!conta) return;                       // ainda não chegou na lista
+    const { acao, conta } = decidirEmenda(emendaMobile, accounts);
+    if (acao === 'nada' || acao === 'esperar') return;
+
     setEmendaMobile(null);
-    if (conta.hasInstagrapiSession) return;   // já tem: nada a pedir
+    if (acao !== 'abrir') return;             // desistir, ou já tem sessão
+
     openInstaModal(conta);
     setInstaModal(m => (m ? { ...m, emenda: true } : m));
   }, [emendaMobile, accounts]);
@@ -514,6 +525,7 @@ export default function Accounts() {
       setOauthModal(null); setCallbackUrl(''); setOauthWaiting(false);
       showToast('success', 'Conta conectada!', `@${username} conectada via Meta API`);
       loadAccounts();
+      pedirMobileDepois(username);
     } catch (err) {
       setOauthError(err.response?.data?.error || err.message || 'Falha ao conectar');
     } finally {
@@ -534,6 +546,7 @@ export default function Accounts() {
       setOauthModal(null); setTokenValue(''); setCallbackUrl(''); setOauthWaiting(false);
       showToast('success', 'Conta conectada!', `@${username} conectada via token`);
       loadAccounts();
+      pedirMobileDepois(username);
     } catch (err) {
       setTokenError(err.response?.data?.error || err.message || 'Token inválido');
     } finally {
