@@ -2287,6 +2287,33 @@ export default function Accounts() {
               {instaModal.error && !blocked && (
                 <div style={{ fontSize: 'var(--mf-t-xs)', color: canRetryNow ? 'var(--mf-text-3)' : 'var(--mf-danger-500)', background: canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 8%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: `1px solid ${canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 25%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)'}`, borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:10 }}>
                   {instaModal.error}
+
+                  {/* Saída pelo Session ID.
+
+                      O desafio aparece na etapa do código, onde as abas estão
+                      escondidas — e aí a única opção visível é cancelar e começar
+                      tudo de novo, de volta ao mesmo desafio. Entrando pelo
+                      navegador a pessoa resolve o aviso lá, onde o Instagram
+                      confia no aparelho, e volta com o sessionid pronto.
+
+                      É o único caminho que contorna esta etapa sem depender do
+                      Instagram mudar de ideia. */}
+                  {instaModal.status === 'CHALLENGE_REQUIRED' && (
+                    <button
+                      onClick={() => setInstaModal(m => ({
+                        ...m, step: 'credentials', loginMethod: 'sessionid',
+                        error: '', detail: '', status: null, totp: '',
+                      }))}
+                      style={{ marginTop: 8, display:'flex', alignItems:'center', gap:6,
+                        fontSize: 'var(--mf-t-xs)', fontWeight:700, cursor:'pointer',
+                        padding:'6px 10px', borderRadius:'var(--mf-r-sm)',
+                        background:'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)',
+                        color:'var(--mf-primary-500)',
+                        border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)' }}>
+                      → Entrar com Session ID
+                    </button>
+                  )}
+
                   {/* Resposta técnica do Instagram. Fica visível de propósito: a
                       mensagem curada acima às vezes contradiz o motivo real. */}
                   {instaModal.detail && (

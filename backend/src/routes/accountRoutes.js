@@ -1101,7 +1101,20 @@ const { broadcast } = require('../events/broadcaster');
  */
 const INSTA_ERROR_MESSAGES = {
   RATE_LIMITED:                   'Instagram limitou temporariamente novas tentativas. Aguarde alguns minutos antes de tentar novamente.',
-  CHALLENGE_REQUIRED:             'O Instagram requer uma verificação adicional. Acesse o app oficial, resolva o desafio e tente novamente.',
+  /* Concreta, porque "resolva o desafio" não diz o que fazer — e este é o erro
+     em que a pessoa mais precisa saber exatamente o próximo passo. Ele aparece
+     DEPOIS de o código de duas etapas ter sido aceito, então a primeira
+     conclusão natural é que o código estava errado. Não estava.
+
+     Não há como contornar por código: é um checkpoint de segurança do
+     Instagram, e ele só sai por ação humana num aparelho que ele confia. O que
+     dá para fazer é dizer qual ação, e qual é o caminho alternativo. */
+  CHALLENGE_REQUIRED:
+    'O Instagram pediu uma verificação extra — o código que você digitou estava certo. '
+    + 'Abra o app do Instagram nesta conta, resolva o aviso que aparecer '
+    + '("Foi você?", confirmar e-mail ou telefone) e tente de novo aqui. '
+    + 'Se insistir, use a aba Session ID: entrando pelo navegador você resolve o '
+    + 'desafio lá e cola o sessionid aqui, sem passar por esta etapa.',
   ACCOUNT_SUSPENDED:              'Esta conta está SUSPENSA pelo Instagram. Nenhuma automação consegue conectá-la enquanto isso durar — entre no app oficial com ela e siga o processo de recurso.',
   CHALLENGE_CODE_REJECTED:        'Código incorreto. Confira o e-mail/SMS e digite novamente.',
   CHALLENGE_FAILED:               'Não foi possível concluir a verificação. Faça o login novamente.',
