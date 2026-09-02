@@ -206,6 +206,38 @@ async def login(body: LoginRequest):
             })
         except Exception as e:
             code = session_pool.classify_error(e)
+
+            # ── O 407 que era culpa nossa ────────────────────────────────
+            #
+            # Antes de declarar a falha, uma pergunta: o proxy recusou a
+            # CREDENCIAL, ou recusou o sufixo de sessão que nós acrescentamos
+            # ao nome de usuário? A resposta sai de uma medição — a URL crua
+            # funciona? — e não de um palpite.
+            #
+            # Se foi o sufixo, o molde é desligado e o login é REFEITO aqui
+            # mesmo. Sem isso, quem está conectando veria um erro de proxy,
+            # iria conferir o proxy (que está bom), e voltaria para tentar de
+            # novo com o mesmo sufixo — o laço que fez esta conta não conectar
+            # por dias.
+            if code == "PROXY_ERROR" and session_pool.conferir_molde_recusado(body.account_id):
+                cru = session_pool.proxy_lembrado(body.account_id)
+                client.set_proxy(cru)
+                session_pool._slog("LOGIN_REFEITO_SEM_MOLDE", body.account_id)
+                try:
+                    await loop.run_in_executor(None, lambda: client.login(
+                        body.username,
+                        body.password,
+                        verification_code=body.verification_code or "",
+                    ))
+                    settings = client.get_settings()
+                    session_pool._slog("LOGIN_SUCCESS", body.account_id, sem_molde=True)
+                    return {"status": "AUTHENTICATED", "settings": settings}
+                except Exception as e2:  # noqa: BLE001
+                    # A segunda tentativa manda. Insistir de novo repetiria o
+                    # mesmo caminho, e o molde já está desligado para sempre.
+                    e = e2
+                    code = session_pool.classify_error(e2)
+
             duration_ms = int((time.perf_counter() - t0) * 1000)
             # exc_msg: safe to log — exception messages never contain the password,
             # they contain HTTP error details (status codes, URLs, response fragments).

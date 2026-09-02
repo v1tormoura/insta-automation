@@ -549,6 +549,36 @@ _proxies: dict[str, str] = {}
 # NÓS acrescentamos — e sem o original não há como responder.
 _proxies_crus: dict[str, str] = {}
 
+# ── O molde de sessão, desligado em voo ──────────────────────────────────────
+#
+# Fornecedor que não reconhece o sufixo `;session.x` não o ignora: recusa a
+# credencial INTEIRA e responde 407. Nesse estado nenhuma conta loga, e a
+# mensagem é a mesma de senha errada.
+#
+# A configuração certa é `PROXY_SESSAO_MOLDE` vazio. Mas depender disso é
+# depender de alguém editar um arquivo no servidor, reconstruir a imagem certa e
+# acertar de primeira — e enquanto isso o produto fica parado. Pior: o teste do
+# painel usa a URL crua e PASSA, então tudo indica que o proxy está bom.
+#
+# Então o serviço mede e decide sozinho: ao levar 407 com molde aplicado, ele
+# tenta a URL crua. Se ela funciona, a conclusão é única — o fornecedor recusa o
+# sufixo — e o molde é desligado para todo mundo dali em diante.
+#
+# Em memória, e não em disco: é uma observação sobre o fornecedor ATUAL. Trocar
+# de proxy deve refazer a medição, e um reinício é o momento natural para isso.
+_molde_recusado: bool = False
+
+
+def molde_ativo() -> bool:
+    """O molde de sessão está valendo? Falso depois de o fornecedor recusá-lo."""
+    return not _molde_recusado
+
+
+def esquecer_recusa_do_molde() -> None:
+    """Volta a aplicar o molde. Usado pelos testes e ao trocar de proxy."""
+    global _molde_recusado
+    _molde_recusado = False
+
 
 def sessao_da_conta(account_id: str) -> str:
     """
@@ -613,6 +643,11 @@ def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
     if not url:
         return url
 
+    # Desligado em voo por `conferir_molde_recusado`: o fornecedor já recusou
+    # este sufixo uma vez, e insistir só repete o 407 em cada conta.
+    if _molde_recusado:
+        return url
+
     molde = os.getenv("PROXY_SESSAO_MOLDE") or ""
     if not molde.strip():
         return url
@@ -667,6 +702,66 @@ def lembrar_proxy(account_id: str, proxy: str | None) -> None:
 
 def proxy_lembrado(account_id: str) -> str | None:
     return _proxies.get(account_id)
+
+
+def conferir_molde_recusado(account_id: str) -> bool:
+    """
+    O 407 veio do sufixo que NÓS acrescentamos? Se sim, desliga o molde.
+
+    ── Como decide
+
+    Tenta a URL CRUA, sem molde. Se ela atravessa, a única diferença entre o que
+    funciona e o que não funciona é o sufixo — e a conclusão é que o fornecedor
+    não o reconhece.
+
+    Se a crua também falha, o problema é outro (cota, credencial, rede) e o
+    molde não é tocado. Desligá-lo ali seria trocar um diagnóstico correto por um
+    palpite, e esconder a causa real.
+
+    ── O efeito
+
+    O proxy lembrado desta conta volta a ser o cru na hora, para quem chamou
+    poder repetir a operação sem uma segunda viagem. E o interruptor é global:
+    as outras contas nem chegam a tentar com o sufixo.
+
+    Devolve True se desligou agora — quem chamou deve refazer a tentativa.
+    """
+    global _molde_recusado
+    if _molde_recusado:
+        return False                    # já estava desligado; nada a refazer
+
+    cru = _proxies_crus.get(account_id)
+    moldado = _proxies.get(account_id)
+    if not cru or not moldado or cru == moldado:
+        return False                    # não havia molde: o 407 é de outra coisa
+
+    try:
+        import requests
+        r = requests.get(
+            "https://api.ipify.org",
+            proxies={"http": cru, "https": cru},
+            timeout=15,
+        )
+        cru_funciona = r.status_code == 200
+    except Exception:  # noqa: BLE001
+        cru_funciona = False
+
+    if not cru_funciona:
+        return False                    # o proxy está ruim de verdade
+
+    _molde_recusado = True
+    _proxies[account_id] = cru          # esta conta já volta a usar a crua
+    _slog(
+        "MOLDE_DESLIGADO", account_id,
+        motivo="o fornecedor recusou o sufixo de sessao; a URL crua funciona",
+    )
+    logger.warning(
+        "molde de sessao desligado: o fornecedor respondeu 407 ao sufixo e "
+        "aceita a URL crua. O IP deixa de ser fixo por conta. Para ter a fixacao "
+        "de volta, descubra a sintaxe aceita com scripts/sondar-proxy.sh e "
+        "ponha em PROXY_SESSAO_MOLDE."
+    )
+    return True
 
 
 def explicar_recusa_de_proxy(account_id: str) -> str:
