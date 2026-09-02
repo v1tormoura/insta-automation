@@ -678,6 +678,44 @@ def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
     return f"{esquema}://{usuario}{sufixo}:{senha}@{destino}"
 
 
+def _sufixo_do_molde(account_id: str) -> str:
+    """O sufixo que `moldar_proxy_por_conta` acrescentaria a esta conta."""
+    molde = os.getenv("PROXY_SESSAO_MOLDE") or ""
+    if not molde.strip():
+        return ""
+    return molde.replace("{sessao}", sessao_da_conta(account_id))
+
+
+def desmoldar(url: str | None, account_id: str) -> str | None:
+    """
+    Devolve a URL SEM o nosso sufixo de sessão.
+
+    ── Por que precisa existir
+
+    As rotas moldam a URL numa variável e passam a MESMA variável para
+    `lembrar_proxy`, que a guarda como se fosse a crua. O resultado era
+    `_proxies_crus` e `_proxies` idênticos — e todo código que compara os dois
+    para descobrir "houve molde aqui?" concluía que não houve.
+
+    Isso quebrava duas coisas em silêncio: a explicação do 407 (que nunca
+    aparecia) e o desligamento automático do molde (que nunca disparava). Duas
+    funcionalidades escritas, testadas em unidade, e inertes em produção.
+
+    ── Por que aqui e não nas chamadas
+
+    Consertar as três rotas resolveria hoje e não impediria a quarta. Aqui a
+    remoção é exata — o sufixo é derivado do mesmo `account_id`, não adivinhado
+    por padrão — e vale para qualquer chamador, inclusive os que ainda não
+    existem.
+    """
+    if not url:
+        return url
+    sufixo = _sufixo_do_molde(account_id)
+    if not sufixo or sufixo not in url:
+        return url
+    return url.replace(sufixo, "", 1)
+
+
 def lembrar_proxy(account_id: str, proxy: str | None) -> None:
     """
     Guarda (ou esquece) o proxy desta conta para os clientes seguintes.
@@ -689,8 +727,12 @@ def lembrar_proxy(account_id: str, proxy: str | None) -> None:
     """
     anterior = _proxies.get(account_id)
     if proxy:
-        _proxies[account_id] = moldar_proxy_por_conta(proxy, account_id)
-        _proxies_crus[account_id] = proxy
+        # A URL crua é recuperada, não assumida: quem chama pode já ter moldado
+        # a variável antes de passá-la, e guardar a moldada como "crua" apaga a
+        # única evidência de que houve molde.
+        cru = desmoldar(proxy, account_id)
+        _proxies[account_id] = moldar_proxy_por_conta(cru, account_id)
+        _proxies_crus[account_id] = cru
     else:
         _proxies.pop(account_id, None)
         _proxies_crus.pop(account_id, None)

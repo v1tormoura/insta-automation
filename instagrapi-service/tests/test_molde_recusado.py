@@ -141,3 +141,63 @@ class TestVoltaAtras:
         assert session_pool.molde_ativo() is True
         session_pool.lembrar_proxy("conta-3", PROXY)
         assert ";session." in session_pool.proxy_lembrado("conta-3")
+
+
+class TestUrlJaMoldadaPeloChamador:
+    """
+    O defeito que deixou o auto-conserto inerte em produção.
+
+    As rotas fazem isto:
+
+        proxy = moldar_proxy_por_conta(proxy, account_id)   # reatribui!
+        client.set_proxy(proxy)
+        lembrar_proxy(account_id, proxy)                    # já moldada
+
+    E `lembrar_proxy` guardava a URL recebida como se fosse a crua. O resultado
+    era `_proxies_crus == _proxies`, e todo código que compara os dois para
+    perguntar "houve molde aqui?" respondia que não.
+
+    Duas funcionalidades ficaram inertes por causa disso — a explicação do 407
+    e o desligamento automático do molde. Ambas escritas, ambas com teste de
+    unidade passando, ambas sem efeito nenhum na tela.
+    """
+
+    def test_lembrar_recupera_a_crua_mesmo_recebendo_a_moldada(self):
+        moldada = session_pool.moldar_proxy_por_conta(PROXY, "conta-1")
+        assert moldada != PROXY                      # o molde de fato aplicou
+
+        session_pool.lembrar_proxy("conta-1", moldada)   # como a rota faz
+
+        assert session_pool._proxies_crus["conta-1"] == PROXY
+        assert session_pool._proxies["conta-1"] == moldada
+
+    def test_e_por_isso_o_auto_conserto_volta_a_funcionar(self):
+        """O teste que fecha o buraco: com a URL já moldada, o desligamento
+        automático precisa disparar do mesmo jeito."""
+        moldada = session_pool.moldar_proxy_por_conta(PROXY, "conta-1")
+        session_pool.lembrar_proxy("conta-1", moldada)
+
+        with patch("requests.get", return_value=_resposta(200)):
+            assert session_pool.conferir_molde_recusado("conta-1") is True
+
+        assert session_pool.molde_ativo() is False
+        assert session_pool.proxy_lembrado("conta-1") == PROXY
+
+    def test_url_crua_continua_passando_intacta(self):
+        """Quem já passa a crua não pode ser penalizado."""
+        session_pool.lembrar_proxy("conta-2", PROXY)
+        assert session_pool._proxies_crus["conta-2"] == PROXY
+
+    def test_desmoldar_nao_toca_no_que_nao_e_nosso(self):
+        """`;state.saopaulo` é do fornecedor e precisa sobreviver — perdê-lo
+        faria o IP sair de outro estado, que é pior que não fixar."""
+        r = session_pool.desmoldar(PROXY, "conta-1")
+        assert r == PROXY
+        assert ";state.saopaulo" in r
+
+    def test_desmoldar_com_molde_desligado(self, monkeypatch):
+        monkeypatch.setenv("PROXY_SESSAO_MOLDE", "")
+        moldada = PROXY + ";session.xyz"
+        # Sem molde configurado não há sufixo conhecido para remover, e remover
+        # por palpite arriscaria cortar um parâmetro do fornecedor.
+        assert session_pool.desmoldar(moldada, "conta-1") == moldada
