@@ -101,6 +101,55 @@ router.post('/test', async (req, res) => {
  * A ativação só é gravada se o proxy passar no teste — evita deixar toda a
  * automação apontando para um proxy morto.
  */
+/**
+ * POST /proxy/sondar-credencial  { proxy_url, comparar_com? }
+ *
+ * Qual variante desta credencial o fornecedor aceita?
+ *
+ * ── Por que existe
+ *
+ * `407 NO_USER` quer dizer "não reconheço este usuário" e mais nada. Quando um
+ * proxy do mesmo fornecedor funciona e outro não, com três diferenças ao mesmo
+ * tempo — usuário, porta e parâmetros de geografia — o erro não diz qual delas
+ * é a culpada, e testar à mão é uma combinatória.
+ *
+ * O serviço Python mede: tira um parâmetro por vez, prova nas portas
+ * candidatas, e devolve a primeira que atravessa — uma URL pronta, e a lista
+ * do que ela deixou pelo caminho.
+ *
+ * `comparar_com` alimenta a hipótese mais comum: a porta. Passando o proxy que
+ * FUNCIONA, a porta dele entra como candidata.
+ */
+router.post('/sondar-credencial', async (req, res) => {
+  try {
+    const url = normalizeProxy(req.body?.proxy_url || '');
+    if (!url) return res.status(400).json({ error: 'proxy_url é obrigatório' });
+
+    /* A porta do proxy que funciona entra como candidata. Sem ela, a sondagem
+       só varia geografia — e a porta é a diferença que mais aparece quando um
+       proxy do mesmo fornecedor funciona e outro não. */
+    const portas = [];
+    const referencia = req.body?.comparar_com
+      || (await getGlobalProxyConfig().catch(() => null))?.url;
+    if (referencia) {
+      const p = String(referencia).match(/:(\d+)\s*$/);
+      if (p) portas.push(p[1]);
+    }
+
+    const base = (process.env.INSTAGRAPI_SERVICE_URL || 'http://instagrapi-svc:8000').replace(/\/$/, '');
+    const r = await fetch(`${base}/session/sondar-credencial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proxy: url, portas }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    const dados = await r.json();
+    res.status(r.ok ? 200 : 502).json(dados);
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'SONDAGEM_ERRO' });
+  }
+});
+
 router.post('/configure', async (req, res) => {
   try {
     if (req.body?.action === 'desativar') {

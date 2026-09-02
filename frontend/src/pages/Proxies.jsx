@@ -69,6 +69,52 @@ export default function Proxies() {
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 3500); }
 
+  /* ── Sondar a credencial ──────────────────────────────────────────────────
+
+     `407 NO_USER` quer dizer "não reconheço este usuário" e mais nada. Quando
+     um proxy do mesmo fornecedor funciona e outro não, com três diferenças ao
+     mesmo tempo — usuário, porta e parâmetros de geografia — o erro não diz
+     qual delas é a culpada, e testar à mão é uma combinatória em que cada
+     tentativa é um login que falha.
+
+     A sondagem tira um parâmetro por vez e devolve a primeira variante que
+     atravessa: uma URL pronta para colar, e a lista do que ela deixou pelo
+     caminho. Perder `;state.minasgerais` troca o estado de saída, e isso pode
+     ser exatamente o que se estava comprando — por isso o que foi perdido é
+     dito, não escondido. */
+  const [sondando, setSondando] = useState('');
+
+  async function sondarCredencial(account) {
+    if (!account?.proxy) return;
+    setSondando(account._id);
+    showToast('info', 'Sondando…', 'Testando variantes desta credencial — leva alguns segundos.');
+    try {
+      const { data } = await api.post('/proxy/sondar-credencial', { proxy_url: account.proxy });
+
+      if (!data.ok) {
+        showToast('error', 'Nenhuma variante foi aceita',
+          data.erro || 'O usuário deste proxy provavelmente não existe mais no fornecedor.');
+        return;
+      }
+
+      const perdeu = (data.perdeu || []).length
+        ? ` Abriu mão de: ${data.perdeu.join(', ')}.`
+        : ' Sem perder nenhum parâmetro.';
+      showToast('success', `Funciona na porta ${data.porta}`,
+        `${perdeu} Clique em Editar e cole: ${data.recomendado}`);
+
+      /* No console também, inteiro. O toast some em segundos e a URL é longa
+         demais para memorizar — e ela é o produto da sondagem. */
+      console.log('[sondagem] variante aceita:', data.recomendado);
+      console.log('[sondagem] tentativas:', data.tentativas);
+    } catch (e) {
+      showToast('error', 'Não deu para sondar',
+        e.response?.data?.error || 'O serviço de sessão não respondeu.');
+    } finally {
+      setSondando('');
+    }
+  }
+
   const [primeiraCarga, setPrimeiraCarga] = useState(true);
 
   async function loadAccounts() {
@@ -464,6 +510,19 @@ export default function Proxies() {
                     <td style={tdStyle}>
                       <div style={{ display:'flex', gap:6 }}>
                         <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => openProxyModal(account)}>Editar</button>
+                        {/* Só quando há proxy e ele NÃO está online: sondar um
+                            proxy que funciona é gastar meia dúzia de idas à
+                            rede para confirmar o que já se sabe. */}
+                        {account.proxy && account.proxyStatus !== 'online' && (
+                          <button className="btn-ghost"
+                            style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)',
+                                     opacity: sondando === account._id ? .5 : 1 }}
+                            disabled={sondando === account._id}
+                            title="Testa variantes desta credencial e diz qual o fornecedor aceita"
+                            onClick={() => sondarCredencial(account)}>
+                            {sondando === account._id ? '...' : 'Sondar'}
+                          </button>
+                        )}
                         <button className="btn-primary" style={{ fontSize: 'var(--mf-t-micro)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', opacity: (!account.proxy || testing === account._id) ? .5 : 1 }}
                           onClick={() => testProxy(account)} disabled={testing === account._id || !account.proxy}>
                           {testing === account._id ? '...' : 'Testar'}

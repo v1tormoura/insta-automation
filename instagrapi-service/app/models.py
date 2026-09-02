@@ -29,6 +29,18 @@ class DiagnosticoRequest(BaseModel):
     proxy: Optional[str] = None
 
 
+class SondarCredencialRequest(BaseModel):
+    """
+    Descobrir qual variante da credencial o fornecedor aceita.
+
+    Não faz login e não recebe senha de conta — só a URL do proxy, que é o que
+    está sendo testado. `portas` permite provar a hipótese mais comum quando um
+    proxy funciona e outro do mesmo fornecedor não: a porta.
+    """
+    proxy: str
+    portas: list[str] = []
+
+
 class TwoFactorVerifyRequest(BaseModel):
     account_id: str
     verification_code: str

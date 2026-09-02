@@ -28,8 +28,9 @@ from ..models import (
     SessionIdLoginRequest,
     ChallengeCodeRequest,
     DiagnosticoRequest,
+    SondarCredencialRequest,
 )
-from .. import session_pool
+from .. import session_pool, sondagem_credencial
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/session")
@@ -314,6 +315,29 @@ async def diagnostico(body: DiagnosticoRequest):
     session_pool._slog("DIAGNOSTICO", body.account_id, **{
         k: v for k, v in resultado.items() if k != "identidade"
     })
+    return resultado
+
+
+@router.post("/sondar-credencial")
+async def sondar_credencial(body: SondarCredencialRequest):
+    """
+    Qual variante desta credencial o fornecedor aceita?
+
+    Existe para um caso concreto: duas credenciais do mesmo fornecedor, uma
+    passa e a outra dá 407 NO_USER, com tres diferencas ao mesmo tempo —
+    usuario, porta e parametros de geografia. O erro nao diz qual delas e a
+    culpada, e testar a mao e uma combinatoria.
+
+    Nao tenta login e nao le senha de conta. A resposta traz a URL que
+    funcionou, pronta para colar, e o que ela deixou pelo caminho.
+    """
+    resultado = sondagem_credencial.sondar(body.proxy, body.portas)
+    # O proxy nao entra em log — nem o testado, nem o recomendado.
+    session_pool._slog(
+        "SONDAGEM_CREDENCIAL", "-",
+        variantes=len(resultado.get("tentativas", [])),
+        achou=resultado.get("ok", False),
+    )
     return resultado
 
 
