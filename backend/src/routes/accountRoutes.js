@@ -1290,6 +1290,18 @@ async function _fetchAndSaveProfile(http, account, username) {
 
 // ── Helper: handle instagrapi errors uniformly ────────────────────────────────
 
+/* A decisão mora em `utils/falhaDeAmbiente` — é pura, e testá-la daqui exigiria
+   carregar os modelos do mongoose só para chamar um `if`. */
+const { falhaDeAmbiente: _falhaDeAmbiente } = require('../utils/falhaDeAmbiente');
+
+/** Guarda a senha na conta. Cifrada pelo setter do schema. */
+async function _guardarSenha(accountId, senha) {
+  try {
+    const doc = await Account.findById(accountId);
+    if (doc) { doc.password = senha; await doc.save(); }
+  } catch { /* não guardar não invalida nada do que já aconteceu */ }
+}
+
 async function _handleInstagrapiError(err, res, accountId = null) {
   const code = err?.code || 'UNKNOWN_ERROR';
 
@@ -1821,16 +1833,20 @@ router.post('/:id/instagrapi-login', async (req, res) => {
          Só grava depois do login DAR CERTO: senha errada guardada faria o
          botão de um clique falhar sozinho para sempre, sem ninguém entender
          por quê. */
-      try {
-        const doc = await Account.findById(accountId);
-        if (doc) { doc.password = password.trim(); await doc.save(); }
-      } catch { /* não guardar a senha não invalida o login que acabou de passar */ }
+      await _guardarSenha(accountId, password.trim());
 
       await _fetchAndSaveProfile(http, account, account.username);
       broadcast('accounts', { action: 'synced' });
       res.json({ success: true, accountId, message: `@${account.username} conectada via API Mobile` });
     });
   } catch (err) {
+    /* Falha de ambiente: a senha não chegou a ser julgada, então ela fica
+       guardada e o botão de um clique passa a funcionar assim que o proxy
+       voltar. Sem isto, consertar o proxy não adiantaria — o modal continuaria
+       aparecendo, porque nada teria sido guardado. */
+    if (_falhaDeAmbiente(err?.code) && password?.trim()) {
+      await _guardarSenha(accountId, password.trim());
+    }
     _handleInstagrapiError(err, res);
   }
 });
@@ -1897,7 +1913,19 @@ router.post('/:id/mobile-1clique', async (req, res) => {
         return;
       }
 
-      const result = await http.login(account, account.username, senha, '');
+      let result;
+      try {
+        result = await http.login(account, account.username, senha, '');
+      } catch (e) {
+        /* O Instagram JULGOU a senha e ela não presta. Mantida, ela faria este
+           botão falhar sozinho toda vez, sem nunca pedir a certa — o mesmo laço
+           que ele existe para evitar, só que ao contrário. Apagada, o próximo
+           clique cai em SEM_SENHA e a tela pede uma vez. */
+        if (['BAD_PASSWORD', 'INVALID_USER'].includes(e?.code)) {
+          await Account.updateOne({ _id: accountId }, { $set: { password: '' } }).catch(() => {});
+        }
+        throw e;
+      }
 
       if (result.status === 'TWO_FACTOR_REQUIRED') {
         res.status(202).json({ status: 'TWO_FACTOR_REQUIRED', accountId,

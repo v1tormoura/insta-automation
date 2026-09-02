@@ -693,7 +693,10 @@ def explicar_recusa_de_proxy(account_id: str) -> str:
     if not cru or not moldado or cru == moldado:
         return ""
 
-    molde = os.getenv("PROXY_SESSAO_MOLDE") or ";session.{sessao}"
+    # Sem `or` com o antigo padrão: aqui o molde só serve para NOMEAR o sufixo
+    # na explicação, e esta função só chega aqui quando um molde foi de fato
+    # aplicado. Um valor de reserva imprimiria um sufixo que não está em uso.
+    molde = os.getenv("PROXY_SESSAO_MOLDE") or "(molde configurado)"
 
     try:
         import requests
