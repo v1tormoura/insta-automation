@@ -24,31 +24,6 @@ export default function OAuthCallback() {
       return;
     }
 
-    /* Dois fluxos voltam por esta mesma porta, e a diferença está no state.
-       O `fb_` é a conexão do Facebook, feita DEPOIS da conta já existir, só
-       para habilitar link em story — mandar esse código para o endpoint de
-       conectar tentaria criar uma conta que já existe, com um token de outra
-       porta. A assinatura vem depois de `~`, então o prefixo continua visível. */
-    if (state.startsWith('fb_')) {
-      setStatus('Ativando link em story...');
-      api.post('/graph-link/callback', { code, state })
-        .then(res => {
-          const pagina = res.data?.pagina || '';
-          navigate(`/accounts?graphLink=success&pagina=${encodeURIComponent(pagina)}`);
-        })
-        .catch(ex => {
-          const d = ex.response?.data || {};
-          /* `comoResolver` existe justamente porque as recusas daqui têm
-             conserto do lado do Instagram, não do sistema. Descartá-lo deixaria
-             só "não foi possível", que não diz o que fazer. */
-          const msg = [d.error, d.comoResolver, d.detalhe].filter(Boolean).join(' — ')
-            || ex.message || 'Falha ao ativar link em story';
-          setError(msg);
-          setTimeout(() => navigate(`/accounts?graphLink=error&msg=${encodeURIComponent(msg)}`), 6000);
-        });
-      return;
-    }
-
     setStatus('Trocando código por token...');
 
     api.post(`/oauth/connect/${state}`, { pastedUrl: window.location.href })

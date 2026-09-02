@@ -78,7 +78,6 @@ app.use('/sessions',     auth, require('./routes/sessionRoutes'));
 app.use('/health',       auth, require('./routes/healthRoutes'));
 app.use('/accounts',     auth, require('./routes/accountRoutes'));
 app.use('/proxy',        auth, require('./routes/proxyRoutes'));
-app.use('/graph-link',   auth, require('./routes/graphLinkRoutes'));
 app.use('/campaigns',    auth, require('./routes/campaignRoutes'));
 app.use('/posts',        auth, require('./routes/postRoutes'));
 app.use('/legends',      auth, require('./routes/legendRoutes'));

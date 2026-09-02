@@ -359,24 +359,6 @@ export default function Accounts() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    /* O retorno do Facebook chega pela mesma porta e precisa ser lido aqui:
-       sem isto, o usuário voltaria da autorização para uma tela idêntica à que
-       deixou, sem nada dizendo se funcionou. */
-    const graphLink = params.get('graphLink');
-    if (graphLink === 'success') {
-      showToast('success', 'Link em story ativado',
-        `Publicando pela Página ${params.get('pagina') || 'vinculada'}`);
-      loadAccounts();
-      window.history.replaceState({}, '', '/accounts');
-      return;
-    }
-    if (graphLink === 'error') {
-      showToast('error', 'Não foi possível ativar o link',
-        params.get('msg') || 'O Facebook recusou a autorização');
-      window.history.replaceState({}, '', '/accounts');
-      return;
-    }
-
     const oauth = params.get('oauth');
     if (!oauth) return;
     if (oauth === 'success') {
@@ -502,41 +484,6 @@ export default function Accounts() {
   }
 
   entrarNoMobileRef.current = entrarNoMobile;
-
-  async function ativarLinkEmStory(account) {
-    const key = `link:${account._id}`;
-    setConnecting(p => ({ ...p, [key]: true }));
-    try {
-      /* O mesmo app da Meta que a tela usa para conectar. Deixar o servidor
-         resolver o padrao aqui abriria o dialogo de um app e trocaria o codigo
-         em outro, quando ha mais de um cadastrado. */
-      const res = await api.get('/graph-link/start', {
-        params: { accountId: account._id, ...(selectedAppId ? { metaAppId: selectedAppId } : {}) },
-      });
-      const url = res.data?.url;
-      if (!url) throw new Error('URL de autorização não retornada');
-      /* Mesma aba, não popup: bloqueador de popup engoliria a janela em
-         silêncio e o botão pareceria não funcionar. */
-      window.location.href = url;
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || err.message);
-      setConnecting(p => ({ ...p, [key]: false }));
-    }
-  }
-
-  async function desativarLinkEmStory(account) {
-    if (!window.confirm(
-      `Desativar link em story de @${account.username}?\n\n` +
-      'A conta continua publicando normalmente — só os stories deixam de sair com a figurinha de link.'
-    )) return;
-    try {
-      await api.delete(`/graph-link/${account._id}`);
-      showToast('success', 'Link desativado', `@${account.username} volta a publicar story sem link`);
-      loadAccounts();
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || err.message);
-    }
-  }
 
   async function handleManualConnect() {
     if (!callbackUrl.trim()) return;
@@ -1632,29 +1579,6 @@ export default function Accounts() {
                     {connecting[`mobile:${account._id}`] ? <span className="mf-spin" /> : <IcoPhone />}
                     <span>{account.hasInstagrapiSession ? 'Mobile on' : 'Mobile'}</span>
                   </button>
-
-                  {/* Link em story. Só para contas da API oficial: nas contas
-                      instagrapi o link já sai nativo, e o botão seria um
-                      caminho a mais para o mesmo lugar. */}
-                  {account.provider !== 'instagrapi' && (
-                    <button
-                      onClick={() => account.linkEmStoryAtivo
-                        ? desativarLinkEmStory(account)
-                        : ativarLinkEmStory(account)}
-                      disabled={!!connecting[`link:${account._id}`]}
-                      title={account.linkEmStoryAtivo
-                        ? `Story com link ativo pela Página "${account.fbPageName || '—'}". Clique para desativar.`
-                        : 'Ativar link em story — conecta a Página do Facebook, o único caminho que a Meta permite para a figurinha de link'}
-                      style={{ display:'flex', alignItems:'center', gap:4, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
-                        background: account.linkEmStoryAtivo ? 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)' : 'var(--mf-border-subtle)',
-                        color:      account.linkEmStoryAtivo ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
-                        border:     account.linkEmStoryAtivo ? '1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)' : '1px solid var(--mf-border)',
-                      }}
-                    >
-                      {connecting[`link:${account._id}`] ? <span className="mf-spin" /> : <IcoLink />}
-                      <span>{account.linkEmStoryAtivo ? 'Link on' : 'Link'}</span>
-                    </button>
-                  )}
 
                   <button onClick={() => deleteAccount(account._id)} title="Excluir conta"
                     style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', flexShrink:0,

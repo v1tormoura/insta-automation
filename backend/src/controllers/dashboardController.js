@@ -4,6 +4,11 @@ const Growth = require('../models/Growth');
 const Account = require('../models/Account');
 const Post = require('../models/Post');
 const Job  = require('../models/Job');
+const CampaignPublication = require('../models/CampaignPublication');
+/* A aritmética mora fora do controller e é testada sozinha. Aqui ela estava no
+   meio de um `Promise.all` de quinze consultas, onde ninguém revisa uma soma —
+   e foi assim que uma das três origens da fila ficou de fora sem nada acusar. */
+const { somarFilas, postagensDeHoje, porStatus } = require('./contagemDaFila');
 const mongoose = require('mongoose');
 let Insight;
 try { Insight = require('../models/Insight'); } catch {}
@@ -139,6 +144,7 @@ exports.getDashboard = async (req, res) => {
       scheduledPostsLegacy, processingPostsLegacy, pendingPostsLegacy,
       partialPosts, errorPosts,
       allActiveJobsRaw,
+      campanhaPubs,
     ] = await Promise.all([
       Post.countDocuments(),
       Post.countDocuments({ status: 'concluido' }),
@@ -150,7 +156,24 @@ exports.getDashboard = async (req, res) => {
       Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
         .populate('accounts', 'username avatar healthStatus')
         .lean(),
+
+      /* As publicações de campanha faltavam nas contagens.
+
+         Uma campanha planeja dezenas de publicações e só cria o `Post` no
+         instante em que cada uma executa. Até lá elas vivem em
+         `CampaignPublication` — e o painel não olhava para lá. O efeito: subir
+         uma campanha com trinta publicações não mudava nada na fila, e quem
+         acabou de subi-la via os mesmos zeros de antes.
+
+         Agrupado por status numa consulta só: seis `countDocuments` seriam
+         seis idas ao banco para responder a mesma pergunta. */
+      CampaignPublication.aggregate([
+        { $match: { status: { $in: ['pending', 'scheduled', 'processing', 'published'] } } },
+        { $group: { _id: '$status', n: { $sum: 1 } } },
+      ]).catch(() => []),
     ]);
+
+    const campanhasPorStatus = porStatus(campanhaPubs);
 
     // Filtra jobs cujas contas estão todas banidas ou foram excluídas
     const BANNED_STATUSES = ['banida', 'banido'];
@@ -167,14 +190,41 @@ exports.getDashboard = async (req, res) => {
     const jobsRunning = countJobMedia(allActiveJobs, 'running');
     const jobsQueued  = countJobMedia(allActiveJobs, 'queued');
 
-    const scheduledPosts  = scheduledPostsLegacy  + jobsWaiting;
-    const processingPosts = processingPostsLegacy + jobsRunning;
-    const pendingPosts    = pendingPostsLegacy    + jobsQueued;
+    /* Três origens: publicação avulsa (`Post`), lote (`Job`) e campanha
+       (`CampaignPublication`). O painel diz "a fila", e fila com uma das três
+       faltando é um número que contradiz a tela de Campanhas logo ao lado. */
+    const fila = somarFilas(
+      { agendados: scheduledPostsLegacy, processando: processingPostsLegacy, pendentes: pendingPostsLegacy },
+      { esperando: jobsWaiting, rodando: jobsRunning, enfileirados: jobsQueued },
+      campanhasPorStatus,
+    );
+    const scheduledPosts  = fila.agendados;
+    const processingPosts = fila.processando;
+    const pendingPosts    = fila.pendentes;
 
-    const postsToday = await Post.countDocuments({
-      status: { $in: ['concluido', 'parcial'] },
-      updatedAt: { $gte: today },
-    });
+    /* "Postagens hoje" soma as duas origens que produzem publicação real.
+
+       O `Post` cobre o caminho avulso e o do loop — os dois criam documento e
+       o worker os marca como concluídos. A campanha também cria um `Post`,
+       mas por conta: uma publicação para três contas vira três `Post`, e
+       contar só ali já estava certo. O que faltava era o caso em que a
+       publicação da campanha termina sem `Post` correspondente (falha ao
+       criar, ou publicação feita antes deste código existir).
+
+       `$max` em vez de soma para não contar a mesma publicação duas vezes:
+       quando as duas fontes concordam, o número é o mesmo; quando divergem,
+       o maior é o que descreve o que de fato saiu. */
+    const [postsTodayLegacy, pubsHoje] = await Promise.all([
+      Post.countDocuments({
+        status: { $in: ['concluido', 'parcial'] },
+        updatedAt: { $gte: today },
+      }),
+      CampaignPublication.countDocuments({
+        status: 'published',
+        publishedAt: { $gte: today },
+      }).catch(() => 0),
+    ]);
+    const postsToday = postagensDeHoje(postsTodayLegacy, pubsHoje);
 
     const completedToday = await Post.countDocuments({
       status: 'concluido',
@@ -621,4 +671,4 @@ exports.getLivePosts = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+};
