@@ -1,6 +1,6 @@
 import {
   Play, Pause, RotateCcw, Ban, Copy, Pencil, Users, Film,
-  Layers, Shuffle, Timer, CalendarClock, Hash,
+  Layers, Shuffle, Timer, CalendarClock, Hash, Check,
 } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { ESTRATEGIAS, dataCurta, Eyebrow } from './shared';
@@ -121,6 +121,24 @@ function Item({ Icone, rotulo, valor, className }) {
   );
 }
 
+/**
+ * Um agrupamento de campos com um título discreto.
+ *
+ * `gap-px` sobre um fundo de borda no pai desenha os divisores sem uma linha
+ * extra por bloco — e sem o último divisor sobrando na ponta, que é o defeito
+ * clássico de `border-right` em grade que reflui.
+ */
+function Bloco({ titulo, children }) {
+  return (
+    <div className="bg-[var(--card)] p-4 sm:p-5">
+      <div className="text-[var(--mf-t-nano)] font-bold uppercase tracking-[.1em] text-[var(--mf-text-3)] opacity-70">
+        {titulo}
+      </div>
+      <div className="mt-3 flex flex-col gap-3">{children}</div>
+    </div>
+  );
+}
+
 export default function CampaignHeader({ campanha, schedule, estatisticas }) {
   const s = schedule || campanha.schedule || {};
   const intervalo = s.useFixedInterval
@@ -138,38 +156,55 @@ export default function CampaignHeader({ campanha, schedule, estatisticas }) {
         </p>
       )}
 
-      {/* Uma grade só, com todos os campos no mesmo ritmo.
+      {/* ── Três perguntas, três blocos ──────────────────────────────────
 
-          Eram duas faixas separadas por uma linha — configuração em cima,
-          datas embaixo — com espaçamentos diferentes. A separação não dizia
-          nada: as duas respondem "como esta campanha está montada". */}
-      <div
-        className="grid gap-x-4 gap-y-4 p-4 sm:p-5"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(132px, 100%), 1fr))' }}
-      >
-        <Item Icone={Users}   rotulo="Contas"      valor={(campanha.accountIds || []).length} />
-        <Item Icone={Film}    rotulo="Conteúdos"   valor={(campanha.contentIds || []).length} />
-        <Item Icone={Layers}  rotulo="Publicações"
-              valor={estatisticas?.total ?? campanha.totalPublications ?? 0} />
-        <Item Icone={Shuffle} rotulo="Estratégia"
-              valor={ESTRATEGIAS[campanha.strategy?.mode] || campanha.strategy?.mode || '—'} />
-        <Item Icone={Timer}   rotulo="Intervalo"   valor={intervalo} />
-        <Item Icone={CalendarClock} rotulo="Janela" valor={janela} />
-        <Item Icone={CalendarClock} rotulo="Criada" valor={dataCurta(campanha.createdAt)} />
-        <Item Icone={Play}    rotulo="Iniciada"
-              valor={campanha.startedAt ? dataCurta(campanha.startedAt) : '—'} />
-        <Item Icone={CalendarClock} rotulo="Concluída"
-              valor={campanha.completedAt ? dataCurta(campanha.completedAt) : '—'} />
-        {campanha.strategy?.seed && (
-          /* A semente ocupa a linha inteira: é um identificador longo, e
-             espremido numa coluna de 132px ele vira reticências — que é o
-             mesmo que não mostrar, com o custo de ocupar espaço. */
-          <Item
-            Icone={Hash} rotulo="Semente" valor={campanha.strategy.seed}
-            className="col-span-full min-w-0 [&>div:last-child]:font-mono [&>div:last-child]:font-normal"
-          />
-        )}
+          Eram nove campos numa grade plana de auto-fit. Todos do mesmo
+          tamanho, na mesma linha, sem nada dizendo que "Contas" e "Intervalo"
+          respondem coisas diferentes — e com "Concluída" e "Semente" caindo
+          sozinhas em linhas próprias, deixando buracos. Lia-se como uma
+          parede de texto pequeno.
+
+          Agrupados, cada bloco responde uma pergunta: o QUE a campanha
+          alcança, COMO ela publica, QUANDO ela aconteceu. O divisor entre
+          eles é o que transforma nove fatos soltos em três respostas. */}
+      <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3">
+        <Bloco titulo="Escopo">
+          <Item Icone={Users}  rotulo="Contas"     valor={(campanha.accountIds || []).length} />
+          <Item Icone={Film}   rotulo="Conteúdos"  valor={(campanha.contentIds || []).length} />
+          <Item Icone={Layers} rotulo="Publicações"
+                valor={estatisticas?.total ?? campanha.totalPublications ?? 0} />
+        </Bloco>
+
+        <Bloco titulo="Ritmo">
+          <Item Icone={Shuffle} rotulo="Estratégia"
+                valor={ESTRATEGIAS[campanha.strategy?.mode] || campanha.strategy?.mode || '—'} />
+          <Item Icone={Timer}   rotulo="Intervalo" valor={intervalo} />
+          <Item Icone={CalendarClock} rotulo="Janela" valor={janela} />
+        </Bloco>
+
+        <Bloco titulo="Linha do tempo">
+          <Item Icone={CalendarClock} rotulo="Criada" valor={dataCurta(campanha.createdAt)} />
+          <Item Icone={Play} rotulo="Iniciada"
+                valor={campanha.startedAt ? dataCurta(campanha.startedAt) : '—'} />
+          <Item Icone={Check} rotulo="Concluída"
+                valor={campanha.completedAt ? dataCurta(campanha.completedAt) : '—'} />
+        </Bloco>
       </div>
+
+      {campanha.strategy?.seed && (
+        /* A semente é rodapé, não campo: ela não descreve a campanha, ela
+           REPRODUZ a distribuição. Espremida numa coluna vira reticências —
+           que é o mesmo que não mostrar, com o custo de ocupar espaço. */
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-[var(--border)] px-4 py-2.5 sm:px-5">
+          <span className="flex items-center gap-1.5">
+            <Hash size={11} className="shrink-0 text-[var(--mf-text-3)]" />
+            <Eyebrow>Semente</Eyebrow>
+          </span>
+          <span className="min-w-0 break-all font-mono text-[var(--mf-t-nano)] text-[var(--mf-text-2)]">
+            {campanha.strategy.seed}
+          </span>
+        </div>
+      )}
     </section>
   );
 }

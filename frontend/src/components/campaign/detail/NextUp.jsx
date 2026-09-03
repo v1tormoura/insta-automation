@@ -92,9 +92,21 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
   const restante = proxima?.scheduledAt ? faltam(proxima.scheduledAt, agora) : null;
 
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))' }}>
+    /* Duas colunas só quando há uma próxima publicação de verdade.
 
-      {/* Próxima publicação */}
+       Numa campanha cancelada ou concluída, "Próxima publicação" não tem o
+       que dizer — e o painel ficava com dois retângulos grandes lado a lado,
+       um com "Não existem publicações pendentes" centralizado no vazio. Duas
+       caixas para uma frase. Sem a próxima, sobra a ação, em faixa única. */
+    <div
+      className="grid gap-3"
+      style={{ gridTemplateColumns: proxima
+        ? 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))'
+        : '1fr' }}
+    >
+
+      {/* Próxima publicação — só quando existe */}
+      {proxima && (
       <div className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4">
         <div className="flex items-center justify-between gap-2">
           <Eyebrow>Próxima publicação</Eyebrow>
@@ -105,11 +117,7 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
           )}
         </div>
 
-        {!proxima ? (
-          <p className="py-6 text-center text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
-            Não existem publicações pendentes.
-          </p>
-        ) : (
+        {(
           <>
             <button
               type="button"
@@ -158,6 +166,7 @@ export default function NextUp({ campanha, estatisticas, comentarios, proxima, o
           </>
         )}
       </div>
+      )}
 
       {/* Próxima ação */}
       <div className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4">

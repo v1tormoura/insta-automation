@@ -31,12 +31,17 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
     const conteudos = new Map();
 
     for (const p of publicacoes) {
-      const a = p.account?._id ?? p.account;
+      /* Conta excluída depois da campanha montada chega nula do `populate`.
+         Antes o par era descartado — e com TODAS as contas excluídas a matriz
+         renderizava só o cabeçalho "CONTA" e uma faixa vazia, ocupando espaço
+         para não dizer nada. As órfãs vão para uma linha rótulada. */
+      const a = p.account?._id ?? p.account ?? '__removida__';
       const c = p.content?._id ?? p.content;
-      if (!a || !c) continue;
+      // Sem conteúdo não há coluna onde por a célula; isso continua fora.
+      if (!c) continue;
 
       porPar.set(`${a}__${c}`, p);
-      if (!contas.has(String(a)))    contas.set(String(a), p.account);
+      if (!contas.has(String(a)))    contas.set(String(a), p.account ?? null);
       if (!conteudos.has(String(c))) conteudos.set(String(c), p.content);
     }
 
@@ -49,6 +54,19 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
 
   if (!publicacoes.length) {
     return <Vazio>Esta campanha não tem publicações para exibir na matriz.</Vazio>;
+  }
+
+  /* Havia publicação mas nenhuma coluna sobrou: todas sem conteúdo
+     associado. A guarda acima não pegava este caso — `publicacoes.length`
+     era 12 e a matriz desenhava um cabeçalho sozinho. */
+  if (!conteudos.length || !contas.length) {
+    return (
+      <Vazio>
+        As publicações desta campanha perderam o vínculo com conta ou conteúdo
+        — provavelmente excluídos depois que ela foi montada. A linha do tempo
+        abaixo continua válida.
+      </Vazio>
+    );
   }
 
   return (

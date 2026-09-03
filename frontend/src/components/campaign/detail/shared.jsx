@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock, Loader2, XCircle, MinusCircle, Circle } from 'lucide-react';
 import { Badge } from '../../ui/badge';
 import { cn } from '../../../lib/utils';
+import { urlDoAvatar } from '../../../utils/avatar';
 
 /**
  * Vocabulário compartilhado do painel da campanha.
@@ -136,7 +137,22 @@ export function faltam(iso, agora = Date.now()) {
 }
 
 export const nomeConteudo = c => c?.originalName || c?.filename || '—';
-export const nomeConta    = a => (a?.username ? `@${a.username}` : '—');
+
+/**
+ * O nome da conta — ou o motivo de não haver um.
+ *
+ * `account` chega `null` quando a conta foi EXCLUÍDA depois da campanha ter
+ * sido montada: o `populate` do backend não acha o documento e devolve nulo.
+ * Antes isso virava um travessão, e a tela ficava dizendo "1 conta" na
+ * configuração e "0 contas" nas métricas, com traços na linha do tempo. Três
+ * sintomas de uma causa que nada na tela nomeava.
+ *
+ * Dizer "conta removida" custa duas palavras e responde a contradição.
+ */
+export const nomeConta = a => (a?.username ? `@${a.username}` : 'Conta removida');
+
+/** A conta existia e não existe mais? */
+export const contaSumiu = a => !a || !a.username;
 
 /* ── Peças visuais ─────────────────────────────────────────────────────────── */
 
@@ -158,17 +174,35 @@ export function StatusBadge({ status, mapa = STATUS_PUB }) {
  * inicial fica sempre por baixo em vez de deixar um quadrado vazio.
  */
 export function ContaAvatar({ conta, size = 26 }) {
-  const inicial = (conta?.username || '?').charAt(0).toUpperCase();
+  const sumiu = contaSumiu(conta);
+  const inicial = sumiu ? '?' : conta.username.charAt(0).toUpperCase();
+
+  /* `urlDoAvatar` e não `conta.avatar` cru.
+     O campo guarda um caminho RELATIVO (`/uploads/avatars/x.jpg`), servido
+     pelo backend. Sem o prefixo da API o navegador pedia ao próprio frontend,
+     que não tem essa rota: 404 silencioso, `onError` escondia a imagem, e
+     TODA conta desta tela aparecia como um círculo com uma letra. Não era só
+     a conta removida — era todas. */
+  const src = sumiu ? null : urlDoAvatar(conta.avatar);
+
   return (
     <span
-      className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[color-mix(in_oklch,_var(--mf-mod-contas)_10%,_transparent)] font-bold text-[var(--mf-mod,_var(--mf-accent-500))]"
+      className={cn(
+        'relative inline-flex shrink-0 items-center justify-center overflow-hidden',
+        'rounded-full border font-bold',
+        sumiu
+          /* Tracejado: a borda diz "não existe mais" antes de qualquer texto,
+             e é o que evita confundir conta removida com conta sem foto. */
+          ? 'border-dashed border-[var(--mf-border-strong)] bg-transparent text-[var(--mf-text-3)]'
+          : 'border-[var(--border)] bg-[color-mix(in_oklch,_var(--mf-mod-contas)_10%,_transparent)] text-[var(--mf-mod,_var(--mf-accent-500))]',
+      )}
       style={{ width: size, height: size, fontSize: size * 0.42 }}
       aria-hidden="true"
     >
       {inicial}
-      {conta?.avatar && (
+      {src && (
         <img
-          src={conta.avatar}
+          src={src}
           alt=""
           loading="lazy"
           className="absolute inset-0 h-full w-full object-cover"

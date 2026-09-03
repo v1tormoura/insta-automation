@@ -25,12 +25,25 @@ export function agruparPorConta(publicacoes) {
   const mapa = new Map();
 
   for (const p of publicacoes) {
-    const id = String(p.account?._id ?? p.account ?? '');
-    if (!id) continue;
+    /* ── Conta removida ────────────────────────────────────────────────────
+
+       Quando a conta é excluída depois da campanha ter sido montada, o
+       `populate` do backend não acha o documento e `account` chega nulo.
+
+       Antes a publicação era DESCARTADA aqui (`if (!id) continue`). O
+       resultado na tela: a configuração dizia "1 conta" (lê o array de ids
+       da campanha, que ainda tem o id), as métricas diziam "0 contas" (leem
+       este agrupamento) e a matriz de distribuição vinha vazia. Três
+       números do mesmo produto discordando, e nenhum deles mencionando uma
+       conta excluída.
+
+       Agora as órfãs vão para um balde próprio, rótulado. A publicação
+       aconteceu — sumir com ela do painel não desfaz isso, só esconde. */
+    const id = String(p.account?._id ?? p.account ?? '') || '__removida__';
 
     if (!mapa.has(id)) {
       mapa.set(id, {
-        id, conta: p.account, itens: [],
+        id, conta: p.account, removida: id === '__removida__', itens: [],
         published: 0, failed: 0, pendentes: 0, processing: 0, cancelled: 0,
       });
     }
