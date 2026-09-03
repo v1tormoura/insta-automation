@@ -104,11 +104,12 @@ export default function CampaignMetrics({ estatisticas, comentarios, contas, pro
 
   return (
     <div
-      className="grid gap-3"
-      /* `auto-fit` com piso de 220px: quatro cartões numa tela larga, dois num
-         tablet, um no celular — e nunca uma coluna estreita demais para o
-         rótulo, que era o defeito. */
-      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))' }}
+      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1"
+      /* Sem `auto-fit`: em lg estes cartões moram no trilho de 340px, e o
+         auto-fit tentaria encaixar dois de 170px — largura em que o rótulo
+         volta a truncar, que era o defeito original. Uma coluna a partir de
+         lg, duas abaixo (onde o bloco ocupa a largura toda). */
+      style={undefined}
     >
       <Cartao titulo="Publicações">
         <Destaque valor={e.total ?? 0} sufixo="no total" />

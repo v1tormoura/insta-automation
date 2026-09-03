@@ -298,77 +298,116 @@ export default function CampaignDetail() {
         </div>
       }
     >
-      <div className="flex flex-col gap-3">
-        <CampaignHeader
-          campanha={campanha}
-          schedule={resumo.schedule}
-          estatisticas={estatisticas}
-        />
+      {/* ── Workspace: o que se opera, e ao lado o que se consulta ────────
 
-        <CampaignMetrics
-          estatisticas={estatisticas}
-          comentarios={comentarios}
-          contas={contas}
-          progresso={resumo.progress}
-        />
+          Era uma pilha de cinco faixas de largura cheia, todas com o mesmo
+          peso: configuração, métricas, próxima ação, matriz, e só então as
+          abas. Para chegar ao que se OPERA — a linha do tempo, os problemas —
+          era preciso rolar por quatro blocos de resumo. E numa tela larga cada
+          faixa esticava até 1400px, com linhas de texto longas demais para
+          serem lidas de relance.
 
-        <NextUp
-          campanha={campanha}
-          estatisticas={estatisticas}
-          comentarios={comentarios}
-          proxima={resumo.nextPublication}
-          onAbrir={setSelecionada}
-        />
+          Agora são duas colunas com papéis diferentes: à esquerda o trabalho,
+          que ocupa o espaço e rola; à direita o contexto, fixo, sempre à
+          vista. É a diferença entre empilhar tudo que existe e decidir o que
+          fica na frente.
 
-        {/* Matriz sempre visível no desktop; no celular fica no botão do topo,
-            porque uma grade N×M em 375px não é legível ao lado do resto. */}
-        <div className="hidden lg:block">
-          <DistributionMatrix publicacoes={pubs} onAbrir={setSelecionada} />
+          A ordem no DOM é trabalho-primeiro, e o trilho sobe para o topo no
+          celular via `order` — leitura por teclado e leitor de tela seguem a
+          importância, e o olho no celular recebe o resumo antes da lista. */}
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
+
+        {/* ── Coluna principal: a lista, as abas, o que se clica ───────────
+
+            `row-span-2` em lg: a coluna da direita tem duas células (resumo e
+            configuração) e esta ocupa as duas linhas ao lado delas. É o que
+            permite a configuração descer para depois da lista no celular sem
+            sair do trilho no desktop. */}
+        <div className="order-2 min-w-0 lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <Tabs value={aba} onValueChange={setAba}>
+            <TabsList label="Visões da campanha">
+              {ABAS.map(([valor, rotulo]) => (
+                <TabsTrigger key={valor} value={valor} count={contagemAba[valor]}>
+                  {rotulo}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="timeline">
+              <TimelineView publicacoes={pubs} onAbrir={setSelecionada} />
+            </TabsContent>
+            <TabsContent value="contas">
+              <ByAccountView publicacoes={pubs} onAbrir={setSelecionada} />
+            </TabsContent>
+            <TabsContent value="conteudos">
+              <ByContentView publicacoes={pubs} onAbrir={setSelecionada} />
+            </TabsContent>
+            <TabsContent value="publicacoes">
+              <PublicationsView publicacoes={pubs} onAbrir={setSelecionada} contagem={estatisticas} />
+            </TabsContent>
+            <TabsContent value="eventos">
+              <EventosView dados={eventos} />
+            </TabsContent>
+            <TabsContent value="comentarios">
+              <CommentsView
+                publicacoes={pubs}
+                comentarios={comentarios}
+                onAbrir={setSelecionada}
+                onReprocessar={reprocessarComentario}
+                agindo={agindo}
+              />
+            </TabsContent>
+            <TabsContent value="problemas">
+              <ProblemsView
+                publicacoes={pubs}
+                onAbrir={setSelecionada}
+                onReprocessar={reprocessar}
+                onReprocessarComentario={reprocessarComentario}
+                agindo={agindo}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
-        <Tabs value={aba} onValueChange={setAba} className="mt-1">
-          <TabsList label="Visões da campanha">
-            {ABAS.map(([valor, rotulo]) => (
-              <TabsTrigger key={valor} value={valor} count={contagemAba[valor]}>
-                {rotulo}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        {/* ── Trilho de contexto ──────────────────────────────────────────
 
-          <TabsContent value="timeline">
-            <TimelineView publicacoes={pubs} onAbrir={setSelecionada} />
-          </TabsContent>
-          <TabsContent value="contas">
-            <ByAccountView publicacoes={pubs} onAbrir={setSelecionada} />
-          </TabsContent>
-          <TabsContent value="conteudos">
-            <ByContentView publicacoes={pubs} onAbrir={setSelecionada} />
-          </TabsContent>
-          <TabsContent value="publicacoes">
-            <PublicationsView publicacoes={pubs} onAbrir={setSelecionada} contagem={estatisticas} />
-          </TabsContent>
-          <TabsContent value="eventos">
-            <EventosView dados={eventos} />
-          </TabsContent>
-          <TabsContent value="comentarios">
-            <CommentsView
-              publicacoes={pubs}
-              comentarios={comentarios}
-              onAbrir={setSelecionada}
-              onReprocessar={reprocessarComentario}
-              agindo={agindo}
-            />
-          </TabsContent>
-          <TabsContent value="problemas">
-            <ProblemsView
-              publicacoes={pubs}
-              onAbrir={setSelecionada}
-              onReprocessar={reprocessar}
-              onReprocessarComentario={reprocessarComentario}
-              agindo={agindo}
-            />
-          </TabsContent>
-        </Tabs>
+            `sticky` a partir de lg: numa campanha de trinta publicações a
+            lista é longa, e o progresso ter rolado para fora da tela é
+            justamente quando se quer olhar para ele. Abaixo de lg ele é
+            estático — trilho fixo num celular ocuparia metade da altura. */}
+        <aside className="order-1 flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-3">
+          <NextUp
+            campanha={campanha}
+            estatisticas={estatisticas}
+            comentarios={comentarios}
+            proxima={resumo.nextPublication}
+            onAbrir={setSelecionada}
+          />
+
+          <CampaignMetrics
+            estatisticas={estatisticas}
+            comentarios={comentarios}
+            contas={contas}
+            progresso={resumo.progress}
+          />
+        </aside>
+
+        {/* ── Configuração ─────────────────────────────────────────────────
+
+            Separada do resumo por causa do celular. Ali tudo vira uma coluna
+            só, e com ela junto eram cinco cartões de leitura antes de chegar
+            à lista — que é o que a pessoa abriu a campanha para ver.
+
+            Configuração é material de CONSULTA: ninguém abre uma campanha para
+            reler o intervalo. Ela desce para depois da lista no celular, e no
+            desktop continua no trilho, logo abaixo do resumo. */}
+        <div className="order-3 min-w-0 lg:col-start-2 lg:row-start-2">
+          <CampaignHeader
+            campanha={campanha}
+            schedule={resumo.schedule}
+            estatisticas={estatisticas}
+          />
+        </div>
       </div>
 
       {/* Drawer de detalhe */}

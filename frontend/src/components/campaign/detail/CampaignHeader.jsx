@@ -167,7 +167,14 @@ export default function CampaignHeader({ campanha, schedule, estatisticas }) {
           Agrupados, cada bloco responde uma pergunta: o QUE a campanha
           alcança, COMO ela publica, QUANDO ela aconteceu. O divisor entre
           eles é o que transforma nove fatos soltos em três respostas. */}
-      <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3">
+      {/* Três colunas até lg, uma a partir dali.
+
+          Parece invertido e não é: em lg este cartão passa a morar no trilho
+          de 340px, onde três colunas dariam 110px cada e "Intercalado
+          aleatório" voltaria a quebrar em quatro linhas. Abaixo de lg ele
+          ocupa a largura toda e as três cabem folgadas. O breakpoint aqui
+          descreve ONDE o componente está, não o tamanho da tela. */}
+      <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3 lg:grid-cols-1">
         <Bloco titulo="Escopo">
           <Item Icone={Users}  rotulo="Contas"     valor={(campanha.accountIds || []).length} />
           <Item Icone={Film}   rotulo="Conteúdos"  valor={(campanha.contentIds || []).length} />
