@@ -8,12 +8,14 @@ import PageShell from '../components/PageShell';
 import Toast from '../components/Toast';
 import { Skeleton } from '../components/ui/skeleton';
 import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '../components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 
-import CampaignHeader from '../components/campaign/detail/CampaignHeader';
+import CampaignHeader, { CampaignActions } from '../components/campaign/detail/CampaignHeader';
+import { STATUS_CAMPANHA } from '../components/campaign/detail/shared';
 import CampaignMetrics from '../components/campaign/detail/CampaignMetrics';
 import NextUp from '../components/campaign/detail/NextUp';
 import DistributionMatrix from '../components/campaign/detail/DistributionMatrix';
@@ -266,15 +268,32 @@ export default function CampaignDetail() {
       title={campanha.name}
       subtitle="Painel da campanha"
       accent="cyan"
+      /* As ações da campanha sobem para cá.
+
+         Elas viviam dentro do cartão de cabeçalho, ao lado de um segundo
+         título com o nome da campanha — o mesmo nome que já estava aqui em
+         cima. Duas identidades a 60px uma da outra é o que fazia a tela
+         parecer montada em pedaços. Aqui em cima elas ficam onde a pessoa
+         procura por ações, e o cartão passa a responder uma pergunta só. */
       actions={
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={(STATUS_CAMPANHA[campanha.status] || STATUS_CAMPANHA.draft).badge}>
+            {(STATUS_CAMPANHA[campanha.status] || STATUS_CAMPANHA.draft).rotulo}
+          </Badge>
+          <CampaignActions
+            status={campanha.status}
+            falhas={estatisticas.failed || 0}
+            agindo={agindo}
+            onAcao={executarAcao}
+          />
+          <span className="mx-0.5 hidden h-5 w-px bg-[var(--border)] sm:block" aria-hidden />
           <Button variant="outline" size="sm" onClick={() => setMatrizAberta(true)}>
             <Grid3x3 size={13} />
             Matriz
           </Button>
           <Button variant="outline" size="sm" onClick={() => setPlanoAberto(true)}>
             <ListOrdered size={13} />
-            Ver plano completo
+            Plano completo
           </Button>
         </div>
       }
@@ -283,12 +302,7 @@ export default function CampaignDetail() {
         <CampaignHeader
           campanha={campanha}
           schedule={resumo.schedule}
-          settings={resumo.settings}
           estatisticas={estatisticas}
-          falhas={estatisticas.failed || 0}
-          agindo={agindo}
-          onVoltar={() => navigate('/campaigns')}
-          onAcao={executarAcao}
         />
 
         <CampaignMetrics

@@ -1,19 +1,30 @@
 import {
-  ArrowLeft, Play, Pause, RotateCcw, Ban, Copy, Pencil, Users, Film,
-  Layers, Shuffle, Timer, CalendarClock,
+  Play, Pause, RotateCcw, Ban, Copy, Pencil, Users, Film,
+  Layers, Shuffle, Timer, CalendarClock, Hash,
 } from 'lucide-react';
 import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
-import { STATUS_CAMPANHA, ESTRATEGIAS, dataCurta, Eyebrow } from './shared';
+import { ESTRATEGIAS, dataCurta, Eyebrow } from './shared';
 
 /**
- * Cabeçalho da campanha: identidade, configuração e ações.
+ * Configuração e ações da campanha.
  *
- * As ações são derivadas do STATUS, não listadas e desabilitadas. Um botão
- * "Iniciar" acinzentado numa campanha concluída ainda sugere que existe algo a
- * iniciar; melhor ele não estar lá. A regra vive em `acoesPara`, alinhada com a
- * máquina de estados do backend (campaignState.js) — o servidor continua sendo a
- * autoridade, isto só evita oferecer o que ele vai recusar.
+ * ── Por que o título saiu daqui
+ *
+ * O nome da campanha aparecia duas vezes na mesma tela, a 60px de distância:
+ * uma no título da página, outra num `<h1>` deste cartão, com o botão de
+ * voltar ao lado. Duas identidades para uma coisa só é o que fazia a tela
+ * parecer montada em pedaços — e o botão de voltar duplicava a navegação que a
+ * barra lateral já faz.
+ *
+ * Agora a identidade (nome, estado, ações) vive no topo da página, uma vez, e
+ * este cartão responde uma pergunta só: como esta campanha está configurada.
+ *
+ * ── As ações são derivadas do estado
+ *
+ * Não listadas e desabilitadas: um botão "Iniciar" acinzentado numa campanha
+ * concluída ainda sugere que existe algo a iniciar. A regra vive em `acoesPara`,
+ * alinhada com a máquina de estados do backend (campaignState.js) — o servidor
+ * continua sendo a autoridade, isto só evita oferecer o que ele vai recusar.
  */
 
 /**
@@ -40,126 +51,125 @@ export function acoesPara(status) {
   }
 }
 
-export default function CampaignHeader({
-  campanha, schedule, settings, estatisticas,
-  falhas = 0, agindo = false,
-  onVoltar, onAcao,
-}) {
-  const st = STATUS_CAMPANHA[campanha.status] || STATUS_CAMPANHA.draft;
-  const permitidas = acoesPara(campanha.status);
+const BOTOES = {
+  start:       { rotulo: 'Iniciar',  Icone: Play,      variant: 'default' },
+  pause:       { rotulo: 'Pausar',   Icone: Pause,     variant: 'outline' },
+  resume:      { rotulo: 'Retomar',  Icone: Play,      variant: 'default' },
+  retryFailed: { rotulo: 'Reexecutar falhas', Icone: RotateCcw, variant: 'outline' },
+  duplicate:   { rotulo: 'Duplicar', Icone: Copy,      variant: 'outline' },
+  edit:        { rotulo: 'Editar',   Icone: Pencil,    variant: 'ghost' },
+  cancel:      { rotulo: 'Cancelar', Icone: Ban,       variant: 'ghost' },
+};
 
-  const s = schedule || campanha.schedule || {};
-  const intervalo = s.useFixedInterval
-    ? `${s.fixedIntervalMinutes ?? s.intervalMinMinutes} min (fixo)`
-    : `${s.intervalMinMinutes}–${s.intervalMaxMinutes} min`;
-  const janela = s.windowStart && s.windowEnd ? `${s.windowStart}–${s.windowEnd}` : 'Sem restrição';
-
-  const BOTOES = {
-    start:       { rotulo: 'Iniciar',   Icone: Play,      variant: 'default' },
-    pause:       { rotulo: 'Pausar',    Icone: Pause,     variant: 'outline' },
-    resume:      { rotulo: 'Retomar',   Icone: Play,      variant: 'default' },
-    // Só faz sentido com falhas de verdade — sem elas o botão sai da lista.
-    retryFailed: { rotulo: `Reexecutar ${falhas} falha${falhas === 1 ? '' : 's'}`, Icone: RotateCcw, variant: 'outline' },
-    duplicate:   { rotulo: 'Duplicar',  Icone: Copy,      variant: 'outline' },
-    edit:        { rotulo: 'Editar',    Icone: Pencil,    variant: 'ghost' },
-    cancel:      { rotulo: 'Cancelar',  Icone: Ban,       variant: 'ghost' },
-  };
-
-  const linha = (Icone, rotulo, valor) => (
-    <div className="flex min-w-0 items-center gap-2">
-      <Icone size={13} className="shrink-0 text-[var(--mf-text-3)]" />
-      <span className="shrink-0 text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">{rotulo}</span>
-      <span className="truncate text-[var(--mf-t-micro)] font-semibold text-[var(--mf-text-2)]">{valor}</span>
+/**
+ * As ações, para o topo da página.
+ *
+ * Exportado à parte porque o slot de ações do `PageShell` fica fora deste
+ * componente — e passar o cartão inteiro para lá só para aproveitar os botões
+ * levaria a configuração junto.
+ */
+export function CampaignActions({ status, falhas = 0, agindo = false, onAcao }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {acoesPara(status).map(acao => {
+        if (acao === 'retryFailed' && !falhas) return null;
+        const b = BOTOES[acao];
+        const rotulo = acao === 'retryFailed'
+          ? `Reexecutar ${falhas} falha${falhas === 1 ? '' : 's'}`
+          : b.rotulo;
+        return (
+          <Button
+            key={acao} variant={b.variant} size="sm" disabled={agindo}
+            onClick={() => onAcao(acao)}
+            className={acao === 'cancel'
+              ? 'text-[var(--mf-danger-500)] hover:text-[var(--mf-danger-500)]'
+              : undefined}
+          >
+            <b.Icone size={13} />
+            {rotulo}
+          </Button>
+        );
+      })}
     </div>
   );
+}
+
+/**
+ * Um item da configuração.
+ *
+ * Rótulo em cima, valor embaixo — e não lado a lado como antes. Na horizontal,
+ * seis pares `rótulo: valor` numa faixa viram um parágrafo de palavras soltas
+ * onde nada ancora o olho; empilhado, a coluna de rótulos forma uma régua e o
+ * valor pode crescer sem espremer o vizinho.
+ */
+function Item({ Icone, rotulo, valor, className }) {
+  return (
+    <div className={className}>
+      <div className="flex items-center gap-1.5">
+        <Icone size={11} className="shrink-0 text-[var(--mf-text-3)]" />
+        <Eyebrow>{rotulo}</Eyebrow>
+      </div>
+      {/* Quebra em até duas linhas em vez de truncar. "Intercalado aleatório"
+          numa coluna de 132px vira "Intercalado aleat…", e o valor cortado
+          não diz qual estratégia é — que é a única coisa que ele existe para
+          dizer. Duas linhas custam 14px; a reticência custa a informação. */}
+      <div className="mt-1 line-clamp-2 text-[var(--mf-t-micro)] font-semibold leading-snug text-[var(--mf-text)]"
+        title={String(valor)}>
+        {valor}
+      </div>
+    </div>
+  );
+}
+
+export default function CampaignHeader({ campanha, schedule, estatisticas }) {
+  const s = schedule || campanha.schedule || {};
+  const intervalo = s.useFixedInterval
+    ? `${s.fixedIntervalMinutes ?? s.intervalMinMinutes} min · fixo`
+    : `${s.intervalMinMinutes}–${s.intervalMaxMinutes} min`;
+  const janela = s.windowStart && s.windowEnd
+    ? `${s.windowStart} às ${s.windowEnd}`
+    : 'Sem restrição';
 
   return (
-    <header className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)] p-4 sm:p-5">
-      {/* Identidade + ações */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <Button
-            variant="ghost" size="icon" onClick={onVoltar}
-            aria-label="Voltar para a lista de campanhas" className="mt-0.5 shrink-0"
-          >
-            <ArrowLeft size={16} />
-          </Button>
+    <section className="rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)]">
+      {campanha.description && (
+        <p className="border-b border-[var(--border)] px-4 py-3 text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-2)] sm:px-5">
+          {campanha.description}
+        </p>
+      )}
 
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-[17px] font-bold leading-tight text-[var(--mf-text)] sm:text-[19px]">
-                {campanha.name}
-              </h1>
-              <Badge variant={st.badge}>{st.rotulo}</Badge>
-            </div>
-            {campanha.description && (
-              <p className="mt-1 line-clamp-2 max-w-[62ch] text-[var(--mf-t-micro)] leading-relaxed text-[var(--mf-text-3)]">
-                {campanha.description}
-              </p>
-            )}
-          </div>
-        </div>
+      {/* Uma grade só, com todos os campos no mesmo ritmo.
 
-        <div className="flex flex-wrap gap-2">
-          {permitidas.map(acao => {
-            if (acao === 'retryFailed' && !falhas) return null;
-            const b = BOTOES[acao];
-            return (
-              <Button
-                key={acao} variant={b.variant} size="sm" disabled={agindo}
-                onClick={() => onAcao(acao)}
-                className={acao === 'cancel' ? 'text-[var(--mf-danger-500)] hover:text-[var(--mf-danger-500)]' : undefined}
-              >
-                <b.Icone size={13} />
-                {b.rotulo}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Configuração — auto-fit para reorganizar sem media query */}
+          Eram duas faixas separadas por uma linha — configuração em cima,
+          datas embaixo — com espaçamentos diferentes. A separação não dizia
+          nada: as duas respondem "como esta campanha está montada". */}
       <div
-        className="mt-4 grid gap-x-5 gap-y-2.5 border-t border-[var(--border)] pt-4"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(210px, 100%), 1fr))' }}
+        className="grid gap-x-4 gap-y-4 p-4 sm:p-5"
+        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(132px, 100%), 1fr))' }}
       >
-        {linha(Users,  'Contas',     (campanha.accountIds || []).length)}
-        {linha(Film,   'Conteúdos',  (campanha.contentIds || []).length)}
-        {linha(Layers, 'Publicações', estatisticas?.total ?? campanha.totalPublications ?? 0)}
-        {linha(Shuffle, 'Estratégia', ESTRATEGIAS[campanha.strategy?.mode] || campanha.strategy?.mode || '—')}
-        {linha(Timer,  'Intervalo',  intervalo)}
-        {linha(CalendarClock, 'Janela', janela)}
-      </div>
-
-      {/* Datas */}
-      <div className="mt-3.5 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-[var(--border)] pt-3.5">
-        <div>
-          <Eyebrow>Criada</Eyebrow>
-          <div className="mt-0.5 font-mono text-[var(--mf-t-micro)] tabular-nums text-[var(--mf-text-2)]">
-            {dataCurta(campanha.createdAt)}
-          </div>
-        </div>
-        <div>
-          <Eyebrow>Iniciada</Eyebrow>
-          <div className="mt-0.5 font-mono text-[var(--mf-t-micro)] tabular-nums text-[var(--mf-text-2)]">
-            {campanha.startedAt ? dataCurta(campanha.startedAt) : '—'}
-          </div>
-        </div>
-        <div>
-          <Eyebrow>Concluída</Eyebrow>
-          <div className="mt-0.5 font-mono text-[var(--mf-t-micro)] tabular-nums text-[var(--mf-text-2)]">
-            {campanha.completedAt ? dataCurta(campanha.completedAt) : '—'}
-          </div>
-        </div>
+        <Item Icone={Users}   rotulo="Contas"      valor={(campanha.accountIds || []).length} />
+        <Item Icone={Film}    rotulo="Conteúdos"   valor={(campanha.contentIds || []).length} />
+        <Item Icone={Layers}  rotulo="Publicações"
+              valor={estatisticas?.total ?? campanha.totalPublications ?? 0} />
+        <Item Icone={Shuffle} rotulo="Estratégia"
+              valor={ESTRATEGIAS[campanha.strategy?.mode] || campanha.strategy?.mode || '—'} />
+        <Item Icone={Timer}   rotulo="Intervalo"   valor={intervalo} />
+        <Item Icone={CalendarClock} rotulo="Janela" valor={janela} />
+        <Item Icone={CalendarClock} rotulo="Criada" valor={dataCurta(campanha.createdAt)} />
+        <Item Icone={Play}    rotulo="Iniciada"
+              valor={campanha.startedAt ? dataCurta(campanha.startedAt) : '—'} />
+        <Item Icone={CalendarClock} rotulo="Concluída"
+              valor={campanha.completedAt ? dataCurta(campanha.completedAt) : '—'} />
         {campanha.strategy?.seed && (
-          <div className="min-w-0">
-            <Eyebrow>Semente</Eyebrow>
-            <div className="mt-0.5 truncate font-mono text-[var(--mf-t-micro)] text-[var(--mf-text-2)]">
-              {campanha.strategy.seed}
-            </div>
-          </div>
+          /* A semente ocupa a linha inteira: é um identificador longo, e
+             espremido numa coluna de 132px ele vira reticências — que é o
+             mesmo que não mostrar, com o custo de ocupar espaço. */
+          <Item
+            Icone={Hash} rotulo="Semente" valor={campanha.strategy.seed}
+            className="col-span-full min-w-0 [&>div:last-child]:font-mono [&>div:last-child]:font-normal"
+          />
         )}
       </div>
-    </header>
+    </section>
   );
 }

@@ -40,6 +40,21 @@ const STORY_H = 1920;
 
 const EH_VIDEO = /\.(mp4|mov|webm|m4v)(\?|$)/i;
 
+/* A mesma letra que o servidor queima.
+
+   O pedido foi "fonte do iPhone". Em macOS e iOS, `-apple-system` resolve para
+   SF Pro de verdade — e aí o preview mostra exatamente a tipografia do
+   iPhone. Fora da Apple ele cai em Inter, que é o que o container instala
+   (`fonts-inter` no Dockerfile) e o que o drawtext usa. Nos dois casos o
+   preview e a mídia final desenham a mesma letra, que é o ponto: um preview
+   com outra fonte erra a largura de cada linha e mente sobre o que cabe.
+
+   SF Pro não é embarcada: a licença da Apple cobre interfaces de apps das
+   plataformas dela, não um servidor que grava texto em imagem. */
+const FONTE_STORY =
+  '-apple-system, "SF Pro Text", "SF Pro Display", Inter, "Segoe UI", ' +
+  'Roboto, "Noto Sans", Helvetica, Arial, sans-serif';
+
 export default function StoryMoldura({
   media, figurinha, linkOn,
   textoOn, texto, textoPos, textoTam, textoCor,
@@ -159,6 +174,7 @@ export default function StoryMoldura({
           >
             {linhas.map((linha, i) => (
               <span key={i} style={{
+                fontFamily: FONTE_STORY,
                 fontSize: `${corpo}px`, lineHeight: 1.35, fontWeight: 800,
                 color: claro ? '#fff' : '#000',
                 background: claro ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.45)',
@@ -199,8 +215,12 @@ export default function StoryMoldura({
                 é o aviso correto de que as duas contas divergiram. */}
             <span style={{
               flex: 1, minWidth: 0,
+              /* 600 e não 800: a figurinha do Instagram usa peso semibold, e
+                 o renderizador já desenha em 600. O preview estava mais gordo
+                 que a pílula queimada. */
+              fontFamily: FONTE_STORY, fontWeight: 600,
               fontSize: `${Math.max(4, cx.height * altura * 0.34)}px`,
-              fontWeight: 800, whiteSpace: 'nowrap',
+              letterSpacing: '.005em', whiteSpace: 'nowrap',
               textAlign: 'center', lineHeight: 1,
             }}>{rotulo}</span>
             <span style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', flexShrink: 0 }}>›</span>

@@ -519,18 +519,32 @@ select.lm-input   { cursor:pointer; }
 }
 
 /* ── Media grid ── */
+/* Quadrados pequenos, muitos por linha.
+
+   Eram 9/16 com piso de 60px: cada miniatura ficava alta e estreita, cabiam
+   oito por linha e três linhas na área visível — de 44 reels, doze apareciam.
+   O painel serve para ESCOLHER numa lista, e para escolher importa ver quantas
+   opções existem, não o enquadramento de cada uma (que o preview do story já
+   mostra em tamanho real).
+
+   Quadrado com piso de 52px: cerca de dez por linha e o dobro de linhas na
+   mesma altura. */
 .lm-grid {
-  display:grid; grid-template-columns:repeat(auto-fill,minmax(60px,1fr)); gap:5px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(52px,1fr)); gap:4px;
   background:var(--mf-surface-2); border:1px solid var(--mf-border);
-  border-radius:10px; padding:6px; max-height:380px; overflow-y:auto;
+  border-radius:10px; padding:6px; max-height:420px; overflow-y:auto;
   scrollbar-width:thin; scrollbar-color:var(--mf-border) transparent;
 }
 .lm-grid::-webkit-scrollbar { width:3px; }
 .lm-grid::-webkit-scrollbar-thumb { background:var(--mf-border); border-radius:3px; }
 
 .lm-thumb {
-  position:relative; aspect-ratio:9/16;
-  border:2px solid transparent; border-radius:8px;
+  /* Quadrado: numa grade de escolha, a proporção uniforme é o que faz as
+     miniaturas lerem como uma lista em vez de um mosaico. */
+  position:relative; aspect-ratio:1/1;
+  /* 1.5px e não 2px: numa caixa de 52px, uma borda de 2px come 8% da imagem
+     e a grade inteira parece cercada. */
+  border:1.5px solid transparent; border-radius:7px;
   overflow:hidden; cursor:pointer; background:var(--mf-surface-1);
   padding:0; transition:border-color .15s, transform .12s;
   display:block;
@@ -545,15 +559,18 @@ select.lm-input   { cursor:pointer; }
   color:var(--mf-text-3); opacity:.5;
 }
 
+/* O número encolhe junto com a miniatura. Na caixa de 52px o rótulo antigo
+   ocupava um quinto da imagem — e o que se escolhe é a imagem, não o índice. */
 .lm-num {
-  position:absolute; top:4px; left:4px;
-  font-size:.58rem; font-weight:700; font-family:var(--mf-mono);
-  background:oklch(0 0 0 / 0.68); color:var(--mf-text); padding:1px 5px; border-radius:4px;
+  position:absolute; top:3px; left:3px;
+  font-size:.5rem; font-weight:700; font-family:var(--mf-mono);
+  background:oklch(0 0 0 / 0.62); color:var(--mf-text);
+  padding:0 3px; border-radius:3px; line-height:1.5;
   pointer-events:none;
 }
 .lm-chk2 {
-  position:absolute; bottom:5px; right:5px;
-  width:18px; height:18px; border-radius:50%;
+  position:absolute; bottom:3px; right:3px;
+  width:15px; height:15px; border-radius:50%;
   background:var(--mf-mod, var(--mf-accent-500)); color:var(--mf-bg);
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 2px 8px color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 40%, transparent);

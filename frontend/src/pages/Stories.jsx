@@ -46,7 +46,6 @@ export default function Stories() {
      Queimado na mídia pelo mesmo ffmpeg que desenha a figurinha, na mesma
      passada. Padrão em y=0.35: acima do meio, onde não disputa espaço com a
      pílula de link, que mora em 0.8. */
-  const [textoOn, setTextoOn]         = useState(false);
   const [texto, setTexto]             = useState('');
   const [textoPos, setTextoPos]       = useState({ x: 0.5, y: 0.35 });
   const [textoTam, setTextoTam]       = useState('medio');
@@ -182,6 +181,17 @@ export default function Stories() {
     return null;
   }, [texto]);
 
+  /* O texto está ligado quando há texto. Ponto.
+
+     Antes havia um `textoOn` separado: o campo só aparecia depois de achar e
+     acionar um alternador, e era possível ter texto escrito com o alternador
+     desligado — nada saía, e nada explicava por quê. Dois estados para uma
+     coisa só, e o segundo servindo apenas para contradizer o primeiro.
+
+     Digitar liga; apagar desliga. É como o próprio Instagram funciona: você
+     toca no "Aa" e escreve, não existe um interruptor de texto. */
+  const textoOn = texto.trim().length > 0;
+
   const PRESETS_STICKER = [
     { rotulo: 'Topo',   x: 0.5, y: 0.15 },
     { rotulo: 'Centro', x: 0.5, y: 0.5  },
@@ -233,7 +243,6 @@ export default function Stories() {
         if (d.linkLabel !== undefined) setLinkLabel(d.linkLabel);
         if (d.linkOn !== undefined) setLinkOn(d.linkOn);
         if (d.linkPos) setLinkPos(d.linkPos);
-        if (d.textoOn)  setTextoOn(true);
         if (d.texto)    setTexto(d.texto);
         if (d.textoPos) setTextoPos(d.textoPos);
         if (d.textoTam) setTextoTam(d.textoTam);
@@ -259,11 +268,11 @@ export default function Stories() {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected,
-        textoOn, texto, textoPos, textoTam, textoCor
+        texto, textoPos, textoTam, textoCor
       }));
     } catch {}
   }, [linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected,
-      textoOn, texto, textoPos, textoTam, textoCor]);
+      texto, textoPos, textoTam, textoCor]);
 
   useEffect(() => {
     api.get('/accounts').then(r => {
@@ -398,7 +407,6 @@ export default function Stories() {
       setLinkLabel('');
       setLinkOn(false);
       setTexto('');
-      setTextoOn(false);
       setIntervalMin(1);
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
     finally { setLoading(false); }
@@ -559,28 +567,17 @@ export default function Stories() {
                     quebraria justamente a relação que faz a tela funcionar. */}
                 <div style={{ flex: 1, minWidth: 210, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, letterSpacing: '-0.01em' }}>Texto na mídia</div>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>
-                        Queimado na imagem — funciona em qualquer conta
-                      </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, letterSpacing: '-0.01em' }}>Texto na mídia</div>
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>
+                      Queimado na imagem — funciona em qualquer conta
                     </div>
-                    <button onClick={() => setTextoOn(v => !v)} aria-pressed={textoOn} style={{
-                      width: 31, height: 19, borderRadius: 'var(--mf-r-full)', padding: 2, flexShrink: 0,
-                      background: textoOn ? 'var(--mf-primary-500)' : 'var(--mf-bg)',
-                      border: '1px solid var(--mf-border)', cursor: 'pointer',
-                      display: 'flex', justifyContent: textoOn ? 'flex-end' : 'flex-start',
-                      transition: 'all var(--mf-normal) var(--mf-ease-out)',
-                    }}>
-                      <span style={{ width: 13, height: 13, borderRadius: 'var(--mf-r-full)', display: 'block',
-                        background: textoOn ? 'var(--mf-bg)' : 'var(--mf-text-3)',
-                        transition: 'all var(--mf-normal) var(--mf-ease-out)' }} />
-                    </button>
                   </div>
 
-                  {textoOn && (
-                    <>
+                  {/* Sempre visível. O campo é a função: escondê-lo atrás de um
+                      alternador transformava "escrever no story" em "descobrir
+                      onde se liga o escrever no story". */}
+                  <>
                       <textarea
                         value={texto}
                         onChange={e => setTexto(e.target.value)}
@@ -608,6 +605,7 @@ export default function Stories() {
                         </div>
                       )}
 
+                      {textoOn && <>
                       <Segmentado
                         rotulo="Tamanho do texto" full mod="contas"
                         valor={textoTam} onChange={setTextoTam}
@@ -626,10 +624,10 @@ export default function Stories() {
                         ]} />
 
                       <div className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
-                        texto x {textoPos.x.toFixed(2)} · y {textoPos.y.toFixed(2)}
+                        texto x {textoPos.x.toFixed(2)} · y {textoPos.y.toFixed(2)} · arraste na moldura
                       </div>
-                    </>
-                  )}
+                      </>}
+                  </>
 
                   {/* Posição da figurinha — só quando há figurinha. */}
                   {linkOn && (
@@ -657,7 +655,7 @@ export default function Stories() {
 
                   {!linkOn && !textoOn && (
                     <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
-                      O story sai como a mídia está. Ligue o texto acima, ou a
+                      O story sai como a mídia está. Escreva acima, ou ligue a
                       figurinha de link ao lado, para compor por cima dela.
                     </div>
                   )}

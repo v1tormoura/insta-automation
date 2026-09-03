@@ -226,7 +226,12 @@ async function gerarPngChromium(label, wPx, hPx) {
     `  max-width:${wPx - 4}px; height:${hPx - 4}px; padding:0 ${padLado}px;`,
     `  background:#FFFFFF; border-radius:${raio}px;`,
     '  box-shadow:0 2px 12px rgba(0,0,0,.16), 0 1px 3px rgba(0,0,0,.10);',
-    '  font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,"Noto Sans",',
+    /* `-apple-system` e `SF Pro Text` ficam na frente porque em macOS o
+       Chromium os resolve de verdade — e quando resolve, o resultado é
+       exatamente a tipografia do iPhone. No container Linux nenhum dos dois
+       existe e a lista cai em Inter, que é o que o Dockerfile instala e o que
+       o motor ffmpeg também usa: os dois motores desenham a mesma letra. */
+    '  font-family:-apple-system,"SF Pro Text","SF Pro Display",Inter,"Segoe UI",Roboto,"Noto Sans",',
     '    Helvetica,Arial,"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif; }',
     `.ic { width:${glifo}px; height:${glifo}px; flex-shrink:0; display:block; }`,
     `.tx { font-size:${fonte}px; font-weight:600; letter-spacing:.005em; color:#0B0B0B;`,
@@ -282,7 +287,24 @@ async function gerarPngChromium(label, wPx, hPx) {
 
 // ── Motor 2: ffmpeg puro (sem navegador) ─────────────────────────────────────
 
+/* ── A ordem importa ────────────────────────────────────────────────────────
+
+   Inter primeiro. O pedido foi "fonte do iPhone": SF Pro está sob licença da
+   Apple, que cobre interfaces de apps das plataformas dela e não um container
+   que queima texto em imagem para o Instagram. Inter é a equivalente aberta
+   (SIL OFL) e a substituta padrão dela — mesma classe de grotesca neutra,
+   altura-x alta, terminais retos. Instalada pelo Dockerfile (`fonts-inter`).
+
+   As outras continuam como rede de proteção, na ordem do menos pior: Liberation
+   e DejaVu são de outra época e deixam o texto com cara de documento. Um story
+   com a fonte errada ainda é um story; sem fonte nenhuma não sai nada.
+
+   No Windows a Segoe UI vem antes da Arial pelo mesmo critério — é a que menos
+   destoa numa tela de celular. */
 const FONTES_CANDIDATAS = [
+  '/usr/share/fonts/truetype/inter/Inter-Bold.ttf',
+  '/usr/share/fonts/truetype/inter/InterDisplay-Bold.ttf',
+  '/usr/share/fonts/opentype/inter/Inter-Bold.otf',
   '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
   '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
   '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',

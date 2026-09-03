@@ -13,6 +13,17 @@ RUN apt-get update && apt-get install -y \
     python3 \
     fonts-noto \
     fonts-liberation \
+    # Inter: a fonte do texto do story e da figurinha de link.
+    #
+    # O pedido foi "fonte do iPhone". SF Pro existe sob licença da Apple, que
+    # cobre interfaces de apps das plataformas dela — não um container que
+    # queima texto em imagem para o Instagram. Então ela não entra aqui.
+    #
+    # Inter foi desenhada como equivalente aberta (SIL OFL) e é a substituta
+    # padrão: mesma classe de grotesca neutra, altura-x alta, terminais retos.
+    # Sem este pacote o drawtext cai em DejaVu ou Liberation, que são de outra
+    # época e deixam o texto com cara de documento, não de story.
+    fonts-inter \
     # Emoji colorido: sem esta fonte o Chromium desenha uma caixa vazia no lugar
     # de cada emoji do texto da figurinha de link.
     fonts-noto-color-emoji \
