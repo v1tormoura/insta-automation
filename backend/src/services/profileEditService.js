@@ -6,6 +6,7 @@ const Account = require('../models/Account');
 const { createClient } = require('./instagramPrivateService');
 const { broadcast }    = require('../events/broadcaster');
 const { editProfilePuppeteer } = require('./puppeteerProfileService');
+const { gravarAvatar } = require('./avatarLocal');
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -255,6 +256,8 @@ async function _aplicarEdicaoInstagrapi(account, { fullName, biography, external
     alterados.push(...Object.keys(campos));
   }
 
+  const dbUpdate = { lastProfileEditAt: new Date() };
+
   if (picBuffer) {
     // Pausa antes da segunda escrita: texto e foto no mesmo instante é padrão
     // que nenhum usuário real produz.
@@ -263,15 +266,41 @@ async function _aplicarEdicaoInstagrapi(account, { fullName, biography, external
     const tmpDir = path.resolve(__dirname, '../../uploads/tmp');
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     const nome = `avatar_${account._id}_${Date.now()}.jpg`;
-    fs.writeFileSync(path.join(tmpDir, nome), picBuffer);
+    const tmpPath = path.join(tmpDir, nome);
+    fs.writeFileSync(tmpPath, picBuffer);
     await provider.changeProfilePicture(account, `tmp/${nome}`);
     alterados.push('profilePic');
+
+    /* ── O avatar do painel ──────────────────────────────────────────────
+
+       A foto ia para o Instagram e o painel continuava com a antiga: o
+       arquivo era escrito em `uploads/tmp`, mandado, e nunca gravado como
+       avatar da conta. O caminho web faz isso desde sempre (`dbUpdate.avatar`
+       algumas linhas abaixo, na outra função); o caminho mobile não fazia.
+
+       O buffer é o mesmo que subiu, então não há por que baixar de volta do
+       CDN — que ainda por cima leva alguns segundos para refletir a troca e
+       nesse intervalo devolve a foto ANTIGA. `avatarOrigem` fica vazio de
+       propósito: a próxima sincronização vê origem diferente da URL do CDN,
+       baixa a versão processada pelo Instagram e a comparação volta a valer. */
+    const local = gravarAvatar(picBuffer, account.username);
+    if (local) {
+      dbUpdate.avatar = local;
+      dbUpdate.avatarOrigem = '';
+    }
+
+    // O temporário já cumpriu o papel; deixá-lo enche o disco a cada troca.
+    try { fs.unlinkSync(tmpPath); } catch { /* o provider pode ter movido */ }
   }
 
-  const dbUpdate = { lastProfileEditAt: new Date() };
   if (biography !== undefined && biography !== null) dbUpdate.bio  = biography;
   if (fullName  !== undefined && fullName  !== null) dbUpdate.name = fullName;
   await Account.findByIdAndUpdate(account._id, dbUpdate).catch(() => {});
+
+  /* Sem isto, a tela só descobria a mudança no próximo recarregamento manual.
+     O evento `profile_edit` da rota conta o DESFECHO da edição; este conta que
+     os DADOS da conta mudaram, que é o que as outras telas escutam. */
+  broadcast('accounts', { action: 'profile_updated', accountId: String(account._id) });
 
   console.log(`[EditProfile] @${account.username} — instagrapi (${alterados.join(', ') || 'nada'})`);
   return { method: 'instagrapi', changed: alterados, profile: perfil };

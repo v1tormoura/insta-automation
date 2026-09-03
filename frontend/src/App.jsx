@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import DashboardV2 from './pages/DashboardV2';
 import PrototipoApp from './prototipo/PrototipoApp';
 import DesignPreview from './prototipo-v2/DesignPreview';
+import MolduraTeste from './pages/MolduraTeste';
 import Accounts from './pages/Accounts';
 import Posts from './pages/Posts';
 import Scheduler from './pages/Scheduler';
@@ -83,6 +84,7 @@ export default function App() {
       {/* Direção nova, em avaliação. Escopada em [data-mf2]: não afeta
           nenhuma outra rota. Sai quando a migração terminar. */}
       <Route path="/design-preview" element={<DesignPreview />} />
+      <Route path="/moldura-teste" element={<MolduraTeste />} />
 
       <Route path="/*" element={
         <PrivateRoute>

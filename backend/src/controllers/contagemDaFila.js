@@ -10,6 +10,11 @@
  * que cada uma executa — até lá elas vivem em `CampaignPublication`, e o
  * painel não olhava para lá.
  *
+ * O Loop é a QUARTA origem e faltava pelo mesmo motivo, um nível acima: um
+ * loop com 44 reels cria um `Post` de cada vez, quando chega a hora. As outras
+ * 43 existem só como `mediaFiles` no documento do loop, e a fila do painel
+ * mostrava 1 — a que está saindo agora — enquanto a tela de Loop mostrava 44.
+ *
  * O efeito: subir uma campanha com trinta publicações não mudava nada na fila.
  * Quem acabou de subi-la via os mesmos zeros de antes, do lado de uma tela de
  * Campanhas que mostrava as trinta. Dois números do mesmo produto discordando
@@ -30,18 +35,43 @@
  * @param {{agendados, processando, pendentes}} posts       — coleção `Post`
  * @param {{esperando, rodando, enfileirados}} jobs         — coleção `Job`
  * @param {Object<string, number>} campanhas                — por status
+ * @param {{pendentes}} loops                               — mídias que faltam
  */
-function somarFilas(posts, jobs, campanhas) {
+function somarFilas(posts, jobs, campanhas, loops) {
   /* `= {}` no parâmetro não cobre `null` — ele só vale para ausente. E `null`
      é justamente o que uma consulta que falhou entrega. O painel inteiro
      lançaria por causa de uma origem que não respondeu. */
-  const p = posts || {}, j = jobs || {}, c = campanhas || {};
+  const p = posts || {}, j = jobs || {}, c = campanhas || {}, l = loops || {};
   const n = v => (Number.isFinite(v) && v > 0 ? v : 0);
   return {
     agendados:   n(p.agendados)   + n(j.esperando)    + n(c.scheduled),
     processando: n(p.processando) + n(j.rodando)      + n(c.processing),
-    pendentes:   n(p.pendentes)   + n(j.enfileirados) + n(c.pending),
+    /* O loop entra em "pendentes" e não em "agendados": as mídias dele não têm
+       horário marcado, elas saem quando o ciclo chegar nelas. Chamá-las de
+       agendadas prometeria um horário que não existe. */
+    pendentes:   n(p.pendentes)   + n(j.enfileirados) + n(c.pending) + n(l.pendentes),
   };
+}
+
+/**
+ * Quantas mídias um loop ativo ainda vai publicar no ciclo atual.
+ *
+ * `mediaFiles.length - currentIndex`, e não `mediaFiles.length`: o loop é
+ * contínuo, então contar a lista inteira daria um número que nunca desce e
+ * que, num loop rodando há uma semana, não descreve nada.
+ *
+ * Loop pausado não conta. Ele não vai publicar enquanto ninguém retomar, e uma
+ * fila que inclui o que está parado é uma fila que não se esvazia — a pessoa
+ * olha, vê 44, espera, e continua vendo 44.
+ */
+function pendentesDoLoop(loops) {
+  if (!Array.isArray(loops)) return 0;
+  return loops.reduce((soma, loop) => {
+    if (!loop || loop.status !== 'ativo') return soma;
+    const total = Array.isArray(loop.mediaFiles) ? loop.mediaFiles.length : 0;
+    const feitas = Number(loop.currentIndex) || 0;
+    return soma + Math.max(0, total - feitas);
+  }, 0);
 }
 
 /**
@@ -76,4 +106,4 @@ function porStatus(linhas) {
   );
 }
 
-module.exports = { somarFilas, postagensDeHoje, porStatus };
+module.exports = { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus };

@@ -9,7 +9,19 @@ const accountSchema = new mongoose.Schema(
       default: '',
     },
 
+    /* Caminho local versionado: /uploads/avatars/<user>.jpg?v=<ts>.
+       A versão é o que faz o React repintar quando a foto troca — o arquivo
+       tem nome fixo, então sem ela o `src` não muda e a tela fica na antiga. */
     avatar: {
+      type: String,
+      default: '',
+    },
+
+    /* O caminho da URL do CDN de onde o avatar atual veio.
+       As URLs do Instagram são assinadas e mudam a cada leitura, então
+       comparar URLs inteiras diria "mudou" sempre e o sync rebaixaria a foto
+       de 5 em 5 minutos. O caminho é estável por imagem — é a assinatura. */
+    avatarOrigem: {
       type: String,
       default: '',
     },

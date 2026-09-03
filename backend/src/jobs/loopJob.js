@@ -14,6 +14,11 @@ const Loop      = require('../models/Loop');
 const Post      = require('../models/Post');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
+/* O loop agendava a próxima rodada em `agora + intervalo`, exato. Um post a
+   cada 40min00s, para sempre — regularidade que se detecta contando
+   timestamps, sem olhar o conteúdo. O motor de Jobs já tinha jitter; o loop
+   não. Agora os dois usam a mesma regra. */
+const { proximaRodada } = require('../services/ritmoHumano');
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -46,7 +51,7 @@ async function runLoops() {
           loop.lastError = allBanned
             ? 'Todas as contas estão banidas'
             : 'Todas as contas estão ocupadas — aguardando';
-          loop.nextRunAt = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+          loop.nextRunAt = proximaRodada(loop.intervalMinutes);
           await loop.save();
           continue;
         }
@@ -93,13 +98,13 @@ async function runLoops() {
         if (nextIndex >= loop.mediaFiles.length) {
           // Ciclo completo — reinicia do início (loop contínuo)
           loop.currentIndex = 0;
-          loop.nextRunAt    = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+          loop.nextRunAt    = proximaRodada(loop.intervalMinutes);
           loop.status       = 'ativo';
           console.log(`🔄 [Loop] "${loop.name}" → ciclo completo, reiniciando do início`);
           broadcast('posts', { action: 'loop_cycled', loopId: loop._id });
         } else {
           loop.currentIndex = nextIndex;
-          loop.nextRunAt    = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+          loop.nextRunAt    = proximaRodada(loop.intervalMinutes);
           loop.status       = 'ativo';
         }
 
@@ -112,7 +117,7 @@ async function runLoops() {
         console.log(`💥 [Loop] "${loop.name}": ${err.message}`);
         try {
           loop.lastError = err.message.slice(0, 200);
-          loop.nextRunAt = new Date(Date.now() + loop.intervalMinutes * 60 * 1000);
+          loop.nextRunAt = proximaRodada(loop.intervalMinutes);
           await loop.save();
         } catch {}
       }

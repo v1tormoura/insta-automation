@@ -7,6 +7,10 @@
 
 const Account       = require('../models/Account');
 const { broadcast } = require('../events/broadcaster');
+/* Uma implementação só. A que morava aqui tinha retry, a de syncAccountInfo
+   não, e nenhuma das duas versionava a URL — que é o que faz a troca de foto
+   aparecer na tela. Ver o cabeçalho de avatarLocal.js. */
+const { baixarAvatar, fotoMudou, origemDaFoto } = require('../services/avatarLocal');
 const { resolveProxyFor } = require('../services/globalProxy');
 const path          = require('path');
 const fs            = require('fs');
@@ -16,42 +20,6 @@ const AVATARS_DIR = path.resolve(__dirname, '../../uploads/avatars');
 
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
 
-/** Baixa avatar CDN com retry automático (até 3 tentativas) */
-async function downloadAvatar(url, username, retries = 3) {
-  if (!url || !username) return '';
-  ensureDir(AVATARS_DIR);
-  const dest = path.join(AVATARS_DIR, `${username}.jpg`);
-
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      await new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(dest);
-        const req = https.get(url, res => {
-          if (res.statusCode !== 200) {
-            file.close();
-            try { fs.unlinkSync(dest); } catch {}
-            return reject(new Error(`HTTP ${res.statusCode}`));
-          }
-          res.pipe(file);
-          file.on('finish', () => { file.close(); resolve(); });
-          file.on('error', reject);
-        });
-        req.on('error', reject);
-        req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
-      });
-      return `/uploads/avatars/${username}.jpg`;
-    } catch (err) {
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 1000 * attempt));
-      } else {
-        console.log(`⚠️ [Avatar] @${username}: falha após ${retries} tentativas — ${err.message}`);
-        try { if (fs.existsSync(dest)) fs.unlinkSync(dest); } catch {}
-        return '';
-      }
-    }
-  }
-  return '';
-}
 
 const SESSIONS_ROOT = path.resolve(__dirname, '../../sessions');
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -233,7 +201,11 @@ async function syncOneAccountFast(account) {
   const me = await ig.account.currentUser();
 
   const cdnUrl = me.hd_profile_pic_url_info?.url || me.profile_pic_url || '';
-  const localAvatar = cdnUrl ? await downloadAvatar(cdnUrl, account.username) : '';
+  /* Só rebaixa quando a foto mudou de verdade: o CDN assina cada URL, então
+     compará-las inteiras diria "mudou" a cada ciclo de 5 minutos. */
+  const localAvatar = fotoMudou(cdnUrl, account.avatarOrigem, account.avatar)
+    ? await baixarAvatar(cdnUrl, account.username)
+    : '';
 
   // Só restaura para 'ativa' se o problema era de sessão — não sobrescreve 'restrita'
   const SESSION_ISSUES = ['sessao_expirada', 'erro_login', 'token_invalido'];
@@ -249,6 +221,7 @@ async function syncOneAccountFast(account) {
     following:  me.following_count  || 0,
     postsCount: me.media_count      || 0,
     avatar:     localAvatar         || account.avatar || '',
+    ...(localAvatar ? { avatarOrigem: origemDaFoto(cdnUrl) } : {}),
     ...healthFields,
   };
 
@@ -266,7 +239,25 @@ async function runFastSync() {
     const accounts = await Account.find({
       status:  { $ne: 'banida' },
       isBusy:  { $ne: true },
-    }).select('username _id igSession rawWebSessionid avatar name bio followers following postsCount proxy healthStatus');
+      /* ── Os campos que o laço abaixo LÊ ───────────────────────────────
+
+         `provider` e `instagrapiSession` faltavam aqui, e o primeiro teste do
+         laço é exatamente `acc.provider === 'instagrapi' || acc.instagrapiSession`.
+         Num documento vindo de um `select`, campo não pedido volta `undefined`
+         — o teste dava falso para TODA conta, o ramo instagrapi nunca rodava, e
+         conta da API mobile nunca sincronizava.
+
+         O ramo foi escrito justamente para corrigir isso e ficou inerte: o
+         comentário dele descreve o problema que continuava acontecendo. É por
+         isso que o painel mostra 0 seguidores, 0 seguindo e 0 posts numa conta
+         conectada e saudável — o número nunca foi buscado.
+
+         `avatarOrigem` entra pelo mesmo motivo: sem ele a comparação de foto
+         acha que mudou sempre e rebaixa a imagem a cada 5 minutos. */
+    }).select(
+      'username _id igSession rawWebSessionid avatar avatarOrigem name bio ' +
+      'followers following postsCount proxy healthStatus provider instagrapiSession'
+    );
 
     for (const acc of accounts) {
       // Conta instagrapi: sincroniza pela própria sessão. Nenhum dos testes

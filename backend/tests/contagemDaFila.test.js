@@ -103,3 +103,59 @@ describe('agrupamento por status', () => {
     expect(porStatus([{ n: 5 }, { _id: 'pending', n: 2 }])).toEqual({ pending: 2 });
   });
 });
+
+describe('o loop é a quarta origem', () => {
+  const { pendentesDoLoop } = require('../src/controllers/contagemDaFila');
+
+  test('conta o que falta do ciclo, não a lista inteira', () => {
+    /* O loop é contínuo. Contar `mediaFiles.length` daria um número que nunca
+       desce — num loop rodando há uma semana ele não descreveria nada. */
+    const loops = [{ status: 'ativo', mediaFiles: new Array(44), currentIndex: 6 }];
+    expect(pendentesDoLoop(loops)).toBe(38);
+  });
+
+  test('loop recém-criado conta a lista toda', () => {
+    expect(pendentesDoLoop([{ status: 'ativo', mediaFiles: new Array(44), currentIndex: 0 }])).toBe(44);
+  });
+
+  test('loop pausado não entra na fila', () => {
+    /* Uma fila que inclui o que está parado é uma fila que não se esvazia: a
+       pessoa olha, vê 44, espera, e continua vendo 44. */
+    const loops = [
+      { status: 'pausado', mediaFiles: new Array(44), currentIndex: 0 },
+      { status: 'ativo',   mediaFiles: new Array(10), currentIndex: 3 },
+    ];
+    expect(pendentesDoLoop(loops)).toBe(7);
+  });
+
+  test('índice além do fim não vira número negativo', () => {
+    const loops = [{ status: 'ativo', mediaFiles: new Array(5), currentIndex: 9 }];
+    expect(pendentesDoLoop(loops)).toBe(0);
+  });
+
+  test('entrada estranha devolve zero em vez de quebrar o painel', () => {
+    for (const ruim of [null, undefined, 'x', 42, {}]) {
+      expect(pendentesDoLoop(ruim)).toBe(0);
+    }
+    expect(pendentesDoLoop([null, { status: 'ativo' }, {}])).toBe(0);
+  });
+
+  test('a soma da fila inclui o loop em pendentes', () => {
+    /* Em "pendentes" e não em "agendados": as mídias do loop não têm horário
+       marcado, saem quando o ciclo chegar nelas. */
+    const r = somarFilas(
+      { agendados: 1, processando: 2, pendentes: 3 },
+      { esperando: 0, rodando: 0, enfileirados: 0 },
+      {},
+      { pendentes: 38 },
+    );
+    expect(r.pendentes).toBe(41);
+    expect(r.agendados).toBe(1);
+  });
+
+  test('sem o quarto argumento a soma continua valendo', () => {
+    // Nenhum chamador antigo quebra por causa do parâmetro novo.
+    const r = somarFilas({ pendentes: 3 }, { enfileirados: 2 }, { pending: 1 });
+    expect(r.pendentes).toBe(6);
+  });
+});

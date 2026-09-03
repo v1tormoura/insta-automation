@@ -8,7 +8,7 @@ const CampaignPublication = require('../models/CampaignPublication');
 /* A aritmética mora fora do controller e é testada sozinha. Aqui ela estava no
    meio de um `Promise.all` de quinze consultas, onde ninguém revisa uma soma —
    e foi assim que uma das três origens da fila ficou de fora sem nada acusar. */
-const { somarFilas, postagensDeHoje, porStatus } = require('./contagemDaFila');
+const { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus } = require('./contagemDaFila');
 const mongoose = require('mongoose');
 let Insight;
 try { Insight = require('../models/Insight'); } catch {}
@@ -145,6 +145,7 @@ exports.getDashboard = async (req, res) => {
       partialPosts, errorPosts,
       allActiveJobsRaw,
       campanhaPubs,
+      loopsAtivos,
     ] = await Promise.all([
       Post.countDocuments(),
       Post.countDocuments({ status: 'concluido' }),
@@ -171,6 +172,15 @@ exports.getDashboard = async (req, res) => {
         { $match: { status: { $in: ['pending', 'scheduled', 'processing', 'published'] } } },
         { $group: { _id: '$status', n: { $sum: 1 } } },
       ]).catch(() => []),
+
+      /* Os loops ativos. Só os campos da conta — um loop carrega a lista
+         inteira de mídias, e trazer 44 nomes de arquivo por loop para contar
+         o tamanho da lista é buscar o balde para medir a alça. */
+      require('../models/Loop')
+        .find({ status: 'ativo' })
+        .select('mediaFiles currentIndex status')
+        .lean()
+        .catch(() => []),
     ]);
 
     const campanhasPorStatus = porStatus(campanhaPubs);
@@ -197,6 +207,7 @@ exports.getDashboard = async (req, res) => {
       { agendados: scheduledPostsLegacy, processando: processingPostsLegacy, pendentes: pendingPostsLegacy },
       { esperando: jobsWaiting, rodando: jobsRunning, enfileirados: jobsQueued },
       campanhasPorStatus,
+      { pendentes: pendentesDoLoop(loopsAtivos) },
     );
     const scheduledPosts  = fila.agendados;
     const processingPosts = fila.processando;
