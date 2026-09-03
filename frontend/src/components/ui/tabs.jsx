@@ -56,9 +56,16 @@ export function TabsList({ children, className, label = 'Seções' }) {
       aria-label={label}
       onKeyDown={aoTeclar}
       // Rola na horizontal no celular em vez de quebrar em duas linhas.
+      /* Linha de base em vez de caixa.
+
+         Numa caixa com fundo e sete opções de texto pequeno, os limites entre
+         as abas somem e o conjunto lê como uma frase: "Timeline 12 Por conta 1
+         Por conteúdo 12 Publicações 12…". A linha inferior dá ao grupo um
+         eixo, e a aba ativa o interrompe — que é o gesto que diz "você está
+         aqui" sem depender de o olho comparar dois tons de cinza. */
       className={cn(
-        'flex gap-1 overflow-x-auto rounded-[var(--mf-r-md)] border border-[var(--border)]',
-        'bg-[var(--mf-border-subtle)] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'flex gap-5 overflow-x-auto border-b border-[var(--border)]',
+        '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className
       )}
     >
@@ -81,21 +88,30 @@ export function TabsTrigger({ value: valor, children, count, className }) {
       tabIndex={ativo ? 0 : -1}
       onClick={() => onValueChange(valor)}
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--mf-r-sm)] px-3 py-1.5',
-        'text-[var(--mf-t-micro)] font-semibold transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--cyan)]',
+        /* `-mb-px` sobe o botão um pixel para a borda inferior dele cobrir a
+           da lista — é o que faz a aba ativa parecer recortada da linha em vez
+           de desenhada por cima. */
+        'relative -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap',
+        'border-b-2 px-0.5 py-2.5 text-[var(--mf-t-micro)] font-semibold transition-colors',
+        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--mf-primary-500)]',
         ativo
-          ? 'bg-[color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_12%,transparent)] text-[var(--cyan)]'
-          : 'text-[var(--text3)] hover:bg-[var(--mf-border-subtle)] hover:text-[var(--text2)]',
+          ? 'border-[var(--mf-primary-500)] text-[var(--mf-primary-500)]'
+          : 'border-transparent text-[var(--mf-text-3)] hover:border-[var(--mf-border-strong)] hover:text-[var(--mf-text-2)]',
         className
       )}
     >
       {children}
       {count !== undefined && count !== null && (
         <span
+          /* Contagem zero fica apagada em vez de sumir: a lista de abas é a
+             mesma em toda campanha, e uma que muda de largura conforme os
+             números obriga a reler para saber onde clicar. */
           className={cn(
             'rounded-full px-1.5 font-mono text-[var(--mf-t-nano)] tabular-nums',
-            ativo ? 'bg-[color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_18%,transparent)]' : 'bg-[var(--mf-border)]'
+            ativo
+              ? 'bg-[color-mix(in_oklch,var(--mf-primary-500)_20%,transparent)] text-[var(--mf-primary-500)]'
+              : 'bg-[var(--mf-border-subtle)] text-[var(--mf-text-3)]',
+            !count && 'opacity-45',
           )}
         >
           {count}

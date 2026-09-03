@@ -198,13 +198,32 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(0,180,255,.15); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,180,255,.28); }
 
-h1 { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -.5px; line-height: 1.2; }
-h2 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -.3px; }
-h3 { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.2px; }
-::selection { background: rgba(0,212,255,.22); }
-button  { cursor: pointer; font-family: var(--font); border: none; outline: none; }
-input, textarea, select { font-family: var(--font); outline: none; }
-a { text-decoration: none; color: inherit; }
+/* ══ Padrões de elemento ─ dentro de @layer base ══════════════════════
+
+   O `@layer` aqui não é organização: é o que faz estas regras PERDEREM para as
+   classes do Tailwind.
+
+   Em CSS com camadas, estilo sem camada vence QUALQUER `@layer`, seja qual for
+   a especificidade. Estas regras estavam fora de camada, depois do
+   `@import "tailwindcss"` — então `button { border: none }` anulava toda classe
+   de borda aplicada a um botão, em todo o produto.
+
+   O efeito era visual e silencioso: `<Button variant="outline">` monta
+   `border border-[var(--border)]` e saía sem borda nenhuma. Os botões de
+   contorno do topo das páginas, as abas com sublinhado — tudo lia como texto
+   solto, e nada no código do componente indicava por quê.
+
+   Dentro de `base`, o padrão continua valendo para botão que não pede borda, e
+   quem pede uma passa a recebê-la. */
+@layer base {
+  h1 { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -.5px; line-height: 1.2; }
+  h2 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -.3px; }
+  h3 { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.2px; }
+  ::selection { background: rgba(0,212,255,.22); }
+  button  { cursor: pointer; font-family: var(--font); border: none; outline: none; }
+  input, textarea, select { font-family: var(--font); outline: none; }
+  a { text-decoration: none; color: inherit; }
+}
 
 /* ════════════════════════════════════════════════════════
    UTILITY CLASSES — brand design system

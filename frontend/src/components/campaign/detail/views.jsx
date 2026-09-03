@@ -111,68 +111,138 @@ export function resumoContas(publicacoes) {
   };
 }
 
-/* ── Linha de publicação (reusada em várias visões) ────────────────────────── */
+/* ── Linha de publicação (reusada em várias visões) ────────────────── */
+
+/**
+ * Uma publicação na lista.
+ *
+ * ── O que estava errado
+ *
+ * A linha era: `#1 [avatar] **Conta removida** — [thumb] arquivo.mp4 …… 22:39
+ * [Publicado] ›`, e abaixo, em vermelho negrito, `Erro na publicação
+ * (PUBLISH_ERROR)`.
+ *
+ * Num painel de doze linhas, o texto de MAIOR contraste era o nome da conta —
+ * repetido doze vezes, idêntico. O nome do arquivo, longo e com prefixo comum,
+ * ocupava metade da largura. O selo de status se repetia doze vezes. E o erro
+ * vinha em vermelho negrito oito vezes, formando uma parede.
+ *
+ * Tudo que se repete em toda linha é ruído: não distingue nada, e ainda assim
+ * consome o contraste que deveria estar no que difere. O resultado é o que se
+ * vê de longe — texto jogado.
+ *
+ * ── O que muda
+ *
+ * A hora vira o eixo, à esquerda, em coluna fixa. É uma linha do TEMPO: o
+ * horário é a única coisa que ordena, e ele estava perdido à direita.
+ *
+ * O status vira uma faixa vertical de 3px na borda. Cor comunica estado de
+ * relance melhor que uma palavra, e não custa largura nem se repete como texto.
+ * O selo escrito fica só onde o estado não é óbvio — falha.
+ *
+ * O nome do conteúdo vira o texto principal: é o que difere entre as linhas.
+ * Cortado no MEIO, não no fim — `vazadosfree4-2090…126-01.mp4` — porque o começo
+ * e o fim distinguem, e o miolo é o mesmo em todos.
+ *
+ * A conta desce para linha secundária, pequena. O erro vira uma marca curta com
+ * só o código, alinhada à direita: oito frases vermelhas iguais viram oito
+ * marcas discretas, e a que importa continua legível.
+ */
+
+/** Corta pelo meio: o começo e o fim distinguem, o miolo repete. */
+function encurtarNome(nome, max = 42) {
+  const s = String(nome || '—');
+  if (s.length <= max) return s;
+  const cabeca = Math.ceil((max - 1) / 2);
+  const cauda = Math.floor((max - 1) / 2);
+  return `${s.slice(0, cabeca)}…${s.slice(-cauda)}`;
+}
+
+/** A cor da faixa de estado. */
+const FAIXA = {
+  published:  'bg-[var(--mf-success-500)]',
+  processing: 'bg-[var(--mf-info-500)]',
+  failed:     'bg-[var(--mf-danger-500)]',
+  cancelled:  'bg-[var(--mf-text-3)]',
+  scheduled:  'bg-[var(--mf-primary-500)]',
+  pending:    'bg-[var(--mf-border-strong)]',
+};
 
 export function LinhaPublicacao({ pub, onAbrir, mostrarData = false, compacta = false }) {
   const falhou = pub.status === 'failed';
   const comFalhou = pub.commentStatus === 'failed';
+  const problema = falhou || comFalhou;
 
   return (
     <button
       type="button"
       onClick={() => onAbrir?.(pub)}
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-[var(--mf-r-md)] border p-2.5 text-left transition-colors',
-        'hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]',
-        falhou || comFalhou
-          ? 'border-[color-mix(in_oklch,_var(--mf-danger-500)_24%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_3%,_transparent)]'
-          : 'border-[var(--border)] bg-[var(--mf-border-subtle)]'
+        'group relative flex w-full items-center gap-3 rounded-[var(--mf-r-md)] py-2 pl-3 pr-2.5 text-left',
+        'transition-colors hover:bg-[var(--mf-border-subtle)]',
+        'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--mf-primary-500)]',
       )}
     >
-      <span className="w-7 shrink-0 font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
-        #{pub.order}
+      {/* A faixa de estado. Cor no lugar de uma palavra repetida doze vezes. */}
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-y-1.5 left-0 w-[3px] rounded-full',
+          FAIXA[pub.status] || FAIXA.pending,
+          pub.status === 'pending' && 'opacity-50',
+        )}
+      />
+
+      {/* O eixo: hora à esquerda, tabular, para as linhas formarem uma régua. */}
+      <span className="w-[52px] shrink-0 text-right font-mono text-[var(--mf-t-micro)] tabular-nums text-[var(--mf-text-2)]">
+        {horaCurta(pub.scheduledAt)}
+        {mostrarData && (
+          <span className="block text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
+            {dataCurta(pub.scheduledAt)}
+          </span>
+        )}
       </span>
 
-      {!compacta && <ContaAvatar conta={pub.account} size={24} />}
+      <ConteudoThumb conteudo={pub.content} size={28} />
 
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
+        {/* O que difere entre as linhas fica no topo, com o contraste. */}
+        <span className="block truncate text-[var(--mf-t-micro)] font-semibold text-[var(--mf-text)]">
+          {encurtarNome(nomeConteudo(pub.content))}
+        </span>
+
+        {/* Segunda linha: conta, motivo da falha, tentativas — tudo junto.
+
+            O código do erro era um selo alinhado à direita da linha. Com o
+            nome do arquivo terminando no meio da largura, sobrava um vazio de
+            300px entre o que falhou e o porquê, e o selo lia-se como um
+            elemento solto de outra coluna. Aqui ele fica encostado no que
+            descreve. */}
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
           {!compacta && (
-            <span className="truncate text-[var(--mf-t-micro)] font-bold text-[var(--mf-text)]">
-              {nomeConta(pub.account)}
+            <>
+              <ContaAvatar conta={pub.account} size={13} />
+              <span className="shrink-0">{nomeConta(pub.account)}</span>
+            </>
+          )}
+          {problema && (
+            <span className="min-w-0 truncate font-mono font-semibold text-[var(--mf-danger-500)]">
+              {!compacta && '· '}
+              {falhou
+                ? (pub.errorCode || 'ERRO')
+                : `comentário: ${pub.commentErrorCode || 'ERRO'}`}
             </span>
           )}
-          <ConteudoThumb conteudo={pub.content} size={16} />
-          <span className="truncate text-[var(--mf-t-micro)] text-[var(--mf-text-3)]">
-            {nomeConteudo(pub.content)}
-          </span>
+          {pub.attempts > 1 && (
+            <span className="shrink-0 font-mono">· {pub.attempts}x</span>
+          )}
         </span>
-
-        {(falhou || comFalhou) && (
-          <span className="mt-1 block truncate text-[var(--mf-t-nano)] font-semibold text-[var(--mf-danger-500)]">
-            {falhou
-              ? descreverErro(pub.errorCode, ERROS_PUB)
-              : `Comentário: ${descreverErro(pub.commentErrorCode, ERROS_COMENTARIO)}`}
-          </span>
-        )}
       </span>
 
-      <span className="shrink-0 text-right">
-        <span className="block font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
-          {mostrarData && `${dataCurta(pub.scheduledAt)} · `}{horaCurta(pub.scheduledAt)}
-        </span>
-        {pub.attempts > 1 && (
-          <span className="mt-0.5 block font-mono text-[var(--mf-t-nano)] tabular-nums text-[var(--mf-text-3)]">
-            {pub.attempts}x
-          </span>
-        )}
-      </span>
-
-      <span className="hidden shrink-0 sm:block">
-        <StatusBadge status={pub.status} />
-      </span>
-
-      <ChevronRight size={13} className="shrink-0 text-[var(--mf-text-3)]" />
+      <ChevronRight
+        size={13}
+        className="shrink-0 text-[var(--mf-text-3)] opacity-0 transition-opacity group-hover:opacity-100"
+      />
     </button>
   );
 }
@@ -187,29 +257,57 @@ export function TimelineView({ publicacoes, onAbrir }) {
     [publicacoes],
   );
 
+  /* Agrupa por dia ANTES de renderizar, em vez de comparar com a linha
+     anterior durante o map.
+
+     A versão antiga usava uma variável mutada dentro do `map` — funciona, mas
+     só enquanto o array vier ordenado, e um dia com uma publicação fora de
+     ordem imprimiria o cabeçalho duas vezes. Agrupado, o dia é uma estrutura,
+     não um efeito colateral da iteração — e cada dia pode ganhar sua própria
+     moldura, que é o que dá ritmo à lista. */
+  const dias = useMemo(() => {
+    const mapa = new Map();
+    for (const p of ordenadas) {
+      const dia = dataCurta(p.scheduledAt);
+      if (!mapa.has(dia)) mapa.set(dia, []);
+      mapa.get(dia).push(p);
+    }
+    return [...mapa.entries()];
+  }, [ordenadas]);
+
+  /* A saída antecipada vem DEPOIS dos hooks: `useMemo` acima de um `return`
+     condicional muda a ordem dos hooks entre renders, e o React lança. */
   if (!ordenadas.length) return <Vazio>Nenhuma publicação nesta campanha.</Vazio>;
 
-  // Cabeçalho por dia: uma campanha que atravessa dias fica ilegível só com hora.
-  let diaAtual = null;
-
   return (
-    <div className="flex flex-col gap-1.5">
-      {ordenadas.map(p => {
-        const dia = dataCurta(p.scheduledAt);
-        const novoDia = dia !== diaAtual;
-        diaAtual = dia;
+    <div className="flex flex-col gap-3">
+      {dias.map(([dia, doDia]) => (
+        <section
+          key={dia}
+          className="overflow-hidden rounded-[var(--mf-r-lg)] border border-[var(--card-border)] bg-[var(--card)]"
+        >
+          {/* O cabeçalho do dia é parte do cartão, não um rótulo solto flutuando
+              entre linhas. `sticky` para a data continuar visível enquanto se
+              rola por um dia com trinta publicações. */}
+          <header className="sticky top-0 z-10 flex items-baseline justify-between gap-3 border-b border-[var(--border)] bg-[var(--card)] px-3 py-2">
+            <span className="font-mono text-[var(--mf-t-micro)] font-bold tabular-nums text-[var(--mf-text-2)]">
+              {dia}
+            </span>
+            <span className="text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
+              {doDia.length} {doDia.length === 1 ? 'publicação' : 'publicações'}
+            </span>
+          </header>
 
-        return (
-          <div key={p._id}>
-            {novoDia && (
-              <div className="sticky top-0 z-10 -mx-1 bg-[var(--bg)] px-1 py-1.5">
-                <Eyebrow>{dia}</Eyebrow>
-              </div>
-            )}
-            <LinhaPublicacao pub={p} onAbrir={onAbrir} />
+          {/* Divisores entre linhas, e não uma borda em volta de cada uma:
+              doze caixas empilhadas desenham vinte e quatro linhas horizontais
+              onde onze bastam. */}
+          <div className="divide-y divide-[var(--border)] p-1">
+            {doDia.map(p => (
+              <LinhaPublicacao key={p._id} pub={p} onAbrir={onAbrir} />
+            ))}
           </div>
-        );
-      })}
+        </section>
+      ))}
     </div>
   );
 }
