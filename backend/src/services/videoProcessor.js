@@ -58,8 +58,31 @@ function convertToReelFormat(inputPath, options = {}) {
   const quality = options.quality || 'high';
   const processMode = options.processMode || 'sem_limpeza';
 
-  let suffix;
-  if (processMode === 'limpeza_leve') {
+  /* ── Por que a aleatoriedade entra por fora ──────────────────────────────
+
+     As variações que tornam o arquivo único (micro-crop, jitter de cor, pitch,
+     CRF) usavam `Math.random()` direto. Isso tem duas consequências ruins.
+
+     A primeira: não dá para testar. Um teste sobre "o filtro varia" que sorteia
+     de verdade ou passa por acidente ou falha por acidente.
+
+     A segunda, que é a que importa em produção: uma reexecução gera um arquivo
+     DIFERENTE do que já subiu. Se a publicação falhou depois do upload e antes
+     de registrar, a tentativa seguinte manda outro vídeo — e a conta acaba com
+     dois reels quase iguais, que é pior do que o problema original.
+
+     Com a semente vinda de fora, o par (post, conta) sempre produz o mesmo
+     arquivo, e contas diferentes produzem arquivos diferentes. Determinístico
+     onde precisa ser, único onde precisa ser. */
+  const aleatorio = typeof options.aleatorio === 'function' ? options.aleatorio : Math.random;
+
+  /* Sufixo de fora quando o chamador precisa de um arquivo por conta: sem
+     isso, duas contas convertendo o mesmo vídeo no mesmo milissegundo
+     escreveriam no mesmo caminho, e uma sobrescreveria a outra no meio da
+     leitura da primeira. */
+  let suffix = options.sufixo ? `-${options.sufixo}` : null;
+  if (suffix) { /* já definido pelo chamador */ }
+  else if (processMode === 'limpeza_leve') {
     suffix = `-reel-clean-${Date.now().toString(36).slice(-5)}`;
   } else if (processMode === 'ultra_clean') {
     suffix = `-reel-ultra-${Date.now().toString(36).slice(-5)}`;
@@ -131,7 +154,7 @@ function convertToReelFormat(inputPath, options = {}) {
 
     // Ultra clean: micro-variação de brilho garante hash de pixel único por publicação
     if (processMode === 'ultra_clean') {
-      const micro = (Math.random() * 0.004 + 0.001).toFixed(5);
+      const micro = (aleatorio() * 0.004 + 0.001).toFixed(5);
       scaleFilter += `,eq=brightness=${micro}`;
     }
 
@@ -139,16 +162,16 @@ function convertToReelFormat(inputPath, options = {}) {
     let humanAudioFilter = null;
     if (processMode === 'humanizador') {
       // Micro-crop aleatório (2-5px) + resize de volta — desloca todos os pixels
-      const cropPx = Math.floor(Math.random() * 4) + 2;
-      const cropX  = Math.floor(Math.random() * (cropPx + 1));
-      const cropY  = Math.floor(Math.random() * (cropPx + 1));
+      const cropPx = Math.floor(aleatorio() * 4) + 2;
+      const cropX  = Math.floor(aleatorio() * (cropPx + 1));
+      const cropY  = Math.floor(aleatorio() * (cropPx + 1));
       // Micro-ajuste de cor imperceptível
-      const microBright = ((Math.random() - 0.5) * 0.006).toFixed(5);
-      const microSat    = (1 + (Math.random() - 0.5) * 0.04).toFixed(4);
-      const microContr  = (1 + (Math.random() - 0.5) * 0.02).toFixed(4);
+      const microBright = ((aleatorio() - 0.5) * 0.006).toFixed(5);
+      const microSat    = (1 + (aleatorio() - 0.5) * 0.04).toFixed(4);
+      const microContr  = (1 + (aleatorio() - 0.5) * 0.02).toFixed(4);
       scaleFilter += `,crop=iw-${cropPx}:ih-${cropPx}:${cropX}:${cropY},scale=1080:1920,eq=brightness=${microBright}:saturation=${microSat}:contrast=${microContr}`;
       // Pitch de áudio micro-shift (±0.5%) — muda fingerprint de áudio sem ser audível
-      const pitchFactor = (1 + (Math.random() - 0.5) * 0.01).toFixed(5);
+      const pitchFactor = (1 + (aleatorio() - 0.5) * 0.01).toFixed(5);
       const newRate     = Math.round(44100 * Number(pitchFactor));
       humanAudioFilter  = `asetrate=${newRate},aresample=44100`;
     }
@@ -188,7 +211,7 @@ function convertToReelFormat(inputPath, options = {}) {
 
     // Humanizador: CRF aleatório (17–20) para encoding ligeiramente diferente a cada vez
     const finalCrf = processMode === 'humanizador'
-      ? String(17 + Math.floor(Math.random() * 4))
+      ? String(17 + Math.floor(aleatorio() * 4))
       : cfg.crf;
 
     const audioFilterOpts = humanAudioFilter ? ['-af', humanAudioFilter] : [];

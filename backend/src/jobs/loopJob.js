@@ -83,6 +83,11 @@ async function runLoops() {
           ctaComment:    loop.ctaComment    || '',
           engageComment: loop.engageComment || '',
           accounts:   validAccounts.map(a => a._id),
+          /* O loop guardava `processMode` e não repassava para o Post — a
+             configuração se perdia aqui, em silêncio, e toda publicação do loop
+             caía no padrão do schema. Quem escolhia "Humanizador" na tela do
+             loop recebia "Limpeza leve" no arquivo publicado. */
+          processMode: loop.processMode || 'humanizador',
           status:     'pendente',
           scheduledAt: new Date(),
         });

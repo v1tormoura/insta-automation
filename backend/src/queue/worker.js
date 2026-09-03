@@ -7,6 +7,9 @@ const Post         = require('../models/Post');
 const Account      = require('../models/Account');
 const { postReel: postReelPrivate } = require('../services/instagramPrivateService');
 const { postReel: postReelGraph, prepareVideo } = require('../services/instagramAPI');
+/* Um arquivo por conta no caminho mobile — ver o cabeçalho do módulo para o
+   porquê: até aqui todas as contas subiam o MESMO arquivo, byte a byte. */
+const { prepararParaConta, descartar } = require('../services/midiaPorConta');
 const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
@@ -156,13 +159,34 @@ async function publishViaInstagrapi(account, post) {
     );
   }
 
+  /* ── A mídia desta conta ────────────────────────────────────────────────
+
+     Este caminho mandava `post.media` cru para o `clip_upload`: o arquivo que
+     a pessoa subiu, sem conversão, sem limpeza de metadados, e o MESMO para
+     todas as contas. Todo o pipeline de vídeo vivia no ramo do Graph API, e
+     estas contas não passam por lá.
+
+     Agora cada conta recebe um arquivo próprio, derivado do par (post, conta):
+     em spec de Reels, sem metadados de origem, e com as micro-variações do
+     humanizador. Mesma conta reprocessando o mesmo post recebe o mesmo
+     arquivo — ver o comentário sobre a semente em midiaPorConta.js.
+
+     A conversão fica FORA do laço de tentativas de propósito: reconverter a
+     cada 429 gastaria minutos de CPU para produzir exatamente o mesmo arquivo,
+     já que a semente não muda. */
+  const midia = await prepararParaConta(post, account);
+  const postParaPublicar = midia.caminho === post.media
+    ? post
+    : { ...(post.toObject ? post.toObject() : post), media: midia.caminho };
+
   let attempt = 0;
+  try {
   while (true) {
     try {
       writeAccountLog(account.username, `Publicando via instagrapi (${postType})${attempt > 0 ? ` — tentativa ${attempt + 1}` : ''}...`);
       const r = postType === 'reel'
-        ? await provider.publishReel(account, post)
-        : await provider.publishPost(account, post);
+        ? await provider.publishReel(account, postParaPublicar)
+        : await provider.publishPost(account, postParaPublicar);
       await sm.recordSuccess(String(account._id));
       writeAccountLog(account.username, 'Publicado com sucesso via instagrapi');
       // Devolve o id da mídia recém-criada. A campanha o guarda para comentar
@@ -182,6 +206,18 @@ async function publishViaInstagrapi(account, post) {
       await sm.recordFailure(String(account._id), igErr).catch(() => {});
       throw igErr;
     }
+  }
+  } finally {
+    /* O arquivo desta conta já cumpriu o papel, tenha subido ou não.
+
+       Sem esta limpeza, cada volta do loop deixa um arquivo de dezenas de MB
+       por conta. Um loop de 44 reels em 5 contas gera 220 arquivos por ciclo:
+       o disco enche em dias, e o sintoma aparece como falha de publicação sem
+       relação aparente com disco.
+
+       No `finally` e não depois do `return`: o caminho de erro é justamente o
+       que mais repete. */
+    descartar(midia.caminho, midia.proprio);
   }
 }
 
