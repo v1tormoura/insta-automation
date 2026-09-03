@@ -1,4 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import StoryMoldura from './StoryMoldura';
+import Segmentado from '../components/Segmentado';
+
+/* Os mesmos tetos do backend (src/routes/textoDoStory.js). Repetidos e não
+   importados porque são processos separados — mas com o nome igual dos dois
+   lados, para uma busca por MAX_LINHAS encontrar as duas pontas. */
+const MAX_LINHAS = 6;
+const MAX_POR_LINHA = 80;
+
+const PLACEHOLDER_TEXTO = 'Escreva aqui\nAté 6 linhas';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
@@ -30,6 +40,17 @@ export default function Stories() {
   /* Posição do link sticker em coordenadas normalizadas (0..1) do story, onde
      x/y é o CENTRO do sticker. Padrão 0.5/0.8 = rodapé, como o app faz. */
   const [linkPos, setLinkPos]         = useState({ x: 0.5, y: 0.8 });
+
+  /* ── Texto livre ──────────────────────────────────────────────────
+
+     Queimado na mídia pelo mesmo ffmpeg que desenha a figurinha, na mesma
+     passada. Padrão em y=0.35: acima do meio, onde não disputa espaço com a
+     pílula de link, que mora em 0.8. */
+  const [textoOn, setTextoOn]         = useState(false);
+  const [texto, setTexto]             = useState('');
+  const [textoPos, setTextoPos]       = useState({ x: 0.5, y: 0.35 });
+  const [textoTam, setTextoTam]       = useState('medio');
+  const [textoCor, setTextoCor]       = useState('branco');
   const [interval, setIntervalMin]    = useState(3);
   const [loading, setLoading]         = useState(false);
   const [results, setResults]         = useState(null);
@@ -49,10 +70,6 @@ export default function Stories() {
     };
   }
 
-  function posicionarSticker(e) {
-    setLinkPos(coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY));
-  }
-
   /* ── Arrastar a figurinha ─────────────────────────────────────────────────
 
      Clicar já posicionava, e clicar é bom para um salto grande. Mas ajustar
@@ -63,30 +80,53 @@ export default function Stories() {
      `setPointerCapture` é o que faz o gesto sobreviver a sair da caixa: sem
      ele, arrastar um pouco além da borda entrega o evento a outro elemento e o
      movimento morre no meio, deixando a figurinha onde não se queria. */
-  /* Largura do preview e a altura que ela implica no 9:16. Numa constante
-     porque a fonte da pílula é calculada a partir dela: com o número repetido,
-     mudar a largura da caixa deixaria a fonte para trás e o preview voltaria a
-     divergir do que é queimado. */
-  const PREVIEW_LARGURA = 260;
-  const PREVIEW_ALTURA  = Math.round(PREVIEW_LARGURA * 16 / 9);
+  /* `arrastando` guarda O QUE está sendo arrastado, não se há arrasto: com
+     dois elementos móveis sobre a mesma caixa, um booleano faria o gesto
+     iniciado na pílula mover também o texto. Os valores são 'link', 'texto'
+     ou null. */
+  const [arrastando, setArrastando] = useState(null);
 
-  const [arrastando, setArrastando] = useState(false);
-
-  function iniciarArrasto(e) {
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    setArrastando(true);
-    setLinkPos(coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY));
+  /* A caixa é uma só e os elementos moram dentro dela, então o preview inteiro
+     escuta o ponteiro e cada elemento apenas declara quem é — assim o arrasto
+     continua funcionando quando o dedo passa por cima do outro elemento, que
+     é exatamente quando um listener por elemento entregaria o gesto ao vizinho
+     e o texto trocaria de dono no meio do movimento. */
+  function iniciarArrasto(alvo) {
+    return (e) => {
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      setArrastando(alvo);
+    };
   }
 
   function moverArrasto(e) {
     if (!arrastando) return;
     e.preventDefault();
-    setLinkPos(coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY));
+    /* `caixaPreview` e não `e.currentTarget`: com a captura de ponteiro, o
+       currentTarget é o elemento que capturou (a pílula, de 40px), e medir a
+       fração contra ele daria uma posição que salta. A referência é sempre a
+       moldura do story. */
+    const caixa = caixaPreview.current;
+    if (!caixa) return;
+    const pos = coordenadasDoEvento(caixa, e.clientX, e.clientY);
+    (arrastando === 'texto' ? setTextoPos : setLinkPos)(pos);
   }
 
   function soltarArrasto(e) {
     e.currentTarget.releasePointerCapture?.(e.pointerId);
-    setArrastando(false);
+    setArrastando(null);
+  }
+
+  const caixaPreview = useRef(null);
+
+  /* Clicar na moldura vazia posiciona o que estiver ligado. Com os dois
+     ligados, o clique não decide sozinho qual mover — então não move nenhum,
+     e sobra o arrasto, que é sem ambiguidade. */
+  function clicarNaMoldura(e) {
+    if (arrastando) return;
+    const pos = coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY);
+    if (linkOn && !textoOn) setLinkPos(pos);
+    else if (textoOn && !linkOn) setTextoPos(pos);
   }
 
   /**
@@ -116,6 +156,31 @@ export default function Stories() {
     return { cheio, caixa, visivel, cortado: visivel.length < cheio.length };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [linkUrl, linkLabel, linkPos.x, linkPos.y]);
+
+  /**
+   * O que o backend vai descartar do texto, dito antes de publicar.
+   *
+   * `limparTextoLivre` corta em 6 linhas de 80 caracteres. O corte é seco: o
+   * story sai com o texto pela metade e nada avisa. Aqui a conta é a MESMA,
+   * refeita no navegador — ao mexer em um teto, mexa no outro.
+   *
+   * Devolve `null` quando nada se perde, para o aviso não ocupar espaço
+   * enquanto não há o que avisar.
+   */
+  const avisoTexto = useMemo(() => {
+    const linhas = String(texto).split('\n').map(l => l.trim()).filter(Boolean);
+    if (linhas.length > MAX_LINHAS) {
+      const sobra = linhas.length - MAX_LINHAS;
+      return `Só as ${MAX_LINHAS} primeiras linhas são desenhadas — `
+           + `${sobra} ${sobra === 1 ? 'linha vai ficar' : 'linhas vão ficar'} de fora.`;
+    }
+    const longa = linhas.findIndex(l => l.length > MAX_POR_LINHA);
+    if (longa >= 0) {
+      return `A linha ${longa + 1} passa de ${MAX_POR_LINHA} caracteres e vai `
+           + 'sair cortada. Quebre em duas para caber inteira.';
+    }
+    return null;
+  }, [texto]);
 
   const PRESETS_STICKER = [
     { rotulo: 'Topo',   x: 0.5, y: 0.15 },
@@ -168,6 +233,11 @@ export default function Stories() {
         if (d.linkLabel !== undefined) setLinkLabel(d.linkLabel);
         if (d.linkOn !== undefined) setLinkOn(d.linkOn);
         if (d.linkPos) setLinkPos(d.linkPos);
+        if (d.textoOn)  setTextoOn(true);
+        if (d.texto)    setTexto(d.texto);
+        if (d.textoPos) setTextoPos(d.textoPos);
+        if (d.textoTam) setTextoTam(d.textoTam);
+        if (d.textoCor) setTextoCor(d.textoCor);
         if (d.interval !== undefined) setIntervalMin(d.interval);
         if (Array.isArray(d.medias) && d.medias.length) setMedias(d.medias);
         if (Array.isArray(d.selected) && d.selected.length) setSelected(d.selected);
@@ -188,10 +258,12 @@ export default function Stories() {
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected
+        linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected,
+        textoOn, texto, textoPos, textoTam, textoCor
       }));
     } catch {}
-  }, [linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected]);
+  }, [linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected,
+      textoOn, texto, textoPos, textoTam, textoCor]);
 
   useEffect(() => {
     api.get('/accounts').then(r => {
@@ -253,6 +325,47 @@ export default function Stories() {
   const selectedMedia = medias.filter(m => m.selected);
   const totalMin = Math.max(0, (selectedMedia.length - 1)) * interval;
 
+  /**
+   * O que ainda impede a publicação, em ordem de quem resolve primeiro.
+   *
+   * ── Por que trocar as fichas por isto
+   *
+   * O topo mostrava "Contas 0/4 · Mídias 0/0 · Duração 0 min · Intervalo 3
+   * min". Quatro números, e nenhum deles respondia a pergunta que a pessoa
+   * tem ao abrir a tela: por que o botão está apagado. Duração e intervalo
+   * são a MESMA informação dita duas vezes (uma é a outra multiplicada pelo
+   * número de mídias), e as duas só interessam depois que o resto está
+   * resolvido.
+   *
+   * Agora o topo é a lista de pendências, e ela some quando acaba — dando
+   * lugar ao resumo do que vai acontecer. Um aviso que continua na tela
+   * depois de resolvido ensina a ignorá-lo.
+   */
+  const pendencias = useMemo(() => {
+    const p = [];
+    if (!contasCarregando && !accounts.length) {
+      p.push({ o: 'Nenhuma conta conectada', como: 'Conecte uma conta em Contas para poder publicar.' });
+    } else if (!selected.length) {
+      p.push({ o: 'Nenhuma conta selecionada', como: 'Escolha ao lado em quais contas o story sai.' });
+    }
+    if (!medias.length) {
+      p.push({ o: 'Nenhuma mídia', como: 'Arraste uma imagem ou vídeo, ou escolha da biblioteca.' });
+    } else if (!selectedMedia.length) {
+      p.push({ o: 'Nenhuma mídia marcada', como: 'Clique nas mídias que devem virar story.' });
+    }
+    /* O link ligado sem URL é pendência: publicar assim sai sem figurinha
+       nenhuma, silenciosamente, e a pessoa só descobre olhando o story. */
+    if (linkOn && !linkUrl.trim()) {
+      p.push({ o: 'Link ligado sem endereço', como: 'Escreva a URL, ou desligue a figurinha.' });
+    }
+    if (textoOn && !texto.trim()) {
+      p.push({ o: 'Texto ligado e vazio', como: 'Escreva o texto, ou desligue.' });
+    }
+    return p;
+  }, [contasCarregando, accounts.length, selected.length, medias.length,
+      selectedMedia.length, linkOn, linkUrl, textoOn, texto]);
+
+
   async function publish() {
     if (!selected.length) return showToast('warning', 'Atenção', 'Selecione pelo menos uma conta.');
     if (!selectedMedia.length) return showToast('warning', 'Atenção', 'Adicione pelo menos uma mídia.');
@@ -264,6 +377,12 @@ export default function Stories() {
         linkUrl: linkOn && linkUrl.trim() ? linkUrl.trim() : null,
         linkText: linkOn && linkLabel.trim() ? linkLabel.trim() : null,
         ...(linkOn ? { linkX: linkPos.x, linkY: linkPos.y } : {}),
+        /* `null` quando desligado, e não o objeto com string vazia: é a
+           ausência que faz o backend pular a repassagem de ffmpeg. */
+        textoLivre: textoOn && texto.trim()
+          ? { texto: texto.trim(), x: textoPos.x, y: textoPos.y,
+              tamanho: textoTam, cor: textoCor }
+          : null,
         mediaUrls: selectedMedia.map(m => m.url),
         intervalMinutes: interval,
       });
@@ -278,6 +397,8 @@ export default function Stories() {
       setLinkUrl('');
       setLinkLabel('');
       setLinkOn(false);
+      setTexto('');
+      setTextoOn(false);
       setIntervalMin(1);
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
     finally { setLoading(false); }
@@ -335,30 +456,215 @@ export default function Stories() {
         )}
 
         {/* Stats row */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-          {[
-            { label: 'Contas', val: `${selected.length}/${accounts.length}`, color: 'var(--mf-mod, var(--mf-accent-500))' },
-            { label: 'Mídias', val: `${selectedMedia.length}/${medias.length}`, color: 'var(--mf-mod-publicar)' },
-            { label: 'Duração', val: totalMin < 60 ? `${totalMin} min` : `${(totalMin/60).toFixed(1)}h`, color: 'var(--mf-warning-500)' },
-            { label: 'Intervalo', val: `${interval} min`, color: 'var(--mf-success-500)' },
-          ].map(s => (
-            <div key={s.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 28, padding: '0 8px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-micro)' }}>
-              <span style={{ color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</span>
-              <strong style={{ color: s.color, fontFamily: 'var(--mf-mono)' }}>{s.val}</strong>
+        {/* ── O que falta, ou o que vai acontecer ─────────────────────────
+
+            Um dos dois, nunca os dois: enquanto há pendência, o resumo do
+            plano é conversa sobre algo que ainda não pode acontecer. */}
+        {pendencias.length > 0 ? (
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 4,
+            padding: '11px 13px', borderRadius: 'var(--mf-r-md)',
+            border: '1px solid color-mix(in oklch, var(--mf-warning-500) 24%, transparent)',
+            background: 'color-mix(in oklch, var(--mf-warning-500) 6%, var(--mf-surface-2))',
+          }}>
+            <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 750, color: 'var(--mf-warning-500)', letterSpacing: '-0.01em' }}>
+              {pendencias.length === 1 ? 'Falta 1 coisa para publicar' : `Faltam ${pendencias.length} coisas para publicar`}
             </div>
-          ))}
-        </div>
+            {pendencias.map(p => (
+              <div key={p.o} style={{ display: 'flex', gap: 8, alignItems: 'baseline', minWidth: 0 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+                  background: 'var(--mf-warning-500)', transform: 'translateY(-2px)' }} />
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text)', fontWeight: 650, flexShrink: 0 }}>{p.o}</span>
+                <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', minWidth: 0 }}>{p.como}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4,
+            padding: '10px 13px', borderRadius: 'var(--mf-r-md)',
+            border: '1px solid color-mix(in oklch, var(--mf-success-500) 24%, transparent)',
+            background: 'color-mix(in oklch, var(--mf-success-500) 6%, var(--mf-surface-2))',
+          }}>
+            <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 750, color: 'var(--mf-success-500)', flexShrink: 0 }}>
+              Pronto para publicar
+            </span>
+            {/* Uma frase, e não quatro fichas: a mesma informação dita como se
+                diria em voz alta, que é como ela se confere. */}
+            <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', minWidth: 0 }}>
+              {selectedMedia.length} {selectedMedia.length === 1 ? 'story' : 'stories'} em{' '}
+              {selected.length} {selected.length === 1 ? 'conta' : 'contas'}
+              {selectedMedia.length > 1 && `, um a cada ${interval} min`}
+              {totalMin > 0 && ` — ${totalMin < 60 ? `${totalMin} min` : `${(totalMin / 60).toFixed(1)}h`} no total`}
+              {linkOn && linkUrl.trim() ? ', com figurinha de link' : ''}
+              {textoOn && texto.trim() ? ', com texto na mídia' : ''}
+            </span>
+          </div>
+        )}
 
         {/* Workspace */}
         <div className="layout-2col">
 
-          {/* ── Left: Mídias ── */}
+          {/* ── Esquerda: composição e mídias ────────────────────────────
+
+              A moldura vem primeiro porque é a única parte da tela que mostra
+              o RESULTADO. Antes ela morava escondida na coluna da direita,
+              dentro do bloco do link, com 186px de largura — e o que se via
+              primeiro era uma grade de arquivos, que é material, não
+              resultado. */}
           <motion.div
             style={{ display: 'flex', flexDirection: 'column', gap: 11 }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
           >
+            <div style={{ ...PANEL, padding: 18 }}>
+              <div style={PANEL_HEAD}>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={PANEL_TITLE}>Como vai sair</h3>
+                  <p style={{ margin: '3px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+                    Enquadramento, figurinha e texto no tamanho real do story
+                  </p>
+                </div>
+                {(linkOn || textoOn) && (
+                  <span className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', flexShrink: 0 }}>
+                    arraste para posicionar
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <StoryMoldura
+                  media={selectedMedia[0]}
+                  figurinha={figurinha}
+                  linkOn={linkOn}
+                  textoOn={textoOn}
+                  texto={texto}
+                  textoPos={textoPos}
+                  textoTam={textoTam}
+                  textoCor={textoCor}
+                  arrastando={arrastando}
+                  refMoldura={caixaPreview}
+                  onClicar={clicarNaMoldura}
+                  onIniciarLink={iniciarArrasto('link')}
+                  onIniciarTexto={iniciarArrasto('texto')}
+                  onMover={moverArrasto}
+                  onSoltar={soltarArrasto}
+                />
+
+                {/* ── Texto na mídia ──────────────────────────────────────────
+
+                    Ao lado da moldura, e não abaixo: o que se digita aqui
+                    aparece ali, e separar as duas coisas por uma rolagem
+                    quebraria justamente a relação que faz a tela funcionar. */}
+                <div style={{ flex: 1, minWidth: 210, display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, letterSpacing: '-0.01em' }}>Texto na mídia</div>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>
+                        Queimado na imagem — funciona em qualquer conta
+                      </div>
+                    </div>
+                    <button onClick={() => setTextoOn(v => !v)} aria-pressed={textoOn} style={{
+                      width: 31, height: 19, borderRadius: 'var(--mf-r-full)', padding: 2, flexShrink: 0,
+                      background: textoOn ? 'var(--mf-primary-500)' : 'var(--mf-bg)',
+                      border: '1px solid var(--mf-border)', cursor: 'pointer',
+                      display: 'flex', justifyContent: textoOn ? 'flex-end' : 'flex-start',
+                      transition: 'all var(--mf-normal) var(--mf-ease-out)',
+                    }}>
+                      <span style={{ width: 13, height: 13, borderRadius: 'var(--mf-r-full)', display: 'block',
+                        background: textoOn ? 'var(--mf-bg)' : 'var(--mf-text-3)',
+                        transition: 'all var(--mf-normal) var(--mf-ease-out)' }} />
+                    </button>
+                  </div>
+
+                  {textoOn && (
+                    <>
+                      <textarea
+                        value={texto}
+                        onChange={e => setTexto(e.target.value)}
+                        rows={3}
+                        placeholder={PLACEHOLDER_TEXTO}
+                        style={{
+                          width: '100%', resize: 'vertical', minHeight: 62,
+                          padding: '8px 10px', borderRadius: 'var(--mf-r-sm)',
+                          background: 'var(--mf-bg)', color: 'var(--mf-text)',
+                          border: '1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)',
+                          fontSize: 'var(--mf-t-micro)', lineHeight: 1.5, outline: 'none',
+                          fontFamily: 'inherit',
+                        }} />
+
+                      {/* O aviso do corte, igual ao da figurinha: o backend
+                          corta em 6 linhas de 80 caracteres, e sem dizer isso a
+                          pessoa escreve sete e só descobre depois de publicar. */}
+                      {avisoTexto && (
+                        <div style={{ fontSize: 'var(--mf-t-nano)', lineHeight: 1.5,
+                          color: 'var(--mf-warning-500)',
+                          background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
+                          border: '1px solid color-mix(in oklch, var(--mf-warning-500) 24%, transparent)',
+                          borderRadius: 'var(--mf-r-sm)', padding: '6px 9px' }}>
+                          {avisoTexto}
+                        </div>
+                      )}
+
+                      <Segmentado
+                        rotulo="Tamanho do texto" full mod="contas"
+                        valor={textoTam} onChange={setTextoTam}
+                        opcoes={[
+                          { value: 'pequeno', label: 'Pequeno' },
+                          { value: 'medio',   label: 'Médio' },
+                          { value: 'grande',  label: 'Grande' },
+                        ]} />
+
+                      <Segmentado
+                        rotulo="Cor do texto" full mod="contas"
+                        valor={textoCor} onChange={setTextoCor}
+                        opcoes={[
+                          { value: 'branco', label: 'Branco' },
+                          { value: 'preto',  label: 'Preto' },
+                        ]} />
+
+                      <div className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+                        texto x {textoPos.x.toFixed(2)} · y {textoPos.y.toFixed(2)}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Posição da figurinha — só quando há figurinha. */}
+                  {linkOn && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6,
+                      borderTop: '1px solid var(--mf-border)', paddingTop: 10, marginTop: 2 }}>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Posição da figurinha</div>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        {PRESETS_STICKER.map(pr => {
+                          const ativo = Math.abs(linkPos.x - pr.x) < 0.02 && Math.abs(linkPos.y - pr.y) < 0.02;
+                          return (
+                            <button key={pr.rotulo} onClick={() => setLinkPos({ x: pr.x, y: pr.y })} style={{
+                              padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
+                              background: ativo ? 'color-mix(in oklch, var(--mf-primary-500) 14%, transparent)' : 'var(--mf-border-subtle)',
+                              color:      ativo ? 'var(--mf-primary-500)' : 'var(--mf-text-3)',
+                              border:     ativo ? '1px solid color-mix(in oklch, var(--mf-primary-500) 35%, transparent)' : '1px solid var(--mf-border)',
+                            }}>{pr.rotulo}</button>
+                          );
+                        })}
+                      </div>
+                      <div className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+                        link x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
+                      </div>
+                    </div>
+                  )}
+
+                  {!linkOn && !textoOn && (
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+                      O story sai como a mídia está. Ligue o texto acima, ou a
+                      figurinha de link ao lado, para compor por cima dela.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div style={PANEL}>
               {/* Panel heading */}
               <div style={PANEL_HEAD}>
@@ -572,145 +878,28 @@ export default function Stories() {
                     <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', flexShrink: 0, fontFamily: 'var(--mf-mono)' }}>{linkLabel.length}/35</span>
                   </div>
 
-                  {/* ── Posicionador do sticker ──────────────────────────────
-                      Clique no preview define onde a figurinha fica. As
-                      coordenadas são normalizadas (0..1) e x/y é o centro do
-                      sticker — mesmo sistema que o Instagram usa. */}
-                  <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
-                    <div
-                      onClick={posicionarSticker}
-                      onPointerDown={iniciarArrasto}
-                      onPointerMove={moverArrasto}
-                      onPointerUp={soltarArrasto}
-                      onPointerCancel={soltarArrasto}
-                      title="Arraste a figurinha, ou clique para posicionar"
-                      style={{
-                        /* 186 → 260. O preview é uma miniatura de um story de
-                           1080px: a 186px tudo dentro dele fica em 17% do
-                           tamanho, e a pílula vira uma tarja de 16px de altura.
-                           Mais largura é o que torna a posição escolhível com
-                           precisão, que é a única coisa que esta caixa faz.
+                  {/* O aviso do corte.
 
-                           `touch-action: none` para o arrasto funcionar no
-                           celular: sem isso o navegador interpreta o gesto como
-                           rolagem da página e a figurinha nem se mexe. */
-                        position: 'relative', width: PREVIEW_LARGURA, maxWidth: '100%',
-                        flexShrink: 0, aspectRatio: '9 / 16', touchAction: 'none',
-                        borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
-                        cursor: arrastando ? 'grabbing' : 'crosshair',
-                        border: '1px solid var(--mf-border-strong)',
-                        background: 'linear-gradient(160deg, var(--mf-surface-2), var(--mf-bg))',
-                      }}
-                    >
-                      {/* A mídia entra como <img> com object-fit: cover — mesmo
-                          enquadramento que o Instagram aplica no story 9:16. */}
-                      {selectedMedia[0]?.url && (
-                        /\.(mp4|mov|webm|m4v)(\?|$)/i.test(selectedMedia[0].url)
-                          ? <video src={selectedMedia[0].url} muted playsInline
-                              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
-                          : <img src={selectedMedia[0].url} alt=""
-                              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
-                      )}
+                      O renderizador corta seco, sem reticência. Sem este aviso
+                      a pessoa vê o texto completo no campo, um texto menor na
+                      moldura, e não tem como saber que o segundo é o que vai
+                      para o Instagram.
 
-                      {!selectedMedia.length && (
-                        <div style={{ position:'absolute', inset:0, display:'grid', placeItems:'center',
-                          fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textAlign:'center', padding:'0 12px', lineHeight:1.5 }}>
-                          Selecione uma mídia para ver o enquadramento real
-                        </div>
-                      )}
-
-                      {/* grade de terços — ajuda a mirar */}
-                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
-                        background:
-                          'linear-gradient(to bottom, transparent 33.3%, var(--mf-border-strong) 33.3%, var(--mf-border-strong) 33.5%, transparent 33.5%,' +
-                          ' transparent 66.6%, var(--mf-border-strong) 66.6%, var(--mf-border-strong) 66.8%, transparent 66.8%)' }} />
-
-                      {/* Figurinha no tamanho REAL — mesma caixa que o backend
-                          queima na mídia (caixaSticker espelha o cálculo dele). */}
-                      {(() => {
-                        const { caixa: cx, visivel: rotulo } = figurinha;
-                        return (
-                          <div style={{
-                            position: 'absolute',
-                            left: `${cx.x * 100}%`, top: `${cx.y * 100}%`,
-                            width: `${cx.width * 100}%`, height: `${cx.height * 100}%`,
-                            transform: 'translate(-50%, -50%)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            gap: 3, padding: '0 4px 0 4px', pointerEvents: 'none',
-                            background: 'var(--mf-text)', color: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-full)',
-                            boxShadow: 'var(--mf-shadow-2)',
-                          }}>
-                            {/* A fonte acompanha a pílula, como no renderizador.
-
-                                Era `--mf-t-nano` fixo — 10px dentro de uma
-                                pílula que, na escala do preview, tem 24px de
-                                altura. O texto não cabia e saía cortado com
-                                reticências, sugerindo que o story sairia assim.
-                                Não sairia: a caixa é dimensionada A PARTIR do
-                                texto, então na mídia de 1080px ele sempre coube.
-                                O preview mentia, e mentia para pior.
-
-                                34% da altura é a mesma proporção que
-                                `storyStickerRenderer` usa (`hPx * 0.34`), o que
-                                faz esta caixa ser uma miniatura fiel em vez de
-                                uma aproximação. Sem `ellipsis`: com a fonte
-                                certa, o texto cabe por construção — e se um dia
-                                não couber, transbordar é o aviso correto de que
-                                as duas contas divergiram. */}
-                            <span style={{
-                              flex: 1, minWidth: 0,
-                              fontSize: `${Math.max(4, cx.height * PREVIEW_ALTURA * 0.34)}px`,
-                              fontWeight: 800, whiteSpace: 'nowrap',
-                              textAlign: 'center', lineHeight: 1,
-                            }}>{rotulo}</span>
-                            <span style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', flexShrink: 0 }}>›</span>
-                          </div>
-                        );
-                      })()}
+                      A moldura em si mudou de lugar: virou a coluna da
+                      esquerda, porque é a única parte da tela que mostra o
+                      resultado — e vivendo aqui dentro ela só existia com o
+                      link ligado, deixando quem só queria escrever um texto sem
+                      ver onde o texto ia cair. */}
+                  {figurinha.cortado && (
+                    <div style={{ marginTop: 4, fontSize: 'var(--mf-t-nano)', lineHeight: 1.5,
+                      color: 'var(--mf-warning-500)',
+                      background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
+                      border: '1px solid color-mix(in oklch, var(--mf-warning-500) 24%, transparent)',
+                      borderRadius: 'var(--mf-r-sm)', padding: '6px 9px' }}>
+                      O texto não cabe na figurinha e vai sair cortado em
+                      “{figurinha.visivel}”. Encurte para caber inteiro.
                     </div>
-
-                    <div style={{ flex: 1, minWidth: 150, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Posição da figurinha</div>
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {PRESETS_STICKER.map(p => {
-                          const ativo = Math.abs(linkPos.x - p.x) < 0.02 && Math.abs(linkPos.y - p.y) < 0.02;
-                          return (
-                            <button key={p.rotulo} onClick={() => setLinkPos({ x: p.x, y: p.y })} style={{
-                              padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
-                              background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 14%, transparent)' : 'var(--mf-border-subtle)',
-                              color:      ativo ? 'var(--mf-mod, var(--mf-accent-500))'        : 'var(--mf-text-3)',
-                              border:     ativo ? '1px solid color-mix(in oklch, var(--mf-mod-contas) 35%, transparent)' : '1px solid var(--mf-border)',
-                            }}>{p.rotulo}</button>
-                          );
-                        })}
-                      </div>
-                      <div style={{ fontFamily: 'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
-                        x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>
-                        Arraste a figurinha até onde quiser — ou clique num ponto para ela ir direto.
-                        Ela é desenhada na própria mídia nesse tamanho e nessa posição, e a área de
-                        toque do link fica exatamente em cima dela.
-                      </div>
-
-                      {/* O aviso do corte.
-
-                          O renderizador corta seco, sem reticência. Sem este
-                          aviso a pessoa vê o texto completo no campo, um texto
-                          menor no preview, e não tem como saber que o segundo é
-                          o que vai para o Instagram. */}
-                      {figurinha.cortado && (
-                          <div style={{ marginTop: 8, fontSize: 'var(--mf-t-nano)', lineHeight: 1.5,
-                            color: 'var(--mf-warning-500)',
-                            background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
-                            border: '1px solid color-mix(in oklch, var(--mf-warning-500) 24%, transparent)',
-                            borderRadius: 'var(--mf-r-sm)', padding: '6px 9px' }}>
-                            O texto não cabe na figurinha e vai sair cortado em
-                            “{figurinha.visivel}”. Encurte para caber inteiro.
-                          </div>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 

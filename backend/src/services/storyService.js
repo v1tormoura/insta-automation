@@ -250,7 +250,11 @@ function _modoFigurinha() {
  * @returns {Promise<{media:string, box:Object|null, rendered:boolean, engine:string|null}>}
  */
 async function _aplicarFigurinhaDeLink(mediaRel, options) {
-  if (!options.linkUrl) {
+  const temTexto = !!(options.textoLivre && String(options.textoLivre.texto || '').trim());
+
+  /* Sem link E sem texto não há o que queimar. Antes bastava não ter link —
+     e com isso um story só com texto saía com a mídia crua, sem aviso. */
+  if (!options.linkUrl && !temTexto) {
     return { media: mediaRel, box: null, rendered: false, engine: null };
   }
 
@@ -261,7 +265,7 @@ async function _aplicarFigurinhaDeLink(mediaRel, options) {
 
   // Modo nativo: nada é queimado, mas a caixa continua sendo calculada aqui —
   // é ela que dimensiona a figurinha que o Instagram vai desenhar.
-  if (_modoFigurinha() === 'native') {
+  if (_modoFigurinha() === 'native' && !temTexto) {
     const label = formatStickerLabel(options.linkUrl, options.linkText);
     return {
       media: mediaRel,
@@ -274,9 +278,15 @@ async function _aplicarFigurinhaDeLink(mediaRel, options) {
   const raizUploads = path.resolve(__dirname, '../../uploads');
   const absoluto = path.isAbsolute(mediaRel) ? mediaRel : path.join(raizUploads, mediaRel);
 
+  /* No modo nativo COM texto, o link fica por conta do Instagram e só o texto
+     é queimado: passar `linkUrl` aqui desenharia a pílula duas vezes, uma
+     queimada e outra nativa por cima. */
+  const nativo = _modoFigurinha() === 'native';
+
   const r = await renderStoryWithLinkSticker(absoluto, {
-    linkUrl:    options.linkUrl,
+    linkUrl:    nativo ? null : options.linkUrl,
     linkText:   options.linkText,
+    textoLivre: options.textoLivre,
     linkX:      options.linkX,
     linkY:      options.linkY,
     linkWidth:  options.linkWidth,
@@ -285,8 +295,8 @@ async function _aplicarFigurinhaDeLink(mediaRel, options) {
 
   if (!r.rendered) {
     console.warn(
-      `⚠️ [Story] Figurinha visual não pôde ser queimada (${r.error || 'motivo desconhecido'}) — ` +
-      'o story sai com o link nativo, que o Instagram não desenha.'
+      `⚠️ [Story] Nada pôde ser queimado (${r.error || 'motivo desconhecido'}) — ` +
+      `o story sai ${options.linkUrl ? 'com o link nativo, que o Instagram não desenha' : 'sem o texto'}.`
     );
     // Mesmo sem queimar, a caixa calculada é a melhor área de toque disponível.
     return { media: mediaRel, box: r.box, rendered: false, engine: r.engine };
@@ -297,7 +307,16 @@ async function _aplicarFigurinhaDeLink(mediaRel, options) {
   // "../.." que o serviço Python não resolve.
   const relativo = path.relative(raizUploads, r.path).split(path.sep).join('/');
   const media = relativo.startsWith('..') ? r.path : relativo;
-  return { media, box: r.box, rendered: true, engine: r.engine };
+
+  /* Sem link, `box` volta null de propósito: a caixa vira área CLICÁVEL no
+     `tap_models`. Mandá-la num story sem link criaria um retângulo que
+     responde ao toque e não leva a lugar nenhum. */
+  return {
+    media,
+    box: options.linkUrl ? r.box : null,
+    rendered: true,
+    engine: r.engine,
+  };
 }
 
 /**

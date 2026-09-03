@@ -378,21 +378,146 @@ async function generateStickerPng(label, wPx = 620, hPx = PILL_H_DEFAULT) {
  *          `rendered:false` devolve a mídia original — o story ainda sai, com o
  *          link nativo (invisível), em vez de falhar a publicação inteira.
  */
+/* Tamanhos do texto livre, em fração da largura do story.
+
+   Nomes e não pixels: "grande" sobrevive a uma mudança de resolução, "72px"
+   não. E são três porque a escolha é de ênfase, não de tipografia — quem está
+   publicando um story não quer decidir corpo de fonte. */
+const TAMANHOS_TEXTO = Object.freeze({
+  pequeno: 0.045,
+  medio:   0.065,
+  grande:  0.095,
+});
+
+/**
+ * Filtros `drawtext` para o texto livre sobre a mídia.
+ *
+ * ── Por que drawtext e não outro PNG
+ *
+ * A figurinha vira PNG porque tem forma — cantos arredondados, ícone, chevron.
+ * Texto é só texto: o ffmpeg desenha direto, sem gerar arquivo, sem cache e
+ * sem uma segunda dependência. E entra na MESMA passada do overlay, o que
+ * importa em vídeo: duas passadas re-codificariam tudo duas vezes, perdendo
+ * qualidade e dobrando o tempo.
+ *
+ * ── Por que a caixa atrás
+ *
+ * Texto branco sobre foto clara some, e sobre foto escura o preto some. Não dá
+ * para saber qual é o caso sem analisar a imagem. A caixa semitransparente
+ * resolve os dois de uma vez, e é o mesmo recurso que o Instagram oferece.
+ *
+ * ── Por que uma linha por filtro
+ *
+ * `drawtext` centraliza cada chamada isoladamente. Passando o texto inteiro
+ * com quebras, as linhas saem alinhadas à esquerda dentro de um bloco
+ * centralizado — que não é o que se espera de um texto centralizado.
+ */
+function filtrosDeTexto(textoLivre, fonte) {
+  if (!textoLivre || !String(textoLivre.texto || '').trim() || !fonte) return [];
+
+  const linhas = String(textoLivre.texto)
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean)
+    .slice(0, 6);                       // teto: um story não é um documento
+  if (!linhas.length) return [];
+
+  const fracao  = TAMANHOS_TEXTO[textoLivre.tamanho] || TAMANHOS_TEXTO.medio;
+  const tamanho = Math.round(STORY_W * fracao);
+  const alturaLinha = Math.round(tamanho * 1.35);
+
+  /* Padrão quando a posição não vem: centro na horizontal, um pouco acima do
+     meio na vertical — onde o texto não disputa com a figurinha de link, que
+     mora embaixo por padrão.
+
+     Sem isto, `Number(undefined)` vira NaN, o `clamp` propaga o NaN, e o filtro
+     sai com `x=(NaN-text_w/2)`. O ffmpeg falha, e a mensagem dele não menciona
+     posição nenhuma — o story sairia sem texto e sem explicação. */
+  /* `Number.isFinite(Number(v))` sozinho não basta: `Number(null)` e
+     `Number('')` valem 0 — finitos, e 0 é uma posição válida. Um campo
+     vazio no formulário chega como '' e jogaria o texto para a borda
+     esquerda; no `y`, para fora da tela por cima. Ausente é ausente; zero
+     só quando alguém escreveu zero. */
+  const num = (v, padrao) => {
+    if (v === null || v === undefined || v === '') return padrao;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : padrao;
+  };
+  const x = clamp(num(textoLivre.x, 0.5),  0, 1);
+  const y = clamp(num(textoLivre.y, 0.35), 0, 1);
+
+  /* O bloco é centrado no ponto pedido: o primeiro `y` sobe metade da altura
+     total. Sem isso, arrastar para o meio deixaria o texto começando no meio e
+     descendo — e a posição vista no preview não seria a obtida. */
+  const alturaTotal = alturaLinha * linhas.length;
+
+  /* O bloco fica preso dentro da mídia, como a figurinha de link já ficava
+     (`computeStickerBox` faz o mesmo com a pílula).
+
+     Sem isto, arrastar o texto até a borda de baixo desenhava metade dele
+     fora do quadro: o ffmpeg aceita coordenada negativa e simplesmente corta
+     o que passa do limite. O resultado é um story com meia linha de texto — e
+     como o preview espelhava a mesma conta, ele mostrava a mesma metade e a
+     pessoa achava que era assim que ficava. Espelhar um defeito não é
+     fidelidade. */
+  const topo = Math.round(
+    clamp(y * STORY_H - alturaTotal / 2, MARGIN_PX, STORY_H - alturaTotal - MARGIN_PX)
+  );
+
+  const cor = textoLivre.cor === 'preto' ? 'black' : 'white';
+  const corCaixa = textoLivre.cor === 'preto' ? 'white' : 'black';
+
+  return linhas.map((linha, i) => {
+    const texto = escaparDrawtext(linha);
+    const linhaY = topo + i * alturaLinha;
+    return (
+      `drawtext=fontfile='${fonte.replace(/\\/g, '/').replace(/:/g, '\\:')}'` +
+      `:text='${texto}'` +
+      `:fontsize=${tamanho}` +
+      `:fontcolor=${cor}` +
+      /* `x` centraliza ESTA linha: a expressão usa `text_w`, que o ffmpeg
+         resolve por chamada. É isso que faz linhas de comprimentos diferentes
+         ficarem centradas entre si. */
+      /* Na horizontal quem prende é o próprio ffmpeg: a largura do texto só
+         existe em `text_w`, resolvida por ele na hora de desenhar — daqui não
+         dá para saber quanto ocupa uma linha na fonte carregada. `max(min())`
+         é expressão válida de drawtext e faz o corte no mesmo lugar que a
+         conta de cima faz na vertical. */
+      `:x=max(${MARGIN_PX}\\,min(${STORY_W - MARGIN_PX}-text_w\\,${Math.round(x * STORY_W)}-text_w/2))` +
+      `:y=${linhaY}` +
+      `:box=1:boxcolor=${corCaixa}@0.45:boxborderw=${Math.round(tamanho * 0.28)}`
+    );
+  });
+}
+
 async function renderStoryWithLinkSticker(inputPath, options = {}) {
   ensureDirs();
 
-  const { linkUrl, linkText } = options;
+  const { linkUrl, linkText, textoLivre } = options;
   const label = formatStickerLabel(linkUrl, linkText);
   const box   = computeStickerBox({ label, ...options });
 
-  if (!linkUrl) return { path: inputPath, rendered: false, box, engine: null };
+  const temTexto = !!(textoLivre && String(textoLivre.texto || '').trim());
 
-  let sticker;
-  try {
-    sticker = await generateStickerPng(label, box.wPx, box.hPx);
-  } catch (err) {
-    console.error(`💥 [StorySticker] Nao foi possivel gerar a figurinha: ${err.message}`);
-    return { path: inputPath, rendered: false, box, engine: null, error: err.message };
+  /* Sem link E sem texto não há o que queimar. Antes bastava não ter link —
+     e com isso um story só com texto passava direto, devolvendo a mídia
+     original como se tivesse sido processada. */
+  if (!linkUrl && !temTexto) {
+    return { path: inputPath, rendered: false, box, engine: null };
+  }
+
+  let sticker = null;
+  if (linkUrl) {
+    try {
+      sticker = await generateStickerPng(label, box.wPx, box.hPx);
+    } catch (err) {
+      console.error(`💥 [StorySticker] Nao foi possivel gerar a figurinha: ${err.message}`);
+      /* Com texto pedido, a falha da figurinha não cancela o resto: perder o
+         link é ruim, perder o link E o texto é pior. */
+      if (!temTexto) {
+        return { path: inputPath, rendered: false, box, engine: null, error: err.message };
+      }
+    }
   }
 
   const ext     = path.extname(inputPath).toLowerCase();
@@ -404,11 +529,24 @@ async function renderStoryWithLinkSticker(inputPath, options = {}) {
   const overlayX = box.xPx - Math.round(box.wPx / 2);
   const overlayY = box.yPx - Math.round(box.hPx / 2);
 
-  const filtros = [
-    `[0:v]scale=${STORY_W}:${STORY_H}:force_original_aspect_ratio=increase,crop=${STORY_W}:${STORY_H},setsar=1[bg]`,
-    '[1:v]format=rgba[st]',
-    `[bg][st]overlay=x=${overlayX}:y=${overlayY}:eval=init[outv]`,
-  ];
+  /* O texto vai ANTES da figurinha na cadeia: se os dois se sobrepuserem, a
+     figurinha fica por cima — ela é clicável e o texto não, e esconder o alvo
+     do toque atrás de um texto decorativo seria trocar função por enfeite. */
+  const desenhos = filtrosDeTexto(textoLivre, acharFonte());
+
+  const escala =
+    `[0:v]scale=${STORY_W}:${STORY_H}:force_original_aspect_ratio=increase,` +
+    `crop=${STORY_W}:${STORY_H},setsar=1`;
+
+  const filtros = [];
+  if (sticker) {
+    filtros.push(`${escala}${desenhos.length ? ',' + desenhos.join(',') : ''}[bg]`);
+    filtros.push('[1:v]format=rgba[st]');
+    filtros.push(`[bg][st]overlay=x=${overlayX}:y=${overlayY}:eval=init[outv]`);
+  } else {
+    // Só texto: nenhuma segunda entrada, nenhum overlay.
+    filtros.push(`${escala},${desenhos.join(',')}[outv]`);
+  }
 
   const opcoes = isVideo
     ? ['-map', '[outv]', '-map', '0:a?', '-c:v', 'libx264', '-profile:v', 'high',
@@ -418,26 +556,36 @@ async function renderStoryWithLinkSticker(inputPath, options = {}) {
 
   try {
     await executarFfmpeg(
-      ffmpeg()
-        .input(inputPath)
-        .input(sticker.path)
+      (() => {
+        const cmd = ffmpeg().input(inputPath);
+        if (sticker) cmd.input(sticker.path);
+        return cmd;
+      })()
         .complexFilter(filtros)
         .outputOptions(opcoes)
         .output(saida)
     );
   } catch (err) {
     console.error(`💥 [StorySticker] Overlay falhou: ${err.message}`);
-    return { path: inputPath, rendered: false, box, engine: sticker.engine, error: err.message };
+    return { path: inputPath, rendered: false, box,
+             engine: sticker ? sticker.engine : 'drawtext', error: err.message };
   }
 
   console.log(
-    `✅ [StorySticker] "${label}" queimada via ${sticker.engine} em ` +
-    `x=${box.x} y=${box.y} (${box.wPx}x${box.hPx}px) → ${path.basename(saida)}`
+    `✅ [StorySticker] ${sticker ? `"${label}" via ${sticker.engine}` : 'sem figurinha'}` +
+    `${desenhos.length ? ` + ${desenhos.length} linha(s) de texto` : ''} → ${path.basename(saida)}`
   );
-  return { path: saida, rendered: true, box, engine: sticker.engine };
+  return {
+    path: saida, rendered: true, box,
+    engine: sticker ? sticker.engine : 'drawtext',
+    linhasDeTexto: desenhos.length,
+  };
 }
 
 module.exports = {
+  filtrosDeTexto,
+  TAMANHOS_TEXTO,
+  acharFonte,
   renderStoryWithLinkSticker,
   computeStickerBox,
   formatStickerLabel,

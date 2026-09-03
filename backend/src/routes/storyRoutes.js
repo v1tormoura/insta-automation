@@ -6,6 +6,7 @@ const path    = require('path');
 const fs      = require('fs');
 const Account = require('../models/Account');
 const { postStory } = require('../services/storyService');
+const { limparTextoLivre } = require('./textoDoStory');
 
 // ── Upload de imagem para story ───────────────────────────────────────────────
 
@@ -65,10 +66,16 @@ router.get('/status', (req, res) => {
  *   intervalMinutes?: number,
  *   linkX?:     number,
  *   linkY?:     number,
+ *   textoLivre?: { texto, x, y, tamanho, cor },   // texto queimado na mídia
  * }
  */
 router.post('/', async (req, res) => {
   const { accountIds, imageUrl, linkUrl, linkText, intervalMinutes, linkX, linkY } = req.body;
+
+  /* Limpo aqui, uma vez, e não em cada chamada lá embaixo: são dois caminhos
+     (lote e conta única) e duplicar a limpeza é como as duas metades acabam
+     divergindo — uma ganha um teto, a outra não. */
+  const textoLivre = limparTextoLivre(req.body.textoLivre);
 
   if (!Array.isArray(accountIds) || accountIds.length === 0) {
     return res.status(400).json({ error: 'Selecione pelo menos uma conta' });
@@ -130,6 +137,7 @@ router.post('/', async (req, res) => {
             linkText: linkText || null,
             linkX:    linkX !== undefined ? Number(linkX) : undefined,
             linkY:    linkY !== undefined ? Number(linkY) : undefined,
+            textoLivre,
           });
           _lastStoryJob.completed++;
           _lastStoryJob.results.push({
@@ -182,6 +190,7 @@ router.post('/', async (req, res) => {
         linkText: linkText || null,
         linkX:    linkX !== undefined ? Number(linkX) : undefined,
         linkY:    linkY !== undefined ? Number(linkY) : undefined,
+        textoLivre,
       });
       return res.json({
         success: true,
