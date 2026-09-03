@@ -175,3 +175,63 @@ describe('não sobra temporário', () => {
     expect(trecho).toContain('unlinkSync(tmpPath)');
   });
 });
+
+describe('o select do FastSync entrega o que o laço lê', () => {
+  /* ── A prova, no nível do mongoose ───────────────────────────────────────
+
+     O teste anterior procurava as palavras no arquivo. Isso pega a regressão
+     óbvia (alguém tira `provider` do select), mas não demonstra a CAUSA — e a
+     causa é o que faz o defeito ser difícil de ver: num documento vindo de um
+     `.select()`, um caminho não projetado responde `undefined` mesmo existindo
+     no banco e no schema.
+
+     `hydrate(obj, projection)` reproduz exatamente isso: é o caminho que o
+     mongoose usa para transformar o que o driver devolveu num documento. */
+  const mongoose = require('mongoose');
+  const Account = require('../src/models/Account');
+
+  /** O select que está rodando, lido do arquivo — não transcrito aqui. */
+  function selectEmProducao() {
+    const fonte = fs.readFileSync(
+      path.resolve(__dirname, '../src/jobs/accountFastSync.js'), 'utf8'
+    );
+    const m = fonte.match(/\}\)\.select\(([\s\S]*?)\);/);
+    return m[1].replace(/[\n\r]/g, ' ').replace(/'\s*\+\s*'/g, '').replace(/'/g, '').trim();
+  }
+
+  /** A linha que decide se a conta mobile sincroniza. */
+  const ramoInstagrapi = doc => doc.provider === 'instagrapi' || !!doc.instagrapiSession;
+
+  const conta = () => ({
+    _id: new mongoose.Types.ObjectId(),
+    username: 'goligi1257',
+    provider: 'instagrapi',
+    healthStatus: 'ativa',
+  });
+
+  test('o select antigo fazia o ramo dar falso — a causa do defeito', () => {
+    const ANTIGO = 'username _id igSession rawWebSessionid avatar name bio '
+                 + 'followers following postsCount proxy healthStatus';
+    const doc = Account.hydrate(conta(), ANTIGO);
+
+    expect(doc.username).toBe('goligi1257');   // projetado: chega
+    expect(doc.provider).toBeUndefined();      // não projetado: some
+    expect(ramoInstagrapi(doc)).toBe(false);   // e a conta nunca sincronizava
+  });
+
+  test('o select atual faz o ramo dar verdadeiro', () => {
+    const doc = Account.hydrate(conta(), selectEmProducao());
+    expect(doc.provider).toBe('instagrapi');
+    expect(ramoInstagrapi(doc)).toBe(true);
+  });
+
+  test('avatarOrigem chega, senão a foto seria rebaixada a cada ciclo', () => {
+    /* `fotoMudou` compara a URL do CDN com esta origem. Com o campo fora do
+       select ele responde `undefined`, a comparação diz "mudou" sempre, e o
+       sync rebaixaria todas as fotos de 5 em 5 minutos. */
+    const doc = Account.hydrate(
+      { ...conta(), avatarOrigem: '/v/t51/111_n.jpg' }, selectEmProducao()
+    );
+    expect(doc.avatarOrigem).toBe('/v/t51/111_n.jpg');
+  });
+});
