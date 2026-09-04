@@ -10,6 +10,9 @@ const { postReel: postReelGraph, prepareVideo } = require('../services/instagram
 /* Um arquivo por conta no caminho mobile — ver o cabeçalho do módulo para o
    porquê: até aqui todas as contas subiam o MESMO arquivo, byte a byte. */
 const { prepararParaConta, descartar } = require('../services/midiaPorConta');
+/* Teto diário e janela de horário. O teto nascia 999999 — sem limite — e não
+   havia janela: a conta publicava de madrugada como publica de tarde. */
+const { podePublicar } = require('../services/ritmoDaConta');
 const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
@@ -103,12 +106,27 @@ function isSameDay(date) {
   return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
+/**
+ * A conta pode publicar agora?
+ *
+ * Era `postsToday < dailyPostLimit`, e `dailyPostLimit` nascia 999999 — na
+ * prática, sem teto. Com o loop a cada 40 minutos, cada conta publicava umas
+ * 36 vezes por dia, 24 horas por dia, sem parar de madrugada.
+ *
+ * Trinta e seis publicações distribuídas uniformemente pelas 24 horas é o
+ * padrão mais característico de automação que existe: não depende de analisar
+ * conteúdo, arquivo, IP ou dispositivo — basta contar publicações por hora.
+ * Nenhuma humanização de pixel compensa isso.
+ *
+ * `ritmoDaConta` decide teto e janela; aqui fica só a virada do dia, que é
+ * responsabilidade de quem tem o banco na mão.
+ */
 async function checkDailyLimit(account) {
   if (!isSameDay(account.lastPostDate)) {
     await Account.findByIdAndUpdate(account._id, { postsToday: 0, lastPostDate: new Date() });
     account.postsToday = 0;
   }
-  return account.postsToday < account.dailyPostLimit;
+  return podePublicar(account).pode;
 }
 
 async function registerSuccess(account) {
@@ -329,7 +347,9 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
   writeAccountLog(acc.username, 'Iniciando publicação');
 
   if (!(await checkDailyLimit(account))) {
-    const msg = `Limite diário atingido: ${account.postsToday}/${account.dailyPostLimit}`;
+    /* A mensagem diz o motivo REAL: teto atingido e fora da janela param a
+       publicação do mesmo jeito, e consertam de formas diferentes. */
+    const msg = podePublicar(account).motivo || 'Aguardando janela de publicação';
     writeAccountLog(acc.username, msg);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
     throw new Error(msg);
