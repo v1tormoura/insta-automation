@@ -624,22 +624,7 @@ export default function Accounts() {
   function openInstaModal(account) {
     setInstaModal({
       step:        'credentials',
-      /* ── Session ID lidera, e não a senha ─────────────────────────────
-
-         O `accounts/login/` tem limite de tentativas POR IP, contado do lado
-         do Instagram. Conectar três ou quatro contas em sequência do mesmo
-         servidor esgota o limite, e aí vem "aguarde 5 minutos" — sem nada
-         errado no sistema.
-
-         O Session ID não chama esse endpoint (está escrito na própria rota
-         do serviço Python: "Does NOT call accounts/login/ — completely
-         bypasses IP-level rate limits"). Ele já era oferecido, mas só DEPOIS
-         do erro: a pessoa batia no limite para então descobrir o caminho que
-         não bate.
-
-         Invertido, ela não vê o erro. E de quebra a senha não passa pelo
-         servidor. */
-      loginMethod: 'sessionid',
+      loginMethod: 'password',
       accountId:   account?._id || account?.id || null,
       username:    account?.username || '',
       password:    '',
@@ -2096,7 +2081,7 @@ export default function Accounts() {
               {/* Method toggle (only on credentials step, not connected) */}
               {!isCodeStep && !isConnected && (
                 <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius: 'var(--mf-r-sm)', padding:4 }}>
-                  {[['sessionid','🍪 Session ID'],['password','🔑 Senha']].map(([method, label]) => (
+                  {[['password','🔑 Senha'],['sessionid','🍪 Session ID']].map(([method, label]) => (
                     <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
                       style={{ flex:1, padding:'8px 0', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
                         background: instaModal.loginMethod === method ? 'color-mix(in oklch, var(--mf-mod-publicar) 80%, transparent)' : 'transparent',

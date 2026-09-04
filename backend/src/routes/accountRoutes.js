@@ -1318,6 +1318,17 @@ async function _guardarSenha(accountId, senha) {
 async function _handleInstagrapiError(err, res, accountId = null) {
   const code = err?.code || 'UNKNOWN_ERROR';
 
+  /* O Instagram confirmou o limite do IP. O portão precisa saber.
+
+     Sem registrar, o próximo clique passaria pelo espaçamento normal — dois
+     minutos — e gastaria uma tentativa num IP que acabou de dizer para
+     esperar cinco. Insistir dentro da janela piora o bloqueio, e é a própria
+     tela que avisa isso. */
+  if (code === 'RATE_LIMITED') {
+    const segundos = Number(err?.retryAfterSeconds) || Number(err?.retry_after) || 0;
+    require('../services/portaoDeLogin').registrarLimite(segundos);
+  }
+
   // Suspensão é estado da conta, não falha transitória: registra no healthStatus
   // para o painel parar de exibir "Saudável" numa conta que o Instagram derrubou.
   if (code === 'ACCOUNT_SUSPENDED' && accountId) {
@@ -1469,8 +1480,50 @@ router.post('/instagrapi-direct', async (req, res) => {
       console.log(
         `[IG-LOGIN] password_len=${_pwd.length} ascii=${/^[\x20-\x7E]*$/.test(_pwd)}`
       );
+      /* ── O portão de espaçamento ────────────────────────────────────────
+
+         O `accounts/login/` tem limite por IP, contado no servidor do
+         Instagram. Nada aqui zera aquele contador — as únicas duas coisas que
+         mudam o resultado são trocar de IP ou gastar menos tentativas.
+
+         O limite é uma TAXA: conectar quatro contas em sequência gasta quatro
+         tentativas em dois minutos e estoura. As mesmas quatro, espaçadas,
+         passam.
+
+         Então esperamos AQUI, antes de gastar, em vez de devolver erro para a
+         tela. Da perspectiva de quem clicou, a conta conecta — leva mais
+         tempo. É a diferença entre "deu erro, tente de novo" e uma conexão que
+         simplesmente acontece.
+
+         O teto de espera existe para a requisição não ficar pendurada além do
+         que um navegador tolera: passando dele, a tela recebe o tempo restante
+         e mostra a contagem, que é o comportamento que já existia. */
+      const portao = require('../services/portaoDeLogin');
+      const TETO_DE_ESPERA_MS = 75_000;
+      const vez = portao.conferir();
+
+      if (!vez.pode && vez.esperaMs > TETO_DE_ESPERA_MS) {
+        console.log(`[IG-LOGIN] portão fechado por ${Math.round(vez.esperaMs / 1000)}s — ${vez.motivo}`);
+        res.status(429).json({
+          error: `Aguardando ${Math.ceil(vez.esperaMs / 60000)} min antes da próxima tentativa — ${vez.motivo}.`,
+          code: 'RATE_LIMITED',
+          retryAfterSeconds: Math.ceil(vez.esperaMs / 1000),
+        });
+        return;
+      }
+
+      if (!vez.pode) {
+        console.log(`[IG-LOGIN] espaçando ${Math.round(vez.esperaMs / 1000)}s antes de gastar a tentativa`);
+        await new Promise(r => setTimeout(r, vez.esperaMs));
+      }
+
+      /* Registrado ANTES do login: uma tentativa que falha por senha errada
+         conta para o Instagram do mesmo jeito que uma que dá certo. */
+      portao.registrarTentativa();
+
       console.log(`[IG-LOGIN] calling Python service — POST /session/login (timeout=90s)`);
       const result = await http.login(account, clean, password.trim(), (totp || '').trim());
+      if (result.status === 'AUTHENTICATED') portao.registrarSucesso();
       console.log(`[IG-LOGIN] Python response — status=${result.status} has_settings=${!!result.settings}`);
 
       if (result.status === 'TWO_FACTOR_REQUIRED') {
