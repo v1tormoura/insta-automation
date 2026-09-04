@@ -192,3 +192,88 @@ talvez('o vídeo sai diferente por conta', () => {
     }
   });
 });
+
+describe('todos os caminhos de publicação passam por aqui', () => {
+  const fonteWorker = fs.readFileSync(
+    path.resolve(__dirname, '../src/queue/worker.js'), 'utf8'
+  );
+
+  test('o caminho mobile prepara a mídia por conta', () => {
+    /* O defeito era exatamente esta ausência: `publishViaInstagrapi` mandava
+       `post.media` cru. Um teste de unidade sobre o módulo não pega isso —
+       o módulo pode estar perfeito e ninguém chamá-lo. */
+    const trecho = fonteWorker.slice(fonteWorker.indexOf('async function publishViaInstagrapi'));
+    expect(trecho).toContain('prepararParaConta(post, account)');
+  });
+
+  test('o arquivo por conta é apagado depois', () => {
+    /* Sem isto, 44 reels em 5 contas deixam 220 arquivos por ciclo do loop.
+       O disco enche em dias e o sintoma aparece como falha de publicação sem
+       relação aparente com disco. */
+    const trecho = fonteWorker.slice(fonteWorker.indexOf('async function publishViaInstagrapi'));
+    expect(trecho).toContain('descartar(midia.caminho, midia.proprio)');
+    expect(trecho).toContain('} finally {');
+  });
+
+  test('a campanha usa o mesmo publicador, não um caminho próprio', () => {
+    /* Se a campanha tivesse publicação própria, ela ficaria de fora da
+       correção — e uma campanha de trinta publicações voltaria a subir o
+       mesmo arquivo para todas as contas. */
+    expect(fonteWorker).toContain('publicarNaConta: (account, post) => publishOneAccount(account, post, null)');
+  });
+
+  test('o loop repassa o processMode que guardou', () => {
+    const loopJob = fs.readFileSync(
+      path.resolve(__dirname, '../src/jobs/loopJob.js'), 'utf8'
+    );
+    expect(loopJob).toContain('processMode: loop.processMode');
+  });
+
+  test('o Loop tem processMode no schema — senão o Mongoose descarta', () => {
+    /* O controller gravava o campo e ele não existia no schema. Em modo
+       estrito o Mongoose descarta em silêncio: a escolha da pessoa sumia
+       entre o clique e o banco, sem erro em lugar nenhum. */
+    const Loop = require('../src/models/Loop');
+    expect(Loop.schema.paths).toHaveProperty('processMode');
+    expect(Loop.schema.paths.processMode.enumValues).toContain('humanizador');
+  });
+
+  test('modos determinísticos são promovidos antes de gerar o arquivo', () => {
+    /* `limpeza_leve` não faz nenhuma chamada aleatória — provado com dois
+       encodes do mesmo vídeo dando o mesmo SHA-256. Deixá-lo passar faria a
+       semente por conta não mudar nada. */
+    const fonte = fs.readFileSync(
+      path.resolve(__dirname, '../src/services/midiaPorConta.js'), 'utf8'
+    );
+    expect(fonte).toContain("VARIAM = new Set(['ultra_clean', 'humanizador'])");
+    expect(fonte).toContain("VARIAM.has(pedido) ? pedido : 'humanizador'");
+  });
+});
+
+describe('o ritmo entre contas existe em todo caminho', () => {
+  const worker = fs.readFileSync(path.resolve(__dirname, '../src/queue/worker.js'), 'utf8');
+  const stories = fs.readFileSync(path.resolve(__dirname, '../src/routes/storyRoutes.js'), 'utf8');
+  const loopJob = fs.readFileSync(path.resolve(__dirname, '../src/jobs/loopJob.js'), 'utf8');
+
+  test('legado (loop e postar avulso): ordem sorteada e espera entre contas', () => {
+    expect(worker).toContain('embaralhar(post.accounts');
+    expect(worker).toMatch(/Math\.random\(\) \* 240000\) \+ 180000/);   // 3 a 7 min
+  });
+
+  test('lote (Job): ordem sorteada, alternância e espera entre contas', () => {
+    expect(worker).toContain('espacarPorConta(embaralhar(pares, rand))');
+    expect(worker).toMatch(/Math\.random\(\) \* 180000\) \+ 120000/);   // 2 a 5 min
+  });
+
+  test('stories: ordem sorteada e espera entre contas', () => {
+    expect(stories).toContain('embaralhar(accountIds');
+    expect(stories).toMatch(/Math\.random\(\) \* 180000\) \+ 120000/);
+  });
+
+  test('loop: o ciclo tem jitter, não é intervalo cravado', () => {
+    /* Um post a cada 40min00s se detecta contando timestamps, sem olhar o
+       conteúdo. */
+    expect(loopJob).toContain('proximaRodada(loop.intervalMinutes)');
+    expect(loopJob).not.toContain('intervalMinutes * 60 * 1000');
+  });
+});

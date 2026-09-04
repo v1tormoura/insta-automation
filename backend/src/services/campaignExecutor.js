@@ -478,7 +478,10 @@ async function processarPublicacao(publicationId, deps = {}) {
       // username da conta mudou entre o planejamento e a publicação.
       caption:     legendaFinal,
       location:    campanha.settings?.location    || '',
-      processMode: campanha.settings?.processMode || 'limpeza_leve',
+      /* `humanizador` e não `limpeza_leve`: o segundo é determinístico e
+         faria todas as contas da campanha subirem o mesmo arquivo. Ver
+         midiaPorConta.js. */
+      processMode: campanha.settings?.processMode || 'humanizador',
       accounts:    [conta._id],
       status:      'processando',
       scheduledAt: pub.scheduledAt,

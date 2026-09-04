@@ -52,6 +52,10 @@ const { convertToReelFormat, isVideo } = require('./videoProcessor');
 
 const RAIZ_UPLOADS = path.resolve(__dirname, '../../uploads');
 
+/* Os modos que produzem arquivo diferente a cada semente. Os outros são
+   determinísticos — mesma entrada, mesmos bytes de saída. */
+const VARIAM = new Set(['ultra_clean', 'humanizador']);
+
 /**
  * Gerador pseudoaleatório determinístico (mulberry32).
  *
@@ -120,13 +124,20 @@ async function prepararParaConta(post, account, opcoes = {}) {
     return { caminho: relativo, proprio: false };
   }
 
-  /* `humanizador` como padrão para o caminho mobile.
-     Ele é o único modo que varia o vídeo em várias dimensões ao mesmo tempo —
-     micro-crop, cor, pitch e CRF. `limpeza_leve` é determinístico: encodei o
-     mesmo vídeo duas vezes com os parâmetros dele e o SHA-256 bateu, o que
-     significa que todas as contas subiriam o mesmo arquivo mesmo com a
-     conversão ligada. */
-  const modo = opcoes.processMode || post.processMode || 'humanizador';
+  /* ── Modos que não variam são promovidos ────────────────────────────
+
+     `sem_limpeza` e `limpeza_leve` não fazem UMA chamada aleatória. Encodei o
+     mesmo vídeo duas vezes com os parâmetros de `limpeza_leve` e o SHA-256
+     bateu: sem variação, a semente por conta não muda nada e todas as contas
+     voltariam a subir bytes idênticos — que é exatamente o defeito que este
+     módulo existe para corrigir.
+
+     A campanha ainda pede `limpeza_leve` por padrão, e o Post herda isso. Em
+     vez de deixar o módulo devolver algo que contradiz o próprio nome, o modo
+     é promovido para o menor que cumpre o contrato. Quem escolhe
+     `ultra_clean` ou `humanizador` de propósito continua com o que escolheu. */
+  const pedido = opcoes.processMode || post.processMode || 'humanizador';
+  const modo = VARIAM.has(pedido) ? pedido : 'humanizador';
 
   const semente = sementeDe(String(post._id), String(account._id));
   const marca = marcaDe(String(post._id), String(account._id));
