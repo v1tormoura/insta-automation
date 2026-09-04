@@ -624,7 +624,22 @@ export default function Accounts() {
   function openInstaModal(account) {
     setInstaModal({
       step:        'credentials',
-      loginMethod: 'password',
+      /* ── Session ID lidera, e não a senha ─────────────────────────────
+
+         O `accounts/login/` tem limite de tentativas POR IP, contado do lado
+         do Instagram. Conectar três ou quatro contas em sequência do mesmo
+         servidor esgota o limite, e aí vem "aguarde 5 minutos" — sem nada
+         errado no sistema.
+
+         O Session ID não chama esse endpoint (está escrito na própria rota
+         do serviço Python: "Does NOT call accounts/login/ — completely
+         bypasses IP-level rate limits"). Ele já era oferecido, mas só DEPOIS
+         do erro: a pessoa batia no limite para então descobrir o caminho que
+         não bate.
+
+         Invertido, ela não vê o erro. E de quebra a senha não passa pelo
+         servidor. */
+      loginMethod: 'sessionid',
       accountId:   account?._id || account?.id || null,
       username:    account?.username || '',
       password:    '',
@@ -2081,7 +2096,7 @@ export default function Accounts() {
               {/* Method toggle (only on credentials step, not connected) */}
               {!isCodeStep && !isConnected && (
                 <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius: 'var(--mf-r-sm)', padding:4 }}>
-                  {[['password','🔑 Senha'],['sessionid','🍪 Session ID']].map(([method, label]) => (
+                  {[['sessionid','🍪 Session ID'],['password','🔑 Senha']].map(([method, label]) => (
                     <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
                       style={{ flex:1, padding:'8px 0', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
                         background: instaModal.loginMethod === method ? 'color-mix(in oklch, var(--mf-mod-publicar) 80%, transparent)' : 'transparent',
@@ -2106,6 +2121,24 @@ export default function Accounts() {
                   {isConnected && (
                     <div style={{ background:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-success-500)' }}>
                       ✓ <strong>@{uname}</strong> já usa API Mobile. Clique em "Desconectar" para voltar ao modo oficial.
+                    </div>
+                  )}
+
+                  {/* O custo da aba de senha, dito antes de ela ser gasta.
+
+                      O limite é do `accounts/login/` e é contado por IP pelo
+                      próprio Instagram — conectar três ou quatro contas em
+                      sequência do mesmo servidor esgota. Não é defeito daqui, e
+                      não tem como o sistema contornar: quem conta é o outro lado. */}
+                  {!isConnected && !isSidMode && (
+                    <div style={{ fontSize: 'var(--mf-t-xs)', marginBottom:10, lineHeight:1.6,
+                      background:'color-mix(in oklch, var(--mf-warning-500) 7%, transparent)',
+                      border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)',
+                      borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', color:'var(--mf-text-2)' }}>
+                      O Instagram limita tentativas de login por IP. Conectando
+                      várias contas seguidas, ele passa a pedir espera de alguns
+                      minutos — e isso vem dele, não daqui. O Session ID não
+                      passa por esse limite.
                     </div>
                   )}
 
@@ -2174,6 +2207,21 @@ export default function Accounts() {
                             </>)
                       );
                     })()}
+                    {/* Por que este caminho lidera.
+
+                        Sem esta explicação, a aba do Session ID parece a
+                        alternativa complicada — e a pessoa escolhe senha, bate
+                        no limite do IP, e só então volta para cá. Dizer a
+                        vantagem antes da escolha é o que evita a viagem. */}
+                    <div style={{ fontSize: 'var(--mf-t-xs)', marginBottom:10, lineHeight:1.6,
+                      background:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)',
+                      border:'1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)',
+                      borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', color:'var(--mf-text-2)' }}>
+                      <strong style={{ color:'var(--mf-success-500)' }}>Caminho recomendado.</strong>{' '}
+                      Não passa pelo limite de tentativas por IP — dá para conectar
+                      várias contas seguidas sem esperar. E a senha não chega ao
+                      servidor.
+                    </div>
                     <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:10, lineHeight:1.7, background:'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }}>
                       <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
                       1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>
