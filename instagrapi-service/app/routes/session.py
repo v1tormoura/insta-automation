@@ -44,6 +44,10 @@ async def load_session(body: LoadRequest):
     Load a previously-saved session (fetched from MongoDB by Node.js) into the in-memory pool.
     Idempotent — safe to call again after a Python service restart.
     """
+    # Restaurar sessão cria o cliente do zero depois de um restart. Sem o
+    # índice aqui, o aparelho da conta voltaria ao hash e mudaria entre antes e
+    # depois do deploy — e um celular que troca de modelo é, por si só, sinal.
+    session_pool.lembrar_indice_do_aparelho(body.account_id, body.device_index)
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
@@ -70,6 +74,10 @@ async def session_status(account_id: str):
 
 @router.post("/login")
 async def login(body: LoginRequest):
+    # Antes de tudo: `get_entry` cria o cliente e escolhe o aparelho nesse
+    # instante, então o índice precisa estar registrado antes da primeira
+    # chamada — não depois.
+    session_pool.lembrar_indice_do_aparelho(body.account_id, body.device_index)
     """
     Perform a fresh login with username + password.
 

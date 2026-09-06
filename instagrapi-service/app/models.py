@@ -6,7 +6,7 @@ class LoadRequest(BaseModel):
     account_id: str
     settings: Dict[str, Any]
     proxy: Optional[str] = None
-
+    device_index: Optional[int] = None
 
 class EvictRequest(BaseModel):
     account_id: str
@@ -21,6 +21,10 @@ class LoginRequest(BaseModel):
     # De onde o Node tirou o proxy: conta, pool, global ou nenhum. Só para o
     # log — o serviço não tem como deduzir isso da URL.
     proxy_origem: Optional[str] = None
+    # Qual aparelho do pool esta conta usa. O Node aloca (ele tem o banco e
+    # sabe o que ja esta em uso); aqui so chega o numero. Ausente = cai no
+    # hash do account_id, que era o comportamento anterior.
+    device_index: Optional[int] = None
 
 
 class DiagnosticoRequest(BaseModel):

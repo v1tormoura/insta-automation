@@ -26,6 +26,19 @@ const accountSchema = new mongoose.Schema(
       default: '',
     },
 
+    /* Qual aparelho virtual esta conta usa, do pool do serviço Python.
+
+       Guardado, e nunca reatribuído: um celular que troca de modelo entre dois
+       logins é por si só um sinal. `null` significa "ainda não alocado" — e o
+       Python cai no hash, que era o comportamento anterior.
+
+       Existe porque hash não garante distinção: com 23 modelos e 5 contas,
+       cinco sorteios colidem em ~40% das vezes. Ver aparelhoDaConta.js. */
+    deviceIndex: {
+      type: Number,
+      default: null,
+    },
+
     followers: {
       type: Number,
       default: 0,

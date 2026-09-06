@@ -116,6 +116,10 @@ class InstagrapiHttpClient {
       settings,
       // Proxy da conta, ou o proxy global quando a conta não tem um próprio.
       proxy: (await resolveProxyFor(account)) || null,
+      /* Também aqui: restaurar sessão cria o cliente do zero depois de um
+         restart, e sem o índice ele voltaria ao hash — o aparelho da conta
+         mudaria entre antes e depois do deploy. */
+      device_index: await require('../aparelhoDaConta').indiceDaConta(account),
     });
   }
 
@@ -156,6 +160,15 @@ class InstagrapiHttpClient {
     const { resolverComOrigem } = require('../globalProxy');
     const rota = await resolverComOrigem(account);
 
+    /* O aparelho virtual desta conta.
+
+       O Python escolhia por hash do id, e hash não garante distinção: com 23
+       modelos e 5 contas, duas caem no mesmo em ~40% das vezes — e duas contas
+       anunciando o mesmo modelo, resolução, dpi e cpu, do mesmo IP, são
+       trivialmente correlacionáveis. Aqui o Node aloca o menos usado, porque
+       é quem tem o banco na mão. `null` faz o Python cair no hash. */
+    const deviceIndex = await require('../aparelhoDaConta').indiceDaConta(account);
+
     const result = await this._post('/session/login', {
       account_id:         accountId,
       username,
@@ -163,6 +176,7 @@ class InstagrapiHttpClient {
       verification_code:  verificationCode || '',
       proxy:              rota.url || null,
       proxy_origem:       rota.origem,
+      device_index:       deviceIndex,
     }, TIMEOUT_LOGIN);
 
     // TWO_FACTOR_REQUIRED is returned as a 2xx (202) — not an error

@@ -355,56 +355,86 @@ def _device_uuids(account_id: str) -> dict:
 # bloks_versioning_id) é um trio que precisa ser coerente entre si, e vem de
 # `_build_do_app()` — ver o comentário lá para o porquê.
 _REAL_ANDROID_DEVICES = [
-    {
-        "android_version": 33,
-        "android_release": "13.0",
-        "dpi": "480dpi",
-        "resolution": "1080x2340",
-        "manufacturer": "Samsung",
-        "device": "dm1q",
-        "model": "SM-S911B",
-        "cpu": "qcom",
-    },
-    {
-        "android_version": 34,
-        "android_release": "14.0",
-        "dpi": "480dpi",
-        "resolution": "1080x2400",
-        "manufacturer": "Google",
-        "device": "panther",
-        "model": "Pixel 7",
-        "cpu": "tensor",
-    },
-    {
-        "android_version": 33,
-        "android_release": "13.0",
-        "dpi": "480dpi",
-        "resolution": "1080x2400",
-        "manufacturer": "Xiaomi",
-        "device": "fuxi",
-        "model": "2211133G",
-        "cpu": "qcom",
-    },
-    {
-        "android_version": 33,
-        "android_release": "13.0",
-        "dpi": "560dpi",
-        "resolution": "1440x3088",
-        "manufacturer": "Samsung",
-        "device": "dm3q",
-        "model": "SM-S918B",
-        "cpu": "qcom",
-    },
-    {
-        "android_version": 34,
-        "android_release": "14.0",
-        "dpi": "480dpi",
-        "resolution": "1080x2400",
-        "manufacturer": "Motorola",
-        "device": "eqs",
-        "model": "motorola edge 40",
-        "cpu": "mt6891",
-    },
+    # ── Samsung ───────────────────────────────────────────────────────────────
+    {"android_version": 33, "android_release": "13.0", "dpi": "480dpi",
+     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "dm1q",
+     "model": "SM-S911B", "cpu": "qcom"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "560dpi",
+     "resolution": "1440x3088", "manufacturer": "Samsung", "device": "dm3q",
+     "model": "SM-S918B", "cpu": "qcom"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "450dpi",
+     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "a15",
+     "model": "SM-A155M", "cpu": "mt6789"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "450dpi",
+     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "a34x",
+     "model": "SM-A346M", "cpu": "mt6877"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "450dpi",
+     "resolution": "1080x2400", "manufacturer": "Samsung", "device": "a53x",
+     "model": "SM-A536E", "cpu": "s5e8825"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "420dpi",
+     "resolution": "1080x2408", "manufacturer": "Samsung", "device": "m14x",
+     "model": "SM-M146B", "cpu": "s5e8535"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "300dpi",
+     "resolution": "720x1600", "manufacturer": "Samsung", "device": "a04",
+     "model": "SM-A045M", "cpu": "mt6765"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "450dpi",
+     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "a25x",
+     "model": "SM-A256E", "cpu": "s5e8535"},
+
+    # ── Motorola ──────────────────────────────────────────────────────────────
+    {"android_version": 34, "android_release": "14.0", "dpi": "480dpi",
+     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "eqs",
+     "model": "motorola edge 40", "cpu": "mt6891"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "420dpi",
+     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "bangkk",
+     "model": "moto g84 5G", "cpu": "qcom"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "420dpi",
+     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "fogona",
+     "model": "moto g54 5G", "cpu": "mt6855"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "280dpi",
+     "resolution": "720x1600", "manufacturer": "Motorola", "device": "penangf",
+     "model": "moto e13", "cpu": "ums9230"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "400dpi",
+     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "rhodep",
+     "model": "moto g73 5G", "cpu": "mt6833"},
+
+    # ── Xiaomi / Redmi / POCO ─────────────────────────────────────────────────
+    {"android_version": 33, "android_release": "13.0", "dpi": "480dpi",
+     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "fuxi",
+     "model": "2211133G", "cpu": "qcom"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "440dpi",
+     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "tapas",
+     "model": "23021RAAEG", "cpu": "qcom"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "440dpi",
+     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "sapphire",
+     "model": "23129RN51X", "cpu": "mt6768"},
+    {"android_version": 33, "android_release": "13.0", "dpi": "440dpi",
+     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "redwood",
+     "model": "22101320G", "cpu": "qcom"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "440dpi",
+     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "xaga",
+     "model": "22071219CG", "cpu": "mt6877"},
+
+    # ── Realme ────────────────────────────────────────────────────────────────
+    {"android_version": 33, "android_release": "13.0", "dpi": "320dpi",
+     "resolution": "720x1600", "manufacturer": "realme", "device": "RMX3760",
+     "model": "RMX3760", "cpu": "mt6765"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "440dpi",
+     "resolution": "1080x2400", "manufacturer": "realme", "device": "RMX3782",
+     "model": "RMX3782", "cpu": "mt6886"},
+
+    # ── Google ────────────────────────────────────────────────────────────────
+    {"android_version": 34, "android_release": "14.0", "dpi": "480dpi",
+     "resolution": "1080x2400", "manufacturer": "Google", "device": "panther",
+     "model": "Pixel 7", "cpu": "tensor"},
+    {"android_version": 34, "android_release": "14.0", "dpi": "420dpi",
+     "resolution": "1080x2400", "manufacturer": "Google", "device": "bluejay",
+     "model": "Pixel 6a", "cpu": "tensor"},
+
+    # ── Asus ──────────────────────────────────────────────────────────────────
+    {"android_version": 33, "android_release": "13.0", "dpi": "420dpi",
+     "resolution": "1080x2400", "manufacturer": "asus", "device": "AI2202",
+     "model": "ASUS_AI2202", "cpu": "qcom"},
 ]
 
 
@@ -495,7 +525,7 @@ def aplicar_regiao(client: Client) -> dict:
     }
 
 
-def apply_deterministic_device(client: Client, account_id: str) -> None:
+def apply_deterministic_device(client: Client, account_id: str, indice: int | None = None) -> None:
     """
     Associa deterministicamente cada conta a um modelo de smartphone Android real.
     Garante que a Meta identifique sempre o mesmo aparelho móvel para aquela conta.
@@ -509,7 +539,26 @@ def apply_deterministic_device(client: Client, account_id: str) -> None:
     anunciando um aparelho no cabeçalho e outro no corpo — e o Instagram
     respondia `invalid_user` para toda conta, como se ela não existisse.
     """
-    idx = int(hashlib.sha256(account_id.encode()).hexdigest(), 16) % len(_REAL_ANDROID_DEVICES)
+    """
+    ── Por que o índice pode vir de fora
+
+    O hash sozinho não garante aparelhos distintos. Com 23 modelos e 5 contas,
+    a chance de duas caírem no mesmo é de cerca de 40% (é o problema do
+    aniversário) — e duas contas anunciando o MESMO modelo, resolução, dpi e
+    cpu, com a mesma build do app, do mesmo IP, é justamente a correlação que
+    o isolamento existe para evitar.
+
+    O Node tem o banco na mão e sabe quais índices já estão em uso, então ele
+    aloca o menos usado e guarda na conta. Aqui o índice recebido manda; o hash
+    fica como reserva para conta que ainda não tem um alocado.
+
+    O aparelho guardado NUNCA muda depois de escolhido: um celular que troca de
+    modelo entre dois logins é, por si só, um sinal.
+    """
+    if indice is not None and 0 <= int(indice) < len(_REAL_ANDROID_DEVICES):
+        idx = int(indice)
+    else:
+        idx = int(hashlib.sha256(account_id.encode()).hexdigest(), 16) % len(_REAL_ANDROID_DEVICES)
     escolhido = dict(_REAL_ANDROID_DEVICES[idx])
     escolhido.update(_build_do_app())
 
@@ -1022,6 +1071,40 @@ def _e_recusa_de_proxy(e: Exception) -> bool:
                               or "Unable to connect to proxy" in texto)
 
 
+# Índice do aparelho por conta, informado pelo Node. Vive aqui porque o
+# `get_entry` cria o cliente e precisa dele nesse instante — e o Node só tem
+# chance de informar na chamada que antecede a criação.
+_indices: dict[str, int] = {}
+
+
+def lembrar_indice_do_aparelho(account_id: str, indice: int | None) -> None:
+    """
+    Guarda o índice que o Node alocou para esta conta.
+
+    Chamado antes de `get_entry` nas rotas que recebem o índice. Índice fora da
+    faixa é ignorado em vez de levantar: um valor errado deve degradar para o
+    hash, não impedir o login.
+    """
+    if indice is None:
+        return
+    try:
+        i = int(indice)
+    except (TypeError, ValueError):
+        return
+    if 0 <= i < len(_REAL_ANDROID_DEVICES):
+        _indices[account_id] = i
+
+
+def indice_lembrado(account_id: str) -> int | None:
+    """O índice em uso, para o log e para o diagnóstico."""
+    return _indices.get(account_id)
+
+
+def total_de_aparelhos() -> int:
+    """Quantos modelos o pool tem — o Node usa para validar o que aloca."""
+    return len(_REAL_ANDROID_DEVICES)
+
+
 def esquecer_ips_confirmados() -> None:
     """Zera as medições. Necessário ao trocar de proxy: o IP guardado passa a
     descrever um caminho que não é mais usado."""
@@ -1033,7 +1116,7 @@ async def get_entry(account_id: str) -> dict:
     async with _pool_lock:
         if account_id not in _pool:
             client = Client()
-            apply_deterministic_device(client, account_id)
+            apply_deterministic_device(client, account_id, _indices.get(account_id))
             # Depois do aparelho, porque set_locale reconstrói o User-Agent a
             # partir do device_settings — invertido, o idioma seria sobrescrito.
             aplicar_regiao(client)
