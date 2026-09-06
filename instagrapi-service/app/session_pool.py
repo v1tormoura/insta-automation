@@ -354,88 +354,104 @@ def _device_uuids(account_id: str) -> dict:
 # Só HARDWARE aqui. A build do app (app_version + version_code +
 # bloks_versioning_id) é um trio que precisa ser coerente entre si, e vem de
 # `_build_do_app()` — ver o comentário lá para o porquê.
-_REAL_ANDROID_DEVICES = [
+# ── O catálogo de hardware ────────────────────────────────────────────────────
+#
+# Modelo, codename, cpu, dpi e resolução são presos ao aparelho: dois Galaxy
+# A15 têm exatamente os mesmos. Não há o que variar aí, e inventar um "modelo"
+# que não existe é pior do que dois usuários compartilharem um real — um
+# aparelho implausível é sinal, um aparelho comum não é.
+#
+# A VERSÃO DO ANDROID, essa varia de verdade. Duas pessoas com o mesmo celular
+# podem estar em 13 e em 14, porque atualizam quando querem. Cada entrada
+# declara as versões que aquele modelo de fato roda, e o pool final é o produto
+# — dobrando a variedade sem inventar hardware.
+#
+# `_ANDROID` traduz a versão da API para o par que o user agent carrega
+# (`{android_version}/{android_release}`). Os dois precisam concordar: API 33 é
+# Android 13, e anunciar 33/14.0 é a mesma classe de contradição que já fez
+# toda conta receber `invalid_user` quando cabeçalho e corpo discordavam.
+_ANDROID = {33: "13.0", 34: "14.0"}
+
+_MODELOS = [
     # ── Samsung ───────────────────────────────────────────────────────────────
-    {"android_version": 33, "android_release": "13.0", "dpi": "480dpi",
-     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "dm1q",
-     "model": "SM-S911B", "cpu": "qcom"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "560dpi",
-     "resolution": "1440x3088", "manufacturer": "Samsung", "device": "dm3q",
-     "model": "SM-S918B", "cpu": "qcom"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "450dpi",
-     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "a15",
-     "model": "SM-A155M", "cpu": "mt6789"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "450dpi",
-     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "a34x",
-     "model": "SM-A346M", "cpu": "mt6877"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "450dpi",
-     "resolution": "1080x2400", "manufacturer": "Samsung", "device": "a53x",
-     "model": "SM-A536E", "cpu": "s5e8825"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "420dpi",
-     "resolution": "1080x2408", "manufacturer": "Samsung", "device": "m14x",
-     "model": "SM-M146B", "cpu": "s5e8535"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "300dpi",
-     "resolution": "720x1600", "manufacturer": "Samsung", "device": "a04",
-     "model": "SM-A045M", "cpu": "mt6765"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "450dpi",
-     "resolution": "1080x2340", "manufacturer": "Samsung", "device": "a25x",
-     "model": "SM-A256E", "cpu": "s5e8535"},
+    ("Samsung", "dm1q",    "SM-S911B",         "qcom",    "480dpi", "1080x2340", [33, 34]),
+    ("Samsung", "dm3q",    "SM-S918B",         "qcom",    "560dpi", "1440x3088", [33, 34]),
+    ("Samsung", "a15",     "SM-A155M",         "mt6789",  "450dpi", "1080x2340", [34]),
+    ("Samsung", "a34x",    "SM-A346M",         "mt6877",  "450dpi", "1080x2340", [33, 34]),
+    ("Samsung", "a53x",    "SM-A536E",         "s5e8825", "450dpi", "1080x2400", [33, 34]),
+    ("Samsung", "m14x",    "SM-M146B",         "s5e8535", "420dpi", "1080x2408", [33, 34]),
+    ("Samsung", "a04",     "SM-A045M",         "mt6765",  "300dpi", "720x1600",  [33]),
+    ("Samsung", "a25x",    "SM-A256E",         "s5e8535", "450dpi", "1080x2340", [34]),
+    ("Samsung", "a14x",    "SM-A145M",         "mt6769",  "420dpi", "1080x2408", [33, 34]),
+    ("Samsung", "gts9fe",  "SM-X510",          "s5e8835", "320dpi", "1440x2304", [34]),
 
     # ── Motorola ──────────────────────────────────────────────────────────────
-    {"android_version": 34, "android_release": "14.0", "dpi": "480dpi",
-     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "eqs",
-     "model": "motorola edge 40", "cpu": "mt6891"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "420dpi",
-     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "bangkk",
-     "model": "moto g84 5G", "cpu": "qcom"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "420dpi",
-     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "fogona",
-     "model": "moto g54 5G", "cpu": "mt6855"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "280dpi",
-     "resolution": "720x1600", "manufacturer": "Motorola", "device": "penangf",
-     "model": "moto e13", "cpu": "ums9230"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "400dpi",
-     "resolution": "1080x2400", "manufacturer": "Motorola", "device": "rhodep",
-     "model": "moto g73 5G", "cpu": "mt6833"},
+    ("Motorola", "eqs",     "motorola edge 40", "mt6891", "480dpi", "1080x2400", [33, 34]),
+    ("Motorola", "bangkk",  "moto g84 5G",      "qcom",   "420dpi", "1080x2400", [33, 34]),
+    ("Motorola", "fogona",  "moto g54 5G",      "mt6855", "420dpi", "1080x2400", [33, 34]),
+    ("Motorola", "penangf", "moto e13",         "ums9230","280dpi", "720x1600",  [33]),
+    ("Motorola", "rhodep",  "moto g73 5G",      "mt6833", "400dpi", "1080x2400", [33, 34]),
+    ("Motorola", "devon",   "moto g52",         "qcom",   "400dpi", "1080x2400", [33]),
+    ("Motorola", "bronco",  "moto g32",         "qcom",   "400dpi", "1080x2400", [33]),
 
     # ── Xiaomi / Redmi / POCO ─────────────────────────────────────────────────
-    {"android_version": 33, "android_release": "13.0", "dpi": "480dpi",
-     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "fuxi",
-     "model": "2211133G", "cpu": "qcom"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "440dpi",
-     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "tapas",
-     "model": "23021RAAEG", "cpu": "qcom"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "440dpi",
-     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "sapphire",
-     "model": "23129RN51X", "cpu": "mt6768"},
-    {"android_version": 33, "android_release": "13.0", "dpi": "440dpi",
-     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "redwood",
-     "model": "22101320G", "cpu": "qcom"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "440dpi",
-     "resolution": "1080x2400", "manufacturer": "Xiaomi", "device": "xaga",
-     "model": "22071219CG", "cpu": "mt6877"},
+    ("Xiaomi", "fuxi",      "2211133G",  "qcom",   "480dpi", "1080x2400", [33, 34]),
+    ("Xiaomi", "tapas",     "23021RAAEG","qcom",   "440dpi", "1080x2400", [33, 34]),
+    ("Xiaomi", "sapphire",  "23129RN51X","mt6768", "440dpi", "1080x2400", [34]),
+    ("Xiaomi", "redwood",   "22101320G", "qcom",   "440dpi", "1080x2400", [33, 34]),
+    ("Xiaomi", "xaga",      "22071219CG","mt6877", "440dpi", "1080x2400", [33, 34]),
+    ("Xiaomi", "spes",      "2201117TL", "qcom",   "440dpi", "1080x2400", [33]),
+    ("Xiaomi", "veux",      "22101316G", "qcom",   "440dpi", "1080x2400", [33, 34]),
 
-    # ── Realme ────────────────────────────────────────────────────────────────
-    {"android_version": 33, "android_release": "13.0", "dpi": "320dpi",
-     "resolution": "720x1600", "manufacturer": "realme", "device": "RMX3760",
-     "model": "RMX3760", "cpu": "mt6765"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "440dpi",
-     "resolution": "1080x2400", "manufacturer": "realme", "device": "RMX3782",
-     "model": "RMX3782", "cpu": "mt6886"},
+    # ── realme ────────────────────────────────────────────────────────────────
+    ("realme", "RMX3760", "RMX3760", "mt6765", "320dpi", "720x1600",  [33]),
+    ("realme", "RMX3782", "RMX3782", "mt6886", "440dpi", "1080x2400", [33, 34]),
+    ("realme", "RMX3627", "RMX3627", "mt6769", "320dpi", "720x1600",  [33]),
 
     # ── Google ────────────────────────────────────────────────────────────────
-    {"android_version": 34, "android_release": "14.0", "dpi": "480dpi",
-     "resolution": "1080x2400", "manufacturer": "Google", "device": "panther",
-     "model": "Pixel 7", "cpu": "tensor"},
-    {"android_version": 34, "android_release": "14.0", "dpi": "420dpi",
-     "resolution": "1080x2400", "manufacturer": "Google", "device": "bluejay",
-     "model": "Pixel 6a", "cpu": "tensor"},
+    ("Google", "panther", "Pixel 7",  "tensor", "480dpi", "1080x2400", [33, 34]),
+    ("Google", "bluejay", "Pixel 6a", "tensor", "420dpi", "1080x2400", [33, 34]),
+    ("Google", "shiba",   "Pixel 8",  "tensor", "480dpi", "1080x2400", [34]),
 
     # ── Asus ──────────────────────────────────────────────────────────────────
-    {"android_version": 33, "android_release": "13.0", "dpi": "420dpi",
-     "resolution": "1080x2400", "manufacturer": "asus", "device": "AI2202",
-     "model": "ASUS_AI2202", "cpu": "qcom"},
+    ("asus", "AI2202", "ASUS_AI2202", "qcom", "420dpi", "1080x2400", [33]),
+
+    # ── TCL ───────────────────────────────────────────────────────────────────
+    ("TCL", "T676H", "T676H", "mt6833", "320dpi", "720x1612", [33]),
 ]
+
+
+def _montar_pool() -> list[dict]:
+    """
+    Expande o catálogo no pool final: um aparelho por (modelo, versão).
+
+    O produto é o que dá variedade sem inventar hardware. Trinta e dois modelos
+    com uma ou duas versões cada rendem cerca de cinquenta e cinco combinações
+    — e, passando disso, contas voltam a compartilhar um aparelho.
+
+    Isso é aceitável e vale dizer por quê: milhões de pessoas reais têm o mesmo
+    celular. O que NÃO pode repetir é a identidade — device_id, phone_id, uuid,
+    advertising_id e o blob de sessão — e essa é derivada do id da conta, então
+    é única mesmo quando o modelo coincide. Dois usuários do mesmo Galaxy A15
+    são dois usuários; dois com o mesmo device_id são um.
+    """
+    pool = []
+    for fab, codename, modelo, cpu, dpi, res, versoes in _MODELOS:
+        for api in versoes:
+            pool.append({
+                "android_version": api,
+                "android_release": _ANDROID[api],
+                "dpi": dpi,
+                "resolution": res,
+                "manufacturer": fab,
+                "device": codename,
+                "model": modelo,
+                "cpu": cpu,
+            })
+    return pool
+
+
+_REAL_ANDROID_DEVICES = _montar_pool()
 
 
 def _build_do_app() -> dict:

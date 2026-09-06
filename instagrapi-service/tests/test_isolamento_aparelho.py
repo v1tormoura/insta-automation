@@ -38,10 +38,16 @@ def test_todos_os_aparelhos_tem_os_mesmos_campos():
         assert set(d.keys()) == esperado, d.get("model")
 
 
-def test_modelos_nao_repetem():
-    """Dois slots com o mesmo modelo desperdiçariam a distinção do pool."""
+def test_o_catalogo_nao_repete_modelo():
+    """
+    No CATÁLOGO cada modelo aparece uma vez. No pool final ele aparece uma vez
+    por versão de Android — o que é o ponto do eixo, não uma duplicata.
+
+    A distinção que importa é a do fingerprint completo, coberta em
+    `test_o_fingerprint_completo_nunca_repete`.
+    """
     from app import session_pool
-    modelos = [d["model"] for d in session_pool._REAL_ANDROID_DEVICES]
+    modelos = [m[2] for m in session_pool._MODELOS]
     assert len(set(modelos)) == len(modelos)
 
 
@@ -104,3 +110,53 @@ def test_o_hash_sozinho_colidia_com_cinco_contas():
              "valeriavedovatto_4", "noemipaganini856"]
     com_pool_de_5 = {int(hashlib.sha256(n.encode()).hexdigest(), 16) % 5 for n in nomes}
     assert len(com_pool_de_5) < len(nomes)      # colidia
+
+
+def test_a_versao_do_android_e_um_eixo():
+    """
+    Dois telefones do mesmo modelo podem rodar Android diferente — é o único
+    eixo do fingerprint que varia de verdade entre unidades iguais. Modelo,
+    codename, cpu, dpi e resolução são presos ao aparelho.
+
+    Usar isso dobra a variedade sem inventar hardware, e inventar é pior do que
+    compartilhar: um aparelho implausível é sinal, um aparelho comum não é.
+    """
+    from app import session_pool
+    por_modelo = {}
+    for d in session_pool._REAL_ANDROID_DEVICES:
+        por_modelo.setdefault(d["model"], set()).add(d["android_version"])
+    com_duas = [m for m, v in por_modelo.items() if len(v) > 1]
+    assert com_duas, "nenhum modelo aproveita o eixo da versão"
+
+
+def test_api_e_release_sempre_concordam():
+    """
+    API 33 é Android 13; anunciar 33/14.0 é a mesma classe de contradição que
+    já fez toda conta receber `invalid_user` quando cabeçalho e corpo
+    discordavam.
+    """
+    from app import session_pool
+    esperado = {33: "13.0", 34: "14.0"}
+    for d in session_pool._REAL_ANDROID_DEVICES:
+        assert esperado[d["android_version"]] == d["android_release"], d["model"]
+
+
+def test_o_fingerprint_completo_nunca_repete():
+    """Duas entradas idênticas desperdiçariam um slot do pool."""
+    from app import session_pool
+    fps = {tuple(sorted(d.items())) for d in session_pool._REAL_ANDROID_DEVICES}
+    assert len(fps) == len(session_pool._REAL_ANDROID_DEVICES)
+
+
+def test_hardware_de_um_modelo_e_sempre_o_mesmo():
+    """
+    O mesmo modelo não pode aparecer com resoluções ou cpus diferentes: são
+    características físicas. Só a versão do Android varia.
+    """
+    from app import session_pool
+    visto = {}
+    for d in session_pool._REAL_ANDROID_DEVICES:
+        chave = (d["manufacturer"], d["device"], d["model"], d["cpu"],
+                 d["dpi"], d["resolution"])
+        anterior = visto.setdefault(d["model"], chave)
+        assert anterior == chave, f"{d['model']} tem hardware inconsistente"

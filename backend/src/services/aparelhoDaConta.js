@@ -41,13 +41,19 @@
 
 const Account = require('../models/Account');
 
-/* Quantos modelos o serviço Python tem no pool.
+/* Quantas combinações de aparelho o serviço Python tem.
 
-   Repetido aqui e não importado porque são processos separados — mas com o
-   nome do total exposto lá (`total_de_aparelhos()`) para a divergência ser
-   detectável em vez de silenciosa. Um índice além do fim é ignorado pelo
-   Python, que cai no hash: degrada, não quebra. */
-const TOTAL_DE_APARELHOS = 23;
+   É o produto de 32 modelos pelas versões de Android que cada um roda — ver
+   `_montar_pool()` no session_pool.py. Repetido aqui e não importado porque são
+   processos separados; um teste compara os dois números para a divergência ser
+   detectável em vez de silenciosa. Índice além do fim é ignorado pelo Python,
+   que cai no hash: degrada, não quebra.
+
+   Passando de 50 contas, duas passam a compartilhar um aparelho — e isso é
+   aceitável: milhões de pessoas reais têm o mesmo celular. O que não pode
+   repetir é a IDENTIDADE (device_id, phone_id, uuid, advertising_id, sessão), e
+   essa é derivada do id da conta — única mesmo quando o modelo coincide. */
+const TOTAL_DE_APARELHOS = 50;
 
 /**
  * O índice do aparelho desta conta, alocando um se ela ainda não tem.

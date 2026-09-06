@@ -4,7 +4,7 @@
  * O aparelho virtual de cada conta.
  *
  * O vazamento: o serviço Python escolhia o modelo por `sha256(account_id) % N`
- * com N=5. Determinístico — o que é certo, porque um celular que troca de
+ * com N=5 — hoje o pool tem 50 combinações (32 modelos × versões de Android). Determinístico — o que é certo, porque um celular que troca de
  * modelo entre dois logins é por si só um sinal — mas hash não garante
  * DISTINÇÃO.
  *
@@ -24,8 +24,7 @@ describe('a alocação escolhe o menos usado', () => {
   });
 
   test('índice já usado é evitado enquanto houver livre', () => {
-    /* É o que a alocação garante e o sorteio só torna provável: com 23 modelos
-       e 5 contas, cinco sorteios colidem em ~40% das vezes. */
+    /* É o que a alocação garante e o sorteio só torna provável. */
     const c = new Array(TOTAL_DE_APARELHOS).fill(1);
     c[7] = 0;
     expect(menosUsado(c, 'qualquer')).toBe(7);
@@ -44,7 +43,7 @@ describe('a alocação escolhe o menos usado', () => {
     expect(new Set(escolhidos).size).toBe(5);
   });
 
-  test('vinte e três contas cobrem o pool inteiro sem repetir', () => {
+  test('o pool inteiro é coberto sem repetir', () => {
     const contagem = new Array(TOTAL_DE_APARELHOS).fill(0);
     const escolhidos = [];
     for (let n = 0; n < TOTAL_DE_APARELHOS; n++) {
@@ -56,7 +55,7 @@ describe('a alocação escolhe o menos usado', () => {
   });
 
   test('além do pool, a repetição é a mais espalhada possível', () => {
-    // 46 contas em 23 modelos: dois por modelo, nenhum com três.
+    // O dobro do pool: dois por aparelho, nenhum com três.
     const contagem = new Array(TOTAL_DE_APARELHOS).fill(0);
     for (let n = 0; n < TOTAL_DE_APARELHOS * 2; n++) {
       contagem[menosUsado(contagem, `c${n}`)]++;
@@ -74,8 +73,8 @@ describe('a alocação escolhe o menos usado', () => {
 
   test('não é sequencial — o pool está agrupado por fabricante', () => {
     /* Pegando sempre o primeiro índice livre, as contas criadas em sequência
-       receberiam Samsung, Samsung, Samsung. Espalhar pelo id evita isso sem
-       sacrificar a distinção. */
+       receberiam Samsung, Samsung, Samsung — o catálogo está agrupado por
+       fabricante. Espalhar pelo id evita isso sem sacrificar a distinção. */
     const c = new Array(TOTAL_DE_APARELHOS).fill(0);
     const tres = ['p1', 'p2', 'p3'].map(id => menosUsado(c, id));
     expect(tres).not.toEqual([0, 0, 0]);
@@ -93,12 +92,18 @@ describe('o total bate com o do serviço Python', () => {
     const fonte = fs.readFileSync(
       path.resolve(__dirname, '../../instagrapi-service/app/session_pool.py'), 'utf8'
     );
-    const bloco = fonte.slice(
-      fonte.indexOf('_REAL_ANDROID_DEVICES = ['),
-      fonte.indexOf('\n]\n', fonte.indexOf('_REAL_ANDROID_DEVICES = ['))
+    /* O pool do Python e o produto (modelo x versoes), montado em
+       `_montar_pool()`. Contar as linhas do catalogo daria o numero de
+       MODELOS, nao de combinacoes — sao coisas diferentes desde que a versao
+       do Android virou um eixo. Somar as versoes declaradas reproduz a conta
+       do outro lado. */
+    const catalogo = fonte.slice(
+      fonte.indexOf('_MODELOS = ['),
+      fonte.indexOf('def _montar_pool'),
     );
-    const quantos = (bloco.match(/"model":/g) || []).length;
-    expect(quantos).toBe(TOTAL_DE_APARELHOS);
+    const combinacoes = [...catalogo.matchAll(/\[([0-9,{}\s]*?)\]\),/g)]
+      .reduce((soma, m) => soma + m[1].split(',').filter(x => x.trim()).length, 0);
+    expect(combinacoes).toBe(TOTAL_DE_APARELHOS);
   });
 });
 
