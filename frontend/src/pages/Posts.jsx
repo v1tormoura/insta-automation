@@ -88,6 +88,79 @@ function LegendDropdown({ legends, value, onChange }) {
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /* ── Card de mídia com thumbnail real (canvas para vídeo, objectURL para imagem) ── */
+/* ── Atalhos de valor ──────────────────────────────────────────────────────
+   Fileira de valores prontos ao lado de um campo. O campo continua aceitando
+   qualquer número — os atalhos são para os quatro valores que se usa em 95%
+   das vezes, e o realce diz qual deles está em vigor agora. */
+function Atalhos({ opcoes, atual, onEscolher }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+      {opcoes.map(([valor, rotulo]) => {
+        const ativo = valor === atual;
+        return (
+          <button key={String(valor)} type="button" onClick={() => onEscolher(valor)}
+            style={{
+              padding: '4px 10px', borderRadius: 'var(--mf-r-xl)', cursor: 'pointer',
+              fontSize: 'var(--mf-t-nano)', fontWeight: 700, whiteSpace: 'nowrap',
+              background: ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 14%, transparent)' : 'var(--mf-surface-2)',
+              border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 34%, transparent)' : 'var(--mf-border)'}`,
+              color: ativo ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
+              transition: 'all var(--mf-fast) var(--mf-ease-out)',
+            }}>
+            {rotulo}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "30 min", "1 hora", "4 horas" — em vez de 240 min, que ninguém lê como 4h. */
+function rotuloDeIntervalo(min) {
+  const n = Math.max(1, Number(min) || 1);
+  if (n < 60) return `${n} min`;
+  const horas = n / 60;
+  const texto = Number.isInteger(horas) ? String(horas) : horas.toFixed(1);
+  return `${texto} ${horas === 1 ? 'hora' : 'horas'}`;
+}
+
+/* ── Quando começar ────────────────────────────────────────────────────────
+
+   Cada atalho calcula a data na hora do clique, não na montagem da tela: a
+   página fica aberta por muito tempo enquanto se escolhe mídia e conta, e
+   "Hoje 19h" calculado no carregamento poderia já ter passado quando o botão
+   for clicado.
+
+   "Hoje 19h" depois das 19h vira amanhã às 19h. Agendar para o passado faria o
+   BullMQ disparar tudo de imediato — que é o oposto do que o botão promete. */
+const INICIOS = [
+  { id: 'agora',    rotulo: 'Agora',       quando: () => null },
+  { id: 'em1h',     rotulo: 'Em 1h',       quando: () => new Date(Date.now() + 3_600_000) },
+  { id: 'hoje19',   rotulo: 'Hoje 19h',    quando: () => proximaHora(19) },
+  { id: 'amanha09', rotulo: 'Amanhã 09h',  quando: () => proximaHora(9, 1) },
+  { id: 'escolher', rotulo: 'Escolher',    quando: () => null },
+];
+
+/** A próxima ocorrência daquela hora; passa para o dia seguinte se já passou. */
+function proximaHora(hora, somarDias = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + somarDias);
+  d.setHours(hora, 0, 0, 0);
+  if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+/**
+ * Data no formato que `<input type="datetime-local">` aceita.
+ *
+ * `toISOString()` não serve: ele converte para UTC, então às 19:00 de Brasília
+ * o campo mostraria 22:00. O formato do campo é sempre hora local.
+ */
+function paraCampoLocal(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function MediaCard({ file, index, onRemove }) {
   const [thumb, setThumb] = useState(null);
   const isVideo = file.type?.startsWith('video/');
@@ -239,6 +312,16 @@ export default function Posts() {
   const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
   const [marcaModal,      setMarcaModal]      = useState(false);
 
+  /* ── Configurações de envio ───────────────────────────────────────────────
+     `postsPor24h` NÃO fica no job: ele é gravado em `Account.dailyPostLimit`,
+     que é o campo que o planejador e a verificação de publicação já obedecem.
+     Um segundo número no job criaria duas respostas para "quantas esta conta
+     pode hoje". */
+  const [nomeDoEnvio,     setNomeDoEnvio]     = useState('');
+  const [aquecimento,     setAquecimento]     = useState(false);
+  const [postsPor24h,     setPostsPor24h]     = useState(10);
+  const [inicioEscolhido, setInicioEscolhido] = useState('agora');
+
   const DRAFT_POSTS_KEY = 'posts_form_draft_v1';
 
   /* ── Restaura rascunho de posts salvo ────────────────────────────────────── */
@@ -261,6 +344,9 @@ export default function Posts() {
         if (d.midiasAleatorias !== undefined) setMidiasAleatorias(!!d.midiasAleatorias);
         if (d.loopInfinito !== undefined) setLoopInfinito(!!d.loopInfinito);
         if (d.marcaDagua) setMarcaDagua({ ...MARCA_PADRAO, ...d.marcaDagua });
+        if (d.nomeDoEnvio !== undefined) setNomeDoEnvio(d.nomeDoEnvio);
+        if (d.postsPor24h !== undefined) setPostsPor24h(d.postsPor24h);
+        if (d.aquecimento !== undefined) setAquecimento(!!d.aquecimento);
       }
     } catch {}
   }, []);
@@ -272,9 +358,10 @@ export default function Posts() {
         caption, postType, intervalMins, simultaneousLimit, processMode,
         location, ctaComment, engageComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
+        nomeDoEnvio, postsPor24h, aquecimento,
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, engageComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, engageComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento]);
 
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
@@ -359,6 +446,10 @@ export default function Posts() {
     form.append('ordemDasMidias', ordemDasMidias);
     form.append('midiasAleatorias', String(midiasAleatorias));
     form.append('loopInfinito', String(loopInfinito));
+    if (nomeDoEnvio.trim()) form.append('name', nomeDoEnvio.trim());
+    /* Vai como número e o servidor normaliza de novo: ele é quem manda, e
+       `normalizarTeto` recusa o que não é um teto utilizável. */
+    form.append('postsPor24h', String(postsPor24h));
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (engageComment.trim()) form.append('engageComment', engageComment);
@@ -452,6 +543,11 @@ export default function Posts() {
   };
   const cardH3Style = { fontSize: 'var(--mf-t-h2)', fontWeight: 650, color: 'var(--mf-text)', margin: 0 };
   const cardBodyStyle = { padding: 'var(--mf-4)' };
+  const rotuloForm = {
+    display: 'block', marginBottom: 7,
+    fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)',
+    letterSpacing: .5, textTransform: 'uppercase',
+  };
 
   return (
     <>
@@ -889,22 +985,115 @@ export default function Posts() {
               </div>
             </div>
 
-            {/* Interval */}
+            {/* ── Ritmo: intervalo, teto por conta e início ─────────────────
+                Os três andam juntos porque respondem à mesma pergunta — quanto
+                esta conta publica por dia — vista de três ângulos. O resumo
+                verde fecha a conta, que é o que ninguém faz de cabeça. */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Intervalo entre posts</h3>
-                <span style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>{intervalMins} min</span>
+                <h3 style={cardH3Style}>Configurações de envio</h3>
+                <span style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>
+                  {rotuloDeIntervalo(intervalMins)}
+                </span>
               </div>
               <div style={cardBodyStyle}>
-                <input type="range" min="1" max="120" step="1" value={Math.max(1, intervalMins)}
+
+                <label style={rotuloForm}>Nome deste envio</label>
+                <input className="inp" value={nomeDoEnvio} onChange={e => setNomeDoEnvio(e.target.value)}
+                  placeholder="Ex: Aquecimento — Contas Novas" />
+
+                {/* Aquecimento é um preset, não um módulo à parte: ele só move
+                    intervalo e teto para valores de conta nova. Dizer os
+                    números no rótulo evita ter de adivinhar o que ele fez. */}
+                <ChaveDeOpcao
+                  titulo="Envio de aquecimento"
+                  descricao="Conta nova, ritmo de conta nova: 1 post a cada 3h, teto de 4 por dia. Marcar ajusta o intervalo e o teto abaixo."
+                  marcada={aquecimento}
+                  onChange={v => {
+                    setAquecimento(v);
+                    if (v) { setIntervalMins(180); setPostsPor24h(4); }
+                  }}
+                />
+
+                <label style={{ ...rotuloForm, marginTop: 18 }}>Intervalo entre posts</label>
+                <input type="range" min="1" max="240" step="1" value={Math.max(1, intervalMins)}
                   onChange={e => setIntervalMins(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer', marginBottom: 6 }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>
-                  <span>1 min</span><span>120 min</span>
+                  style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
+                <Atalhos
+                  opcoes={[[10, '10 min'], [30, '30 min'], [60, '1 hora'], [240, '4 horas']]}
+                  atual={intervalMins}
+                  onEscolher={setIntervalMins}
+                />
+
+                <label style={{ ...rotuloForm, marginTop: 18 }}>Postagens por conta em 24h</label>
+                <input className="inp" type="number" min="1" max="48" value={postsPor24h}
+                  onChange={e => setPostsPor24h(Math.min(48, Math.max(1, Number(e.target.value) || 1)))} />
+                <Atalhos
+                  opcoes={[[6, '6'], [10, '10'], [24, '24'], [48, '48']]}
+                  atual={postsPor24h}
+                  onEscolher={setPostsPor24h}
+                />
+                {/* O efeito colateral, escrito. Este número mora na CONTA
+                    (`dailyPostLimit`), não no envio — é o campo que o
+                    planejador e a verificação de publicação já obedecem. */}
+                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 7, lineHeight: 1.6 }}>
+                  Vale para as contas selecionadas de agora em diante, não só para este envio.
                 </div>
-                <div style={{ marginTop: 10 }}>
-                  <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'block', marginBottom: 5 }}>Início (deixe vazio = agora + 1 min)</label>
-                  <input className="inp" type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+
+                {/* O aviso que eu não posso deixar de dar: 6 a 10 por dia é o
+                    que o sistema sorteia por padrão, e esse número saiu da
+                    correção de "as contas não estão aguentando". */}
+                {postsPor24h > 10 && (
+                  <div style={{ marginTop: 9, padding: '9px 11px', borderRadius: 'var(--mf-r-sm)',
+                    background: 'color-mix(in oklch, var(--mf-warning-500) 9%, transparent)',
+                    border: '1px solid color-mix(in oklch, var(--mf-warning-500) 26%, transparent)',
+                    fontSize: 'var(--mf-t-nano)', color: 'var(--mf-warning-500)', lineHeight: 1.65 }}>
+                    Acima de 10 por dia. O sistema sorteia 6 a 10 por conta justamente
+                    porque o padrão anterior — dezenas por dia, dia e noite — foi a causa
+                    mais provável de as contas pararem de entregar. É sua escolha, mas é
+                    esta a troca.
+                  </div>
+                )}
+
+                {/* O resumo fecha a conta: quantas, de quanto em quanto, e
+                    quantas horas do dia isso ocupa. Passando de 24h, o próprio
+                    teto deixa de caber no dia — e é melhor saber antes. */}
+                {(() => {
+                  const horas = (postsPor24h * intervalMins) / 60;
+                  const cabe = horas <= 24;
+                  const tom = cabe ? 'var(--mf-success-500)' : 'var(--mf-danger-500)';
+                  return (
+                    <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 'var(--mf-r-sm)',
+                      background: `color-mix(in oklch, ${tom} 9%, transparent)`,
+                      border: `1px solid color-mix(in oklch, ${tom} 26%, transparent)`,
+                      fontSize: 'var(--mf-t-micro)', color: tom, lineHeight: 1.6 }}>
+                      {cabe
+                        ? `${postsPor24h} posts por conta em 24h, um a cada ${rotuloDeIntervalo(intervalMins)} (ocupa ${horas.toFixed(horas % 1 ? 1 : 0)}h do dia).`
+                        : `${postsPor24h} posts a cada ${rotuloDeIntervalo(intervalMins)} pedem ${horas.toFixed(0)}h — não cabe em 24h. O teto será alcançado antes; reduza um dos dois.`}
+                    </div>
+                  );
+                })()}
+
+                <label style={{ ...rotuloForm, marginTop: 18 }}>Quando começar a postar?</label>
+                <Atalhos
+                  opcoes={INICIOS.map(i => [i.id, i.rotulo])}
+                  atual={inicioEscolhido}
+                  onEscolher={id => {
+                    setInicioEscolhido(id);
+                    const quando = INICIOS.find(i => i.id === id)?.quando?.();
+                    /* 'escolher' não calcula data nenhuma: ele só abre o campo
+                       abaixo, e é o campo que manda. */
+                    setScheduledAt(quando ? paraCampoLocal(quando) : '');
+                  }}
+                />
+                {inicioEscolhido === 'escolher' && (
+                  <input className="inp" type="datetime-local" style={{ marginTop: 8 }}
+                    value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+                )}
+                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 7, lineHeight: 1.6 }}>
+                  {scheduledAt
+                    ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR')} — os próximos seguem o intervalo acima.`
+                    : 'Começa agora — os próximos posts seguem o intervalo definido acima.'}
                 </div>
               </div>
             </div>

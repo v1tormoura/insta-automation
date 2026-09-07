@@ -5,6 +5,7 @@ const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
 const { ordenar, naOrdemDosIds, ORDENS, ORDEM_PADRAO } = require('../services/ordemDasMidias');
 const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
+const { aplicarNasContas: aplicarTetoDiario } = require('../services/tetoDiario');
 const fs   = require('fs');
 const path = require('path');
 
@@ -94,6 +95,20 @@ exports.createPost = async (req, res) => {
 
     const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
 
+    /* ── Publicações por conta em 24h ─────────────────────────────────────
+
+       Escrito em `Account.dailyPostLimit`, que é o campo que o
+       `publicationPlanner` e o `checkDailyLimit` já obedecem. Um segundo
+       número no job criaria duas respostas para "quantas esta conta pode
+       hoje".
+
+       O efeito colateral é real — muda a configuração DAS CONTAS, não só deste
+       envio — e por isso está escrito na tela, ao lado do campo.
+
+       Antes de criar o job: se o teto vale para esta rodada, tem de estar
+       gravado quando a primeira rodada consultar. */
+    const tetoAplicado = await aplicarTetoDiario(accounts, req.body.postsPor24h);
+
     const totalRounds    = Math.ceil(mediaFilenames.length / simultaneousLimit);
 
     const job = await Job.create({
@@ -132,7 +147,7 @@ exports.createPost = async (req, res) => {
     await Job.findByIdAndUpdate(job._id, { bullMqJobId: String(bullJob.id) });
 
     broadcast('posts', { action: 'created' });
-    res.json({ success: true, job });
+    res.json({ success: true, job, tetoAplicado });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
