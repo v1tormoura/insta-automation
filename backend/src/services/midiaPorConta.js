@@ -142,12 +142,27 @@ async function prepararParaConta(post, account, opcoes = {}) {
   const semente = sementeDe(String(post._id), String(account._id));
   const marca = marcaDe(String(post._id), String(account._id));
 
+  /* ── A marca d'água desta conta ───────────────────────────────────────────
+
+     Montada aqui porque é aqui que se sabe QUAL conta publica — o texto é o @
+     dela. O `videoProcessor` recebe o filtro pronto e não conhece contas.
+
+     `filtroDaMarca` devolve null quando a marca está desligada, quando o @ não
+     é válido ou quando não há fonte no sistema. Null vira `undefined` na opção,
+     e o vídeo sai sem marca em vez de a conversão falhar: perder a publicação
+     por causa de um enfeite seria troca ruim. */
+  const configDaMarca = opcoes.marcaDagua || post.marcaDagua || null;
+  const filtro = configDaMarca
+    ? require('./marcaDagua').filtroDaMarca(configDaMarca, account.username)
+    : null;
+
   try {
     const saida = await convertToReelFormat(absoluto, {
       processMode: modo,
       quality: opcoes.quality || 'high',
       aleatorio: criarAleatorio(semente),
       sufixo: `c${marca}`,
+      ...(filtro ? { marcaDagua: filtro } : {}),
     });
 
     // O publicador espera caminho relativo à raiz de uploads.

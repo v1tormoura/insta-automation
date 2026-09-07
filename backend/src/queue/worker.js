@@ -646,6 +646,10 @@ async function processJobRound(jobId) {
       engageComment: jobDoc.engageComment || '',
       location:      jobDoc.location      || '',
       processMode:   jobDoc.processMode   || 'limpeza_leve',
+      /* A marca desce do job para o post porque é o post que a mídia por conta
+         recebe. Sem esta linha o campo existiria nos dois schemas e nunca
+         chegaria a quem desenha — o defeito mais barato de cometer aqui. */
+      ...(jobDoc.marcaDagua?.ativa ? { marcaDagua: jobDoc.marcaDagua } : {}),
       accounts:      jobDoc.accounts.map(a => a._id),
       status:        'processando',
       scheduledAt:   new Date(),

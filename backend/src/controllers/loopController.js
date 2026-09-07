@@ -8,6 +8,8 @@ const Job     = require('../models/Job');
 const Account = require('../models/Account');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
+const { ordenar } = require('../services/ordemDasMidias');
+const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
 
 const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
 
@@ -115,14 +117,38 @@ exports.create = async (req, res) => {
     if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
     if (!intervalMinutes || intervalMinutes < 1) return res.status(400).json({ error: 'Intervalo mínimo: 1 minuto' });
 
-    const totalRounds = mediaFiles.length; // loops sempre postam 1 mídia por rodada
+    /* ── A ordem da fila ──────────────────────────────────────────────────
+
+       O loop recebe nomes de arquivo, não ids da biblioteca, então não há
+       `createdAt` para consultar: o nome é tudo que se tem. Por isso só a
+       ordem aleatória e "a ordem escolhida" fazem sentido aqui — pedir
+       "mais recentes primeiro" sem data seria inventar uma ordem e chamá-la
+       de cronológica.
+
+       A semente fica gravada: sem ela, a ordem sorteada seria irreproduzível
+       e "em que ordem isso foi postado" não teria resposta depois. */
+    const sementeDaOrdem   = req.body.sementeDaOrdem || require('crypto').randomBytes(8).toString('hex');
+    const midiasAleatorias = req.body.midiasAleatorias === true;
+    const filaOrdenada = ordenar(mediaFiles.map(f => ({ filename: f, quando: null })), {
+      ordem: 'selecao',
+      aleatoria: midiasAleatorias,
+      semente: sementeDaOrdem,
+    }).map(x => x.filename);
+
+    const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
+
+    const totalRounds = filaOrdenada.length; // loops sempre postam 1 mídia por rodada
 
     const job = await Job.create({
       name:              name || `Loop ${new Date().toLocaleString('pt-BR')}`,
       type:              'loop',
       status:            'queued',
       accounts,
-      mediaFiles,
+      mediaFiles:        filaOrdenada,
+      ordemDasMidias:    'selecao',
+      midiasAleatorias:  midiasAleatorias,
+      sementeDaOrdem:    sementeDaOrdem,
+      ...(marcaDagua ? { marcaDagua } : {}),
       postType:          type || 'reel',
       caption:           caption       || '',
       cover:             coverFile     || '',

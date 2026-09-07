@@ -28,6 +28,31 @@ const jobSchema = new mongoose.Schema({
   processMode:      { type: String, default: 'limpeza_leve' },
   location:         { type: String, default: '' },
 
+  /* ── Como a fila foi ordenada ─────────────────────────────────────────────
+
+     `mediaFiles` já sai ordenado da criação — o worker apenas caminha por ele.
+     Estes três campos ficam para o registro: sem eles não há como responder
+     "por que a fila saiu nessa ordem" depois, e a ordem aleatória em especial
+     seria irreproduzível.
+
+     Estar no schema não é detalhe: o Mongoose DESCARTA em silêncio o que não
+     está declarado aqui. Foi assim que `processMode` sumia entre o clique e o
+     banco no Loop, e quem escolhia "Humanizador" via a escolha evaporar. */
+  ordemDasMidias:   { type: String, enum: ['antigos_primeiro', 'recentes_primeiro', 'selecao'], default: 'antigos_primeiro' },
+  midiasAleatorias: { type: Boolean, default: false },
+  sementeDaOrdem:   { type: String, default: '' },
+
+  /* Marca d'água com o @ de cada conta.
+     `ativa: false` desliga tudo e é o padrão — nada muda para quem não pediu.
+     O texto NÃO é guardado aqui: ele é o @ de cada conta, resolvido na hora de
+     publicar. Guardá-lo faria a marca de uma conta aparecer no vídeo de outra. */
+  marcaDagua: {
+    ativa:     { type: Boolean, default: false },
+    opacidade: { type: Number, default: 40, min: 5, max: 100 },
+    posicao:   { type: String, enum: ['superior', 'centro', 'inferior'], default: 'centro' },
+    tamanho:   { type: String, enum: ['pequena', 'media', 'grande'], default: 'pequena' },
+  },
+
   // Controle de rodadas
   intervalMinutes:   { type: Number, default: 0, min: 0 },
   simultaneousLimit: { type: Number, default: 1, min: 1 },

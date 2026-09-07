@@ -3,6 +3,8 @@ const Job     = require('../models/Job');
 const Media   = require('../models/Media');
 const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
+const { ordenar, naOrdemDosIds, ORDENS, ORDEM_PADRAO } = require('../services/ordemDasMidias');
+const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
 const fs   = require('fs');
 const path = require('path');
 
@@ -23,12 +25,22 @@ exports.createPost = async (req, res) => {
     const mediaFiles = allFiles.filter(f => f.fieldname === 'media');
     const coverFile  = allFiles.find(f => f.fieldname === 'cover') || null;
 
-    // Suporte a mídias da biblioteca
+    /* ── Mídias da biblioteca, na ordem em que foram escolhidas ────────────
+
+       `Media.find({ _id: { $in: ids } })` NÃO devolve na ordem dos ids — o
+       Mongo devolve na ordem que quiser. Quem subia 400 vídeos e escolhia
+       quarenta numa ordem específica via a fila sair em outra, e não havia nada
+       na tela que explicasse. `naOrdemDosIds` restaura a escolha.
+
+       `createdAt` vem junto porque é o que permite ordenar por mais antigo ou
+       mais recente. Upload direto não tem — e não deve ter: arquivo que subiu
+       agora é, de fato, o mais recente. */
     const mediaIds = JSON.parse(req.body.mediaIds || '[]');
     let libraryFiles = [];
     if (mediaIds.length) {
       const docs = await Media.find({ _id: { $in: mediaIds } });
-      libraryFiles = docs.map(d => ({ filename: d.filename, fieldname: 'media', fromLibrary: true }));
+      libraryFiles = naOrdemDosIds(docs, mediaIds)
+        .map(d => ({ filename: d.filename, fieldname: 'media', fromLibrary: true, quando: d.createdAt }));
     }
 
     const allMedia = [...mediaFiles, ...libraryFiles];
@@ -54,15 +66,46 @@ exports.createPost = async (req, res) => {
     }
     if (!['post', 'reel', 'story'].includes(postType)) postType = 'reel';
 
-    const mediaFilenames = allMedia.map(f => f.filename);
+    /* ── A ordem da fila ──────────────────────────────────────────────────
+
+       Decidida aqui, uma vez, e gravada em `mediaFiles`: o worker só caminha
+       pelo array. Ordenar na hora de publicar obrigaria cada rodada a refazer a
+       conta, e a ordem aleatória mudaria a cada rodada.
+
+       A semente é sorteada agora e guardada. Sem guardá-la, a ordem aleatória
+       seria irreproduzível e "em que ordem isso foi postado" não teria
+       resposta depois. */
+    const sementeDaOrdem = req.body.sementeDaOrdem || require('crypto').randomBytes(8).toString('hex');
+    const midiasAleatorias = req.body.midiasAleatorias === 'true' || req.body.midiasAleatorias === true;
+    const ordemPedida = ORDENS.includes(req.body.ordemDasMidias) ? req.body.ordemDasMidias : ORDEM_PADRAO;
+
+    const mediaFilenames = ordenar(allMedia, {
+      ordem: ordemPedida,
+      aleatoria: midiasAleatorias,
+      semente: sementeDaOrdem,
+    }).map(f => f.filename);
+
+    /* ── Modo loop infinito ───────────────────────────────────────────────
+
+       Não é engine nova: `type: 'loop'` é o que o worker já usa para voltar ao
+       índice 0 quando as mídias acabam, em vez de concluir o job. A tela só
+       passa a poder escolher isso no Postar, sem ir à página de Loop. */
+    const loopInfinito = req.body.loopInfinito === 'true' || req.body.loopInfinito === true;
+
+    const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
+
     const totalRounds    = Math.ceil(mediaFilenames.length / simultaneousLimit);
 
     const job = await Job.create({
       name:              req.body.name || `Post ${new Date().toLocaleString('pt-BR')}`,
-      type:              'post',
+      type:              loopInfinito ? 'loop' : 'post',
       status:            'queued',
       accounts,
       mediaFiles:        mediaFilenames,
+      ordemDasMidias:    ordemPedida,
+      midiasAleatorias:  midiasAleatorias,
+      sementeDaOrdem:    sementeDaOrdem,
+      ...(marcaDagua ? { marcaDagua } : {}),
       postType,
       caption:           req.body.caption       || '',
       cover:             coverFile ? coverFile.filename : (req.body.coverFilename || ''),
@@ -74,7 +117,10 @@ exports.createPost = async (req, res) => {
       simultaneousLimit,
       currentRound:      0,
       totalRounds,
-      postsTotal:        totalRounds * accounts.length,
+      /* Loop infinito não tem total: o worker volta ao índice 0 quando as
+         mídias acabam, então qualquer número aqui seria uma meta falsa na
+         barra de progresso. É o mesmo 0 que o loopController já grava. */
+      postsTotal:        loopInfinito ? 0 : totalRounds * accounts.length,
     });
 
     // Enfileira primeira rodada imediatamente (ou no scheduledAt solicitado)

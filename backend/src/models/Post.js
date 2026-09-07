@@ -55,6 +55,20 @@ const postSchema = new mongoose.Schema(
       default: 'limpeza_leve',
     },
 
+    /* Marca d'água com o @ de cada conta.
+       Só COMO desenhar — o texto é o @ de quem publica, resolvido na hora.
+       Guardá-lo aqui faria a marca de uma conta aparecer no vídeo de outra.
+
+       Declarado no schema porque o Mongoose descarta em silêncio o que não
+       está: foi assim que `processMode` sumia entre o clique e o banco no Loop,
+       e a escolha de humanização virava decoração. */
+    marcaDagua: {
+      ativa:     { type: Boolean, default: false },
+      opacidade: { type: Number, default: 40, min: 5, max: 100 },
+      posicao:   { type: String, enum: ['superior', 'centro', 'inferior'], default: 'centro' },
+      tamanho:   { type: String, enum: ['pequena', 'media', 'grande'], default: 'pequena' },
+    },
+
     engageComment: {
       type: String,
       default: '',

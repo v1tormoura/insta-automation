@@ -10,6 +10,8 @@ import CampaignPreview from '../components/campaign/CampaignPreview';
 import ContentPicker from '../components/campaign/ContentPicker';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 import { EsqueletoLista } from '../components/Estados';
+import MarcaDaguaModal from '../components/MarcaDaguaModal';
+import { MARCA_PADRAO } from '../services/marcaDagua';
 
 /**
  * Wizard de criação de campanha (fase 5).
@@ -200,7 +202,7 @@ const estadoInicial = {
     useFixedInterval: false,
     windowStart: '', windowEnd: '', weekdays: [],
   },
-  settings: { respectDailyLimit: true, postType: 'reel' },
+  settings: { respectDailyLimit: true, postType: 'reel', marcaDagua: MARCA_PADRAO },
   // contentId -> mediaId da imagem usada como capa do Reel
   covers: { byContent: {} },
 };
@@ -221,6 +223,7 @@ export default function CampaignWizard() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro]     = useState(null);
   const [toast, setToast]   = useState(null);
+  const [marcaModal, setMarcaModal] = useState(false);
 
   // null enquanto a prévia carrega; o botão de criar espera o veredito.
   const [previaValida, setPreviaValida] = useState(null);
@@ -735,6 +738,35 @@ export default function CampaignWizard() {
         </div>
       </>)}
 
+      {/* ── Marca d'água ──────────────────────────────────────────────────
+          Numa campanha ela importa mais que em qualquer outro lugar: são
+          dezenas de contas publicando o mesmo conteúdo, e o @ de cada uma no
+          próprio vídeo é o que distingue "vinte contas com o mesmo material"
+          de "vinte contas repostando a mesma coisa uma da outra".
+
+          O texto NÃO é guardado na campanha — é o @ de cada conta, resolvido na
+          execução. Guardá-lo faria a marca de uma conta aparecer no vídeo de
+          outra, que é exatamente a assinatura que se está tentando evitar. */}
+      {painel("Marca d'água", (
+        <>
+          <button type="button" onClick={() => setMarcaModal(true)}
+            className={form.settings.marcaDagua?.ativa ? 'btn-ghost tom-modulo' : 'btn-ghost'}
+            style={{ width: '100%', justifyContent: 'center',
+              ...(form.settings.marcaDagua?.ativa ? {
+                '--tom': 'var(--mf-mod-campanhas)',
+                color: 'var(--mf-mod-campanhas)',
+                background: 'color-mix(in oklch, var(--mf-mod-campanhas) 10%, transparent)',
+              } : {}) }}>
+            {form.settings.marcaDagua?.ativa
+              ? `Ativa — ${form.settings.marcaDagua.posicao}, ${form.settings.marcaDagua.opacidade}%`
+              : "Adicionar marca d'água"}
+          </button>
+          <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:9, lineHeight:1.6 }}>
+            Grava o @ de cada conta no próprio vídeo, na hora de publicar.
+          </div>
+        </>
+      ))}
+
       {painel('Limite diário', (
         <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
           <input type="checkbox" checked={form.settings.respectDailyLimit}
@@ -924,6 +956,15 @@ export default function CampaignWizard() {
           </div>
         </div>
       </div>
+
+      <MarcaDaguaModal
+        aberto={marcaModal}
+        valor={form.settings.marcaDagua}
+        contas={form.accountIds?.length || 0}
+        mod="campanhas"
+        onCancelar={() => setMarcaModal(false)}
+        onAplicar={c => { mudarEm('settings', 'marcaDagua', c); setMarcaModal(false); }}
+      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </PageShell>

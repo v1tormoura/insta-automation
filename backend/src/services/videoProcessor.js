@@ -92,6 +92,24 @@ function convertToReelFormat(inputPath, options = {}) {
     suffix = quality === 'max' ? '-reel-max' : quality === 'fast' ? '-reel-fast' : '-reel-hq';
   }
 
+  /* ── A marca entra no nome do arquivo ────────────────────────────────────
+
+     `sem_limpeza` reaproveita o arquivo já convertido quando o caminho de saída
+     existe. Com marca d'água isso vira o pior defeito possível deste sistema:
+     duas contas com o mesmo vídeo compartilhariam `foo-reel-hq.mp4`, e o @ da
+     primeira apareceria no vídeo da segunda — a assinatura exata de que as duas
+     saem do mesmo lugar.
+
+     Hoje o caminho por conta promove os modos que não variam e sempre manda um
+     `sufixo` próprio, então não passa por aqui. Mas depender disso é depender de
+     um detalhe de outro módulo: com a marca no nome, o cache continua correto
+     por construção, para qualquer chamador. */
+  if (typeof options.marcaDagua === 'string' && options.marcaDagua.trim()) {
+    const digital = require('crypto')
+      .createHash('sha256').update(options.marcaDagua.trim()).digest('hex').slice(0, 8);
+    suffix += `-m${digital}`;
+  }
+
   const outputPath = path.join(outputDir, `${filename}${suffix}.mp4`);
 
   // Cache + deduplicação apenas para sem_limpeza (os outros modos geram arquivo único por design)
@@ -174,6 +192,19 @@ function convertToReelFormat(inputPath, options = {}) {
       const pitchFactor = (1 + (aleatorio() - 0.5) * 0.01).toFixed(5);
       const newRate     = Math.round(44100 * Number(pitchFactor));
       humanAudioFilter  = `asetrate=${newRate},aresample=44100`;
+    }
+
+    /* ── A marca d'água, no fim da cadeia ────────────────────────────────
+
+       Por último de propósito: o humanizador corta alguns pixels e volta a
+       escalar para 1080×1920, e uma marca desenhada antes disso seria cortada
+       junto — de um jeito diferente em cada conta, porque o corte é semeado.
+       Desenhada depois, ela cai no mesmo lugar sempre.
+
+       Vem por `options.marcaDagua` já montada pelo chamador: o texto é o @ da
+       conta, e este módulo não conhece contas. Ver `marcaDagua.js`. */
+    if (typeof options.marcaDagua === 'string' && options.marcaDagua.trim()) {
+      scaleFilter += `,${options.marcaDagua.trim()}`;
     }
 
     const modeLabel = processMode === 'limpeza_leve' ? ' [Limpeza Leve]'

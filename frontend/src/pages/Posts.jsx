@@ -8,6 +8,9 @@ import PageShell from '../components/PageShell';
 import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
+import MarcaDaguaModal from '../components/MarcaDaguaModal';
+import { MARCA_PADRAO } from '../services/marcaDagua';
+import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import { EsqueletoLista } from '../components/Estados';
 
@@ -225,6 +228,17 @@ export default function Posts() {
   const [libraryMedia, setLibraryMedia]   = useState([]);
   const [showLibPicker, setShowLibPicker] = useState(false);
 
+  /* ── Ordem da fila e marca d'água ─────────────────────────────────────────
+     Todas estas escolhas viajam para o backend e são resolvidas na criação do
+     job: a ordem fixa `mediaFiles`, o loop infinito escolhe `type`, e a marca
+     é gravada como configuração — o texto dela é o @ de cada conta, resolvido
+     no servidor na hora de publicar. */
+  const [ordemDasMidias,  setOrdemDasMidias]  = useState('antigos_primeiro');
+  const [midiasAleatorias, setMidiasAleatorias] = useState(false);
+  const [loopInfinito,    setLoopInfinito]    = useState(false);
+  const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
+  const [marcaModal,      setMarcaModal]      = useState(false);
+
   const DRAFT_POSTS_KEY = 'posts_form_draft_v1';
 
   /* ── Restaura rascunho de posts salvo ────────────────────────────────────── */
@@ -243,6 +257,10 @@ export default function Posts() {
         if (d.engageComment !== undefined) setEngageComment(d.engageComment);
         if (Array.isArray(d.selectedAccounts) && d.selectedAccounts.length) setSelectedAccounts(d.selectedAccounts);
         if (d.mediaSource) setMediaSource(d.mediaSource);
+        if (d.ordemDasMidias) setOrdemDasMidias(d.ordemDasMidias);
+        if (d.midiasAleatorias !== undefined) setMidiasAleatorias(!!d.midiasAleatorias);
+        if (d.loopInfinito !== undefined) setLoopInfinito(!!d.loopInfinito);
+        if (d.marcaDagua) setMarcaDagua({ ...MARCA_PADRAO, ...d.marcaDagua });
       }
     } catch {}
   }, []);
@@ -253,9 +271,10 @@ export default function Posts() {
       localStorage.setItem(DRAFT_POSTS_KEY, JSON.stringify({
         caption, postType, intervalMins, simultaneousLimit, processMode,
         location, ctaComment, engageComment, selectedAccounts, mediaSource,
+        ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, engageComment, selectedAccounts, mediaSource]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, engageComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua]);
 
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
@@ -334,6 +353,13 @@ export default function Posts() {
     form.append('intervalMinutes', intervalMins);
     form.append('simultaneousLimit', simultaneousLimit);
     form.append('processMode', processMode);
+    /* Ordem, loop e marca. `multipart/form-data` só carrega texto — por isso a
+       marca vai como JSON e os booleanos como 'true'/'false'. O backend aceita
+       as duas formas; ver `lerDoCorpo` em marcaDagua.js. */
+    form.append('ordemDasMidias', ordemDasMidias);
+    form.append('midiasAleatorias', String(midiasAleatorias));
+    form.append('loopInfinito', String(loopInfinito));
+    if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (engageComment.trim()) form.append('engageComment', engageComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
@@ -344,7 +370,15 @@ export default function Posts() {
       setLocation(''); setSelectedAccounts([]); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
       setLibraryMedia([]);
-      showToast('success', scheduledAt ? 'Posts agendados!' : 'Posts enviados!', `${totalEstimated} publicações adicionadas à fila.`);
+      showToast(
+        'success',
+        scheduledAt ? 'Posts agendados!' : loopInfinito ? 'Loop infinito iniciado!' : 'Posts enviados!',
+        /* Loop infinito não tem total: ele volta ao começo quando as mídias
+           acabam, então anunciar um número seria anunciar um fim que não vem. */
+        loopInfinito
+          ? `${activeMediaCount} mídia(s) em ${selectedCount} conta(s), repetindo a cada ${intervalMins} min.`
+          : `${totalEstimated} publicações adicionadas à fila.`,
+      );
       setPosted(true);
       setTimeout(() => setPosted(false), 2500);
       load();
@@ -603,6 +637,49 @@ export default function Posts() {
                       </div>
                     )}
                   </>
+                )}
+
+                {/* ── Ordem da fila ────────────────────────────────────────
+                    Estas três opções decidem em que ordem as mídias entram na
+                    fila, e a ordem é fixada na criação do job — o worker só
+                    caminha pelo array. Ver `ordemDasMidias.js`.
+
+                    Só aparecem com duas ou mais mídias: com uma, ordem não é
+                    uma pergunta. */}
+                {activeMediaCount > 1 && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--mf-border)' }}>
+                    <label style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)', letterSpacing: .5, textTransform: 'uppercase', display: 'block', marginBottom: 7 }}>
+                      Ordem de postagem
+                    </label>
+                    <select className="inp" value={ordemDasMidias} onChange={e => setOrdemDasMidias(e.target.value)}
+                      disabled={midiasAleatorias}
+                      style={{ width: '100%', opacity: midiasAleatorias ? .5 : 1 }}>
+                      <option value="antigos_primeiro">Mais antigos primeiro (padrão)</option>
+                      <option value="recentes_primeiro">Mais recentes primeiro</option>
+                      <option value="selecao">Na ordem em que eu escolhi</option>
+                    </select>
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.6 }}>
+                      {mediaSource === 'library'
+                        ? 'Define em que ordem os vídeos entram na fila. Ex: subiu 400 vídeos e quer postar os mais novos primeiro? Escolha "Mais recentes primeiro".'
+                        /* Upload direto não tem data na biblioteca: todos
+                           acabaram de subir. Dizer isso evita a pergunta
+                           "escolhi recentes primeiro e nada mudou". */
+                        : 'No upload direto todos os arquivos acabaram de subir, então a ordem é a que você selecionou no seletor.'}
+                    </div>
+
+                    <ChaveDeOpcao
+                      titulo="Ordem Aleatória"
+                      descricao="Posta os vídeos embaralhados. Sem marcar, segue a ordem escolhida acima."
+                      marcada={midiasAleatorias}
+                      onChange={setMidiasAleatorias}
+                    />
+                    <ChaveDeOpcao
+                      titulo="Modo Loop Infinito"
+                      descricao="Repete as mesmas mídias continuamente, respeitando o intervalo. Sem marcar, termina quando as mídias acabam."
+                      marcada={loopInfinito}
+                      onChange={setLoopInfinito}
+                    />
+                  </div>
                 )}
               </div>
             </div>
@@ -875,6 +952,27 @@ export default function Posts() {
                   onChange={setSelectedAccounts}
                 />
 
+                {/* ── Marca d'água ──────────────────────────────────────────
+                    Fica junto às contas porque o texto dela É o @ da conta:
+                    não há um texto a escrever, e a única pergunta é como
+                    desenhar. `type="button"` porque estamos dentro do form —
+                    sem isso, abrir o modal publicaria. */}
+                <button type="button" onClick={() => setMarcaModal(true)}
+                  className={marcaDagua.ativa ? 'btn-ghost tom-modulo' : 'btn-ghost'}
+                  style={{ width: '100%', justifyContent: 'center', marginTop: 10,
+                    ...(marcaDagua.ativa ? {
+                      '--tom': 'var(--mf-mod-publicar)',
+                      color: 'var(--mf-mod-publicar)',
+                      background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',
+                    } : {}) }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
+                  </svg>
+                  {marcaDagua.ativa
+                    ? `Marca d'água ativa — ${marcaDagua.posicao}, ${marcaDagua.opacidade}%`
+                    : "Adicionar marca d'água"}
+                </button>
+
                 {/* Summary */}
                 <div className="g3" style={{ gap: 6, marginTop: 12 }}>
                   {[['Mídias', media.length, 'var(--mf-info-500)'], ['Contas', selectedCount, 'var(--mf-mod-publicar)'], ['Total', totalEstimated, 'var(--mf-mod, var(--mf-accent-500))']].map(([l, v, c]) => (
@@ -914,6 +1012,17 @@ export default function Posts() {
             </div>
           </motion.div>
         </form>
+
+        {/* Fora do <form> de propósito: dentro dele, o Enter num controle do
+            modal submeteria a publicação. */}
+        <MarcaDaguaModal
+          aberto={marcaModal}
+          valor={marcaDagua}
+          contas={selectedCount}
+          mod="publicar"
+          onCancelar={() => setMarcaModal(false)}
+          onAplicar={c => { setMarcaDagua(c); setMarcaModal(false); }}
+        />
 
         {/* Posts list */}
         {posts.length > 0 && (

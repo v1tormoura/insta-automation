@@ -110,6 +110,18 @@ const settingsSchema = new mongoose.Schema({
   postType:    { type: String, enum: ['post', 'reel', 'story'], default: 'reel' },
   processMode: { type: String, default: 'limpeza_leve' },
   location:    { type: String, default: '' },
+
+  /* Marca d'água com o @ de cada conta.
+     Só COMO desenhar — o texto é o @ de quem publica, resolvido na execução.
+     Guardá-lo aqui faria a marca de uma conta aparecer no vídeo de outra, que
+     numa campanha com vinte contas é a assinatura de que todas saem do mesmo
+     lugar. */
+  marcaDagua: {
+    ativa:     { type: Boolean, default: false },
+    opacidade: { type: Number, default: 40, min: 5, max: 100 },
+    posicao:   { type: String, enum: ['superior', 'centro', 'inferior'], default: 'centro' },
+    tamanho:   { type: String, enum: ['pequena', 'media', 'grande'], default: 'pequena' },
+  },
 }, { _id: false });
 
 /* ── Campanha ──────────────────────────────────────────────────────────────── */

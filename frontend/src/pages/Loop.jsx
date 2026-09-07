@@ -4,13 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
   History, AlertTriangle, CheckCircle, X,
-  Upload, Hash, Sparkles,
+  Upload, Hash, Sparkles, Image as ImageIcon,
 } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
+import MarcaDaguaModal from '../components/MarcaDaguaModal';
+import ChaveDeOpcao from '../components/ChaveDeOpcao';
+import { MARCA_PADRAO } from '../services/marcaDagua';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import './Loop.css';
 import { EsqueletoLista } from '../components/Estados';
@@ -257,7 +260,15 @@ function LoopModal({ onClose, onCreated }) {
     name: '', accounts: [], mediaFiles: [],
     type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '', engageComment: '',
     processMode: 'limpeza_leve',
+    /* Ordem e marca viajam para o backend na criação do loop.
+       O loop recebe NOMES de arquivo, não ids da biblioteca, então não há
+       `createdAt` a consultar: só embaralhar ou manter a ordem escolhida faz
+       sentido aqui. Pedir "mais recentes primeiro" sem data seria inventar
+       uma ordem e chamá-la de cronológica. */
+    midiasAleatorias: false,
+    marcaDagua: MARCA_PADRAO,
   });
+  const [marcaModal, setMarcaModal] = useState(false);
 
   const processModes = [
     { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'SAFE',  desc: 'Posta o vídeo original, sem alterar nada',             color: 'var(--mf-success-500)' },
@@ -719,6 +730,39 @@ function LoopModal({ onClose, onCreated }) {
             </div>
           </div>
 
+          {/* Ordem da fila e marca d'água ─────────────────────────────────
+              A ordem é fixada na criação: o worker só caminha pelo array de
+              mídias. Ver `ordemDasMidias.js`. */}
+          {form.mediaFiles.length > 1 && (
+            <div className="lm-row">
+              <ChaveDeOpcao
+                titulo="Ordem Aleatória"
+                descricao="Posta os vídeos da pasta embaralhados. Sem marcar, segue a ordem em que você os escolheu."
+                marcada={form.midiasAleatorias}
+                onChange={v => setForm(f => ({ ...f, midiasAleatorias: v }))}
+              />
+            </div>
+          )}
+
+          <div className="lm-row">
+            {/* O loop já repete para sempre por natureza — é o que `type: 'loop'`
+                faz no worker. Por isso não há chave de "loop infinito" aqui:
+                ela seria um interruptor para algo que já está ligado. */}
+            <button type="button" onClick={() => setMarcaModal(true)}
+              className={form.marcaDagua?.ativa ? 'btn-ghost tom-modulo' : 'btn-ghost'}
+              style={{ width: '100%', justifyContent: 'center',
+                ...(form.marcaDagua?.ativa ? {
+                  '--tom': 'var(--mf-mod-publicar)',
+                  color: 'var(--mf-mod-publicar)',
+                  background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',
+                } : {}) }}>
+              <ImageIcon size={14} />
+              {form.marcaDagua?.ativa
+                ? `Marca d'água ativa — ${form.marcaDagua.posicao}, ${form.marcaDagua.opacidade}%`
+                : "Adicionar marca d'água"}
+            </button>
+          </div>
+
           {/* Hashtags para viralizar */}
           <div className="lm-row lm-htag-row">
             <div className="lm-row-hd">
@@ -769,6 +813,17 @@ function LoopModal({ onClose, onCreated }) {
             </button>
           </div>
         </form>
+
+        {/* Fora do <form>: dentro dele, o Enter num controle do modal criaria o
+            loop antes de a marca ser aplicada. */}
+        <MarcaDaguaModal
+          aberto={marcaModal}
+          valor={form.marcaDagua}
+          contas={form.accounts.length}
+          mod="publicar"
+          onCancelar={() => setMarcaModal(false)}
+          onAplicar={c => { setForm(f => ({ ...f, marcaDagua: c })); setMarcaModal(false); }}
+        />
       </motion.div>
     </motion.div>
   );

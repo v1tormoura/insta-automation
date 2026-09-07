@@ -482,6 +482,10 @@ async function processarPublicacao(publicationId, deps = {}) {
          faria todas as contas da campanha subirem o mesmo arquivo. Ver
          midiaPorConta.js. */
       processMode: campanha.settings?.processMode || 'humanizador',
+      /* A marca desce para o post porque é o post que `prepararParaConta`
+         recebe. Sem esta linha o campo existiria na campanha e nunca chegaria
+         a quem desenha. */
+      ...(campanha.settings?.marcaDagua?.ativa ? { marcaDagua: campanha.settings.marcaDagua } : {}),
       accounts:    [conta._id],
       status:      'processando',
       scheduledAt: pub.scheduledAt,
