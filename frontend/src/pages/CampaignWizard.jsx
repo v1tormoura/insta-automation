@@ -961,6 +961,7 @@ export default function CampaignWizard() {
         aberto={marcaModal}
         valor={form.settings.marcaDagua}
         contas={form.accountIds?.length || 0}
+        arroba={contas.find(a => form.accountIds?.includes(a._id))?.username || ''}
         mod="campanhas"
         onCancelar={() => setMarcaModal(false)}
         onAplicar={c => { mudarEm('settings', 'marcaDagua', c); setMarcaModal(false); }}

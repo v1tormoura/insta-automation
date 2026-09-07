@@ -296,7 +296,6 @@ export default function Posts() {
   const [posting, setPosting] = useState(false);
   const [posted, setPosted]   = useState(false);
   const [ctaComment, setCtaComment]       = useState('');
-  const [engageComment, setEngageComment] = useState('');
   const [mediaSource, setMediaSource]     = useState('upload');
   const [libraryMedia, setLibraryMedia]   = useState([]);
   const [showLibPicker, setShowLibPicker] = useState(false);
@@ -337,7 +336,6 @@ export default function Posts() {
         if (d.processMode) setProcessMode(d.processMode);
         if (d.location !== undefined) setLocation(d.location);
         if (d.ctaComment !== undefined) setCtaComment(d.ctaComment);
-        if (d.engageComment !== undefined) setEngageComment(d.engageComment);
         if (Array.isArray(d.selectedAccounts) && d.selectedAccounts.length) setSelectedAccounts(d.selectedAccounts);
         if (d.mediaSource) setMediaSource(d.mediaSource);
         if (d.ordemDasMidias) setOrdemDasMidias(d.ordemDasMidias);
@@ -356,12 +354,12 @@ export default function Posts() {
     try {
       localStorage.setItem(DRAFT_POSTS_KEY, JSON.stringify({
         caption, postType, intervalMins, simultaneousLimit, processMode,
-        location, ctaComment, engageComment, selectedAccounts, mediaSource,
+        location, ctaComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
         nomeDoEnvio, postsPor24h, aquecimento,
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, engageComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento]);
 
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
@@ -452,14 +450,13 @@ export default function Posts() {
     form.append('postsPor24h', String(postsPor24h));
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
-    if (engageComment.trim()) form.append('engageComment', engageComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     setPosting(true);
     try {
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null);
       setLocation(''); setSelectedAccounts([]); setScheduledAt('');
-      setIntervalMins(0); setSelectedLegend(''); setCtaComment(''); setEngageComment('');
+      setIntervalMins(0); setSelectedLegend(''); setCtaComment('');
       setLibraryMedia([]);
       showToast(
         'success',
@@ -891,32 +888,6 @@ export default function Posts() {
               </div>
             </div>
 
-            {/* Engage Comment */}
-            <div style={cardStyle}>
-              <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Pergunta de engajamento</h3>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: engageComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!engageComment}
-                    onChange={e => setEngageComment(e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '')}
-                  />
-                  {engageComment ? 'Ativo' : 'Inativo'}
-                </label>
-              </div>
-              {!!engageComment && (
-                <div style={cardBodyStyle}>
-                  <textarea className="txta" rows={2}
-                    placeholder="Ex: Gostaram? Comenta aí! 👇"
-                    value={engageComment}
-                    onChange={e => setEngageComment(e.target.value)} />
-                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4 }}>
-                    Postado ~60 min após publicar · estimula comentários pro algoritmo
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* CTA Comment */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
@@ -1208,6 +1179,10 @@ export default function Posts() {
           aberto={marcaModal}
           valor={marcaDagua}
           contas={selectedCount}
+          /* O @ da primeira conta escolhida, para a prévia mostrar um handle
+             real em vez de um exemplo — o comprimento do @ muda como a marca
+             ocupa a largura. */
+          arroba={accounts.find(a => selectedAccounts.includes(a._id))?.username || ''}
           mod="publicar"
           onCancelar={() => setMarcaModal(false)}
           onAplicar={c => { setMarcaDagua(c); setMarcaModal(false); }}

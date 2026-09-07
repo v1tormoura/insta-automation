@@ -17,7 +17,7 @@ const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
 const traduzirErro        = require('../utils/traduzirErro');
-const { runPromoAfterPost, postCTACommentForPost, postEngageCommentForPost } = require('../jobs/promoJob');
+const { runPromoAfterPost } = require('../jobs/promoJob');
 // Ordenação humanizada — as mesmas regras da campanha, para Postar e Loop não
 // terem uma segunda implementação que divirja com o tempo.
 const { criarRandom, embaralhar, espacarPorConta } = require('../services/publicationPlanner');
@@ -417,10 +417,23 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
     broadcast('accounts', { action: 'synced' });
 
     runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
-    if (post.ctaComment?.trim())    postCTACommentForPost(account._id, post.ctaComment).catch(e => console.log('[CTA]:', e.message));
-    if (post.engageComment?.trim()) postEngageCommentForPost(account._id, post.engageComment).catch(e => console.log('[Engage]:', e.message));
 
-    return { ok: true, mediaId: String(resultado?.mediaId || '') };
+    /* ── O comentário fixado ──────────────────────────────────────────────
+
+       Agendado na FILA, com o `mediaId` que esta publicação acabou de
+       devolver. Antes era um `await delay(120_000)` guardado na memória deste
+       processo, e o comentário ia para "a mídia mais recente da conta",
+       descoberta por consulta depois da espera. Três consequências: restart
+       na janela perdia o comentário; conta que publicasse outra coisa no meio
+       recebia o comentário no post errado; e conta mobile não recebia nada,
+       porque o caminho antigo exigia token da API oficial.
+
+       É o mesmo desenho que a campanha usa desde a fase 8 — não uma segunda
+       arquitetura para a mesma tarefa. */
+    const idDaMidia = String(resultado?.mediaId || '');
+    await agendarComentarioFixado(account, post, idDaMidia);
+
+    return { ok: true, mediaId: idDaMidia };
   } catch (err) {
     writeAccountLog(acc.username, `Erro: ${err.message}`);
     const healthUpdate = {
@@ -801,6 +814,66 @@ async function processCampaignComment(publicationId) {
 }
 
 /**
+ * Põe na fila o comentário fixado desta publicação.
+ *
+ * Nunca lança: um comentário que não pôde ser agendado não pode derrubar uma
+ * publicação que já deu certo.
+ *
+ * A decisão de comentar ou não mora em `comentarioDoPost.js`, com testes — ela
+ * tem quatro saídas e três são "não comentar", que é exatamente o que passava
+ * calado antes. Aqui fica só o enfileiramento.
+ */
+async function agendarComentarioFixado(account, post, mediaId) {
+  try {
+    const { decidirComentario, ATRASO_MS } = require('../services/comentarioDoPost');
+    const decisao = decidirComentario({ modelo: post.ctaComment, account, mediaId });
+
+    if (!decisao.comentar) {
+      /* O motivo VAI para o log. Antes a função saía calada em três casos, e o
+         sintoma na tela era "liguei o comentário e não aconteceu nada". */
+      if (decisao.motivo !== 'sem_texto') {
+        writeAccountLog(account.username, `Comentário fixado não enviado: ${decisao.motivo}`);
+      }
+      return;
+    }
+
+    const postQueue = require('./postQueue');
+    const bull = await postQueue.add(
+      'comentario_fixado',
+      { accountId: String(account._id), mediaId, texto: decisao.texto },
+      { delay: ATRASO_MS },
+    );
+    console.log(`💬 [Comentário] @${account.username} — agendado para ${(ATRASO_MS / 60000).toFixed(0)}min (job ${bull.id})`);
+  } catch (err) {
+    console.log(`⚠️ [Comentário] não deu para agendar: ${err.message}`);
+  }
+}
+
+/**
+ * Publica o comentário fixado quando a fila chama.
+ *
+ * Despacha pelo `ProviderFactory`, igual à campanha: conta mobile comenta pelo
+ * serviço Python, conta oficial pela Graph API. É esta linha que faz o
+ * comentário funcionar em conta conectada por senha — o caminho antigo
+ * desistia antes, sem dizer nada.
+ */
+async function processarComentarioFixado({ accountId, mediaId, texto }) {
+  const conta = await Account.findById(accountId);
+  if (!conta) { console.log(`[Comentário] conta ${accountId} não existe mais`); return; }
+
+  try {
+    const { getProvider } = require('../providers/ProviderFactory');
+    await getProvider(conta).comment(conta, { mediaId, text: texto });
+    writeAccountLog(conta.username, `Comentário fixado publicado: "${texto.slice(0, 60)}"`);
+  } catch (err) {
+    /* Não relança: o post já está no ar e o comentário é um extra. Relançar
+       faria o BullMQ tentar de novo e comentar duas vezes no mesmo post. */
+    writeAccountLog(conta.username, `Comentário fixado falhou: ${err.message}`);
+    console.log(`⚠️ [Comentário] @${conta.username}: ${err.message}`);
+  }
+}
+
+/**
  * Publica o comentário de uma publicação de campanha.
  *
  * Despacha pelo mesmo ProviderFactory da publicação: conta instagrapi comenta
@@ -826,6 +899,9 @@ const worker = new Worker(
     } else if (job.data.campaignCommentId) {
       // Campanha — comentário agendado como tarefa própria
       await processCampaignComment(job.data.campaignCommentId);
+    } else if (job.name === 'comentario_fixado') {
+      // Postar e Loop — comentário fixado, agendado na fila em vez de na memória
+      await processarComentarioFixado(job.data);
     } else if (job.data.jobId) {
       // Nova arquitetura — Job-based
       await processJobRound(job.data.jobId);

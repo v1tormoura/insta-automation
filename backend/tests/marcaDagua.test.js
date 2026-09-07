@@ -38,12 +38,12 @@ const path = require('path');
 
 const {
   filtroDaMarca, normalizar, lerDoCorpo, alturaDe,
-  TAMANHOS, POSICOES, PADRAO, ALTURA, MARGEM_TOPO, MARGEM_BASE,
+  TAMANHOS, POSICOES, PADRAO, OPACIDADE_MIN, ALTURA, MARGEM_TOPO, MARGEM_BASE,
 } = require('../src/services/marcaDagua');
 const { acharFonte } = require('../src/services/storyStickerRenderer');
 
 const FONTE_FALSA = '/usr/share/fonts/truetype/x/Fake.ttf';
-const LIGADA = { ativa: true, opacidade: 40, posicao: 'centro', tamanho: 'pequena' };
+const LIGADA = { ativa: true, opacidade: 45, posicao: 'centro', tamanho: 'pequena' };
 
 describe('a configuração, normalizada', () => {
   test('o padrão é desligada', () => {
@@ -62,12 +62,43 @@ describe('a configuração, normalizada', () => {
   });
 
   test('a opacidade tem piso e teto', () => {
-    /* Abaixo de 5% a marca não é visível nem no escuro, e a pessoa acharia que
-       não funcionou. Acima de 100 não existe. */
-    expect(normalizar({ opacidade: 0 }).opacidade).toBe(5);
-    expect(normalizar({ opacidade: -50 }).opacidade).toBe(5);
+    /* ── O piso subiu de 5% para 20%, e o motivo foi medido ────────────────
+
+       Num fundo cinza liso, com a marca na faixa inferior, o brilho médio da
+       faixa (escala de 0 a 255):
+
+         desligada      125,00
+         10% pequena    125,04   ← delta de 0,04
+         45% pequena    125,25
+         45% grande     126,10
+         100% grande    130,22
+
+       A 10% a marca É desenhada e não é vista por ninguém. A tela dizia
+       "Marca d'água ativa — 10%" e o vídeo saía sem marca aparente, o que
+       parece defeito. Um controle que deixa escolher o que não funciona é pior
+       que um controle que não existe.
+
+       Este teste guarda o piso: baixá-lo de novo traz o problema de volta. */
+    expect(OPACIDADE_MIN).toBe(20);
+    expect(normalizar({ opacidade: 0 }).opacidade).toBe(OPACIDADE_MIN);
+    expect(normalizar({ opacidade: -50 }).opacidade).toBe(OPACIDADE_MIN);
+    expect(normalizar({ opacidade: 10 }).opacidade).toBe(OPACIDADE_MIN);
     expect(normalizar({ opacidade: 500 }).opacidade).toBe(100);
     expect(normalizar({ opacidade: 62.4 }).opacidade).toBe(62);
+  });
+
+  test('o padrão é uma opacidade que se vê', () => {
+    /* 45% é onde uma marca discreta de verdade fica. O padrão anterior, 40%
+       com tamanho pequeno, dava delta de 0,22 em 255 — quase nada. */
+    expect(PADRAO.opacidade).toBeGreaterThanOrEqual(40);
+  });
+
+  test('os tamanhos ocupam largura suficiente para se ver', () => {
+    /* 34px num vídeo de 1080 de largura são 3%. Marca d'água de verdade ocupa
+       de 4% a 8% — abaixo disso ela existe no arquivo e não na tela. */
+    for (const corpo of Object.values(TAMANHOS)) {
+      expect(corpo / 1080).toBeGreaterThan(0.04);
+    }
   });
 
   test('opacidade que não é número cai no padrão', () => {
@@ -140,18 +171,18 @@ describe('o filtro montado', () => {
   });
 
   test('a opacidade vira alfa da cor', () => {
-    expect(filtroDaMarca({ ...LIGADA, opacidade: 40 }, 'f', FONTE_FALSA)).toContain('fontcolor=white@0.40');
+    expect(filtroDaMarca({ ...LIGADA, opacidade: 45 }, 'f', FONTE_FALSA)).toContain('fontcolor=white@0.45');
     expect(filtroDaMarca({ ...LIGADA, opacidade: 100 }, 'f', FONTE_FALSA)).toContain('fontcolor=white@1.00');
   });
 
   test('a sombra acompanha a opacidade do texto', () => {
     /* Fixa, uma marca a 10% ficaria com um contorno duro por trás — a sombra
        apareceria mais que a marca. */
-    const fraca = filtroDaMarca({ ...LIGADA, opacidade: 10 }, 'f', FONTE_FALSA);
+    const fraca = filtroDaMarca({ ...LIGADA, opacidade: OPACIDADE_MIN }, 'f', FONTE_FALSA);
     const forte = filtroDaMarca({ ...LIGADA, opacidade: 100 }, 'f', FONTE_FALSA);
     const alfaDe = f => Number(f.match(/shadowcolor=black@([\d.]+)/)[1]);
     expect(alfaDe(fraca)).toBeLessThan(alfaDe(forte));
-    expect(alfaDe(fraca)).toBeCloseTo(0.09, 2);
+    expect(alfaDe(fraca)).toBeCloseTo((OPACIDADE_MIN / 100) * 0.9, 2);
     expect(alfaDe(forte)).toBeLessThanOrEqual(1);
   });
 

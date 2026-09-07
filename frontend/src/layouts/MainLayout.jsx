@@ -226,9 +226,24 @@ export default function MainLayout({ children }) {
      funcionar para sempre. Reaproveitar a chave preservaria justamente o
      engano; com uma nova, todo mundo volta ao rail e quem realmente quer a
      barra presa aberta clica uma vez, agora lendo o que o botão faz. */
+  /* ── O padrão passou a ser ABERTA ─────────────────────────────────────
+
+     Antes era o rail, por uma queixa de que a barra ocupava espaço demais. Só
+     que naquele momento o item mostrava uma linha — o `sub` de cada item era
+     descartado pelo render. Recolhida, a barra escondia rótulos; expandida,
+     mostrava rótulos sem a explicação. Nunca houve a forma completa para
+     comparar.
+
+     Agora que a descrição aparece, a barra aberta é a que a navegação de fato
+     descreve, e é ela o padrão. Quem preferir o rail clica uma vez e a escolha
+     fica gravada — os dois estados continuam existindo.
+
+     A leitura tolera localStorage indisponível (janela anônima, storage
+     bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
+     inteiro em vez de só perder uma preferência. */
   const [recolhida, setRecolhida] = useState(() => {
-    try { return localStorage.getItem('mf-sidebar-fixa') !== '1'; }
-    catch { return true; }
+    try { return localStorage.getItem('mf-sidebar-fixa') === '0'; }
+    catch { return false; }
   });
 
   const alternarSidebar = () => setRecolhida(r => {
@@ -297,6 +312,13 @@ export default function MainLayout({ children }) {
                     <span className="mf-nav-item__ico">{item.icon}</span>
                     <span className="mf-nav-item__txt">
                       <span className="mf-nav-item__t">{item.label}</span>
+                      {/* A descrição SEMPRE existiu em `NAV_GROUPS` como `sub`,
+                          e o render a jogava fora — vinte e oito itens com uma
+                          linha de explicação escrita e nenhuma aparecendo. O
+                          CSS já falava dela ("o rótulo e a descrição são dois
+                          spans"), então a intenção estava nos dois lados e só
+                          o JSX faltava. */}
+                      {item.sub && <span className="mf-nav-item__s">{item.sub}</span>}
                     </span>
                   </NavLink>
                 ))}
@@ -328,9 +350,14 @@ export default function MainLayout({ children }) {
                 <span className="mf-nav-item__t">{recolhida ? 'Fixar aberta' : 'Recolher'}</span>
               </span>
             </button>
-            <button className="mf-nav-item" onClick={logout}>
+            {/* Sair no tom de perigo: é a única ação da barra que desfaz
+                algo, e nas outras vinte e oito o cinza significa "navegar". */}
+            <button className="mf-nav-item mf-nav-item--sair" onClick={logout}>
               <span className="mf-nav-item__ico">{ICONS.logout}</span>
-              <span className="mf-nav-item__txt"><span className="mf-nav-item__t">Sair</span></span>
+              <span className="mf-nav-item__txt">
+                <span className="mf-nav-item__t">Sair</span>
+                <span className="mf-nav-item__s">Encerrar sessão</span>
+              </span>
             </button>
           </div>
         </aside>

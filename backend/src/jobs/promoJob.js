@@ -190,64 +190,25 @@ async function testPromoNow(accountId, feature) {
   throw new Error('Feature inválida');
 }
 
-// Posta comentário CTA específico de um post (independente das config de promo global)
-async function postCTACommentForPost(accountId, ctaComment) {
-  try {
-    const account = await Account.findById(accountId);
-    if (!account?.accessToken || !account?.igUserId) return;
+/* ── Duas funções removidas daqui ──────────────────────────────────────────
 
-    const token  = account.accessToken;
-    const userId = account.igUserId;
+   `postCTACommentForPost` e `postEngageCommentForPost` moravam aqui e faziam
+   três coisas erradas cada:
 
-    console.log(`⏳ [CTA] @${account.username} — aguardando 2min para indexação...`);
-    await delay(120_000);
+     - só conta da API oficial passava (`if (!accessToken || !igUserId) return`),
+       então conta conectada por senha não recebia comentário nenhum, e saía
+       calada;
+     - comentavam na "mídia mais recente da conta", descoberta por consulta
+       depois de esperar — se a conta publicasse outra coisa no meio, o
+       comentário ia para o post errado;
+     - a espera era um `await delay()` na memória do worker: restart na janela
+       perdia o comentário sem rastro.
 
-    const md = await igGet(`/${userId}/media?fields=id,media_type,timestamp&limit=10`, token);
-    const latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
-    if (!latestMedia) { console.log(`[CTA] @${account.username} — nenhum reel encontrado`); return; }
+   O comentário fixado passou para `services/comentarioDoPost.js` + fila, no
+   mesmo desenho que a campanha já usava. A pergunta de engajamento foi
+   removida a pedido. Os campos continuam nos schemas para não apagar o que já
+   está gravado. */
 
-    const vars = {
-      link:     account.promoLink   || '',
-      username: `@${account.username}`,
-      nome:     account.name        || account.username,
-    };
-    const message = buildMessage(ctaComment, vars);
-    await igPost(`/${latestMedia.id}/comments`, token, { message });
-    console.log(`✅ [CTA] @${account.username} — comentário postado: "${message.slice(0, 60)}"`);
-  } catch (err) {
-    console.log(`⚠️ [CTA] erro: ${err.message}`);
-  }
-}
-
-// Posta comentário de engajamento (pergunta) ~60min após publicar para estimular replies
-async function postEngageCommentForPost(accountId, engageComment) {
-  try {
-    const account = await Account.findById(accountId);
-    if (!account?.accessToken || !account?.igUserId) return;
-
-    const token  = account.accessToken;
-    const userId = account.igUserId;
-
-    console.log(`⏳ [Engage] @${account.username} — aguardando 60min para comentário de engajamento...`);
-    await delay(60 * 60_000);
-
-    const md = await igGet(`/${userId}/media?fields=id,media_type,timestamp&limit=10`, token);
-    const latestMedia = (md.data || []).find(m => m.media_type === 'VIDEO') || md.data?.[0];
-    if (!latestMedia) return;
-
-    const vars = {
-      link:     account.promoLink  || '',
-      username: `@${account.username}`,
-      nome:     account.name       || account.username,
-      cidade:   account.location   || '',
-    };
-    const message = buildMessage(engageComment, vars);
-    await igPost(`/${latestMedia.id}/comments`, token, { message });
-    console.log(`✅ [Engage] @${account.username} — pergunta postada: "${message.slice(0, 60)}"`);
-  } catch (err) {
-    console.log(`⚠️ [Engage] erro: ${err.message}`);
-  }
-}
 
 // Responde automaticamente os comentários mais recentes do último reel (via Graph API)
 async function autoReplyComments(accountId, replyTemplate) {
@@ -294,4 +255,4 @@ async function autoReplyComments(accountId, replyTemplate) {
   }
 }
 
-module.exports = { runPromoAfterPost, testPromoNow, postCTACommentForPost, postEngageCommentForPost, autoReplyComments };
+module.exports = { runPromoAfterPost, testPromoNow, autoReplyComments };

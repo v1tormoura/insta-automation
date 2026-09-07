@@ -258,7 +258,7 @@ function LoopModal({ onClose, onCreated }) {
 
   const [form, setForm] = useState({
     name: '', accounts: [], mediaFiles: [],
-    type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '', engageComment: '',
+    type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '',
     processMode: 'limpeza_leve',
     /* Ordem e marca viajam para o backend na criação do loop.
        O loop recebe NOMES de arquivo, não ids da biblioteca, então não há
@@ -686,28 +686,6 @@ function LoopModal({ onClose, onCreated }) {
             )}
           </div>
 
-          {/* Pergunta de engajamento */}
-          <div className="lm-row">
-            <div className="lm-row-hd">
-              <label className="lm-label">Pergunta de engajamento</label>
-              <label className="lm-cta-toggle">
-                <input type="checkbox"
-                  checked={!!form.engageComment}
-                  onChange={e => setForm(f => ({ ...f, engageComment: e.target.checked ? 'O que acharam? 👇 Comenta aí!' : '' }))}
-                />
-                <span className="lm-cta-knob" />
-              </label>
-            </div>
-            {!!form.engageComment && (
-              <>
-                <textarea className="lm-input" rows={2}
-                  value={form.engageComment}
-                  onChange={e => setForm(f => ({ ...f, engageComment: e.target.value }))} />
-                <div className="lm-cta-hint">Postado ~60 min após publicar</div>
-              </>
-            )}
-          </div>
-
           {/* Modo de processamento */}
           <div className="lm-row">
             <label className="lm-label">Modo de processamento</label>
@@ -820,6 +798,7 @@ function LoopModal({ onClose, onCreated }) {
           aberto={marcaModal}
           valor={form.marcaDagua}
           contas={form.accounts.length}
+          arroba={(accounts || []).find(a => form.accounts.includes(a._id))?.username || ''}
           mod="publicar"
           onCancelar={() => setMarcaModal(false)}
           onAplicar={c => { setForm(f => ({ ...f, marcaDagua: c })); setMarcaModal(false); }}

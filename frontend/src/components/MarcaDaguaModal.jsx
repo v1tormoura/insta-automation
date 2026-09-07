@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Segmentado from './Segmentado';
-import { MARCA_PADRAO, POSICOES, TAMANHOS } from '../services/marcaDagua';
+import { MARCA_PADRAO, POSICOES, TAMANHOS, OPACIDADE_MIN, CORPO_POR_TAMANHO, REEL, alturaRelativa } from '../services/marcaDagua';
 
 /**
  * Marca d'água com o @ de cada conta.
@@ -44,7 +44,7 @@ export default function MarcaDaguaModal({ aberto, ...resto }) {
   return <Conteudo {...resto} />;
 }
 
-function Conteudo({ valor, contas = 0, mod = 'publicar', onCancelar, onAplicar }) {
+function Conteudo({ valor, contas = 0, mod = 'publicar', arroba = '', onCancelar, onAplicar }) {
   /* Cópia local: mexer nos controles não deve alterar nada até Aplicar, senão
      Cancelar não cancela nada. */
   const [rascunho, setRascunho] = useState({ ...MARCA_PADRAO, ...(valor || {}) });
@@ -93,10 +93,19 @@ function Conteudo({ valor, contas = 0, mod = 'publicar', onCancelar, onAplicar }
             que se pode ajustar. */}
         <div aria-hidden={desligada} style={{ opacity: desligada ? 0.45 : 1, pointerEvents: desligada ? 'none' : 'auto', transition: 'opacity var(--mf-normal)' }}>
 
+          {/* ── A prévia ──────────────────────────────────────────────────
+              O que faltava. Sem ela não há como distinguir 10% de 45%: os dois
+              dizem "ativa" e um dos dois sai invisível. Aqui a marca aparece na
+              MESMA proporção de tamanho e na MESMA posição em que vai sair, e
+              a decisão deixa de ser às cegas. */}
+          <Previa marca={rascunho} arroba={arroba} />
+
           <Rotulo>Opacidade
             <span className="mf-mono" style={{ color: 'var(--mf-mod)', fontWeight: 700 }}>{rascunho.opacidade}%</span>
           </Rotulo>
-          <input type="range" min="5" max="100" step="5" value={rascunho.opacidade}
+          {/* O mínimo é 20 e não 5: abaixo disso a marca é desenhada e não é
+              vista. Ver OPACIDADE_MIN, que traz a medição. */}
+          <input type="range" min={OPACIDADE_MIN} max="100" step="5" value={rascunho.opacidade}
             onChange={e => set('opacidade')(Number(e.target.value))}
             disabled={desligada}
             style={{ width: '100%', accentColor: 'var(--mf-mod)', cursor: 'pointer' }} />
@@ -110,8 +119,9 @@ function Conteudo({ valor, contas = 0, mod = 'publicar', onCancelar, onAplicar }
           {/* O que o Instagram cobre. Sem isto, quem escolhe "Inferior" acha
               que a marca não saiu — ela sai, atrás da legenda e dos botões. */}
           <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.7, marginTop: 12 }}>
-            As três posições ficam dentro da área livre do reel — o Instagram
-            desenha o autor e a câmera no topo, e a legenda e os botões na base.
+            As faixas escuras na prévia são o que o Instagram cobre com a própria
+            interface — o autor e a câmera no topo, a legenda e os botões na base.
+            As três posições ficam fora delas.
           </div>
         </div>
 
@@ -123,6 +133,69 @@ function Conteudo({ valor, contas = 0, mod = 'publicar', onCancelar, onAplicar }
             Aplicar
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A prévia da marca.
+ *
+ * ── Por que ela existe
+ *
+ * A primeira versão não tinha, porque o desenho de referência não tinha. Foi
+ * erro: a marca a 10% de opacidade e tamanho pequeno é desenhada no vídeo e não
+ * é vista por ninguém — medido, delta de 0,04 num brilho de 0 a 255. A tela
+ * dizia "ativa" e o resultado parecia defeito.
+ *
+ * ── Por que ela é fiel
+ *
+ * O corpo da letra e a posição saem das MESMAS constantes que o servidor usa,
+ * em proporção. Uma prévia bonita e desalinhada seria pior que nenhuma: ela
+ * daria confiança sobre um resultado diferente.
+ *
+ * O fundo é um gradiente claro de propósito. Marca branca sobre fundo escuro
+ * sempre parece legível; é sobre imagem clara que ela desaparece, e é esse o
+ * caso que importa ver antes de publicar.
+ */
+function Previa({ marca, arroba }) {
+  const ALTURA_PX = 168;
+  const largura = Math.round(ALTURA_PX * (REEL.largura / REEL.altura));
+  const escala = ALTURA_PX / REEL.altura;
+
+  const corpo = (CORPO_POR_TAMANHO[marca.tamanho] ?? CORPO_POR_TAMANHO.pequena) * escala;
+  const topo = alturaRelativa(marca.posicao, marca.tamanho) * ALTURA_PX;
+  const alfa = marca.opacidade / 100;
+
+  const texto = arroba ? `@${String(arroba).replace(/^@+/, '')}` : '@sua_conta';
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+      <div style={{
+        position: 'relative', width: largura, height: ALTURA_PX,
+        borderRadius: 'var(--mf-r-md)', overflow: 'hidden',
+        border: '1px solid var(--mf-border)',
+        /* Claro no meio, onde a marca costuma cair: é onde ela desaparece. */
+        background: 'linear-gradient(160deg, #6b7280 0%, #e5e7eb 45%, #9ca3af 100%)',
+      }}>
+        {/* As faixas que o Instagram cobre, para a escolha de posição não ser
+            no escuro. */}
+        <span aria-hidden="true" style={{ position: 'absolute', inset: `0 0 auto 0`,
+          height: REEL.margemTopo * escala, background: 'oklch(0 0 0 / .45)' }} />
+        <span aria-hidden="true" style={{ position: 'absolute', inset: `auto 0 0 0`,
+          height: REEL.margemBase * escala, background: 'oklch(0 0 0 / .45)' }} />
+
+        <span style={{
+          position: 'absolute', left: 0, right: 0, top: topo,
+          textAlign: 'center', lineHeight: 1,
+          fontSize: Math.max(6, corpo), fontWeight: 700,
+          color: `oklch(1 0 0 / ${alfa})`,
+          /* A mesma sombra do filtro, na mesma proporção de alfa. */
+          textShadow: `${1.5 * escala * 8}px ${1.5 * escala * 8}px 2px oklch(0 0 0 / ${Math.min(1, alfa * 0.9)})`,
+          whiteSpace: 'nowrap', overflow: 'hidden',
+        }}>
+          {texto}
+        </span>
       </div>
     </div>
   );

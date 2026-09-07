@@ -48,11 +48,34 @@ const ALTURA  = 1920;
 const MARGEM_TOPO = 150;
 const MARGEM_BASE = 270;
 
-/** Corpo da letra por tamanho, num 1080 de largura. */
-const TAMANHOS = { pequena: 34, media: 48, grande: 66 };
+/* Corpo da letra por tamanho, num 1080 de largura.
+   MEDIDO: com 34px e 40% de opacidade, o brilho da faixa onde a marca cai
+   subia 0,22 numa escala de 0 a 255. Na prática, invisível. Marca d'água de
+   verdade ocupa de 4% a 8% da largura; 34px são 3%. */
+const TAMANHOS = { pequena: 46, media: 64, grande: 88 };
 
 const POSICOES = ['superior', 'centro', 'inferior'];
-const PADRAO = { ativa: false, opacidade: 40, posicao: 'centro', tamanho: 'pequena' };
+
+/* ── O piso de opacidade ──────────────────────────────────────────────────
+
+   Era 5%, e isso foi um erro meu. Medido num fundo cinza liso, com a marca na
+   faixa inferior:
+
+     desligada      brilho 125,00
+     10% pequena    brilho 125,04   ← delta 0,04 em 255
+     40% pequena    brilho 125,22
+     40% grande     brilho 126,02
+     100% grande    brilho 130,22
+
+   A 10% a marca É desenhada e não é vista por ninguém. A tela dizia "Marca
+   d'água ativa — 10%" e o resultado era um vídeo sem marca aparente, o que
+   parece defeito. Um controle que deixa escolher o que não funciona é pior que
+   um controle que não existe.
+
+   20% é onde a marca começa a se ler sobre vídeo claro. O padrão sobe para
+   45%, que é onde uma marca discreta de verdade fica. */
+const OPACIDADE_MIN = 20;
+const PADRAO = { ativa: false, opacidade: 45, posicao: 'centro', tamanho: 'pequena' };
 
 /**
  * Normaliza o que veio da tela ou do banco.
@@ -79,9 +102,9 @@ function normalizar(bruto) {
     : NaN;
   return {
     ativa: b.ativa === true,
-    /* 5 é o piso porque abaixo disso a marca não é visível nem no escuro — a
-       pessoa acharia que não funcionou. 100 é o teto do próprio formato. */
-    opacidade: Number.isFinite(opacidadeNum) ? Math.min(100, Math.max(5, Math.round(opacidadeNum))) : PADRAO.opacidade,
+    /* Ver OPACIDADE_MIN: abaixo dele a marca é desenhada e não é vista, e a
+       tela ficaria anunciando "ativa" sobre um vídeo sem marca aparente. */
+    opacidade: Number.isFinite(opacidadeNum) ? Math.min(100, Math.max(OPACIDADE_MIN, Math.round(opacidadeNum))) : PADRAO.opacidade,
     posicao: POSICOES.includes(b.posicao) ? b.posicao : PADRAO.posicao,
     tamanho: Object.prototype.hasOwnProperty.call(TAMANHOS, b.tamanho) ? b.tamanho : PADRAO.tamanho,
   };
@@ -93,12 +116,28 @@ function normalizar(bruto) {
  * Expressão e não número no centro: `text_h` só é conhecido pelo ffmpeg depois
  * de medir a fonte, então centralizar de verdade precisa da conta feita lá.
  */
-function alturaDe(posicao, corpo) {
-  if (posicao === 'superior') return String(MARGEM_TOPO);
+function alturaDe(posicao, corpo, altura = ALTURA) {
+  const h = Number.isFinite(altura) && altura > 0 ? altura : ALTURA;
+
+  /* ── Por que a altura entra ────────────────────────────────────────────
+
+     As margens são medidas do reel (1080×1920). Numa imagem quadrada de
+     1080×1080, `ALTURA - MARGEM_BASE` daria 1650 — fora do quadro, e a marca
+     simplesmente não apareceria. Com a altura real, a conta cai dentro.
+
+     As margens encolhem junto, em proporção: numa mídia mais baixa a interface
+     do Instagram também cobre menos pixels. */
+  const proporcao = h / ALTURA;
+  const topo = Math.round(MARGEM_TOPO * proporcao);
+  const base = Math.round(MARGEM_BASE * proporcao);
+
+  if (posicao === 'superior') return String(topo);
   if (posicao === 'inferior') {
     /* Da margem para cima, descontando a própria altura da letra: sem o
-       desconto, a base do texto ficaria dentro da área dos botões. */
-    return String(ALTURA - MARGEM_BASE - corpo);
+       desconto, a base do texto ficaria dentro da área dos botões.
+       `max(0, …)` porque numa mídia muito baixa a conta poderia ficar
+       negativa, e y negativo desenha fora do quadro. */
+    return String(Math.max(0, h - base - corpo));
   }
   return '(h-text_h)/2';
 }
@@ -116,7 +155,7 @@ function alturaDe(posicao, corpo) {
  * @param {string} [fonte] — caminho da fonte; descoberto no sistema se omitido
  * @returns {string|null}
  */
-function filtroDaMarca(config, username, fonte = acharFonte()) {
+function filtroDaMarca(config, username, fonte = acharFonte(), alturaDaMidia = ALTURA) {
   const c = normalizar(config);
   if (!c.ativa) return null;
 
@@ -152,7 +191,7 @@ function filtroDaMarca(config, username, fonte = acharFonte()) {
     'shadowx=2',
     'shadowy=2',
     `x=(w-text_w)/2`,
-    `y=${alturaDe(c.posicao, corpo)}`,
+    `y=${alturaDe(c.posicao, corpo, alturaDaMidia)}`,
   ].join(':');
 }
 
@@ -184,5 +223,6 @@ function lerDoCorpo(valor) {
 
 module.exports = {
   filtroDaMarca, normalizar, lerDoCorpo, alturaDe,
-  TAMANHOS, POSICOES, PADRAO, LARGURA, ALTURA, MARGEM_TOPO, MARGEM_BASE,
+  TAMANHOS, POSICOES, PADRAO, OPACIDADE_MIN,
+  LARGURA, ALTURA, MARGEM_TOPO, MARGEM_BASE,
 };

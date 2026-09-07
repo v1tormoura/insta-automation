@@ -116,9 +116,20 @@ async function prepararParaConta(post, account, opcoes = {}) {
     ? relativo
     : path.join(RAIZ_UPLOADS, relativo);
 
-  /* Imagem não passa por aqui. `convertImageForInstagram` existe e é outro
-     caminho; misturar os dois neste módulo faria a função ter dois contratos. */
-  if (!isVideo(absoluto)) return { caminho: relativo, proprio: false };
+  /* ── Imagem ───────────────────────────────────────────────────────────────
+
+     A humanização de vídeo não se aplica: não há crop temporal, nem pitch de
+     áudio, nem CRF. O que se aplica é a marca d'água — e antes disso a imagem
+     saía sem marca nenhuma, mesmo com a opção ligada na tela. Quem postava foto
+     via "Marca d'água ativa" no painel e nada no post.
+
+     Só a marca, de propósito: reformatar a imagem aqui mudaria o que já é
+     publicado hoje, e o pedido era a marca. */
+  if (!isVideo(absoluto)) {
+    if (!fs.existsSync(absoluto)) return { caminho: relativo, proprio: false };
+    const comMarca = await marcarImagem(absoluto, post, account, opcoes);
+    return comMarca || { caminho: relativo, proprio: false };
+  }
 
   if (!fs.existsSync(absoluto)) {
     console.log(`⚠️ [MidiaPorConta] arquivo não encontrado: ${relativo}`);
@@ -196,6 +207,71 @@ async function prepararParaConta(post, account, opcoes = {}) {
       `${err.message} — publicando o original`
     );
     return { caminho: relativo, proprio: false };
+  }
+}
+
+/**
+ * A marca d'água numa imagem.
+ *
+ * Uma passada de ffmpeg, um frame, arquivo próprio por conta. Devolve `null`
+ * quando não há marca a desenhar ou quando a passada falha — e aí quem chamou
+ * publica o original: perder o post por causa de um enfeite seria troca ruim.
+ *
+ * ── Por que não reusa `convertImageForInstagram`
+ *
+ * Ela reformata para 1080×1080 (ou 1920 no story) e reaproveita a saída por um
+ * nome SEM marca da conta — o mesmo cache que já era armadilha no vídeo. Usá-la
+ * aqui mudaria o enquadramento do que é publicado hoje e faria a marca de uma
+ * conta aparecer na foto de outra.
+ *
+ * @returns {Promise<{caminho: string, proprio: boolean}|null>}
+ */
+async function marcarImagem(absoluto, post, account, opcoes = {}) {
+  const config = opcoes.marcaDagua || post.marcaDagua || null;
+  if (!config) return null;
+
+  /* A imagem não é 1080×1920 como o reel. O filtro usa `h` e `text_h` do
+     ffmpeg para o centro, mas as posições superior e inferior são calculadas
+     em pixels sobre a altura do reel — numa imagem quadrada elas cairiam fora.
+     `alturaDaMidia` deixa o módulo da marca fazer a conta certa. */
+  const { filtroDaMarca } = require('./marcaDagua');
+  const filtro = filtroDaMarca(config, account.username, undefined, await alturaDaImagem(absoluto));
+  if (!filtro) return null;
+
+  const ext = path.extname(absoluto) || '.jpg';
+  const marca = marcaDe(String(post._id), String(account._id));
+  const saida = path.join(RAIZ_UPLOADS, 'processed', `${path.basename(absoluto, ext)}-c${marca}${ext}`);
+
+  try {
+    fs.mkdirSync(path.dirname(saida), { recursive: true });
+    await new Promise((resolve, reject) => {
+      require('fluent-ffmpeg')(absoluto)
+        .outputOptions(['-vf', filtro, '-frames:v', '1', '-q:v', '1'])
+        .on('end', resolve)
+        .on('error', reject)
+        .save(saida);
+    });
+    const rel = path.relative(RAIZ_UPLOADS, saida).split(path.sep).join('/');
+    console.log(`🖼️ [MidiaPorConta] @${account.username || account._id} → ${path.basename(saida)} (marca d'água)`);
+    return { caminho: rel.startsWith('..') ? saida : rel, proprio: true };
+  } catch (err) {
+    console.log(`⚠️ [MidiaPorConta] marca na imagem falhou para @${account.username || account._id}: ${err.message} — publicando o original`);
+    return null;
+  }
+}
+
+/** A altura da imagem, para a marca cair dentro dela. */
+async function alturaDaImagem(absoluto) {
+  try {
+    const meta = await new Promise((resolve, reject) => {
+      require('fluent-ffmpeg').ffprobe(absoluto, (e, m) => (e ? reject(e) : resolve(m)));
+    });
+    const h = meta?.streams?.find(s => s.codec_type === 'video')?.height;
+    return Number.isFinite(h) && h > 0 ? h : null;
+  } catch {
+    /* Sem a altura, o módulo da marca usa a do reel. Numa imagem menor a
+       posição inferior sobe para dentro do quadro em vez de sair dele. */
+    return null;
   }
 }
 
