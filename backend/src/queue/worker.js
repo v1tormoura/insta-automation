@@ -373,11 +373,45 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
        a conta, e cuida da figurinha de link. Usá-lo aqui faz o story agendado
        funcionar para TODO tipo de conta, não só para uma. */
     const ehStory = (post.postType || 'reel') === 'story';
+
+    /* ── A mídia desta conta, também no caminho oficial ──────────────────
+
+       `prepareVideo(post)` era chamada UMA vez por post, antes do laço de
+       contas, e a MESMA URL ia para todas as contas Graph. A correção do
+       arquivo por conta cobriu só o caminho mobile — conta conectada pela API
+       oficial continuava subindo bytes idênticos aos das outras.
+
+       Aqui a URL é gerada por conta, com a mesma semente (post, conta) do
+       caminho mobile. Sem PUBLIC_URL, ou se a conversão falhar, cai na URL
+       pré-processada de antes: perder a variação é ruim, não publicar é pior.
+
+       Vale a nota sobre o que isto NÃO muda: o Graph API é servidor-a-servidor
+       e a Meta espera tráfego de servidor — não há aparelho, sessão nem IP a
+       isolar ali. O arquivo é o único eixo que fazia diferença, e é este. */
+    let urlDaConta = null;
+    let midiaGraph = null;
+    if (!ehStory && account.provider !== 'instagrapi') {
+      midiaGraph = await require('../services/midiaPorConta')
+        .urlParaConta(post, account)
+        .catch(() => null);
+      urlDaConta = midiaGraph?.url || null;
+    }
+
     const resultado = ehStory
       ? await publicarStoryAgendado(account, post)
       : account.provider === 'instagrapi'
         ? await publishViaInstagrapi(account, post)
-        : await publishWithRetry(post, account, preProcessedVideoUrl);
+        : await publishWithRetry(post, account, urlDaConta || preProcessedVideoUrl);
+
+    /* O arquivo desta conta já cumpriu o papel.
+
+       Diferente do caminho mobile, aqui a limpeza vem DEPOIS da publicação e
+       não num `finally`: o Meta BAIXA o vídeo da nossa URL, então apagar antes
+       de a publicação concluir deixaria o container do Meta pedindo um arquivo
+       que não existe mais. */
+    if (midiaGraph?.proprio) {
+      require('../services/midiaPorConta').descartar(midiaGraph.caminho, true);
+    }
     await registerSuccess(account);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
     broadcast('accounts', { action: 'synced' });

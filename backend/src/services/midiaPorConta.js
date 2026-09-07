@@ -191,4 +191,53 @@ function descartar(caminho, proprio) {
   }
 }
 
-module.exports = { prepararParaConta, descartar, criarAleatorio, sementeDe, marcaDe };
+/**
+ * A URL pública da mídia desta conta — para o caminho do Graph API.
+ *
+ * ── Por que o Graph precisa de URL e não de caminho
+ *
+ * O `clip_upload` da instagrapi lê o arquivo do disco. O Graph API faz o
+ * contrário: recebe uma URL e BAIXA o vídeo do nosso servidor. São dois
+ * contratos diferentes para a mesma decisão de "qual arquivo esta conta
+ * publica", e por isso as duas funções moram aqui em vez de cada caminho
+ * inventar a sua.
+ *
+ * ── O vazamento que isto fecha
+ *
+ * `prepareVideo(post)` era chamada UMA vez por post, antes do laço de contas, e
+ * a mesma URL ia para todas as contas Graph. A correção do arquivo por conta
+ * cobriu só o caminho mobile: conta oficial continuava subindo bytes idênticos
+ * às das outras.
+ *
+ * @returns {Promise<{url: string|null, caminho: string, proprio: boolean}>}
+ */
+async function urlParaConta(post, account, opcoes = {}) {
+  const publico = String(process.env.PUBLIC_URL || '').replace(/\/$/, '');
+  if (!publico) {
+    /* Sem PUBLIC_URL o Graph não tem de onde baixar. Devolver null deixa o
+       chamador cair no comportamento antigo em vez de publicar uma URL
+       inválida — que o Meta aceita e depois falha, sem dizer por quê. */
+    console.log('⚠️ [MidiaPorConta] PUBLIC_URL não definido — o Graph usa o caminho antigo');
+    return { url: null, caminho: '', proprio: false };
+  }
+
+  const r = await prepararParaConta(post, account, opcoes);
+  if (!r.proprio) {
+    // Não converteu (imagem, arquivo ausente, ou falha). O chamador decide.
+    return { url: null, caminho: r.caminho, proprio: false };
+  }
+
+  /* `convertToReelFormat` grava em `uploads/processed`, que é exatamente o que
+     `/uploads` serve — a URL é o basename sobre esse prefixo, a mesma forma que
+     `prepareVideo` montava. */
+  return {
+    url: `${publico}/uploads/processed/${path.basename(r.caminho)}`,
+    caminho: r.caminho,
+    proprio: true,
+  };
+}
+
+module.exports = {
+  prepararParaConta, urlParaConta, descartar,
+  criarAleatorio, sementeDe, marcaDe,
+};

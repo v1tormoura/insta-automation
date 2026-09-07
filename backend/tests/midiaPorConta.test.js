@@ -277,3 +277,72 @@ describe('o ritmo entre contas existe em todo caminho', () => {
     expect(loopJob).not.toContain('intervalMinutes * 60 * 1000');
   });
 });
+
+describe('o caminho oficial (Graph API) também recebe arquivo por conta', () => {
+  const worker = fs.readFileSync(
+    path.resolve(__dirname, '../src/queue/worker.js'), 'utf8'
+  );
+
+  test('a URL é gerada por conta, dentro do laço', () => {
+    /* `prepareVideo(post)` era chamada UMA vez por post, ANTES do laço de
+       contas, e a mesma URL ia para todas as contas Graph. A correção
+       anterior cobriu só o caminho mobile: conta conectada pela API oficial
+       continuava subindo bytes idênticos aos das outras. */
+    expect(worker).toContain('urlParaConta(post, account)');
+  });
+
+  test('a URL por conta tem precedência sobre a compartilhada', () => {
+    expect(worker).toContain('urlDaConta || preProcessedVideoUrl');
+  });
+
+  test('só o caminho oficial entra — mobile e story têm o seu', () => {
+    expect(worker).toContain("!ehStory && account.provider !== 'instagrapi'");
+  });
+
+  test('a limpeza vem depois da publicação, não num finally', () => {
+    /* O Meta BAIXA o vídeo da nossa URL. Apagar antes de a publicação
+       concluir deixaria o container do Meta pedindo um arquivo que não existe
+       mais — diferente do mobile, onde o arquivo é lido do disco local antes
+       de a chamada retornar. */
+    const iPublica = worker.indexOf('const resultado = ehStory');
+    const iLimpa = worker.indexOf('if (midiaGraph?.proprio)');
+    expect(iLimpa).toBeGreaterThan(iPublica);
+  });
+
+  test('falha na conversão não impede a publicação', () => {
+    // Perder a variação é ruim; não publicar é pior.
+    expect(worker).toContain('.catch(() => null)');
+  });
+});
+
+describe('a URL pública', () => {
+  const { urlParaConta } = require('../src/services/midiaPorConta');
+
+  test('sem PUBLIC_URL, devolve null em vez de uma URL inválida', async () => {
+    /* Uma URL inválida o Meta aceita no container e falha depois, sem dizer
+       por quê. Devolver null faz o chamador usar o caminho antigo. */
+    const antes = process.env.PUBLIC_URL;
+    delete process.env.PUBLIC_URL;
+    try {
+      const r = await urlParaConta({ _id: 'p1', media: 'x.mp4' }, { _id: 'c1' });
+      expect(r.url).toBeNull();
+      expect(r.proprio).toBe(false);
+    } finally {
+      if (antes !== undefined) process.env.PUBLIC_URL = antes;
+    }
+  });
+
+  test('arquivo inexistente devolve null, não uma URL para o nada', async () => {
+    const antes = process.env.PUBLIC_URL;
+    process.env.PUBLIC_URL = 'https://exemplo.test/';
+    try {
+      const r = await urlParaConta(
+        { _id: 'p1', media: 'nao-existe-mesmo.mp4' }, { _id: 'c1' }
+      );
+      expect(r.url).toBeNull();
+    } finally {
+      if (antes === undefined) delete process.env.PUBLIC_URL;
+      else process.env.PUBLIC_URL = antes;
+    }
+  });
+});
