@@ -226,24 +226,27 @@ export default function MainLayout({ children }) {
      funcionar para sempre. Reaproveitar a chave preservaria justamente o
      engano; com uma nova, todo mundo volta ao rail e quem realmente quer a
      barra presa aberta clica uma vez, agora lendo o que o botão faz. */
-  /* ── O padrão passou a ser ABERTA ─────────────────────────────────────
+  /* ── O padrão é o RAIL ────────────────────────────────────────────────
 
-     Antes era o rail, por uma queixa de que a barra ocupava espaço demais. Só
-     que naquele momento o item mostrava uma linha — o `sub` de cada item era
-     descartado pelo render. Recolhida, a barra escondia rótulos; expandida,
-     mostrava rótulos sem a explicação. Nunca houve a forma completa para
-     comparar.
+     A barra nasce recolhida — só a coluna de ícones — e abre quando o cursor
+     passa por cima: ela SOBREPÕE o conteúdo em vez de empurrá-lo, com 140ms de
+     atraso para abrir e nenhum para fechar (ver a media query do rail em
+     ponte.css para o porquê de cada um).
 
-     Agora que a descrição aparece, a barra aberta é a que a navegação de fato
-     descreve, e é ela o padrão. Quem preferir o rail clica uma vez e a escolha
-     fica gravada — os dois estados continuam existindo.
+     Cheguei a inverter isto quando as descrições dos itens passaram a
+     aparecer, achando que a forma completa devia ser o padrão. Não devia: o
+     ganho da descrição acontece no hover, que é quando se está olhando o
+     item — e nos outros noventa por cento do tempo a barra aberta é só 232px
+     a menos de conteúdo.
+
+     Quem preferir a barra presa aberta clica uma vez e a escolha fica gravada.
 
      A leitura tolera localStorage indisponível (janela anônima, storage
      bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
      inteiro em vez de só perder uma preferência. */
   const [recolhida, setRecolhida] = useState(() => {
-    try { return localStorage.getItem('mf-sidebar-fixa') === '0'; }
-    catch { return false; }
+    try { return localStorage.getItem('mf-sidebar-fixa') !== '1'; }
+    catch { return true; }
   });
 
   const alternarSidebar = () => setRecolhida(r => {

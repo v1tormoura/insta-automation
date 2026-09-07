@@ -768,18 +768,41 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 }
 /* ── Repouso, passagem e presença ──────────────────────────────────────────
 
-   Havia dois por cento de opacidade entre o item ativo (branco a 6%) e o item
-   sob o mouse (branco a 4%). Na prática, passar o cursor por qualquer linha a
-   deixava quase idêntica à página em que se está — e a barra perdia a única
-   função que tem além de navegar, que é dizer ONDE você está.
+   Três estados, e o problema é sempre o mesmo: distinguir "estou passando por
+   aqui" de "é aqui que eu estou".
 
-   A separação agora é de natureza, não de intensidade: o hover continua sendo
-   um véu neutro, e o ativo passa a ser TINTA DO MÓDULO. Cinza e cor não se
-   confundem por mais próximos que fiquem em luminosidade. */
-.mf-nav-item:hover { background: oklch(1 0 0 / 0.05); color: var(--mf-text); }
+   A primeira versão separava por INTENSIDADE — branco a 6% no ativo, branco a
+   4% no hover. Dois por cento de diferença: passar o cursor por qualquer linha
+   a deixava quase idêntica à página atual, e a barra perdia a única função que
+   tem além de navegar.
+
+   A segunda separava por NATUREZA: hover cinza, ativo colorido. Funcionava, e
+   custava o gesto de descoberta — passar o cursor por uma barra de ícones não
+   respondia com nada além de um véu sem cor.
+
+   Agora as duas coisas têm cor, e a distinção volta a ser de intensidade — mas
+   com quatro sinais em vez de um:
+
+     hover  → tinta a 8%, texto e ícone tingidos
+     ativo  → tinta a 13%, MAIS o filete de 3px com halo na borda esquerda,
+              MAIS o rótulo em 700, MAIS o ícone na cor cheia
+
+   Um item sob o cursor nunca tem filete. É esse o sinal que carrega o "onde
+   estou", e ele não depende de comparar dois tons de azul lado a lado. */
+.mf-nav-item:hover {
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 8%, transparent);
+  color: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 60%, var(--mf-text));
+}
 
 .mf-nav-item[aria-current='page'] {
   background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 13%, transparent);
+  color: var(--mf-text);
+}
+/* O ativo ganha do hover quando o cursor está sobre ele: sem esta linha o
+   hover (declarado antes, mesma especificidade) venceria e a página atual
+   PERDERIA o destaque justo quando se aponta para ela. */
+.mf-nav-item[aria-current='page']:hover {
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 18%, transparent);
   color: var(--mf-text);
 }
 /* O peso vai no PRÓPRIO rótulo. Declarado no item, `.mf-nav-item__t` o
@@ -813,7 +836,9 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   transition: color var(--mf-fast) var(--mf-ease-out);
 }
 .mf-nav-item:hover .mf-nav-item__ico {
-  color: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 55%, var(--mf-text-2));
+  /* 75% e não 55%: agora que o fundo do hover também é tinta, um ícone a 55%
+     ficava mais apagado que a caixa em volta dele. */
+  color: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 75%, var(--mf-text-2));
 }
 .mf-nav-item[aria-current='page'] .mf-nav-item__ico {
   color: var(--mf-mod, var(--mf-primary-500));
@@ -859,6 +884,9 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
    cinza quer dizer "navegar", e é essa a distinção. */
 .mf-nav-item--sair { color: var(--mf-danger-500); }
 .mf-nav-item--sair .mf-nav-item__ico { color: var(--mf-danger-500); }
+/* Sair mantém o vermelho no hover. `--mf-mod` não está definido nele, então
+   sem esta regra ele cairia no `--mf-primary-500` do fallback e a única ação
+   destrutiva da barra acenderia na cor da marca. */
 .mf-nav-item--sair:hover {
   background: color-mix(in oklch, var(--mf-danger-500) 12%, transparent);
   color: var(--mf-danger-500);
