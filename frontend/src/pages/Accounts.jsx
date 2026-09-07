@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { criarPedido, decidirEmenda } from './emendaMobile';
+import { lerAviso, deveAnunciar, chaveDoArroba } from './janelaDeAutorizacao';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -84,6 +85,9 @@ export default function Accounts() {
      etapas — abrir aqui não precisa da segunda etapa, colar precisa. */
   const [escolhaOAuth,   setEscolhaOAuth]   = useState(null); // { account, url }
   const [linkCopiado,    setLinkCopiado]    = useState(false);
+  /* A janela de autorização aberta e o que ela já trouxe. Guarda a `url` para
+     "Conectar próxima conta" reabrir sem ir buscá-la de novo. */
+  const [janelaOAuth,    setJanelaOAuth]    = useState(null); // { aberta, url, conectadas: [] }
   /* Convites de testador do app. */
   const [conviteModal,   setConviteModal]   = useState(false);
   const [conviteArroba,  setConviteArroba]  = useState('');
@@ -274,11 +278,64 @@ export default function Accounts() {
       const modal = oauthModalRef.current;
       const isMatch = !modal?.account || modal?.account?._id === data.accountId;
       if (isMatch) {
-        setOauthModal(null); setOauthWaiting(false);
-        showToast('success', 'Conta conectada!', `@${data.username || ''} conectada via Meta API`);
+        setOauthModal(null);
+        anunciarConexao(data.username || '');
       }
     }
   });
+
+  /* Uma conexão chega por dois caminhos — a janela avisa e o SSE transmite — e
+     não pode virar dois avisos. A decisão mora em `janelaDeAutorizacao.js`, com
+     testes; aqui fica só a memória e o efeito na tela. */
+  const anunciadosRef = useRef(new Map());
+
+  function anunciarConexao(username) {
+    const agora = Date.now();
+    if (!deveAnunciar(anunciadosRef.current, username, agora)) return false;
+    anunciadosRef.current.set(chaveDoArroba(username), agora);
+
+    setOauthWaiting(false);
+    showToast('success', 'Conta conectada!', `@${username || ''} conectada via Meta API`);
+    loadRef.current?.();
+    return true;
+  }
+
+  /* Pela referência, como o `loadRef` acima: a escuta se registra uma vez e
+     não pode reassinar a cada render, mas precisa chamar a versão atual. */
+  const anunciarRef = useRef(null);
+  anunciarRef.current = anunciarConexao;
+
+  /* A janela de autorização avisando o que aconteceu.
+     A origem é conferida antes de qualquer coisa: sem isso, qualquer página que
+     conseguisse uma referência a esta aceitaria um "conta conectada" inventado. */
+  useEffect(() => {
+    function receber(ev) {
+      /* `lerAviso` é a fronteira de confiança: confere a origem, o formato e o
+         tipo, e recorta o @. O que não passa volta null e é ignorado calado. */
+      const aviso = lerAviso(ev, window.location.origin);
+      if (!aviso) return;
+
+      if (aviso.ok) {
+        const uname = aviso.username;
+        const novo = anunciarRef.current?.(uname);
+        /* A janela some e esta tela fica: a lista do que já entrou é o que
+           permite conectar a próxima sem perder a conta de onde parou.
+
+           Aqui o login mobile NÃO é oferecido de imediato, ao contrário do
+           caminho na própria aba. Quem abriu a janela está conectando várias
+           contas seguidas, e um modal por conta interromperia justamente o que
+           a janela existe para permitir. O botão Mobile continua na linha da
+           conta, para quando a fila terminar. */
+        if (novo) setJanelaOAuth(j => (j ? { ...j, conectadas: [...j.conectadas, uname] } : j));
+      } else {
+        setOauthWaiting(false);
+        showToast('error', 'Não conectou', aviso.erro || 'Falha na autorização');
+      }
+    }
+    window.addEventListener('message', receber);
+    return () => window.removeEventListener('message', receber);
+  }, []);
+
   useEffect(() => {
     loadRef.current?.();
     loadMetaApps();
@@ -682,34 +739,65 @@ export default function Accounts() {
     catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
   }
 
-  /* ── O link de autorização em um clique ───────────────────────────────────
-     O mesmo link que o modal mostra na etapa 1, sem abrir o modal: para quem já
-     sabe o que fazer com ele e só quer colar no navegador da conta. */
+  /* ── Copiar o link, e nada além disso ─────────────────────────────────────
+
+     Copiar não abre o fluxo em duas etapas. Quem vai colar o link em outro
+     navegador não precisa voltar aqui para colar a URL de retorno: o Instagram
+     redireciona para o NOSSO /oauth-callback, que troca o código pelo token no
+     servidor. A conta entra sozinha, e esta tela sabe pelo SSE.
+
+     A segunda etapa continua existindo no modal completo, para o caso em que o
+     navegador isolado não alcança este servidor e a URL de retorno morre na
+     barra de endereços. Aí ela é a única saída — mas é a exceção, não o
+     caminho normal. */
+  function soCopiarLink(url) {
+    try { navigator.clipboard.writeText(url); }
+    catch { showToast('warning', 'Copie à mão', url); }
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2500);
+    /* Liga a escuta: a conta é autorizada em outro navegador e aparece aqui
+       sozinha, sem ninguém apertar mais nada. */
+    setOauthWaiting(true);
+    showToast('success', 'Link copiado',
+      'Cole no navegador onde a conta está logada e autorize. Ela aparece aqui sozinha.');
+  }
+
+  /* O mesmo link, direto do cabeçalho — para quem já sabe o que fazer com ele. */
   async function copiarLinkOAuth() {
     try {
       const { data } = await api.get('/oauth/url', { params: selectedAppId ? { metaAppId: selectedAppId } : {} });
       if (!data?.url) throw new Error('URL não retornada');
-      await navigator.clipboard.writeText(data.url);
-      setLinkCopiado(true);
-      setTimeout(() => setLinkCopiado(false), 2500);
-      /* `oauthWaiting` liga a escuta do SSE: a conta pode ser autorizada em
-         outro navegador e a tela fecha sozinha quando o callback chegar. */
-      setOauthWaiting(true);
-      showToast('success', 'Link copiado',
-        'Cole no navegador onde a conta está logada. Ao autorizar, ela aparece aqui sozinha.');
+      soCopiarLink(data.url);
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
   }
 
-  /* Abrir a autorização nesta aba.
-     Nesta aba e não em janela nova de propósito: o retorno já tem caminho
-     pronto. O Instagram redireciona para /oauth-callback, essa página troca o
-     código pelo token e volta para /accounts?oauth=success, e o efeito que lê
-     esse parâmetro mostra o aviso, recarrega a lista e oferece o login mobile
-     em seguida. Numa janela nova o retorno cairia dentro dela, sem tocar esta
-     tela — seria preciso um segundo mecanismo para fazer o que este já faz. */
-  function abrirAutorizacaoAqui(url) {
+  /* ── Abrir a autorização numa janela ──────────────────────────────────────
+
+     Janela separada e não esta aba: conectar muitas contas seguidas é o caso
+     normal, e trocar a aba descarrega esta tela a cada conta — some a lista,
+     some o filtro, some a rolagem, e é preciso voltar e recomeçar cinco vezes.
+     Com a janela, esta tela nunca sai do lugar: a janela abre, você autoriza,
+     ela se fecha sozinha e a conta aparece na lista.
+
+     `noopener` NÃO entra aqui de propósito: sem `opener` a janela não consegue
+     avisar quem a abriu, e ela precisa — é assim que ela sabe que pode se
+     fechar e que esta tela sabe qual conta entrou. O destino é o próprio
+     Instagram e o retorno é o nosso callback, então não há terceiro no meio.
+
+     Se o navegador bloquear a janela, cai para copiar o link, que resolve o
+     mesmo problema por outro caminho. */
+  function abrirAutorizacaoEmJanela(url) {
     setEscolhaOAuth(null);
-    window.location.href = url;
+    const janela = window.open(url, 'mf_oauth', 'width=560,height=760,noreferrer');
+    if (!janela) {
+      soCopiarLink(url);
+      showToast('warning', 'Janela bloqueada',
+        'O navegador bloqueou a janela. Copiei o link — cole numa aba e autorize.');
+      return;
+    }
+    setOauthWaiting(true);
+    setJanelaOAuth({ aberta: true, url, conectadas: [] });
+    try { janela.focus(); } catch { /* alguns navegadores recusam o foco; a janela abriu */ }
   }
 
   // instaModal state shape:
@@ -1261,6 +1349,56 @@ export default function Accounts() {
           </>
         }
       >
+        {/* ── Conectando contas em série ───────────────────────────────────
+            A janela de autorização abre por cima e esta tela fica. A faixa é o
+            que dá continuidade ao gesto: mostra o que já entrou e traz o botão
+            para a próxima, sem voltar ao cabeçalho a cada conta. */}
+        {janelaOAuth?.aberta && (
+          <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+            style={{ display:'flex', alignItems:'flex-start', gap:12, flexWrap:'wrap',
+              background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)',
+              border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 26%, transparent)',
+              borderLeft:'3px solid var(--mf-mod, var(--mf-accent-500))',
+              borderRadius:'var(--mf-r-lg)', padding:14 }}>
+            <div style={{ flex:1, minWidth:220 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)' }}>
+                <span className="mf-spin" /> Conectando contas…
+              </div>
+              <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:5, lineHeight:1.7 }}>
+                Autorize na janela que abriu — ela se fecha sozinha e a conta aparece aqui.
+                {/* O que é verdade e o que não é: o Instagram autoriza quem está
+                    logado NESTE navegador. Para outra conta, é preciso trocar de
+                    conta na própria janela. Prometer "sempre pede login novo"
+                    seria mentira — e a mentira aqui custa uma conta conectada
+                    duas vezes no lugar de duas contas. */}
+                {' '}Para conectar outra conta, troque de conta na janela do Instagram —
+                ou use <strong style={{ color:'var(--mf-text-2)' }}>Copiar link</strong> e cole
+                no navegador de cada perfil.
+              </div>
+              {janelaOAuth.conectadas.length > 0 && (
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:9 }}>
+                  {janelaOAuth.conectadas.map(u => (
+                    <span key={u} style={{ fontSize:'var(--mf-t-nano)', fontWeight:700, padding:'3px 8px',
+                      borderRadius:'var(--mf-r-xl)', color:'var(--mf-success-500)',
+                      background:'color-mix(in oklch, var(--mf-success-500) 12%, transparent)',
+                      border:'1px solid color-mix(in oklch, var(--mf-success-500) 28%, transparent)' }}>
+                      ✓ @{u}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              <button className="btn-primary" onClick={() => abrirAutorizacaoEmJanela(janelaOAuth.url)}>
+                + Conectar próxima conta
+              </button>
+              <button className="btn-ghost" onClick={() => { setJanelaOAuth(null); setOauthWaiting(false); }}>
+                Terminei
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── 5 stat cards ── */}
         <div className="accounts-stats-grid" style={{ gap:10 }}>
           {STAT_DEFS.map((s, i) => (
@@ -2579,32 +2717,39 @@ export default function Accounts() {
 
             <div style={{ display:'grid', gap:10, marginTop:18 }}>
               <button className="btn-primary" style={{ width:'100%', justifyContent:'center', padding:'11px' }}
-                onClick={() => abrirAutorizacaoAqui(escolhaOAuth.url)}>
-                Abrir aqui (nesta aba)
+                onClick={() => abrirAutorizacaoEmJanela(escolhaOAuth.url)}>
+                Abrir aqui (numa janela)
               </button>
+              {/* Copiar copia, e para aí. Não abre mais o fluxo em duas etapas:
+                  o retorno cai no nosso /oauth-callback, então a conta entra
+                  sozinha e não há URL nenhuma para colar de volta. */}
               <button className="btn-ghost tom-modulo" style={{ width:'100%', justifyContent:'center', padding:'11px',
                   '--tom':'var(--mf-mod-contas)',
                   color:'var(--mf-mod, var(--mf-accent-500))',
                   background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' }}
-                onClick={() => {
-                  /* Copia e segue para o fluxo em duas etapas: a segunda etapa é
-                     obrigatória aqui, porque o navegador que autoriza não é este
-                     e o retorno não passa por esta tela. */
-                  try { navigator.clipboard.writeText(escolhaOAuth.url); } catch { /* o modal mostra o link para copiar à mão */ }
-                  setOauthModal({ account: escolhaOAuth.account, url: escolhaOAuth.url });
-                  setUrlCopied(true);
-                  setTimeout(() => setUrlCopied(false), 2500);
-                  setEscolhaOAuth(null);
-                }}>
+                onClick={() => { soCopiarLink(escolhaOAuth.url); setEscolhaOAuth(null); }}>
                 Copiar link (multilogin)
               </button>
             </div>
 
             <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.7, marginTop:16 }}>
+              A janela abre por cima, você autoriza e ela se fecha sozinha — esta
+              tela não sai do lugar, então dá para conectar uma conta atrás da outra.
+              <br /><br />
               Copie o link para colar no navegador do perfil (multilogin / anti-detect)
-              onde você quer conectar. Abrindo aqui, quem autoriza é a conta logada
-              neste navegador — se for outra, o Instagram pede login de novo.
+              onde a conta já está logada: ao autorizar lá, ela entra aqui sozinha,
+              sem precisar voltar e colar nada.
             </div>
+
+            {/* A saída de emergência, não o caminho normal.
+                Só serve quando o navegador isolado não alcança este servidor e a
+                URL de retorno morre na barra de endereços — aí colar a URL à mão
+                é a única forma de a conta entrar. */}
+            <button onClick={() => { setOauthModal({ account: escolhaOAuth.account, url: escolhaOAuth.url }); setEscolhaOAuth(null); }}
+              style={{ marginTop:14, width:'100%', background:'none', border:'none', padding:0,
+                color:'var(--mf-text-3)', fontSize:'var(--mf-t-micro)', cursor:'pointer', textDecoration:'underline', textAlign:'center' }}>
+              O navegador isolado não alcança este servidor — colar a URL de retorno à mão
+            </button>
           </div>
         </div>
       )}
