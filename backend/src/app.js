@@ -100,6 +100,7 @@ app.use('/api/limpador', auth, require('./routes/limpadorRoutes'));
 app.use('/meta-apps',        auth, require('./routes/metaAppRoutes'));
 app.use('/video-templates', auth, require('./routes/videoTemplateRoutes'));
 app.use('/video-batches',   auth, require('./routes/videoBatchRoutes'));
+app.use('/convites',        auth, require('./routes/convitesRoutes'));
 
 app.get('/', (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta name="facebook-domain-verification" content="a0yvnt1zew8fyuboqj8eug81flhr72" /></head><body>API rodando</body></html>`);

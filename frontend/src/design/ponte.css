@@ -225,6 +225,22 @@
   border-color: var(--mf-border-strong) !important;
 }
 
+/* ── Fantasma com o tom do módulo ────────────────────────────────────────
+
+   O `!important` acima ganha até de estilo inline — é o que ele foi posto para
+   fazer. Então todo botão `.btn-ghost` que tentava tingir a própria borda por
+   `style={{ borderColor }}` estava, sem avisar, com a borda cinza padrão: o
+   fundo e o texto mudavam de cor e a borda não acompanhava.
+
+   Uma classe resolve com a mesma arma, e passa a ser o jeito de tingir um
+   fantasma. Quem define `--tom` escolhe o tom; sem ele, nada muda. */
+[data-mf] .btn-ghost.tom-modulo {
+  border-color: color-mix(in oklch, var(--tom, var(--mf-border)) 32%, transparent) !important;
+}
+[data-mf] .btn-ghost.tom-modulo:hover:not(:disabled) {
+  border-color: color-mix(in oklch, var(--tom, var(--mf-border)) 52%, transparent) !important;
+}
+
 [data-mf] .btn-danger {
   background: var(--mf-danger-bg);
   color: var(--mf-danger-500);
@@ -922,15 +938,21 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 .mf-page-head__s { color: var(--mf-text-3); font-size: var(--mf-t-sm); margin: var(--mf-1) 0 0; }
 .mf-page-head__acts { display: flex; gap: var(--mf-2); flex-wrap: wrap; flex-shrink: 0; }
 
+/* Rótulo que só existe no celular — ver a regra do cabeçalho abaixo, onde ele
+   reaparece. Fica aqui, fora da media query, porque a ordem é o que decide:
+   uma regra de mesma especificidade depois desta é que o traz de volta. */
+.so-no-celular { display: none; }
+
 /* ── Cabeçalho de página no celular ─────────────────────────────────
 
    Dois problemas, um em cada eixo.
 
    Na horizontal: os botões têm `white-space: nowrap` e `flex-shrink: 0`, então
-   não encolhem nem quebram — quatro deles ("Proxies em massa", "Sincronizar",
-   "Conectar Instagram", "Conectar via API") simplesmente estouram para fora da
-   tela de 375px. Viram grade: cada botão ocupa uma coluna inteira quando duas
-   não cabem, e aí nenhum rótulo precisa ser cortado.
+   não encolhem nem quebram — os quatro da tela de Contas ("Sincronizar",
+   "Login Manual", "Conectar Contas (OAuth)", "Pedir acesso via convite")
+   simplesmente estouram para fora da tela de 375px. Viram grade: cada botão
+   ocupa uma coluna inteira quando duas não cabem, e aí nenhum rótulo precisa
+   ser cortado.
 
    Na vertical: com os botões empilhados, o cabeçalho passa de 200px. Grudado no
    topo, ele comeria um terço de um celular de 812px de altura o tempo todo. No
@@ -952,6 +974,15 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
   }
   .mf-page-head__acts > * { width: 100%; }
+  /* Botão só de ícone: no desktop o ícone basta, com o `title` explicando.
+     Aqui ele ocupa uma linha inteira de 190px, e um ícone sozinho no meio de
+     uma faixa larga não se lê como botão — parece coisa quebrada. O rótulo
+     aparece nessa largura e desaparece quando ela volta a não existir.
+
+     Esta regra vem DEPOIS do `display: none` acima de propósito: mesma
+     especificidade, e aí quem ganha é a última — não `!important`, que
+     tornaria o rótulo impossível de esconder em qualquer outro contexto. */
+  .so-no-celular { display: inline; }
 }
 
 /* ── Escolhido ──────────────────────────────────────────────

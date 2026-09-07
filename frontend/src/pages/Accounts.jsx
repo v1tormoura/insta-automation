@@ -28,6 +28,8 @@ const IcoLink    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcoWave    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 const IcoWifi    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
 const IcoPhone   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
+const IcoCopy    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+const IcoConvite = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>;
 const IcoGlobe   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
 
 export default function Accounts() {
@@ -77,9 +79,18 @@ export default function Accounts() {
   const [perfilRisco,    setPerfilRisco]    = useState(null); // motivos do alto risco, quando bloqueado
   const [proxyValue,     setProxyValue]     = useState('');
   const [savingProxy,    setSavingProxy]    = useState(false);
-  const [bulkProxyOpen,  setBulkProxyOpen]  = useState(false);
-  const [bulkProxyText,  setBulkProxyText]  = useState('');
-  const [savingBulkProxy,setSavingBulkProxy]= useState(false);
+  /* Como abrir a autorização da API oficial: nesta aba ou colando o link no
+     navegador onde a conta já está logada. A escolha vem antes do fluxo em duas
+     etapas — abrir aqui não precisa da segunda etapa, colar precisa. */
+  const [escolhaOAuth,   setEscolhaOAuth]   = useState(null); // { account, url }
+  const [linkCopiado,    setLinkCopiado]    = useState(false);
+  /* Convites de testador do app. */
+  const [conviteModal,   setConviteModal]   = useState(false);
+  const [conviteArroba,  setConviteArroba]  = useState('');
+  const [convites,       setConvites]       = useState([]);
+  const [convitePainel,  setConvitePainel]  = useState({ appId: '', url: null });
+  const [conviteEnviando,setConviteEnviando]= useState(false);
+  const [conviteErro,    setConviteErro]    = useState('');
   const [selectedIds,    setSelectedIds]    = useState(new Set());
   const [selectMode,     setSelectMode]     = useState(false);
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
@@ -422,7 +433,11 @@ export default function Accounts() {
       const url = res.data?.url;
       if (!url) throw new Error('URL não retornada');
       setOauthWaiting(false);
-      setOauthModal({ account: account || null, url });
+      /* A escolha de COMO abrir vem antes do fluxo em duas etapas. Abrindo aqui,
+         a segunda etapa não existe — o callback volta para o próprio servidor e
+         o SSE fecha a tela. Copiando o link, ela é obrigatória, porque o
+         navegador que autoriza não é este. */
+      setEscolhaOAuth({ account: account || null, url });
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
     finally { setConnecting(p => ({ ...p, [key]: false })); }
   }
@@ -606,15 +621,95 @@ export default function Accounts() {
     finally { setSavingProxy(false); }
   }
 
-  async function saveBulkProxy() {
-    if (!bulkProxyText.trim()) return showToast('warning', 'Atenção', 'Cole pelo menos um proxy.');
-    setSavingBulkProxy(true);
+  /* ── Convites de testador do app ──────────────────────────────────────────
+
+     A Meta não tem endpoint para convidar um testador do Instagram: o
+     `POST /{app-id}/roles` da Graph API é indisponível, os papéis que ela
+     conhece não incluem o testador do Instagram, e o campo `user` pede o ID
+     numérico de um usuário do Facebook — não um @. Convidar é ação de painel.
+
+     O que estas funções eliminam é o trabalho que sobra: lembrar quais @ faltam,
+     achar a página certa e digitar o @ à mão em cada uma. O @ vai para a área de
+     transferência e o painel abre já na seção de testadores. */
+
+  async function carregarConvites() {
     try {
-      const res = await api.post('/accounts/proxies/bulk-apply', { proxiesText: bulkProxyText.trim() });
-      showToast('success', 'Proxies aplicados', res.data.message || `${res.data.applied} conta(s) atualizadas.`);
-      setBulkProxyOpen(false); setBulkProxyText(''); loadAccounts();
+      const { data } = await api.get('/convites', { params: selectedAppId ? { metaAppId: selectedAppId } : {} });
+      setConvites(data?.convites || []);
+      setConvitePainel(data?.painel || { appId: '', url: null });
+    } catch { /* a tela funciona sem a lista; não vale um toast a cada abrir */ }
+  }
+
+  async function pedirConvite() {
+    const arroba = conviteArroba.trim();
+    if (!arroba) return setConviteErro('Informe o @ da conta.');
+    setConviteEnviando(true); setConviteErro('');
+    try {
+      const { data } = await api.post('/convites', {
+        username: arroba,
+        ...(selectedAppId ? { metaAppId: selectedAppId } : {}),
+      });
+      setConviteArroba('');
+      await carregarConvites();
+      /* Abrir o painel já com o @ copiado é o ponto todo: é o único passo que
+         a Meta obriga a ser manual, então que seja um colar e um clique. */
+      abrirPainelDoConvite(data?.convite?.username, data?.painel?.url);
+    } catch (err) {
+      setConviteErro(err.response?.data?.error || err.message);
+    } finally { setConviteEnviando(false); }
+  }
+
+  function abrirPainelDoConvite(username, url) {
+    const destino = url || convitePainel.url;
+    if (username) { try { navigator.clipboard.writeText(username); } catch { /* sem permissão: o @ segue na lista */ } }
+    if (!destino) {
+      showToast('warning', 'Falta o App da Meta',
+        'Cadastre um App em Configurações para eu saber qual painel abrir.');
+      return;
+    }
+    window.open(destino, '_blank', 'noopener');
+    showToast('info', `@${username || ''} copiado`,
+      'Cole em "Testadores do Instagram" no painel que abriu e envie o convite.');
+  }
+
+  async function marcarConviteEnviado(id) {
+    try { await api.patch(`/convites/${id}/enviado`); await carregarConvites(); }
+    catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
+  }
+
+  async function removerConvite(id) {
+    try { await api.delete(`/convites/${id}`); await carregarConvites(); }
+    catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
+  }
+
+  /* ── O link de autorização em um clique ───────────────────────────────────
+     O mesmo link que o modal mostra na etapa 1, sem abrir o modal: para quem já
+     sabe o que fazer com ele e só quer colar no navegador da conta. */
+  async function copiarLinkOAuth() {
+    try {
+      const { data } = await api.get('/oauth/url', { params: selectedAppId ? { metaAppId: selectedAppId } : {} });
+      if (!data?.url) throw new Error('URL não retornada');
+      await navigator.clipboard.writeText(data.url);
+      setLinkCopiado(true);
+      setTimeout(() => setLinkCopiado(false), 2500);
+      /* `oauthWaiting` liga a escuta do SSE: a conta pode ser autorizada em
+         outro navegador e a tela fecha sozinha quando o callback chegar. */
+      setOauthWaiting(true);
+      showToast('success', 'Link copiado',
+        'Cole no navegador onde a conta está logada. Ao autorizar, ela aparece aqui sozinha.');
     } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
-    finally { setSavingBulkProxy(false); }
+  }
+
+  /* Abrir a autorização nesta aba.
+     Nesta aba e não em janela nova de propósito: o retorno já tem caminho
+     pronto. O Instagram redireciona para /oauth-callback, essa página troca o
+     código pelo token e volta para /accounts?oauth=success, e o efeito que lê
+     esse parâmetro mostra o aviso, recarrega a lista e oferece o login mobile
+     em seguida. Numa janela nova o retorno cairia dentro dela, sem tocar esta
+     tela — seria preciso um segundo mecanismo para fazer o que este já faz. */
+  function abrirAutorizacaoAqui(url) {
+    setEscolhaOAuth(null);
+    window.location.href = url;
   }
 
   // instaModal state shape:
@@ -1118,21 +1213,50 @@ export default function Accounts() {
         accent="cyan"
         actions={
           <>
-            <button onClick={() => { setBulkProxyOpen(true); setBulkProxyText(''); }} className="btn-ghost">
-              <IcoSignal /> Proxies em massa
-            </button>
+            {/* Aplicar proxy a muitas contas de uma vez saiu daqui e vive na
+                página de Proxies, que faz o mesmo e mais: testa cada proxy
+                antes de gravar, sabe substituir o proxy de quem já tem um e
+                relata quem ficou sem. Duas portas para a mesma função só
+                dividiam a atenção — nenhuma capacidade se perdeu. */}
             <button onClick={syncAll} disabled={syncing} className="btn-ghost">
               {syncing ? <span className="mf-spin" /> : <IcoSync />} {syncing ? 'Sincronizando…' : 'Sincronizar'}
             </button>
-            {/* Conectar pelo app e conectar pela API são as duas ações que
-                criam conta. Ficam juntas e com a cor do módulo publicar para
-                se distinguirem das ações de manutenção à esquerda. */}
-            <button onClick={() => openInstaModal(null)} className="btn-ghost"
-              style={{ background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 30%, transparent)' }}>
-              <IcoPhone /> Conectar Instagram
+
+            {/* As três formas de trazer uma conta, na ordem em que se tentam:
+                senha (direto), API oficial (autorização), e o convite de
+                testador — o caminho de quem não conseguiu pelos outros dois. */}
+            {/* `tom-modulo` e não `borderColor` inline: `.btn-ghost` traz
+                `border: … !important`, que ganha até de estilo inline — a borda
+                tingida aqui nunca chegou a aparecer. */}
+            <button onClick={() => openInstaModal(null)} className="btn-ghost tom-modulo"
+              style={{ '--tom':'var(--mf-mod-publicar)', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)' }}>
+              <IcoPhone /> Login Manual
             </button>
+
             <button onClick={() => openOAuthConnect(null)} disabled={!!connecting['new']} className="btn-primary">
-              {connecting['new'] ? <span className="mf-spin" /> : <IcoLink />} {connecting['new'] ? 'Aguarde…' : 'Conectar via API'}
+              {connecting['new'] ? <span className="mf-spin" /> : <IcoLink />} {connecting['new'] ? 'Aguarde…' : 'Conectar Contas (OAuth)'}
+            </button>
+
+            {/* Atalho do link de autorização: o mesmo link da etapa 1 do modal,
+                para quem já sabe o que fazer com ele. `title` porque um ícone
+                sozinho não diz o que faz. */}
+            <button onClick={copiarLinkOAuth} className="btn-ghost" aria-label="Copiar link de autorização"
+              title="Copiar link de autorização — cole no navegador onde a conta está logada"
+              style={{ padding:'0 10px', ...(linkCopiado ? {
+                background:'color-mix(in oklch, var(--mf-success-500) 14%, transparent)',
+                color:'var(--mf-success-500)',
+                borderColor:'color-mix(in oklch, var(--mf-success-500) 34%, transparent)',
+              } : {}) }}>
+              {linkCopiado ? <IcoCheck /> : <IcoCopy />}
+              {/* No celular este botão ocupa uma linha inteira como os outros,
+                  e um ícone sozinho no meio de uma faixa larga não se lê como
+                  botão. O rótulo aparece só nessa largura. */}
+              <span className="so-no-celular">{linkCopiado ? 'Link copiado' : 'Copiar link'}</span>
+            </button>
+
+            <button onClick={() => { setConviteModal(true); setConviteErro(''); setConviteArroba(''); carregarConvites(); }}
+              className="btn-ghost">
+              <IcoConvite /> Pedir acesso via convite
             </button>
           </>
         }
@@ -1598,7 +1722,7 @@ export default function Accounts() {
               </div>
               <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:600, color:'var(--mf-text-2)' }}>Nenhuma conta encontrada</div>
               <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', textAlign:'center' }}>
-                {safeAccounts.length === 0 ? 'Clique em "Conectar via API" para adicionar sua primeira conta.' : 'Ajuste o filtro ou a busca.'}
+                {safeAccounts.length === 0 ? 'Clique em "Conectar Contas (OAuth)" para adicionar sua primeira conta.' : 'Ajuste o filtro ou a busca.'}
               </div>
               {safeAccounts.length === 0 && (
                 <button onClick={() => openOAuthConnect(null)} className="btn-primary" style={{ marginTop:4 }}>
@@ -2068,7 +2192,7 @@ export default function Accounts() {
               {/* Header */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div>
-                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : instaModal.emenda ? 'Falta só a API Mobile' : 'Conectar Instagram'}</h3>
+                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : instaModal.emenda ? 'Falta só a API Mobile' : 'Login Manual'}</h3>
                   <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:3 }}>
                     {isCodeStep ? `@${uname} — código necessário`
                       : instaModal.emenda ? `@${uname} já está conectada pela API oficial`
@@ -2431,27 +2555,183 @@ export default function Accounts() {
         );
       })()}
 
-      {/* ── Bulk Proxy Modal ─────────────────────────────────────── */}
-      {bulkProxyOpen && (
+      {/* ── Como abrir a autorização ─────────────────────────────────────────
+          Duas maneiras de autorizar, e a diferença entre elas não é de gosto:
+          nesta aba, quem autoriza é a conta logada NESTE navegador; copiando o
+          link, é a conta logada no navegador onde você colar. Quem trabalha com
+          um perfil por navegador precisa da segunda, e escolher antes evita
+          abrir o fluxo em duas etapas para quem não vai usar a segunda etapa. */}
+      {escolhaOAuth && (
         <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(520px,100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div className="modal" style={{ width: 'min(420px,100%)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:4 }}>
               <div>
-                <h3 style={{ margin: 0 }}>🌐 Proxies em massa</h3>
-                <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 3 }}>Distribui um proxy diferente por conta</div>
+                <h3 style={{ margin:0, fontSize:'var(--mf-t-h2)', fontWeight:800 }}>Conectar com o Instagram</h3>
+                <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:4 }}>
+                  {escolhaOAuth.account
+                    ? `Reconectar @${escolhaOAuth.account.username} — como abrir a autorização?`
+                    : 'Como você quer abrir a autorização?'}
+                </div>
               </div>
-              <button onClick={() => setBulkProxyOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor: 'pointer' }}>×</button>
+              <button onClick={() => setEscolhaOAuth(null)} aria-label="Fechar"
+                style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
             </div>
-            <div style={{ background: 'var(--card2)', borderRadius: 'var(--mf-r-sm)', padding: '8px 12px', marginBottom: 12, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-text-2)', marginBottom: 6 }}>Formato — um proxy por linha:</div>
-              <pre style={{ margin: 0, fontSize: 'var(--mf-t-xs)', color: 'var(--text1)', lineHeight: 1.6, fontFamily: 'monospace' }}>{`http://user1:pass1@host1:porta\nhttp://user2:pass2@host2:porta`}</pre>
+
+            <div style={{ display:'grid', gap:10, marginTop:18 }}>
+              <button className="btn-primary" style={{ width:'100%', justifyContent:'center', padding:'11px' }}
+                onClick={() => abrirAutorizacaoAqui(escolhaOAuth.url)}>
+                Abrir aqui (nesta aba)
+              </button>
+              <button className="btn-ghost tom-modulo" style={{ width:'100%', justifyContent:'center', padding:'11px',
+                  '--tom':'var(--mf-mod-contas)',
+                  color:'var(--mf-mod, var(--mf-accent-500))',
+                  background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' }}
+                onClick={() => {
+                  /* Copia e segue para o fluxo em duas etapas: a segunda etapa é
+                     obrigatória aqui, porque o navegador que autoriza não é este
+                     e o retorno não passa por esta tela. */
+                  try { navigator.clipboard.writeText(escolhaOAuth.url); } catch { /* o modal mostra o link para copiar à mão */ }
+                  setOauthModal({ account: escolhaOAuth.account, url: escolhaOAuth.url });
+                  setUrlCopied(true);
+                  setTimeout(() => setUrlCopied(false), 2500);
+                  setEscolhaOAuth(null);
+                }}>
+                Copiar link (multilogin)
+              </button>
             </div>
-            <textarea className="txta" rows={8} style={{ fontFamily: 'monospace', fontSize: 'var(--mf-t-sm)', marginTop: 0 }} placeholder={'http://user1:pass1@host1:3128\n...'} value={bulkProxyText} onChange={e => setBulkProxyText(e.target.value)} />
-            <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 6 }}>{bulkProxyText.trim() ? `${bulkProxyText.trim().split('\n').filter(Boolean).length} proxy(ies) · ${safeAccounts.length} conta(s)` : 'Cole os proxies acima.'}</div>
-            <div className="modal-actions" style={{ marginTop: 12 }}>
-              <button className="btn btn-ghost" onClick={() => setBulkProxyOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={saveBulkProxy} disabled={savingBulkProxy || !bulkProxyText.trim()}>{savingBulkProxy ? 'Aplicando...' : 'Aplicar proxies'}</button>
+
+            <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.7, marginTop:16 }}>
+              Copie o link para colar no navegador do perfil (multilogin / anti-detect)
+              onde você quer conectar. Abrindo aqui, quem autoriza é a conta logada
+              neste navegador — se for outra, o Instagram pede login de novo.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pedir acesso via convite ─────────────────────────────────────────
+          A Meta não convida testador por API. O `POST /{app-id}/roles` da Graph
+          API é indisponível, os papéis que ela conhece
+          (administrators/developers/testers/insights users) não incluem o
+          testador do Instagram, e o campo `user` pede o ID numérico de um
+          usuário do Facebook — não um @. Enviar é clique de painel.
+
+          Então esta tela cuida do que é nosso: a fila de @ que faltam, o @ na
+          área de transferência e o painel abrindo na página certa. O estado
+          "conectado" não é marcado à mão — o servidor o deduz olhando se já
+          existe conta vinculada com aquele @. */}
+      {conviteModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ width:'min(560px,100%)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:4 }}>
+              <div>
+                <h3 style={{ margin:0, fontSize:'var(--mf-t-h2)', fontWeight:800 }}>Pedir acesso via convite</h3>
+                <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:4 }}>
+                  Testador do app — sem senha e sem risco de checkpoint
+                </div>
+              </div>
+              <button onClick={() => setConviteModal(false)} aria-label="Fechar"
+                style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
+            </div>
+
+            <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.7, margin:'14px 0 16px' }}>
+              Se a conta não conectou por senha nem por Session&nbsp;ID, ela pode entrar como{' '}
+              <strong style={{ color:'var(--mf-text-2)' }}>testadora do app</strong>: o convite chega
+              no Instagram dela (Configurações → Apps e sites) e é aceito por lá.
+              <br /><br />
+              <strong style={{ color:'var(--mf-text-2)' }}>O envio é um clique no painel da Meta</strong> —
+              não existe API para convidar testador. Ao pedir aqui, eu copio o @ e abro o
+              painel na seção certa; você cola e envia.
+            </div>
+
+            <label style={{ fontSize:'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:.5, textTransform:'uppercase', display:'block', marginBottom:7 }}>
+              Usuário do Instagram (@)
+            </label>
+            <div style={{ display:'flex', gap:8 }}>
+              <input
+                value={conviteArroba}
+                onChange={e => { setConviteArroba(e.target.value); setConviteErro(''); }}
+                onKeyDown={e => { if (e.key === 'Enter' && !conviteEnviando) pedirConvite(); }}
+                placeholder="seu_usuario_ig"
+                style={{ flex:1, minWidth:0, boxSizing:'border-box', padding:'9px 12px',
+                  borderRadius:'var(--mf-r-md)',
+                  border:`1px solid ${conviteErro ? 'color-mix(in oklch, var(--mf-danger-500) 50%, transparent)' : 'var(--border)'}`,
+                  background:'var(--bg3)', color:'var(--mf-text)', fontSize:'var(--mf-t-sm)', outline:'none' }}
+              />
+              <button className="btn-primary" onClick={pedirConvite} disabled={conviteEnviando || !conviteArroba.trim()}
+                style={{ whiteSpace:'nowrap', padding:'0 18px' }}>
+                {conviteEnviando ? <span className="mf-spin" /> : null} Enviar pedido
+              </button>
+            </div>
+            {conviteErro && <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-danger-500)', marginTop:7 }}>{conviteErro}</div>}
+            {!convitePainel.url && (
+              <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-warning-500)', marginTop:8, lineHeight:1.6 }}>
+                Nenhum App da Meta configurado — sem ele eu não sei qual painel abrir.
+                O @ fica guardado na fila mesmo assim.
+              </div>
+            )}
+
+            {convites.length > 0 && (
+              <div style={{ marginTop:22 }}>
+                <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:9 }}>
+                  <span style={{ fontSize:'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:.5, textTransform:'uppercase' }}>
+                    Convites
+                  </span>
+                  <span style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
+                    {convites.filter(c => c.conectado).length} de {convites.length} já conectadas
+                  </span>
+                </div>
+
+                <div style={{ border:'1px solid var(--border)', borderRadius:'var(--mf-r-md)', overflow:'hidden', maxHeight:260, overflowY:'auto' }}>
+                  {convites.map((c, i) => {
+                    /* Três estados, um por dono: conectado é fato do sistema,
+                       enviado é o que você já fez, pendente é o que falta. */
+                    const tom = c.conectado ? 'var(--mf-success-500)'
+                      : c.estado === 'enviado' ? 'var(--mf-warning-500)'
+                      : 'var(--mf-text-3)';
+                    const rotulo = c.conectado ? 'Conectada'
+                      : c.estado === 'enviado' ? 'Convite enviado'
+                      : 'Pendente';
+                    return (
+                      <div key={c._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px',
+                        borderTop: i ? '1px solid var(--border)' : 'none', minWidth:0 }}>
+                        <span style={{ width:7, height:7, borderRadius:'var(--mf-r-full)', background:tom, flexShrink:0 }} />
+                        <span className="mf-trunc" style={{ flex:1, minWidth:0, fontSize:'var(--mf-t-sm)', fontWeight:600, color:'var(--mf-text)' }}>
+                          @{c.username}
+                        </span>
+                        <span style={{ fontSize:'var(--mf-t-nano)', fontWeight:700, color:tom, whiteSpace:'nowrap' }}>{rotulo}</span>
+
+                        {!c.conectado && (
+                          <>
+                            <button onClick={() => abrirPainelDoConvite(c.username, convitePainel.url)}
+                              title="Copiar o @ e abrir o painel da Meta"
+                              className="btn-ghost" style={{ padding:'3px 8px', fontSize:'var(--mf-t-nano)' }}>
+                              Painel
+                            </button>
+                            {c.estado !== 'enviado' && (
+                              <button onClick={() => marcarConviteEnviado(c._id)}
+                                title="Marcar que o convite já foi enviado no painel"
+                                className="btn-ghost" style={{ padding:'3px 8px', fontSize:'var(--mf-t-nano)' }}>
+                                Enviei
+                              </button>
+                            )}
+                          </>
+                        )}
+                        <button onClick={() => removerConvite(c._id)} aria-label={`Remover convite de @${c.username}`}
+                          className="btn-ghost" style={{ padding:'3px 7px', color:'var(--mf-danger-500)' }}>
+                          <IcoTrash />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:9, lineHeight:1.7 }}>
+                  “Conectada” aparece sozinha quando a conta daquele @ entra no sistema —
+                  não precisa marcar nada.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
