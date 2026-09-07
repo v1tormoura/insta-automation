@@ -49,6 +49,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const { convertToReelFormat, isVideo } = require('./videoProcessor');
+const { argumentosDeMetadado } = require('./metadadosDoArquivo');
 
 const RAIZ_UPLOADS = path.resolve(__dirname, '../../uploads');
 
@@ -156,12 +157,27 @@ async function prepararParaConta(post, account, opcoes = {}) {
     ? require('./marcaDagua').filtroDaMarca(configDaMarca, account.username)
     : null;
 
+  /* ── O metadado desta publicação ──────────────────────────────────────────
+
+     Montado aqui pelo mesmo motivo da marca: depende do post e da conta, e o
+     `videoProcessor` não conhece nenhum dos dois.
+
+     A limpeza continua sendo feita lá (`-map_metadata -1` e companhia) — isto
+     não substitui nada, acrescenta. Limpar tudo tira os traços da origem, que
+     é essencial; mas deixava o arquivo sem metadado NENHUM, e vídeo de celular
+     tem hora de gravação. Sem hora nenhuma, o vazio é o sinal.
+
+     A hora sai do instante do POST, não do relógio: é o que mantém a promessa
+     de que a mesma conta reprocessando o mesmo post recebe o mesmo arquivo. */
+  const metadados = argumentosDeMetadado(post, account);
+
   try {
     const saida = await convertToReelFormat(absoluto, {
       processMode: modo,
       quality: opcoes.quality || 'high',
       aleatorio: criarAleatorio(semente),
       sufixo: `c${marca}`,
+      metadados,
       ...(filtro ? { marcaDagua: filtro } : {}),
     });
 

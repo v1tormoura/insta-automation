@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { criarPedido, decidirEmenda } from './emendaMobile';
 import { lerAviso, deveAnunciar, chaveDoArroba } from './janelaDeAutorizacao';
+import PassosDeConexao from '../components/PassosDeConexao';
+import { montarLinkGuiado } from '../services/conexaoGuiada';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -760,6 +762,34 @@ export default function Accounts() {
     setOauthWaiting(true);
     showToast('success', 'Link copiado',
       'Cole no navegador onde a conta está logada e autorize. Ela aparece aqui sozinha.');
+  }
+
+  /* ── O link guiado ────────────────────────────────────────────────────────
+
+     Não é o link de autorização: é o da NOSSA página de dois passos, que abre
+     no navegador do perfil e leva à autorização depois de o convite de testador
+     ser aceito.
+
+     A diferença importa. O link cru cai direto no Instagram, e ali a conta que
+     não é testadora do app recebe um erro que não diz o que faltou — foi o
+     motivo de existir uma página guiada. O link cru continua disponível no
+     ícone do cabeçalho, para quem já sabe o que fazer com ele.
+
+     `window.location.origin` e não uma variável de ambiente: o link tem de
+     apontar para o mesmo endereço por onde esta tela está sendo acessada, senão
+     em produção ele mandaria para localhost. */
+  function copiarLinkGuiado(conta = 'new') {
+    const link = montarLinkGuiado(window.location.origin, conta, selectedAppId);
+
+    try { navigator.clipboard.writeText(link); }
+    catch { showToast('warning', 'Copie à mão', link); }
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2500);
+    /* Liga a escuta: a conta é autorizada no outro navegador e aparece aqui
+       sozinha, sem ninguém apertar mais nada. */
+    setOauthWaiting(true);
+    showToast('success', 'Link guiado copiado',
+      'Cole no navegador do perfil. A página lá mostra os 2 passos e a conta entra aqui sozinha.');
   }
 
   /* O mesmo link, direto do cabeçalho — para quem já sabe o que fazer com ele. */
@@ -2707,38 +2737,52 @@ export default function Accounts() {
                 <h3 style={{ margin:0, fontSize:'var(--mf-t-h2)', fontWeight:800 }}>Conectar com o Instagram</h3>
                 <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:4 }}>
                   {escolhaOAuth.account
-                    ? `Reconectar @${escolhaOAuth.account.username} — como abrir a autorização?`
-                    : 'Como você quer abrir a autorização?'}
+                    ? `Reconectar @${escolhaOAuth.account.username} — siga os 2 passos:`
+                    : 'Siga os 2 passos para autorizar sua conta sem erro:'}
                 </div>
               </div>
               <button onClick={() => setEscolhaOAuth(null)} aria-label="Fechar"
                 style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
             </div>
 
-            <div style={{ display:'grid', gap:10, marginTop:18 }}>
-              <button className="btn-primary" style={{ width:'100%', justifyContent:'center', padding:'11px' }}
-                onClick={() => abrirAutorizacaoEmJanela(escolhaOAuth.url)}>
-                Abrir aqui (numa janela)
-              </button>
-              {/* Copiar copia, e para aí. Não abre mais o fluxo em duas etapas:
-                  o retorno cai no nosso /oauth-callback, então a conta entra
-                  sozinha e não há URL nenhuma para colar de volta. */}
-              <button className="btn-ghost tom-modulo" style={{ width:'100%', justifyContent:'center', padding:'11px',
-                  '--tom':'var(--mf-mod-contas)',
-                  color:'var(--mf-mod, var(--mf-accent-500))',
-                  background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' }}
-                onClick={() => { soCopiarLink(escolhaOAuth.url); setEscolhaOAuth(null); }}>
-                Copiar link (multilogin)
-              </button>
+            {/* ── Os dois passos ───────────────────────────────────────────
+                Vêm de `PassosDeConexao`, o mesmo componente da página guiada:
+                os textos explicam por que a autorização falha sem o convite de
+                testador, e essa explicação não pode existir em duas versões.
+
+                O passo 2 aqui abre uma JANELA em vez de navegar — é o que
+                mantém esta tela de pé para receber a próxima conta. A decisão
+                é de quem chama, por isso `onAutorizar`. */}
+            <div style={{ marginTop:18 }}>
+              <PassosDeConexao
+                conta={escolhaOAuth.account?._id || 'new'}
+                metaAppId={selectedAppId}
+                url={escolhaOAuth.url}
+                mod="contas"
+                onAutorizar={abrirAutorizacaoEmJanela}
+                onErro={msg => showToast('error', 'Erro', msg)}
+              />
             </div>
 
-            <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.7, marginTop:16 }}>
-              A janela abre por cima, você autoriza e ela se fecha sozinha — esta
-              tela não sai do lugar, então dá para conectar uma conta atrás da outra.
-              <br /><br />
-              Copie o link para colar no navegador do perfil (multilogin / anti-detect)
-              onde a conta já está logada: ao autorizar lá, ela entra aqui sozinha,
-              sem precisar voltar e colar nada.
+            <div style={{ borderTop:'1px solid var(--border)', margin:'16px 0 14px' }} />
+
+            {/* O link guiado leva à MESMA tela de dois passos, aberta no
+                navegador do perfil. Antes eu copiava só o link de autorização —
+                que cai direto no Instagram e falha sem explicação quando o
+                convite de testador não foi aceito. O link do cabeçalho continua
+                copiando o link cru, para quem já sabe o que fazer com ele. */}
+            <button className="btn-ghost tom-modulo" style={{ width:'100%', justifyContent:'center', padding:'11px',
+                '--tom':'var(--mf-mod-contas)',
+                color:'var(--mf-mod, var(--mf-accent-500))',
+                background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' }}
+              onClick={() => { copiarLinkGuiado(escolhaOAuth.account?._id || 'new'); setEscolhaOAuth(null); }}>
+              <IcoCopy /> Copiar link guiado (para Multilogin)
+            </button>
+
+            <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.7, marginTop:12 }}>
+              Cole no perfil do multilogin (anti-detect) onde a conta está logada.
+              A página guiada abre os 2 passos lá dentro, e ao autorizar a conta
+              entra aqui sozinha — sem voltar e sem colar nada.
             </div>
 
             {/* A saída de emergência, não o caminho normal.

@@ -454,7 +454,7 @@ def _montar_pool() -> list[dict]:
 _REAL_ANDROID_DEVICES = _montar_pool()
 
 
-def _build_do_app() -> dict:
+def _build_do_app(account_id: str = '') -> dict:
     """
     Trio coerente {app_version, version_code, bloks_versioning_id}.
 
@@ -470,6 +470,42 @@ def _build_do_app() -> dict:
     """
     from instagrapi import config as ig_config
     disponiveis = getattr(ig_config, "APP_SETTINGS", {}) or {}
+
+    """
+    ── Por que a build pode variar por conta
+
+    Usuarios reais nao estao todos na mesma build: cada um atualiza quando
+    quer. Toda conta anunciando exatamente a mesma versao do app e um sinal de
+    GRUPO — o mesmo raciocinio que fez a versao do Android virar um eixo no
+    pool de aparelhos.
+
+    Mas variar aqui tem um risco que variar o Android nao tem: o Instagram
+    RECUSA login quando a build do payload foi descontinuada, e recusa com
+    `bad_password` — a conta parece estar com senha errada. Uma build velha
+    sorteada para uma conta a deixaria sem entrar, com o erro apontando para o
+    lugar errado.
+
+    Por isso o eixo e OPT-IN. `INSTAGRAPI_APP_VERSIONS` (plural) recebe a lista
+    de builds que o operador ja verificou que entram; so entao a escolha passa
+    a ser por conta. Sem ela, nada muda: continua a build unica de
+    `INSTAGRAPI_APP_VERSION` ou a padrao da biblioteca.
+
+    A escolha e estavel por conta. Uma conta que troca de versao do app entre
+    dois logins e um sinal por si so — do mesmo jeito que trocar de aparelho.
+    """
+    varias = [v.strip() for v in (os.getenv("INSTAGRAPI_APP_VERSIONS") or "").split(",") if v.strip()]
+    validas = [v for v in varias if v in disponiveis]
+    if varias and not validas:
+        logger.warning(
+            "INSTAGRAPI_APP_VERSIONS nao tem nenhuma build conhecida (%s) — "
+            "caindo na build unica",
+            ", ".join(sorted(disponiveis)) or "vazio",
+        )
+    if validas and account_id:
+        # Ordenada para o sorteio nao depender da ordem em que foi digitada.
+        validas = sorted(validas)
+        i = int(hashlib.sha256(f"{account_id}:app_build".encode()).hexdigest(), 16) % len(validas)
+        return dict(disponiveis[validas[i]])
 
     desejada = (os.getenv("INSTAGRAPI_APP_VERSION") or "").strip()
     if desejada:
@@ -576,7 +612,7 @@ def apply_deterministic_device(client: Client, account_id: str, indice: int | No
     else:
         idx = int(hashlib.sha256(account_id.encode()).hexdigest(), 16) % len(_REAL_ANDROID_DEVICES)
     escolhido = dict(_REAL_ANDROID_DEVICES[idx])
-    escolhido.update(_build_do_app())
+    escolhido.update(_build_do_app(account_id))
 
     # Sem `try` mudo aqui. Se esta montagem falhar, TODO login desta instância
     # sai com identidade inconsistente; falhar alto na criação do cliente é

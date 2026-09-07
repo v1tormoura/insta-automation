@@ -26,6 +26,7 @@ import CampaignWizard from './pages/CampaignWizard';
 import ConfigNotificacoes from './pages/ConfigNotificacoes';
 import CampaignDetail from './pages/CampaignDetail';
 import OAuthCallback from './pages/OAuthCallback';
+import ConectarGuiado from './pages/ConectarGuiado';
 import TopPosts from './pages/TopPosts';
 import BestTimes from './pages/BestTimes';
 import SmartRepost from './pages/SmartRepost';
@@ -73,6 +74,12 @@ export default function App() {
       <Route path="/termos" element={<Termos />} />
       <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />
+      {/* Página guiada — o destino do "Copiar link guiado".
+          FORA do PrivateRoute de propósito: ela abre no navegador do perfil
+          (multilogin), onde a pessoa não está logada no painel e nem deveria
+          estar — o ponto daquele perfil é ser só aquela conta do Instagram.
+          Não expõe nada novo: usa só `/oauth/url`, que já é rota pública. */}
+      <Route path="/conectar" element={<ConectarGuiado />} />
 
       <Route path="/v2" element={<DashboardV2 />} />
 

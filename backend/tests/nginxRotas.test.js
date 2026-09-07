@@ -60,6 +60,22 @@ describe('roteamento do nginx', () => {
     expect(faltando).toEqual([]);
   });
 
+  test('a página guiada é servida pelo SPA, não pelo backend', () => {
+    /* `/conectar` é rota só do React: ela abre no navegador do perfil
+       (multilogin), sem login no painel, e chama `/oauth/url` de dentro.
+       Cair num dos blocos que vão para o Express devolveria JSON em vez do
+       app, e o sintoma seria "o link guiado abre uma página em branco".
+
+       O bloco final do SPA cuida dela por ser o catch-all; o que este teste
+       protege é ela NÃO entrar nos outros dois por engano. */
+    const conf = fs.readFileSync(NGINX, 'utf8');
+    for (const m of conf.matchAll(/location\s+~\*\s+\^\/\(([^)]+)\)/g)) {
+      expect(m[1].split('|').map(s => s.trim())).not.toContain('conectar');
+    }
+    const app = fs.readFileSync(APP, 'utf8');
+    expect(app).not.toMatch(/app\.use\(\s*['"]\/conectar/);
+  });
+
   test('o SPA não engole as rotas de API compartilhadas', () => {
     // `campaigns` é os dois: página do SPA (/campaigns/nova) e API
     // (POST /campaigns/preview). Precisa estar no bloco que separa os dois

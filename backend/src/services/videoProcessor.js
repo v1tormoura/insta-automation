@@ -104,9 +104,13 @@ function convertToReelFormat(inputPath, options = {}) {
      `sufixo` próprio, então não passa por aqui. Mas depender disso é depender de
      um detalhe de outro módulo: com a marca no nome, o cache continua correto
      por construção, para qualquer chamador. */
-  if (typeof options.marcaDagua === 'string' && options.marcaDagua.trim()) {
+  const porConta = [
+    typeof options.marcaDagua === 'string' ? options.marcaDagua.trim() : '',
+    Array.isArray(options.metadados) ? options.metadados.join('|') : '',
+  ].filter(Boolean).join('||');
+  if (porConta) {
     const digital = require('crypto')
-      .createHash('sha256').update(options.marcaDagua.trim()).digest('hex').slice(0, 8);
+      .createHash('sha256').update(porConta).digest('hex').slice(0, 8);
     suffix += `-m${digital}`;
   }
 
@@ -263,6 +267,21 @@ function convertToReelFormat(inputPath, options = {}) {
         '-pix_fmt', 'yuv420p',
         ...metadataOpts,               // camada 1: limpa container + streams + impede SEI
         '-metadata:s:v:0', 'rotate=0', // re-adiciona só a rotação (necessário para playback)
+        /* ── Camada 3: o metadado que a publicação PASSA a ter ──────────────
+
+           Depois da limpeza, nunca antes: `-map_metadata -1` apagaria o que
+           vem aqui. Medido — com `+bitexact` ativo, um `-metadata
+           creation_time=` explícito ainda é gravado, no container e nos dois
+           streams, e as strings de versão continuam suprimidas.
+
+           Limpar tudo resolve metade do problema. A outra metade é que o
+           arquivo ficava sem metadado NENHUM, e vídeo de celular não é assim:
+           tem hora de gravação e usa os nomes de handler do Android. Sem hora
+           nenhuma, o próprio vazio é o sinal.
+
+           Vem pronto de `metadadosDoArquivo.js`, que conhece o post e a conta
+           — este módulo não conhece nenhum dos dois. */
+        ...(Array.isArray(options.metadados) ? options.metadados : []),
         ...bitstreamOpts,              // camada 2: remove SEI do bitstream H.264 pós-encode
         '-avoid_negative_ts', 'make_zero',
         '-max_muxing_queue_size', '9999',
@@ -298,6 +317,10 @@ function convertToReelFormat(inputPath, options = {}) {
               '-pix_fmt', 'yuv420p',
               ...metadataOpts,
               '-metadata:s:v:0', 'rotate=0',
+              /* O fallback publica o mesmo vídeo por outro caminho — se ele
+                 saísse sem o metadado da camada 3, uma falha de encode viraria
+                 silenciosamente um arquivo sem hora de gravação. */
+              ...(Array.isArray(options.metadados) ? options.metadados : []),
               ...bitstreamOpts,
               '-avoid_negative_ts', 'make_zero',
               '-max_muxing_queue_size', '9999',

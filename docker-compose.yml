@@ -108,6 +108,23 @@ services:
       # caminho quando o Instagram recusa o login com credencial válida
       # (error_type=bad_password no site funcionando).
       INSTAGRAPI_APP_VERSION: ${INSTAGRAPI_APP_VERSION:-}
+      # Builds a DISTRIBUIR entre as contas, separadas por vírgula. Vazio =
+      # todas as contas usam a build única acima, que é o comportamento de
+      # sempre.
+      #
+      # Por que existe: usuário real não está na mesma build que os outros —
+      # cada um atualiza quando quer. Toda conta anunciando a mesma versão é um
+      # sinal de grupo, do mesmo jeito que era todas anunciarem o mesmo
+      # aparelho. A escolha é estável por conta (trocar de versão entre dois
+      # logins também é sinal).
+      #
+      # Por que é opt-in: build descontinuada faz o Instagram recusar o login
+      # com `bad_password`, e a conta parece estar com a senha errada. Liste
+      # aqui só as builds que você JÁ viu entrarem — verifique uma por uma
+      # em INSTAGRAPI_APP_VERSION antes de somar à lista.
+      #
+      # Ex.: INSTAGRAPI_APP_VERSIONS=428.0.0.47.67,385.0.0.47.74
+      INSTAGRAPI_APP_VERSIONS: ${INSTAGRAPI_APP_VERSIONS:-}
       # Contexto regional do cliente. O padrao da biblioteca e dos EUA
       # (US/1/en_US/UTC-4); rodando daqui isso contradizia o IP e o idioma
       # das contas, e a contradicao e sinal de automacao para o Instagram.
