@@ -260,3 +260,25 @@ describe('margem contra a quantização', () => {
     expect(apertados).toEqual([]);
   });
 });
+
+describe('o fundo atrás do app', () => {
+  /**
+   * `body` mora FORA de `[data-mf]`, e os tokens do sistema moram lá dentro —
+   * daqui ele não alcança `--mf-bg`. Por isso o valor está repetido numa regra
+   * própria, e por isso esta comparação existe: repetição sem verificação
+   * divergiria na primeira troca de paleta, e o sintoma seria um piscar escuro
+   * no tema claro que ninguém liga a uma linha de CSS.
+   */
+  test('o body no tema claro usa o MESMO valor de --mf-bg', () => {
+    const regra = cssAvancado.match(
+      /:root\[data-tema='claro'\]\s+body\s*\{[^}]*background:\s*([^;}]+)/,
+    );
+    expect(regra, "a regra do body no tema claro desapareceu").not.toBeNull();
+
+    const doBody = regra[1].trim();
+    const doToken = bloco(cssAvancado, "[data-mf][data-tema='claro'] {")
+      .match(/--mf-bg:\s*([^;]+)/)[1].trim();
+
+    expect(doBody).toBe(doToken);
+  });
+});

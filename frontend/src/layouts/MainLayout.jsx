@@ -5,9 +5,54 @@ import '../design/sistema.css';
 import '../design/avancado.css';
 import '../design/ponte.css';
 import { removeToken } from '../services/auth';
+import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
+
+/**
+ * O circulo do usuario na barra do topo.
+ *
+ * Era um `<div>` com "VM" e "Vitor Marcelo Moura" escritos no codigo. Agora le
+ * `/conta` e leva para a pagina — o lugar onde o nome e a foto sao trocados e
+ * o lugar onde eles aparecem tem de ser o mesmo dado.
+ *
+ * Falha em silencio: se a rota nao responder, sobra o circulo com iniciais. Um
+ * erro na barra do topo apareceria em toda tela do painel, por causa de um
+ * enfeite.
+ */
+function AvatarDoUsuario() {
+  const navigate = useNavigate();
+  const [conta, setConta] = useState(null);
+
+  useEffect(() => {
+    let ignorar = false;
+    api.get('/conta')
+      .then(({ data }) => { if (!ignorar) setConta(data); })
+      .catch(() => {});
+    return () => { ignorar = true; };
+  }, []);
+
+  const nome = conta?.nome || '';
+  const iniciais = nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase() || 'EU';
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  return (
+    <button onClick={() => navigate('/minha-conta')}
+      title={nome ? `${nome} — minha conta` : 'Minha conta'}
+      style={{
+        width: 30, height: 30, borderRadius: 'var(--mf-r-full)', flexShrink: 0,
+        background: 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500))',
+        display: 'grid', placeItems: 'center', fontSize: 'var(--mf-t-micro)', fontWeight: 700,
+        color: 'var(--mf-primary-fg)', border: 'none', cursor: 'pointer', padding: 0,
+        overflow: 'hidden',
+      }}>
+      {conta?.avatar
+        ? <img src={`${API}${conta.avatar}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : iniciais}
+    </button>
+  );
+}
 
 const ic = (children, w = 18) => (
   <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -52,6 +97,7 @@ const ICONS = {
   videobatch:  ic(<><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></>),
   videoeditor: ic(<><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l2-2 2 2"/><path d="M12 8v5"/></>),
   apimeta:     ic(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></>),
+  usuario:     ic(<><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></>),
   perfis:      ic(<><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M18 14v-3M21 14V8"/></>),
   oauth:       ic(<><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>),
 };
@@ -106,6 +152,7 @@ const NAV_GROUPS = [
       { to: '/api-meta', mod: 'sistema',    label: 'API Meta',  sub: 'Apps Meta / OAuth',  icon: ICONS.apimeta },
       { to: '/oauth-contas', mod: 'contas', label: 'OAuth',    sub: 'Conexões por conta', icon: ICONS.oauth   },
       { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Avisos de marco', icon: ICONS.bell },
+      { to: '/minha-conta', mod: 'sistema', label: 'Minha Conta', sub: 'Perfil, senha e aparência', icon: ICONS.usuario },
     ],
   },
   {
@@ -400,12 +447,7 @@ export default function MainLayout({ children }) {
 
             <SinoDeNotificacoes />
 
-            <div style={{
-              width: 30, height: 30, borderRadius: 'var(--mf-r-full)', flexShrink: 0,
-              background: 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500))',
-              display: 'grid', placeItems: 'center', fontSize: 'var(--mf-t-micro)', fontWeight: 700,
-              color: 'var(--mf-primary-fg)',
-            }} title="Vitor Marcelo Moura">VM</div>
+            <AvatarDoUsuario />
           </header>
 
           {/* `mf-container` centraliza e limita a largura; as páginas ainda não

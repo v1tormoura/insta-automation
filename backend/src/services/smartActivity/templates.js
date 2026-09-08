@@ -212,7 +212,8 @@ function tempoRelativo(data) {
  * `{{views | numero}}` seria inventar uma linguagem para resolver um problema
  * que a formatação na origem resolve.
  */
-function contexto({ conta = {}, insight = {}, threshold = 0, valor = 0, metricType = '' } = {}) {
+function contexto({ conta = {}, insight = {}, threshold = 0, valor = 0, metricType = '',
+                    privacidade } = {}) {
   const username = conta.username || '';
   const tipo = metricType === 'storyViews'
     ? 'Story'
@@ -220,7 +221,7 @@ function contexto({ conta = {}, insight = {}, threshold = 0, valor = 0, metricTy
     : insight.mediaType === 'CAROUSEL_ALBUM' ? 'Carrossel'
     : 'post';
 
-  return {
+  const vars = {
     username,
     account:     username ? `@${username}` : 'a conta',
     views:       formatarNumero(valor),
@@ -234,6 +235,53 @@ function contexto({ conta = {}, insight = {}, threshold = 0, valor = 0, metricTy
     shares:      formatarNumero(insight.shareCount),
     reach:       formatarNumero(insight.reach),
   };
+
+  return privacidade ? discretas(vars, privacidade) : vars;
+}
+
+/**
+ * Troca o que a pessoa pediu para não aparecer.
+ *
+ * ── Por que substituir e não remover
+ *
+ * Removendo a variável, `render` deixaria `{{account}}` literal na tela — o
+ * comportamento correto dele para variável desconhecida, e péssimo aqui: quem
+ * desligou o nome veria `{{account}}` em vez de uma frase. Então o valor é
+ * trocado por um termo genérico, e a frase continua sendo uma frase.
+ *
+ * ── Onde isto vale
+ *
+ * Na notificação que aparece na tela de bloqueio do celular, onde quem estiver
+ * perto do aparelho lê. Vale também na Central, para os dois textos não
+ * divergirem: um aviso que esconde o @ no push e o mostra no painel esconde
+ * pela metade.
+ *
+ * Não vale para os avisos do sistema — "8 proxies reservados" não tem nome de
+ * conta, e esconder o número deixaria o alerta sem a informação que é a razão
+ * dele existir.
+ */
+function discretas(vars, { mostrarNome = true, mostrarValor = true } = {}) {
+  const saida = { ...vars };
+
+  if (!mostrarNome) {
+    saida.username = 'sua conta';
+    saida.account  = 'sua conta';
+  }
+
+  if (!mostrarValor) {
+    /* Todo número, e não só `views`: esconder o valor e deixar `{{likes}}`
+       aberto no mesmo texto não esconde nada.
+
+       `•••` e não uma palavra: o modelo padrão é `chegou a {{views}}
+       visualizacoes`, e qualquer substantivo ali produz "chegou a um marco
+       visualizacoes". O ponto suspensivo se le como "escondido" e nao
+       atropela a frase em volta. */
+    for (const campo of ['views', 'threshold', 'likes', 'comments', 'shares', 'reach']) {
+      saida[campo] = '•••';
+    }
+  }
+
+  return saida;
 }
 
 /**
@@ -307,5 +355,6 @@ function modeloDe(metricType, mensagensDoPainel = {}) {
 
 module.exports = {
   VARIAVEIS, VARIAVEIS_POR_TIPO, TIPOS_DE_SISTEMA, PADRAO, EXEMPLOS,
-  formatarNumero, tempoRelativo, contexto, validar, render, modeloDe, variaveisDe,
+  formatarNumero, tempoRelativo, contexto, discretas, validar, render,
+  modeloDe, variaveisDe,
 };

@@ -17,6 +17,15 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App';
 
+/* Tema e fundo ANTES do primeiro render.
+
+   Aplicados a partir do localStorage, nao da resposta de `/conta`: esperando o
+   servidor, o app pinta escuro e depois claro — o flash do tema errado, que e
+   a coisa mais visivel que uma tela de preferencias pode fazer de errado. A
+   resposta chega em seguida e corrige, se divergir. */
+import { aplicar } from './services/preferencias';
+aplicar();
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <App />

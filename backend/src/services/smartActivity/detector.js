@@ -120,7 +120,11 @@ async function processarInsight(insight, conta, cfg) {
     const modelo = templates.modeloDe(metricType, cfg.mensagens);
 
     for (const threshold of cruzados) {
-      const vars = templates.contexto({ conta, insight, threshold, valor, metricType });
+      const vars = templates.contexto({ conta, insight, threshold, valor, metricType,
+        /* O que a pessoa pediu para nao aparecer na tela de bloqueio.
+           Aplicado aqui, onde as variaveis nascem, e nao no render: assim
+           vale para a Central e para o push com um caminho so. */
+        privacidade: cfg.privacidade });
       const nova = await _gravar({
         accountId: conta._id,
         username: conta.username || '',
@@ -288,11 +292,13 @@ async function resumoDoDia() {
   if (!agregado || !agregado.publicacoes) return null;
 
   const modelo = templates.modeloDe('resumo', cfg.mensagens);
-  const vars = {
+  /* `discretas` tambem aqui: o resumo diz quantas visualizacoes o dia teve, e
+     esconder o numero nos marcos e mostra-lo no resumo esconde pela metade. */
+  const vars = templates.discretas({
     publicacoes: templates.formatarNumero(agregado.publicacoes),
     contas: templates.formatarNumero((agregado.contas || []).length),
     views: templates.formatarNumero(agregado.views || 0),
-  };
+  }, cfg.privacidade || {});
 
   return _gravar({
     accountId: null,

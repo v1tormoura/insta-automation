@@ -218,6 +218,7 @@
    Não é o escuro invertido. As superfícies sobem em vez de descer, a sombra
    deixa de contar com filete de luz (que só existe no escuro) e as cores de
    marca escurecem para manter contraste sobre fundo claro. */
+[data-tema='claro'] [data-mf],
 [data-mf][data-tema='claro'] {
   /* NOCTURNO — modo claro.
   
@@ -316,7 +317,9 @@
 }
 /* O filete de luz do topo do card é fenômeno de superfície escura. No claro
    ele aparece como um risco branco sem sentido. */
+[data-tema='claro'] [data-mf] .mf-card::before,
 [data-mf][data-tema='claro'] .mf-card::before { display: none; }
+[data-tema='claro'] [data-mf] .mf-top,
 [data-mf][data-tema='claro'] .mf-top { background: oklch(1 0 0 / 0.82); }
 
 /* ── Mostruário do sistema ───────────────────────────────────────────────*/
@@ -331,3 +334,64 @@
   font-family: var(--mf-mono); font-size: var(--mf-t-micro);
   color: var(--mf-text-3); word-break: break-all;
 }
+
+/* ── Fundo ambiente ──────────────────────────────────────────────────────
+
+   Duas manchas de luz que derivam lentamente atrás do conteúdo.
+
+   Por que tão discreto: este painel é uma grade densa de números, e o próprio
+   PageShell abandonou o vidro por isso — sobre dados, textura vira ruído
+   exatamente no elemento que precisa estar mais legível. Então o fundo fica em
+   4% de alfa, atrás de tudo (`z-index: -1`), sem tocar em nenhum cartão. É
+   ambiente, não decoração: quem repara está olhando para o fundo de propósito.
+
+   Por que existe: a tela de preferências tem um interruptor de "animação de
+   fundo", e não havia fundo animado nenhum no produto para ele controlar. Um
+   interruptor que não muda nada é pior que interruptor ausente.
+
+   Por que 40 segundos: um ciclo curto o bastante para se perceber é um ciclo
+   que compete com a leitura. Neste tempo, o movimento entre dois olhares para
+   a tela é menor que a atenção que sobraria para notá-lo. */
+[data-mf]::before {
+  content: '';
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38vmax 38vmax at 22% 18%, color-mix(in oklch, var(--mf-primary-500) 4%, transparent), transparent 70%),
+    radial-gradient(32vmax 32vmax at 78% 82%, color-mix(in oklch, var(--mf-accent-500) 4%, transparent), transparent 70%);
+  animation: mf-ambiente 40s var(--mf-ease-inout, ease-in-out) infinite alternate;
+}
+
+@keyframes mf-ambiente {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(2vmax, -2vmax, 0) scale(1.06); }
+}
+
+/* Desligado no painel: o fundo continua, parado. Remover a mancha inteira
+   trocaria a cor do fundo junto — e o interruptor é de animação, não de cor. */
+[data-fundo='estatico'] [data-mf]::before { animation: none; }
+
+/* Quem pediu menos movimento ao sistema já respondeu esta pergunta, e a
+   resposta vale mesmo com o interruptor ligado. */
+@media (prefers-reduced-motion: reduce) {
+  [data-mf]::before { animation: none; }
+}
+
+/* ── O fundo atrás de tudo ────────────────────────────────────────────────
+
+   `body` fica FORA de `[data-mf]`, e os tokens do sistema moram lá dentro —
+   então ele não alcança `--mf-bg`. O `body` da folha antiga pinta `var(--bg)`,
+   que é escuro e que o tema claro não redefine: `--bg` é usado por dezenas de
+   páginas ainda não migradas, que foram desenhadas só para o escuro, e virá-lo
+   deixaria todas ilegíveis.
+
+   Hoje o app cobre a viewport inteira e ninguém vê isto. Aparece no
+   overscroll do celular, na borracha do trackpad e no primeiro quadro antes de
+   o React montar — um piscar escuro no tema claro.
+
+   O valor é o mesmo `--mf-bg` do bloco claro, repetido porque daqui não dá
+   para alcançá-lo. Repetição conferida: o teste de contraste compara os dois e
+   falha se divergirem. */
+:root[data-tema='claro'] body { background: oklch(0.985 0.004 241); }

@@ -48,6 +48,19 @@ const PADRAO = Object.freeze({
     som: false,
     maxSimultaneos: 3,
   }),
+
+  /**
+   * O que o aviso pode revelar.
+   *
+   * Ligado por padrão porque é o comportamento que sempre existiu, e mudar o
+   * padrão esconderia dado de quem nunca pediu para esconder. Quem desliga
+   * está resolvendo um problema concreto: a notificação aparece na tela de
+   * bloqueio, onde quem estiver perto do aparelho lê o @ e o número.
+   */
+  privacidade: Object.freeze({
+    mostrarNome: true,
+    mostrarValor: true,
+  }),
 });
 
 /**
@@ -75,6 +88,27 @@ function valorDaMetrica(insight, metricType) {
 }
 
 /**
+ * O que o aviso pode revelar, do documento do usuário.
+ *
+ * Falha em silêncio para o padrão: um erro ao ler uma preferência não pode
+ * derrubar a detecção. Mas note a direção da falha — o padrão MOSTRA. Se um
+ * dia o padrão passar a esconder, este `catch` vira um vazamento silencioso, e
+ * a proteção certa aí seria falhar escondendo.
+ */
+async function _privacidade() {
+  try {
+    const Usuario = require('../../models/Usuario');
+    const u = await Usuario.findOne({ chave: 'principal' }).select('notificacoes').lean();
+    return {
+      mostrarNome:  u?.notificacoes?.mostrarNome  !== false,
+      mostrarValor: u?.notificacoes?.mostrarValor !== false,
+    };
+  } catch {
+    return { ...PADRAO.privacidade };
+  }
+}
+
+/**
  * Configuração efetiva: o padrão com o que o painel tiver sobrescrito por
  * cima. A mesclagem é por seção, não profunda — quem grava `thresholds`
  * substitui a lista inteira, e é isso que se quer: uma lista pela metade
@@ -85,15 +119,22 @@ async function carregar() {
 
   try {
     const Setting = require('../../models/Setting');
-    const doc = await Setting.findOne({ key: CHAVE }).lean();
+    /* A privacidade mora no usuário, não em `Setting`: é preferência pessoal e
+       é onde a tela de Minha Conta a mostra. Buscada em paralelo para não
+       somar uma ida ao banco no caminho da detecção. */
+    const [doc, privacidade] = await Promise.all([
+      Setting.findOne({ key: CHAVE }).lean(),
+      _privacidade(),
+    ]);
     const v = doc?.value;
-    if (!v || typeof v !== 'object') return PADRAO;
+    if (!v || typeof v !== 'object') return { ...PADRAO, privacidade };
 
     return {
       thresholds: { ...PADRAO.thresholds, ...(v.thresholds || {}) },
       ativos:     { ...PADRAO.ativos,     ...(v.ativos     || {}) },
       exibicao:   { ...PADRAO.exibicao,   ...(v.exibicao   || {}) },
       mensagens:  v.mensagens || {},
+      privacidade,
     };
   } catch {
     // Configuração ilegível não pode derrubar a detecção.
