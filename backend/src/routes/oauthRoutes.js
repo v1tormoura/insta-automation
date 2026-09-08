@@ -90,6 +90,71 @@ const REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'http://localhost:5200/oa
  * mesmo, e quem está no painel continua caindo em `/accounts` porque a tela de
  * contas já sabe ler `?oauth=success`.
  */
+/**
+ * O `redirect_uri` configurado é alcançável pelo navegador de quem autoriza?
+ *
+ * ── Por que esta conferência existe
+ *
+ * Encontrei em produção `OAUTH_REDIRECT_URI=https://localhost:3000/...` com
+ * `FRONTEND_URL=https://instaflow.pro`. O Instagram redireciona o NAVEGADOR
+ * para o redirect_uri — e `localhost` ali é a máquina de quem clicou, não o
+ * servidor. A conexão automática não tinha como funcionar: o único caminho que
+ * sobrava era copiar a URL da barra de endereços e colar de volta no painel.
+ *
+ * E nada dizia isso. A pessoa permitia no Instagram, a aba morria numa página
+ * que não carrega, e a conclusão natural era "o app não foi aprovado".
+ *
+ * ── Por que só avisa, e não corrige
+ *
+ * Derivar o endereço de `FRONTEND_URL` seria fácil e perigoso: o Meta exige
+ * que o redirect_uri seja EXATAMENTE um dos cadastrados no painel dele. Um
+ * endereço certo mas não cadastrado quebra a autorização antes de começar —
+ * pior que a configuração atual, em que ao menos o caminho de colar funciona.
+ *
+ * Então isto detecta e conta. A troca é de quem tem acesso ao painel da Meta e
+ * ao `.env`, e precisa acontecer nos dois ao mesmo tempo.
+ *
+ * ── Por que recebe os dois por parâmetro
+ *
+ * A primeira versão lia `REDIRECT_URI` e `FRONTEND` do módulo. Testá-la exigia
+ * recarregar o arquivo inteiro a cada ambiente, e recarregar o arquivo puxa as
+ * rotas — que consultam o banco. O teste ficava pendurado no Mongoose por
+ * quarenta segundos para verificar uma comparação de strings.
+ *
+ * Pura, ela é chamável direto. Quem tem as variáveis é a rota.
+ *
+ * @param {string} redirect — o `OAUTH_REDIRECT_URI` em vigor
+ * @param {string} frontend — o `FRONTEND_URL` em vigor
+ * @returns {string|null} o aviso, ou null quando está tudo coerente
+ */
+function avisoDoRedirect(redirect, frontend) {
+  const bruto = String(redirect || '').trim();
+  if (!bruto) return 'OAUTH_REDIRECT_URI não está configurado — o Instagram não tem para onde devolver a autorização.';
+
+  let host = '';
+  try {
+    /* `new URL('http://[::1]:3000').hostname` devolve `[::1]` COM os colchetes
+       — é assim que a especificação de URL representa IPv6. Comparar com
+       `'::1'` deixava passar. Um teste pegou. */
+    host = new URL(bruto).hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  } catch { return `OAUTH_REDIRECT_URI não é uma URL válida: "${bruto.slice(0, 80)}".`; }
+
+  const local = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0';
+  if (!local) return null;
+
+  /* Localhost é legítimo em desenvolvimento — ali o navegador e o servidor são
+     a mesma máquina. O que denuncia produção é o frontend estar num host
+     público: aí o navegador de quem autoriza nunca é o servidor. */
+  let frontHost = '';
+  try { frontHost = new URL(String(frontend || '')).hostname.toLowerCase(); } catch { /* sem frontend definido */ }
+  const frontLocal = !frontHost || frontHost === 'localhost' || frontHost === '127.0.0.1';
+  if (frontLocal) return null;
+
+  return `OAUTH_REDIRECT_URI aponta para ${host}, que é a máquina de quem clica — não este servidor. `
+    + `A conexão automática não funciona assim; só o caminho de colar a URL de retorno. `
+    + `Troque para ${String(frontend).replace(/\/$/, '')}/api/oauth/callback no .env E cadastre o mesmo endereço no painel da Meta.`;
+}
+
 function destinoDeSucesso(username) {
   const u = encodeURIComponent(username || '');
   return `${FRONTEND}/conectar?ok=${u}`;
@@ -319,7 +384,13 @@ router.get('/url', async (req, res) => {
 
   const url = `${IG_AUTH}?${params.toString()}`;
   console.log(`🔗 [OAuth] App ID: ${appId} | metaApp: ${dbApp?._id || 'env'} | redirect_uri: ${REDIRECT_URI}`);
-  res.json({ url, metaAppId: dbApp?._id || null });
+
+  /* O aviso viaja com a URL, para a tela poder mostrá-lo a quem está a um
+     clique de autorizar. Um log no servidor não chega a quem precisa da
+     informação. */
+  const aviso = avisoDoRedirect(REDIRECT_URI, FRONTEND);
+  if (aviso) console.warn(`⚠️ [OAuth] ${aviso}`);
+  res.json({ url, metaAppId: dbApp?._id || null, ...(aviso ? { aviso } : {}) });
 });
 
 // ── POST /oauth/connect-by-token ─────────────────────────────────────────────
@@ -1150,3 +1221,6 @@ router.post('/refresh-tokens', async (req, res) => {
 });
 
 module.exports = router;
+/* Exportada para teste: é uma comparação de strings, e verificá-la pela rota
+   arrastaria o banco para dentro do teste. */
+module.exports.avisoDoRedirect = avisoDoRedirect;

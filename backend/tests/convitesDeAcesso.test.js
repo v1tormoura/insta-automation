@@ -309,10 +309,24 @@ describe('a ligação com o resto do sistema', () => {
 
   test('a escolha de como abrir vem antes do fluxo em duas etapas', () => {
     /* `openOAuthConnect` abrindo direto o modal de duas etapas era o defeito:
-       quem vai autorizar nesta aba nunca precisa da segunda etapa. */
+       quem vai autorizar nesta aba nunca precisa da segunda etapa.
+
+       A janela era `slice(0, 900)` e quebrou quando um comentário novo empurrou
+       a chamada além do 900º caractere — o código estava certo e o teste
+       falhou. Agora o corpo da função é delimitado pela DECLARAÇÃO seguinte, e
+       o que se afirma é a ordem entre as duas chamadas, que é a propriedade de
+       verdade: escolher como abrir vem antes de abrir. */
     const tela = ler('../../frontend/src/pages/Accounts.jsx');
-    const trecho = tela.slice(tela.indexOf('async function openOAuthConnect'));
-    expect(trecho.slice(0, 900)).toContain('setEscolhaOAuth(');
+    const inicio = tela.indexOf('async function openOAuthConnect');
+    expect(inicio).toBeGreaterThan(-1);
+
+    const seguinte = tela.slice(inicio + 1).search(/\n {2}(?:async )?function /);
+    const corpo = seguinte === -1 ? tela.slice(inicio) : tela.slice(inicio, inicio + 1 + seguinte);
+
+    expect(corpo).toContain('setEscolhaOAuth(');
+    /* E não abre o fluxo de duas etapas aqui: quem faz isso é o botão dentro
+       da escolha, depois de a pessoa optar por copiar o link. */
+    expect(corpo).not.toContain('setOauthModal({');
   });
 
   test('proxies em massa saiu da tela de contas mas não do sistema', () => {

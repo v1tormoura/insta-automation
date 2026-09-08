@@ -87,6 +87,9 @@ export default function Accounts() {
      etapas — abrir aqui não precisa da segunda etapa, colar precisa. */
   const [escolhaOAuth,   setEscolhaOAuth]   = useState(null); // { account, url }
   const [linkCopiado,    setLinkCopiado]    = useState(false);
+  /* Aviso do servidor sobre a configuração do OAuth. Vazio quando está tudo
+     coerente — ver `avisoDoRedirect` em oauthRoutes.js. */
+  const [avisoOAuth,     setAvisoOAuth]     = useState('');
   /* A janela de autorização aberta e o que ela já trouxe. Guarda a `url` para
      "Conectar próxima conta" reabrir sem ir buscá-la de novo. */
   const [janelaOAuth,    setJanelaOAuth]    = useState(null); // { aberta, url, conectadas: [] }
@@ -492,6 +495,11 @@ export default function Accounts() {
       const url = res.data?.url;
       if (!url) throw new Error('URL não retornada');
       setOauthWaiting(false);
+      /* O servidor avisa quando o `redirect_uri` configurado não pode receber
+         o retorno — por exemplo apontando para localhost com o painel num host
+         público. Sem isto a pessoa autoriza, a aba morre numa página que não
+         carrega, e conclui que falta aprovar o app. */
+      setAvisoOAuth(res.data?.aviso || '');
       /* A escolha de COMO abrir vem antes do fluxo em duas etapas. Abrindo aqui,
          a segunda etapa não existe — o callback volta para o próprio servidor e
          o SSE fecha a tela. Copiando o link, ela é obrigatória, porque o
@@ -2744,6 +2752,18 @@ export default function Accounts() {
               <button onClick={() => setEscolhaOAuth(null)} aria-label="Fechar"
                 style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
             </div>
+
+            {/* O aviso vem antes dos passos: se o retorno não tem para onde
+                ir, seguir os dois passos não conecta nada. */}
+            {avisoOAuth && (
+              <div style={{ marginTop:16, padding:'11px 13px', borderRadius:'var(--mf-r-md)',
+                background:'color-mix(in oklch, var(--mf-warning-500) 10%, transparent)',
+                border:'1px solid color-mix(in oklch, var(--mf-warning-500) 28%, transparent)',
+                color:'var(--mf-warning-500)', fontSize:'var(--mf-t-micro)', lineHeight:1.7 }}>
+                <strong style={{ display:'block', marginBottom:3 }}>Configuração do OAuth</strong>
+                {avisoOAuth}
+              </div>
+            )}
 
             {/* ── Os dois passos ───────────────────────────────────────────
                 Vêm de `PassosDeConexao`, o mesmo componente da página guiada:
