@@ -30,6 +30,22 @@ services:
       REDIS_PORT: "6379"
       HEADLESS: "true"
       INSTAGRAPI_SERVICE_URL: http://instagrapi-svc:8000
+      # ── Autorização do OAuth ────────────────────────────────────────────
+      # `force_reauth=true` faz o Instagram pedir login a cada autorização em
+      # vez de aproveitar a sessão do navegador. É o que permite conectar uma
+      # conta atrás da outra: sem ele, a segunda autorização no MESMO navegador
+      # reaproveita quem já está logado e autoriza a mesma conta de novo, em
+      # silêncio — a lista repete um @ em vez de crescer.
+      #
+      # Vem da URL que o próprio painel da Meta gera na etapa 4 do login da
+      # empresa, não da referência pública. Se um dia o Instagram recusar o
+      # parâmetro, ponha `false` aqui e recrie o backend.
+      #
+      # Fica NESTE serviço porque é o app.js que lê a variável — as rotas de
+      # OAuth não rodam no worker. Declarada no instagrapi-svc, ela não faria
+      # nada e o arquivo mentiria sobre onde a configuração vive.
+      # Vazio ou ausente = ligado.
+      OAUTH_FORCE_REAUTH: ${OAUTH_FORCE_REAUTH:-}
     depends_on:
       - mongo
       - redis

@@ -380,6 +380,30 @@ router.get('/url', async (req, res) => {
     response_type: 'code',
     state,
   });
+
+  /* ── force_reauth ─────────────────────────────────────────────────────────
+
+     Faz o Instagram pedir login de novo em vez de aproveitar a sessão do
+     navegador. É o que torna possível conectar uma conta atrás da outra: sem
+     ele, a segunda autorização no MESMO navegador reaproveita quem já está
+     logado e autoriza a mesma conta de novo — em silêncio, como se fosse outra.
+
+     ── De onde vem, e o que eu não sei sobre ele
+
+     Não está na referência pública da Business Login. Está na "URL
+     incorporado" que o PRÓPRIO painel da Meta gera na etapa 4 da configuração
+     do login da empresa — `...oauth/authorize?force_reauth=true&client_id=...`.
+     Ou seja: é a Meta que o emite, e é essa a evidência. Não vi contrato
+     escrito sobre ele, então trato como algo que pode mudar sem aviso.
+
+     Por isso o desligamento existe: se o Instagram passar a recusar o
+     parâmetro, `OAUTH_FORCE_REAUTH=false` volta ao comportamento anterior sem
+     esperar deploy. Parâmetro desconhecido normalmente é ignorado, então o
+     risco de ligá-lo é baixo — mas "normalmente" não é garantia. */
+  if (String(process.env.OAUTH_FORCE_REAUTH ?? 'true').toLowerCase() !== 'false') {
+    params.set('force_reauth', 'true');
+  }
+
   if (dbApp?.loginConfigId) params.set('config_id', dbApp.loginConfigId);
 
   const url = `${IG_AUTH}?${params.toString()}`;

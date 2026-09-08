@@ -1404,13 +1404,21 @@ export default function Accounts() {
               </div>
               <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:5, lineHeight:1.7 }}>
                 Autorize na janela que abriu — ela se fecha sozinha e a conta aparece aqui.
-                {/* O que é verdade e o que não é: o Instagram autoriza quem está
-                    logado NESTE navegador. Para outra conta, é preciso trocar de
-                    conta na própria janela. Prometer "sempre pede login novo"
-                    seria mentira — e a mentira aqui custa uma conta conectada
-                    duas vezes no lugar de duas contas. */}
-                {' '}Para conectar outra conta, troque de conta na janela do Instagram —
-                ou use <strong style={{ color:'var(--mf-text-2)' }}>Copiar link</strong> e cole
+                {/* ── Este texto mudou porque o comportamento mudou ──────────
+
+                    Antes ele dizia para trocar de conta na mão, e era a verdade
+                    daquele momento: sem `force_reauth`, a segunda autorização
+                    no mesmo navegador reaproveitava a sessão e autorizava a
+                    MESMA conta de novo, em silêncio. Prometer "pede login
+                    novo" ali seria mentira, e a mentira custaria uma conta
+                    conectada duas vezes no lugar de duas contas.
+
+                    Agora o pedido leva `force_reauth=true` — o parâmetro que o
+                    próprio painel da Meta emite na URL de login da empresa — e
+                    a janela pede login a cada conta. O texto acompanha. */}
+                {' '}Cada janela pede o login da conta, então dá para ir de uma
+                para a outra sem sair daqui — ou use{' '}
+                <strong style={{ color:'var(--mf-text-2)' }}>Copiar link</strong> e cole
                 no navegador de cada perfil.
               </div>
               {janelaOAuth.conectadas.length > 0 && (
