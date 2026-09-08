@@ -561,7 +561,22 @@ export function SinoDeNotificacoes() {
             )}
           </div>
 
-          <div style={{ overflowY: 'auto', flex: 1, padding: 'var(--mf-2)' }}>
+          {/* ── Por que grade com `gap`, e não margem em cada cartão ────────
+
+              Os cartões saíam um atrás do outro sem espaço nenhum. Cada um tem
+              borda de 1px, então a borda de baixo de um encostava na de cima do
+              seguinte e as duas viravam uma linha de 2px: a lista parecia um
+              bloco único dividido por traços, não cartões separados.
+
+              `gap` e não `margin-bottom` no cartão: margem no último item
+              deixaria um vão morto antes do rodapé, e margens verticais
+              colapsam de formas que dependem do que está em volta. O `gap`
+              descreve o espaço ENTRE irmãos, que é exatamente o que se quer.
+
+              O espaço entre GRUPOS é maior que entre cartões — é o que faz
+              "HOJE" e "03 DE SET." se lerem como seções em vez de mais duas
+              linhas na mesma pilha. */}
+          <div style={{ overflowY: 'auto', flex: 1, padding: 'var(--mf-2)', display: 'grid', gap: 'var(--mf-4)', alignContent: 'start' }}>
             {!grupos.length && (
               <div style={{
                 padding: 'var(--mf-10) var(--mf-4)', textAlign: 'center',
@@ -573,10 +588,10 @@ export function SinoDeNotificacoes() {
             )}
 
             {grupos.map(([rotulo, lista]) => (
-              <div key={rotulo}>
+              <div key={rotulo} style={{ display: 'grid', gap: 'var(--mf-2)' }}>
                 <div style={{
                   fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.08em',
-                  color: 'var(--mf-text-3)', padding: 'var(--mf-3) var(--mf-2) var(--mf-1)',
+                  color: 'var(--mf-text-3)', padding: '0 var(--mf-2)',
                 }}>{rotulo.toUpperCase()}</div>
                 {lista.map(n => (
                   <Cartao key={n._id} notificacao={n} compacto
