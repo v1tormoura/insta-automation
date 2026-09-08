@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom';
 import Segmentado from '../components/Segmentado';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Activity, AlertTriangle, ChevronDown, ChevronRight,
-  Clock3, Flame, FolderOpen, Globe, HeartPulse, Layers3,
+  AlertTriangle, ChevronDown, ChevronRight,
+  Clock3, Flame, FolderOpen, HeartPulse, Layers3,
   MoreHorizontal, Plus, RefreshCw, Send,
-  ShieldCheck, TrendingUp, WifiOff, Zap,
+  ShieldCheck, TrendingUp, Zap,
   Play, Pause, Repeat2, ListVideo, Eye, Timer,
 } from 'lucide-react';
 import {
@@ -1091,7 +1091,6 @@ export default function Dashboard() {
   const [period,        setPeriod]        = useState(7);
   const [accountsPeriod,setAccountsPeriod]= useState('hoje');
   const [problemsPeriod,setProblemsPeriod]= useState('hoje');
-  const [proxyCount,    setProxyCount]    = useState(0);
 
   const [primeiraCarga, setPrimeiraCarga] = useState(true);
   const loadRef  = useRef(null);
@@ -1105,16 +1104,15 @@ export default function Dashboard() {
     finally { setPrimeiraCarga(false); } }, []);
   const loadStats   = useCallback(async () => { try { const r = await api.get('/dashboard/account-stats');                                 setAccountStats(r.data||[]); } catch {} }, []);
   const loadInsights= useCallback(async () => { try { const r = await api.get('/insights', { params:{ period:'30d', limit:6 } });          setTopInsights(r.data?.insights||[]); } catch {} }, []);
-  const loadProxies = useCallback(async () => { try { const r = await api.get('/proxies'); const list=r.data?.proxies||(Array.isArray(r.data)?r.data:[]); setProxyCount(list.length); } catch {} }, []);
   const loadLoops   = useCallback(async () => { try { const r = await api.get('/loops');                                                    setLoops(r.data||[]); }  catch {} }, []);
 
   loadRef.current = load;
 
-  useEffect(() => { load(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, [load, loadStats, loadInsights, loadProxies, loadLoops]);
+  useEffect(() => { load(); loadStats(); loadInsights(); loadLoops(); }, [load, loadStats, loadInsights, loadLoops]);
   useEffect(() => {
-    const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); loadProxies(); loadLoops(); }, 15_000);
+    const id = setInterval(() => { loadRef.current?.(); loadStats(); loadInsights(); loadLoops(); }, 15_000);
     return () => clearInterval(id);
-  }, [loadStats, loadInsights, loadProxies, loadLoops]);
+  }, [loadStats, loadInsights, loadLoops]);
 
   useServerEvents(['posts','accounts','sessions','health','insights','loop'], () => {
     loadRef.current?.(); loadStats(); loadInsights(); loadLoops();
@@ -1176,25 +1174,9 @@ export default function Dashboard() {
     { label:'Taxa de sucesso', value:`${d.successRate ||0}%`, color:'var(--mf-mod, var(--mf-accent-500))'},
   ];
 
-  const logs = useMemo(() => (d.activities||[]).slice(0,5).map(a => ({
-    time:new Date(a.date||a.createdAt||Date.now()).toLocaleTimeString('pt-BR'),
-    type:a.status==='concluido'?'success':a.status==='erro'?'warning':a.status==='ativa'?'success':'info',
-    text:a.action||a.text||(a.type==='post'?'Publicação':'Atividade'), account:a.account||a.username||'', caption:a.caption||'', kind:a.type||'post',
-  })), [d.activities]);
-
-  const topAccounts = useMemo(() => (d.topAccounts||[]).slice(0,4), [d.topAccounts]);
-  const activities  = useMemo(() => (d.activities||[]).slice(0,5).map(a => ({
-    icon:a.status==='erro'?AlertTriangle:a.type==='account'?Activity:a.postType==='story'?Clock3:Send,
-    text:a.action||a.text||(a.type==='post'?'Publicação':'Atividade'), account:a.account||a.username||'', caption:a.caption||'',
-    time:new Date(a.date||a.createdAt||Date.now()).toLocaleTimeString('pt-BR',{ hour:'2-digit', minute:'2-digit' }),
-    tone:a.status==='concluido'?'cyan':a.status==='erro'?'danger':a.status==='ativa'?'cyan':'amber',
-  })), [d.activities]);
-
   const sysLoaded    = data !== null;
   const sysOk        = sysLoaded && d.system?.backend && d.system?.mongo;
   const sysDotColor  = !sysLoaded ? 'var(--mf-text-3)' : sysOk ? 'var(--mf-success-500)' : 'var(--mf-danger-500)';
-  const bannedCount  = useMemo(() => accountStats.filter(a => a.healthStatus==='banida').length, [accountStats]);
-  const fallenCount  = useMemo(() => accountStats.filter(a => ['token_invalido','sessao_expirada'].includes(a.healthStatus)).length, [accountStats]);
 
   const accountsAddedValue = accountsPeriod==='hoje'?(d.accountsAddedToday||0):accountsPeriod==='7d'?(d.accountsAdded7d||0):(d.accountsAdded30d||0);
   const problemsValue      = problemsPeriod==='hoje'?(d.problemsToday||0):problemsPeriod==='7d'?(d.problems7d||0):(d.problems30d||0);
@@ -1431,128 +1413,6 @@ export default function Dashboard() {
           </div>
         </BlurFade>
 
-        {/* ── Bottom grid ── */}
-        <BlurFade delay={0} inView>
-          <section className="bottom-grid">
-
-            {/* LOGS */}
-            <div style={{ ...card }} className="lift">
-              <PanelHeader title="Logs recentes" right={
-                <button className="view-all" onClick={() => showToast('Abrindo logs.')}>Ver todos <ChevronRight size={13}/></button>
-              } />
-              <ul style={{ listStyle:'none', margin:0, padding:'4px 12px', display:'flex', flexDirection:'column' }}>
-                {logs.length===0 ? (
-                  <li style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'16px 0' }}>Nenhum log ainda.</li>
-                ) : logs.map((log,i) => (
-                  <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-                    <span className={`log-status ${log.type}`} style={{ flexShrink:0, marginTop:1 }}>
-                      {log.type==='success'&&<ShieldCheck size={13}/>}
-                      {log.type==='info'&&<Activity size={13}/>}
-                      {log.type==='warning'&&<AlertTriangle size={13}/>}
-                    </span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)', lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.text}</div>
-                      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                        {log.account&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{log.account}</span>}
-                        {log.caption&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.caption}</span>}
-                      </div>
-                    </div>
-                    <time style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{log.time}</time>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* CONTAS EM DESTAQUE */}
-            <div style={{ ...card }} className="lift">
-              <PanelHeader title="Contas em destaque" right={
-                <button className="view-all" onClick={() => showToast('Abrindo ranking.')}>Ver todos <ChevronRight size={13}/></button>
-              } />
-              <ul style={{ listStyle:'none', margin:0, padding:'4px 12px', display:'flex', flexDirection:'column' }}>
-                {topAccounts.length===0 ? (
-                  <li style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'16px 0' }}>Nenhuma conta conectada.</li>
-                ) : topAccounts.map((acc,i) => {
-                  const score    = acc.healthScore??(acc.healthStatus==='ativa'?95:acc.healthStatus==='restrita'?45:10);
-                  const isErr    = acc.healthStatus!=='ativa';
-                  const dotColor = isErr?'var(--mf-danger-500)':'var(--mf-success-500)';
-                  return (
-                    <li key={acc.username||i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-                      <div style={{ position:'relative', flexShrink:0 }}>
-                        <AvatarChip username={acc.username} avatar={acc.avatar} size={38} />
-                        <span style={{ position:'absolute', bottom:0, right:0, width:9, height:9, borderRadius: 'var(--mf-r-full)', background:dotColor, border:'2px solid var(--mf-surface-1)', boxShadow:`0 0 6px ${dotColor}` }} />
-                      </div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{acc.username}</div>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                          <span style={{ fontSize: 'var(--mf-t-nano)', color:isErr?'var(--mf-danger-500)':'var(--mf-success-500)', fontWeight:600 }}>{isErr?acc.healthStatus.replace('_',' '):'Online'}</span>
-                          <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>· {fmtK(acc.followers)} seg.</span>
-                        </div>
-                      </div>
-                      <span className={`score-ring ${isErr?'low':''}`} style={{ '--score':`${score}%`, flexShrink:0 }}>{score}%</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            {/* SISTEMA */}
-            <div style={{ ...card }} className="lift">
-              <PanelHeader title="Sistema" icon={ShieldCheck} right={
-                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-sm)', background:!sysLoaded?'var(--mf-border-subtle)':sysOk?'color-mix(in oklch, var(--mf-success-500) 10%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color:sysDotColor, border:`1px solid ${!sysLoaded?'var(--mf-border)':sysOk?'color-mix(in oklch, var(--mf-success-500) 25%, transparent)':'color-mix(in oklch, var(--mf-danger-500) 25%, transparent)'}` }}>
-                  {!sysLoaded?'...':sysOk?'ONLINE':'ALERTA'}
-                </span>
-              } />
-              <ul style={{ listStyle:'none', margin:0, padding:'4px 12px', display:'flex', flexDirection:'column' }}>
-                {[
-                  { icon:<Zap size={14}/>,          label:'Automações ativas', value:d.activeAccounts||0, color:'var(--mf-mod, var(--mf-accent-500))',  sub:`${d.totalAccounts||0} configuradas` },
-                  { icon:<Globe size={14}/>,         label:'Proxies online',    value:proxyCount,           color:'var(--mf-success-500)', sub:'Todas as regiões' },
-                  { icon:<AlertTriangle size={14}/>, label:'Contas banidas',    value:bannedCount,          color:bannedCount>0?'var(--mf-danger-500)':'var(--mf-text-3)', sub:bannedCount>0?'Ação necessária':'Nenhuma banida' },
-                  { icon:<WifiOff size={14}/>,       label:'Contas caídas',     value:fallenCount,          color:fallenCount>0?'var(--mf-warning-500)':'var(--mf-text-3)', sub:fallenCount>0?'Reconectar necessário':'Todas online' },
-                ].map(item => (
-                  <li key={item.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-                    <span style={{ width:32, height:32, borderRadius: 'var(--mf-r-md)', background:`color-mix(in srgb,${item.color} 12%,transparent)`, border:`1px solid color-mix(in srgb,${item.color} 20%,transparent)`, display:'flex', alignItems:'center', justifyContent:'center', color:item.color, flexShrink:0 }}>
-                      {item.icon}
-                    </span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text-2)' }}>{item.label}</div>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:1 }}>{item.sub}</div>
-                    </div>
-                    <strong style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color:item.color, letterSpacing:-0.5, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{item.value}</strong>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* ATIVIDADES */}
-            <div style={{ ...card }} className="lift">
-              <PanelHeader title="Atividades recentes" right={
-                <button className="view-all" onClick={() => showToast('Abrindo atividades.')}>Ver todos <ChevronRight size={13}/></button>
-              } />
-              <ul style={{ listStyle:'none', margin:0, padding:'4px 12px', display:'flex', flexDirection:'column' }}>
-                {activities.length===0 ? (
-                  <li style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'16px 0' }}>Nenhuma atividade ainda.</li>
-                ) : activities.map((act,i) => {
-                  const Icon      = act.icon;
-                  const toneColor = { cyan:'var(--mf-mod, var(--mf-accent-500))', danger:'var(--mf-danger-500)', amber:'var(--mf-warning-500)' }[act.tone]||'var(--mf-text-3)';
-                  return (
-                    <li key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, padding:'8px 0', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-                      <span className={`activity-icon ${act.tone}`} style={{ flexShrink:0, marginTop:1 }}><Icon size={13} /></span>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.text}</div>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-                          {act.account&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600 }}>@{act.account}</span>}
-                          {act.caption&&<span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{act.caption}</span>}
-                        </div>
-                      </div>
-                      <time style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', flexShrink:0, paddingTop:2 }}>{act.time}</time>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-          </section>
-        </BlurFade>
 
         {/* ── Footer ── */}
         {/* ── A fila, por inteiro ─────────────────────────────────────────
