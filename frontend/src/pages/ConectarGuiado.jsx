@@ -32,6 +32,18 @@ export default function ConectarGuiado() {
   const conta = contaValida(params.get('conta'));
   const metaAppId = String(params.get('app') || '').trim();
 
+  /* ── O desfecho, quando o servidor manda de volta para cá ────────────────
+
+     O callback do servidor redirecionava para `/accounts`, que é rota
+     protegida. No navegador do perfil (multilogin) — que não está logado no
+     painel, e nem deveria — a pessoa permitia, a conta conectava de verdade, e
+     a tela que aparecia era a de login. Parecia que não tinha funcionado.
+
+     Agora ele volta para cá com `?ok=<@>`, e esta página mostra o resultado
+     ali mesmo. Recortado em 30: é o teto do @ no Instagram, e este valor vem
+     da URL. */
+  const conectou = String(params.get('ok') || '').trim().slice(0, 30);
+
   return (
     /* `data-mf` porque os tokens do tema moram nele — sem o atributo, todas as
        variáveis `--mf-*` resolvem vazias e a página sai sem cor nenhuma. */
@@ -57,6 +69,33 @@ export default function ConectarGuiado() {
           </span>
         </div>
 
+        {/* Conectou: a tela para aqui. Repetir os dois passos abaixo de um
+            "pronto" convidaria a fazer tudo de novo. */}
+        {conectou ? (
+          <div style={{
+            padding: 'var(--mf-5)', borderRadius: 'var(--mf-r-xl)', textAlign: 'center',
+            background: 'color-mix(in oklch, var(--mf-success-500) 8%, var(--mf-surface-1))',
+            border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)',
+          }}>
+            <div style={{ width: 46, height: 46, margin: '0 auto 14px', borderRadius: 'var(--mf-r-full)',
+              display: 'grid', placeItems: 'center',
+              background: 'color-mix(in oklch, var(--mf-success-500) 16%, transparent)',
+              border: '1px solid color-mix(in oklch, var(--mf-success-500) 34%, transparent)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--mf-success-500)"
+                strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h1 style={{ margin: 0, fontSize: 'var(--mf-t-h1)', fontWeight: 800 }}>Conta conectada</h1>
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text-2)', lineHeight: 1.7 }}>
+              <strong style={{ color: 'var(--mf-success-500)' }}>@{conectou}</strong> já aparece no painel.
+              Pode fechar esta aba.
+            </p>
+            <p style={{ margin: '14px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.7 }}>
+              Para conectar outra conta, cole o link guiado no navegador dela.
+            </p>
+          </div>
+        ) : (
         <div style={{
           padding: 'var(--mf-5)', borderRadius: 'var(--mf-r-xl)',
           background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
@@ -79,6 +118,7 @@ export default function ConectarGuiado() {
 
           <PassosDeConexao conta={conta} metaAppId={metaAppId} mod="contas" onErro={setErro} />
         </div>
+        )}
       </div>
     </div>
   );

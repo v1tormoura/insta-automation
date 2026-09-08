@@ -10,6 +10,9 @@ const { URL } = require('url');
 const { broadcast }       = require('../events/broadcaster');
 const { runHealthCheck }  = require('../jobs/healthCheck');
 const MetaApp             = require('../models/MetaApp');
+/* Para conferir se o state desmontado é um ObjectId de verdade antes de o usar
+   numa busca — sem isso o Mongoose lança CastError no meio do callback. */
+const mongoose            = require('mongoose');
 
 // Reliable HTTPS POST using core Node.js https module.
 // Avoids undici / native fetch SSL issues on Windows.
@@ -73,6 +76,24 @@ async function resolveMetaApp(metaAppId) {
 }
 
 const REDIRECT_URI = process.env.OAUTH_REDIRECT_URI || 'http://localhost:5200/oauth-callback';
+
+/**
+ * Para onde mandar o navegador depois de conectar.
+ *
+ * `/accounts` é rota protegida. Quando a autorização acontece no navegador do
+ * perfil (multilogin), esse navegador não está logado no painel — e nem
+ * deveria: o ponto daquele perfil é ser só aquela conta do Instagram. A pessoa
+ * permitia, a conta conectava de verdade, e a tela que ela via era a de login.
+ * Parecia que não tinha funcionado.
+ *
+ * `/conectar` é público e já existe. Com `?ok=` ele mostra o desfecho ali
+ * mesmo, e quem está no painel continua caindo em `/accounts` porque a tela de
+ * contas já sabe ler `?oauth=success`.
+ */
+function destinoDeSucesso(username) {
+  const u = encodeURIComponent(username || '');
+  return `${FRONTEND}/conectar?ok=${u}`;
+}
 const FRONTEND     = process.env.FRONTEND_URL || 'http://localhost:5200';
 
 const SCOPES = [
@@ -558,9 +579,49 @@ router.get('/callback', async (req, res) => {
     return res.redirect(`${FRONTEND}/accounts?oauth=error&msg=codigo_nao_encontrado`);
   }
 
+  /* ── O state precisa ser conferido e DESMONTADO aqui ─────────────────────
+
+     Este era o defeito que fazia "eu permito e não conecta".
+
+     `/oauth/url` ASSINA o state: 'new' sai como `new~<nonce>~<hmac>`. Este
+     handler lia `state` cru e fazia `state !== 'new'` — que é sempre
+     verdadeiro na forma assinada. Então toda conexão caía no ramo de "conta
+     existente" e chamava `Account.findByIdAndUpdate('new~ab12~cd34')`, com um
+     texto que não é ObjectId. O Mongoose lança CastError, o catch redireciona
+     para a tela de erro, e nada é gravado.
+
+     Valia para os dois casos: conta nova E reconexão, porque o id também vem
+     assinado. E o sintoma não aponta para cá — a tela do Instagram mostra
+     "Permitir", a pessoa permite, e o painel simplesmente não muda.
+
+     O `POST /oauth/connect/:state`, que é o caminho usado quando a URL de
+     retorno é colada à mão, já fazia isso certo. Eram dois caminhos para a
+     mesma coisa e só um estava correto; agora os dois desmontam o state do
+     mesmo jeito.
+
+     `__mapp_` também precisa sair aqui: quem tem mais de um App da Meta tinha
+     o id do app grudado no id da conta. */
+  const { verifyAndStripState } = require('../services/csrfState');
+  const conferido = verifyAndStripState(state);
+  if (!conferido.valid) {
+    console.error(`[OAuth] CSRF inválido no callback — state: ${String(state).slice(0, 50)}`);
+    return res.redirect(`${FRONTEND}/accounts?oauth=error&msg=${encodeURIComponent('State OAuth inválido ou adulterado. Tente conectar novamente.')}`);
+  }
+
+  let alvo = conferido.state || 'new';
+  let metaAppDocId = null;
+  if (alvo.includes('__mapp_')) {
+    const partes = alvo.split('__mapp_');
+    alvo = partes[0];
+    metaAppDocId = partes[1];
+  }
+  /* O App escolhido na tela. Sem isto o Meta recusa a troca do código com
+     `client_id` de um app e código emitido por outro. */
+  const appDaConexao = await resolveMetaApp(metaAppDocId);
+
   try {
     // 1. Código → short token
-    const { shortToken, userId: userIdStr } = await exchangeCodeForToken(code);
+    const { shortToken, userId: userIdStr } = await exchangeCodeForToken(code, appDaConexao);
 
     // 2. Troca short → long-lived (60 dias)
     let accessToken    = shortToken;
@@ -574,20 +635,22 @@ router.get('/callback', async (req, res) => {
       console.warn(`⚠️ [OAuth Callback] Long-lived falhou — short token com expiração real de 1h: ${llErr.message}`);
     }
 
-    // 3. Se conta existente (state = _id), só salva o token — sem buscar perfil
-    if (state && state !== 'new') {
-      await Account.findByIdAndUpdate(state, {
+    /* 3. Reconexão de conta que já existe: só o token, sem buscar perfil.
+          `alvo` é o id já DESMONTADO — antes esta comparação recebia o state
+          assinado e nunca era 'new', então toda conta nova caía aqui. */
+    if (alvo && alvo !== 'new' && mongoose.Types.ObjectId.isValid(alvo)) {
+      await Account.findByIdAndUpdate(alvo, {
         accessToken,
         igUserId: userIdStr,
         tokenExpiresAt,
         healthStatus: 'ativa',
       });
-      const account = await Account.findById(state).lean();
+      const account = await Account.findById(alvo).lean();
       const username = account?.username || userIdStr;
       console.log(`✅ OAuth Instagram — @${username} token salvo`);
-      broadcast('accounts', { action: 'oauth_connected', username, accountId: state });
+      broadcast('accounts', { action: 'oauth_connected', username, accountId: alvo });
       setImmediate(() => runHealthCheck().catch(() => {}));
-      return res.redirect(`${FRONTEND}/accounts?oauth=success&username=${encodeURIComponent(username)}`);
+      return res.redirect(destinoDeSucesso(username));
     }
 
     // 4. Nova conta — tenta buscar perfil, senão usa userId como fallback
@@ -623,7 +686,7 @@ router.get('/callback', async (req, res) => {
     console.log(`✅ OAuth Instagram — @${username} conectada`);
     broadcast('accounts', { action: 'oauth_connected', username });
     setImmediate(() => runHealthCheck().catch(() => {}));
-    res.redirect(`${FRONTEND}/accounts?oauth=success&username=${encodeURIComponent(username)}`);
+    res.redirect(destinoDeSucesso(username));
 
   } catch (err) {
     console.error('Erro OAuth Instagram callback:', err.message);
