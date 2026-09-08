@@ -27,11 +27,62 @@ import { EsqueletoLista } from '../components/Estados';
  * consertar cedo; o servidor existe porque o editor pode ser contornado.
  */
 
+/**
+ * Os avisos de MARCO: nascem de uma métrica ter subido, têm marcos
+ * configuráveis e podem ser desligados.
+ */
 const METRICAS = [
   { id: 'storyViews',   rotulo: 'Stories',  desc: 'Quantas pessoas viram o story' },
   { id: 'contentViews', rotulo: 'Conteúdo', desc: 'Visualizações de Reels e posts' },
   { id: 'reach',        rotulo: 'Alcance',  desc: 'Contas únicas alcançadas' },
 ];
+
+/**
+ * Os avisos do SISTEMA: nascem do vigia encontrando um problema.
+ *
+ * Estes eram os únicos com texto embutido no código — não por decisão, e sim
+ * porque foram escritos depois do editor. Agora usam o mesmo modelo dos marcos.
+ *
+ * Não têm marcos nem interruptor: um proxy morto não tem "marco de 1.000", e
+ * um botão para desligar o aviso de que a automação parou seria um botão para
+ * desligar a única coisa que avisa que a automação parou.
+ */
+const SISTEMA = [
+  { id: 'cota',        rotulo: 'Cota do proxy',      desc: 'Antes de a cota acabar' },
+  { id: 'proxy',       rotulo: 'Proxy fora do ar',   desc: 'O proxy parou de responder' },
+  { id: 'pool',        rotulo: 'Pool esgotado',      desc: 'Não há proxy livre para a próxima conta' },
+  { id: 'sessoes',     rotulo: 'Contas sem conectar', desc: 'Quando é a maioria de uma vez' },
+  { id: 'fila',        rotulo: 'Fila presa',         desc: 'Publicação em processamento há mais de 1h' },
+  { id: 'erros',       rotulo: 'Erros do dia',       desc: 'Muitos erros de publicação no mesmo dia' },
+  { id: 'normalizado', rotulo: 'Voltou ao normal',   desc: 'O aviso de que um problema passou' },
+];
+
+const RESUMO = { id: 'resumo', rotulo: 'Resumo do dia', desc: 'O balanço de todas as contas' };
+
+/** Todo aviso editável, por id — para achar o rótulo sem varrer as listas. */
+const TODOS = [...METRICAS, RESUMO, ...SISTEMA];
+const PELO_ID = Object.fromEntries(TODOS.map(a => [a.id, a]));
+
+/** Um aviso do sistema não tem marcos nem interruptor. */
+const ehDoSistema = id => SISTEMA.some(a => a.id === id);
+
+/**
+ * A condição real de disparo de cada aviso do sistema.
+ *
+ * Está escrita aqui porque quem edita o texto precisa saber QUANDO ele sai —
+ * um limiar de "mais de uma hora" muda como a frase é redigida. Os números
+ * vêm do vigia: mudá-los lá sem mudar aqui deixaria esta tela mentindo, e é
+ * por isso que a frase cita o número em vez de dizer "quando trava".
+ */
+const GATILHO = {
+  cota:    'Quando a cota passa de 85% do total, ou quando a projeção mostra 5 dias ou menos até acabar.',
+  proxy:   'Quando um teste de conexão ao proxy configurado falha.',
+  pool:    'Quando nenhum proxy do pool está livre para a próxima conta.',
+  sessoes: 'Quando metade ou mais das contas está sem conseguir conectar.',
+  fila:    'Quando uma publicação fica em processamento por mais de 1 hora.',
+  erros:   'Quando o dia acumula 20 erros de publicação ou mais.',
+  normalizado: 'Quando qualquer um dos avisos acima deixa de valer — o problema passou.',
+};
 
 const TEMAS = ['story', 'viral', 'reach', 'milestone', 'achievement', 'success', 'warning', 'info'];
 
@@ -64,6 +115,14 @@ export default function ConfigNotificacoes() {
         exibicao: data.exibicao || {},
         mensagens: data.mensagens || {},
         variaveis: data.variaveis || {},
+        /* Quais variáveis cada aviso oferece. Sem isto o editor listaria
+           `{{presas}}` num aviso de story: existe no sistema, não existe ali,
+           e sairia como marcador literal na notificação. */
+        variaveisPorTipo: data.variaveisPorTipo || {},
+        /* Os valores de exemplo vêm do servidor. Antes estavam escritos aqui
+           também, e duas listas da mesma coisa divergem na primeira variável
+           nova — foi exatamente o que aconteceu com as sete do sistema. */
+        exemplos: data.exemplos || {},
         modelosPadrao: data.modelosPadrao || {},
       });
     } catch {
@@ -133,23 +192,32 @@ export default function ConfigNotificacoes() {
     }));
   };
 
-  /* Variáveis usadas no texto que o sistema não conhece. */
+  /* As variáveis DESTE aviso, com a descrição de cada uma. É o que a lista
+     mostra e é contra o que a validação confere — os dois a partir da mesma
+     fonte, para o editor não oferecer o que ele mesmo vai recusar. */
+  const variaveis = useMemo(() => {
+    if (!cfg) return {};
+    const nomes = cfg.variaveisPorTipo[metrica];
+    if (!nomes) return cfg.variaveis;
+    return Object.fromEntries(nomes.map(n => [n, cfg.variaveis[n] || '']));
+  }, [cfg, metrica]);
+
+  /* Variáveis usadas no texto que este aviso não sabe preencher. */
   const invalidas = useMemo(() => {
-    if (!cfg) return [];
-    const conhecidas = Object.keys(cfg.variaveis);
+    const conhecidas = Object.keys(variaveis);
+    if (!conhecidas.length) return [];
     const achar = t => [...String(t || '').matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g)]
       .map(m => m[1]).filter(v => !conhecidas.includes(v));
     return [...new Set([...achar(modelo.titulo), ...achar(modelo.mensagem)])];
-  }, [cfg, modelo]);
+  }, [variaveis, modelo]);
 
   /* Renderização local, com os mesmos dados de exemplo do servidor. Local para
      o preview acompanhar cada tecla sem uma ida ao servidor por caractere. */
   const exemplo = useMemo(() => {
     const vars = {
-      username: 'oliviapaganini', account: '@oliviapaganini',
-      views: '1.024', threshold: '1.000', storyId: '178551331', content: '178551331',
+      ...(cfg?.exemplos || {}),
+      /* A única que depende do aviso escolhido: o resto vem do servidor. */
       contentType: metrica === 'storyViews' ? 'Story' : 'Reel',
-      time: 'há 2h', likes: '87', comments: '12', shares: '4', reach: '940',
     };
     const render = t => String(t || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
       (inteiro, nome) => (nome in vars ? vars[nome] : inteiro));
@@ -164,7 +232,7 @@ export default function ConfigNotificacoes() {
       criadaEm: new Date().toISOString(),
       lidaEm: null,
     };
-  }, [modelo, metrica]);
+  }, [modelo, metrica, cfg?.exemplos]);
 
   async function salvar() {
     if (invalidas.length) {
@@ -240,43 +308,72 @@ export default function ConfigNotificacoes() {
 
         {cfg && (
           <>
-            {/* ── Métrica em edição ── */}
-            <div style={{ display: 'flex', gap: 'var(--mf-2)', flexWrap: 'wrap' }}>
-              {METRICAS.map(m => {
-                const ativa = metrica === m.id;
-                const ligada = cfg.ativos[m.id];
-                return (
-                  <button key={m.id} onClick={() => setMetrica(m.id)} style={{
-                    flex: '1 1 180px', textAlign: 'left', padding: 'var(--mf-3)',
-                    borderRadius: 'var(--mf-r-md)', cursor: 'pointer', minWidth: 0,
-                    background: ativa ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'var(--mf-surface-1)',
-                    border: `1px solid ${ativa ? 'color-mix(in oklch, var(--mf-primary-500) 38%, transparent)' : 'var(--mf-border)'}`,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700,
-                        color: ativa ? 'var(--mf-primary-500)' : 'var(--mf-text)' }}>{m.rotulo}</span>
-                      <span style={{ flex: 1 }} />
-                      <span style={{
-                        fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 8px',
-                        borderRadius: 'var(--mf-r-full)',
-                        background: ligada ? 'var(--mf-success-bg)' : 'var(--mf-border-subtle)',
-                        color: ligada ? 'var(--mf-success-500)' : 'var(--mf-text-3)',
-                      }}>{ligada ? 'ligado' : 'desligado'}</span>
-                    </div>
-                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 3 }}>
-                      {m.desc}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            {/* ── Qual aviso está sendo editado ──────────────────────────────
+                Dois grupos, e não uma lista de dez. Marcos e avisos de sistema
+                são coisas diferentes: um celebra, o outro avisa que algo
+                quebrou. Misturados na mesma fila, "Fila presa" apareceria ao
+                lado de "Stories" como se fossem o mesmo tipo de coisa. */}
+            {[
+              { titulo: 'MARCOS DE AUDIÊNCIA', itens: [...METRICAS, RESUMO], comInterruptor: true },
+              { titulo: 'AVISOS DO SISTEMA',   itens: SISTEMA,               comInterruptor: false },
+            ].map(grupo => (
+              <div key={grupo.titulo} style={{ display: 'grid', gap: 'var(--mf-2)' }}>
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.09em',
+                  color: 'var(--mf-text-3)' }}>{grupo.titulo}</span>
+                <div style={{ display: 'grid', gap: 'var(--mf-2)',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))' }}>
+                  {grupo.itens.map(m => {
+                    const ativa = metrica === m.id;
+                    /* O interruptor só aparece onde existe. Um selo "ligado"
+                       fixo nos avisos de sistema sugeriria que dá para
+                       desligar — e não dá, de propósito. */
+                    const ligada = m.id === 'resumo' ? cfg.ativos.global : cfg.ativos[m.id];
+                    /* Um ponto quando há texto próprio salvo: sem ele, não há
+                       como saber quais dos dez foram editados sem clicar nos
+                       dez. */
+                    const editado = !!cfg.mensagens[m.id];
+                    return (
+                      <button key={m.id} onClick={() => setMetrica(m.id)} style={{
+                        textAlign: 'left', padding: 'var(--mf-3)', minWidth: 0,
+                        borderRadius: 'var(--mf-r-md)', cursor: 'pointer',
+                        background: ativa ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'var(--mf-surface-1)',
+                        border: `1px solid ${ativa ? 'color-mix(in oklch, var(--mf-primary-500) 38%, transparent)' : 'var(--mf-border)'}`,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, minWidth: 0,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            color: ativa ? 'var(--mf-primary-500)' : 'var(--mf-text)' }}>{m.rotulo}</span>
+                          {editado && (
+                            <span title="Com texto próprio" style={{ width: 5, height: 5, flexShrink: 0,
+                              borderRadius: 'var(--mf-r-full)', background: 'var(--mf-primary-500)' }} />
+                          )}
+                          <span style={{ flex: 1 }} />
+                          {grupo.comInterruptor && (
+                            <span style={{
+                              fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 7px',
+                              borderRadius: 'var(--mf-r-full)', flexShrink: 0,
+                              background: ligada ? 'var(--mf-success-bg)' : 'var(--mf-border-subtle)',
+                              color: ligada ? 'var(--mf-success-500)' : 'var(--mf-text-3)',
+                            }}>{ligada ? 'ligado' : 'desligado'}</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
+                          marginTop: 3, lineHeight: 1.5 }}>
+                          {m.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
 
             <div style={{ display: 'grid', gap: 'var(--mf-4)',
               gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))' }}>
 
               {/* ── Editor ── */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)', minWidth: 0 }}>
-                {painel('Mensagem', <>
+                {painel(`Mensagem — ${PELO_ID[metrica]?.rotulo || metrica}`, <>
                   <div style={{ marginBottom: 'var(--mf-3)' }}>
                     {rotulo('TÍTULO')}
                     <input className="input" style={{ width: '100%' }}
@@ -337,7 +434,7 @@ export default function ConfigNotificacoes() {
                 {painel('Variáveis disponíveis', (
                   <div style={{ display: 'grid', gap: '3px 14px',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))' }}>
-                    {Object.entries(cfg.variaveis).map(([nome, desc]) => (
+                    {Object.entries(variaveis).map(([nome, desc]) => (
                       <button key={nome}
                         onClick={() => mudarModelo('mensagem', `${modelo.mensagem || ''}{{${nome}}}`)}
                         title={desc}
@@ -373,21 +470,35 @@ export default function ConfigNotificacoes() {
                   <Cartao notificacao={exemplo} onFechar={() => {}} />
                 </>)}
 
-                {painel('Marcos', <>
-                  <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
-                    marginBottom: 'var(--mf-2)', lineHeight: 1.6 }}>
-                    Um aviso por marco, uma única vez. Separe por vírgula.
-                  </div>
-                  <input className="input" style={{ width: '100%', fontFamily: 'var(--mf-mono)' }}
-                    value={(cfg.thresholds[metrica] || []).join(', ')}
-                    onChange={e => setCfg(c => ({
-                      ...c,
-                      thresholds: {
-                        ...c.thresholds,
-                        [metrica]: e.target.value.split(',').map(v => Number(v.trim())).filter(Boolean),
-                      },
-                    }))} />
-                </>)}
+                {/* Marcos existem para métricas que SOBEM. "Proxy fora do ar"
+                    não tem marco de 1.000, e um campo vazio ali seria um
+                    convite a preencher algo que nada leria. O painel some, e
+                    no lugar entra o que decide o disparo de verdade. */}
+                {ehDoSistema(metrica)
+                  ? painel('Quando este aviso dispara', (
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.7 }}>
+                      {GATILHO[metrica]}
+                      <div style={{ marginTop: 'var(--mf-2)', color: 'var(--mf-text-3)' }}>
+                        Avisa uma vez ao começar, repete só depois de 6 h se continuar,
+                        e avisa uma vez ao voltar ao normal.
+                      </div>
+                    </div>
+                  ))
+                  : painel('Marcos', <>
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
+                      marginBottom: 'var(--mf-2)', lineHeight: 1.6 }}>
+                      Um aviso por marco, uma única vez. Separe por vírgula.
+                    </div>
+                    <input className="input" style={{ width: '100%', fontFamily: 'var(--mf-mono)' }}
+                      value={(cfg.thresholds[metrica] || []).join(', ')}
+                      onChange={e => setCfg(c => ({
+                        ...c,
+                        thresholds: {
+                          ...c.thresholds,
+                          [metrica]: e.target.value.split(',').map(v => Number(v.trim())).filter(Boolean),
+                        },
+                      }))} />
+                  </>)}
 
                 {painel('Comportamento', <>
                   {METRICAS.map(m => (

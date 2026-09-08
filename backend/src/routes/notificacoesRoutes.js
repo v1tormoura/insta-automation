@@ -85,6 +85,15 @@ router.get('/config', async (_req, res) => {
     res.json({
       ...cfg,
       variaveis: templates.VARIAVEIS,
+      /* Por tipo, porque `{{presas}}` num aviso de story nunca teria valor e
+         sairia como marcador literal na tela. O editor lista só o que aquele
+         aviso sabe preencher. */
+      variaveisPorTipo: templates.VARIAVEIS_POR_TIPO,
+      tiposDeSistema: templates.TIPOS_DE_SISTEMA,
+      /* Os valores de exemplo viajam junto para a prévia poder ser local — ela
+         acompanha cada tecla, e uma ida ao servidor por caractere seria uma
+         requisição a cada letra digitada. */
+      exemplos: templates.EXEMPLOS,
       modelosPadrao: templates.PADRAO,
     });
   } catch (err) {
@@ -108,7 +117,11 @@ router.put('/config', async (req, res) => {
       const invalidas = [];
       for (const [metrica, modelo] of Object.entries(mensagens)) {
         for (const campo of ['titulo', 'mensagem']) {
-          const ruins = templates.validar(modelo?.[campo]);
+          /* Valida contra as variáveis DAQUELE aviso, não contra o dicionário
+             inteiro. `{{presas}}` existe no sistema e não existe num aviso de
+             story: aprovar aqui deixaria o marcador literal sair na tela, que
+             é justamente o que esta validação existe para impedir. */
+          const ruins = templates.validar(modelo?.[campo], metrica);
           if (ruins.length) invalidas.push(`${metrica}.${campo}: ${ruins.join(', ')}`);
         }
       }
@@ -118,6 +131,7 @@ router.put('/config', async (req, res) => {
           code: 'VARIAVEL_INVALIDA',
           detalhes: invalidas,
           disponiveis: Object.keys(templates.VARIAVEIS),
+          porTipo: templates.VARIAVEIS_POR_TIPO,
         });
       }
     }
@@ -147,18 +161,43 @@ router.put('/config', async (req, res) => {
   }
 });
 
+/**
+ * Variáveis de exemplo para um tipo de aviso.
+ *
+ * Os avisos de sistema não têm conta nem insight — os números vêm do vigia, e
+ * `contexto()` não sabe montá-los. Então: `contexto()` para os de métrica, e
+ * `EXEMPLOS` para os do sistema. Um só lugar monta isso, usado pela prévia e
+ * pelo teste no aparelho, para os dois não divergirem.
+ */
+function varsDeExemplo(tipo) {
+  if (templates.TIPOS_DE_SISTEMA.includes(tipo)) {
+    return { ...templates.EXEMPLOS };
+  }
+  return {
+    ...templates.contexto({
+      conta: { username: 'oliviapaganini' },
+      insight: { igMediaId: '178551331', mediaType: 'STORY', likeCount: 87,
+                 commentsCount: 12, shareCount: 4, reach: 940,
+                 postedAt: new Date(Date.now() - 2 * 3600 * 1000) },
+      threshold: 1000, valor: 1024, metricType: tipo,
+    }),
+    /* O resumo do dia usa duas variáveis que `contexto()` não conhece, porque
+       elas não saem de um insight. Sem isto, a prévia do resumo mostraria
+       `{{publicacoes}}` literal — e o modelo estaria correto. */
+    publicacoes: templates.EXEMPLOS.publicacoes,
+    contas: templates.EXEMPLOS.contas,
+  };
+}
+
 /** Prévia do modelo com dados de exemplo — alimenta o preview ao vivo. */
 router.post('/preview', (req, res) => {
   const { titulo, mensagem, metricType = 'storyViews' } = req.body || {};
-  const invalidas = [...templates.validar(titulo), ...templates.validar(mensagem)];
+  const invalidas = [
+    ...templates.validar(titulo, metricType),
+    ...templates.validar(mensagem, metricType),
+  ];
 
-  const vars = templates.contexto({
-    conta: { username: 'oliviapaganini' },
-    insight: { igMediaId: '178551331', mediaType: 'STORY', likeCount: 87,
-               commentsCount: 12, shareCount: 4, reach: 940,
-               postedAt: new Date(Date.now() - 2 * 3600 * 1000) },
-    threshold: 1000, valor: 1024, metricType,
-  });
+  const vars = varsDeExemplo(metricType);
 
   res.json({
     titulo: templates.render(titulo, vars),
@@ -243,12 +282,21 @@ router.post('/push/testar', async (req, res) => {
        `modelo` vindo do corpo tem precedência sobre o gravado, justamente para
        o editor poder testar rascunho. Só os campos enviados: um título
        rascunhado com a mensagem salva é um teste legítimo. */
-    const metrica = ['storyViews', 'contentViews', 'reach'].includes(req.body?.metrica)
-      ? req.body.metrica
+    /* A lista vem de `PADRAO`, não escrita à mão: quando um aviso novo ganha
+       modelo, ele fica testável no mesmo commit. A lista fixa de três era o
+       motivo de os avisos do sistema não poderem ser testados no aparelho. */
+    const pedida = req.body?.metrica;
+    const metrica = (typeof pedida === 'string'
+      && Object.prototype.hasOwnProperty.call(templates.PADRAO, pedida))
+      ? pedida
       : 'storyViews';
 
     const cfg = await thresholds.carregar();
-    const salvo = cfg.mensagens?.[metrica] || templates.PADRAO[metrica];
+    /* `modeloDe` e não `mensagens[metrica] || PADRAO[metrica]`: quem salvou só
+       o título tem `mensagem` vazia no gravado, e o `||` escolheria o objeto
+       inteiro do painel — o teste sairia sem mensagem. `modeloDe` completa
+       campo por campo. */
+    const salvo = templates.modeloDe(metrica, cfg.mensagens);
     const rascunho = req.body?.modelo || {};
     const modelo = {
       titulo:   rascunho.titulo   ?? salvo.titulo,
@@ -256,13 +304,7 @@ router.post('/push/testar', async (req, res) => {
       tema:     rascunho.tema     ?? salvo.tema,
     };
 
-    const vars = templates.contexto({
-      conta: { username: 'sua_conta' },
-      insight: { igMediaId: 'teste', mediaType: 'STORY', likeCount: 87,
-                 commentsCount: 12, shareCount: 4, reach: 940,
-                 postedAt: new Date(Date.now() - 2 * 3600 * 1000) },
-      threshold: 1000, valor: 1024, metricType: metrica,
-    });
+    const vars = varsDeExemplo(metrica);
 
     /* Usa o MODELO CONFIGURADO, não um texto fixo. Assim o teste também
        responde "a minha mensagem editada está certa?" — que é a segunda
@@ -279,7 +321,12 @@ router.post('/push/testar', async (req, res) => {
     /* O nome do aviso volta junto. Com três testes possíveis, "Enviado para 2
        aparelhos" não diz QUAL chegou — e quem está calibrando três mensagens
        precisa saber a qual delas o que apareceu no celular corresponde. */
-    const NOMES = { storyViews: 'Stories', contentViews: 'Conteúdo', reach: 'Alcance' };
+    const NOMES = {
+      storyViews: 'Stories', contentViews: 'Conteúdo', reach: 'Alcance', resumo: 'Resumo do dia',
+      cota: 'Cota do proxy', proxy: 'Proxy fora do ar', pool: 'Pool esgotado',
+      sessoes: 'Contas sem conectar', fila: 'Fila presa', erros: 'Erros do dia',
+      normalizado: 'Voltou ao normal',
+    };
 
     res.json({
       ...r,

@@ -43,10 +43,25 @@ function bancoConectado() {
 }
 
 /* ── As verificações ────────────────────────────────────────────────────────
-   Cada uma devolve `null` quando está tudo bem, ou `{ titulo, mensagem }`
+   Cada uma devolve `null` quando está tudo bem, ou `{ vars, prioridade }`
    quando há problema. Nenhuma pode lançar: uma verificação quebrada não pode
    derrubar as outras, senão o vigia fica cego justamente quando algo está
-   errado — que é o único momento em que ele importa. */
+   errado — que é o único momento em que ele importa.
+
+   ── Por que `vars` e não o texto pronto
+
+   O texto de cada aviso morava aqui dentro, montado com template string. Isso
+   fazia dos seis avisos do sistema os únicos que não se podiam editar no
+   painel — os de marco já eram editáveis desde sempre, e a diferença não tinha
+   razão nenhuma além de terem sido escritos em momentos diferentes.
+
+   Agora a verificação devolve só os NÚMEROS que descobriu, e a frase vem de
+   `templates.PADRAO[chave]` — que recebeu o texto de antes, sem uma palavra
+   mudada. Quem nunca editar nada continua lendo exatamente o mesmo aviso.
+
+   Uma verificação ainda pode devolver `titulo`/`mensagem` prontos. É o que os
+   dublês dos testes fazem, e é o seam certo: "meu texto já é final, não passe
+   por modelo". */
 
 async function _proxy() {
   const { getGlobalProxyConfig } = require('./globalProxy');
@@ -62,8 +77,7 @@ async function _proxy() {
   if (r.ok) return null;
 
   return {
-    titulo: 'O proxy parou de responder',
-    mensagem: r.error || 'A automação não consegue sair para o Instagram.',
+    vars: { erro: r.error || 'A automação não consegue sair para o Instagram.' },
     prioridade: 'alta',
   };
 }
@@ -79,12 +93,7 @@ async function _pool() {
   /* Pool esgotado não impede nada de imediato — as contas caem no proxy
      global. É justamente por isso que precisa avisar: o dano é silencioso e
      acumulativo, e o sintoma aparece semanas depois como conta sinalizada. */
-  return {
-    titulo: 'O pool de proxies acabou',
-    mensagem: `Os ${total} proxies estão reservados. A próxima conta vai sair pelo IP global, `
-            + 'dividindo endereço com as outras — o padrão que o Instagram lê como automação.',
-    prioridade: 'alta',
-  };
+  return { vars: { proxies: total }, prioridade: 'alta' };
 }
 
 async function _sessoes() {
@@ -99,12 +108,7 @@ async function _sessoes() {
   // Uma conta com problema é rotina. Metade delas é um evento.
   if (ruins * 2 < total) return null;
 
-  return {
-    titulo: `${ruins} de ${total} contas sem conseguir conectar`,
-    mensagem: 'Quando é a maioria de uma vez, a causa costuma ser comum a todas — '
-            + 'proxy, rede ou serviço — e não cada conta individualmente.',
-    prioridade: 'alta',
-  };
+  return { vars: { contasRuins: ruins, contasTotal: total }, prioridade: 'alta' };
 }
 
 async function _fila() {
@@ -113,12 +117,7 @@ async function _fila() {
   const presos = await Post.countDocuments({ status: 'processando', updatedAt: { $lt: limite } });
   if (!presos) return null;
 
-  return {
-    titulo: `${presos} publicação(ões) presa(s) na fila`,
-    mensagem: 'Em processamento há mais de uma hora. Normalmente leva segundos — '
-            + 'quando passa disso, alguma coisa travou no meio.',
-    prioridade: 'normal',
-  };
+  return { vars: { presas: presos }, prioridade: 'normal' };
 }
 
 async function _erros() {
@@ -127,12 +126,7 @@ async function _erros() {
   const erros = await Post.countDocuments({ status: 'erro', updatedAt: { $gte: hoje } });
   if (erros < ERROS_PARA_ALERTAR) return null;
 
-  return {
-    titulo: `${erros} erros de publicação hoje`,
-    mensagem: 'Muitos erros no mesmo dia raramente são coincidência. '
-            + 'Vale olhar se todos têm o mesmo motivo.',
-    prioridade: 'normal',
-  };
+  return { vars: { errosHoje: erros }, prioridade: 'normal' };
 }
 
 async function _cota() {
@@ -156,9 +150,16 @@ async function _cota() {
     : 'Sem ritmo suficiente para estimar quando acaba.';
 
   return {
-    titulo: `Cota do proxy em ${p.percentualUsado}%`,
-    mensagem: `${p.restanteGb} GB de ${p.totalGb} GB restantes. ${quando} `
-            + 'Renove antes de acabar — quando acaba, tudo para de uma vez.',
+    vars: {
+      percentual:    p.percentualUsado,
+      restanteGb:    p.restanteGb,
+      totalGb:       p.totalGb,
+      /* `—` e não `null`: um modelo que usa `{{diasRestantes}}` sem projeção
+         precisa sair com algo legível, e o marcador literal apareceria na
+         tela para quem nem sabe que a projeção falhou. */
+      diasRestantes: p.diasRestantes === null ? '—' : p.diasRestantes,
+      previsao:      quando,
+    },
     prioridade: p.diasRestantes !== null && p.diasRestantes <= 2 ? 'alta' : 'normal',
   };
 }
@@ -185,15 +186,59 @@ async function _gravarEstado(estado) {
   await Setting.updateOne({ key: CHAVE }, { $set: { value: estado } }, { upsert: true });
 }
 
-async function _avisar({ chave, titulo, mensagem, prioridade, recuperacao }) {
-  const Notificacao = require('../models/Notificacao');
+/**
+ * Nome legível de cada aviso, para o `{{aviso}}` da mensagem de normalização.
+ *
+ * A frase saía como "Normalizado: sessoes" — a chave interna, sem acento e no
+ * meio de uma frase em português. Chave de código não é nome de coisa.
+ */
+const NOMES = Object.freeze({
+  cota:    'cota do proxy',
+  proxy:   'proxy',
+  pool:    'pool de proxies',
+  sessoes: 'sessões das contas',
+  fila:    'fila de publicação',
+  erros:   'erros de publicação',
+});
 
+/** Os modelos gravados no painel. Falha em silêncio: sem eles, usa os padrões. */
+async function _mensagens() {
+  try {
+    const cfg = await require('./smartActivity/thresholds').carregar();
+    return (cfg?.mensagens && typeof cfg.mensagens === 'object') ? cfg.mensagens : {};
+  } catch {
+    return {};
+  }
+}
+
+async function _avisar({ chave, titulo, mensagem, vars, prioridade, recuperacao, mensagens = {} }) {
+  const Notificacao = require('../models/Notificacao');
+  const t = require('./smartActivity/templates');
+
+  /* Texto pronto vence o modelo: é a verificação dizendo "esta frase já é
+     final". Sem isto, o modelo do painel sobrescreveria o texto de quem
+     injetou uma verificação própria — inclusive os dublês dos testes. */
+  const tipo = recuperacao ? 'normalizado' : chave;
+  let saida = { titulo, mensagem };
+
+  if (!titulo && !mensagem) {
+    const modelo = t.modeloDe(tipo, mensagens);
+    saida = {
+      titulo:   t.render(modelo.titulo, vars || {}),
+      mensagem: t.render(modelo.mensagem, vars || {}),
+    };
+  }
+
+  /* O tema sai do modelo SÓ quando alguém escolheu um. Sem escolha, continua
+     derivado da prioridade, como antes — ligar a edição não pode mudar a cor
+     de nenhum aviso de quem nunca editou nada. */
+  const escolhido = mensagens?.[tipo]?.tema;
   const nova = await Notificacao.create({
     eventType:  'sistema',
-    tema:       recuperacao ? 'success' : (prioridade === 'alta' ? 'warning' : 'info'),
+    tema:       escolhido || (recuperacao ? 'success' : (prioridade === 'alta' ? 'warning' : 'info')),
     prioridade: recuperacao ? 'baixa' : (prioridade || 'normal'),
-    titulo,
-    mensagem,
+    titulo:     saida.titulo,
+    mensagem:   saida.mensagem,
     metadados:  { vigia: chave, recuperacao: !!recuperacao },
   });
 
@@ -223,6 +268,9 @@ async function verificar({ verificacoes = VERIFICACOES } = {}) {
   if (!module.exports.bancoConectado()) return { avisos: 0, ativos: [], motivo: 'sem banco' };
 
   const estado = await _estado();
+  /* Uma leitura por ciclo, não uma por aviso: seis verificações lendo a mesma
+     configuração seriam seis idas ao banco para o mesmo documento. */
+  const mensagens = await _mensagens();
   const agora = Date.now();
   let avisos = 0;
 
@@ -242,7 +290,7 @@ async function verificar({ verificacoes = VERIFICACOES } = {}) {
       const novo = !anterior;
       const velho = anterior && (agora - anterior.ultimoAviso) > REAVISO_MS;
       if (novo || velho) {
-        await _avisar({ chave, ...problema });
+        await _avisar({ chave, mensagens, ...problema });
         avisos++;
         estado[chave] = { desde: anterior?.desde || agora, ultimoAviso: agora };
       }
@@ -252,9 +300,8 @@ async function verificar({ verificacoes = VERIFICACOES } = {}) {
          aprende a ignorar o próximo. */
       const horas = Math.max(1, Math.round((agora - anterior.desde) / 3.6e6));
       await _avisar({
-        chave, recuperacao: true,
-        titulo: 'Normalizado: ' + chave,
-        mensagem: `Ficou fora por cerca de ${horas} h e voltou a funcionar.`,
+        chave, recuperacao: true, mensagens,
+        vars: { aviso: NOMES[chave] || chave, horas },
       });
       avisos++;
       delete estado[chave];
