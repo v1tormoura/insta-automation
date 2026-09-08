@@ -3,6 +3,122 @@ const mongoose = require('mongoose');
 const Insight  = require('../models/Insight');
 const Account  = require('../models/Account');
 
+/**
+ * Métricas dos perfis — somadas e por conta.
+ *
+ * ── Rota própria, e não `getGlobalMetrics` alargado
+ *
+ * Aquela aceita `7d/30d/90d/1a` e tem cache compartilhado com outras telas.
+ * Esta precisa de `hoje`, `ontem`, `total` e faixa livre por data. Alargar a
+ * outra mexeria numa consulta que três páginas já usam, com um cache que
+ * passaria a ter chaves de dois formatos.
+ *
+ * ── Sobre "novos seguidores"
+ *
+ * É o único cartão que não sai do Insight. `Account.followers` guarda só o
+ * número de agora, sobrescrito a cada sync — o ganho vem da série diária
+ * (`SeguidoresDoDia`), construída para isso.
+ *
+ * A série começa no dia em que entrou em produção, e a resposta diz isso em
+ * `novosSeguidoresMedido`: sem essa distinção, a tela mostraria "+0" no
+ * primeiro dia e pareceria que ninguém seguiu ninguém.
+ */
+exports.getMetricasDosPerfis = async (req, res) => {
+  try {
+    const periodo = require('../services/periodoDeMetricas');
+    const serie   = require('../services/serieDeSeguidores');
+
+    const p = periodo.resolver(req.query);
+
+    /* As mesmas contas que `getGlobalMetrics` considera: conta banida ou com
+       sessão morta não deve somar seguidores num painel de desempenho. */
+    const RUINS = ['banida', 'banido', 'sessao_expirada', 'token_invalido', 'erro_login'];
+    const contas = await Account.find({ healthStatus: { $nin: RUINS } })
+      .select('_id username name avatar followers provider lastSync')
+      .lean();
+
+    if (!contas.length) {
+      return res.json({
+        periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
+        seguidores: 0, novosSeguidores: 0, novosSeguidoresMedido: false,
+        curtidas: 0, viewsPosts: 0, viewsStories: 0,
+        contas: [], atualizadoEm: new Date(),
+      });
+    }
+
+    const ids = contas.map(c => c._id);
+    const noPeriodo = periodo.filtroDeInstante(p);
+
+    const [somas, porConta, ganho] = await Promise.all([
+      /* STORY fora do total de posts: a audiência de story é gravada como
+         Insight desde o storyInsightSync, e somá-la aqui mudaria o
+         significado de "views dos posts". Ela tem cartão próprio. */
+      Insight.aggregate([
+        { $match: { accountId: { $in: ids }, mediaType: { $ne: 'STORY' }, ...noPeriodo } },
+        { $group: { _id: null, curtidas: { $sum: '$likeCount' }, views: { $sum: '$videoViews' } } },
+      ]),
+      Insight.aggregate([
+        { $match: { accountId: { $in: ids }, ...noPeriodo } },
+        { $group: {
+          _id: '$accountId',
+          curtidas:     { $sum: { $cond: [{ $ne: ['$mediaType', 'STORY'] }, '$likeCount', 0] } },
+          viewsPosts:   { $sum: { $cond: [{ $ne: ['$mediaType', 'STORY'] }, '$videoViews', 0] } },
+          viewsStories: { $sum: { $cond: [{ $eq: ['$mediaType', 'STORY'] }, '$videoViews', 0] } },
+          sincronizado: { $max: '$syncedAt' },
+        }},
+      ]),
+      /* Sem faixa de dias (período "total") a série inteira conta. */
+      serie.novosNoPeriodo(p.diaDe || '0000-01-01', p.diaAte || '9999-12-31', ids),
+    ]);
+
+    const soma = somas[0] || {};
+    const mapa = new Map(porConta.map(r => [String(r._id), r]));
+
+    /* Stories somados a partir do mesmo agrupamento por conta, em vez de uma
+       terceira consulta: o número é o mesmo e a ida ao banco não. */
+    const viewsStories = porConta.reduce((t, r) => t + (r.viewsStories || 0), 0);
+
+    res.json({
+      periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
+
+      /* Seguidores é um ESTOQUE, não um fluxo: é sempre o número de agora,
+         qualquer que seja o período. Filtrá-lo por data não faria sentido —
+         não existe "seguidores de ontem" no que temos gravado. */
+      seguidores: contas.reduce((t, c) => t + (Number(c.followers) || 0), 0),
+
+      novosSeguidores: ganho.novos,
+      novosSeguidoresMedido: ganho.comHistorico,
+      contasSemHistorico: ganho.contasSemHistorico,
+
+      curtidas:   soma.curtidas || 0,
+      viewsPosts: soma.views || 0,
+      viewsStories,
+
+      contas: contas.map(c => {
+        const r = mapa.get(String(c._id)) || {};
+        return {
+          id: String(c._id),
+          username: c.username || '',
+          avatar: c.avatar || '',
+          rede: 'instagram',
+          seguidores: Number(c.followers) || 0,
+          curtidas: r.curtidas || 0,
+          viewsPosts: r.viewsPosts || 0,
+          viewsStories: r.viewsStories || 0,
+          /* `syncedAt` do Insight quando existe; senão o `lastSync` da conta.
+             Sem o segundo, conta sem nenhuma métrica mostraria "nunca" mesmo
+             tendo sincronizado o perfil hoje. */
+          sincronizadoEm: r.sincronizado || c.lastSync || null,
+        };
+      }).sort((a, b) => b.seguidores - a.seguidores),
+
+      atualizadoEm: new Date(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // GET /analytics/best-times?accountId=&period=30d
 exports.getBestTimes = async (req, res) => {
   try {

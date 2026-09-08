@@ -1,10 +1,13 @@
 'use strict';
 const router = require('express').Router();
-const { getBestTimes, getTrendingAudio, getGlobalMetrics } = require('../controllers/analyticsController');
+const { getBestTimes, getTrendingAudio, getGlobalMetrics, getMetricasDosPerfis } = require('../controllers/analyticsController');
 
 const { syncAllStoryInsights } = require('../services/storyInsightSync');
 
 router.get('/global-metrics',  getGlobalMetrics);
+/* Métricas dos perfis: rota própria porque precisa de hoje/ontem/total e de
+   faixa livre por data — ver o comentário no controller. */
+router.get('/metricas-dos-perfis', getMetricasDosPerfis);
 router.get('/best-times',      getBestTimes);
 router.get('/trending-audio',  getTrendingAudio);
 

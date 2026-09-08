@@ -226,6 +226,24 @@ async function syncOneAccountFast(account) {
   };
 
   await Account.findByIdAndUpdate(account._id, updates);
+
+  /* ── O ponto de hoje na série de seguidores ─────────────────────────────
+
+     `followers` acima é SOBRESCRITO a cada sincronização. Antes disto, o
+     número anterior era perdido para sempre — e "quantos seguidores ganhei
+     hoje" não tinha com o que comparar.
+
+     Registrado aqui e não num job próprio porque é aqui que o número novo
+     chega: um segundo job leria o mesmo campo depois, sem saber se leu antes
+     ou depois do sync, e o ganho ficaria dependendo de qual rodou primeiro.
+
+     Não usa `await` no caminho de erro nem propaga: gravar histórico é efeito
+     colateral da sincronização, e derrubar o sync por ele seria trocar o
+     principal pelo acessório. */
+  require('../services/serieDeSeguidores')
+    .registrar({ ...account.toObject?.() ?? account, ...updates, _id: account._id })
+    .catch(() => {});
+
   return true;
 }
 

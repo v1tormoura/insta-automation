@@ -34,6 +34,7 @@ import Promo from './pages/Promo';
 import Ranking from './pages/Ranking';
 import Faturamento from './pages/Faturamento';
 import Performance from './pages/Performance';
+import MetricasDosPerfis from './pages/MetricasDosPerfis';
 import Limpador from './pages/Limpador';
 import MediaLibrary from './pages/MediaLibrary';
 import OAuthAccounts from './pages/OAuthAccounts';
@@ -137,6 +138,7 @@ export default function App() {
               <Route path="/ranking"        element={<Ranking />} />
               <Route path="/faturamento"    element={<Faturamento />} />
               <Route path="/performance"    element={<Performance />} />
+              <Route path="/metricas-perfis" element={<MetricasDosPerfis />} />
               <Route path="/limpador"       element={<Limpador />} />
               <Route path="/api-meta"       element={<ApiMeta />} />
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />

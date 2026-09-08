@@ -52,6 +52,7 @@ const ICONS = {
   videobatch:  ic(<><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></>),
   videoeditor: ic(<><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l2-2 2 2"/><path d="M12 8v5"/></>),
   apimeta:     ic(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></>),
+  perfis:      ic(<><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M18 14v-3M21 14V8"/></>),
   oauth:       ic(<><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>),
 };
 
@@ -60,6 +61,7 @@ const NAV_GROUPS = [
     title: 'VISÃO GERAL',
     items: [
       { to: '/', mod: 'metricas',            label: 'Dashboard',   sub: 'Visão geral',          icon: ICONS.dashboard   },
+      { to: '/metricas-perfis', mod: 'metricas', label: 'Métricas dos Perfis', sub: 'Seguidores e curtidas', icon: ICONS.perfis },
       { to: '/ranking', mod: 'metricas',     label: 'Ranking',     sub: 'Posts do mês',         icon: ICONS.ranking     },
       { to: '/faturamento', mod: 'metricas', label: 'Faturamento', sub: 'Meta de vendas',       icon: ICONS.faturamento },
     ],
