@@ -179,6 +179,88 @@ exports.getPosts = async (req, res) => {
   }
 };
 
+/**
+ * A fila de postagens, com filtros e paginação.
+ *
+ * Separada de `getPosts` de propósito: aquela é a lista simples que a tela do
+ * Postar já usava, e mudá-la mexeria numa tela que funciona. Esta traz o que a
+ * fila precisa e a outra não tem — nome do envio, views e o motivo do erro na
+ * própria linha.
+ *
+ * As decisões de consulta moram em `filaDePostagens.js`, com testes: é ali que
+ * estão os casos de borda (filtro inventado, id que não é ObjectId, página
+ * além do fim), e aqui fica só a montagem da resposta.
+ */
+exports.filaDePostagens = async (req, res) => {
+  try {
+    const fila = require('../services/filaDePostagens');
+    const Insight = require('../models/Insight');
+
+    const consulta = fila.montarConsulta(req.query);
+    const { pagina, porPagina, pular } = fila.montarPaginacao(req.query);
+
+    const [posts, total] = await Promise.all([
+      Post.find(consulta)
+        .populate('accounts', 'username avatar')
+        /* Mais recentes primeiro: quem abre a fila quer ver o que acabou de
+           acontecer, não o que aconteceu na semana passada. */
+        .sort({ scheduledAt: -1, createdAt: -1 })
+        .skip(pular).limit(porPagina)
+        .lean(),
+      Post.countDocuments(consulta),
+    ]);
+
+    /* Uma consulta de views para o lote, não uma por linha. */
+    const views = await fila.viewsPorMidia(posts, Insight);
+
+    /* Os envios que existem na fila, para o filtro oferecer só o que dá
+       resultado. Um seletor com opção que devolve zero linhas é pior que um
+       seletor menor. */
+    const enviosCrus = await Post.aggregate([
+      { $match: { jobId: { $ne: null } } },
+      { $group: { _id: '$jobId', nome: { $first: '$jobName' }, quando: { $max: '$createdAt' } } },
+      { $sort: { quando: -1 } },
+      { $limit: 50 },
+    ]).catch(() => []);
+
+    res.json({
+      itens: posts.map(p => fila.montarLinha(p, views)),
+      paginacao: {
+        pagina, porPagina, total,
+        paginas: Math.max(1, Math.ceil(total / porPagina)),
+        de: total === 0 ? 0 : pular + 1,
+        ate: Math.min(pular + porPagina, total),
+      },
+      envios: enviosCrus.map(e => ({ id: String(e._id), nome: e.nome || 'Sem nome' })),
+      status: fila.STATUS,
+      formatos: fila.FORMATOS,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Apaga as publicações interrompidas e canceladas.
+ *
+ * `parcial` NÃO entra: parcial é publicação que saiu em algumas contas e
+ * falhou em outras, e apagá-la perderia o registro do que foi publicado.
+ *
+ * Não toca em nada que ainda pode acontecer — pendente e processando ficam.
+ * Limpar a fila não pode significar cancelar o que está em andamento.
+ */
+exports.limparFila = async (req, res) => {
+  try {
+    const { LIMPAVEIS } = require('../services/filaDePostagens');
+    const r = await Post.deleteMany({ status: { $in: LIMPAVEIS } });
+    const quantas = r?.deletedCount || 0;
+    console.log(`🧹 [Fila] ${quantas} publicação(ões) interrompida(s)/cancelada(s) removida(s)`);
+    res.json({ ok: true, removidas: quantas });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);

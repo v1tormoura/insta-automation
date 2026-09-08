@@ -431,6 +431,18 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
        É o mesmo desenho que a campanha usa desde a fase 8 — não uma segunda
        arquitetura para a mesma tarefa. */
     const idDaMidia = String(resultado?.mediaId || '');
+
+    /* O id da mídia, gravado no Post.
+       É o elo que liga uma linha da fila às métricas: `Insight` guarda
+       `igMediaId` e `videoViews`, e sem isto os dois lados existiam sem nada no
+       meio. `updateOne` e não `post.save()` porque o mesmo documento é
+       publicado em várias contas em paralelo — dois `save()` concorrentes num
+       doc carregado sobrescreveriam campos um do outro. */
+    if (idDaMidia) {
+      await Post.updateOne({ _id: post._id }, { $set: { igMediaId: idDaMidia } })
+        .catch(e => console.log('[Post] não deu para gravar o igMediaId:', e.message));
+    }
+
     await agendarComentarioFixado(account, post, idDaMidia);
 
     return { ok: true, mediaId: idDaMidia };
@@ -659,6 +671,10 @@ async function processJobRound(jobId) {
       engageComment: jobDoc.engageComment || '',
       location:      jobDoc.location      || '',
       processMode:   jobDoc.processMode   || 'limpeza_leve',
+      /* De onde esta publicação veio. O Job tem o nome em mãos aqui — buscá-lo
+         depois, por linha da fila, seria uma consulta por linha. */
+      jobId:         jobDoc._id,
+      jobName:       jobDoc.name || '',
       /* A marca desce do job para o post porque é o post que a mídia por conta
          recebe. Sem esta linha o campo existiria nos dois schemas e nunca
          chegaria a quem desenha — o defeito mais barato de cometer aqui. */

@@ -241,17 +241,33 @@ export default function MainLayout({ children }) {
 
      Quem preferir a barra presa aberta clica uma vez e a escolha fica gravada.
 
+     ── Por que a chave mudou de novo
+
+     Terceira chave, e o motivo é o mesmo das duas anteriores: o valor gravado
+     sobrevive à mudança de padrão, e quem clicou uma vez fica preso no estado
+     antigo sem ligar uma coisa à outra.
+
+     Aqui o caso concreto: por dois commits o padrão foi a barra ABERTA. Quem
+     usou o produto nesse intervalo e clicou "Recolher" ou "Fixar aberta"
+     gravou uma escolha feita sobre um padrão que já não existe — e continuaria
+     com a barra presa aberta depois de a correção sair, achando que ela não
+     saiu. Uma chave nova devolve todo mundo ao rail; quem realmente quer a
+     barra presa clica uma vez, agora sobre o padrão certo.
+
      A leitura tolera localStorage indisponível (janela anônima, storage
      bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
      inteiro em vez de só perder uma preferência. */
   const [recolhida, setRecolhida] = useState(() => {
-    try { return localStorage.getItem('mf-sidebar-fixa') !== '1'; }
+    try { return localStorage.getItem('mf-sidebar-rail') !== '0'; }
     catch { return true; }
   });
 
   const alternarSidebar = () => setRecolhida(r => {
     const nova = !r;
-    try { localStorage.setItem('mf-sidebar-fixa', nova ? '0' : '1'); } catch { /* sem preferência */ }
+    /* '0' guarda "não recolhida" (presa aberta) e qualquer outra coisa é o
+       rail. Gravar o estado que FOGE do padrão deixa o padrão livre para
+       mudar sem arrastar ninguém — foi o que faltou nas duas chaves antes. */
+    try { localStorage.setItem('mf-sidebar-rail', nova ? '1' : '0'); } catch { /* sem preferência */ }
     return nova;
   });
   const [paleta, setPaleta]       = useState(false);

@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
+import FilaDePostagens from '../components/FilaDePostagens';
 import { useServerEvents } from '../services/useServerEvents';
 import { NumberTicker } from '../components/magicui/number-ticker';
 import { BlurFade } from '../components/magicui/blur-fade';
@@ -1554,6 +1555,19 @@ export default function Dashboard() {
         </BlurFade>
 
         {/* ── Footer ── */}
+        {/* ── A fila, por inteiro ─────────────────────────────────────────
+            O cartão de "Fila de postagens" mais acima é o resumo — quantas, o
+            progresso do dia, o próximo disparo. Isto é a fila em si: linha por
+            linha, com o motivo de cada falha, filtro por status/formato/envio e
+            paginação.
+
+            Depois do resumo e antes do rodapé de propósito: quem abre o painel
+            quer primeiro o número, e só desce à tabela quando o número
+            surpreende. */}
+        <div style={{ margin: '0 0 var(--mf-5)' }}>
+          <FilaDePostagens />
+        </div>
+
         <footer className="system-footer">
           <span><ShieldCheck size={13} />{!sysLoaded?'Carregando...':sysOk?'Sistema operacional':'Verificar sistemas'}</span>
           <span><i style={{ background:sysDotColor, boxShadow:`0 0 8px ${sysDotColor}` }} />{!sysLoaded?'–':sysOk?'Online':'Offline'}</span>
