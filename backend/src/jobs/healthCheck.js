@@ -16,6 +16,7 @@
 const Account       = require('../models/Account');
 const { broadcast } = require('../events/broadcaster');
 const { resolveProxyFor } = require('../services/globalProxy');
+const ritmo         = require('../services/ritmoDeSincronizacao');
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -481,13 +482,24 @@ async function runHealthCheck() {
         { rawWebSessionid:   { $exists: true, $ne: '' } },
         { accessToken:       { $exists: true, $ne: '' } },
       ],
-    }).select('username _id provider accessToken igSession rawWebSessionid instagrapiSession healthStatus status lastError');
+    })
+      /* Ordena por `lastHealthCheck`, e NÃO por `lastSync`: o comentário mais
+         abaixo neste arquivo explica que este job mantém um campo próprio
+         justamente para não disputar com o FastSync. Ordenar pelo campo do
+         outro job faria a fatia repetir sempre as mesmas contas. */
+      .sort({ lastHealthCheck: 1 })
+      .select('username _id provider accessToken igSession rawWebSessionid instagrapiSession healthStatus status lastError lastHealthCheck');
 
-    console.log(`🩺 [HealthCheck] Verificando ${accounts.length} conta(s)...`);
+    const daVez = ritmo.fatiaDaVez(accounts);
+    if (!daVez.length) {
+      if (accounts.length) console.log(`⏸️  [HealthCheck] ${ritmo.emSilencio() ? 'silêncio noturno' : 'nada na vez'}`);
+      return;
+    }
+    console.log(`🩺 [HealthCheck] Verificando ${daVez.length} de ${accounts.length} conta(s)...`);
 
     let ok = 0, warn = 0, banned = 0;
 
-    for (const acc of accounts) {
+    for (const acc of daVez) {
       try {
         const before = acc.healthStatus;
         await checkOneAccount(acc);
@@ -573,7 +585,7 @@ function startHealthCheck() {
   // Renovação de tokens: a cada 24h
   setInterval(refreshAllTokens, 24 * 60 * 60 * 1000);
   setTimeout(refreshAllTokens, 60_000); // primeira renovação após 1min
-  console.log('🩺 [HealthCheck] Agendado — health a cada 5min, token refresh a cada 24h');
+  console.log(`🩺 [HealthCheck] Agendado — ${ritmo.descrever()} · token refresh a cada 24h`);
 }
 
 module.exports = { startHealthCheck, runHealthCheck, classifyError, checkViaInstagrapi };

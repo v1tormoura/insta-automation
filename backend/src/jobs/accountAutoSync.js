@@ -10,6 +10,7 @@ const Account       = require('../models/Account');
 const syncViaAPI    = require('../services/syncAccountAPI');
 const { syncOneAccountFast } = require('./accountFastSync');
 const { broadcast } = require('../events/broadcaster');
+const ritmo         = require('../services/ritmoDeSincronizacao');
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -23,11 +24,16 @@ async function runAutoSync() {
     const accounts = await Account.find({
       status: { $ne: 'banida' },
       isBusy: { $ne: true },
-    }).sort({ lastSync: 1 });
+    }).sort({ lastSync: 1 });   // a mais antiga primeiro — ver ritmoDeSincronizacao.js
 
-    console.log(`🔄 AutoSync — ${accounts.length} conta(s)`);
+    const daVez = ritmo.fatiaDaVez(accounts);
+    if (!daVez.length) {
+      if (accounts.length) console.log(`⏸️  AutoSync — ${ritmo.emSilencio() ? 'silêncio noturno' : 'nada na vez'}`);
+      return;
+    }
+    console.log(`🔄 AutoSync — ${daVez.length} de ${accounts.length} conta(s)`);
 
-    for (const acc of accounts) {
+    for (const acc of daVez) {
       const fresh = await Account.findById(acc._id);
       if (!fresh || fresh.isBusy) continue;
 

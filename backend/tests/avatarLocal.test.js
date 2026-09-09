@@ -195,7 +195,20 @@ describe('o select do FastSync entrega o que o laço lê', () => {
     const fonte = fs.readFileSync(
       path.resolve(__dirname, '../src/jobs/accountFastSync.js'), 'utf8'
     );
-    const m = fonte.match(/\}\)\.select\(([\s\S]*?)\);/);
+    /* Tolera outros elos da cadeia entre o `})` e o `.select(` — `.sort()`
+       entrou ali quando as varreduras passaram a processar uma fatia por vez.
+
+       A âncora anterior era `}).select(` colado, e quebrou com uma mudança que
+       não tinha nada a ver com o que este teste protege: ele confere QUAIS
+       campos o select pede, não como a cadeia foi formatada. `(?:\s*\.\w+\([^)]*\))*`
+       aceita os elos intermediários sem virar `[\s\S]*?`, que atravessaria o
+       fim da instrução e casaria com um `select` de outro trecho. */
+    const m = fonte.match(/\}\)(?:\s*\.\w+\([^)]*\))*\s*\.select\(([\s\S]*?)\);/);
+    /* `throw` e não `expect(m, 'msg')`: a mensagem no segundo argumento é do
+       Vitest, que este projeto usa no FRONTEND. O Jest aceita um argumento só
+       e recusa com "Expect takes at most one argument" — que é um erro sobre a
+       asserção, não sobre o que ela deveria proteger. */
+    if (!m) throw new Error('não achei o .select() do FastSync — a cadeia da consulta mudou?');
     return m[1].replace(/[\n\r]/g, ' ').replace(/'\s*\+\s*'/g, '').replace(/'/g, '').trim();
   }
 

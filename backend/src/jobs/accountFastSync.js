@@ -12,6 +12,7 @@ const { broadcast } = require('../events/broadcaster');
    aparecer na tela. Ver o cabeçalho de avatarLocal.js. */
 const { baixarAvatar, fotoMudou, origemDaFoto } = require('../services/avatarLocal');
 const { resolveProxyFor } = require('../services/globalProxy');
+const ritmo         = require('../services/ritmoDeSincronizacao');
 const path          = require('path');
 const fs            = require('fs');
 const https         = require('https');
@@ -272,12 +273,29 @@ async function runFastSync() {
 
          `avatarOrigem` entra pelo mesmo motivo: sem ele a comparação de foto
          acha que mudou sempre e rebaixa a imagem a cada 5 minutos. */
-    }).select(
-      'username _id igSession rawWebSessionid avatar avatarOrigem name bio ' +
-      'followers following postsCount proxy healthStatus provider instagrapiSession'
-    );
+    })
+      /* Da sincronização mais ANTIGA para a mais nova. É o que permite
+         processar só uma fatia por tique sem nenhuma conta ficar para trás —
+         ver ritmoDeSincronizacao.js. */
+      .sort({ lastSync: 1 })
+      .select(
+        'username _id igSession rawWebSessionid avatar avatarOrigem name bio ' +
+        'followers following postsCount proxy healthStatus provider instagrapiSession lastSync'
+      );
 
-    for (const acc of accounts) {
+    /* A FATIA, e não a lista inteira.
+
+       Antes: todas as contas, a cada 5 minutos, no mesmo instante. Isso é um
+       padrão que nenhuma pessoa com um celular produz, e — pior — idêntico
+       entre as contas, que é o sinal de que todas são a mesma mão. */
+    const daVez = ritmo.fatiaDaVez(accounts);
+    if (!daVez.length) {
+      if (accounts.length) console.log(`⏸️  [FastSync] ${ritmo.emSilencio() ? 'silêncio noturno' : 'nada na vez'}`);
+      return 0;
+    }
+    console.log(`⚡ [FastSync] ${daVez.length} de ${accounts.length} conta(s) nesta fatia`);
+
+    for (const acc of daVez) {
       // Conta instagrapi: sincroniza pela própria sessão. Nenhum dos testes
       // abaixo (rawWebSessionid / igSession / cookies) a reconhece, então ela
       // ficava permanentemente sem sincronizar — seguidores e posts nunca
@@ -322,7 +340,7 @@ async function runFastSync() {
 
     if (synced > 0) {
       broadcast('accounts', { action: 'synced' });
-      console.log(`⚡ [FastSync] ${synced}/${accounts.length} conta(s) sincronizadas`);
+      console.log(`⚡ [FastSync] ${synced}/${daVez.length} conta(s) sincronizadas`);
     }
   } catch (err) {
     console.log('💥 [FastSync] Erro geral:', err.message);
@@ -336,7 +354,7 @@ function startFastSync() {
   setTimeout(runFastSync, 2 * 60 * 1000);
   // Depois: a cada 5 minutos
   setInterval(runFastSync, 5 * 60 * 1000);
-  console.log('⚡ [FastSync] Agendado — primeira execução em 2min, depois a cada 5min');
+  console.log(`⚡ [FastSync] Agendado — ${ritmo.descrever()}`);
 }
 
 module.exports = { startFastSync, syncOneAccountFast };
