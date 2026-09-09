@@ -375,10 +375,11 @@ export default function MinhaConta() {
                 onChange={v => mudarPreferencia({ fundoAnimado: v === 'on' })} />
             </Campo>
             <Nota>
-              Duas manchas de luz que derivam devagar atrás do conteúdo, em 4% de
-              opacidade. Desligada, o fundo continua — só para de se mover. Quem já
-              pediu menos movimento ao sistema operacional recebe o fundo parado de
-              qualquer forma.
+              Filamentos de energia e partículas que derivam devagar atrás do
+              conteúdo, num ciclo longo para não competir com a leitura. Desligada, o
+              desenho continua — só para de se mover. Quem já pediu menos movimento
+              ao sistema operacional recebe o fundo parado de qualquer forma, e numa
+              aba escondida nada é desenhado.
             </Nota>
           </Painel>
         </div>

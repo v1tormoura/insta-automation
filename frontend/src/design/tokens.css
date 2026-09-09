@@ -36,12 +36,26 @@
      Consequência que precisa ser dita: o rótulo do botão primário vira TEXTO
      ESCURO. Ciano em L=0.78 é claro demais para carregar texto branco — daria
      por volta de 1,8:1. Sobre ele, o próprio fundo do tema dá 10,22. */
-  --mf-primary-100: oklch(0.93 0.06 213);
-  --mf-primary-300: oklch(0.88 0.14 213);
-  --mf-primary-500: oklch(0.78 0.19 213);   /* #00d4ff — a marca */
-  --mf-primary-600: oklch(0.68 0.17 213);
-  --mf-primary-700: oklch(0.58 0.19 213);
-  --mf-primary-fg:  oklch(0.20 0.030 250);  /* escuro sobre cor viva */
+  /* CIBER — o matiz gira de 213 para 227.
+  
+     #00d4ff (213°) para #00C8FF (227°) é meio passo de matiz: o mesmo L, um
+     pouco menos de croma, e um azul menos esverdeado. Parece pouco escrito
+     assim, e é o que separa "ciano de terminal" de "azul de produto".
+
+     `primary-fg` continua ESCURO. L=0.776 é claro demais para carregar texto
+     branco — daria por volta de 1,9:1. Sobre o ciano, o chão novo dá 12,4. */
+  --mf-primary-100: oklch(0.93 0.05 227);
+  --mf-primary-300: oklch(0.88 0.11 227);
+  --mf-primary-500: oklch(0.776 0.149 227);  /* #00C8FF — a marca */
+  --mf-primary-600: oklch(0.678 0.180 247);  /* #009DFF — o neon */
+  --mf-primary-700: oklch(0.579 0.232 260);  /* #006EFF — o glow */
+  --mf-primary-fg:  oklch(0.150 0.034 259);  /* escuro sobre cor viva */
+
+  /* Os dois azuis de baixo, nomeados pelo que fazem e não pela posição na
+     rampa. Um gradiente de botão escrito como `600→700` obriga a lembrar o
+     que cada número é; escrito como `neon→glow`, não. */
+  --mf-neon:        oklch(0.678 0.180 247);  /* #009DFF */
+  --mf-glow:        oklch(0.579 0.232 260);  /* #006EFF */
 
   /* Ciano elétrico. O matiz é o que estava errado antes, mais que o croma:
      em 200° o resultado era #00dae4, um turquesa esverdeado que lia como cor
@@ -54,6 +68,9 @@
   /* Um passo mais claro e mais verde que o primary (195° contra 213°). Serve
      ao que precisa saltar SOBRE uma superfície que já é ciano — sem ele, um
      destaque dentro de um cartão primário desapareceria no próprio fundo. */
+  /* Mantido em 213: o accent existe para saltar SOBRE uma superfície que já
+     é primary, e agora que o primary foi para 227 a distância de matiz entre
+     os dois AUMENTOU — que é exatamente o que essa função pede. */
   --mf-accent-300:  oklch(0.90 0.13 213);
   --mf-accent-500:  oklch(0.82 0.17 213);
   --mf-accent-700:  oklch(0.60 0.14 213);
@@ -62,7 +79,7 @@
      item premium). Usado em área grande, vira ruído. */
   /* Sem uso hoje. Apontado para o ciano para que um uso futuro não reintroduza
      magenta sem ninguém decidir isso. */
-  --mf-flare-500:   oklch(0.78 0.19 213);
+  --mf-flare-500:   oklch(0.776 0.149 227);
 
   /* ── Semântica de estado ───────────────────────────────────────────────
      Uma cor por significado. Componente nenhum escolhe verde por conta
@@ -79,8 +96,8 @@
   /* `info` é a mais fraca das semânticas: não é sucesso nem erro, é "aviso
      neutro". Num produto ciano, o aviso neutro ser um azul DIFERENTE do azul
      do produto lê como inconsistência, não como significado. */
-  --mf-info-500:    oklch(0.78 0.19 213);
-  --mf-info-bg:     oklch(0.78 0.19 213 / 0.13);
+  --mf-info-500:    oklch(0.776 0.149 227);
+  --mf-info-bg:     oklch(0.776 0.149 227 / 0.13);
 
   /* ── Cor por módulo ────────────────────────────────────────────────────
      Cada área do produto tem um matiz fixo. O usuário aprende o lugar pela
@@ -114,12 +131,12 @@
      O que NÃO virou ciano: sucesso, alerta e erro. Verde, âmbar e vermelho
      ali não são estilo — são o significado. Pintá-los de ciano apagaria a
      diferença entre "publicou" e "falhou". */
-  --mf-mod-contas:    oklch(0.78 0.19 213);
-  --mf-mod-publicar:  oklch(0.78 0.19 213);
-  --mf-mod-campanhas: oklch(0.78 0.19 213);
-  --mf-mod-jobs:      oklch(0.78 0.19 213);
-  --mf-mod-metricas:  oklch(0.78 0.19 213);
-  --mf-mod-sistema:   oklch(0.78 0.19 213);
+  --mf-mod-contas:    oklch(0.776 0.149 227);
+  --mf-mod-publicar:  oklch(0.776 0.149 227);
+  --mf-mod-campanhas: oklch(0.776 0.149 227);
+  --mf-mod-jobs:      oklch(0.776 0.149 227);
+  --mf-mod-metricas:  oklch(0.776 0.149 227);
+  --mf-mod-sistema:   oklch(0.776 0.149 227);
 
   /* ── Superfícies ───────────────────────────────────────────────────────
      O fundo é uma cor escolhida, não derivada: #0e2a3d, o azul da barra de
@@ -141,16 +158,41 @@
      quatro superfícies. Um passo maior deixaria o surface-3 claro demais
      para o texto terciário; um menor achataria a elevação sem devolver
      contraste que valesse a troca. */
-  --mf-bg:          oklch(0.170 0.012 250);   /* #0b1015 — o chão */
-  --mf-surface-1:   oklch(0.212 0.014 250);   /* #14191f */
-  --mf-surface-2:   oklch(0.256 0.016 250);   /* #1d242b */
-  --mf-surface-3:   oklch(0.300 0.018 250);   /* #272f37 */
-  --mf-overlay:     oklch(0.10 0.010 250 / 0.80);
+  /* CIBER — o chão desce para quase-preto azulado.
+  
+     A rampa inteira desceu (0.170→0.136 no chão) e o matiz girou de 250 para
+     259, com o croma triplicado: 0.012 era um cinza com sopro de azul, 0.036
+     é navio. É o que separa "escuro" de "escuro AZUL", e é a diferença que
+     faz o ciano do fundo animado parecer emitir luz em vez de estar colado.
+
+     Descer a rampa não custou contraste — devolveu. O comentário acima
+     explica que o passo de 0.047 era o MAIOR possível antes de o surface-3
+     ficar claro demais para o texto terciário; com o chão mais baixo, todos
+     os pares ganharam margem. O teste de contraste mede os dois temas e
+     falha se eu estiver errado sobre isso.
+
+     `surface-1` recebe exatamente o #0D1726 pedido para os cartões, porque é
+     o token que `.mf-card` lê. */
+  --mf-bg:          oklch(0.136 0.036 259);   /* #020817 — o chão */
+  --mf-surface-1:   oklch(0.203 0.034 258);   /* #0d1726 — os cartões */
+  --mf-surface-2:   oklch(0.245 0.034 258);
+  --mf-surface-3:   oklch(0.285 0.034 258);
+  --mf-overlay:     oklch(0.100 0.030 259 / 0.82);
+
+  /* A casca — barra lateral e topo. Mais escura que os cartões e
+     TRANSLÚCIDA: é o que deixa o fundo animado passar por baixo dela sem
+     apagar o texto. Um valor próprio em vez de reusar `surface-1`, porque
+     casca e cartão têm funções opostas: o cartão precisa isolar o dado do
+     fundo, a casca precisa deixar o fundo aparecer. */
+  --mf-casca:       oklch(0.177 0.032 259 / 0.72);   /* #08111f translúcido */
+  --mf-casca-solida: oklch(0.177 0.032 259);
 
   /* Traço da grade de fundo. Fraco de propósito: ela precisa dar escala ao
      fundo sem ser lida como conteúdo. Acima de 0.03 vira quadriculado
      visível e começa a competir com os cartões. */
-  --mf-grade:      oklch(1 0 0 / 0.030);
+  /* Branco puro sobre navio lia como poeira cinza. Com a tinta do ciano a
+     grade entra como circuito, que é o que a referência mostra. */
+  --mf-grade:      oklch(0.776 0.149 227 / 0.055);
   --mf-grade-tam:  32px;
 
   /* Branco translúcido rende menos quanto mais claro é o que está atrás, e o
@@ -158,11 +200,15 @@
      MESMA separação medida entre a borda de um card e o fundo da página
      (2.885:1): 10% sobre a superfície antiga equivale a 13% sobre a nova.
      Mantidos em 10%, os cartões perderiam contorno. */
-  --mf-border:        oklch(1 0 0 / 0.07);
-  --mf-border-strong: oklch(1 0 0 / 0.13);
+  /* CIBER — a borda passa a ser CIANO translúcido, o `rgba(0,200,255,0.20)`
+     pedido. Branco a 7% dava um contorno neutro que sumia sobre navio; o
+     ciano a 20% é o que faz cada cartão parecer ter uma linha de luz na
+     beirada em vez de um contorno desenhado. */
+  --mf-border:        oklch(0.776 0.149 227 / 0.20);
+  --mf-border-strong: oklch(0.776 0.149 227 / 0.38);
   /* divisória interna: mais fraca que a borda do próprio card, senão cada
      linha de tabela compete com o contorno do painel que a contém */
-  --mf-border-subtle: oklch(1 0 0 / 0.04);
+  --mf-border-subtle: oklch(0.776 0.149 227 / 0.10);
   --mf-border-focus:  var(--mf-primary-500);
 
   /* ── Texto ─────────────────────────────────────────────────────────────
@@ -286,9 +332,9 @@
      que o subtítulo saiu de cada item. Juntas, as duas mudanças devolvem
      cerca de 200px ao conteúdo em tela de notebook, que é onde o Dashboard
      mais sofria. */
-  --mf-sidebar:   232px;
+  --mf-sidebar:   220px;   /* CIBER — a largura da referência */
   --mf-sidebar-c: 56px;
-  --mf-topbar:    52px;
+  --mf-topbar:    58px;   /* pílulas de 34px precisam de mais folga que chips de 28 */
   --mf-container: 1560px;
 }
 

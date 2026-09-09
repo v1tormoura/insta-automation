@@ -335,50 +335,6 @@
   color: var(--mf-text-3); word-break: break-all;
 }
 
-/* ── Fundo ambiente ──────────────────────────────────────────────────────
-
-   Duas manchas de luz que derivam lentamente atrás do conteúdo.
-
-   Por que tão discreto: este painel é uma grade densa de números, e o próprio
-   PageShell abandonou o vidro por isso — sobre dados, textura vira ruído
-   exatamente no elemento que precisa estar mais legível. Então o fundo fica em
-   4% de alfa, atrás de tudo (`z-index: -1`), sem tocar em nenhum cartão. É
-   ambiente, não decoração: quem repara está olhando para o fundo de propósito.
-
-   Por que existe: a tela de preferências tem um interruptor de "animação de
-   fundo", e não havia fundo animado nenhum no produto para ele controlar. Um
-   interruptor que não muda nada é pior que interruptor ausente.
-
-   Por que 40 segundos: um ciclo curto o bastante para se perceber é um ciclo
-   que compete com a leitura. Neste tempo, o movimento entre dois olhares para
-   a tela é menor que a atenção que sobraria para notá-lo. */
-[data-mf]::before {
-  content: '';
-  position: fixed;
-  inset: -20vmax;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(38vmax 38vmax at 22% 18%, color-mix(in oklch, var(--mf-primary-500) 4%, transparent), transparent 70%),
-    radial-gradient(32vmax 32vmax at 78% 82%, color-mix(in oklch, var(--mf-accent-500) 4%, transparent), transparent 70%);
-  animation: mf-ambiente 40s var(--mf-ease-inout, ease-in-out) infinite alternate;
-}
-
-@keyframes mf-ambiente {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(2vmax, -2vmax, 0) scale(1.06); }
-}
-
-/* Desligado no painel: o fundo continua, parado. Remover a mancha inteira
-   trocaria a cor do fundo junto — e o interruptor é de animação, não de cor. */
-[data-fundo='estatico'] [data-mf]::before { animation: none; }
-
-/* Quem pediu menos movimento ao sistema já respondeu esta pergunta, e a
-   resposta vale mesmo com o interruptor ligado. */
-@media (prefers-reduced-motion: reduce) {
-  [data-mf]::before { animation: none; }
-}
-
 /* ── O fundo atrás de tudo ────────────────────────────────────────────────
 
    `body` fica FORA de `[data-mf]`, e os tokens do sistema moram lá dentro —

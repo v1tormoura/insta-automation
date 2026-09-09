@@ -9,6 +9,79 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
+import FundoCiber from '../components/FundoCiber';
+import { lidas as lerPreferencias, salvar as salvarPreferencias } from '../services/preferencias';
+
+/**
+ * Alterna o tema, no topo.
+ *
+ * O tema claro existia no CSS desde sempre e nao tinha como ser ligado. Agora
+ * ele tem uma tela (Minha Conta) e este botao — e os dois escrevem no MESMO
+ * lugar, `services/preferencias`, que aplica no `<html>` e grava no navegador.
+ * Um segundo caminho com estado proprio faria os dois discordarem no primeiro
+ * clique.
+ *
+ * Grava no servidor sem esperar: a troca ja aconteceu na tela, e travar o
+ * botao por uma ida a rede para confirmar o que se esta vendo seria pedir
+ * confirmacao do obvio. Se a gravacao falhar, a preferencia vale neste
+ * aparelho — que e o que o recado em Minha Conta explica.
+ */
+function BotaoDeTema() {
+  const [tema, setTema] = useState(() => lerPreferencias().tema);
+
+  const alternar = () => {
+    const novo = tema === 'claro' ? 'escuro' : 'claro';
+    setTema(novo);
+    salvarPreferencias({ tema: novo });
+    api.put('/conta/preferencias', { preferencias: { tema: novo } }).catch(() => {});
+  };
+
+  const claro = tema === 'claro';
+  return (
+    <button className="mf-pilula" onClick={alternar}
+      title={claro ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}
+      aria-label={claro ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}>
+      {claro ? ICONS.sol : ICONS.lua}
+    </button>
+  );
+}
+
+/**
+ * O relogio do topo.
+ *
+ * A referencia tem um seletor de PERIODO aqui. Nao coloquei: o periodo filtra
+ * os dados do painel, e um controle na casca — visivel em todas as trinta
+ * telas — que so mudasse uma delas prometeria mais do que faz. O periodo
+ * continua no painel, ao lado do que ele filtra.
+ *
+ * O relogio fica porque e verdade em qualquer tela.
+ */
+function RelogioDoTopo() {
+  const [agora, setAgora] = useState(() => new Date());
+
+  useEffect(() => {
+    /* Alinhado ao proximo minuto cheio, e nao a cada 1000 ms: um relogio sem
+       segundos que atualiza a cada segundo faz 59 renders inuteis por minuto. */
+    let id;
+    const agendar = () => {
+      const restam = 60000 - (Date.now() % 60000);
+      id = setTimeout(() => { setAgora(new Date()); agendar(); }, restam + 50);
+    };
+    agendar();
+    return () => clearTimeout(id);
+  }, []);
+
+  return (
+    <span className="mf-pilula mf-pilula--larga" title="Data e hora deste aparelho">
+      {ICONS.calendario}
+      <span className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)' }}>
+        {agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+        {' · '}
+        {agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+      </span>
+    </span>
+  );
+}
 
 /**
  * O circulo do usuario na barra do topo.
@@ -38,18 +111,22 @@ function AvatarDoUsuario() {
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   return (
-    <button onClick={() => navigate('/minha-conta')}
-      title={nome ? `${nome} — minha conta` : 'Minha conta'}
-      style={{
-        width: 30, height: 30, borderRadius: 'var(--mf-r-full)', flexShrink: 0,
-        background: 'linear-gradient(135deg, var(--mf-primary-500), var(--mf-accent-500))',
-        display: 'grid', placeItems: 'center', fontSize: 'var(--mf-t-micro)', fontWeight: 700,
-        color: 'var(--mf-primary-fg)', border: 'none', cursor: 'pointer', padding: 0,
-        overflow: 'hidden',
-      }}>
-      {conta?.avatar
-        ? <img src={`${API}${conta.avatar}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : iniciais}
+    <button className="mf-usuario" onClick={() => navigate('/minha-conta')}
+      title={nome ? `${nome} — minha conta` : 'Minha conta'}>
+      <span className="mf-usuario__foto">
+        {conta?.avatar
+          ? <img src={`${API}${conta.avatar}`} alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : iniciais}
+      </span>
+      {/* Nome e papel, como na referencia. O papel e "Administrador" e nao um
+          campo do banco: o sistema tem um usuario so, o dono, e inventar um
+          campo de cargo para exibir sempre o mesmo valor seria guardar uma
+          constante no Mongo. */}
+      <span className="mf-usuario__txt">
+        <span className="mf-usuario__n">{nome || 'Minha conta'}</span>
+        <span className="mf-usuario__p">Administrador</span>
+      </span>
     </button>
   );
 }
@@ -97,6 +174,9 @@ const ICONS = {
   videobatch:  ic(<><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></>),
   videoeditor: ic(<><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l2-2 2 2"/><path d="M12 8v5"/></>),
   apimeta:     ic(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></>),
+  lua:         ic(<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>, 15),
+  sol:         ic(<><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>, 15),
+  calendario:  ic(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>, 14),
   usuario:     ic(<><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></>),
   perfis:      ic(<><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M18 14v-3M21 14V8"/></>),
   oauth:       ic(<><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>),
@@ -307,14 +387,21 @@ export default function MainLayout({ children }) {
      bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
      inteiro em vez de só perder uma preferência. */
   const [recolhida, setRecolhida] = useState(() => {
-    try { return localStorage.getItem('mf-sidebar-rail') !== '0'; }
-    catch { return true; }
+    /* ABERTA por padrão. Era o contrário: o rail nascia recolhido e abria ao
+       passar o cursor. A referência do redesenho tem a barra fixa em 220px, e
+       essa passou a ser a escolha — a chave guarda o DESVIO do padrão, que
+       agora é recolher, e por isso a comparação virou `=== '1'`.
+
+       O hover-para-abrir continua existindo no estado recolhido: quem recolher
+       de propósito ainda ganha a barra ao aproximar o cursor. */
+    try { return localStorage.getItem('mf-sidebar-rail') === '1'; }
+    catch { return false; }   /* aba privada: cai no padrão, que agora é aberta */
   });
 
   const alternarSidebar = () => setRecolhida(r => {
     const nova = !r;
-    /* '0' guarda "não recolhida" (presa aberta) e qualquer outra coisa é o
-       rail. Gravar o estado que FOGE do padrão deixa o padrão livre para
+    /* '1' guarda "recolhida", que é o desvio do padrão desde que a barra
+       passou a nascer aberta. Gravar o estado que FOGE do padrão deixa o padrão livre para
        mudar sem arrastar ninguém — foi o que faltou nas duas chaves antes. */
     try { localStorage.setItem('mf-sidebar-rail', nova ? '1' : '0'); } catch { /* sem preferência */ }
     return nova;
@@ -355,6 +442,9 @@ export default function MainLayout({ children }) {
        estado. Fora daqui, o aviso não teria onde aparecer. */
     <SmartActivityProvider>
     <div data-mf>
+      {/* O fundo vivo. Dentro do `[data-mf]` para herdar a paleta do tema, e
+          antes da casca porque ele fica em `z-index: -1` — atrás de tudo. */}
+      <FundoCiber />
       <div className="mf-app" data-collapsed={recolhida} data-drawer={gaveta}>
 
         {gaveta && <div className="mf-scrim" onClick={() => setGaveta(false)} aria-hidden="true" />}
@@ -444,6 +534,9 @@ export default function MainLayout({ children }) {
             </button>
 
             <div className="mf-top__spacer" />
+
+            <BotaoDeTema />
+            <RelogioDoTopo />
 
             <SinoDeNotificacoes />
 

@@ -694,7 +694,18 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 
 /* ── Barra lateral ───────────────────────────────────────────────────────*/
 .mf-side {
-  background: var(--mf-surface-1);
+  /* CIBER — vidro, não superfície opaca.
+  
+     `--mf-surface-1` é a cor dos CARTÕES, e cartão e casca têm funções
+     opostas: o cartão isola o dado do fundo, a casca deixa o fundo aparecer.
+     Com a mesma cor nos dois, o campo de filamentos morria atrás de duas
+     paredes chapadas e o fundo animado só existia na faixa central.
+
+     A saturação no desfoque não é enfeite: sem ela o `backdrop-filter`
+     dessatura o que passa por baixo, e o ciano do fundo chega aqui cinza. */
+  background: var(--mf-casca);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border-right: 1px solid var(--mf-border);
   display: flex; flex-direction: column;
   position: sticky; top: 0; height: 100vh; height: 100svh;
@@ -935,27 +946,113 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   /* Sólida, pelo mesmo motivo do cabeçalho de página: com 78% o conteúdo
      passava por baixo e aparecia ao rolar, e a barra superior é o último lugar
      onde se quer texto competindo com números fantasma. */
-  background: var(--mf-bg);
+  /* CIBER — o mesmo vidro da barra lateral. O comentário acima explicava por
+     que o fundo era SÓLIDO: sobre uma grade densa de dados, o conteúdo
+     passava por baixo e aparecia ao rolar. Isso continua verdade para o
+     cabeçalho de PÁGINA (`.mf-page-head`, que segue opaco) — mas a barra
+     superior não tem dado rolando por baixo dela: tem a casca. */
+  background: var(--mf-casca);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   position: sticky; top: 0; z-index: var(--mf-z-sticky);
   padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
 }
 .mf-top__spacer { flex: 1; min-width: var(--mf-2); }
 
+/* ── Pílulas do topo ─────────────────────────────────────────────────────
+
+   Tema, relógio, sino e usuário. Todas com a MESMA altura e o mesmo raio: na
+   referência o que dá coesão ao topo é justamente isso — quatro controles de
+   funções diferentes lidos como uma família, em vez de quatro widgets.
+
+   `r-full` num elemento de altura fixa dá o raio igual à metade da altura sem
+   precisar escrevê-lo à mão, o que sobrevive a mudar a altura depois. */
+.mf-pilula {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--mf-2); flex-shrink: 0;
+  height: 34px; min-width: 34px; padding-inline: var(--mf-2);
+  border-radius: var(--mf-r-full);
+  border: 1px solid var(--mf-border);
+  background: color-mix(in oklch, var(--mf-surface-2) 62%, transparent);
+  color: var(--mf-text-3);
+  cursor: pointer;
+  transition: border-color var(--mf-fast) var(--mf-ease-out),
+              color var(--mf-fast) var(--mf-ease-out),
+              box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+.mf-pilula--larga { padding-inline: var(--mf-3); }
+.mf-pilula:hover {
+  border-color: var(--mf-border-strong);
+  color: var(--mf-text);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mf-primary-500) 8%, transparent);
+}
+/* O relógio não é botão: sem cursor de mão e sem reação ao hover, porque não
+   há nada para clicar. Um elemento que acende ao passar o mouse e não faz
+   nada é uma promessa quebrada. */
+span.mf-pilula { cursor: default; }
+span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); box-shadow: none; }
+
+/* ── O bloco de usuário ──────────────────────────────────────────────────
+   Avatar + nome + papel, como na referência. Vira só o avatar em telas
+   estreitas: o nome é a primeira coisa dispensável quando o espaço aperta. */
+.mf-usuario {
+  display: inline-flex; align-items: center; gap: var(--mf-2);
+  flex-shrink: 0; height: 34px;
+  padding: 0 var(--mf-3) 0 2px;
+  border-radius: var(--mf-r-full);
+  border: 1px solid var(--mf-border);
+  background: color-mix(in oklch, var(--mf-surface-2) 62%, transparent);
+  cursor: pointer; min-width: 0;
+  transition: border-color var(--mf-fast) var(--mf-ease-out),
+              box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+.mf-usuario:hover {
+  border-color: var(--mf-border-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mf-primary-500) 8%, transparent);
+}
+.mf-usuario__foto {
+  width: 28px; height: 28px; flex-shrink: 0; overflow: hidden;
+  border-radius: var(--mf-r-full);
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--mf-primary-500), var(--mf-glow));
+  color: var(--mf-primary-fg);
+  font-size: var(--mf-t-nano); font-weight: 800;
+}
+.mf-usuario__txt { min-width: 0; display: grid; text-align: left; }
+.mf-usuario__n {
+  font-size: var(--mf-t-micro); font-weight: 700; color: var(--mf-text);
+  line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mf-usuario__p {
+  font-size: var(--mf-t-nano); color: var(--mf-text-3);
+  line-height: 1.2; white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .mf-usuario { padding-inline: 2px; }
+  .mf-usuario__txt { display: none; }
+  .mf-pilula--larga { display: none; }   /* o relógio sai antes do resto */
+}
+
 /* Gatilho da paleta de comandos. Parece um campo de busca porque é a
    affordance que as pessoas já conhecem — o atalho é para quem repete. */
 .mf-cmd-trigger {
   display: flex; align-items: center; gap: var(--mf-2);
-  height: 32px; padding: 0 var(--mf-2) 0 var(--mf-3);
-  border-radius: var(--mf-r-md);
+  height: 34px; padding: 0 var(--mf-2) 0 var(--mf-4);
+  /* Pílula, como na referência. `r-full` num elemento de altura fixa dá o
+     raio igual à metade da altura sem precisar escrevê-lo à mão. */
+  border-radius: var(--mf-r-full);
   border: 1px solid var(--mf-border);
-  background: var(--mf-surface-2);
+  background: color-mix(in oklch, var(--mf-surface-2) 62%, transparent);
   color: var(--mf-text-3); cursor: pointer;
   font-size: var(--mf-t-sm);
   min-width: 0;
   transition: border-color var(--mf-fast) var(--mf-ease-out),
               color var(--mf-fast) var(--mf-ease-out);
 }
-.mf-cmd-trigger:hover { border-color: var(--mf-border-strong); color: var(--mf-text-2); }
+.mf-cmd-trigger:hover {
+  border-color: var(--mf-border-strong); color: var(--mf-text-2);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mf-primary-500) 8%, transparent);
+}
 .mf-kbd {
   font-family: var(--mf-mono); font-size: var(--mf-t-micro);
   padding: 2px var(--mf-1) 2px var(--mf-1);
@@ -1091,9 +1188,24 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
               box-shadow var(--mf-normal) var(--mf-ease-out),
               transform var(--mf-normal) var(--mf-ease-out);
 }
+/* CIBER — o filete de luz do topo passa a ser ciano.
+   Branco a 10% sobre navio lia como risco cinza; na cor da marca ele lê como
+   a beirada iluminada que a referência mostra em cada cartão. */
 .mf-card::before {
   content: ''; position: absolute; inset: 0 0 auto; height: 1px;
-  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.10), transparent);
+  background: linear-gradient(90deg,
+    transparent,
+    color-mix(in oklch, var(--mf-primary-500) 42%, transparent),
+    transparent);
+}
+/* CIBER — halo. Sombra na cor da marca em vez de preto: sobre um chão que já
+   é quase preto, sombra preta não separa nada. O que dá relevo aqui é a luz
+   vazando da beirada, não a escuridão embaixo. */
+.mf-card {
+  box-shadow:
+    var(--mf-shadow-1),
+    0 0 0 1px color-mix(in oklch, var(--mf-primary-500) 4%, transparent),
+    0 8px 30px -18px color-mix(in oklch, var(--mf-glow) 45%, transparent);
 }
 .mf-card--hover:hover {
   border-color: var(--mf-border-strong);
