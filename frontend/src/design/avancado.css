@@ -250,6 +250,18 @@
      momentos diferentes. */
   --mf-bg:        oklch(0.985 0.004 241);
   --mf-surface-1: oklch(1 0 0);
+  /* A casca do tema claro.
+
+     Faltava, e o sintoma era exato: a barra lateral e o topo continuavam com
+     o navio ESCURO translúcido sobre a página clara — uma faixa acinzentada
+     com os rótulos escuros por cima, ilegíveis. É a armadilha clássica de
+     paleta em dois temas: o token novo entra só no bloco de um deles, e o
+     outro tema segue pintando com a cor errada sem nada acusar.
+
+     Branco a 72% e não opaco, pela mesma razão do escuro: é o que deixa o
+     fundo animado passar por baixo da casca. */
+  --mf-casca:        oklch(1 0 0 / 0.72);
+  --mf-casca-solida: oklch(1 0 0);
   --mf-surface-2: oklch(0.965 0.005 241);
   --mf-surface-3: oklch(0.935 0.007 241);
   --mf-overlay:   oklch(0.22 0.02 241 / 0.38);

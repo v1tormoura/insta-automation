@@ -282,3 +282,40 @@ describe('o fundo atrás do app', () => {
     expect(doBody).toBe(doToken);
   });
 });
+
+describe('os dois temas definem os MESMOS tokens de superfície', () => {
+  /**
+   * A armadilha que este teste existe para pegar.
+   *
+   * `--mf-casca` foi criada para a barra lateral e o topo virarem vidro, e
+   * entrou só no bloco ESCURO. No tema claro a casca continuou pintando com o
+   * navio escuro translúcido sobre a página clara: uma faixa acinzentada com
+   * os rótulos escuros por cima, ilegíveis.
+   *
+   * Nada acusava. O build passa, o lint passa, e o teste de contraste — que
+   * mede pares de cores — não tinha como reprovar um token que ele nem sabia
+   * que existia. A verificação certa não é sobre contraste: é sobre COBERTURA.
+   */
+  const nomesDe = (texto) =>
+    new Set([...texto.matchAll(/(--mf-[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+
+  const doEscuro = nomesDe(bloco(cssTokens, '[data-mf] {'));
+  const doClaro = nomesDe(bloco(cssAvancado, "[data-mf][data-tema='claro'] {"));
+
+  /* Só as famílias que PINTAM superfície. Um token de espaçamento ou de
+     duração não precisa de valor por tema, e exigir isso encheria o teste de
+     exceções — que é como um teste deixa de ser lido. */
+  const PINTAM = /^--mf-(bg|surface-\d|casca|casca-solida|overlay|grade|border|border-strong|border-subtle|text|text-2|text-3)$/;
+
+  test('todo token de superfície do escuro tem valor no claro', () => {
+    const faltando = [...doEscuro].filter((n) => PINTAM.test(n) && !doClaro.has(n));
+    expect(faltando, `o tema claro não redefine: ${faltando.join(', ')}`).toEqual([]);
+  });
+
+  test('o claro não inventa token de superfície que o escuro não tem', () => {
+    /* O outro lado do mesmo erro: um token que só existe no claro fica sem
+       valor no escuro, e o CSS cai no vazio sem avisar. */
+    const sobrando = [...doClaro].filter((n) => PINTAM.test(n) && !doEscuro.has(n));
+    expect(sobrando, `só existem no claro: ${sobrando.join(', ')}`).toEqual([]);
+  });
+});

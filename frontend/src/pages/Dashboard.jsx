@@ -1,10 +1,10 @@
 import '../dashboard.css';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Segmentado from '../components/Segmentado';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  AlertTriangle, ChevronDown, ChevronRight,
+  AlertTriangle, ChevronDown, ChevronRight, Users2,
   Clock3, Flame, FolderOpen, HeartPulse, Layers3,
   MoreHorizontal, Plus, RefreshCw, Send,
   ShieldCheck, TrendingUp, Zap,
@@ -105,16 +105,6 @@ const quickActions = [
   { title: 'Saúde',         subtitle: 'Diagnóstico das contas',         icon: HeartPulse,to: '/health'    },
 ];
 
-/* ── LiveClock ── */
-function LiveClock() {
-  const [t, setT] = useState(() => new Date().toLocaleTimeString('pt-BR'));
-  useEffect(() => {
-    const id = setInterval(() => setT(new Date().toLocaleTimeString('pt-BR')), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <span style={{ fontVariantNumeric:'tabular-nums' }}>{t}</span>;
-}
-
 /* ── AvatarChip ── */
 function AvatarChip({ username, avatar, size = 32 }) {
   const [err, setErr] = useState(false);
@@ -189,7 +179,7 @@ function SelectBtn({ active, onClick, children }) {
    • a linha ganha o ponto final destacado, que é onde o olho procura "agora";
    • o tamanho do número responde ao PRÓPRIO card (cqw), então o mesmo
      componente serve a uma coluna estreita e a um bloco largo. */
-function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 0 }) {
+function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 0, Icone }) {
   /* `orbType` nomeava um matiz ("violet"), não um significado — e por isso o
      contador de ERROS aparecia em violeta, a cor de publicação, sem nada
      que dissesse "isto é um problema". Os nomes de intenção entram aqui e
@@ -234,6 +224,16 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
       style={{ '--mf-mod': cor }}
     >
       <div className="metric-card__topo">
+        {/* O disco de icone.
+
+            Ha uma tensao aqui, e vale registrar: o comentario acima conta que
+            este cartao PERDEU quatro camadas decorativas de proposito. O disco
+            volta porque nao e decoracao — com o rotulo em 10px e maiusculas, o
+            icone e o que identifica os quatro cartoes numa varredura, antes de
+            qualquer texto ser lido. E um so, e nao quatro camadas. */}
+        {Icone && (
+          <span className="metric-card__ico" aria-hidden="true"><Icone size={15} /></span>
+        )}
         <div style={{ minWidth: 0 }}>
           {/* O rótulo usa a cor do módulo, não o cinza: é ele que diz de que
               área é o número, e em cinza essa informação se perdia. */}
@@ -1081,6 +1081,7 @@ function LivePostsPanel() {
    ── DASHBOARD
    ══════════════════════════════════════════════════════ */
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [data,          setData]          = useState(null);
   const [accountStats,  setAccountStats]  = useState([]);
   const [topInsights,   setTopInsights]   = useState([]);
@@ -1209,13 +1210,19 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="toolbar">
-              <div className="clock-chip"><Clock3 size={15} /><LiveClock /></div>
               <button className="toolbar-button" onClick={() => setPeriod(p => p===7?14:p===14?30:7)}>
                 <span>{period}d</span><ChevronDown size={14} />
               </button>
               <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.97 }}
                 className={`refresh-button ${refreshing?'is-refreshing':''}`} onClick={handleRefresh}>
                 <RefreshCw size={16} style={{ animation:refreshing?'dash-spin .7s linear infinite':'' }} />Atualizar
+              </motion.button>
+              {/* A acao primaria. A referencia diz "+ Novo projeto"; este
+                  produto nao tem projetos, e um botao que abre nada seria
+                  pior que nenhum botao. Leva ao que ele de fato faz. */}
+              <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.97 }}
+                className="btn-novo" onClick={() => navigate('/posts')}>
+                <Plus size={16} />Nova publicação
               </motion.button>
             </div>
           </header>
@@ -1226,10 +1233,10 @@ export default function Dashboard() {
           <EsqueletoMetricas quantas={4} />
         ) : (
         <motion.section variants={stagger} initial="hidden" animate="show" className="metric-grid">
-          <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={[]}         delay={0}    />
-          <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit>0?fmt(d.dailyPostLimit):'—'}`}   orbType="warm"   spark={sparkDaily} delay={.06}  />
-          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="erro"   spark={sparkErrors} delay={.12}  />
-          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="fila" spark={[]}         delay={.18} />
+          <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={[]}         delay={0}    Icone={Users2} />
+          <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit>0?fmt(d.dailyPostLimit):'—'}`}   orbType="warm"   spark={sparkDaily} delay={.06}  Icone={Send} />
+          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="erro"   spark={sparkErrors} delay={.12}  Icone={AlertTriangle} />
+          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="fila" spark={[]}         delay={.18} Icone={Layers3} />
             {/* As duas métricas de conta vinham numa fileira própria logo
                 abaixo. Medindo: 154px de altura e três textos cada, o mesmo
                 conteúdo de um cartão KPI — só que em 471px de largura contra

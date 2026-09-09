@@ -472,3 +472,41 @@
   .toast { left: 10px; right: 10px; bottom: env(safe-area-inset-bottom, 10px); }
   .dash-header h1 { font-size: clamp(20px, 6vw, 28px); }
 }
+
+/* ── O disco de ícone do cartão de métrica ───────────────────────────────
+
+   Vem da referência, e não é enfeite: com o rótulo em 10px e todo em
+   maiúsculas, o ícone é o que identifica os quatro cartões numa varredura,
+   antes de qualquer texto ser lido.
+
+   `--mf-mod` já carrega a cor de intenção de cada cartão (erro em vermelho,
+   fila em ciano), então o disco herda o significado sem escolher cor própria. */
+.metric-card__topo { display: flex; align-items: flex-start; gap: var(--mf-3); min-width: 0; }
+.metric-card__ico {
+  width: 34px; height: 34px; flex-shrink: 0; margin-top: 2px;
+  display: grid; place-items: center;
+  border-radius: var(--mf-r-full);
+  color: var(--mf-mod, var(--mf-primary-500));
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 26%, transparent);
+  /* O halo é o que faz o disco parecer aceso em vez de pintado. */
+  box-shadow: 0 0 14px -4px color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 55%, transparent);
+}
+
+/* ── A ação primária do cabeçalho ────────────────────────────────────────
+   O botão cheio da referência: gradiente da marca para o glow, texto escuro
+   (o ciano em L=0.776 é claro demais para carregar branco) e halo. */
+.btn-novo {
+  display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0;
+  height: 36px; padding: 0 var(--mf-4);
+  border: none; border-radius: var(--mf-r-full);
+  background: linear-gradient(135deg, var(--mf-primary-500), var(--mf-glow));
+  color: var(--mf-primary-fg);
+  font-size: var(--mf-t-xs); font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 22px -10px color-mix(in oklch, var(--mf-glow) 85%, transparent);
+  transition: box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+.btn-novo:hover {
+  box-shadow: 0 8px 28px -8px color-mix(in oklch, var(--mf-glow) 95%, transparent);
+}
