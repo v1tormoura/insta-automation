@@ -415,17 +415,36 @@ export default function FundoCiber() {
     medir();
     decidir();
 
+    /* Segunda opinião, um instante depois de montar.
+
+       `decidir()` na montagem confia em `document.hidden` — e logo depois de
+       um F5 ou de trocar de aba, esse valor pode estar errado por um
+       instante: a página ainda não é considerada "visível" pelo navegador no
+       exato microtask em que o efeito roda, mesmo com a aba já em primeiro
+       plano. Sem esta segunda chamada, `decidir()` entra no ramo de "aba
+       escondida" (`umQuadro()`, um quadro só, sem laço) e fica ali PARA
+       SEMPRE — nada mais dispara `decidir()` de novo, porque não existe
+       transição real de visibilidade depois dessa: a aba já estava e
+       continua em primeiro plano, só o instante da leitura é que mentiu. Foi
+       assim que o fundo "não animava" depois de recarregar. */
+    const segundaChamada = setTimeout(decidir, 250);
+
     window.addEventListener('resize', aoRedimensionar);
     document.addEventListener('visibilitychange', decidir);
+    window.addEventListener('focus', decidir);
+    window.addEventListener('pageshow', decidir);
     menosMovimento.addEventListener('change', decidir);
 
     return () => {
       cancelAnimationFrame(quadro);
       clearTimeout(esperaResize);
+      clearTimeout(segundaChamada);
       observador.disconnect();
       observadorTamanho.disconnect();
       window.removeEventListener('resize', aoRedimensionar);
       document.removeEventListener('visibilitychange', decidir);
+      window.removeEventListener('focus', decidir);
+      window.removeEventListener('pageshow', decidir);
       menosMovimento.removeEventListener('change', decidir);
     };
   }, []);

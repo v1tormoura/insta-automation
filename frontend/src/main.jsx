@@ -31,3 +31,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </BrowserRouter>
 );
+
+/* Tira a splash de arranque (ver index.html) depois do primeiro quadro real.
+   Duas `requestAnimationFrame`: a primeira cai depois do React confirmar o
+   commit, a segunda depois do navegador já ter PINTADO esse commit na tela.
+   Tirar cedo demais trocaria "carregando" por um instante de tela em branco
+   — pior do que a splash ficar um quadro a mais do que precisava. */
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  const splash = document.getElementById('boot-splash');
+  if (!splash) return;
+  splash.setAttribute('data-saindo', '');
+  setTimeout(() => splash.remove(), 400);
+}));

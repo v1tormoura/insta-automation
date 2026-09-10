@@ -963,6 +963,11 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   position: sticky; top: 0; z-index: var(--mf-z-sticky);
   padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
+  /* A folga da esquerda cresce quando o rail abre por cima (ver a regra no
+     hover do rail, mais abaixo) — sem transição aqui, ela pularia de um
+     valor para o outro em vez de acompanhar os 220ms do rail. */
+  transition: padding-left var(--mf-normal) var(--mf-ease-out);
+  transition-delay: 0ms;
 }
 .mf-top__spacer { flex: 1; min-width: var(--mf-2); }
 
@@ -1593,6 +1598,18 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__icone-so { display: none; }
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item {
     justify-content: flex-start; padding-inline: var(--mf-3);
+  }
+
+  /* A barra superior é STICKY, não faz parte da coluna do rail — sem isto o
+     rail abrindo por cima (`z-index` maior, de propósito, ver acima) cobre a
+     busca com o próprio vidro translúcido dela, e o que passa por baixo
+     aparece borrado misturado com a logo. A folga empurra a busca para o
+     lado exato em que o rail deixou de estar por baixo dela — mesma largura
+     que o rail ganhou (`--mf-sidebar` menos `--mf-sidebar-c`), no mesmo
+     atraso de 140ms, para os dois se moverem juntos. */
+  .mf-app[data-collapsed='true'] .mf-side:hover ~ .mf-main .mf-top {
+    padding-left: calc(clamp(var(--mf-4), 2.5vw, var(--mf-8)) + (var(--mf-sidebar) - var(--mf-sidebar-c)));
+    transition-delay: 140ms;
   }
 }
 

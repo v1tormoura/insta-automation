@@ -20,8 +20,52 @@
     <!-- Apple / PWA -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
     <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Splash de arranque
+         Puro HTML/CSS, sem esperar o bundle: entre o F5 e o React montar, a
+         tela ficava em branco — nem cor de fundo, nem marca, só o branco do
+         navegador por cima do que estava antes. O mesmo respirar do logo que
+         `TelaDeCarregamento` usa depois do OAuth, reescrito sem variável de
+         tema porque nada do CSS do app existe ainda neste ponto. `main.jsx`
+         remove este bloco assim que o primeiro quadro do React é pintado. -->
+    <style>
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+        background: #020817;
+        transition: opacity .35s ease;
+      }
+      #boot-splash[data-saindo] { opacity: 0; pointer-events: none; }
+      #boot-splash__logo { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
+      #boot-splash__halo {
+        position: absolute; inset: 0; border-radius: 999px;
+        background: radial-gradient(circle, rgba(0,212,255,.32), transparent 70%);
+        animation: boot-halo 2.8s ease-in-out infinite;
+      }
+      #boot-splash__logo img {
+        position: relative; z-index: 1; width: 72px; height: 72px;
+        animation: boot-logo 2.8s ease-in-out infinite;
+      }
+      @keyframes boot-logo {
+        0%, 100% { transform: scale(1);     filter: drop-shadow(0 0 10px rgba(0,212,255,.45)); }
+        50%      { transform: scale(1.055); filter: drop-shadow(0 0 22px rgba(0,212,255,.7)); }
+      }
+      @keyframes boot-halo {
+        0%, 100% { opacity: .55; transform: scale(.92); }
+        50%      { opacity: 1;   transform: scale(1.08); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash__logo img, #boot-splash__halo { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash" aria-hidden="true">
+      <div id="boot-splash__logo">
+        <span id="boot-splash__halo"></span>
+        <img src="/nexora-icon-512.png?v=1" alt="" width="72" height="72" />
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
