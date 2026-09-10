@@ -49,11 +49,19 @@ const Account = require('../models/Account');
    detectável em vez de silenciosa. Índice além do fim é ignorado pelo Python,
    que cai no hash: degrada, não quebra.
 
-   Passando de 50 contas, duas passam a compartilhar um aparelho — e isso é
+   Passando de 102 contas, duas passam a compartilhar um aparelho — e isso é
    aceitável: milhões de pessoas reais têm o mesmo celular. O que não pode
    repetir é a IDENTIDADE (device_id, phone_id, uuid, advertising_id, sessão), e
-   essa é derivada do id da conta — única mesmo quando o modelo coincide. */
-const TOTAL_DE_APARELHOS = 50;
+   essa é derivada do id da conta — única mesmo quando o modelo coincide.
+
+   ── Sobre crescer o pool
+
+   O catálogo do Python só pode ser ANEXADO. O índice é posicional: um modelo
+   inserido no meio, ou uma versão de Android somada a um modelo que já estava
+   lá, desloca todo o resto — e centenas de contas passam a entrar de um
+   celular diferente do de ontem, que é justamente o sinal que o aparelho fixo
+   existe para evitar. Há um teste que fixa a impressão digital do prefixo. */
+const TOTAL_DE_APARELHOS = 102;
 
 /**
  * O índice do aparelho desta conta, alocando um se ela ainda não tem.

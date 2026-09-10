@@ -370,7 +370,7 @@ def _device_uuids(account_id: str) -> dict:
 # (`{android_version}/{android_release}`). Os dois precisam concordar: API 33 é
 # Android 13, e anunciar 33/14.0 é a mesma classe de contradição que já fez
 # toda conta receber `invalid_user` quando cabeçalho e corpo discordavam.
-_ANDROID = {33: "13.0", 34: "14.0"}
+_ANDROID = {33: "13.0", 34: "14.0", 35: "15.0"}
 
 _MODELOS = [
     # ── Samsung ───────────────────────────────────────────────────────────────
@@ -418,6 +418,79 @@ _MODELOS = [
 
     # ── TCL ───────────────────────────────────────────────────────────────────
     ("TCL", "T676H", "T676H", "mt6833", "320dpi", "720x1612", [33]),
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # ANEXADO — nada acima desta linha pode mudar de posição.
+    #
+    # O índice do aparelho é POSICIONAL: `Account.deviceIndex` guarda a posição
+    # no pool que `_montar_pool()` produz. Inserir um modelo no meio, ou somar
+    # uma versão de Android a um modelo que já está acima, desloca todo o resto
+    # — e cada conta depois do ponto de inserção passa a entrar de um celular
+    # diferente do de ontem.
+    #
+    # Este módulo já diz que trocar o aparelho de uma conta é pior que duas
+    # contas compartilharem um modelo. Com centenas de contas, um deslocamento
+    # desses troca o celular de todas elas de uma vez.
+    #
+    # Não é hipótese: ao escrever este bloco eu ancorei na entrada do Pixel 7
+    # achando que era a última, e havia mais linhas depois. O índice 45 em
+    # diante mudou de aparelho. O teste que fixa a impressão digital do prefixo
+    # pegou antes de virar commit — e é por isso que ele existe.
+    #
+    # SEMPRE ANEXAR, e conferir que a âncora é mesmo a última linha.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Samsung, a linha que domina o Brasil ──────────────────────────────────
+    ("Samsung", "a54x",    "SM-A546E",  "s5e8835", "450dpi", "1080x2340", [33, 34, 35]),
+    ("Samsung", "a35x",    "SM-A356E",  "s5e8835", "450dpi", "1080x2340", [34, 35]),
+    ("Samsung", "a05s",    "SM-A057M",  "qcom",    "300dpi", "720x1600",  [33, 34]),
+    ("Samsung", "m34x",    "SM-M346B",  "s5e8825", "450dpi", "1080x2340", [33, 34]),
+    ("Samsung", "a24",     "SM-A245M",  "mt6877",  "450dpi", "1080x2340", [33, 34]),
+    ("Samsung", "a13",     "SM-A135M",  "mt6765",  "300dpi", "720x1600",  [33]),
+    ("Samsung", "a23xq",   "SM-A235M",  "qcom",    "420dpi", "1080x2408", [33, 34]),
+    ("Samsung", "m15x",    "SM-M156B",  "mt6835",  "450dpi", "1080x2340", [34, 35]),
+    ("Samsung", "e1q",     "SM-S921B",  "qcom",    "480dpi", "1080x2340", [34, 35]),
+
+    # ── Motorola, a segunda maior base por aqui ───────────────────────────────
+    ("Motorola", "devon",   "moto g73 5G",      "mt6855", "400dpi", "1080x2400", [33, 34]),
+    ("Motorola", "rhodep",  "moto g54 5G",      "mt6855", "400dpi", "1080x2400", [33, 34]),
+    ("Motorola", "penang",  "moto g23",         "mt6768", "400dpi", "1080x2400", [33]),
+    ("Motorola", "rtwo",    "motorola edge 40", "mt6895", "420dpi", "1080x2400", [33, 34]),
+
+    # ── Xiaomi / Redmi / POCO ─────────────────────────────────────────────────
+    ("Xiaomi", "ruby",  "22101316UG", "mt6877", "440dpi", "1080x2400", [33, 34]),
+    ("Xiaomi", "sky",   "23053RN02Y", "mt6768", "440dpi", "1080x2400", [33, 34]),
+    ("Xiaomi", "water", "23028RNCAG", "mt6761", "320dpi", "720x1600",  [33]),
+
+    # ── realme ────────────────────────────────────────────────────────────────
+    ("realme", "RMX3710", "RMX3710", "mt6877", "440dpi", "1080x2400", [33, 34]),
+
+    # ── Google ────────────────────────────────────────────────────────────────
+    ("Google", "lynx",  "Pixel 7a", "tensor", "420dpi", "1080x2400", [33, 34]),
+    ("Google", "shiba", "Pixel 8",  "tensor", "420dpi", "1080x2400", [34, 35]),
+
+    # ── Android 15 nos modelos que JÁ estão acima ─────────────────────────────
+    #
+    # Entradas NOVAS, e não alteração das antigas — é o que multiplica o pool
+    # sem inventar hardware e sem deslocar índice nenhum. Um Galaxy S23 rodando
+    # Android 15 é um aparelho tão real quanto o mesmo S23 em 14; para o pool,
+    # é outra combinação.
+    ("Samsung", "dm1q",     "SM-S911B",   "qcom",    "480dpi", "1080x2340", [35]),
+    ("Samsung", "dm3q",     "SM-S918B",   "qcom",    "560dpi", "1440x3088", [35]),
+    ("Samsung", "a15",      "SM-A155M",   "mt6789",  "450dpi", "1080x2340", [35]),
+    ("Samsung", "a34x",     "SM-A346M",   "mt6877",  "450dpi", "1080x2340", [35]),
+    ("Samsung", "a53x",     "SM-A536E",   "s5e8825", "450dpi", "1080x2400", [35]),
+    ("Samsung", "a25x",     "SM-A256E",   "s5e8535", "450dpi", "1080x2340", [35]),
+    ("Samsung", "a14x",     "SM-A145M",   "mt6769",  "420dpi", "1080x2408", [35]),
+    ("Samsung", "m14x",     "SM-M146B",   "s5e8535", "420dpi", "1080x2408", [35]),
+    ("Xiaomi",  "fuxi",     "2211133G",   "qcom",    "480dpi", "1080x2400", [35]),
+    ("Xiaomi",  "tapas",    "23021RAAEG", "qcom",    "440dpi", "1080x2400", [35]),
+    ("Xiaomi",  "sapphire", "23129RN51X", "mt6768",  "440dpi", "1080x2400", [35]),
+    ("Xiaomi",  "redwood",  "22101320G",  "qcom",    "440dpi", "1080x2400", [35]),
+    ("Xiaomi",  "xaga",     "22071219CG", "mt6877",  "440dpi", "1080x2400", [35]),
+    ("Xiaomi",  "veux",     "22101316G",  "qcom",    "440dpi", "1080x2400", [35]),
+    ("realme",  "RMX3782",  "RMX3782",    "mt6886",  "440dpi", "1080x2400", [35]),
+    ("Google",  "panther",  "Pixel 7",    "tensor",  "480dpi", "1080x2400", [35]),
 ]
 
 

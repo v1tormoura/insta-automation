@@ -4,7 +4,8 @@
  * O aparelho virtual de cada conta.
  *
  * O vazamento: o serviço Python escolhia o modelo por `sha256(account_id) % N`
- * com N=5 — hoje o pool tem 50 combinações (32 modelos × versões de Android). Determinístico — o que é certo, porque um celular que troca de
+ * com N=5 — hoje o pool tem 102 combinações (67 modelos × versões de Android).
+ * Determinístico — o que é certo, porque um celular que troca de
  * modelo entre dois logins é por si só um sinal — mas hash não garante
  * DISTINÇÃO.
  *
@@ -132,5 +133,88 @@ describe('a ligação com o serviço', () => {
     const Account = require('../src/models/Account');
     expect(Account.schema.paths).toHaveProperty('deviceIndex');
     expect(Account.schema.paths.deviceIndex.defaultValue).toBeNull();
+  });
+});
+
+describe('o catálogo do Python só pode CRESCER pelo fim', () => {
+  /**
+   * A trava que faltava, e que existe por um erro concreto.
+   *
+   * Ao expandir o pool de 50 para 102, ancorei o bloco novo numa entrada do
+   * Pixel 7 achando que era a última linha do catálogo. Não era — havia mais
+   * modelos depois. O resultado: do índice 45 em diante, todo aparelho mudou.
+   *
+   * Numa base com centenas de contas isso troca o celular de todas elas de uma
+   * vez, que é exatamente o sinal que o aparelho fixo por conta existe para
+   * evitar. E não haveria erro, nem log: o login seguiria funcionando, só que
+   * anunciando outro aparelho.
+   *
+   * Peguei conferindo à mão antes do commit. Este teste é para a próxima vez,
+   * quando ninguém estiver conferindo.
+   *
+   * ── Como atualizar quando o pool crescer de novo
+   *
+   * Não mude a IMPRESSÃO abaixo para "fazer passar" — ela é o valor do
+   * prefixo, e alterá-la anula o teste. Se ele reprovar, o catálogo foi
+   * editado no meio: mova a sua adição para o fim do arquivo.
+   */
+  const fs = require('fs');
+  const path = require('path');
+  const crypto = require('crypto');
+
+  /** Reproduz `_montar_pool()`: o produto (modelo × versões), na ordem. */
+  function poolDoPython() {
+    const fonte = fs.readFileSync(
+      path.resolve(__dirname, '../../instagrapi-service/app/session_pool.py'), 'utf8'
+    );
+    const mapa = {};
+    for (const m of fonte.match(/_ANDROID = \{([^}]*)\}/)[1].matchAll(/(\d+):\s*"([\d.]+)"/g)) {
+      mapa[m[1]] = m[2];
+    }
+    const catalogo = fonte.slice(fonte.indexOf('_MODELOS = ['), fonte.indexOf('def _montar_pool'));
+    const saida = [];
+    for (const linha of catalogo.split('\n')) {
+      const l = linha.trim();
+      if (!l.startsWith('(')) continue;
+      const campos = [...l.matchAll(/"([^"]*)"/g)].map(m => m[1]);
+      const versoes = l.match(/\[([0-9,\s]+)\]/);
+      if (campos.length < 6 || !versoes) continue;
+      const [fab, code, modelo, cpu, dpi, res] = campos;
+      for (const api of versoes[1].split(',')) {
+        saida.push([mapa[api.trim()] || '?', dpi, res, fab, code, modelo, cpu].join('|'));
+      }
+    }
+    return saida;
+  }
+
+  /* Congelado com o pool em 50, medido no arquivo. */
+  const PREFIXO_CONGELADO = 50;
+  /* Conferido de dois jeitos antes de congelar: (a) o prefixo é idêntico ao
+     que estava em `git HEAD` antes da expansão, e (b) este leitor em JS produz
+     exatamente a mesma lista que um leitor independente em Python. Congelar um
+     valor sem essa dupla conferência seria congelar uma leitura errada. */
+  const IMPRESSAO = '57dbf48732de4a1b';
+
+  test('as 50 primeiras combinações continuam exatamente onde estavam', () => {
+    const pool = poolDoPython();
+    expect(pool.length).toBeGreaterThanOrEqual(PREFIXO_CONGELADO);
+
+    const digital = crypto.createHash('sha256')
+      .update(JSON.stringify(pool.slice(0, PREFIXO_CONGELADO)))
+      .digest('hex').slice(0, 16);
+
+    if (digital !== IMPRESSAO) {
+      throw new Error(
+        `O catálogo de aparelhos foi editado NO MEIO: o prefixo mudou de ` +
+        `${IMPRESSAO} para ${digital}. Toda conta com deviceIndex nesse trecho ` +
+        `passa a entrar de outro celular. Mova a sua adição para o FIM de _MODELOS.`
+      );
+    }
+  });
+
+  test('o pool só cresce — nunca encolhe abaixo do prefixo congelado', () => {
+    /* Remover um modelo é a outra forma de deslocar tudo, e some sem erro:
+       o Python ignora índice além do fim e cai no hash. */
+    expect(poolDoPython().length).toBeGreaterThanOrEqual(PREFIXO_CONGELADO);
   });
 });
