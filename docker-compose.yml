@@ -21,6 +21,17 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # ── IPv4 antes de IPv6 ───────────────────────────────────────────────
+      # `fetch()` do Node, em host dual-stack (IPv4+IPv6 — o padrao em VPS
+      # modernos, inclusive o da OVH), tenta IPv6 primeiro. Descoberto na
+      # migracao de setembro/2026: a rota IPv6 até graph.instagram.com estava
+      # quebrada, e em vez de um erro limpo de conexao, o Meta devolvia uma
+      # resposta sem sentido ("Unsupported request - method type: get") para
+      # toda chamada GET — troca de token, refresh, /me. `curl` sem flag
+      # funcionava normal (prefere IPv4 na pratica); so o `fetch()` do Node
+      # sofria. Esta flag forca a resolucao de DNS a preferir IPv4 sempre,
+      # sem depender de a rota IPv6 do host estar saudavel.
+      NODE_OPTIONS: --dns-result-order=ipv4first
       # Fuso do agendamento: janela, weekdays e proximo horario sao
       # calculados em horario local. Sem isto o container roda em UTC e a
       # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
@@ -66,6 +77,17 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # ── IPv4 antes de IPv6 ───────────────────────────────────────────────
+      # `fetch()` do Node, em host dual-stack (IPv4+IPv6 — o padrao em VPS
+      # modernos, inclusive o da OVH), tenta IPv6 primeiro. Descoberto na
+      # migracao de setembro/2026: a rota IPv6 até graph.instagram.com estava
+      # quebrada, e em vez de um erro limpo de conexao, o Meta devolvia uma
+      # resposta sem sentido ("Unsupported request - method type: get") para
+      # toda chamada GET — troca de token, refresh, /me. `curl` sem flag
+      # funcionava normal (prefere IPv4 na pratica); so o `fetch()` do Node
+      # sofria. Esta flag forca a resolucao de DNS a preferir IPv4 sempre,
+      # sem depender de a rota IPv6 do host estar saudavel.
+      NODE_OPTIONS: --dns-result-order=ipv4first
       # Fuso do agendamento: janela, weekdays e proximo horario sao
       # calculados em horario local. Sem isto o container roda em UTC e a
       # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
@@ -93,6 +115,17 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # ── IPv4 antes de IPv6 ───────────────────────────────────────────────
+      # `fetch()` do Node, em host dual-stack (IPv4+IPv6 — o padrao em VPS
+      # modernos, inclusive o da OVH), tenta IPv6 primeiro. Descoberto na
+      # migracao de setembro/2026: a rota IPv6 até graph.instagram.com estava
+      # quebrada, e em vez de um erro limpo de conexao, o Meta devolvia uma
+      # resposta sem sentido ("Unsupported request - method type: get") para
+      # toda chamada GET — troca de token, refresh, /me. `curl` sem flag
+      # funcionava normal (prefere IPv4 na pratica); so o `fetch()` do Node
+      # sofria. Esta flag forca a resolucao de DNS a preferir IPv4 sempre,
+      # sem depender de a rota IPv6 do host estar saudavel.
+      NODE_OPTIONS: --dns-result-order=ipv4first
       MONGO_URI: mongodb://mongo:27017/insta-automation
       REDIS_HOST: redis
       REDIS_PORT: "6379"
