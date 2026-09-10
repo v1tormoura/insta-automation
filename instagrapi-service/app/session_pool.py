@@ -318,6 +318,61 @@ def _patch_client_fail_fast(client: Client) -> None:
     client.pre_login_flow = _preparar if _RATE_LIMIT_EXC else _orig
 
 
+def _patch_client_tolerate_expose_failure(client: Client) -> None:
+    """
+    Impede que `expose()` derrube uma publicação que JÁ SAIU no Instagram.
+
+    ── O que a instagrapi 2.18.16 faz, exatamente
+
+    Em `clip.py` (e nos outros mixins de upload), a sequência de
+    `clip_configure()` é:
+
+        if configured:
+            self.expose()
+            return self._extract_configured_media_or_raise(configured, ...)
+
+    `expose()` é só um ping de exposição de experimento (`qe/expose/`) — não
+    tem nada a ver com o vídeo, roda DEPOIS que o Instagram já confirmou o
+    reel (`configured` truthy), e não está dentro de nenhum `try`. Se
+    `qe/expose/` responder 404 — a Meta descontinua endpoint interno sem
+    aviso, e este é um candidato clássico — a exceção sobe por cima do
+    `return`, e quem chamou `clip_upload()` recebe um erro sobre um upload
+    que TERMINOU COM SUCESSO.
+
+    ── Por que isto é grave, e não só um log poluído
+
+    O node marca o Post como `erro` por causa disto. Um reel que está no ar
+    fica registrado como falha, o `media_id` nunca é capturado — então o
+    comentário fixado nunca sai atrás dele — e, pior, o mesmo conteúdo é
+    reprocessado e reenviado na tentativa seguinte, publicando de novo o que
+    já tinha sido publicado. Numa conta que já vinha com uma rodada a cada
+    20-50 minutos, cada round que na verdade tinha dado certo virava mais um
+    upload de verdade — e é exatamente esse volume, não o conteúdo, que
+    Instagram costuma enxergar como "restrict certain activity".
+
+    ── Por que trocar o método por inteiro, e não só capturar no chamador
+
+    `expose()` é chamado de DENTRO da biblioteca, em seis pontos diferentes
+    (album, clip, igtv, photo×2, video×2) — não há um único lugar do nosso
+    código que veja essa chamada para envolver com try/except. Substituir
+    `client.expose` faz o mesmo objeto, em todos os seis pontos, parar de
+    lançar por causa de um ping que não é essencial a publicação nenhuma.
+    """
+    original = client.expose
+
+    def _expose_tolerante(*args, **kwargs):
+        try:
+            return original(*args, **kwargs)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "expose() falhou (%s) — ignorado, o upload já tinha sido "
+                "confirmado antes desta chamada", e,
+            )
+            return {}
+
+    client.expose = _expose_tolerante
+
+
 def _device_uuids(account_id: str) -> dict:
     """
     Identidade de aparelho derivada do account_id — estável entre tentativas e
@@ -1249,6 +1304,7 @@ async def get_entry(account_id: str) -> dict:
             apply_app_version(client)
             _patch_client_retries(client)
             _patch_client_fail_fast(client)
+            _patch_client_tolerate_expose_failure(client)
 
             # Cliente novo herda o proxy que a conta já usava. Sem isto, todo
             # restart do serviço devolvia as publicações ao IP do servidor.

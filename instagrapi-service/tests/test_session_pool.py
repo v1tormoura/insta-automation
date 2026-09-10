@@ -762,3 +762,59 @@ def test_lembrar_proxy_ja_guarda_moldado(molde_ligado):
     guardado = session_pool.proxy_lembrado("conta-A")
     assert "session." in guardado
     assert guardado == session_pool.moldar_proxy_por_conta(BASE, "conta-A")
+
+
+# ── _patch_client_tolerate_expose_failure ───────────────────────────────────
+#
+# instagrapi 2.18.16 chama self.expose() DEPOIS de confirmar o upload
+# (`if configured: self.expose(); return ...`), sem try/except. Um 404 em
+# qe/expose/ — Instagram descontinuando endpoint interno — faz a exceção subir
+# por cima de um upload que já tinha terminado com sucesso, e o chamador
+# recebe erro sobre uma publicação que está no ar.
+
+
+def test_expose_tolerante_engole_excecao_e_publicacao_nao_quebra():
+    from app.session_pool import _patch_client_tolerate_expose_failure
+
+    client = MagicMock()
+    client.expose = MagicMock(side_effect=Exception("404 Client Error: Not Found for url: .../qe/expose/"))
+
+    _patch_client_tolerate_expose_failure(client)
+
+    # Não lança — é exatamente o que salva o `return` que vem depois de
+    # `self.expose()` dentro de clip_configure().
+    resultado = client.expose()
+    assert resultado == {}
+
+
+def test_expose_tolerante_ainda_chama_o_original_quando_ok():
+    from app.session_pool import _patch_client_tolerate_expose_failure
+
+    client = MagicMock()
+    original = MagicMock(return_value={"status": "ok"})
+    client.expose = original
+
+    _patch_client_tolerate_expose_failure(client)
+
+    assert client.expose() == {"status": "ok"}
+    original.assert_called_once()
+
+
+def test_expose_tolerante_aplicado_no_get_entry(monkeypatch):
+    """
+    `get_entry()` monta o cliente novo com todos os patches — inclusive este.
+    Sem chamar Instagram: `Client()` real, mas nunca loga.
+    """
+    import asyncio
+    from app import session_pool
+
+    async def _run():
+        session_pool._pool.clear()
+        entry = await session_pool.get_entry("conta-patch-expose")
+        client = entry["client"]
+        # A instância ganhou o wrapper — chamar expose() não pode propagar
+        # uma falha de rede/HTTP real (sem sessão, a chamada de verdade falharia).
+        assert client.expose.__name__ == "_expose_tolerante"
+
+    asyncio.run(_run())
+    session_pool._pool.clear()
