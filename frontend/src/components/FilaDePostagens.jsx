@@ -292,11 +292,18 @@ function Linha({ item, onApagar }) {
       </td>
 
       <td style={{ padding: '10px', maxWidth: 210 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--mf-t-nano)', fontWeight: 700,
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-nano)', fontWeight: 700,
           padding: '2px 8px', borderRadius: 'var(--mf-r-xl)', whiteSpace: 'nowrap',
           color: estado.tom,
           background: `color-mix(in oklch, ${estado.tom} 12%, transparent)`,
           border: `1px solid color-mix(in oklch, ${estado.tom} 28%, transparent)` }}>
+          {/* O mesmo ponto de `.mf-badge__dot` — aqui à mão, porque a cor vem
+              de `estado.tom` (um token por status) e não de `--mf-mod`, que é
+              o que a classe global espera herdar. Pulsa só em "Publicando":
+              é o único status em que algo está de fato acontecendo agora. */}
+          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 'var(--mf-r-full)',
+            background: 'currentColor', flexShrink: 0,
+            animation: item.status === 'processando' ? 'mf-pulse 1.6s var(--mf-ease-inout) infinite' : 'none' }} />
           {estado.rotulo}
           {item.erro && <Info size={10} />}
         </span>

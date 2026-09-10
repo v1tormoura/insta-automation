@@ -17,6 +17,26 @@ const proxyImg = url => {
   return `${API_BASE}/image-proxy?url=${encodeURIComponent(url)}`;
 };
 
+/**
+ * O disco de ícone destes cinco cartões.
+ *
+ * Reaproveita `.metric-card__ico` — a mesma classe dos 4 cartões do topo do
+ * Dashboard, definida em `dashboard.css` — em vez de uma segunda receita de
+ * disco+halo escrita à mão aqui. As duas telas compartilham o CSS porque este
+ * componente só é montado dentro de Dashboard.jsx.
+ *
+ * A classe lê a cor de `--mf-mod`, com `var(--mf-mod, var(--mf-primary-500))`
+ * como reserva; aqui cada cartão já tem uma cor própria (verde para
+ * seguidores, laranja para o melhor post…), então a variável é definida
+ * INLINE, no próprio disco — sem herdar de um ancestral que não existe. */
+function DiscoIcone({ Icone, cor }) {
+  return (
+    <span className="metric-card__ico" style={{ '--mf-mod': cor, width: 30, height: 30 }}>
+      <Icone size={15} />
+    </span>
+  );
+}
+
 export default function ConnectedAccountsMetrics() {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -262,13 +282,15 @@ export default function ConnectedAccountsMetrics() {
               position: 'relative',
               overflow: 'hidden',
             }}>
-              <span aria-hidden="true" style={{ position: 'absolute', inset: 'auto -10px -14px auto', width: 58, height: 58,
-                borderRadius: 'var(--mf-r-full)', background: 'radial-gradient(circle, color-mix(in oklch, var(--mf-mod-metricas) 16%, transparent), transparent 70%)' }} />
+              {/* O halo de agora vem do próprio disco (box-shadow do
+                  `.metric-card__ico`) — o orbe grande que existia aqui antes
+                  ficava competindo com ele, os dois brilhando na mesma
+                  cor no mesmo canto. */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Visualizações
                 </span>
-                <Eye size={16} style={{ color: 'var(--mf-mod-metricas)', opacity: 0.9 }} />
+                <DiscoIcone Icone={Eye} cor="var(--mf-mod-metricas)" />
               </div>
               <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-mod-metricas)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em', position: 'relative', zIndex: 1 }}>
                 {fmt(d.totalViews)}
@@ -291,7 +313,7 @@ export default function ConnectedAccountsMetrics() {
                 <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Alcance total
                 </span>
-                <Globe size={16} style={{ color: 'var(--mf-mod, var(--mf-accent-500))', opacity: 0.9 }} />
+                <DiscoIcone Icone={Globe} cor="var(--mf-mod, var(--mf-accent-500))" />
               </div>
               <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
                 {fmt(d.totalReach)}
@@ -314,7 +336,7 @@ export default function ConnectedAccountsMetrics() {
                 <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                   Seguidores totais
                 </span>
-                <Users size={16} style={{ color: 'var(--mf-success-500)', opacity: 0.9 }} />
+                <DiscoIcone Icone={Users} cor="var(--mf-success-500)" />
               </div>
               <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
                 {fmt(d.totalFollowers)}
@@ -341,7 +363,7 @@ export default function ConnectedAccountsMetrics() {
                   <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
                     Melhor post
                   </span>
-                  <Flame size={16} style={{ color: 'var(--mf-warning-500)' }} />
+                  <DiscoIcone Icone={Flame} cor="var(--mf-warning-500)" />
                 </div>
 
                 {d.bestPost ? (
@@ -437,7 +459,7 @@ export default function ConnectedAccountsMetrics() {
                     <RefreshCw size={12} style={coletandoStories
                       ? { animation: 'spin 1s linear infinite' } : undefined} />
                   </button>
-                  <Eye size={16} style={{ color: 'var(--mf-mod-publicar)', opacity: 0.9 }} />
+                  <DiscoIcone Icone={Eye} cor="var(--mf-mod-publicar)" />
                 </div>
               </div>
               <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-mod-publicar)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>

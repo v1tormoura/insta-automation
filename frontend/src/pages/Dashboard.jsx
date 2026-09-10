@@ -200,6 +200,8 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
   const pontos = nums.map((p, i) => `${(i / Math.max(1, nums.length - 1)) * 100},${34 - ((p - mn) / faixa) * 26}`);
   const d = pontos.join(' L ');
   const gid = `mg-${String(title).replace(/\W+/g, '')}`;
+  /* x,y do último ponto, para o marcador luminoso no fim da série. */
+  const [ultimoX, ultimoY] = pontos[pontos.length - 1].split(',').map(Number);
 
   return (
     /* Bloco, não cartão.
@@ -249,7 +251,7 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
         <span className="mf-trunc metric-card__meta">{meta}</span>
         {nums.length > 2 && (
           <svg viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true"
-               className="metric-card__spark">
+               className="metric-card__spark" style={{ overflow: 'visible' }}>
             <defs>
               <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="var(--mf-mod)" stopOpacity=".25" />
@@ -258,6 +260,11 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
             </defs>
             <path d={`M ${d}`} fill="none" stroke={`url(#${gid})`} strokeWidth="1.5"
                   vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+            {/* O mesmo ponto luminoso do WideMetric, em miniatura — aqui o
+                gráfico é pequeno demais para preenchimento de área caber sem
+                virar mancha; o marcador do fim sozinho já resolve. */}
+            <circle cx={ultimoX} cy={ultimoY} r="3.2" fill="var(--mf-mod)" opacity=".25" />
+            <circle cx={ultimoX} cy={ultimoY} r="1.4" fill="var(--mf-mod)" />
           </svg>
         )}
       </div>
@@ -285,7 +292,21 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
   const mod = tone === 'muted' ? 'sistema' : 'metricas';
   const nums = spark.length ? spark : [0, 0];
   const mx = Math.max(...nums), mn = Math.min(...nums), faixa = mx - mn || 1;
-  const d = nums.map((p, i) => `${(i / Math.max(1, nums.length - 1)) * 100},${26 - ((p - mn) / faixa) * 22}`).join(' L ');
+
+  /* Pontos como array, não só a string do path — o marcador do fim e a área
+     preenchida precisam das coordenadas do último ponto, e recalculá-las a
+     partir da string seria refazer a mesma conta duas vezes. */
+  const pontos = nums.map((p, i) => [
+    (i / Math.max(1, nums.length - 1)) * 100,
+    26 - ((p - mn) / faixa) * 22,
+  ]);
+  const d = pontos.map(([x, y]) => `${x},${y}`).join(' L ');
+  const [ultimoX, ultimoY] = pontos[pontos.length - 1];
+  /* A área fecha na base do viewBox (y=30) e volta pelo início — é o que
+     transforma a linha solta num preenchimento, a mesma linguagem visual do
+     resto do painel ciber. */
+  const areaD = `M ${pontos[0][0]},30 L ${d} L ${ultimoX},30 Z`;
+  const areaGid = `wm-area-${String(title).replace(/\W+/g, '')}`;
   const negativo = String(chip || '').startsWith('-');
 
   return (
@@ -312,10 +333,32 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
         </div>
       </div>
 
+      {/* `overflow: visible` deixa o halo do ponto final vazar um pouco além
+          do viewBox — cortá-lo no limite exato apagaria metade do brilho que
+          é o próprio motivo dele existir. */}
       <svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"
-        style={{ width: '100%', height: 30, marginTop: 'var(--mf-3)', display: 'block', position: 'relative', zIndex: 1 }}>
+        style={{ width: '100%', height: 30, marginTop: 'var(--mf-3)', display: 'block',
+                 position: 'relative', zIndex: 1, overflow: 'visible' }}>
+        <defs>
+          <linearGradient id={areaGid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="var(--mf-mod)" stopOpacity=".28" />
+            <stop offset="100%" stopColor="var(--mf-mod)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* A área: o que separa "linha desenhada" de "gráfico" — o mesmo
+            preenchimento suave que o resto do painel usa para dar volume. */}
+        <path d={areaD} fill={`url(#${areaGid})`} stroke="none" />
+
         <path d={`M ${d}`} fill="none" stroke="var(--mf-mod)" strokeWidth="1.6"
           vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+
+        {/* O ponto luminoso no fim da série — onde a linha aterrissa "agora".
+            Duas camadas em vez de um filtro de blur: um halo translúcido maior
+            atrás e um núcleo sólido pequeno na frente. Mais barato que
+            feGaussianBlur e não depende do suporte a filtro do renderizador. */}
+        <circle cx={ultimoX} cy={ultimoY} r="5" fill="var(--mf-mod)" opacity=".22" />
+        <circle cx={ultimoX} cy={ultimoY} r="2.1" fill="var(--mf-mod)" />
       </svg>
 
       <Visual kind={kind} compact />
