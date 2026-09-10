@@ -728,6 +728,11 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   box-shadow: var(--mf-glow-primary);
 }
 .mf-side__name { font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+/* A logo pronta (ícone + "NEXORA") é o padrão; o ícone sozinho só aparece no
+   rail, alternado pelas mesmas três regras de `.mf-side__name` abaixo — base,
+   gaveta do celular e hover do rail no desktop. */
+.mf-side__icone-so { display: none; width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+.mf-side__logo { display: block; height: 26px; width: auto; object-fit: contain; flex-shrink: 0; }
 /* `overflow-x: hidden` EXPLÍCITO, e não por descuido.
 
    A regra que morde: quando um eixo deixa de ser `visible`, o outro também
@@ -907,6 +912,8 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 .mf-app[data-collapsed='true'] .mf-nav-item__txt,
 .mf-app[data-collapsed='true'] .mf-side__label,
 .mf-app[data-collapsed='true'] .mf-side__name { display: none; }
+.mf-app[data-collapsed='true'] .mf-side__logo { display: none; }
+.mf-app[data-collapsed='true'] .mf-side__icone-so { display: block; }
 .mf-app[data-collapsed='true'] .mf-nav-item { justify-content: center; padding-inline: 0; }
 
 /* ── A dica do rail foi removida ───────────────────────────────────
@@ -1536,6 +1543,8 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
   .mf-app[data-collapsed='true'] .mf-nav-item__txt,
   .mf-app[data-collapsed='true'] .mf-side__label,
   .mf-app[data-collapsed='true'] .mf-side__name { display: block; }
+  .mf-app[data-collapsed='true'] .mf-side__logo { display: block; }
+  .mf-app[data-collapsed='true'] .mf-side__icone-so { display: none; }
   .mf-app[data-collapsed='true'] .mf-nav-item { justify-content: flex-start; padding-inline: var(--mf-3); }
   .mf-scrim {
     position: fixed; inset: 0; z-index: calc(var(--mf-z-drawer) - 1);
@@ -1580,6 +1589,8 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item__txt,
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__label,
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__name { display: block; }
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__logo { display: block; }
+  .mf-app[data-collapsed='true'] .mf-side:hover .mf-side__icone-so { display: none; }
   .mf-app[data-collapsed='true'] .mf-side:hover .mf-nav-item {
     justify-content: flex-start; padding-inline: var(--mf-3);
   }

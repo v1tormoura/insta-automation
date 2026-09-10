@@ -111,12 +111,8 @@ export default function Login() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <BlurFade delay={0.1}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:36 }}>
-                <img src="/nexora-icon.png?v=1" alt="Nexora" style={{ width:38, height:38, objectFit:'contain' }} />
-                <div>
-                  <div style={{ color:'var(--mf-text)', fontWeight:800, fontSize: 'var(--mf-t-h1)', lineHeight:1, letterSpacing:'-.3px' }}>Nexora</div>
-                  <div style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginTop:3, letterSpacing:'.08em', textTransform:'uppercase' }}>Automation Platform</div>
-                </div>
+              <div style={{ marginBottom:36 }}>
+                <img src="/nexora-wordmark-completo.png?v=1" alt="Nexora — Automation Platform" style={{ height:52, width:'auto', objectFit:'contain' }} />
               </div>
             </BlurFade>
 

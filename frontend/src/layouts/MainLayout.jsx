@@ -349,61 +349,46 @@ export default function MainLayout({ children }) {
      A leitura tolera localStorage indisponível (janela anônima, storage
      bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
      inteiro em vez de só perder uma preferência. */
-  /* Chave nova de propósito. A anterior (`mf-sidebar-aberta`) guardava escolhas
-     feitas com o botão que dizia "Recolher" enquanto expandia — quem clicou
-     ficou com "fixar aberta" gravado sem ter pedido isso, e o hover parava de
-     funcionar para sempre. Reaproveitar a chave preservaria justamente o
-     engano; com uma nova, todo mundo volta ao rail e quem realmente quer a
-     barra presa aberta clica uma vez, agora lendo o que o botão faz. */
-  /* ── O padrão é o RAIL ────────────────────────────────────────────────
+  /* ── O padrão volta a ser o RAIL ──────────────────────────────────────
 
      A barra nasce recolhida — só a coluna de ícones — e abre quando o cursor
      passa por cima: ela SOBREPÕE o conteúdo em vez de empurrá-lo, com 140ms de
      atraso para abrir e nenhum para fechar (ver a media query do rail em
-     ponte.css para o porquê de cada um).
+     ponte.css para o porquê de cada um). Essa mecânica nunca saiu do CSS —
+     só ficou sem uso enquanto o padrão foi "aberta".
 
-     Cheguei a inverter isto quando as descrições dos itens passaram a
-     aparecer, achando que a forma completa devia ser o padrão. Não devia: o
-     ganho da descrição acontece no hover, que é quando se está olhando o
-     item — e nos outros noventa por cento do tempo a barra aberta é só 232px
-     a menos de conteúdo.
+     ── Por que voltou
 
-     Quem preferir a barra presa aberta clica uma vez e a escolha fica gravada.
+     Pedido explícito, depois de ver a barra fixa em 220px o tempo todo: o
+     rail com abertura ao passar o cursor é o comportamento pedido, não a
+     barra presa aberta.
 
-     ── Por que a chave mudou de novo
+     ── Quarta chave, mesmo motivo das anteriores
 
-     Terceira chave, e o motivo é o mesmo das duas anteriores: o valor gravado
-     sobrevive à mudança de padrão, e quem clicou uma vez fica preso no estado
-     antigo sem ligar uma coisa à outra.
-
-     Aqui o caso concreto: por dois commits o padrão foi a barra ABERTA. Quem
-     usou o produto nesse intervalo e clicou "Recolher" ou "Fixar aberta"
-     gravou uma escolha feita sobre um padrão que já não existe — e continuaria
-     com a barra presa aberta depois de a correção sair, achando que ela não
-     saiu. Uma chave nova devolve todo mundo ao rail; quem realmente quer a
-     barra presa clica uma vez, agora sobre o padrão certo.
+     O valor gravado sobrevive à mudança de padrão. Reaproveitar a chave
+     anterior (`mf-sidebar-rail`, que guardava "recolhida" como desvio de um
+     padrão aberto) faria quem clicou "Fixar aberta" naquele intervalo
+     continuar preso naquele estado, sem saber que o padrão voltou a ser
+     outro. Com uma chave nova, todo mundo nasce no rail; quem realmente quer
+     a barra presa aberta clica uma vez, agora sobre o padrão certo — e essa
+     escolha é o que a chave nova guarda.
 
      A leitura tolera localStorage indisponível (janela anônima, storage
      bloqueado): ali o acesso LANÇA, e um `try` ausente derrubaria o layout
      inteiro em vez de só perder uma preferência. */
   const [recolhida, setRecolhida] = useState(() => {
-    /* ABERTA por padrão. Era o contrário: o rail nascia recolhido e abria ao
-       passar o cursor. A referência do redesenho tem a barra fixa em 220px, e
-       essa passou a ser a escolha — a chave guarda o DESVIO do padrão, que
-       agora é recolher, e por isso a comparação virou `=== '1'`.
-
-       O hover-para-abrir continua existindo no estado recolhido: quem recolher
-       de propósito ainda ganha a barra ao aproximar o cursor. */
-    try { return localStorage.getItem('mf-sidebar-rail') === '1'; }
-    catch { return false; }   /* aba privada: cai no padrão, que agora é aberta */
+    /* RECOLHIDA por padrão. A chave guarda o desvio — "fixada aberta" — e por
+       isso a leitura é `!== '1'`: só sai do rail quem gravou essa escolha. */
+    try { return localStorage.getItem('mf-sidebar-fixa-aberta') !== '1'; }
+    catch { return true; }   /* aba privada: cai no padrão, que é o rail */
   });
 
   const alternarSidebar = () => setRecolhida(r => {
     const nova = !r;
-    /* '1' guarda "recolhida", que é o desvio do padrão desde que a barra
-       passou a nascer aberta. Gravar o estado que FOGE do padrão deixa o padrão livre para
-       mudar sem arrastar ninguém — foi o que faltou nas duas chaves antes. */
-    try { localStorage.setItem('mf-sidebar-rail', nova ? '1' : '0'); } catch { /* sem preferência */ }
+    /* '1' guarda "fixada aberta", que é o desvio do padrão agora que a barra
+       volta a nascer recolhida. Gravar o estado que FOGE do padrão deixa o
+       padrão livre para mudar de novo sem arrastar ninguém. */
+    try { localStorage.setItem('mf-sidebar-fixa-aberta', nova ? '0' : '1'); } catch { /* sem preferência */ }
     return nova;
   });
   const [paleta, setPaleta]       = useState(false);
@@ -451,10 +436,15 @@ export default function MainLayout({ children }) {
 
         <aside className="mf-side" aria-label="Navegação principal">
           <div className="mf-side__brand">
+            {/* Duas imagens, uma marca. A logo (ícone + "NEXORA" já desenhados
+                juntos) é a que aparece aberta/hover; só o ícone sozinho, no
+                rail, onde 28px de largura não sobram para o resto. Nada de
+                texto digitado ao lado — a tipografia já vem pronta na
+                imagem. */}
             <button onClick={() => navigate('/')}
-              style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0 }}>
-              <img src="/nexora-icon.png?v=1" alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
-              <span className="mf-side__name">Nexora</span>
+              style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0, overflow: 'hidden' }}>
+              <img src="/nexora-icon.png?v=1" alt="Nexora" className="mf-side__icone-so" />
+              <img src="/nexora-wordmark.png?v=1" alt="Nexora" className="mf-side__logo" />
             </button>
           </div>
 

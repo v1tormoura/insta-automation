@@ -43,11 +43,17 @@ import { useEffect, useRef } from 'react';
  */
 
 /* Densidade por área, não contagem fixa: 34 linhas desenhadas para 1280px
-   viram uma teia em 3440px ultrawide e um emaranhado em 380px de celular. */
-const LINHAS_POR_MPX = 26;      // por megapixel de viewport
-const PARTICULAS_POR_MPX = 70;
-const MAX_LINHAS = 46;
-const MAX_PARTICULAS = 130;
+   viram uma teia em 3440px ultrawide e um emaranhado em 380px de celular.
+
+   Subiu de 26/70 depois de medir o problema real: com a origem concentrada
+   num canto, a barra lateral — bem no OUTRO lado da tela — ficava com uma
+   fração da intensidade do resto, abaixo do que o olho registra como
+   "movimento" e não só "textura parada". Mais linhas cobrindo a tela toda
+   é a metade da correção; a outra é a distribuição, mais abaixo. */
+const LINHAS_POR_MPX = 34;      // por megapixel de viewport
+const PARTICULAS_POR_MPX = 90;
+const MAX_LINHAS = 60;
+const MAX_PARTICULAS = 160;
 
 /* Passos por linha. Menos que ~40 mostra os cantos do polígono; mais que ~80
    não muda o que se vê e multiplica a conta. */
@@ -179,17 +185,22 @@ export default function FundoCiber() {
       const nPart = Math.min(MAX_PARTICULAS, Math.round(PARTICULAS_POR_MPX * mpx));
       semente = 20260908;
 
-      /* As sementes se concentram na diagonal alta-direita, como na
-         referência: o desenho tem uma origem e se espalha dela, em vez de
-         cobrir a tela por igual — cobertura uniforme lê como textura, e
-         textura atrás de dado é ruído. */
+      /* Cobria só a diagonal alta-direita — a origem ficava fora da tela para
+         o lado de quem olha a barra, e a barra é justamente onde a pessoa
+         está olhando quando julga "isso está animado?". Medido na produção:
+         ~2.3 de intensidade média ali contra ~15 no canto que tinha origem —
+         sexta parte, abaixo do que registra como movimento sob o blur da
+         barra. Agora as sementes cobrem a tela inteira, com uma folga de 10%
+         para fora de cada borda para as linhas já entrarem em curva ao
+         aparecer, e um viés leve (não mais exclusivo) para o canto
+         alto-direito, que é de onde vem o "bloom" abaixo. */
       linhas = Array.from({ length: nLinhas }, () => {
         const a = sorteio(), b = sorteio();
         return {
-          x: larg * (0.30 + a * 0.85),
-          y: alt * (-0.15 + b * 0.85),
+          x: larg * (a * 1.2 - 0.1),
+          y: alt * (b * 1.2 - 0.1),
           fase: sorteio() * 6.283,
-          brilho: 0.35 + sorteio() * 0.65,
+          brilho: 0.45 + sorteio() * 0.75,
         };
       });
 
@@ -224,14 +235,22 @@ export default function FundoCiber() {
       if (forca <= 0) return;
 
       /* Bloom: a mancha larga por baixo. É ela que faz as linhas parecerem
-         emitir luz em vez de estarem desenhadas em cima do fundo. */
+         emitir luz em vez de estarem desenhadas em cima do fundo.
+
+         Media no canto alto-direito (0.72, 0.18) com raio de 0.8*maior lado:
+         a distância até o canto oposto da tela passava do raio, e o `stop`
+         final é `rgba(cor2, 0)` — o canto simplesmente não recebia luz
+         nenhuma. Era exatamente onde a barra lateral fica, e é a área que a
+         pessoa olha para julgar "isso está animado?". Recentrado perto do
+         meio e com raio maior que a diagonal inteira: todo canto agora cai
+         dentro do gradiente, em vez de fora dele. */
       const bloom = ctx.createRadialGradient(
-        larg * 0.72, alt * 0.18, 0,
-        larg * 0.72, alt * 0.18, Math.max(larg, alt) * 0.8,
+        larg * 0.55, alt * 0.42, 0,
+        larg * 0.55, alt * 0.42, Math.hypot(larg, alt) * 0.78,
       );
-      bloom.addColorStop(0, rgba(cor, 7 * forca));
-      bloom.addColorStop(0.45, rgba(cor2, 3.5 * forca));
-      bloom.addColorStop(1, rgba(cor2, 0));
+      bloom.addColorStop(0, rgba(cor, 11 * forca));
+      bloom.addColorStop(0.45, rgba(cor2, 6.5 * forca));
+      bloom.addColorStop(1, rgba(cor2, 1.8 * forca));
       ctx.fillStyle = bloom;
       ctx.fillRect(0, 0, larg, alt);
 
@@ -273,9 +292,9 @@ export default function FundoCiber() {
           ctx.stroke();
         };
 
-        traco(5.5, 2.2);    // o halo
-        traco(2.0, 4.5);    // o corpo
-        traco(0.7, 9.0);    // o núcleo aceso
+        traco(6.5, 3.4);    // o halo
+        traco(2.4, 6.8);    // o corpo
+        traco(0.8, 13.0);   // o núcleo aceso
 
         /* O pulso: um ponto de luz que percorre o filamento. É o que faz o
            fundo parecer ter corrente passando, e não só desenho parado. */
@@ -283,11 +302,11 @@ export default function FundoCiber() {
         if (prog < 1) {
           const i = Math.min(pontos.length - 2, Math.floor(prog * (pontos.length / 2)) * 2);
           const desvanece = Math.sin(prog * Math.PI);
-          const g = ctx.createRadialGradient(pontos[i], pontos[i + 1], 0, pontos[i], pontos[i + 1], 22);
-          g.addColorStop(0, rgba(cor, 34 * desvanece * forca));
+          const g = ctx.createRadialGradient(pontos[i], pontos[i + 1], 0, pontos[i], pontos[i + 1], 28);
+          g.addColorStop(0, rgba(cor, 46 * desvanece * forca));
           g.addColorStop(1, rgba(cor, 0));
           ctx.fillStyle = g;
-          ctx.fillRect(pontos[i] - 22, pontos[i + 1] - 22, 44, 44);
+          ctx.fillRect(pontos[i] - 28, pontos[i + 1] - 28, 56, 56);
         }
       }
 
@@ -307,7 +326,7 @@ export default function FundoCiber() {
         const cintila = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 380 + p.fase * 7));
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, 6.283);
-        ctx.fillStyle = rgba(cor, 26 * cintila * forca);
+        ctx.fillStyle = rgba(cor, 38 * cintila * forca);
         ctx.fill();
       }
 
