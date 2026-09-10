@@ -126,7 +126,7 @@ async function checkDailyLimit(account) {
     await Account.findByIdAndUpdate(account._id, { postsToday: 0, lastPostDate: new Date() });
     account.postsToday = 0;
   }
-  return podePublicar(account).pode;
+  return podePublicar(account);
 }
 
 async function registerSuccess(account) {
@@ -346,13 +346,22 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
   broadcast('accounts', { action: 'busy', accountId: account._id });
   writeAccountLog(acc.username, 'Iniciando publicação');
 
-  if (!(await checkDailyLimit(account))) {
+  const ritmo = await checkDailyLimit(account);
+  if (!ritmo.pode) {
     /* A mensagem diz o motivo REAL: teto atingido e fora da janela param a
-       publicação do mesmo jeito, e consertam de formas diferentes. */
-    const msg = podePublicar(account).motivo || 'Aguardando janela de publicação';
+       publicação do mesmo jeito, e consertam de formas diferentes.
+
+       `retryAt` carrega o mesmo horário em forma de `Date`, para quem lida com
+       o erro programaticamente (a campanha) reagendar sem reabrir a conta e
+       recalcular — só o worker.js, que já tem `ritmoDaConta` na mão, sabe
+       decidir esse horário; o resto só recebe o resultado. */
+    const msg = ritmo.motivo || 'Aguardando janela de publicação';
     writeAccountLog(acc.username, msg);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
-    throw new Error(msg);
+    const erro = new Error(msg);
+    erro.code = 'RHYTHM_WAIT';
+    erro.retryAt = ritmo.ate;
+    throw erro;
   }
 
   try {

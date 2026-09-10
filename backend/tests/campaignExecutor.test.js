@@ -404,6 +404,44 @@ describe('execução individual', () => {
     expect(p.error).toContain('Please wait');
   });
 
+  test('teto diário/janela de silêncio reagenda para "ate", em vez de falhar', async () => {
+    /* Este é o erro exato que `publishOneAccount` (worker.js) lança quando
+       `ritmoDaConta.podePublicar` recusa — `code` e `retryAt` marcados, para o
+       executor distinguir "espera" de falha real sem precisar perguntar a
+       `ritmoDaConta` de novo (ver o comentário no catch de `processarPublicacao`). */
+    const ate = new Date(T0.getTime() + 8 * 60 * 60_000);   // reabre 8h depois
+    const publicar = jest.fn(async () => {
+      throw Object.assign(new Error('fora da janela de publicação — retoma 07:00'), {
+        code: 'RHYTHM_WAIT', retryAt: ate,
+      });
+    });
+
+    const r = await executor.processarPublicacao(pubs[0]._id, { publicarNaConta: publicar, agora: T0 });
+
+    expect(r.ok).toBe(false);
+    expect(r.deferred).toBe(true);
+    const p = pubPorId(pubs[0]._id);
+    expect(p.status).toBe('scheduled');           // nunca 'failed' — é espera, não erro
+    expect(p.errorCode).toBe('RHYTHM_WAIT');
+
+    // Reenfileirada para o horário de reabertura, não para "agora".
+    const job = filaDb.get(filaCamp.idPublicacao(pubs[0]._id));
+    expect(job).toBeTruthy();
+    expect(job.delay).toBe(ate.getTime() - T0.getTime());
+  });
+
+  test('publicador falso comum não deferre — só quem marca retryAt', async () => {
+    // Um mock que apenas lança `code` (como RATE_LIMITED) continua indo para
+    // `falhar()`: o desvio é exclusivo de quem também marca `retryAt`.
+    const publicar = publicadorFalso({
+      falharEm: [{ username: 'conta01', code: 'RATE_LIMITED' }],
+    });
+    const r = await executor.processarPublicacao(pubs[0]._id, { publicarNaConta: publicar });
+
+    expect(r.deferred).toBeUndefined();
+    expect(pubPorId(pubs[0]._id).status).toBe('failed');
+  });
+
   test('publicação já publicada não executa de novo', async () => {
     const publicar = publicadorFalso();
     await executor.processarPublicacao(pubs[0]._id, { publicarNaConta: publicar });

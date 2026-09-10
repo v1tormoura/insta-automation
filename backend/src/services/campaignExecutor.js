@@ -75,7 +75,8 @@ function classificarErro(err) {
   };
   if (DIRETOS[code]) return DIRETOS[code];
 
-  if (/limite diário|daily limit/.test(msg))                  return 'DAILY_LIMIT';
+  if (/limite diário|daily limit|teto diário atingido/.test(msg)) return 'DAILY_LIMIT';
+  if (/fora da janela de publicação/.test(msg))                return 'OUTSIDE_WINDOW';
   if (/conta em uso|tempo de espera esgotado/.test(msg))      return 'ACCOUNT_BUSY';
   if (/banida|banned|disabled/.test(msg))                     return 'ACCOUNT_UNAVAILABLE';
   if (/não encontrada|not found/.test(msg))                   return 'ACCOUNT_UNAVAILABLE';
@@ -427,6 +428,38 @@ async function processarPublicacao(publicationId, deps = {}) {
     return { ok: false, errorCode: codigo };
   };
 
+  /**
+   * Devolve a publicação para a fila, para o horário em que a conta pode
+   * publicar de novo — em vez de `falhar()`.
+   *
+   * `publishOneAccount` (worker.js, injetado como `publicarNaConta`) já sabe
+   * dizer QUANDO reabre: é ele que tem `ritmoDaConta` na mão, e manda esse
+   * horário junto do erro como `retryAt` (ver o catch mais abaixo). Sem isto,
+   * o teto diário e a janela de silêncio — pausas por TEMPO, não por erro —
+   * chegavam aqui como qualquer outra falha e ficavam `failed` para sempre:
+   * uma campanha agendada de madrugada saía do ar e só voltava se alguém
+   * notasse e clicasse em "Tentar novamente" — depois das 23h, de novo em
+   * vão. */
+  const adiar = async (motivo, ate) => {
+    await CampaignPublication.updateOne(
+      { _id: pub._id },
+      { $set: { status: 'scheduled', error: motivo, errorCode: 'RHYTHM_WAIT' } },
+    );
+    const { jobId } = await fila.reagendarPublicacao(
+      { _id: pub._id, campaignId: pub.campaignId, scheduledAt: ate }, agora,
+    );
+    await CampaignPublication.updateOne({ _id: pub._id }, { $set: { bullMqJobId: jobId } });
+    registrarEvento('PUBLICATION_DEFERRED', {
+      campaignId: campanha._id, publicationId: pub._id,
+      accountId: pub.accountId, contentId: pub.contentId,
+      attempt: tomada.attempts, error: motivo,
+    });
+    emitir(broadcast, 'publication_deferred', {
+      campaignId: String(campanha._id), publicationId: String(pub._id), ate,
+    });
+    return { ok: false, deferred: true, ate };
+  };
+
   // Conta e conteúdo podem ter sumido entre o planejamento e a execução.
   const conta = await Account.findById(pub.accountId).lean();
   if (!conta) return falhar('ACCOUNT_UNAVAILABLE', 'A conta desta publicação não existe mais.');
@@ -529,6 +562,16 @@ async function processarPublicacao(publicationId, deps = {}) {
 
     return { ok: true, postId: String(post._id) };
   } catch (err) {
+    // `retryAt` só existe quando quem publicou de verdade (`publishOneAccount`,
+    // em worker.js) recusou por teto diário ou por janela de silêncio — as duas
+    // pausas que são sobre TEMPO, não sobre a publicação em si. Depender do
+    // erro que a própria injeção devolve, em vez de perguntar a `ritmoDaConta`
+    // de novo aqui, é o que mantém esta função testável com um publicador
+    // falso: um mock que não seja o `publishOneAccount` real nunca marca
+    // `retryAt`, e continua caindo direto em `falhar()` como sempre caiu.
+    if (err.code === 'RHYTHM_WAIT' && err.retryAt) {
+      return adiar(err.message, err.retryAt);
+    }
     return falhar(classificarErro(err), err.message || 'Falha ao publicar');
   }
 }
