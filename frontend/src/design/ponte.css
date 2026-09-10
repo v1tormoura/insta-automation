@@ -1627,3 +1627,70 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
 [data-mf][data-mf] [style*='overflow:hidden'] > :focus-visible {
   box-shadow: inset 0 0 0 2px var(--mf-primary-500);
 }
+
+/* ── Tela de carregamento — o logo pulsando ────────────────────────────────
+
+   Duas camadas: um halo radial atrás (mancha de luz que respira, mais larga
+   que o ícone) e o ícone em si, que respira em sincronia — escala e o
+   próprio brilho (`drop-shadow`) sobem e caem juntos. É o mesmo princípio dos
+   pontos luminosos dos gráficos do dashboard: camadas simples em vez de
+   filtro de blur, que aqui teria o mesmo custo por rodar a cada quadro da
+   animação, não só uma vez. */
+.tela-carregando__logo {
+  position: relative; z-index: 1;
+  display: grid; place-items: center;
+  width: 120px; height: 120px;
+}
+.tela-carregando__logo img {
+  position: relative; z-index: 1;
+  animation: mf-logo-respirar 2.8s var(--mf-ease-inout) infinite;
+}
+.tela-carregando__halo {
+  position: absolute; inset: 0;
+  border-radius: var(--mf-r-full);
+  background: radial-gradient(circle,
+    color-mix(in oklch, var(--mf-primary-500) 30%, transparent),
+    transparent 70%);
+  animation: mf-halo-respirar 2.8s var(--mf-ease-inout) infinite;
+}
+@keyframes mf-logo-respirar {
+  0%, 100% { transform: scale(1);     filter: drop-shadow(0 0 10px color-mix(in oklch, var(--mf-primary-500) 45%, transparent)); }
+  50%      { transform: scale(1.055); filter: drop-shadow(0 0 22px color-mix(in oklch, var(--mf-primary-500) 70%, transparent)); }
+}
+@keyframes mf-halo-respirar {
+  0%, 100% { opacity: .55; transform: scale(.92); }
+  50%      { opacity: 1;   transform: scale(1.08); }
+}
+
+/* Erro: o pulso para. Ver o comentário em TelaDeCarregamento.jsx sobre por
+   que uma marca respirando ao lado de "Erro na autenticação" mandaria um
+   sinal contraditório. */
+.tela-carregando__logo--parado img,
+.tela-carregando__logo--parado .tela-carregando__halo {
+  animation: none;
+}
+.tela-carregando__logo--parado .tela-carregando__halo {
+  opacity: .3;
+  background: radial-gradient(circle,
+    color-mix(in oklch, var(--mf-danger-500) 22%, transparent),
+    transparent 70%);
+}
+
+/* O anel — o mesmo spinner de sempre, só que na cor da marca e sem depender
+   de estilo inline com `<style>` solto no meio do componente. */
+.tela-carregando__anel {
+  position: relative; z-index: 1;
+  width: 30px; height: 30px;
+  border: 3px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent);
+  border-top-color: var(--mf-primary-500);
+  border-radius: var(--mf-r-full);
+  animation: mf-spin .8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tela-carregando__logo img,
+  .tela-carregando__halo,
+  .tela-carregando__anel {
+    animation: none;
+  }
+}

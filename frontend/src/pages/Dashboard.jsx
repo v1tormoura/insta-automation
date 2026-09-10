@@ -1486,7 +1486,7 @@ export default function Dashboard() {
           <span>Worker <b style={{ color:d.system?.worker?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>
           <span>Contas <b>{fmt(d.totalAccounts)}</b></span>
           <span>Posts <b>{fmt(d.totalPosts)}</b></span>
-          <button onClick={() => showToast('Versão 2.4.7 — MouraFlow Pulse')}>Novidades</button>
+          <button onClick={() => showToast('Versão 2.4.7 — Nexora Pulse')}>Novidades</button>
         </footer>
       </div>
 

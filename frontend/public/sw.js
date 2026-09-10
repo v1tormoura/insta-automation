@@ -1,5 +1,5 @@
 /**
- * Service worker do MouraFlow — só notificação.
+ * Service worker do Nexora — só notificação.
  *
  * ── Por que ele existe
  *
@@ -32,14 +32,14 @@ self.addEventListener('push', evento => {
     dados = evento.data ? evento.data.json() : {};
   } catch {
     // Payload ilegível não pode virar notificação vazia e muda.
-    dados = { titulo: 'MouraFlow', mensagem: 'Novidade nas suas contas.' };
+    dados = { titulo: 'Nexora', mensagem: 'Novidade nas suas contas.' };
   }
 
-  const titulo = dados.titulo || 'MouraFlow';
+  const titulo = dados.titulo || 'Nexora';
   const opcoes = {
     body: dados.mensagem || '',
-    icon: '/mouraflow-icon.svg',
-    badge: '/mouraflow-icon.svg',
+    icon: '/nexora-icon.png',
+    badge: '/nexora-icon.png',
     /* `tag` faz a notificação nova SUBSTITUIR a anterior do mesmo marco em vez
        de empilhar. Sem isso, dois ciclos que reenviassem o mesmo aviso
        deixariam duas linhas idênticas na gaveta do sistema. */

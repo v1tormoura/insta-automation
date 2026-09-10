@@ -85,7 +85,7 @@ export const notificacaoDoNavegador = {
   diagnostico() {
     if (ehIOSNoNavegador()) {
       return { pode: false, motivo: 'ios-navegador',
-        texto: 'No iPhone, o aviso do sistema exige adicionar o MouraFlow à Tela de Início pelo botão Compartilhar. Depois disso, ative aqui.' };
+        texto: 'No iPhone, o aviso do sistema exige adicionar o Nexora à Tela de Início pelo botão Compartilhar. Depois disso, ative aqui.' };
     }
     if (!this.suportada()) {
       return { pode: false, motivo: 'sem-suporte',
@@ -180,10 +180,10 @@ export const notificacaoDoNavegador = {
     if (document.visibilityState === 'visible') return;
     try {
       const registro = await registrar();
-      await registro?.showNotification(n.titulo || 'MouraFlow', {
+      await registro?.showNotification(n.titulo || 'Nexora', {
         body: n.mensagem || '',
-        icon: '/mouraflow-icon.svg',
-        badge: '/mouraflow-icon.svg',
+        icon: '/nexora-icon.png',
+        badge: '/nexora-icon.png',
         tag: n._id || 'mouraflow',
         data: { url: '/', id: n._id || '' },
       });

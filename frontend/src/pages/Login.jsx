@@ -112,10 +112,10 @@ export default function Login() {
           <div style={{ position: 'relative', zIndex: 1 }}>
             <BlurFade delay={0.1}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:36 }}>
-                <img src="/mouraflow-icon.svg" alt="MouraFlow" style={{ width:38, height:38, objectFit:'contain' }} />
+                <img src="/nexora-icon.png?v=1" alt="Nexora" style={{ width:38, height:38, objectFit:'contain' }} />
                 <div>
-                  <div style={{ color:'var(--mf-text)', fontWeight:800, fontSize: 'var(--mf-t-h1)', lineHeight:1, letterSpacing:'-.3px' }}>MouraFlow</div>
-                  <div style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginTop:3 }}>Automação Pro</div>
+                  <div style={{ color:'var(--mf-text)', fontWeight:800, fontSize: 'var(--mf-t-h1)', lineHeight:1, letterSpacing:'-.3px' }}>Nexora</div>
+                  <div style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', marginTop:3, letterSpacing:'.08em', textTransform:'uppercase' }}>Automation Platform</div>
                 </div>
               </div>
             </BlurFade>
@@ -294,7 +294,7 @@ export default function Login() {
         style={{ position:'relative', zIndex:1, marginTop:24, textAlign:'center', lineHeight:1.7 }}
       >
         <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
-          MouraFlow é um serviço operado por{' '}
+          Nexora é um serviço operado por{' '}
           <strong style={{ color:'var(--mf-text-2)' }}>67.761.040 VITOR MARCELO MOURA DA SILVA</strong>
         </div>
         <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>CNPJ: 67.761.040/0001-27</div>

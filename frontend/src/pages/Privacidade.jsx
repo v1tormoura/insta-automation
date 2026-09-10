@@ -18,7 +18,7 @@ export default function Privacidade() {
         </div>
 
         {[
-          { title:'1. Dados Coletados', text:'O MouraFlow coleta os seguintes dados para prestação do serviço: (a) dados de acesso à plataforma (usuário e senha criptografada); (b) tokens de acesso OAuth das contas do Instagram conectadas pelo usuário; (c) métricas públicas das contas gerenciadas (seguidores, publicações, engajamento); (d) mídia enviada pelo usuário para agendamento (imagens e vídeos).' },
+          { title:'1. Dados Coletados', text:'O Nexora coleta os seguintes dados para prestação do serviço: (a) dados de acesso à plataforma (usuário e senha criptografada); (b) tokens de acesso OAuth das contas do Instagram conectadas pelo usuário; (c) métricas públicas das contas gerenciadas (seguidores, publicações, engajamento); (d) mídia enviada pelo usuário para agendamento (imagens e vídeos).' },
           { title:'2. Uso dos Dados', text:'Os dados coletados são utilizados exclusivamente para: operação da plataforma de automação; autenticação e gerenciamento das contas do Instagram; agendamento e publicação de conteúdo conforme configurado pelo usuário; monitoramento de saúde e métricas das contas.' },
           { title:'3. Compartilhamento de Dados', text:'Não compartilhamos dados pessoais com terceiros, exceto com a Meta Platforms, Inc. para autenticação OAuth e publicação de conteúdo via Graph API, conforme necessário para a prestação do serviço.' },
           { title:'4. Armazenamento e Segurança', text:'Os dados são armazenados em servidor dedicado localizado na União Europeia (Alemanha). Adotamos medidas técnicas de segurança, incluindo criptografia de senhas e tokens de acesso via HTTPS.' },

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { ehJanela, TIPO_DE_AVISO } from './janelaDeAutorizacao';
+import TelaDeCarregamento from '../components/TelaDeCarregamento';
 
 /* ── Esta página abre de dois jeitos ────────────────────────────────────────
 
@@ -80,33 +81,9 @@ export default function OAuthCallback() {
       });
   }, []);
 
-  return (
-    <div data-mf style={{
-      minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 16,
-      background: 'var(--bg-primary)', color: 'var(--text-primary)',
-    }}>
-      {error ? (
-        <>
-          <div><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--mf-danger-500)" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-          <strong style={{ color: 'var(--mf-danger-500)' }}>Erro na autenticação</strong>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: 400, textAlign: 'center' }}>{error}</p>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--mf-t-sm)' }}>Redirecionando...</p>
-        </>
-      ) : (
-        <>
-          <div style={{
-            width: 48, height: 48, border: '3px solid var(--accent)',
-            borderTopColor: 'transparent', borderRadius: 'var(--mf-r-full)',
-            animation: 'spin .8s linear infinite',
-          }} />
-          <strong>{status}</strong>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--mf-t-body)' }}>
-            Aguarde, conectando sua conta Instagram...
-          </p>
-        </>
-      )}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+  return error ? (
+    <TelaDeCarregamento erro titulo={`${error} — redirecionando...`} />
+  ) : (
+    <TelaDeCarregamento titulo={status} subtitulo="Aguarde, conectando sua conta Instagram..." />
   );
 }

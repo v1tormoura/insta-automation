@@ -9,7 +9,7 @@ import { contaValida } from '../services/conexaoGuiada';
  * ── Por que ela existe fora do painel
  *
  * Quem trabalha com um perfil de navegador por conta (multilogin,
- * anti-detect) não está logado no MouraFlow naquele navegador, e nem deveria:
+ * anti-detect) não está logado no Nexora naquele navegador, e nem deveria:
  * o ponto daquele perfil é ser só aquela conta do Instagram. Uma página do
  * painel exigiria login e o fluxo morreria no primeiro passo.
  *
@@ -101,7 +101,7 @@ export default function ConectarGuiado() {
           background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
         }}>
           <h1 style={{ margin: 0, fontSize: 'var(--mf-t-h1)', fontWeight: 800, textAlign: 'center', textWrap: 'balance' }}>
-            Conectar Instagram ao MouraFlow
+            Conectar Instagram ao Nexora
           </h1>
           <p style={{ margin: '7px 0 20px', textAlign: 'center', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', lineHeight: 1.65 }}>
             Siga os 2 passos para autorizar esta conta sem erro:

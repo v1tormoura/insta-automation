@@ -63,7 +63,7 @@ function chavePublica() {
 function _payload(n) {
   return JSON.stringify({
     id: String(n._id || ''),
-    titulo: n.titulo || 'MouraFlow',
+    titulo: n.titulo || 'Nexora',
     mensagem: n.mensagem || '',
     tema: n.tema || 'milestone',
     username: n.username || '',
