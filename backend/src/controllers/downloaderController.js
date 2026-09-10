@@ -92,7 +92,7 @@ exports.proxyFile = async (req, res) => {
     const cl = response.headers.get('content-length');
 
     res.set('Content-Type', ct);
-    res.set('Content-Disposition', `attachment; filename="mouraflow_${Date.now()}.${ext}"`);
+    res.set('Content-Disposition', `attachment; filename="nexora_${Date.now()}.${ext}"`);
     res.set('Cache-Control', 'no-cache');
     if (cl) res.set('Content-Length', cl);
 

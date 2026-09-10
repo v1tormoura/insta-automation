@@ -184,7 +184,7 @@ export const notificacaoDoNavegador = {
         body: n.mensagem || '',
         icon: '/nexora-icon.png',
         badge: '/nexora-icon.png',
-        tag: n._id || 'mouraflow',
+        tag: n._id || 'nexora',
         data: { url: '/', id: n._id || '' },
       });
     } catch { /* o push do servidor cobre o caso do app fechado */ }

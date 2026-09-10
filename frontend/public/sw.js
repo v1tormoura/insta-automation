@@ -43,7 +43,7 @@ self.addEventListener('push', evento => {
     /* `tag` faz a notificação nova SUBSTITUIR a anterior do mesmo marco em vez
        de empilhar. Sem isso, dois ciclos que reenviassem o mesmo aviso
        deixariam duas linhas idênticas na gaveta do sistema. */
-    tag: dados.id || 'mouraflow',
+    tag: dados.id || 'nexora',
     renotify: false,
     data: { url: dados.url || '/', id: dados.id || '' },
   };
