@@ -651,6 +651,50 @@ async function processJobRound(jobId) {
   const rand           = criarRandom(`${jobDoc._id}:${round}`);
   const contasDaRodada = embaralhar(jobDoc.accounts, rand);
 
+  /* ── Quem já pode publicar agora ──────────────────────────────────────
+     `ritmoDaConta` (o mesmo motor que `publishOneAccount` usa lá na frente)
+     decide teto diário e janela de silêncio. Filtrar AQUI, antes de criar
+     Post nenhum, evita duas coisas que aconteciam juntas a noite inteira
+     numa conta que dorme: um Post novo por rodada, morto na hora com "fora
+     da janela" — e a rodada seguinte, 20 a 50 minutos depois, repetindo o
+     mesmo Post morto até o sol nascer. Nenhuma das duas tentativas batia
+     numa conta de verdade; só acumulava erro que não ia embora sozinho.
+
+     `postsToday` só é zerado quando a publicação roda de verdade — é
+     `checkDailyLimit`, lá na frente, quem grava a virada do dia no Mongo.
+     Aqui a conta só é CONSULTADA; sem esta correção, uma conta que bateu o
+     teto ONTEM e ainda não publicou hoje pareceria travada num teto que já
+     não existe. */
+  const agoraRitmo = new Date();
+  const paraRitmo = conta => (isSameDay(conta.lastPostDate)
+    ? conta
+    : { _id: conta._id, dailyPostLimit: conta.dailyPostLimit, postsToday: 0, lastPostDate: conta.lastPostDate });
+  const contasDisponiveis = contasDaRodada.filter(c => podePublicar(paraRitmo(c), agoraRitmo).pode);
+
+  if (contasDaRodada.length > 0 && contasDisponiveis.length === 0) {
+    const aberturas = contasDaRodada
+      .map(c => podePublicar(paraRitmo(c), agoraRitmo).ate)
+      .filter(Boolean);
+    const proximaAbertura = aberturas.length ? new Date(Math.min(...aberturas.map(d => d.getTime()))) : null;
+    console.log(`[Job] "${jobDoc.name}" — nenhuma conta disponível agora (teto diário ou janela de silêncio)`
+      + (proximaAbertura ? ` — a primeira reabre ${proximaAbertura.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '')
+      + '. Rodada adiada, sem criar publicação.');
+
+    const PISO_INTERVALO_MS = 60_000;
+    const rawIntervalMs = Math.max(PISO_INTERVALO_MS, (jobDoc.intervalMinutes || 0) * 60 * 1000);
+    const jitterFactor  = 1 + ((Math.random() * 0.24) - 0.12);
+    const intervalMs    = Math.max(PISO_INTERVALO_MS, Math.round(rawIntervalMs * jitterFactor));
+
+    const bullJob = await postQueue.add('job_round', { jobId: String(jobDoc._id) }, { delay: intervalMs });
+    await Job.findByIdAndUpdate(jobDoc._id, {
+      status:      'waiting_interval',
+      nextRoundAt: new Date(Date.now() + intervalMs),
+      bullMqJobId: String(bullJob.id),
+    });
+    broadcast('jobs', { action: 'job_updated', jobId: String(jobDoc._id) });
+    return;
+  }
+
   // O preparo (documento Post e pré-processamento de vídeo) não fala com o
   // Instagram — segue em paralelo, antes de qualquer publicação.
   const preparadas = await Promise.all(roundMedia.map(async (mediaFile) => {
@@ -696,8 +740,10 @@ async function processJobRound(jobId) {
     return { mediaFile, post, preProcessedVideoUrl, sucessos: 0, erros: [] };
   }));
 
+  // `contasDisponiveis`, não `contasDaRodada`: uma conta bloqueada por teto
+  // ou janela não deve nem ser tentada — ver o filtro logo acima.
   const pares = [];
-  for (const conta of contasDaRodada) {
+  for (const conta of contasDisponiveis) {
     for (const preparada of preparadas) {
       pares.push({ accountId: String(conta._id), conta, preparada });
     }
