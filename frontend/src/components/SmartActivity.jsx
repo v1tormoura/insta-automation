@@ -110,9 +110,16 @@ function Contador({ valor, duracao = 850 }) {
  * ilustração (fitas 3D, sombra, gradiente próprio) que não dá pra recriar em
  * traço fiel — e não precisa: ela já carrega a cor da marca sozinha, então
  * troca por ela mesma em vez de uma versão aproximada. */
-function Monograma({ tamanho = 20 }) {
-  return <img src="/nexora-icon.png?v=1" alt="" width={tamanho} height={tamanho}
-    style={{ width: tamanho, height: tamanho, objectFit: 'contain' }} />;
+function Monograma() {
+  /* PREENCHE o slot, em vez de aparecer reduzido no meio dele.
+
+     O arquivo tem fundo próprio — um quadrado arredondado escuro com o N
+     aceso. Desenhado a 62% dentro de um contêiner que TAMBÉM é um quadrado
+     arredondado, com tinta e anel por volta, o resultado era quadrado dentro
+     de quadrado: em 38px isso lê como avatar quebrado, que é exatamente o
+     que o monograma existia para evitar. Preenchendo, os dois viram um só. */
+  return <img src="/nexora-icon.png?v=1" alt=""
+    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
 }
 
 function Avatar({ notificacao, tamanho = 38 }) {
@@ -139,7 +146,7 @@ function Avatar({ notificacao, tamanho = 38 }) {
         {src && !falhou
           ? <img src={src} alt="" onError={() => setFalhou(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <Monograma tamanho={Math.round(tamanho * 0.62)} />}
+          : <Monograma />}
       </span>
 
       {/* O selo do tema fica FORA do recorte do avatar: dentro, ele seria

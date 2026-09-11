@@ -43,3 +43,26 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
   splash.setAttribute('data-saindo', '');
   setTimeout(() => splash.remove(), 400);
 }));
+
+/* O service worker é registrado no ARRANQUE, e não só ao ligar o push.
+
+   Ele já era registrado — porém apenas dentro de `notificacaoDoNavegador
+   .ligar()`, no instante em que a pessoa aceita receber avisos. Quem nunca
+   ligou ficava sem worker nenhum, e worker registrado é um dos critérios
+   que o navegador usa para considerar o app INSTALÁVEL.
+
+   Instalar tem uma consequência concreta e visível: enquanto o painel for
+   só um site aberto numa aba, o Android mostra o DOMÍNIO — `instaflow.pro`
+   — como remetente de cada notificação, porque é a única identidade que ele
+   tem. Instalado na tela de início, passa a usar o `name` do manifesto:
+   "Nexora".
+
+   Sem `await` e falhando em silêncio: registrar não pode atrasar nem
+   derrubar o primeiro render. `register` é idempotente, então continuar
+   chamando de dentro de `ligar()` não registra duas vezes. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .catch(err => console.warn('[SW] não registrou:', err.message));
+  });
+}
