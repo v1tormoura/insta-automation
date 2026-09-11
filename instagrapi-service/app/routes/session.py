@@ -262,9 +262,8 @@ async def login(body: LoginRequest):
                         body.password,
                         verification_code=body.verification_code or "",
                     ))
-                    settings = client.get_settings()
                     session_pool._slog("LOGIN_SUCCESS", body.account_id, sem_molde=True)
-                    return {"status": "AUTHENTICATED", "settings": settings}
+                    return _autenticado(client, body.account_id)
                 except Exception as e2:  # noqa: BLE001
                     # A segunda tentativa manda. Insistir de novo repetiria o
                     # mesmo caminho, e o molde já está desligado para sempre.
@@ -287,10 +286,10 @@ async def login(body: LoginRequest):
             await session_pool.remove_entry(body.account_id)
             _raise_for_code(code, e, (body.password,), extra=meta, account_id=body.account_id)
 
-        settings = client.get_settings()
+        resposta = _autenticado(client, body.account_id)
 
     session_pool._slog("LOGIN_SUCCESS", body.account_id)
-    return {"status": "AUTHENTICATED", "settings": settings}
+    return resposta
 
 
 # ── /session/diagnostico ───────────────────────────────────────────────────────
@@ -603,12 +602,31 @@ def _sondar_moldes(proxy: str) -> dict:
     return saida
 
 
-async def loop_ip_de_saida(client, account_id: str, proxy: str | None) -> None:
+async def loop_ip_de_saida(client, account_id: str, proxy: str | None) -> str | None:
     """Mede o IP de saída fora do event loop — a chamada é bloqueante."""
     laco = asyncio.get_running_loop()
-    await laco.run_in_executor(
+    return await laco.run_in_executor(
         None, lambda: session_pool.conferir_ip_de_saida(client, account_id, proxy)
     )
+
+
+def _autenticado(client, account_id: str) -> dict:
+    """
+    A resposta de sucesso, igual em todas as rotas que fecham um login.
+
+    Leva o IP de saída junto. Ele já era MEDIDO no `/login` — e só ia para o
+    log. O painel precisa dele no cartão da conta: é a única forma de a pessoa
+    ver que seis contas estão saindo pelo mesmo endereço de datacenter, que é
+    a configuração que o Instagram lê como uma mão só. `None` quando a
+    medição falhou; o Node não grava nada nesse caso.
+    """
+    proxy = session_pool.proxy_lembrado(account_id)
+    return {
+        "status":       "AUTHENTICATED",
+        "settings":     client.get_settings(),
+        "ip_de_saida":  session_pool.ip_de_saida_conhecido(proxy),
+        "ip_via":       "proxy" if proxy else "direto",
+    }
 
 
 def _mascarar_proxy(url: str | None) -> str | None:
@@ -851,10 +869,10 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
                 "message": "O código foi aceito mas a sessão não foi estabelecida. Faça o login novamente.",
             })
 
-        settings = client.get_settings()
+        resposta = _autenticado(client, body.account_id)
 
     session_pool._slog("VERIFY_2FA_SUCCESS", body.account_id)
-    return {"status": "AUTHENTICATED", "settings": settings}
+    return resposta
 
 
 # ── /session/ping ─────────────────────────────────────────────────────────────
@@ -998,10 +1016,10 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
             await session_pool.remove_entry(body.account_id)
             _raise_for_code(code, e, (body.sessionid,), account_id=body.account_id)
 
-        settings = client.get_settings()
+        resposta = _autenticado(client, body.account_id)
 
     session_pool._slog("LOGIN_BY_SESSIONID_SUCCESS", body.account_id)
-    return {"status": "AUTHENTICATED", "settings": settings}
+    return resposta
 
 
 # ── /session/challenge-code ────────────────────────────────────────────────────
@@ -1077,9 +1095,8 @@ async def challenge_code(body: ChallengeCodeRequest):
             "message": "Verificação concluída. Refazendo o login para concluir a conexão.",
         }
 
-    settings = client.get_settings()
     session_pool._slog("CHALLENGE_RESOLVED", body.account_id)
-    return {"status": "AUTHENTICATED", "settings": settings}
+    return _autenticado(client, body.account_id)
 
 
 # ── /session/challenge-approved ────────────────────────────────────────────────

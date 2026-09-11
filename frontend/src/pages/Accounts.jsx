@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { criarPedido, decidirEmenda } from './emendaMobile';
@@ -1202,6 +1202,20 @@ export default function Accounts() {
     { key: 'offline',     label: 'Desconectadas',   count: countBy('desconectada') },
   ];
 
+  /* Quantas contas fizeram login pelo MESMO IP. É o número que responde "por
+     que estas contas estão caindo juntas": o Instagram lê várias contas num
+     mesmo endereço — sobretudo de datacenter — como uma mão só, e quando
+     sinaliza uma, sinaliza as vizinhas. Contado sobre todas as contas, não só
+     as filtradas: a conta que compartilha o IP pode estar fora do filtro. */
+  const contasPorIp = useMemo(() => {
+    const m = new Map();
+    for (const a of (Array.isArray(accounts) ? accounts : [])) {
+      if (!a.loginIp) continue;
+      m.set(a.loginIp, (m.get(a.loginIp) || 0) + 1);
+    }
+    return m;
+  }, [accounts]);
+
   const filteredAccounts = safeAccounts.filter(acc => {
     const q = search.toLowerCase();
     const match = acc.username?.toLowerCase().includes(q) || acc.name?.toLowerCase().includes(q);
@@ -1816,6 +1830,37 @@ export default function Accounts() {
                     </span>
                   )}
                 </div>
+
+                {/* IP do LOGIN — medido, não configurado.
+
+                    A linha acima diz por onde a conta DEVERIA sair, segundo a
+                    configuração. Esta diz de qual endereço o Instagram viu o
+                    último login, medido pelo serviço na hora, pela mesma sessão.
+                    As duas divergem em silêncio: proxy que aceita a conexão e
+                    sai pelo IP do servidor, proxy que não foi aplicado.
+
+                    E o número que mais importa aqui é o de contas no MESMO IP.
+                    Várias contas num endereço de datacenter são lidas como uma
+                    mão só — quando uma cai, as vizinhas caem junto. É a
+                    resposta para "estou logando e está sendo banida". */}
+                {account.loginIp && (() => {
+                  const compartilham = (contasPorIp.get(account.loginIp) || 1) - 1;
+                  const direto = account.loginIpVia !== 'proxy';
+                  const alerta = compartilham > 0 && direto;
+                  const cor = alerta ? 'var(--mf-warning-500)' : 'var(--mf-text-3)';
+                  return (
+                    <div style={{ padding:'3px 12px 5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
+                      fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)', color: cor,
+                      background: alerta ? 'color-mix(in oklch, var(--mf-warning-500) 5%, transparent)' : 'transparent' }}>
+                      <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}
+                        title={account.loginIpEm ? `Medido no login de ${new Date(account.loginIpEm).toLocaleString('pt-BR')}` : ''}>
+                        IP no login · {direto ? 'servidor' : 'proxy'}
+                        {compartilham > 0 && ` · ${alerta ? '⚠ ' : ''}mesmo IP de ${compartilham} outra${compartilham > 1 ? 's' : ''}`}
+                      </span>
+                      <span style={{ fontWeight:700, flexShrink:0 }}>{account.loginIp}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* actions */}
                 <div style={{ height:1, background:'var(--mf-border)' }} />

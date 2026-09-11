@@ -1291,6 +1291,17 @@ def esquecer_ips_confirmados() -> None:
     _ips_confirmados.clear()
 
 
+def ip_de_saida_conhecido(proxy: str | None) -> str | None:
+    """
+    O IP já medido para este caminho — sem nova requisição.
+
+    `conferir_ip_de_saida` mede uma vez por proxy e guarda. Isto lê o que ela
+    guardou, para as rotas que fecham um login começado em outra chamada
+    (2FA, desafio) devolverem o mesmo IP sem sair de novo para o ipify.
+    """
+    return _ips_confirmados.get(proxy or "__direto__")
+
+
 async def get_entry(account_id: str) -> dict:
     """Get or create a pool entry for this account (creates isolated Client + Lock)."""
     async with _pool_lock:

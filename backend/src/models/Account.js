@@ -73,7 +73,20 @@ const accountSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    
+
+    /* De qual IP o Instagram viu o último login desta conta — MEDIDO pelo
+       serviço Python no ato do login (sai para o ipify pela mesma sessão e
+       pelos mesmos proxies que o login usa), não deduzido da configuração.
+       `proxy` acima diz o que pedimos; isto diz o que aconteceu. A diferença é
+       o que separa "o proxy está ativo" de "o login passou pelo proxy".
+
+       Fica no cartão da conta porque é a única forma de a pessoa ver o que o
+       Instagram vê: seis contas com o mesmo IP de datacenter aqui são seis
+       contas que ele lê como uma mão só. */
+    loginIp:    { type: String, default: '' },
+    loginIpVia: { type: String, default: '' },     // 'proxy' | 'direto'
+    loginIpEm:  { type: Date,   default: null },
+
     proxyStatus: {
       type: String,
       default: 'nao_testado',

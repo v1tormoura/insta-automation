@@ -1228,13 +1228,27 @@ async function _withLoginLock(accountId, fn) {
 
 // ── Helper: update DB after successful instagrapi login ───────────────────────
 
-async function _markInstagrapiConnected(accountId) {
+/**
+ * @param {string} accountId
+ * @param {object} [resultado] — a resposta AUTHENTICATED do Python. Traz
+ *   `ip_de_saida`/`ip_via`, que o serviço mede no login e o cartão da conta
+ *   mostra: é a única forma de a pessoa VER que seis contas estão saindo pelo
+ *   mesmo endereço de datacenter. Sem medição (`null`), não grava — um IP
+ *   velho no cartão seria pior que nenhum.
+ */
+async function _markInstagrapiConnected(accountId, resultado = null) {
+  const ip = resultado?.ip_de_saida;
   await Account.findByIdAndUpdate(accountId, {
     provider:        'instagrapi',
     sessionStatus:   'VALID',
     healthStatus:    'ativa',
     lastError:       '',
     lastValidatedAt: new Date(),
+    ...(ip ? {
+      loginIp:    String(ip).slice(0, 45),
+      loginIpVia: resultado.ip_via === 'proxy' ? 'proxy' : 'direto',
+      loginIpEm:  new Date(),
+    } : {}),
   });
 }
 
@@ -1552,7 +1566,7 @@ router.post('/instagrapi-direct', async (req, res) => {
       }
 
       console.log(`[IG-LOGIN] session saved=${!!result.settings} — marking connected`);
-      await _markInstagrapiConnected(accountId);
+      await _markInstagrapiConnected(accountId, result);
 
       console.log('[IG-LOGIN] profile fetch — starting');
       await _fetchAndSaveProfile(http, account, clean);
@@ -1602,7 +1616,7 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
         error: _igUserMessage('TWO_FACTOR_NO_SESSION'),
       });
     }
-    await _markInstagrapiConnected(String(account._id));
+    await _markInstagrapiConnected(String(account._id), result);
     await _fetchAndSaveProfile(http, account, clean);
     broadcast('accounts', { action: 'synced' });
     return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
@@ -1749,7 +1763,7 @@ router.post('/instagrapi-challenge-code', async (req, res) => {
       });
     }
 
-    await _markInstagrapiConnected(String(account._id));
+    await _markInstagrapiConnected(String(account._id), result);
     await _fetchAndSaveProfile(http, account, clean);
     broadcast('accounts', { action: 'synced' });
     console.log(`[IG-CHALLENGE] @${clean} conectada após verificação`);
@@ -1792,8 +1806,8 @@ router.post('/instagrapi-sessionid-new', async (req, res) => {
   const accountId = String(account._id);
   try {
     await _withLoginLock(accountId, async () => {
-      await http.loginBySessionid(account, sessionid);
-      await _markInstagrapiConnected(accountId);
+      const resultado = await http.loginBySessionid(account, sessionid);
+      await _markInstagrapiConnected(accountId, resultado);
       await _fetchAndSaveProfile(http, account, clean);
       broadcast('accounts', { action: 'synced' });
       res.json({ success: true, accountId, message: `@${clean} conectada via Session ID` });
@@ -1830,8 +1844,8 @@ router.post('/:id/instagrapi-sessionid', async (req, res) => {
 
   try {
     await _withLoginLock(accountId, async () => {
-      await http.loginBySessionid(account, sessionid);
-      await _markInstagrapiConnected(accountId);
+      const resultado = await http.loginBySessionid(account, sessionid);
+      await _markInstagrapiConnected(accountId, resultado);
       await _fetchAndSaveProfile(http, account, account.username);
       broadcast('accounts', { action: 'synced' });
       console.log(`[SID-LOGIN] @${account.username} conectada via sessionid`);
@@ -1886,7 +1900,7 @@ router.post('/:id/instagrapi-login', async (req, res) => {
         return;
       }
 
-      await _markInstagrapiConnected(accountId);
+      await _markInstagrapiConnected(accountId, result);
 
       /* Guarda a senha para o próximo login ser um clique.
      
@@ -1999,7 +2013,7 @@ router.post('/:id/mobile-1clique', async (req, res) => {
         return;
       }
 
-      await _markInstagrapiConnected(accountId);
+      await _markInstagrapiConnected(accountId, result);
       await _fetchAndSaveProfile(http, account, account.username);
       broadcast('accounts', { action: 'synced' });
       res.json({ success: true, via: 'senha', accountId,
