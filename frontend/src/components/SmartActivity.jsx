@@ -459,6 +459,25 @@ export function SinoDeNotificacoes() {
   const [aberta, setAberta] = useState(false);
   const caixaRef = useRef(null);
 
+  /* Numa tela estreita o painel ancora na VIEWPORT, não na sineta.
+
+     `right: 0` alinha a borda direita do painel à da sineta — o certo no
+     desktop, onde o painel nasce colado ao gatilho e sobra espaço à
+     esquerda. No celular não sobra: a sineta fica a ~60px da borda direita
+     e o painel pede quase a largura toda da tela, então a borda esquerda
+     dele cai em NEGATIVO e o `overflow-x: clip` do body corta a faixa —
+     medido numa tela de 390px, o painel nascia em `x: -38`, com os ícones
+     dos cartões cortados pela margem. */
+  const [estreito, setEstreito] = useState(
+    () => window.matchMedia('(max-width: 640px)').matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const aoMudar = e => setEstreito(e.matches);
+    mq.addEventListener('change', aoMudar);
+    return () => mq.removeEventListener('change', aoMudar);
+  }, []);
+
   useEffect(() => {
     if (!aberta) return;
     const fora = e => { if (caixaRef.current && !caixaRef.current.contains(e.target)) setAberta(false); };
@@ -498,8 +517,11 @@ export function SinoDeNotificacoes() {
 
       {aberta && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          width: 'min(380px, calc(100vw - var(--mf-6)))',
+          ...(estreito
+            ? { position: 'fixed', top: 'calc(var(--mf-topbar) + 8px)',
+                left: 'var(--mf-3)', right: 'var(--mf-3)', width: 'auto' }
+            : { position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                width: 'min(380px, calc(100vw - var(--mf-6)))' }),
           maxHeight: 'min(520px, calc(100vh - var(--mf-topbar) - var(--mf-8)))',
           display: 'flex', flexDirection: 'column',
           background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border-strong)',
