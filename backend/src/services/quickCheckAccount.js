@@ -149,12 +149,30 @@ async function checkInstagramProfile(username) {
 /**
  * Valida o token OAuth da conta chamando /me na Graph API.
  * Retorna true se válido, false se expirado/inválido.
+ *
+ * ── Dois defeitos que faziam token bom parecer morto
+ *
+ * 1. `account.accessToken` ia direto pra URL, sem descriptografar. Com
+ *    `ENCRYPTION_KEY` configurada (ver tokenEncryption.js), o valor gravado
+ *    é `enc1:...` — cifra, não o token. Mandar isso pro Meta como
+ *    `access_token` é o mesmo que mandar uma senha errada de propósito: ele
+ *    responde erro sempre, e aqui isso virava "token inválido, reconecte".
+ *
+ * 2. A URL tinha `/v21.0/` fixo. `syncAccountAPI.js` — o outro lugar que faz
+ *    essa mesma pergunta ao Meta — descobriu e documentou que
+ *    `graph.instagram.com/me` SEM versão é o que funciona para todo tipo de
+ *    token (IGAAL, IGQ, EAA); com versão, alguns tipos de token são
+ *    recusados por um motivo que não tem nada a ver com o token estar
+ *    expirado. Reaproveita a mesma forma comprovada em vez de inventar uma
+ *    terceira.
  */
 async function validateOAuthToken(account) {
   if (!account.accessToken || !account.igUserId) return null; // sem token OAuth
   try {
+    const { decrypt } = require('./tokenEncryption');
+    const token = decrypt(account.accessToken);
     const res = await fetch(
-      `https://graph.instagram.com/v21.0/me?fields=id&access_token=${account.accessToken}`,
+      `https://graph.instagram.com/me?fields=id&access_token=${token}`,
       { signal: AbortSignal.timeout(8000) }
     );
     const data = await res.json();
@@ -178,8 +196,21 @@ async function quickCheckAndUpdate(account) {
   const now = new Date();
   let changed = false;
 
-  // 1. Valida token OAuth (detecta sessão expirada no Meta)
-  const tokenOk = await validateOAuthToken(account);
+  /* Conta instagrapi não passa pelo passo 1 — mesma exceção que
+     `syncAllAccounts` já faz (accountController.js) e que este arquivo não
+     fazia. Sem isto, uma conta que publica pela sessão do instagrapi, com a
+     sessão perfeitamente viva, mas que também tem (ou já teve) um
+     `accessToken` da API oficial guardado — as duas conexões coexistem, o
+     painel mostra os dois botões — ficava com o healthStatus inteiro
+     derrubado por causa de um token secundário que ela nem usa para
+     publicar. É esse cruzamento que fazia a sessão "não aguentar": o
+     instagrapi seguia publicando normalmente por baixo, e o quickCheck
+     apagava esse resultado a cada rodada. */
+  const usaInstagrapi = account.provider === 'instagrapi' || !!account.instagrapiSession;
+
+  // 1. Valida token OAuth (detecta sessão expirada no Meta) — só quando a
+  //    conta de fato depende dele para publicar.
+  const tokenOk = usaInstagrapi ? null : await validateOAuthToken(account);
   if (tokenOk === false) {
     if (account.healthStatus !== 'token_invalido') {
       await Account.findByIdAndUpdate(account._id, {
