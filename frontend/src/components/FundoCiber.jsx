@@ -333,10 +333,25 @@ export default function FundoCiber() {
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    /** Parado é diferente de apagado: um quadro só, sem laço. */
+    /** Parado é diferente de apagado: um quadro só, sem laço.
+
+        MAS "parado" não pode significar "sempre o mesmo quadro" — se este é
+        o único caminho que corre (`deveAnimar()` falso, ou a aba lida como
+        escondida por tempo demais para o laço nunca decolar), `t` precisa
+        avançar mesmo assim, ou toda vez que algo chama `decidir()` de novo
+        — o intervalo periódico logo abaixo, um resize, uma troca de tema —
+        o desenho recomeça do EXATO estado de antes e nunca se distingue de
+        uma imagem parada. Aqui `t` avança pelo relógio de verdade
+        (`performance.now()`, a mesma base de `laco`), então mesmo em quadros
+        avulsos e espaçados o campo progride — mais em saltos que fluido, mas
+        vivo, nunca congelado. */
     function umQuadro() {
       cancelAnimationFrame(quadro);
       quadro = 0;
+      const agora = performance.now();
+      const dt = ultimo ? Math.min(5000, agora - ultimo) : 16;
+      ultimo = agora;
+      t += dt * VELOCIDADE;
       desenhar();
     }
 
@@ -415,19 +430,26 @@ export default function FundoCiber() {
     medir();
     decidir();
 
-    /* Segunda opinião, um instante depois de montar.
+    /* Conferência periódica, o tempo todo — não só ao montar.
 
-       `decidir()` na montagem confia em `document.hidden` — e logo depois de
-       um F5 ou de trocar de aba, esse valor pode estar errado por um
-       instante: a página ainda não é considerada "visível" pelo navegador no
-       exato microtask em que o efeito roda, mesmo com a aba já em primeiro
-       plano. Sem esta segunda chamada, `decidir()` entra no ramo de "aba
-       escondida" (`umQuadro()`, um quadro só, sem laço) e fica ali PARA
-       SEMPRE — nada mais dispara `decidir()` de novo, porque não existe
-       transição real de visibilidade depois dessa: a aba já estava e
-       continua em primeiro plano, só o instante da leitura é que mentiu. Foi
-       assim que o fundo "não animava" depois de recarregar. */
-    const segundaChamada = setTimeout(decidir, 250);
+       A primeira versão desta correção era um `setTimeout(decidir, 250)`
+       único: cobria o caso de `document.hidden` mentir por um instante logo
+       no F5. Não bastou. Voltou a acontecer — medido de novo depois do
+       deploy: `requestAnimationFrame` zerado, `document.hidden` false,
+       minutos depois de carregar. `focus`/`pageshow`/`visibilitychange` só
+       ajudam quando o navegador de fato DISPARA o evento na transição — e
+       existem contextos (um iframe embutido, uma ferramenta de captura, uma
+       extensão) onde a visibilidade muda sem nenhum dos três disparar. Um
+       evento que não dispara não é uma correção que às vezes falha; é uma
+       correção que não roda.
+
+       `setInterval` não depende de o navegador avisar nada: pergunta de novo
+       sozinho. `decidir()` é barata — três leituras de estado e, na pior das
+       hipóteses, um `requestAnimationFrame` a mais — e chamá-la de novo
+       quando nada mudou não faz nada (o `if (!quadro)` da função já trata
+       isso). O preço de perguntar toda hora é menor que o de ficar parado
+       para sempre por não ter perguntado a segunda vez. */
+    const conferenciaPeriodica = setInterval(decidir, 1500);
 
     window.addEventListener('resize', aoRedimensionar);
     document.addEventListener('visibilitychange', decidir);
@@ -438,7 +460,7 @@ export default function FundoCiber() {
     return () => {
       cancelAnimationFrame(quadro);
       clearTimeout(esperaResize);
-      clearTimeout(segundaChamada);
+      clearInterval(conferenciaPeriodica);
       observador.disconnect();
       observadorTamanho.disconnect();
       window.removeEventListener('resize', aoRedimensionar);

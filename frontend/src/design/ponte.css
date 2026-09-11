@@ -1587,6 +1587,22 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
     width: var(--mf-sidebar);
     box-shadow: var(--mf-shadow-3);
     transition-delay: 140ms;
+    /* Sólida aqui, translúcida em todo outro estado — de propósito.
+       `--mf-casca` (72%) mais `backdrop-filter` é o vidro certo quando a
+       barra só fica AO LADO do conteúdo, que é o caso de `.mf-top`, do rail
+       parado e da barra fixa aberta: nesses três não existe nada por baixo
+       para o blur precisar esconder.
+
+       Aqui é diferente: o rail está por CIMA do conteúdo (`z-index` maior de
+       propósito, para sobrepor em vez de empurrar — ver o comentário no topo
+       deste bloco). `.mf-page-head`, o cabeçalho de cada página, também é
+       `position: sticky` — e dois elementos `sticky` empilhados fazem o
+       `backdrop-filter` do de cima parar de amostrar o de baixo em vez de
+       borrá-lo: o título da página aparecia nítido, por cima dos itens do
+       menu, os dois lendo ao mesmo tempo. `--mf-casca-solida` — mesma cor,
+       sem o canal alfa — tira o vidro exatamente onde ele quebrava, sem
+       tocar nos outros três estados. */
+    background: var(--mf-casca-solida);
   }
   /* Os rótulos aparecem junto. `display` não anima, e é o certo aqui: texto
      surgindo por opacidade dentro de uma caixa que ainda está crescendo fica
