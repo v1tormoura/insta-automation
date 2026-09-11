@@ -163,15 +163,30 @@ function convertToReelFormat(inputPath, options = {}) {
 
     const cfg = configs[quality] || configs.high;
 
+    /* ── Upscale: Lanczos no lugar do bicúbico padrão do ffmpeg ─────────────
+
+       `flags=lanczos` troca só o ALGORITMO de reamostragem — mesma escala,
+       mesmo tamanho de saída, sem custo de processamento perceptível (é outra
+       fórmula de interpolação, não um passo extra) e sem depender de GPU ou
+       de um modelo de IA. Onde mais aparece: fonte abaixo de 1080×1920 (o
+       caso comum de conteúdo baixado/reaproveitado) ganha bordas mais
+       definidas que o bicúbico borra; fonte já em alta resolução não perde
+       nada.
+
+       O `unsharp` logo abaixo, depois de toda variação de conta, é a segunda
+       metade do upscale: realça o detalhe que o reescalonamento por si só não
+       traz de volta. Valores moderados de propósito — luma mais forte que
+       chroma, porque nitidez em excesso na cor vira franja visível ao redor
+       de bordas, o efeito "over-sharpened" que denuncia processamento. */
     // Filtro de escala: preserva conteúdo original, faz pad se necessário
     // Para vídeos vertical já em 9:16, evita crop agressivo
     let scaleFilter;
     if (isPortrait && Math.abs(w / h - 1080 / 1920) < 0.05) {
       // Já está em 9:16 — só redimensiona sem crop
-      scaleFilter = 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black';
+      scaleFilter = 'scale=1080:1920:flags=lanczos:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black';
     } else {
       // Converte para 9:16 com crop centrado (padrão Reels)
-      scaleFilter = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920';
+      scaleFilter = 'scale=1080:1920:flags=lanczos:force_original_aspect_ratio=increase,crop=1080:1920';
     }
 
     // Ultra clean: micro-variação de brilho garante hash de pixel único por publicação
@@ -191,12 +206,22 @@ function convertToReelFormat(inputPath, options = {}) {
       const microBright = ((aleatorio() - 0.5) * 0.006).toFixed(5);
       const microSat    = (1 + (aleatorio() - 0.5) * 0.04).toFixed(4);
       const microContr  = (1 + (aleatorio() - 0.5) * 0.02).toFixed(4);
-      scaleFilter += `,crop=iw-${cropPx}:ih-${cropPx}:${cropX}:${cropY},scale=1080:1920,eq=brightness=${microBright}:saturation=${microSat}:contrast=${microContr}`;
+      scaleFilter += `,crop=iw-${cropPx}:ih-${cropPx}:${cropX}:${cropY},scale=1080:1920:flags=lanczos,eq=brightness=${microBright}:saturation=${microSat}:contrast=${microContr}`;
       // Pitch de áudio micro-shift (±0.5%) — muda fingerprint de áudio sem ser audível
       const pitchFactor = (1 + (aleatorio() - 0.5) * 0.01).toFixed(5);
       const newRate     = Math.round(44100 * Number(pitchFactor));
       humanAudioFilter  = `asetrate=${newRate},aresample=44100`;
     }
+
+    /* ── Nitidez, depois de toda variação de conta ───────────────────────
+
+       Depois do crop+reescala do humanizador (que já usa Lanczos) e não
+       antes: nitidez aplicada e depois borrada de novo pelo segundo `scale`
+       teria sido trabalho perdido. Antes da marca d'água — texto sintético já
+       nasce no contraste máximo, e realçar nitidez em cima dele só arrisca
+       franja ao redor das letras sem ganhar nada, já que não há detalhe
+       nenhum ali para recuperar. */
+    scaleFilter += ',unsharp=5:5:0.6:5:5:0.3';
 
     /* ── A marca d'água, no fim da cadeia ────────────────────────────────
 
