@@ -961,7 +961,23 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   background: var(--mf-casca);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
-  position: sticky; top: 0; z-index: var(--mf-z-sticky);
+  /* UM acima do cabeçalho de página, e não o mesmo `--mf-z-sticky`.
+
+     Os dois são `sticky` no mesmo contexto (`.mf-app`), e no mesmo z-index
+     quem vem depois na árvore pinta por cima — o cabeçalho da página, que é
+     filho de `.mf-main`. Isso não importava enquanto nada saía da barra.
+     Passou a importar com o painel de notificações: ele pende da sineta,
+     dentro DESTA barra, e o `backdrop-filter` daqui fecha um contexto de
+     empilhamento — o `z-index: 40` do painel só vale entre irmãos aqui
+     dentro, nunca contra o cabeçalho lá fora. Resultado: o painel abria e o
+     cabeçalho da página ("Conectar Contas", "Pedir acesso via convite")
+     aparecia por cima dele, escondendo o título.
+
+     +1, e não `--mf-z-drawer`: a barra lateral (`.mf-side`, 40) precisa
+     continuar por cima desta barra para o rail abrir sobre ela ao passar o
+     mouse. Entre o cabeçalho de página (20) e a barra lateral (40), 21 é o
+     único lugar que resolve os dois. */
+  position: sticky; top: 0; z-index: calc(var(--mf-z-sticky) + 1);
   padding-inline: clamp(var(--mf-4), 2.5vw, var(--mf-8));
   /* A folga da esquerda cresce quando o rail abre por cima (ver a regra no
      hover do rail, mais abaixo) — sem transição aqui, ela pularia de um

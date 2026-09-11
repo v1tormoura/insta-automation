@@ -255,18 +255,31 @@ async function semear() {
  * Por isso o anti-repetição aqui não é o teto: é a data. Um resumo por dia,
  * e o próprio registro no banco é quem diz se o de hoje já saiu.
  *
- * ── Por que fica desligada por padrão
+ * ── Por que só sai a partir das 22h
  *
- * Ela compete com os marcos pela atenção, e quem acabou de ligar o módulo
- * ainda não sabe qual dos dois quer. Ligar por padrão decidiria por ele.
+ * "Um por dia" sozinho não bastava. Esta função roda no fim de CADA ciclo de
+ * sincronização (a cada 30 min), então o resumo saía no primeiro ciclo depois
+ * da primeira publicação do dia — às 9h da manhã, dizendo "1 publicação" — e
+ * travava até o dia seguinte. As outras quarenta ficavam sem resumo nenhum.
+ *
+ * O pedido é o total do dia, NO FINAL do dia. Então ele espera a hora e sai no
+ * primeiro ciclo depois dela, cobrindo tudo que saiu até ali. O fuso é o do
+ * contêiner (`TZ=America/Sao_Paulo` no compose), o mesmo que define o "hoje"
+ * de `inicioDoDia` logo abaixo — um relógio só para as duas decisões.
+ *
+ * `agora` entra por parâmetro para o teste poder fixar a hora; em produção
+ * ninguém passa nada.
  */
-async function resumoDoDia() {
+const HORA_DO_RESUMO = 22;
+
+async function resumoDoDia({ agora = new Date() } = {}) {
   if (!thresholds.bancoConectado()) return null;
+  if (agora.getHours() < HORA_DO_RESUMO) return null;
 
   const cfg = await thresholds.carregar();
   if (!cfg.ativos.global) return null;
 
-  const inicioDoDia = new Date();
+  const inicioDoDia = new Date(agora);
   inicioDoDia.setHours(0, 0, 0, 0);
 
   /* Um por dia. A checagem é no banco e não em memória: o processo reinicia,
@@ -357,4 +370,4 @@ async function resumoDoDia() {
   });
 }
 
-module.exports = { processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO };
+module.exports = { processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO };

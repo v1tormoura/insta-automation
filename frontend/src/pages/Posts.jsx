@@ -684,7 +684,13 @@ export default function Posts() {
                       </div>
                     </label>
                     {media.length > 0 && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginTop: 12 }}>
+                      /* Teto de altura com rolagem própria. Sem ele, 40 vídeos
+                         viravam 40 cartões empilhados e a página inteira crescia
+                         até o botão Publicar sumir para baixo da dobra. O
+                         `paddingRight` deixa a barra de rolagem fora dos cartões
+                         em vez de cobrir a coluna da direita. */
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginTop: 12,
+                        maxHeight: 'min(520px, 55vh)', overflowY: 'auto', paddingRight: 4, alignContent: 'start' }}>
                         {media.map((file, i) => (
                           <MediaCard
                             key={`${file.name}-${i}`}
@@ -710,7 +716,8 @@ export default function Posts() {
                           <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{libraryMedia.length} selecionado(s)</span>
                           <button type="button" onClick={() => setShowLibPicker(true)} style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-mod, var(--mf-accent-500))', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Adicionar mais</button>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6,
+                          maxHeight: 'min(520px, 55vh)', overflowY: 'auto', paddingRight: 4, alignContent: 'start' }}>
                           {libraryMedia.map((m, i) => {
                             const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(m.filename || '');
                             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -913,6 +920,40 @@ export default function Posts() {
                 </div>
               )}
             </div>
+
+            {/* ── Modo de processamento ──────────────────────────────────────
+                Morava na coluna da direita, entre o ritmo e as contas. Veio
+                para cá por duas razões que apontam para o mesmo lugar: ele é
+                sobre a MÍDIA — como o vídeo é tratado antes de sair — e por
+                isso pertence ao lado do conteúdo, não das configurações de
+                ritmo; e a coluna da esquerda acabava no comentário fixado
+                enquanto a direita seguia por mais uma tela, deixando um vazio
+                do tamanho deste card exatamente onde ele agora está. */}
+            <div style={cardStyle}>
+              <div style={cardHdStyle}>
+                <h3 style={cardH3Style}>Modo de processamento</h3>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Limpeza aplicada</span>
+              </div>
+              <div style={cardBodyStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {processModes.map(m => (
+                    <div key={m.id} onClick={() => setProcessMode(m.id)}
+                      style={{
+                        padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
+                        background: processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
+                        borderColor: processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
+                        transition: 'all var(--mf-fast) var(--mf-ease-out)',
+                      }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                        <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
+                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
+                      </div>
+                      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </motion.div>
 
           {/* ── RIGHT COLUMN ── */}
@@ -1065,33 +1106,6 @@ export default function Posts() {
                   {scheduledAt
                     ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR')} — os próximos seguem o intervalo acima.`
                     : 'Começa agora — os próximos posts seguem o intervalo definido acima.'}
-                </div>
-              </div>
-            </div>
-
-            {/* Processing mode */}
-            <div style={cardStyle}>
-              <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Modo de processamento</h3>
-                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Limpeza aplicada</span>
-              </div>
-              <div style={cardBodyStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {processModes.map(m => (
-                    <div key={m.id} onClick={() => setProcessMode(m.id)}
-                      style={{
-                        padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
-                        background: processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
-                        borderColor: processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
-                        transition: 'all var(--mf-fast) var(--mf-ease-out)',
-                      }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                        <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
-                      </div>
-                      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>

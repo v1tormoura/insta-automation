@@ -304,10 +304,34 @@ describe('resumo do dia', () => {
     thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: ativo } });
   };
 
+  /* Hora fixa, e à noite: o resumo só sai a partir das 22h (ver
+     `HORA_DO_RESUMO`), e sem fixar a hora estes testes passariam de manhã e
+     falhariam à tarde — ou o contrário. */
+  const NOITE = new Date(2026, 8, 10, 22, 15);   // 10/09/2026 22:15
+  const MANHA = new Date(2026, 8, 10, 9, 30);    // mesmo dia, 09:30
+
+  test('antes das 22h não sai, mesmo com publicação e ligado', async () => {
+    /* Rodar no fim de CADA ciclo de sincronização fazia o resumo sair às 9h,
+       no primeiro ciclo depois da primeira publicação, dizendo "1 publicação"
+       — e travar o dia. O pedido é o total no FINAL do dia. */
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 1, contas: ['a'], views: 50 };
+    expect(await detector.resumoDoDia({ agora: MANHA })).toBeNull();
+    expect(mockNotificacoes).toHaveLength(0);
+  });
+
+  test('a partir das 22h sai, e "hoje" é o dia dessa hora', async () => {
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 40, contas: ['a', 'b'], views: 9000 };
+    const n = await detector.resumoDoDia({ agora: NOITE });
+    expect(n).toBeTruthy();
+    expect(n.mensagem).toContain('40 publicações');
+  });
+
   test('13. desligado por padrão: não cria nada', async () => {
     comConfig(false);
     mockAgregados.principal = { publicacoes: 1687, contas: ['a', 'b'], views: 587853 };
-    expect(await detector.resumoDoDia()).toBeNull();
+    expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
     expect(mockNotificacoes).toHaveLength(0);
   });
 
@@ -315,7 +339,7 @@ describe('resumo do dia', () => {
     comConfig(true);
     mockAgregados.principal = { publicacoes: 1687, contas: new Array(39).fill(0).map((_, i) => `c${i}`), views: 587853 };
 
-    const n = await detector.resumoDoDia();
+    const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n).toBeTruthy();
     expect(n.titulo).toBe('Resumo do dia');
     // Formatado em português, como aparece na tela.
@@ -328,17 +352,17 @@ describe('resumo do dia', () => {
     comConfig(true);
     mockAgregados.principal = { publicacoes: 10, contas: ['a'], views: 100 };
 
-    expect(await detector.resumoDoDia()).toBeTruthy();
+    expect(await detector.resumoDoDia({ agora: NOITE })).toBeTruthy();
     // O anti-repetição aqui é a DATA, não o teto: o registro no banco é quem
     // diz se o resumo de hoje já saiu — e sobrevive ao processo reiniciar.
-    expect(await detector.resumoDoDia()).toBeNull();
+    expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
     expect(mockNotificacoes.filter(x => x.eventType === 'resumo')).toHaveLength(1);
   });
 
   test('sem publicação no dia, não inventa resumo', async () => {
     comConfig(true);
     mockAgregados.principal = null;
-    expect(await detector.resumoDoDia()).toBeNull();
+    expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
   });
 
   test('stories somam separado de posts — a mesma separação do dashboard', async () => {
@@ -346,7 +370,7 @@ describe('resumo do dia', () => {
     mockAgregados.principal = { publicacoes: 5, contas: ['a'], views: 1000 };
     mockAgregados.stories = { views: 250 };
 
-    const n = await detector.resumoDoDia();
+    const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.mensagem).toContain('1.000 visualizações');
     expect(n.mensagem).toContain('250 em stories');
     expect(n.metadados.viewsStories).toBe(250);
@@ -359,7 +383,7 @@ describe('resumo do dia', () => {
     mockAgregados.principal = { publicacoes: 5, contas: ['a'], views: 1000 };
     mockAgregados.stories = null;
 
-    const n = await detector.resumoDoDia();
+    const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.metadados.viewsStories).toBe(0);
     expect(n.mensagem).toContain('0 em stories');
   });
@@ -372,7 +396,7 @@ describe('resumo do dia', () => {
       { _id: 'b', username: 'lauramendes',    views: 300 },
     ];
 
-    const n = await detector.resumoDoDia();
+    const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.mensagem).toContain('@oliviapaganini: 600');
     expect(n.mensagem).toContain('@lauramendes: 300');
     expect(n.metadados.porConta).toEqual([
@@ -390,7 +414,7 @@ describe('resumo do dia', () => {
       privacidade: { mostrarNome: false, mostrarValor: true },
     });
 
-    const n = await detector.resumoDoDia();
+    const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.mensagem).not.toContain('oliviapaganini');
     expect(n.mensagem).toContain('Conta 1: 500');
   });
@@ -405,7 +429,7 @@ describe('resumo do dia', () => {
       privacidade: { mostrarNome: true, mostrarValor: false },
     });
 
-    const n = await detector.resumoDoDia();
+    const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.mensagem).not.toContain('500');
     expect(n.mensagem).not.toContain('80');
     expect(n.mensagem).toContain('@oliviapaganini: •••');

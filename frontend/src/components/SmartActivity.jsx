@@ -595,7 +595,7 @@ export function SinoDeNotificacoes() {
                 fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.7,
               }}>
                 Nada por aqui ainda.<br />
-                Marcos de visualização aparecem assim que suas contas alcançarem os primeiros números.
+                Você é avisado a cada publicação que sai ou falha, e recebe o resumo do dia com o total.
               </div>
             )}
 
