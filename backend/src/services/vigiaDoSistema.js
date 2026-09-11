@@ -270,11 +270,17 @@ async function verificar({ verificacoes = VERIFICACOES } = {}) {
   const estado = await _estado();
   /* Uma leitura por ciclo, não uma por aviso: seis verificações lendo a mesma
      configuração seriam seis idas ao banco para o mesmo documento. */
-  const mensagens = await _mensagens();
+  const cfg = await require('./smartActivity/thresholds').carregar().catch(() => null);
+  const mensagens = cfg?.mensagens || {};
   const agora = Date.now();
   let avisos = 0;
 
   for (const [chave, fn] of Object.entries(verificacoes)) {
+    /* Desligado no painel: nem roda a verificação. Teste de proxy é uma
+       requisição de rede de verdade — gastá-la para um aviso que ninguém
+       vai receber é o tipo de trabalho que este `continue` evita. */
+    if (cfg && cfg.ativos[chave] === false) continue;
+
     let problema = null;
     try {
       problema = await fn();

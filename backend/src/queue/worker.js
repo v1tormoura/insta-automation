@@ -427,6 +427,12 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
 
     runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
 
+    /* Sem `await`: a notificação é um extra, e uma lentidão dela não pode
+       atrasar o retorno de uma publicação que já saiu com sucesso. */
+    require('../services/smartActivity/eventosDePublicacao')
+      .notificarPublicado({ conta: account, contentType: ehStory ? 'story' : (post.postType || 'reel') })
+      .catch(e => console.log('[SmartActivity] aviso de publicação falhou:', e.message));
+
     /* ── O comentário fixado ──────────────────────────────────────────────
 
        Agendado na FILA, com o `mediaId` que esta publicação acabou de
@@ -488,6 +494,14 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
     }
     await Account.findByIdAndUpdate(acc._id, healthUpdate);
     broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: healthUpdate.healthStatus || acc.healthStatus });
+
+    /* Só chega aqui erro DE VERDADE: RHYTHM_WAIT e "conta em uso" (ambos
+       benignos, um reagendamento e não uma falha) lançam mais acima, antes
+       do `try` que este `catch` fecha — nunca passam por aqui. */
+    require('../services/smartActivity/eventosDePublicacao')
+      .notificarErro({ conta: acc, contentType: post.postType || 'reel', erro: healthUpdate.lastError || err.message })
+      .catch(e => console.log('[SmartActivity] aviso de erro falhou:', e.message));
+
     throw err;
   }
 }

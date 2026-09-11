@@ -39,6 +39,18 @@ jest.mock('../src/models/Notificacao', () => ({
 jest.mock('../src/services/smartActivity/webPush', () => ({ enviar: (...a) => mockPush(...a) }));
 jest.mock('../src/events/broadcaster', () => ({ broadcast: jest.fn() }));
 
+/* `ativos` por padrão: todas as chaves do vigia LIGADAS aqui, mesmo com o
+   padrão real (thresholds.js) tendo mudado para desligado — o propósito
+   destes testes é a mecânica de aviso/repetição/recuperação, não o gate
+   novo. O gate ganha sua própria seção, mais abaixo, com o mock trocado por
+   teste. */
+const mockAtivos = { valor: {
+  cota: true, proxy: true, pool: true, sessoes: true, fila: true, erros: true,
+} };
+jest.mock('../src/services/smartActivity/thresholds', () => ({
+  carregar: async () => ({ ativos: mockAtivos.valor, mensagens: {} }),
+}));
+
 const vigia = require('../src/services/vigiaDoSistema');
 
 /* Dublês passados por PARÂMETRO. A primeira versão tentava sobrescrever o mapa
@@ -57,6 +69,9 @@ beforeEach(() => {
   mockPush.mockReset().mockResolvedValue({ enviados: 1 });
   vigia.bancoConectado = () => true;
   atuais = dubles({});
+  mockAtivos.valor = {
+    cota: true, proxy: true, pool: true, sessoes: true, fila: true, erros: true,
+  };
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -196,5 +211,56 @@ describe('tolerância', () => {
     const r = await vigia.verificar({ verificacoes: atuais });
     expect(r.avisos).toBe(1);
     expect(mockNotificacoes).toHaveLength(1);
+  });
+});
+
+describe('desligado no painel', () => {
+  /* thresholds.js mudou o padrão destes seis avisos para desligado — o
+     usuário pediu para só receber marco de audiência agregado (resumo) e os
+     dois eventos de publicação, nada do vigia. Antes desta seção, o vigia
+     não tinha COMO respeitar essa escolha: `verificar()` rodava as seis
+     verificações incondicionalmente. */
+  test('aviso desligado não dispara, mesmo com problema de verdade', async () => {
+    mockAtivos.valor.proxy = false;
+    definir({ proxy: { titulo: 'O proxy parou', mensagem: 'x' } });
+
+    const r = await vigia.verificar({ verificacoes: atuais });
+
+    expect(r.avisos).toBe(0);
+    expect(mockNotificacoes).toHaveLength(0);
+  });
+
+  test('desligar um não impede os outros', async () => {
+    mockAtivos.valor.proxy = false;
+    definir({
+      proxy: { titulo: 'proxy', mensagem: 'a' },
+      fila:  { titulo: 'fila',  mensagem: 'b' },
+    });
+
+    const r = await vigia.verificar({ verificacoes: atuais });
+
+    expect(r.avisos).toBe(1);
+    expect(mockNotificacoes[0].titulo).toBe('fila');
+  });
+
+  test('a verificação desligada nem chega a rodar', async () => {
+    mockAtivos.valor.proxy = false;
+    const chamada = jest.fn(async () => null);
+
+    await vigia.verificar({ verificacoes: { ...atuais, proxy: chamada } });
+
+    expect(chamada).not.toHaveBeenCalled();
+  });
+
+  test('ligar de novo volta a disparar', async () => {
+    mockAtivos.valor.proxy = false;
+    definir({ proxy: { titulo: 'x', mensagem: 'y' } });
+    await vigia.verificar({ verificacoes: atuais });
+    expect(mockNotificacoes).toHaveLength(0);
+
+    mockAtivos.valor.proxy = true;
+    const r = await vigia.verificar({ verificacoes: atuais });
+
+    expect(r.avisos).toBe(1);
   });
 });

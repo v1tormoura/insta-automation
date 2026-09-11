@@ -33,8 +33,10 @@ const VARIAVEIS = Object.freeze({
 
   /* Só do resumo do dia. Aparecem na lista do editor porque escondê-las
      obrigaria quem edita o resumo a adivinhar que existem. */
-  publicacoes: 'Publicações do dia (só no Resumo)',
-  contas:      'Contas que publicaram hoje (só no Resumo)',
+  publicacoes:  'Publicações do dia (só no Resumo)',
+  contas:       'Contas que publicaram hoje (só no Resumo)',
+  viewsStories: 'Visualizações de stories no dia (só no Resumo)',
+  porConta:     'Visualizações do dia, uma linha por conta (só no Resumo)',
 
   /* ── Avisos de sistema ─────────────────────────────────────────────────
      Estes vêm do vigia, não de uma métrica do Instagram. Ficam no mesmo
@@ -75,7 +77,11 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   contentViews: Object.freeze(['account', 'username', 'views', 'threshold', 'content', 'contentType', 'time',
                                'likes', 'comments', 'shares', 'reach']),
   reach:        Object.freeze(['account', 'username', 'views', 'threshold', 'content', 'contentType', 'time', 'reach']),
-  resumo:       Object.freeze(['publicacoes', 'contas', 'views']),
+  resumo:       Object.freeze(['publicacoes', 'contas', 'views', 'viewsStories', 'porConta']),
+
+  /* Publicação em si — dispara na hora, por publicação, não por métrica. */
+  postPublicado:  Object.freeze(['account', 'username', 'contentType', 'time']),
+  erroPublicacao: Object.freeze(['account', 'username', 'contentType', 'erro', 'time']),
 
   /* Avisos do vigia do sistema. */
   cota:    Object.freeze(['percentual', 'restanteGb', 'totalGb', 'diasRestantes', 'previsao']),
@@ -126,8 +132,23 @@ const PADRAO = Object.freeze({
   }),
   resumo: Object.freeze({
     titulo: 'Resumo do dia',
-    mensagem: '{{publicacoes}} publicações em {{contas}} conta(s). {{views}} visualizações hoje.',
+    mensagem: '{{publicacoes}} publicações em {{contas}} conta(s). {{views}} visualizações '
+            + 'em posts e {{viewsStories}} em stories hoje.\n{{porConta}}',
     tema: 'info',
+  }),
+
+  /* ── Publicação em si ─────────────────────────────────────────────────
+     Diferente dos marcos: não espera métrica nenhuma chegar do Instagram,
+     dispara no instante em que a publicação sai (ou falha) de verdade. */
+  postPublicado: Object.freeze({
+    titulo: 'Publicado ✅',
+    mensagem: '{{account}} publicou um {{contentType}}.',
+    tema: 'success',
+  }),
+  erroPublicacao: Object.freeze({
+    titulo: 'Falha ao publicar ⚠️',
+    mensagem: '{{account}}: {{erro}}',
+    tema: 'warning',
   }),
 
   /* ── Avisos do vigia do sistema ────────────────────────────────────────
@@ -276,7 +297,7 @@ function discretas(vars, { mostrarNome = true, mostrarValor = true } = {}) {
        visualizacoes`, e qualquer substantivo ali produz "chegou a um marco
        visualizacoes". O ponto suspensivo se le como "escondido" e nao
        atropela a frase em volta. */
-    for (const campo of ['views', 'threshold', 'likes', 'comments', 'shares', 'reach']) {
+    for (const campo of ['views', 'threshold', 'likes', 'comments', 'shares', 'reach', 'viewsStories']) {
       saida[campo] = '•••';
     }
   }
@@ -299,6 +320,8 @@ const EXEMPLOS = Object.freeze({
   contentType: 'Story', time: 'há 2h',
   likes: '87', comments: '12', shares: '4', reach: '940',
   publicacoes: '6', contas: '3',
+  viewsStories: '412',
+  porConta: '@oliviapaganini: 1.024 · @lauramendes: 380',
 
   erro: 'Tempo de conexão esgotado ao sair para o Instagram.',
   proxies: '8',

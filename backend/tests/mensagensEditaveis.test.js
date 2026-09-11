@@ -175,7 +175,13 @@ jest.mock('../src/services/smartActivity/webPush', () => ({ enviar: async () => 
 jest.mock('../src/events/broadcaster', () => ({ broadcast: jest.fn() }));
 jest.mock('../src/services/smartActivity/thresholds', () => ({
   CHAVE: 'smartActivity',
-  carregar: async () => ({ mensagens: mockMensagens.valor }),
+  carregar: async () => ({
+    mensagens: mockMensagens.valor,
+    // O gate por `ativos[chave]` (vigiaDoSistema.js) é assunto de outro
+    // arquivo de teste — aqui as seis verificações continuam ligadas, para
+    // não confundir "está editável" com "está desligada".
+    ativos: { cota: true, proxy: true, pool: true, sessoes: true, fila: true, erros: true },
+  }),
 }));
 
 const vigia = require('../src/services/vigiaDoSistema');

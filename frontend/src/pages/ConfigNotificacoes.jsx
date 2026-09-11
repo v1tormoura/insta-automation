@@ -59,12 +59,26 @@ const SISTEMA = [
 
 const RESUMO = { id: 'resumo', rotulo: 'Resumo do dia', desc: 'O balanço de todas as contas' };
 
+/**
+ * Os avisos de PUBLICAÇÃO: nascem no instante em que a publicação sai (ou
+ * falha), sem esperar métrica nenhuma chegar do Instagram. Têm interruptor,
+ * como os marcos, mas não têm marco nenhum para configurar — cada publicação
+ * já É o evento, não algo que precisa cruzar um teto.
+ */
+const PUBLICACAO = [
+  { id: 'postPublicado',  rotulo: 'Publicado',        desc: 'Quando uma publicação sai com sucesso' },
+  { id: 'erroPublicacao', rotulo: 'Falha ao publicar', desc: 'Quando uma publicação falha' },
+];
+
 /** Todo aviso editável, por id — para achar o rótulo sem varrer as listas. */
-const TODOS = [...METRICAS, RESUMO, ...SISTEMA];
+const TODOS = [...METRICAS, RESUMO, ...PUBLICACAO, ...SISTEMA];
 const PELO_ID = Object.fromEntries(TODOS.map(a => [a.id, a]));
 
 /** Um aviso do sistema não tem marcos nem interruptor. */
 const ehDoSistema = id => SISTEMA.some(a => a.id === id);
+
+/** Um aviso de publicação tem interruptor, mas não tem marco para configurar. */
+const ehDePublicacao = id => PUBLICACAO.some(a => a.id === id);
 
 /**
  * A condição real de disparo de cada aviso do sistema.
@@ -315,6 +329,7 @@ export default function ConfigNotificacoes() {
                 lado de "Stories" como se fossem o mesmo tipo de coisa. */}
             {[
               { titulo: 'MARCOS DE AUDIÊNCIA', itens: [...METRICAS, RESUMO], comInterruptor: true },
+              { titulo: 'PUBLICAÇÃO',          itens: PUBLICACAO,           comInterruptor: true },
               { titulo: 'AVISOS DO SISTEMA',   itens: SISTEMA,               comInterruptor: false },
             ].map(grupo => (
               <div key={grupo.titulo} style={{ display: 'grid', gap: 'var(--mf-2)' }}>
@@ -484,6 +499,18 @@ export default function ConfigNotificacoes() {
                       </div>
                     </div>
                   ))
+                  : ehDePublicacao(metrica)
+                  ? painel('Quando este aviso dispara', (
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.7 }}>
+                      {metrica === 'postPublicado'
+                        ? 'A cada publicação que sai com sucesso — story, reel, carrossel ou imagem, em qualquer conta.'
+                        : 'A cada tentativa de publicação que falha, com o motivo do erro.'}
+                      <div style={{ marginTop: 'var(--mf-2)', color: 'var(--mf-text-3)' }}>
+                        Um aviso por publicação. Sem marco e sem teto — duas contas publicando
+                        o mesmo conteúdo geram dois avisos, porque são duas publicações.
+                      </div>
+                    </div>
+                  ))
                   : painel('Marcos', <>
                     <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
                       marginBottom: 'var(--mf-2)', lineHeight: 1.6 }}>
@@ -501,7 +528,7 @@ export default function ConfigNotificacoes() {
                   </>)}
 
                 {painel('Comportamento', <>
-                  {METRICAS.map(m => (
+                  {[...METRICAS, ...PUBLICACAO].map(m => (
                     <label key={m.id} style={{
                       display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0',
                       borderBottom: '1px solid var(--mf-border-subtle)', cursor: 'pointer',
@@ -571,7 +598,7 @@ export default function ConfigNotificacoes() {
                         mensagens para calibrar, saber QUAL chegou é metade da
                         informação — e um teste só de Stories nunca revelaria
                         um erro no de Alcance. */}
-                    {METRICAS.map(m => (
+                    {[...METRICAS, ...PUBLICACAO].map(m => (
                       <button key={m.id} onClick={() => testarAviso(m.id, false)} disabled={!!testando}
                         className="mf-btn mf-btn--ghost"
                         style={{ width: '100%', justifyContent: 'space-between',

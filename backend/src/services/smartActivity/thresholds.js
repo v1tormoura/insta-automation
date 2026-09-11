@@ -35,10 +35,30 @@ const PADRAO = Object.freeze({
 
   /** O que está ligado. Desligado não detecta — nem grava histórico. */
   ativos: Object.freeze({
-    storyViews: true,
-    contentViews: true,
+    storyViews: false,
+    contentViews: false,
     reach: false,
-    global: false,      // preparado, desligado por padrão (§28)
+    global: true,       // resumo do dia
+
+    /* Publicação em si: dispara na hora, um por publicação/erro — não
+       compete com os marcos de audiência, que são sobre desempenho DEPOIS
+       de publicado. Ligados por padrão porque são o par mínimo que
+       responde "saiu?" e "deu problema?" sem esperar métrica nenhuma
+       chegar do Instagram. */
+    postPublicado: true,
+    erroPublicacao: true,
+
+    /* Avisos do vigia do sistema (proxy, pool, sessões, fila, erros do
+       dia) — desligados por padrão. `verificar()`, em vigiaDoSistema.js,
+       roda as seis verificações de qualquer forma; é o `ativos[chave]`
+       aqui que decide se o resultado vira notificação. */
+    cota: false,
+    proxy: false,
+    pool: false,
+    sessoes: false,
+    fila: false,
+    erros: false,
+    normalizado: false,
   }),
 
   /** Aparência e comportamento do aviso na tela. */

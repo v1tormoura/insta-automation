@@ -66,11 +66,23 @@ jest.mock('../src/models/Notificacao', () => ({
   },
 }));
 
-const mockAgregado = { valor: null };
+/* `resumoDoDia` faz TRÊS agregações — geral (sem story), story sozinha, e por
+   conta — em paralelo. Um mock só que devolvesse o mesmo valor para as três
+   já não bastava depois que a segunda e a terceira passaram a existir: a
+   agregação por conta receberia os números da geral, por exemplo. O mock
+   agora lê o PRÓPRIO pipeline para saber qual das três é, do mesmo jeito que
+   o Mongo real distingue pela forma da consulta, não por quem chamou. */
+const mockAgregados = { principal: null, stories: null, porConta: [] };
 
 jest.mock('../src/models/Insight', () => ({
   find() { return { select: () => ({ limit: () => ({ lean: async () => [] }) }), lean: async () => [] }; },
-  async aggregate() { return mockAgregado.valor ? [mockAgregado.valor] : []; },
+  async aggregate(pipeline) {
+    const match = pipeline?.[0]?.$match || {};
+    const group = pipeline?.find(s => s.$group)?.$group || {};
+    if (match.mediaType === 'STORY') return mockAgregados.stories ? [mockAgregados.stories] : [];
+    if (group._id === '$accountId') return mockAgregados.porConta || [];
+    return mockAgregados.principal ? [mockAgregados.principal] : [];
+  },
 }));
 
 const detector = require('../src/services/smartActivity/detector');
@@ -103,7 +115,9 @@ async function disparados(insight, c = conta(), cfg = CFG) {
 beforeEach(() => {
   mockMarcos.length = 0;
   mockNotificacoes.length = 0;
-  mockAgregado.valor = null;
+  mockAgregados.principal = null;
+  mockAgregados.stories = null;
+  mockAgregados.porConta = [];
 });
 
 /* ── 1 a 3: o marco simples ───────────────────────────────────────────────── */
@@ -292,14 +306,14 @@ describe('resumo do dia', () => {
 
   test('13. desligado por padrão: não cria nada', async () => {
     comConfig(false);
-    mockAgregado.valor = { publicacoes: 1687, contas: ['a', 'b'], views: 587853 };
+    mockAgregados.principal = { publicacoes: 1687, contas: ['a', 'b'], views: 587853 };
     expect(await detector.resumoDoDia()).toBeNull();
     expect(mockNotificacoes).toHaveLength(0);
   });
 
   test('14. ligado, cria uma vez com os números agregados', async () => {
     comConfig(true);
-    mockAgregado.valor = { publicacoes: 1687, contas: new Array(39).fill(0).map((_, i) => `c${i}`), views: 587853 };
+    mockAgregados.principal = { publicacoes: 1687, contas: new Array(39).fill(0).map((_, i) => `c${i}`), views: 587853 };
 
     const n = await detector.resumoDoDia();
     expect(n).toBeTruthy();
@@ -312,7 +326,7 @@ describe('resumo do dia', () => {
 
   test('15. um por dia: a segunda chamada não cria outro', async () => {
     comConfig(true);
-    mockAgregado.valor = { publicacoes: 10, contas: ['a'], views: 100 };
+    mockAgregados.principal = { publicacoes: 10, contas: ['a'], views: 100 };
 
     expect(await detector.resumoDoDia()).toBeTruthy();
     // O anti-repetição aqui é a DATA, não o teto: o registro no banco é quem
@@ -323,7 +337,77 @@ describe('resumo do dia', () => {
 
   test('sem publicação no dia, não inventa resumo', async () => {
     comConfig(true);
-    mockAgregado.valor = null;
+    mockAgregados.principal = null;
     expect(await detector.resumoDoDia()).toBeNull();
+  });
+
+  test('stories somam separado de posts — a mesma separação do dashboard', async () => {
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 5, contas: ['a'], views: 1000 };
+    mockAgregados.stories = { views: 250 };
+
+    const n = await detector.resumoDoDia();
+    expect(n.mensagem).toContain('1.000 visualizações');
+    expect(n.mensagem).toContain('250 em stories');
+    expect(n.metadados.viewsStories).toBe(250);
+    // O total de posts não engoliu o de stories.
+    expect(n.metadados.views).toBe(1000);
+  });
+
+  test('sem nenhuma view de story, o resumo ainda sai — 0, não undefined', async () => {
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 5, contas: ['a'], views: 1000 };
+    mockAgregados.stories = null;
+
+    const n = await detector.resumoDoDia();
+    expect(n.metadados.viewsStories).toBe(0);
+    expect(n.mensagem).toContain('0 em stories');
+  });
+
+  test('lista por conta, maior primeiro, com @ de cada uma', async () => {
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 3, contas: ['a', 'b'], views: 900 };
+    mockAgregados.porConta = [
+      { _id: 'a', username: 'oliviapaganini', views: 600 },
+      { _id: 'b', username: 'lauramendes',    views: 300 },
+    ];
+
+    const n = await detector.resumoDoDia();
+    expect(n.mensagem).toContain('@oliviapaganini: 600');
+    expect(n.mensagem).toContain('@lauramendes: 300');
+    expect(n.metadados.porConta).toEqual([
+      { accountId: 'a', username: 'oliviapaganini', views: 600 },
+      { accountId: 'b', username: 'lauramendes',    views: 300 },
+    ]);
+  });
+
+  test('privacidade de nome troca @ por "Conta N" — a mesma regra dos marcos', async () => {
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 1, contas: ['a'], views: 500 };
+    mockAgregados.porConta = [{ _id: 'a', username: 'oliviapaganini', views: 500 }];
+    thresholds.carregar = async () => ({
+      ...CFG, ativos: { ...CFG.ativos, global: true },
+      privacidade: { mostrarNome: false, mostrarValor: true },
+    });
+
+    const n = await detector.resumoDoDia();
+    expect(n.mensagem).not.toContain('oliviapaganini');
+    expect(n.mensagem).toContain('Conta 1: 500');
+  });
+
+  test('privacidade de valor esconde os números, inclusive na lista por conta', async () => {
+    comConfig(true);
+    mockAgregados.principal = { publicacoes: 1, contas: ['a'], views: 500 };
+    mockAgregados.stories = { views: 80 };
+    mockAgregados.porConta = [{ _id: 'a', username: 'oliviapaganini', views: 500 }];
+    thresholds.carregar = async () => ({
+      ...CFG, ativos: { ...CFG.ativos, global: true },
+      privacidade: { mostrarNome: true, mostrarValor: false },
+    });
+
+    const n = await detector.resumoDoDia();
+    expect(n.mensagem).not.toContain('500');
+    expect(n.mensagem).not.toContain('80');
+    expect(n.mensagem).toContain('@oliviapaganini: •••');
   });
 });

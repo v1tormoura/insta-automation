@@ -174,6 +174,12 @@ function varsDeExemplo(tipo) {
     return { ...templates.EXEMPLOS };
   }
   return {
+    /* Por baixo: publicacoes/contas/viewsStories/porConta (resumo) e erro
+       (erroPublicacao) — variáveis que `contexto()` não sabe montar porque
+       não vêm de um insight. `contexto()` por cima sobrescreve o que ela
+       de fato calcula (account, username, time…), então nenhum dos dois
+       lados perde o que só ele sabe preencher. */
+    ...templates.EXEMPLOS,
     ...templates.contexto({
       conta: { username: 'oliviapaganini' },
       insight: { igMediaId: '178551331', mediaType: 'STORY', likeCount: 87,
@@ -181,11 +187,6 @@ function varsDeExemplo(tipo) {
                  postedAt: new Date(Date.now() - 2 * 3600 * 1000) },
       threshold: 1000, valor: 1024, metricType: tipo,
     }),
-    /* O resumo do dia usa duas variáveis que `contexto()` não conhece, porque
-       elas não saem de um insight. Sem isto, a prévia do resumo mostraria
-       `{{publicacoes}}` literal — e o modelo estaria correto. */
-    publicacoes: templates.EXEMPLOS.publicacoes,
-    contas: templates.EXEMPLOS.contas,
   };
 }
 

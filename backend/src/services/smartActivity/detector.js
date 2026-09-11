@@ -277,27 +277,67 @@ async function resumoDoDia() {
   }).lean();
   if (jaSaiu) return null;
 
-  const [agregado] = await Insight.aggregate([
-    { $match: { postedAt: { $gte: inicioDoDia } } },
-    {
-      $group: {
+  /* STORY fora do total de posts — mesma separação de analyticsController.js
+     (getGlobalMetrics): somar os dois faria "publicações do dia" incluir
+     visualização de story, que não é uma publicação nova, e faria uma story
+     com muita audiência inflar "visualizações" ao lado de reels de verdade. */
+  const [[agregado], [storyAgregado], porContaAgregado] = await Promise.all([
+    Insight.aggregate([
+      { $match: { postedAt: { $gte: inicioDoDia }, mediaType: { $ne: 'STORY' } } },
+      { $group: {
         _id: null,
         publicacoes: { $sum: 1 },
-        contas: { $addToSet: '$accountId' },
-        views: { $sum: { $ifNull: ['$videoViews', '$impressions'] } },
-      },
-    },
+        contas:      { $addToSet: '$accountId' },
+        views:       { $sum: { $ifNull: ['$videoViews', '$impressions'] } },
+      } },
+    ]),
+    Insight.aggregate([
+      { $match: { postedAt: { $gte: inicioDoDia }, mediaType: 'STORY' } },
+      { $group: { _id: null, views: { $sum: '$impressions' } } },
+    ]),
+    /* Por conta, maior primeiro. `username` já mora no próprio Insight —
+       gravado na sincronização — então não precisa de um segundo lookup em
+       Account só para montar esta linha. */
+    Insight.aggregate([
+      { $match: { postedAt: { $gte: inicioDoDia }, mediaType: { $ne: 'STORY' } } },
+      { $group: {
+        _id:      '$accountId',
+        username: { $first: '$username' },
+        views:    { $sum: { $ifNull: ['$videoViews', '$impressions'] } },
+      } },
+      { $sort: { views: -1 } },
+      { $limit: 12 },
+    ]),
   ]);
 
   if (!agregado || !agregado.publicacoes) return null;
+
+  const viewsStories = storyAgregado?.views || 0;
+
+  /* A privacidade de nome entra AQUI, não em `discretas()`: aquela função só
+     sabe trocar o VALOR inteiro de um campo, e `porConta` é uma frase com
+     vários @ dentro — teria que reconstruí-la para redigir cada nome, o que
+     é exatamente o que já se está fazendo. */
+  const mostrarNome  = cfg.privacidade?.mostrarNome  !== false;
+  const mostrarValor = cfg.privacidade?.mostrarValor !== false;
+  const porConta = porContaAgregado
+    .filter(c => c.views > 0)
+    .map((c, i) => {
+      const nome = mostrarNome ? `@${c.username || 'conta'}` : `Conta ${i + 1}`;
+      const num  = mostrarValor ? templates.formatarNumero(c.views) : '•••';
+      return `${nome}: ${num}`;
+    })
+    .join(' · ') || 'Sem visualizações registradas ainda hoje.';
 
   const modelo = templates.modeloDe('resumo', cfg.mensagens);
   /* `discretas` tambem aqui: o resumo diz quantas visualizacoes o dia teve, e
      esconder o numero nos marcos e mostra-lo no resumo esconde pela metade. */
   const vars = templates.discretas({
-    publicacoes: templates.formatarNumero(agregado.publicacoes),
-    contas: templates.formatarNumero((agregado.contas || []).length),
-    views: templates.formatarNumero(agregado.views || 0),
+    publicacoes:  templates.formatarNumero(agregado.publicacoes),
+    contas:       templates.formatarNumero((agregado.contas || []).length),
+    views:        templates.formatarNumero(agregado.views || 0),
+    viewsStories: templates.formatarNumero(viewsStories),
+    porConta,
   }, cfg.privacidade || {});
 
   return _gravar({
@@ -311,6 +351,8 @@ async function resumoDoDia() {
       publicacoes: agregado.publicacoes,
       contas: (agregado.contas || []).length,
       views: agregado.views || 0,
+      viewsStories,
+      porConta: porContaAgregado.map(c => ({ accountId: c._id, username: c.username, views: c.views })),
     },
   });
 }
