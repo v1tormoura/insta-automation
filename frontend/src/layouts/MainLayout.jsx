@@ -427,10 +427,24 @@ export default function MainLayout({ children }) {
        estado. Fora daqui, o aviso não teria onde aparecer. */
     <SmartActivityProvider>
     <div data-mf>
-      {/* O fundo vivo. Dentro do `[data-mf]` para herdar a paleta do tema, e
-          antes da casca porque ele fica em `z-index: -1` — atrás de tudo. */}
-      <FundoCiber />
       <div className="mf-app" data-collapsed={recolhida} data-drawer={gaveta}>
+
+        {/* O fundo vivo, DENTRO da casca — e o "dentro" é o ponto.
+
+            Ele morava aqui fora, irmão de `.mf-app`, com o comentário "fica em
+            z-index: -1, atrás de tudo". Estava certo sobre o que fazia e errado
+            sobre o que isso significa: atrás de tudo inclui atrás de
+            `.mf-app::before`, que pinta `--mf-bg` opaco na tela inteira. O
+            canvas desenhava perfeitamente e era coberto — medido na produção,
+            pintando o canvas de vermelho puro a tela não mudava de cor.
+
+            `.mf-app` tem `isolation: isolate` (ponte.css), então é ela quem
+            fecha o contexto de empilhamento. Aqui dentro, o `z-index: -1` do
+            canvas passa a significar "acima do fundo desta casca e abaixo do
+            conteúdo dela" — que é o que sempre se quis dizer. Ordem de pintura
+            entre os três de z-index -1 é a ordem da árvore: `::before` (base +
+            grade), o canvas, e `::after` (o halo) por cima. */}
+        <FundoCiber />
 
         {gaveta && <div className="mf-scrim" onClick={() => setGaveta(false)} aria-hidden="true" />}
 

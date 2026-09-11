@@ -87,6 +87,9 @@ export default function FundoCiber() {
     let quadro = 0;
     let t = 0;
     let ultimo = 0;
+    /* Quando `laco` REALMENTE correu pela última vez. Ver `decidir`: o id do
+       quadro não serve de prova de vida, o relógio serve. */
+    let vivoEm = 0;
 
     /* Aleatório com semente. Sem isto, cada `resize` sorteia um desenho novo e
        o fundo "salta" ao arrastar a janela — o movimento que o olho percebe
@@ -356,6 +359,7 @@ export default function FundoCiber() {
     }
 
     function laco(agora) {
+      vivoEm = agora;
       /* Avança pelo tempo REAL decorrido, não por quadro. Sem isso, o fundo
          corre em 120 Hz e arrasta em 30 — a velocidade passaria a depender do
          monitor de quem está olhando. */
@@ -394,7 +398,29 @@ export default function FundoCiber() {
       }
 
       if (deveAnimar()) {
-        if (!quadro) { ultimo = 0; quadro = requestAnimationFrame(laco); }
+        /* O id do quadro NÃO prova que o laço está vivo.
+
+           Um `requestAnimationFrame` agendado enquanto a página não está sendo
+           pintada pode nunca disparar — e o id volta não-zero do mesmo jeito.
+           O `if (!quadro)` que estava aqui lia esse id como "já vem quadro a
+           caminho" e desistia de reagendar; como nada zera o id nesse caminho,
+           desistia para sempre. A conferência periódica logo abaixo rodava a
+           cada 1,5 s e esbarrava nesta mesma guarda, sem poder fazer nada.
+
+           Medido na produção: `decidir()` correndo, `document.hidden` false,
+           `deveAnimar()` true, zero chamadas de rAF em 2 s e zero pixels
+           alterados. O fundo ficava parado até um F5 — e o F5 só resolvia se
+           o carregamento seguinte não caísse no mesmo estado.
+
+           A prova de vida é o RELÓGIO. Reagendar por engano não custa nada: o
+           `cancelAnimationFrame` garante um pendente só. Não reagendar custa o
+           recurso inteiro. */
+        const vivo = quadro && (performance.now() - vivoEm) < 1000;
+        if (!vivo) {
+          cancelAnimationFrame(quadro);
+          ultimo = 0;
+          quadro = requestAnimationFrame(laco);
+        }
       } else {
         umQuadro();
       }

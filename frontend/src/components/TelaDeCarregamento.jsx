@@ -32,6 +32,11 @@ export default function TelaDeCarregamento({ titulo, subtitulo, erro }) {
       alignItems: 'center', justifyContent: 'center', gap: 'var(--mf-4)',
       background: 'var(--mf-bg)', color: 'var(--mf-text)', position: 'relative',
       padding: 'var(--mf-5)', textAlign: 'center',
+      /* `isolation` fecha o contexto de empilhamento aqui, e sem ele o
+         `z-index: -1` do fundo o joga para trás do fundo OPACO desta própria
+         div — o desenho existe e nunca aparece. É a mesma razão pela qual
+         `.mf-app` isola em ponte.css. */
+      isolation: 'isolate',
     }}>
       <FundoCiber />
 
