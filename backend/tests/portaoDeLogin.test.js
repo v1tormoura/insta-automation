@@ -98,6 +98,48 @@ describe('quando o Instagram confirma o limite', () => {
     registrarLimite(60, T0 + 1000);
     expect(conferir(T0 + 120_000).pode).toBe(false);
   });
+
+  test('sem tempo informado, a espera CRESCE a cada limite seguido', () => {
+    /* O defeito que travava a conexão: 429 sem tempo fixava 5 min sempre.
+       Espera 5, tenta, 429 de novo, espera 5 — laço infinito, e cada volta
+       reforça o bloqueio do lado do Instagram. Agora o degrau sobe. */
+    registrarLimite(undefined, T0);                 // 1º: 5 min
+    expect(conferir(T0 + 5 * 60_000 + 1000).pode).toBe(true);
+
+    const T1 = T0 + 6 * 60_000;
+    registrarLimite(undefined, T1);                 // 2º seguido: 15 min
+    expect(conferir(T1 + 14 * 60_000).pode).toBe(false);
+    expect(conferir(T1 + 15 * 60_000 + 1000).pode).toBe(true);
+
+    const T2 = T1 + 16 * 60_000;
+    registrarLimite(undefined, T2);                 // 3º seguido: 45 min
+    expect(conferir(T2 + 44 * 60_000).pode).toBe(false);
+  });
+
+  test('a espera tem teto de 60 min', () => {
+    let t = T0;
+    for (let i = 0; i < 8; i++) { registrarLimite(undefined, t); t += 1000; }
+    // Oito seguidos dariam horas sem o teto.
+    expect(conferir(t + 60 * 60_000 + 1000).pode).toBe(true);
+  });
+
+  test('um período longo sem limite reinicia a sequência', () => {
+    registrarLimite(undefined, T0);                 // 1º: 5 min
+    // Mais de uma janela depois: conta como um novo começo, não o 2º degrau.
+    const T1 = T0 + 61 * 60_000;
+    registrarLimite(undefined, T1);
+    expect(conferir(T1 + 5 * 60_000 + 1000).pode).toBe(true);   // de volta a 5 min
+  });
+
+  test('um sucesso zera a escalada', () => {
+    registrarLimite(undefined, T0);
+    registrarLimite(undefined, T0 + 6 * 60_000);    // já no 2º degrau
+    registrarSucesso(T0 + 7 * 60_000);
+    // O próximo limite recomeça em 5 min, não no 3º degrau.
+    const T1 = T0 + 8 * 60_000;
+    registrarLimite(undefined, T1);
+    expect(conferir(T1 + 5 * 60_000 + 1000).pode).toBe(true);
+  });
 });
 
 describe('depois de um login bem-sucedido', () => {

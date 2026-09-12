@@ -50,6 +50,22 @@ const ESPERA_MAX_MS = 240_000;   // 4 min
    não informa quanto. */
 const ESPERA_APOS_LIMITE_MS = 300_000;   // 5 min
 
+/* ── Por que a espera CRESCE a cada limite seguido ──────────────────────────
+   O 429 quase nunca vem com "espere N segundos": vem só o código. Fixar 5 min
+   para todos os casos criava um laço — espera 5, tenta, 429 de novo, espera 5,
+   para sempre — e cada tentativa dentro do laço reforça o bloqueio no lado do
+   Instagram sem o nosso timer nunca crescer. Foi o que fez a conexão parar de
+   funcionar "de repente" depois de muitas tentativas num dia.
+
+   Agora cada limite seguido multiplica a espera: 5 → 15 → 45 → teto de 60 min.
+   Um sucesso, ou um período longo sem novo limite, zera o contador — o dia
+   seguinte não paga pelo bloqueio do anterior. */
+const BACKOFF_FATOR = 3;
+const ESPERA_LIMITE_TETO_MS = 60 * 60_000;   // 60 min
+/* Sem novo limite por este tempo, a sequência é considerada encerrada. Igual
+   ao teto: se o IP ficou uma hora sem apanhar, o contador não deve mais punir. */
+const JANELA_SEQUENCIA_MS = 60 * 60_000;
+
 let _estado = null;
 
 function carregar() {
@@ -59,8 +75,13 @@ function carregar() {
   } catch {
     /* Primeira execução, ou arquivo corrompido. Começar limpo é o
        comportamento certo: um estado ilegível não pode travar a conexão. */
-    _estado = { ultimaTentativa: 0, bloqueadoAte: 0, proximaLiberacao: 0 };
+    _estado = { ultimaTentativa: 0, bloqueadoAte: 0, proximaLiberacao: 0, limitesSeguidos: 0, ultimoLimiteEm: 0 };
   }
+  /* Campos novos num arquivo gravado por uma versão antiga: preenche sem
+     apagar o resto. Sem isto, `limitesSeguidos` viria `undefined` e o
+     `+ 1` abaixo faria `NaN`. */
+  if (typeof _estado.limitesSeguidos !== 'number') _estado.limitesSeguidos = 0;
+  if (typeof _estado.ultimoLimiteEm !== 'number') _estado.ultimoLimiteEm = 0;
   return _estado;
 }
 
@@ -131,9 +152,25 @@ function registrarTentativa(agora = Date.now(), aleatorio = Math.random) {
  */
 function registrarLimite(segundos, agora = Date.now()) {
   const e = carregar();
-  const ms = Number.isFinite(segundos) && segundos > 0
-    ? segundos * 1000
-    : ESPERA_APOS_LIMITE_MS;
+
+  /* A sequência continua ou recomeça? Se o último limite foi há mais de uma
+     janela, o IP ficou tempo suficiente sem apanhar e a contagem reinicia —
+     senão um bloqueio isolado hoje herdaria o histórico de ontem. */
+  const seguido = e.ultimoLimiteEm > 0 && (agora - e.ultimoLimiteEm) < JANELA_SEQUENCIA_MS;
+  e.limitesSeguidos = seguido ? e.limitesSeguidos + 1 : 1;
+  e.ultimoLimiteEm = agora;
+
+  /* Quando o Instagram informa os segundos, o valor DELE manda — ele conhece
+     o próprio contador. O 429 real, porém, quase nunca traz esse número: vem
+     só o código. É nesse caso, o que trava o usuário, que a espera cresce com
+     a sequência: 5, 15, 45, teto de 60 min. */
+  const informado = Number.isFinite(segundos) && segundos > 0 ? segundos * 1000 : 0;
+  const degrau = Math.min(
+    ESPERA_APOS_LIMITE_MS * Math.pow(BACKOFF_FATOR, e.limitesSeguidos - 1),
+    ESPERA_LIMITE_TETO_MS,
+  );
+  const ms = informado || degrau;
+
   e.bloqueadoAte = Math.max(e.bloqueadoAte, agora + ms);
   gravar();
   return e.bloqueadoAte;
@@ -150,6 +187,11 @@ function registrarLimite(segundos, agora = Date.now()) {
 function registrarSucesso(agora = Date.now()) {
   const e = carregar();
   e.bloqueadoAte = 0;
+  /* A sequência de limites acabou: um login passou, então o IP não está mais
+     bloqueado. Sem zerar aqui, o próximo 429 (horas depois) começaria já no
+     terceiro degrau. */
+  e.limitesSeguidos = 0;
+  e.ultimoLimiteEm = 0;
   e.proximaLiberacao = Math.min(e.proximaLiberacao, agora + ESPERA_MIN_MS / 2);
   gravar();
   return e.proximaLiberacao;
@@ -157,7 +199,7 @@ function registrarSucesso(agora = Date.now()) {
 
 /** Zera tudo — só para teste, e para um comando de manutenção. */
 function limpar() {
-  _estado = { ultimaTentativa: 0, bloqueadoAte: 0, proximaLiberacao: 0 };
+  _estado = { ultimaTentativa: 0, bloqueadoAte: 0, proximaLiberacao: 0, limitesSeguidos: 0, ultimoLimiteEm: 0 };
   try { fs.unlinkSync(ARQUIVO); } catch { /* já não existe */ }
 }
 

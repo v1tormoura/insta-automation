@@ -1661,6 +1661,26 @@ router.get('/preflight', async (req, res) => {
   }
 });
 
+/**
+ * Estado do portão de login por senha, e um jeito de liberá-lo à mão.
+ *
+ * GET  → quanto falta da espera, para a tela mostrar o contador certo depois
+ *        de um F5 (o timer vivia só no modal e sumia ao recarregar).
+ * POST → zera o portão. É a saída para quando a pessoa ESPEROU de verdade e
+ *        quer tentar já, em vez de aguardar o degrau inteiro que uma rajada
+ *        de cliques acumulou. Não remove o limite do Instagram — só o nosso
+ *        espaçamento; se o dele ainda valer, o 429 volta e o portão refecha.
+ */
+router.get('/login/portao', (_req, res) => {
+  const vez = require('../services/portaoDeLogin').conferir();
+  res.json({ pode: vez.pode, esperaSegundos: Math.ceil(vez.esperaMs / 1000), motivo: vez.motivo });
+});
+
+router.post('/login/portao/liberar', (_req, res) => {
+  require('../services/portaoDeLogin').limpar();
+  res.json({ ok: true, mensagem: 'Espaçamento zerado. Se o Instagram ainda estiver limitando o IP, o aviso volta na próxima tentativa.' });
+});
+
 router.get('/check-username/:username', async (req, res) => {
   const alvo = String(req.params.username || '').trim().replace(/^@/, '').toLowerCase();
   if (!alvo) return res.status(400).json({ error: 'username é obrigatório' });
