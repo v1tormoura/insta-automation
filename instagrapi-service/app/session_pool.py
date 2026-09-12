@@ -1971,14 +1971,69 @@ def login_com_desvio_caa(client: Client, username: str, password: str,
 
         _slog("LOGIN_NEEDS_UPGRADE_DESVIO_CAA", "-", username=username,
               build=str((getattr(client, "device_settings", None) or {}).get("app_version")))
-        logged = client._try_caa_login(exc, verification_code=verification_code)
-        if not logged:
+
+        # A mesma lógica de `_try_caa_login`, aberta — porque ela descarta o
+        # `reason` e o conteúdo da resposta, e sem isso "não concluiu" é tudo
+        # o que o log diria. Aqui cada saída do CAA vira uma linha que diz
+        # ONDE parou: recusa do fornecedor, 2FA, desafio, ou uma tela que a
+        # biblioteca não soube ler.
+        try:
+            outcome = client.bloks_caa_login(verification_code=verification_code)
+        except (ChallengeRequired, TwoFactorRequired):
             raise
-        client.login_flow()
-        client.last_login = time.time()
-        client.relogin_attempt = 0
-        _slog("LOGIN_VIA_CAA_OK", "-", username=username)
-        return True
+        except Exception as caa_exc:  # noqa: BLE001
+            _slog(
+                "LOGIN_CAA_FALHOU", "-", username=username,
+                erro=type(caa_exc).__name__, detalhe=str(caa_exc)[:200],
+                http=getattr(getattr(client, "last_response", None), "status_code", None),
+            )
+            raise exc from caa_exc
+
+        if outcome.get("logged_in"):
+            client.login_flow()
+            client.last_login = time.time()
+            client.relogin_attempt = 0
+            _slog("LOGIN_VIA_CAA_OK", "-", username=username)
+            return True
+
+        context = str(outcome.get("two_step_verification_context") or "")
+        if context and not verification_code.strip():
+            _slog("LOGIN_CAA_PEDE_2FA", "-", username=username)
+            raise TwoFactorRequired(
+                f"{exc} (o fluxo CAA devolveu um contexto de dois fatores; informe o código)",
+                response=getattr(exc, "response", None),
+            ) from exc
+        if context:
+            logged = client._login_with_bloks_two_factor(
+                verification_code, {"two_step_verification_context": context}, exc,
+            )
+            if logged:
+                client.login_flow()
+                client.last_login = time.time()
+                client.relogin_attempt = 0
+                _slog("LOGIN_VIA_CAA_OK", "-", username=username, com_2fa=True)
+                return True
+
+        # Sem sessão e sem 2FA: o que a tela dizia? O Bloks não traz frase
+        # legível, mas traz marcadores — e é a presença deles que separa
+        # "senha recusada" de "desafio" de "resposta que a biblioteca não lê".
+        try:
+            texto = client._bloks_all_text(outcome.get("result") or {}).lower()
+        except Exception:  # noqa: BLE001
+            texto = ""
+        marcadores = [m for m in (
+            "checkpoint", "challenge", "two_factor", "two_step", "suspend",
+            "logged_in_user", "login_response", "incorrect", "password",
+            "rate_limit", "feedback_required", "needs_upgrade",
+        ) if m in texto]
+        _slog(
+            "LOGIN_CAA_SEM_SESSAO", "-", username=username,
+            reason=str(outcome.get("reason") or "")[:120],
+            http=getattr(getattr(client, "last_response", None), "status_code", None),
+            marcadores=marcadores, tamanho=len(texto),
+            chaves=sorted((outcome.get("result") or {}).keys())[:8],
+        )
+        raise
 
 
 def classify_error(e: Exception) -> str:
