@@ -173,6 +173,7 @@ export default function Accounts() {
         erro:       data.error || null,
         lastCheck:  data.lastCheck || null,
         isolamento: data.isolamento || null,
+        molde:      data.molde || '',
       }));
       if (data.proxy_url) setProxyUrl(prev => (prev.trim() ? prev : data.proxy_url));
     } catch (err) {
@@ -205,6 +206,37 @@ export default function Accounts() {
       showToast('error', 'Proxy falhou', msg);
     } finally {
       setProxyStatus(s => ({ ...s, testando: false }));
+    }
+  };
+
+  const detectarMolde = async () => {
+    setProxyStatus(s => ({ ...s, detectando: true }));
+    try {
+      const { data } = await api.post('/proxy/detectar-molde', {});
+      if (data.detectado) {
+        setProxyStatus(s => ({ ...s, molde: data.molde, detectando: false }));
+        showToast('success', 'Formato de sessão detectado',
+          `${data.molde} — cada conta sai por um IP próprio (ex.: ${data.ipAmostra}, ${data.ipAmostra2}). Salvo e já valendo.`);
+        carregarStatusProxy();
+      } else {
+        setProxyStatus(s => ({ ...s, detectando: false }));
+        showToast('warning', 'Este proxy não isola por conta', data.mensagem);
+      }
+    } catch (err) {
+      setProxyStatus(s => ({ ...s, detectando: false }));
+      showToast('error', 'Falha ao detectar', err.response?.data?.error || err.message);
+    }
+  };
+
+  const salvarMolde = async (molde) => {
+    try {
+      await api.put('/proxy/molde', { molde });
+      setProxyStatus(s => ({ ...s, molde }));
+      showToast('success', molde ? 'Formato salvo' : 'Formato limpo',
+        molde ? `Cada conta usará ${molde}` : 'Sem isolamento por sessão — as contas dividem o IP do proxy.');
+      carregarStatusProxy();
+    } catch (err) {
+      showToast('error', 'Erro', err.response?.data?.error || err.message);
     }
   };
 
@@ -1627,6 +1659,45 @@ export default function Accounts() {
               O login do Instagram são 4 requisições em sequência; se cada uma sai de um IP
               diferente, ele recusa mesmo com a senha certa. Peça ao seu provedor uma
               <strong> sticky session</strong> (IP fixo por 10–30 min) para conectar contas.
+            </div>
+          )}
+
+          {/* ── Formato de sessão (isolamento por conta) ──────────────────────
+              O sufixo que faz o fornecedor dar um IP por conta. "Detectar" mede
+              qual formato ele aceita e salva — sem SSH, sem .env, sem reiniciar. */}
+          {proxyStatus.ativo && (
+            <div style={{ marginTop:12, padding:'10px 12px', borderRadius:'var(--mf-r-md)',
+              background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                <span style={{ fontSize:'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-text-2)' }}>Formato de sessão</span>
+                {proxyStatus.molde ? (
+                  <span style={{ fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)', padding:'2px 8px', borderRadius:'var(--mf-r-full)',
+                    background:'var(--mf-success-bg)', color:'var(--mf-success-500)' }}>{proxyStatus.molde}</span>
+                ) : (
+                  <span style={{ fontSize:'var(--mf-t-nano)', padding:'2px 8px', borderRadius:'var(--mf-r-full)',
+                    background:'var(--mf-border-subtle)', color:'var(--mf-text-3)' }}>nenhum — contas dividem o IP</span>
+                )}
+                <span style={{ flex:1 }} />
+                <button onClick={detectarMolde} disabled={proxyStatus.detectando}
+                  style={{ padding:'6px 12px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-nano)', fontWeight:700, whiteSpace:'nowrap',
+                    background:'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))',
+                    border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 28%, transparent)',
+                    cursor: proxyStatus.detectando ? 'wait' : 'pointer', opacity: proxyStatus.detectando ? 0.6 : 1 }}>
+                  {proxyStatus.detectando ? 'Detectando…' : 'Detectar automaticamente'}
+                </button>
+                {proxyStatus.molde && (
+                  <button onClick={() => salvarMolde('')}
+                    style={{ padding:'6px 10px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-nano)', fontWeight:700,
+                      background:'transparent', color:'var(--mf-text-3)', border:'1px solid var(--mf-border)', cursor:'pointer' }}>
+                    Limpar
+                  </button>
+                )}
+              </div>
+              <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:6, lineHeight:1.55 }}>
+                {proxyStatus.molde
+                  ? 'Cada conta recebe um identificador próprio e sai por um IP diferente. Ao trocar de fornecedor, clique em Detectar de novo.'
+                  : 'Sem um formato, todas as contas saem pelo mesmo IP do proxy. Clique em Detectar para o sistema descobrir o formato do seu fornecedor.'}
+              </div>
             </div>
           )}
 

@@ -138,21 +138,34 @@ function _contabilizar(origem, ligado = true) {
  * @returns {{url: string, origem: 'conta'|'pool'|'global'|'nenhum'}}
  */
 async function resolverComOrigem(account, { contabilizar = true } = {}) {
-  const own = String(account?.proxy || '').trim();
-  if (own) { _contabilizar('conta', contabilizar); return { url: normalizeProxy(own), origem: 'conta' }; }
-
   const id = account?._id;
+  const molde = await moldeConfigurado();
+
+  /* Aplica o molde de sessão por conta ao resultado.
+
+     O molde é o que faz o Axtron (e afins) darem um IP próprio por conta.
+     Aplicado AQUI, no funil, e não em cada consumidor: login, publicação,
+     sync e warmup passam todos por este ponto, então isolar por conta vira
+     uma linha só. O token é derivado do id da conta — estável entre
+     restarts, para a conta não saltar de IP. Quando não há molde
+     configurado (nem no banco nem no env), devolve a URL crua, como antes,
+     e o Python assume (retrocompatível). */
+  const aplicar = (url) => (id && molde ? moldarSessao(url, molde, tokenDaConta(id)) : url);
+
+  const own = String(account?.proxy || '').trim();
+  if (own) { _contabilizar('conta', contabilizar); return { url: aplicar(normalizeProxy(own)), origem: 'conta' }; }
+
   if (id) {
     try {
       const { reservar } = require('./proxyPool');
       const doPool = await reservar(id);
       if (doPool) {
-        // Grava na conta para as próximas chamadas nem consultarem o pool, e
-        // para o proxy aparecer na tela de Contas como qualquer outro.
+        // Grava na conta a URL CRUA (sem molde) — o molde é por requisição,
+        // não parte da credencial guardada.
         const Account = require('../models/Account');
         await Account.updateOne({ _id: id }, { $set: { proxy: doPool } });
         _contabilizar('pool', contabilizar);
-        return { url: normalizeProxy(doPool), origem: 'pool' };
+        return { url: aplicar(normalizeProxy(doPool)), origem: 'pool' };
       }
     } catch (err) {
       // Pool indisponível não pode impedir a publicação de uma conta que já
@@ -164,7 +177,7 @@ async function resolverComOrigem(account, { contabilizar = true } = {}) {
   const global = await getGlobalProxyUrl();
   const origem = global ? 'global' : 'nenhum';
   _contabilizar(origem, contabilizar);
-  return { url: global, origem };
+  return { url: aplicar(global), origem };
 }
 
 /**
@@ -177,6 +190,29 @@ async function resolverComOrigem(account, { contabilizar = true } = {}) {
  */
 function moldeDeSessao() {
   return (process.env.PROXY_SESSAO_MOLDE || '').trim();
+}
+
+/**
+ * O molde efetivo: o configurado no painel (banco) tem prioridade; sem ele,
+ * o do `.env`. É o que permite trocar de fornecedor pela tela, sem editar
+ * arquivo nem recriar container.
+ */
+async function moldeConfigurado() {
+  try {
+    const cfg = await getGlobalProxyConfig();
+    const doBanco = (cfg?.sessionMolde || '').trim();
+    if (doBanco) return doBanco;
+  } catch { /* sem banco: cai no env */ }
+  return moldeDeSessao();
+}
+
+/** Token de sessão estável por conta — espelha `sessao_da_conta` do Python. */
+function tokenDaConta(accountId) {
+  return require('crypto')
+    .createHash('sha256')
+    .update(`proxy-sessao:${accountId}`)
+    .digest('hex')
+    .slice(0, 12);
 }
 
 /**
@@ -210,5 +246,7 @@ module.exports = {
   resolveProxyFor,
   resolverComOrigem,
   moldeDeSessao,
+  moldeConfigurado,
+  tokenDaConta,
   moldarSessao,
 };

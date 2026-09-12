@@ -1158,10 +1158,21 @@ def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
         return url
 
     usuario, senha = credenciais.split(":", 1)
-    sufixo = molde.replace("{sessao}", sessao_da_conta(account_id))
 
-    # Não duplica: chamar duas vezes para a mesma conta tem de dar o mesmo
-    # resultado, senão o identificador se acumularia a cada login.
+    # O NODE JÁ MOLDOU? Não molda de novo.
+    #
+    # O molde passou a poder ser configurado pelo painel (vive no banco, que
+    # o Node lê), e nesse caso o Node já entrega a URL com o `__sessid.<hash>`
+    # embutido. Se o Python moldasse por cima, sairia `__sessid.a__sessid.b`
+    # — credencial inválida. Basta o PREFIXO estático do molde já estar no
+    # usuário para saber que a sessão já foi posta (pelo Node, ou por uma
+    # passagem anterior desta função). O prefixo é a parte antes de
+    # `{sessao}`: em `__sessid.{sessao}`, é `__sessid.`.
+    prefixo = molde.split("{sessao}", 1)[0]
+    if prefixo and prefixo in usuario:
+        return url
+
+    sufixo = molde.replace("{sessao}", sessao_da_conta(account_id))
     if sufixo in usuario:
         return url
 

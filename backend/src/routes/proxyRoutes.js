@@ -26,6 +26,7 @@ router.get('/status', async (req, res) => {
       error:      cfg.error,
       lastCheck:  cfg.lastCheck,
       isolamento: cfg.isolamento || null,   // persistido no último teste
+      molde:      cfg.sessionMolde || (process.env.PROXY_SESSAO_MOLDE || '').trim() || '',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -80,8 +81,8 @@ router.post('/test', async (req, res) => {
      * Aqui medimos DUAS sessões de amostra: se derem IPs diferentes, o
      * isolamento por conta está funcionando, e é esse IP (o de amostra) que
      * representa o que as contas usam. */
-    const { moldeDeSessao, moldarSessao } = require('../services/globalProxy');
-    const molde = moldeDeSessao();
+    const { moldeConfigurado, moldarSessao } = require('../services/globalProxy');
+    const molde = await moldeConfigurado();
     let isolamento = null;
     if (result.ok && molde && url.includes('@')) {
       try {
@@ -395,6 +396,88 @@ router.delete('/pool', async (req, res) => {
     res.json({ removido, resumo: await resumo() });
   } catch (err) {
     res.status(500).json({ error: 'Não foi possível remover', detalhe: err.message });
+  }
+});
+
+/* ── Molde de sessão: detectar e configurar pela tela ──────────────────────
+ *
+ * O "formato de sessão" é o sufixo que faz o fornecedor dar um IP por conta
+ * (no Axtron, `__sessid.{sessao}`). Antes vivia só no `.env` e exigia SSH +
+ * recriar container. Agora é configurável no painel: o botão "Detectar" mede
+ * qual formato o fornecedor aceita, e o valor fica no banco — o Node passa a
+ * aplicá-lo por conta na hora, sem reiniciar nada. */
+
+// Os mesmos candidatos da sonda do Python, `__` primeiro (formato do Axtron).
+const MOLDES_CANDIDATOS = [
+  '__sessid.{sessao}', '__session.{sessao}', '__sess.{sessao}', '__sid.{sessao}',
+  '-session-{sessao}', '_session-{sessao}', ';session.{sessao}', '-sessid-{sessao}',
+  ';sid.{sessao}', ';sticky.{sessao}',
+];
+
+/**
+ * POST /proxy/detectar-molde — descobre o formato de sessão do proxy atual.
+ *
+ * Para cada candidato, mede DUAS sessões: se derem IPs diferentes (as duas
+ * válidas), o formato isola por conta. O primeiro que isolar vence, é salvo no
+ * banco e passa a valer na hora.
+ */
+router.post('/detectar-molde', async (req, res) => {
+  try {
+    const cfg = await getGlobalProxyConfig();
+    const url = normalizeProxy(req.body?.proxy_url || cfg.url);
+    if (!url)  return res.status(400).json({ error: 'Configure o proxy global primeiro.' });
+    if (!url.includes('@')) return res.status(400).json({ error: 'O proxy precisa de usuário e senha para ter sessão por conta.' });
+
+    const { moldarSessao } = require('../services/globalProxy');
+    const testados = [];
+    let vencedor = null;
+
+    for (const molde of MOLDES_CANDIDATOS) {
+      const uA = moldarSessao(url, molde, 'detecta0a1b2c3d');
+      const uB = moldarSessao(url, molde, 'detecta9z8y7x6w');
+      let a, b;
+      try {
+        [a, b] = await Promise.all([testProxy(uA), testProxy(uB)]);
+      } catch { testados.push({ molde, isola: false, erro: 'falha' }); continue; }
+      const isola = !!(a.ok && b.ok && a.ip && b.ip && a.ip !== b.ip);
+      testados.push({ molde, isola, ips: [a.ip || '—', b.ip || '—'] });
+      if (isola) { vencedor = { molde, ipAmostra: a.ip, ipAmostra2: b.ip }; break; }
+    }
+
+    if (vencedor) {
+      await saveGlobalProxyConfig({ sessionMolde: vencedor.molde });
+      return res.json({
+        ok: true, detectado: true, molde: vencedor.molde,
+        ipAmostra: vencedor.ipAmostra, ipAmostra2: vencedor.ipAmostra2,
+        mensagem: `Formato de sessão "${vencedor.molde}" isola por conta. Salvo — cada conta já sai por um IP próprio.`,
+        testados,
+      });
+    }
+
+    return res.json({
+      ok: true, detectado: false, molde: '',
+      mensagem: 'Nenhum formato conhecido isolou por conta neste proxy. Ele provavelmente dá um IP só — peça sessão/zona por conta ao fornecedor, ou use o pool com uma credencial por conta.',
+      testados,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Não foi possível detectar', detalhe: err.message });
+  }
+});
+
+/**
+ * PUT /proxy/molde — grava (ou limpa) o formato de sessão à mão.
+ * Body: { molde }  — vazio limpa. Precisa conter `{sessao}` quando não vazio.
+ */
+router.put('/molde', async (req, res) => {
+  const molde = String(req.body?.molde || '').trim();
+  if (molde && !molde.includes('{sessao}')) {
+    return res.status(400).json({ error: 'O formato precisa conter {sessao} onde entra o identificador da conta.' });
+  }
+  try {
+    await saveGlobalProxyConfig({ sessionMolde: molde });
+    res.json({ ok: true, molde });
+  } catch (err) {
+    res.status(500).json({ error: 'Não foi possível salvar', detalhe: err.message });
   }
 });
 
