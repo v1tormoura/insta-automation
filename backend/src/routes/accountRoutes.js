@@ -1197,6 +1197,42 @@ function _getHttp() {
   return new InstagrapiHttpClient(null, sm);
 }
 
+/**
+ * Extrai o `sessionid` de qualquer coisa que a pessoa cole.
+ *
+ * Pegar o valor EXATO no DevTools é a etapa que mais falha: a pessoa copia a
+ * linha inteira do cookie, ou o `document.cookie` todo, ou o valor com aspas,
+ * ou já url-encoded. Todos esses casos falhavam com "sessionid não informado"
+ * — o dado estava lá, só não sozinho. Aqui a gente aceita o que vier e acha o
+ * sessionid dentro, em vez de exigir que ela o isole à mão.
+ *
+ * O sessionid do Instagram tem a forma `<números>%3A<alfanum>%3A<números>`
+ * (dois pontos url-encoded). Reconhecê-lo por essa forma é o que permite
+ * pescá-lo de um blob de vários cookies.
+ */
+function _extrairSessionid(cru) {
+  let texto = String(cru || '').trim();
+  if (!texto) return '';
+
+  // "sessionid=VALOR; outro=..." (linha de cookie ou document.cookie inteiro)
+  const marcado = texto.match(/sessionid\s*=\s*([^;,\s"']+)/i);
+  if (marcado) texto = marcado[1];
+
+  texto = texto.replace(/^["']|["']$/g, '').trim();   // aspas de cópia
+  try { texto = decodeURIComponent(texto); } catch { /* já decodificado */ }
+
+  /* Se ainda sobrou um blob (colou algo maior sem `sessionid=`), pesca o
+     token no formato do Instagram: 8+ dígitos, `:`, alfanum, `:`, dígitos. */
+  if (!/^\d+%3A|^\d+:/i.test(texto)) {
+    const achado = texto.match(/\d{5,}(?:%3A|:)[A-Za-z0-9]+(?:%3A|:)\d+/);
+    if (achado) {
+      texto = achado[0];
+      try { texto = decodeURIComponent(texto); } catch { /* ok */ }
+    }
+  }
+  return texto.trim();
+}
+
 // ── Helper: per-account login lock (Redis, TTL 35 s) ─────────────────────────
 //
 // Key: "iglock:login:{accountId}" — distinct from session mutation lock "iglock:{accountId}".
@@ -1807,9 +1843,8 @@ router.post('/instagrapi-sessionid-new', async (req, res) => {
   const clean = (req.body.username || '').trim().replace(/^@/, '').toLowerCase();
   if (!clean) return res.status(400).json({ error: 'username não informado' });
 
-  let sessionid = (req.body.sessionid || '').trim();
-  try { sessionid = decodeURIComponent(sessionid); } catch { /* já decodificado */ }
-  if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
+  const sessionid = _extrairSessionid(req.body.sessionid);
+  if (!sessionid) return res.status(400).json({ error: 'Não encontrei um sessionid no que foi colado. Cole o valor do cookie "sessionid" — ou a linha inteira dele, que eu extraio.' });
 
   let account;
   let _isNew = false;
@@ -1854,9 +1889,8 @@ router.post('/:id/instagrapi-sessionid', async (req, res) => {
   const account = await Account.findById(req.params.id).catch(() => null);
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
 
-  let sessionid = (req.body.sessionid || '').trim();
-  if (!sessionid) return res.status(400).json({ error: 'sessionid não informado' });
-  try { sessionid = decodeURIComponent(sessionid); } catch { /* já decodificado */ }
+  const sessionid = _extrairSessionid(req.body.sessionid);
+  if (!sessionid) return res.status(400).json({ error: 'Não encontrei um sessionid no que foi colado. Cole o valor do cookie "sessionid" — ou a linha inteira dele, que eu extraio.' });
 
   const accountId = String(account._id);
   const http = _getHttp();
@@ -2115,3 +2149,6 @@ router.post('/clear-oauth-tokens', async (req, res) => {
 });
 
 module.exports = router;
+// Exposto para teste — a extração de sessionid é onde a conexão por Session ID
+// mais falhava, e merece cobertura própria.
+module.exports._extrairSessionid = _extrairSessionid;
