@@ -279,6 +279,22 @@ async function checkViaInstagrapi(account) {
         return { status: 'sessao_expirada', error: 'Sessão expirada — reconecte a conta' };
       }
 
+      /* Suspensa pelo Instagram — é o estado terminal, e precisa virar
+         `banida` AQUI, não só na rota de login.
+
+         Medido no log de produção: duas contas suspensas às 22:02 continuaram
+         sendo pingadas a cada ciclo — 22:22, 22:37, 22:42, 22:57, 23:13,
+         23:18 — porque o código caía no "erro desconhecido, transitório"
+         abaixo e a conta seguia `ativa`. Cada ping é uma requisição de uma
+         conta suspensa saindo pelo mesmo IP e aparelho das outras. Para o
+         Instagram, isso reforça que este endereço opera contas suspensas —
+         e as vizinhas pagam por isso. `banida` tira a conta de todos os jobs
+         e cancela o que ela tinha na fila (ver `cancelAccountWork` abaixo). */
+      if (code === 'ACCOUNT_SUSPENDED') {
+        await sm.recordFailure(accountId, pingErr);
+        return { status: 'banida', error: 'Conta suspensa pelo Instagram' };
+      }
+
       // Desafio pendente — conta restrita, sessão não apagada
       if (code === 'CHALLENGE_REQUIRED') {
         return { status: 'restrita', error: 'Verificação necessária no app Instagram' };
@@ -387,6 +403,15 @@ async function checkOneAccount(account) {
       console.log(`⚠️ [HealthCheck] @${fresh.username} (instagrapi) — sessão expirada`);
     } else if (result.status === 'restrita') {
       console.log(`⚠️ [HealthCheck] @${fresh.username} (instagrapi) — restrita/challenge`);
+    } else if (result.status === 'banida') {
+      /* O mesmo isolamento do caminho legado (mais abaixo), que este ramo
+         nunca alcançava por causa do `return`. `status` — e não só
+         `healthStatus` — porque é `status` que os jobs filtram
+         (`status: { $ne: 'banida' }`): sem ele a conta suspensa continuava
+         na fatia de cada sincronização e em cada rodada de publicação. */
+      update.status = 'banida';
+      console.log(`🚫 [HealthCheck] @${fresh.username} (instagrapi) — suspensa pelo Instagram, isolada de todos os jobs`);
+      require('../utils/cancelAccountWork')(fresh._id, `Conta @${fresh.username} suspensa pelo Instagram`).catch(() => {});
     } else if (result.status === 'ativa' && currentStatus !== 'ativa') {
       console.log(`✅ [HealthCheck] @${fresh.username} (instagrapi) — recuperada (era ${currentStatus})`);
     }

@@ -144,6 +144,18 @@ async function _keepAliveInstagrapi(account) {
       return { status: 'expirada', error: err.message };
     }
 
+    // Suspensa — terminal. Isola de todos os jobs; não há sessão a preservar.
+    if (code === 'ACCOUNT_SUSPENDED') {
+      await Account.findByIdAndUpdate(accountId, {
+        status:       'banida',
+        healthStatus: 'banida',
+        lastError:    'Conta suspensa pelo Instagram',
+      }).catch(() => {});
+      require('../utils/cancelAccountWork')(accountId, `Conta @${label} suspensa pelo Instagram`).catch(() => {});
+      console.log(`🚫 [KeepAlive] ${label} (instagrapi) — suspensa pelo Instagram, isolada`);
+      return { status: 'banida', error: err.message };
+    }
+
     // Desafio / rate-limit — preservar sessão
     if (
       code === 'CHALLENGE_REQUIRED' || code === 'FEEDBACK_REQUIRED' ||

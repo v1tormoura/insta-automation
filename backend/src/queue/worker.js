@@ -153,6 +153,10 @@ const _IG_HEALTH = {
   CHALLENGE_REQUIRED:    'restrita',
   FEEDBACK_REQUIRED:     'restrita',
   RATE_LIMITED:          'restrita',
+  /* Faltava. Sem esta linha a suspensão caía em `classifyError`, que a lê
+     como transitória, e a conta suspensa seguia recebendo tentativa de
+     publicação a cada rodada — da mesma fila, pelo mesmo IP das outras. */
+  ACCOUNT_SUSPENDED:     'banida',
 };
 
 // Exponential backoff with jitter for RATE_LIMITED responses.
@@ -487,7 +491,15 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
        publicação falha e é reprocessada; a conta só muda de estado quando o
        Instagram diz alguma coisa sobre ELA. */
     if (classificado) healthUpdate.healthStatus = classificado;
-    else {
+    if (classificado === 'banida') {
+      /* `status` e não só `healthStatus`: é `status` que os jobs filtram.
+         E o trabalho pendente da conta sai da fila agora — deixar as outras
+         rodadas descobrirem sozinhas custaria uma tentativa por rodada, cada
+         uma saindo pelo IP compartilhado com as contas que ainda vivem. */
+      healthUpdate.status = 'banida';
+      require('../utils/cancelAccountWork')(acc._id, `Conta @${acc.username} suspensa pelo Instagram`).catch(() => {});
+    }
+    if (!classificado) {
       console.log(
         `[worker] erro não classificado em @${acc.username} — saúde preservada. code=${err?.code || '-'} msg=${String(err?.message || '').slice(0, 120)}`
       );

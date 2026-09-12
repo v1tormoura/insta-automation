@@ -23,8 +23,25 @@ async function syncInstagrapiAccount(account) {
 
   const http = new InstagrapiHttpClient(null, getSessionManager());
 
-  await http.ensureSession(account);
-  const info = await http.getUserInfo(account, account.username);
+  let info;
+  try {
+    await http.ensureSession(account);
+    info = await http.getUserInfo(account, account.username);
+  } catch (err) {
+    /* Suspensa: terminal. Sem isto o erro subia para o job, que só registrava
+       uma linha de log e voltava a tentar na fatia seguinte — medido em
+       produção, `get_user_info: ACCOUNT_SUSPENDED` repetindo para a mesma
+       conta enquanto ela seguia `ativa` e dentro das rodadas de publicação. */
+    if (err?.code === 'ACCOUNT_SUSPENDED') {
+      await Account.findByIdAndUpdate(account._id, {
+        status:       'banida',
+        healthStatus: 'banida',
+        lastError:    'Conta suspensa pelo Instagram',
+      }).catch(() => {});
+      require('../utils/cancelAccountWork')(account._id, `Conta @${account.username} suspensa pelo Instagram`).catch(() => {});
+    }
+    throw err;
+  }
 
   const update = {
     lastSync:                new Date(),
