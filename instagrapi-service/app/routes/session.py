@@ -51,10 +51,20 @@ async def load_session(body: LoadRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
+        # MOLDADO, como no login. Aqui entrava a URL crua: `lembrar_proxy`
+        # guardava a moldada, mas o CLIENTE — que é quem fala com o Instagram
+        # — ficava com a crua. Como o restore roda após cada reinício e antes
+        # de cada publicação, a fixação de IP valia só até o primeiro restart:
+        # dali em diante toda conta saía pelo IP rotativo, sem sufixo, e o log
+        # não tinha como mostrar porque o moldado é que estava registrado.
+        proxy = body.proxy
+        if proxy:
+            await _preparar_molde(proxy)
+            proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
         try:
             client.set_settings(body.settings)
-            if body.proxy:
-                client.set_proxy(body.proxy)
+            if proxy:
+                client.set_proxy(proxy)
             session_pool.lembrar_proxy(body.account_id, body.proxy)
         except Exception as e:
             logger.exception("load_session: set_settings failed for %s", body.account_id)
@@ -112,6 +122,7 @@ async def login(body: LoginRequest):
         if proxy:
             # Molda a sessão fixa antes de aplicar: o proxy é rotativo, e sem o
             # identificador por conta o IP mudaria a cada conexão.
+            await _preparar_molde(proxy)
             proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
             client.set_proxy(proxy)
         session_pool.lembrar_proxy(body.account_id, proxy)
@@ -135,8 +146,9 @@ async def login(body: LoginRequest):
             # deixava de responder a pergunta mais frequente diante de um 407:
             # "o fornecedor recusou a credencial, ou recusou o que a gente
             # acrescentou nela?". Um booleano resolve sem expor nada.
-            moldado=bool(proxy and session_pool._sufixo_do_molde(body.account_id)
-                         and session_pool._sufixo_do_molde(body.account_id) in proxy),
+            moldado=bool(proxy and session_pool._sufixo_do_molde(body.account_id, proxy)
+                         and session_pool._sufixo_do_molde(body.account_id, proxy) in proxy),
+            molde=session_pool.molde_efetivo(proxy) or "(nenhum)",
         )
 
         # E de qual IP o Instagram vai enxergar esta sessão. A linha acima diz
@@ -329,6 +341,7 @@ async def diagnostico(body: DiagnosticoRequest):
         if proxy:
             # Molda a sessão fixa antes de aplicar: o proxy é rotativo, e sem o
             # identificador por conta o IP mudaria a cada conexão.
+            await _preparar_molde(proxy)
             proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
             client.set_proxy(proxy)
         session_pool.lembrar_proxy(body.account_id, proxy)
@@ -400,18 +413,27 @@ async def sondar_proxy(body: DiagnosticoRequest):
     return resultado
 
 
-# Sufixos que os fornecedores residenciais usam para fixar o IP. A ordem segue
-# a frequência com que aparecem — o primeiro que fixar encerra a busca.
-_MOLDES_CANDIDATOS = [
-    ";session.{sessao}",
-    "-session-{sessao}",
-    "-sessid-{sessao}",
-    "_session-{sessao}",
-    ";sessid.{sessao}",
-    ";sid.{sessao}",
-    ";sticky.{sessao}",
-    "-sid-{sessao}",
-]
+# A lista de sufixos e a sonda moram em `session_pool` agora — é lá que a
+# descoberta automática roda, no primeiro login por fornecedor. Aqui ficam só
+# os nomes antigos, para a rota e para quem os importava.
+_MOLDES_CANDIDATOS = session_pool.MOLDES_CANDIDATOS
+
+
+async def _preparar_molde(proxy: str | None) -> None:
+    """
+    Garante que o molde deste fornecedor já foi descoberto — FORA do event loop.
+
+    `descobrir_molde` faz até 18 requisições pelo proxy e é bloqueante; aqui
+    ela vai para o executor, e `moldar_proxy_por_conta` (síncrona, chamada em
+    seguida) só lê o resultado guardado. Uma vez por fornecedor: nas conexões
+    seguintes isto volta na hora.
+    """
+    if not proxy:
+        return
+    laco = asyncio.get_running_loop()
+    await laco.run_in_executor(
+        None, lambda: session_pool.descobrir_molde(proxy, preflight=_preflight_proxy)
+    )
 
 
 def _preflight_proxy(url: str) -> dict:
@@ -528,78 +550,9 @@ def _preflight_proxy(url: str) -> dict:
 
 
 def _sondar_moldes(proxy: str) -> dict:
-    """Mede cada candidato duas vezes. IP igual = o fornecedor entendeu."""
-    import requests
+    """A sonda mora em `session_pool.sondar_moldes`; aqui só o preflight entra."""
+    return session_pool.sondar_moldes(proxy, preflight=_preflight_proxy)
 
-    def _ip(url: str) -> str | None:
-        p = {"http": url, "https": url}
-        return requests.get("https://api.ipify.org", proxies=p, timeout=25).text.strip()
-
-    def _com_sufixo(url: str, sufixo: str) -> str:
-        esquema, resto = url.split("://", 1)
-        credenciais, destino = resto.rsplit("@", 1)
-        usuario, senha = credenciais.split(":", 1)
-        return f"{esquema}://{usuario}{sufixo}:{senha}@{destino}"
-
-    saida = {"linha_de_base": None, "candidatos": [], "molde_aceito": None, "erros": []}
-
-    # Linha de base: sem parâmetro nenhum. Se já for estável, o proxy é
-    # dedicado e não há rotação para conter — nenhum molde é necessário.
-    try:
-        a, b = _ip(proxy), _ip(proxy)
-        saida["linha_de_base"] = {"ips": sorted({a, b}), "estavel": a == b}
-        if a == b:
-            saida["molde_aceito"] = ""
-            saida["conclusao"] = (
-                "O proxy já entrega IP fixo sem parâmetro nenhum. "
-                "Deixe PROXY_SESSAO_MOLDE vazio."
-            )
-            return saida
-    except Exception as e:  # noqa: BLE001
-        saida["erros"].append(f"linha de base: {type(e).__name__}"[:120])
-        # Falhou sem molde nenhum, então não é o molde. Sondar em camadas é o
-        # que separa rede de credencial de parsing — dizer "confira credencial
-        # e porta" mandaria investigar duas causas ignorando as outras duas.
-        saida["preflight"] = _preflight_proxy(proxy)
-        saida["conclusao"] = saida["preflight"].get("conclusao", "O proxy não respondeu.")
-        return saida
-
-    for indice, molde in enumerate(_MOLDES_CANDIDATOS):
-        # Identificador FIXO por candidato, não derivado de hash(): em Python o
-        # hash de string é aleatorizado por processo, e a sondagem daria um
-        # resultado diferente a cada execução — impossível de conferir duas
-        # vezes. O que precisa ser igual são as DUAS medições do mesmo
-        # candidato, e isso o sufixo calculado uma vez já garante.
-        sufixo = molde.replace("{sessao}", f"mfsonda{indice}")
-        try:
-            url = _com_sufixo(proxy, sufixo)
-            a, b = _ip(url), _ip(url)
-            fixou = a == b
-            saida["candidatos"].append({
-                "molde": molde, "fixou": fixou, "ips": sorted({a, b}),
-            })
-            if fixou:
-                saida["molde_aceito"] = molde
-                saida["conclusao"] = (
-                    "Ponha isto no .env e recrie o servico do instagrapi: "
-                    f"PROXY_SESSAO_MOLDE={molde} — a partir dai cada conta "
-                    "recebe um identificador proprio e um IP que nao muda "
-                    "durante o login."
-                )
-                return saida
-        except Exception as e:  # noqa: BLE001
-            # Recusa também é informação: o fornecedor validou o parâmetro e
-            # não gostou, o que ao menos diz que ele olha para esse campo.
-            saida["candidatos"].append({
-                "molde": molde, "fixou": False, "erro": type(e).__name__,
-            })
-
-    saida["conclusao"] = (
-        "Nenhum dos moldes conhecidos fixou o IP. Pergunte ao fornecedor qual "
-        "parâmetro ativa a sessão fixa — é um sufixo no nome de usuário — e "
-        "ponha em PROXY_SESSAO_MOLDE com {sessao} no lugar do valor."
-    )
-    return saida
 
 
 async def loop_ip_de_saida(client, account_id: str, proxy: str | None) -> str | None:
@@ -977,6 +930,7 @@ async def login_by_sessionid(body: SessionIdLoginRequest):
         if proxy:
             # Molda a sessão fixa antes de aplicar: o proxy é rotativo, e sem o
             # identificador por conta o IP mudaria a cada conexão.
+            await _preparar_molde(proxy)
             proxy = session_pool.moldar_proxy_por_conta(proxy, body.account_id)
             client.set_proxy(proxy)
         session_pool.lembrar_proxy(body.account_id, proxy)

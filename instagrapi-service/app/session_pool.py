@@ -445,8 +445,14 @@ _MODELOS = [
     ("Motorola", "bangkk",  "moto g84 5G",      "qcom",   "420dpi", "1080x2400", [33, 34]),
     ("Motorola", "fogona",  "moto g54 5G",      "mt6855", "420dpi", "1080x2400", [33, 34]),
     ("Motorola", "penangf", "moto e13",         "ums9230","280dpi", "720x1600",  [33]),
-    ("Motorola", "rhodep",  "moto g73 5G",      "mt6833", "400dpi", "1080x2400", [33, 34]),
-    ("Motorola", "devon",   "moto g52",         "qcom",   "400dpi", "1080x2400", [33]),
+    # Era "moto g73 5G / rhodep / mt6833": codinome do g52, chipset de nenhum
+    # dos dois, e o g73 de verdade (devon / mt6855) entra mais abaixo. Um
+    # modelo com dois hardwares é aparelho implausível — sinal. Corrigido para
+    # um aparelho REAL com mt6833 (Dimensity 700), mesma resolução e mesmas
+    # versões, para não deslocar o índice de ninguém. Só a conta que estava
+    # neste índice muda de celular — uma vez, e para um que existe.
+    ("Samsung",  "a22x",    "SM-A226B",         "mt6833", "400dpi", "1080x2400", [33, 34]),
+    ("Motorola", "rhodep",  "moto g52",         "qcom",   "400dpi", "1080x2400", [33]),
     ("Motorola", "bronco",  "moto g32",         "qcom",   "400dpi", "1080x2400", [33]),
 
     # ── Xiaomi / Redmi / POCO ─────────────────────────────────────────────────
@@ -508,9 +514,13 @@ _MODELOS = [
 
     # ── Motorola, a segunda maior base por aqui ───────────────────────────────
     ("Motorola", "devon",   "moto g73 5G",      "mt6855", "400dpi", "1080x2400", [33, 34]),
-    ("Motorola", "rhodep",  "moto g54 5G",      "mt6855", "400dpi", "1080x2400", [33, 34]),
+    # Era "moto g54 5G / rhodep / 400dpi" — o g54 já está acima como
+    # fogona/420dpi, e rhodep é o g52. Virou o g34 5G, que é outro aparelho.
+    ("Motorola", "fogos",   "moto g34 5G",      "qcom",   "280dpi", "720x1600",  [33, 34]),
     ("Motorola", "penang",  "moto g23",         "mt6768", "400dpi", "1080x2400", [33]),
-    ("Motorola", "rtwo",    "motorola edge 40", "mt6895", "420dpi", "1080x2400", [33, 34]),
+    # Era "motorola edge 40 / rtwo / mt6895" — o edge 40 já está acima como
+    # eqs/mt6891, e rtwo é o edge 40 PRO (Snapdragon). Nomeado como o que é.
+    ("Motorola", "rtwo",    "motorola edge 40 pro", "qcom", "420dpi", "1080x2400", [33, 34]),
 
     # ── Xiaomi / Redmi / POCO ─────────────────────────────────────────────────
     ("Xiaomi", "ruby",  "22101316UG", "mt6877", "440dpi", "1080x2400", [33, 34]),
@@ -522,7 +532,10 @@ _MODELOS = [
 
     # ── Google ────────────────────────────────────────────────────────────────
     ("Google", "lynx",  "Pixel 7a", "tensor", "420dpi", "1080x2400", [33, 34]),
-    ("Google", "shiba", "Pixel 8",  "tensor", "420dpi", "1080x2400", [34, 35]),
+    # Era "Pixel 8 / shiba / 420dpi" — o Pixel 8 já está acima com 480dpi, e o
+    # mesmo modelo com duas densidades é a mesma contradição do g73. Virou o
+    # Pixel 8 Pro: outro aparelho, e o que o serviço já anuncia como padrão.
+    ("Google", "husky", "Pixel 8 Pro", "tensor", "480dpi", "1344x2992", [34, 35]),
 
     # ── Android 15 nos modelos que JÁ estão acima ─────────────────────────────
     #
@@ -858,6 +871,178 @@ def sessao_da_conta(account_id: str) -> str:
     return hashlib.sha256(f"proxy-sessao:{account_id}".encode()).hexdigest()[:12]
 
 
+# ── Descoberta automática do molde ───────────────────────────────────────────
+#
+# A sonda que testa as sintaxes dos fornecedores existia desde o começo — como
+# rota e como script. O que ela pedia era que alguém a rodasse, lesse a
+# resposta, editasse o `.env` e recriasse o serviço. Ninguém fez, e o efeito
+# foi o pior dos dois mundos por meses: proxy rotativo SEM sessão fixa. Contas
+# diferentes caindo no mesmo IP, e a MESMA conta trocando de IP entre uma
+# requisição e a seguinte — o padrão de conta invadida.
+#
+# Agora o serviço descobre sozinho, uma vez por fornecedor (host:porta), na
+# primeira vez que vê aquele proxy. `PROXY_SESSAO_MOLDE` continua mandando
+# quando definido; a descoberta só entra no vazio.
+#
+# Chave por fornecedor e não por URL: o molde é propriedade do fornecedor, e a
+# mesma credencial com sufixos diferentes por conta é a mesma URL crua.
+
+MOLDES_CANDIDATOS = [
+    ";session.{sessao}",
+    "-session-{sessao}",
+    "-sessid-{sessao}",
+    "_session-{sessao}",
+    ";sessid.{sessao}",
+    ";sid.{sessao}",
+    ";sticky.{sessao}",
+    "-sid-{sessao}",
+]
+
+_moldes_descobertos: dict[str, str] = {}   # host:porta -> molde ('' = nenhum fixou, ou IP já dedicado)
+_lock_moldes = threading.Lock()
+
+
+def _chave_do_fornecedor(url: str | None) -> str:
+    """`host:porta` do proxy — o que o molde não altera, e o que o identifica."""
+    if not url:
+        return ""
+    from urllib.parse import urlsplit
+    try:
+        p = urlsplit(url if "://" in url else "http://" + url)
+        return f"{p.hostname}:{p.port or 80}"
+    except Exception:  # noqa: BLE001
+        return url
+
+
+def sondar_moldes(proxy: str, preflight=None) -> dict:
+    """
+    Qual sufixo faz ESTE fornecedor fixar o IP? Medido, não presumido.
+
+    Cada candidato é testado duas vezes com o mesmo identificador. IP igual
+    nas duas: o fornecedor entendeu o parâmetro e prendeu o IP. IP diferente:
+    ignorou. Nenhum login é tentado; só o ipify é consultado.
+
+    `preflight` (opcional) é chamado quando nem a URL crua responde, para
+    separar rede de credencial de parsing — mora na camada de rotas porque é
+    de lá que veio.
+    """
+    import requests
+
+    def _ip(url: str) -> str | None:
+        p = {"http": url, "https": url}
+        return requests.get("https://api.ipify.org", proxies=p, timeout=25).text.strip()
+
+    def _com_sufixo(url: str, sufixo: str) -> str:
+        esquema, resto = url.split("://", 1)
+        credenciais, destino = resto.rsplit("@", 1)
+        usuario, senha = credenciais.split(":", 1)
+        return f"{esquema}://{usuario}{sufixo}:{senha}@{destino}"
+
+    saida: dict = {"linha_de_base": None, "candidatos": [], "molde_aceito": None, "erros": []}
+
+    # Linha de base: sem parâmetro nenhum. Estável = IP dedicado, sem rotação
+    # a conter; nenhum molde é necessário.
+    try:
+        a, b = _ip(proxy), _ip(proxy)
+        saida["linha_de_base"] = {"ips": sorted({a, b}), "estavel": a == b}
+        if a == b:
+            saida["molde_aceito"] = ""
+            saida["conclusao"] = "O proxy já entrega IP fixo sem parâmetro nenhum."
+            return saida
+    except Exception as e:  # noqa: BLE001
+        saida["erros"].append(f"linha de base: {type(e).__name__}"[:120])
+        if preflight is not None:
+            saida["preflight"] = preflight(proxy)
+            saida["conclusao"] = saida["preflight"].get("conclusao", "O proxy não respondeu.")
+        else:
+            saida["conclusao"] = "O proxy não respondeu."
+        return saida
+
+    if "@" not in proxy:
+        saida["conclusao"] = "Proxy sem credencial: não há nome de usuário onde pôr o sufixo."
+        return saida
+
+    for indice, molde in enumerate(MOLDES_CANDIDATOS):
+        # Identificador FIXO por candidato: o que precisa ser igual são as duas
+        # medições do MESMO candidato, e um sufixo calculado uma vez garante.
+        sufixo = molde.replace("{sessao}", f"mfsonda{indice}")
+        try:
+            url = _com_sufixo(proxy, sufixo)
+            a, b = _ip(url), _ip(url)
+            fixou = a == b
+            saida["candidatos"].append({"molde": molde, "fixou": fixou, "ips": sorted({a, b})})
+            if fixou:
+                saida["molde_aceito"] = molde
+                saida["conclusao"] = f"O fornecedor fixa o IP com '{molde}'."
+                return saida
+        except Exception as e:  # noqa: BLE001
+            # Recusa também informa: o fornecedor validou o parâmetro e não gostou.
+            saida["candidatos"].append({"molde": molde, "fixou": False, "erro": type(e).__name__})
+
+    saida["conclusao"] = (
+        "Nenhum dos moldes conhecidos fixou o IP. Pergunte ao fornecedor qual "
+        "parâmetro ativa a sessão fixa e ponha em PROXY_SESSAO_MOLDE."
+    )
+    return saida
+
+
+def molde_efetivo(url: str | None) -> str:
+    """
+    O molde que vale para este proxy: o do `.env`, ou o descoberto.
+
+    Não bloqueia. Sem descoberta feita para este fornecedor, devolve '' — é
+    `descobrir_molde` (bloqueante, chamada fora do event loop) quem preenche.
+    """
+    env = os.getenv("PROXY_SESSAO_MOLDE") or ""
+    if env.strip():
+        return env
+    return _moldes_descobertos.get(_chave_do_fornecedor(url), "")
+
+
+def descobrir_molde(url_crua: str | None, preflight=None) -> str:
+    """
+    Descobre e guarda o molde deste fornecedor. BLOQUEANTE: até 18 idas ao
+    ipify pelo proxy (2 de base + 2 por candidato) — chame num executor.
+
+    Uma vez por fornecedor, sob lock: duas contas conectando ao mesmo tempo
+    não sondam duas vezes. O resultado vazio também é guardado — repetir a
+    sonda a cada login num fornecedor que não fixa gastaria 18 requisições por
+    conta para chegar sempre à mesma resposta.
+    """
+    env = os.getenv("PROXY_SESSAO_MOLDE") or ""
+    if env.strip() or not url_crua or _molde_recusado:
+        return env if env.strip() else ""
+
+    chave = _chave_do_fornecedor(url_crua)
+    with _lock_moldes:
+        if chave in _moldes_descobertos:
+            return _moldes_descobertos[chave]
+        try:
+            r = sondar_moldes(url_crua, preflight)
+            molde = r.get("molde_aceito") or ""
+            base = r.get("linha_de_base") or {}
+            _slog(
+                "MOLDE_DESCOBERTO", "-",
+                fornecedor=chave,
+                molde=molde or "(nenhum)",
+                ip_dedicado=bool(base.get("estavel")),
+                testados=len(r.get("candidatos", [])),
+                conclusao=r.get("conclusao", ""),
+            )
+        except Exception as e:  # noqa: BLE001
+            # Sonda quebrada não pode impedir o login: segue sem molde, como
+            # antes, e tenta de novo na próxima conexão.
+            logger.warning("descoberta do molde falhou para %s: %s", chave, e)
+            return ""
+        _moldes_descobertos[chave] = molde
+        return molde
+
+
+def esquecer_moldes_descobertos() -> None:
+    """Zera as descobertas — ao trocar de fornecedor, a medição antiga não vale."""
+    _moldes_descobertos.clear()
+
+
 def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
     """
     Fixa o IP do proxy rotativo por conta.
@@ -911,7 +1096,9 @@ def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
     if _molde_recusado:
         return url
 
-    molde = os.getenv("PROXY_SESSAO_MOLDE") or ""
+    # Do `.env` ou descoberto pela sonda (ver `descobrir_molde`). Vazio nos
+    # dois: IP dedicado, ou fornecedor que não fixa — URL intacta.
+    molde = molde_efetivo(url)
     if not molde.strip():
         return url
 
@@ -941,9 +1128,14 @@ def moldar_proxy_por_conta(url: str | None, account_id: str) -> str | None:
     return f"{esquema}://{usuario}{sufixo}:{senha}@{destino}"
 
 
-def _sufixo_do_molde(account_id: str) -> str:
-    """O sufixo que `moldar_proxy_por_conta` acrescentaria a esta conta."""
-    molde = os.getenv("PROXY_SESSAO_MOLDE") or ""
+def _sufixo_do_molde(account_id: str, url: str | None = None) -> str:
+    """
+    O sufixo que `moldar_proxy_por_conta` acrescentaria a esta conta.
+
+    `url` identifica o fornecedor, para o molde descoberto valer aqui também.
+    Sem ela, só o do `.env` conta — é o que os chamadores antigos esperam.
+    """
+    molde = molde_efetivo(url)
     if not molde.strip():
         return ""
     return molde.replace("{sessao}", sessao_da_conta(account_id))
@@ -973,7 +1165,7 @@ def desmoldar(url: str | None, account_id: str) -> str | None:
     """
     if not url:
         return url
-    sufixo = _sufixo_do_molde(account_id)
+    sufixo = _sufixo_do_molde(account_id, url)
     if not sufixo or sufixo not in url:
         return url
     return url.replace(sufixo, "", 1)
@@ -1103,7 +1295,7 @@ def explicar_recusa_de_proxy(account_id: str) -> str:
     # Sem `or` com o antigo padrão: aqui o molde só serve para NOMEAR o sufixo
     # na explicação, e esta função só chega aqui quando um molde foi de fato
     # aplicado. Um valor de reserva imprimiria um sufixo que não está em uso.
-    molde = os.getenv("PROXY_SESSAO_MOLDE") or "(molde configurado)"
+    molde = molde_efetivo(cru) or "(molde configurado)"
 
     try:
         import requests
@@ -1119,9 +1311,9 @@ def explicar_recusa_de_proxy(account_id: str) -> str:
     if cru_funciona:
         return (
             f" — sem o molde de sessão o proxy FUNCIONA, então o fornecedor "
-            f"recusa o sufixo '{molde}' que acrescentamos ao usuário. Rode "
-            f"scripts/sondar-proxy.sh para descobrir a sintaxe que ele aceita e "
-            f"ponha em PROXY_SESSAO_MOLDE (vazio desliga a fixação de IP)."
+            f"recusa o sufixo '{molde}' que acrescentamos ao usuário. O molde "
+            f"foi desligado; a fixação de IP por conta ficou sem efeito até o "
+            f"serviço reiniciar e sondar de novo."
         )
     return (
         " — a credencial é recusada mesmo SEM o molde de sessão, então o "

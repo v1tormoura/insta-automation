@@ -103,9 +103,13 @@ async function _proxy(account) {
     return {
       ok: true, alerta: true, origem, ip: r.ip, latenciaMs: r.latencyMs, rotativo: true,
       detalhe: `responde, mas o IP MUDOU entre duas medições (${r.ip} → ${segundo.ip})`,
-      conserto: 'No painel do fornecedor, troque o tipo de sessão de "Rotativo" para '
-              + 'fixa/sticky. Ou rode scripts/sondar-proxy.sh para descobrir a sintaxe '
-              + 'de sessão fixa que ele aceita e ponha em PROXY_SESSAO_MOLDE.',
+      /* Esta medição é da URL CRUA. No login o serviço sonda o fornecedor
+         sozinho e acrescenta o identificador de sessão por conta — se ele
+         aceitar, o IP fica fixo mesmo com o proxy rotativo aqui. Só quando
+         nenhuma sintaxe conhecida fixar é que sobra o painel do fornecedor. */
+      conserto: 'O serviço vai tentar fixar o IP por conta sozinho ao conectar. Se o '
+              + 'cartão da conta mostrar o IP mudando entre logins, troque no painel do '
+              + 'fornecedor o tipo de sessão de "Rotativo" para fixa/sticky.',
     };
   }
 

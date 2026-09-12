@@ -38,17 +38,21 @@ def test_todos_os_aparelhos_tem_os_mesmos_campos():
         assert set(d.keys()) == esperado, d.get("model")
 
 
-def test_o_catalogo_nao_repete_modelo():
+def test_linha_repetida_do_catalogo_traz_versao_nova():
     """
-    No CATÁLOGO cada modelo aparece uma vez. No pool final ele aparece uma vez
-    por versão de Android — o que é o ponto do eixo, não uma duplicata.
-
-    A distinção que importa é a do fingerprint completo, coberta em
-    `test_o_fingerprint_completo_nunca_repete`.
+    O catálogo é append-only (o índice é posicional), e o bloco anexado
+    RE-LISTA modelos de cima para somar Android 15 sem deslocar ninguém. Então
+    "cada modelo uma vez no catálogo" deixou de ser a regra — a regra é que
+    uma linha repetida traga versão que a anterior não tinha. Duas linhas com
+    o mesmo (modelo, versão) seriam dois slots do pool para o mesmo aparelho.
     """
     from app import session_pool
-    modelos = [m[2] for m in session_pool._MODELOS]
-    assert len(set(modelos)) == len(modelos)
+    vistos = set()
+    for m in session_pool._MODELOS:
+        for api in m[6]:
+            par = (m[2], api)
+            assert par not in vistos, f"{m[2]} com Android API {api} aparece duas vezes"
+            vistos.add(par)
 
 
 def test_resolucao_tem_forma_valida():
@@ -136,7 +140,12 @@ def test_api_e_release_sempre_concordam():
     discordavam.
     """
     from app import session_pool
-    esperado = {33: "13.0", 34: "14.0"}
+    # A tabela do módulo, e não uma cópia aqui: a cópia parou em 34 e o
+    # catálogo já anunciava 35 — o teste passou a falhar por estar velho, não
+    # por o código estar errado. O que se confere é a CONSISTÊNCIA, e ela vale
+    # para qualquer versão que o módulo traduza.
+    esperado = session_pool._ANDROID
+    assert esperado == {33: "13.0", 34: "14.0", 35: "15.0"}
     for d in session_pool._REAL_ANDROID_DEVICES:
         assert esperado[d["android_version"]] == d["android_release"], d["model"]
 
