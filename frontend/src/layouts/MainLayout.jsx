@@ -458,7 +458,10 @@ export default function MainLayout({ children }) {
             <button onClick={() => navigate('/')}
               style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, minWidth: 0, overflow: 'hidden' }}>
               <img src="/nexora-icon.png?v=1" alt="Nexora" className="mf-side__icone-so" />
-              <img src="/nexora-wordmark.png?v=1" alt="Nexora" className="mf-side__logo" />
+              {/* `?v=2`: o arquivo foi refeito a partir do `-completo` — o
+                  anterior tinha sido exportado sem folga e o ícone saía sem
+                  topo nem base. Mesmo nome, conteúdo novo, cache velho. */}
+              <img src="/nexora-wordmark.png?v=2" alt="Nexora" className="mf-side__logo" />
             </button>
           </div>
 

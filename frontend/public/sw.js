@@ -38,8 +38,13 @@ self.addEventListener('push', evento => {
   const titulo = dados.titulo || 'Nexora';
   const opcoes = {
     body: dados.mensagem || '',
-    icon: '/nexora-icon.png',
-    badge: '/nexora-icon.png',
+    icon: '/nexora-icon.png?v=3',
+    /* `badge` NÃO é o ícone. É a silhueta pequena da barra de status do
+       Android, e o sistema ignora a cor: usa só o canal alfa, pintado de
+       branco. Passar o ícone colorido aqui — que é o que se fazia — vira um
+       bloco disforme na barra, que se lê como "o ícone continua o antigo".
+       O badge é um PNG só com o N, branco em fundo transparente. */
+    badge: '/nexora-badge.png?v=3',
     /* `tag` faz a notificação nova SUBSTITUIR a anterior do mesmo marco em vez
        de empilhar. Sem isso, dois ciclos que reenviassem o mesmo aviso
        deixariam duas linhas idênticas na gaveta do sistema. */

@@ -182,8 +182,9 @@ export const notificacaoDoNavegador = {
       const registro = await registrar();
       await registro?.showNotification(n.titulo || 'Nexora', {
         body: n.mensagem || '',
-        icon: '/nexora-icon.png',
-        badge: '/nexora-icon.png',
+        icon: '/nexora-icon.png?v=3',
+        // Silhueta monocromática para a barra de status — ver sw.js.
+        badge: '/nexora-badge.png?v=3',
         tag: n._id || 'nexora',
         data: { url: '/', id: n._id || '' },
       });
