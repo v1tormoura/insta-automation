@@ -87,6 +87,14 @@ const accountSchema = new mongoose.Schema(
     loginIpVia: { type: String, default: '' },     // 'proxy' | 'direto'
     loginIpEm:  { type: Date,   default: null },
 
+    /* E de qual IP saiu a ÚLTIMA publicação — medido de novo, a cada envio.
+       A sessão fixa do fornecedor tem prazo; quando expira, o mesmo
+       identificador recebe outro endereço, e a conta que logou de um IP e
+       publica de outro é o padrão de conta invadida. Login e publicação
+       divergindo aqui é o cartão dizendo isso antes do Instagram. */
+    publishIp:   { type: String, default: '' },
+    publishIpEm: { type: Date,   default: null },
+
     proxyStatus: {
       type: String,
       default: 'nao_testado',

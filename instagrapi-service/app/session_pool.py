@@ -1483,6 +1483,29 @@ def esquecer_ips_confirmados() -> None:
     _ips_confirmados.clear()
 
 
+def medir_ip_de_saida(client, account_id: str, timeout: float = 8.0) -> str | None:
+    """
+    O IP de saída AGORA — medido de novo, sem cache.
+
+    `conferir_ip_de_saida` guarda a medição por proxy porque, no login, o que
+    interessa é "por onde esta sessão nasce". Aqui o interesse é o oposto:
+    saber se o IP MUDOU desde o login. Sessão fixa de fornecedor tem tempo de
+    vida — 10 minutos, 30, horas, depende do plano — e quando expira o mesmo
+    identificador recebe outro endereço. Para o Instagram, a conta que logou
+    de um IP e publica de outro é o padrão de conta invadida. Sem medir de
+    novo, isso acontece em silêncio.
+
+    Nunca levanta: a publicação não pode falhar porque o ipify não respondeu.
+    """
+    try:
+        resp = client.public.get("https://api.ipify.org", timeout=timeout)
+        ip = (resp.text or "").strip()
+        return ip or None
+    except Exception as e:  # noqa: BLE001
+        logger.warning("IP de saída na publicação não medido para %s: %s", account_id, e)
+        return None
+
+
 def ip_de_saida_conhecido(proxy: str | None) -> str | None:
     """
     O IP já medido para este caminho — sem nova requisição.

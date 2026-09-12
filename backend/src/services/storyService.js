@@ -375,6 +375,12 @@ async function postStory(account, options) {
         `${res.link_native ? ', nativo confirmado' : ''})`
       : '';
     console.log(`✅ [Story instagrapi] @${account.username} — id ${res.media_id}${marca}`);
+    // O mesmo registro que o reel faz em worker.js: por onde este story saiu.
+    if (res?.ip_de_saida) {
+      require('../models/Account').updateOne({ _id: account._id }, {
+        $set: { publishIp: String(res.ip_de_saida).slice(0, 45), publishIpEm: new Date() },
+      }).catch(() => {});
+    }
     return {
       id:           res.media_id,
       method:       'instagrapi',

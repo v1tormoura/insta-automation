@@ -215,6 +215,17 @@ async function publishViaInstagrapi(account, post) {
       // exatamente nesta publicação, em vez de procurar a mais recente da conta.
       // Prefere a forma "pk_userid": com o pk puro, media_comment() gasta uma
       // requisição extra só para descobrir o dono da mídia.
+      /* E o IP por onde ESTA publicação saiu, medido pelo serviço na hora.
+         Gravado na conta para o cartão comparar com o IP do login: sessão
+         fixa de fornecedor expira, e quando expira o mesmo identificador
+         recebe outro endereço — a conta que logou de um IP e publica de
+         outro é o padrão de conta invadida. Sem gravar, isso acontece em
+         silêncio. `null` quando o ipify não respondeu: não toca no campo. */
+      if (r?.ip_de_saida) {
+        Account.updateOne({ _id: account._id }, {
+          $set: { publishIp: String(r.ip_de_saida).slice(0, 45), publishIpEm: new Date() },
+        }).catch(() => {});
+      }
       return { mediaId: String(r?.media_full_id || r?.media_id || '') };
     } catch (igErr) {
       if (igErr.code === 'RATE_LIMITED' && attempt < _IG_RATE_MAX_RETRIES) {

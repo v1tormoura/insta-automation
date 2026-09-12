@@ -192,8 +192,19 @@ describe('o catálogo do Python só pode CRESCER pelo fim', () => {
   /* Conferido de dois jeitos antes de congelar: (a) o prefixo é idêntico ao
      que estava em `git HEAD` antes da expansão, e (b) este leitor em JS produz
      exatamente a mesma lista que um leitor independente em Python. Congelar um
-     valor sem essa dupla conferência seria congelar uma leitura errada. */
-  const IMPRESSAO = '57dbf48732de4a1b';
+     valor sem essa dupla conferência seria congelar uma leitura errada.
+
+     ── Recongelado em 12/09/2026, de propósito
+
+     Era `57dbf48732de4a1b`. Três posições do prefixo (23, 24 e 25) tiveram o
+     HARDWARE corrigido em campo — "moto g73 5G / rhodep / mt6833" era um
+     aparelho que não existe (codinome do g52, chipset de nenhum dos dois), e
+     o g73 de verdade já estava mais abaixo com outro hardware: o mesmo modelo
+     com dois hardwares é aparelho implausível, que é sinal. Posições e
+     contagem de versões não mudaram — nenhum índice se deslocou. As contas
+     que estavam nesses três índices trocam de celular UMA vez, para um que
+     existe. Foi essa a troca aceita, e é por isso que este número mudou. */
+  const IMPRESSAO = '8d5bdd333b73cbfa';
 
   test('as 50 primeiras combinações continuam exatamente onde estavam', () => {
     const pool = poolDoPython();

@@ -1848,17 +1848,37 @@ export default function Accounts() {
                   const direto = account.loginIpVia !== 'proxy';
                   const alerta = compartilham > 0 && direto;
                   const cor = alerta ? 'var(--mf-warning-500)' : 'var(--mf-text-3)';
+                  /* A última publicação saiu de OUTRO IP? Sessão fixa de
+                     fornecedor expira, e o mesmo identificador passa a
+                     receber outro endereço. Login num IP e publicação em
+                     outro é o padrão de conta invadida — o cartão diz antes
+                     do Instagram dizer. */
+                  const derivou = !!account.publishIp && account.publishIp !== account.loginIp;
                   return (
-                    <div style={{ padding:'3px 12px 5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
-                      fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)', color: cor,
-                      background: alerta ? 'color-mix(in oklch, var(--mf-warning-500) 5%, transparent)' : 'transparent' }}>
-                      <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}
-                        title={account.loginIpEm ? `Medido no login de ${new Date(account.loginIpEm).toLocaleString('pt-BR')}` : ''}>
-                        IP no login · {direto ? 'servidor' : 'proxy'}
-                        {compartilham > 0 && ` · ${alerta ? '⚠ ' : ''}mesmo IP de ${compartilham} outra${compartilham > 1 ? 's' : ''}`}
-                      </span>
-                      <span style={{ fontWeight:700, flexShrink:0 }}>{account.loginIp}</span>
-                    </div>
+                    <>
+                      <div style={{ padding:'3px 12px 5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
+                        fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)', color: cor,
+                        background: alerta ? 'color-mix(in oklch, var(--mf-warning-500) 5%, transparent)' : 'transparent' }}>
+                        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}
+                          title={account.loginIpEm ? `Medido no login de ${new Date(account.loginIpEm).toLocaleString('pt-BR')}` : ''}>
+                          IP no login · {direto ? 'servidor' : 'proxy'}
+                          {compartilham > 0 && ` · ${alerta ? '⚠ ' : ''}mesmo IP de ${compartilham} outra${compartilham > 1 ? 's' : ''}`}
+                        </span>
+                        <span style={{ fontWeight:700, flexShrink:0 }}>{account.loginIp}</span>
+                      </div>
+                      {account.publishIp && (
+                        <div style={{ padding:'0 12px 5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
+                          fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)',
+                          color: derivou ? 'var(--mf-danger-500)' : 'var(--mf-text-3)',
+                          background: derivou ? 'color-mix(in oklch, var(--mf-danger-500) 5%, transparent)' : 'transparent' }}>
+                          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}
+                            title={account.publishIpEm ? `Medido na publicação de ${new Date(account.publishIpEm).toLocaleString('pt-BR')}` : ''}>
+                            {derivou ? '⚠ última publicação saiu de OUTRO IP' : 'última publicação · mesmo IP'}
+                          </span>
+                          <span style={{ fontWeight:700, flexShrink:0 }}>{account.publishIp}</span>
+                        </div>
+                      )}
+                    </>
                   );
                 })()}
 

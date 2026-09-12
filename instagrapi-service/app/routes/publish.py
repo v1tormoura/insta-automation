@@ -66,6 +66,10 @@ async def publish_reel(body: PublishReelRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
+        # Medido ANTES do envio, pela mesma sessão e proxy: é o endereço que o
+        # Instagram vai ver nesta publicação. Volta na resposta para o cartão
+        # da conta comparar com o IP do login — ver `medir_ip_de_saida`.
+        ip = session_pool.medir_ip_de_saida(client, body.account_id)
         try:
             media = client.clip_upload(
                 path=media_path,
@@ -78,7 +82,7 @@ async def publish_reel(body: PublishReelRequest):
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)})
         settings = client.get_settings()
 
-    return {**_identificacao(media), "settings": settings}
+    return {**_identificacao(media), "settings": settings, "ip_de_saida": ip}
 
 
 _VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".webm"}
@@ -307,6 +311,9 @@ async def publish_story(body: PublishStoryRequest):
                     )
                     return _enviar(com_link=False), False
 
+        ip = await loop.run_in_executor(
+            None, lambda: session_pool.medir_ip_de_saida(client, body.account_id)
+        )
         try:
             media, com_link = await loop.run_in_executor(None, _upload)
         except Exception as e:
@@ -328,6 +335,7 @@ async def publish_story(body: PublishStoryRequest):
         "link_mode":   modo,
         "link_native": link_nativo,
         "settings":    settings,
+        "ip_de_saida": ip,
     }
 
 
@@ -349,6 +357,7 @@ async def publish_post(body: PublishPostRequest):
     entry = await session_pool.get_entry(body.account_id)
     async with entry["lock"]:
         client = entry["client"]
+        ip = session_pool.medir_ip_de_saida(client, body.account_id)
         try:
             media = client.photo_upload(path=media_path, caption=body.caption or "")
         except Exception as e:
@@ -357,7 +366,7 @@ async def publish_post(body: PublishPostRequest):
             raise HTTPException(status_code=422, detail={"code": code, "message": str(e)})
         settings = client.get_settings()
 
-    return {**_identificacao(media), "settings": settings}
+    return {**_identificacao(media), "settings": settings, "ip_de_saida": ip}
 
 
 @router.post("/comment")
