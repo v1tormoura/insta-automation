@@ -889,6 +889,16 @@ def sessao_da_conta(account_id: str) -> str:
 # mesma credencial com sufixos diferentes por conta é a mesma URL crua.
 
 MOLDES_CANDIDATOS = [
+    # Formato `__chave.valor` — é o que o Axtron usa (o usuário já vem com
+    # `__cr.br` de país). A sessão dele muito provavelmente segue o mesmo
+    # delimitador, e a sonda nunca tinha testado esse formato — daí o
+    # `moldado:false` observado com esse fornecedor. Vem primeiro porque, se
+    # for o caso, encerra a busca no primeiro acerto.
+    "__session.{sessao}",
+    "__sess.{sessao}",
+    "__sessid.{sessao}",
+    "__sid.{sessao}",
+    "__sticky.{sessao}",
     ";session.{sessao}",
     "-session-{sessao}",
     "-sessid-{sessao}",
@@ -941,15 +951,19 @@ def sondar_moldes(proxy: str, preflight=None) -> dict:
 
     saida: dict = {"linha_de_base": None, "candidatos": [], "molde_aceito": None, "erros": []}
 
-    # Linha de base: sem parâmetro nenhum. Estável = IP dedicado, sem rotação
-    # a conter; nenhum molde é necessário.
+    # Linha de base, só informativa. NÃO encerra mais a busca quando estável.
+    #
+    # ── Por que o "estável = pronto" estava errado
+    #
+    # Um proxy sticky por padrão (Axtron) devolve o mesmo IP nas duas medições
+    # sem sufixo nenhum. A versão antiga lia isso como "IP dedicado, não precisa
+    # de molde" e parava ali — mas "um IP fixo" para UMA credencial vira "todas
+    # as contas no MESMO IP", que é exatamente o problema. Estável não quer
+    # dizer isolado; quer dizer que agora falta testar a OUTRA coisa: sessões
+    # diferentes dão IPs diferentes?
     try:
         a, b = _ip(proxy), _ip(proxy)
         saida["linha_de_base"] = {"ips": sorted({a, b}), "estavel": a == b}
-        if a == b:
-            saida["molde_aceito"] = ""
-            saida["conclusao"] = "O proxy já entrega IP fixo sem parâmetro nenhum."
-            return saida
     except Exception as e:  # noqa: BLE001
         saida["erros"].append(f"linha de base: {type(e).__name__}"[:120])
         if preflight is not None:
@@ -963,27 +977,52 @@ def sondar_moldes(proxy: str, preflight=None) -> dict:
         saida["conclusao"] = "Proxy sem credencial: não há nome de usuário onde pôr o sufixo."
         return saida
 
+    # O teste que importa: para cada sufixo, DUAS sessões diferentes.
+    #   sticky  — a mesma sessão dá o mesmo IP nas duas medições;
+    #   isola   — sessões DIFERENTES dão IPs DIFERENTES.
+    # Um sufixo só serve para separar contas se as duas forem verdade. Aceitar
+    # só por sticky (o que se fazia) adotaria um sufixo que o fornecedor recebe
+    # e ignora — todas as contas continuariam no mesmo IP, e o log diria que
+    # estava tudo certo.
     for indice, molde in enumerate(MOLDES_CANDIDATOS):
-        # Identificador FIXO por candidato: o que precisa ser igual são as duas
-        # medições do MESMO candidato, e um sufixo calculado uma vez garante.
-        sufixo = molde.replace("{sessao}", f"mfsonda{indice}")
+        s1 = molde.replace("{sessao}", f"mfsonda{indice}a")
+        s2 = molde.replace("{sessao}", f"mfsonda{indice}b")
         try:
-            url = _com_sufixo(proxy, sufixo)
-            a, b = _ip(url), _ip(url)
-            fixou = a == b
-            saida["candidatos"].append({"molde": molde, "fixou": fixou, "ips": sorted({a, b})})
-            if fixou:
+            u1 = _com_sufixo(proxy, s1)
+            a1, a2 = _ip(u1), _ip(u1)          # sticky?
+            b1 = _ip(_com_sufixo(proxy, s2))   # sessão diferente → IP diferente?
+            sticky = a1 == a2
+            isola  = a1 != b1
+            saida["candidatos"].append({
+                "molde": molde, "sticky": sticky, "isola": isola,
+                "ips": sorted({a1, a2, b1}),
+            })
+            if sticky and isola:
                 saida["molde_aceito"] = molde
-                saida["conclusao"] = f"O fornecedor fixa o IP com '{molde}'."
+                saida["conclusao"] = (
+                    f"'{molde}' isola por conta: sessões diferentes saem por IPs "
+                    f"diferentes, e cada sessão mantém o seu."
+                )
                 return saida
         except Exception as e:  # noqa: BLE001
-            # Recusa também informa: o fornecedor validou o parâmetro e não gostou.
-            saida["candidatos"].append({"molde": molde, "fixou": False, "erro": type(e).__name__})
+            saida["candidatos"].append({"molde": molde, "sticky": False, "isola": False,
+                                        "erro": type(e).__name__})
 
-    saida["conclusao"] = (
-        "Nenhum dos moldes conhecidos fixou o IP. Pergunte ao fornecedor qual "
-        "parâmetro ativa a sessão fixa e ponha em PROXY_SESSAO_MOLDE."
-    )
+    # Nenhum sufixo isolou. A conclusão depende da linha de base:
+    saida["molde_aceito"] = ""
+    if saida["linha_de_base"] and saida["linha_de_base"].get("estavel"):
+        saida["conclusao"] = (
+            "Este proxy dá UM IP fixo para a credencial, e nenhum sufixo de "
+            "sessão o divide por conta — então TODAS as contas sairiam por esse "
+            "mesmo IP. Para isolar, gere uma credencial/sessão DIFERENTE por "
+            "conta no painel do fornecedor e suba cada uma no pool de proxies."
+        )
+    else:
+        saida["conclusao"] = (
+            "O IP muda a cada conexão (rotativo) e nenhum sufixo o fixa por "
+            "conta. Sem sessão fixa, o login sai espalhado por vários IPs — "
+            "peça sessão sticky ao fornecedor."
+        )
     return saida
 
 

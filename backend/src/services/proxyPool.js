@@ -218,7 +218,28 @@ async function testarTodos() {
     );
   }
 
-  return { testados: resultados.length, ok, ruins, rotativos };
+  /* Colisão de IP: dois proxis do pool que saem pelo MESMO endereço.
+     O índice único do modelo impede URLs idênticas — mas duas URLs
+     DIFERENTES podem cair no mesmo IP (foi o que o "Replicar Conexão" do
+     Axtron produziu: credenciais que variam no texto e não no IP). Sem
+     detectar isso, o pool parece cheio e na prática entrega o mesmo IP a
+     várias contas — o problema que o pool existe para resolver, de volta
+     por outra porta. Aqui ele fica VISÍVEL. */
+  const porIp = new Map();
+  for (const r of resultados) {
+    if (!r.ok || !r.ip) continue;
+    if (!porIp.has(r.ip)) porIp.set(r.ip, []);
+    porIp.get(r.ip).push(r.url);
+  }
+  const colisoes = [...porIp.entries()]
+    .filter(([, urls]) => urls.length > 1)
+    .map(([ip, urls]) => ({ ip, quantidade: urls.length }));
+
+  return {
+    testados: resultados.length, ok, ruins, rotativos,
+    ipsDistintos: porIp.size,
+    colisoes,
+  };
 }
 
 /** Remove um proxy do pool, liberando a conta que o usava. */
