@@ -1137,18 +1137,14 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
    ocupa uma coluna inteira quando duas não cabem, e aí nenhum rótulo precisa
    ser cortado.
 
-   Na vertical: com os botões empilhados, o cabeçalho passa de 200px. Grudado no
-   topo, ele comeria um terço de um celular de 812px de altura o tempo todo. No
-   desktop ficar fixo ajuda — sobra tela; no celular é o contrário, então ele
-   rola junto com o conteúdo. Quem continua fixo é a barra superior, que é onde
-   moram o menu e a busca.
+   Na vertical: com os botões empilhados, o cabeçalho passa de 200px, e a folga
+   de desktop viraria um terço de um celular de 812px. Encolhe.
 
-   `!important` porque o `position: sticky` vem inline do PageShell, e regra de
-   folha não ganha de estilo inline sem ele. */
+   (Rolar junto com o conteúdo era só daqui, com `position: static !important`
+   por cima do `sticky` inline do PageShell. O PageShell deixou de grudar em
+   qualquer largura, e a sobrescrita foi embora com o motivo dela.) */
 @media (max-width: 640px) {
   .mf-page-head {
-    position: static !important;
-    box-shadow: none !important;
     padding-block: var(--mf-4) var(--mf-3);
   }
   .mf-page-head__acts {

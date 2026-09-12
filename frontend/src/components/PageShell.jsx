@@ -41,25 +41,25 @@ export default function PageShell({ icon, title, subtitle, accent = 'cyan', acti
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: .3, ease: [.4, 0, .2, 1] }}
         className="mf-page-head"
-        /* Continua fixo ao rolar, como antes — mas agora ancorado abaixo da
-           barra superior, que também é sticky. Sem esse deslocamento os dois
-           disputariam a mesma faixa e o título sumiria atrás dela. */
-        /* Fundo SÓLIDO, e não vidro.
+        /* ROLA com a página. Era `position: sticky` abaixo da barra superior,
+           e o celular já o desfazia (ponte.css) porque um cabeçalho de 200px
+           grudado come um terço da tela. No desktop ficou fixo até o pedido
+           de tirar: título e ações à vista o tempo todo custam uma faixa
+           inteira de conteúdo em toda tela, e o que a pessoa quer ver ao
+           rolar é o conteúdo. Quem continua fixo é a barra superior, onde
+           moram o menu, a busca e a sineta.
 
-           Era `--mf-bg` a 88% com desfoque. Os 12% restantes bastavam para o
-           conteúdo passar por baixo e aparecer: rolando a página de Contas, os
-           cartões de métricas cruzavam o cabeçalho e o título ficava por cima de
-           números fantasma. Vidro funciona sobre fotografia e cor chapada;
-           sobre uma grade densa de dados ele vira ruído exatamente no elemento
-           que precisa estar mais legível da página.
+           Sem `sticky` também somem dois problemas que ele causava: o
+           `backdrop-filter` do rail da barra lateral parando de amostrar
+           este cabeçalho (dois sticky empilhados), e o painel de
+           notificações pintado por baixo dele (mesmo z-index, ordem da
+           árvore). Os dois foram remendados na época; agora não têm causa.
 
-           A sombra substitui o desfoque no papel de dizer "isto está por
-           cima" — e diz isso sem deixar nada atravessar. */
+           Fundo sólido e borda, sem sombra: a sombra dizia "isto está por
+           cima" — e não está mais. */
         style={{
-          position: 'sticky', top: 'var(--mf-topbar)', zIndex: 20,
           background: 'var(--mf-bg)',
           borderBottom: '1px solid var(--mf-border)',
-          boxShadow: '0 6px 16px -12px oklch(0 0 0 / 0.55)',
         }}
       >
         {icon && (
