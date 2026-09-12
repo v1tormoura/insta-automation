@@ -1931,6 +1931,22 @@ def clear_pending_challenge(account_id: str) -> None:
 
 # ── Error classification ──────────────────────────────────────────────────────
 
+# Quando o endpoint clássico respondeu `needs_upgrade` pela última vez.
+#
+# Cada clique em Conectar gastava DUAS tentativas de login na conta: a
+# clássica, que hoje falha sempre, e a CAA. O Instagram limita tentativas por
+# CONTA — medido em 12/09: 429 no CAA de dois IPs diferentes, no mesmo passo.
+# Metade dessas tentativas era a clássica, que já se sabia morta. Depois de
+# vê-la falhar uma vez, vai-se direto ao CAA por algumas horas; passado o
+# prazo, ela é tentada de novo — se o Instagram reabrir, o caminho volta só.
+_classico_recusou_em: float = 0.0
+_CLASSICO_QUARENTENA_S = 6 * 3600
+
+
+def _classico_esta_morto() -> bool:
+    return (time.time() - _classico_recusou_em) < _CLASSICO_QUARENTENA_S
+
+
 def login_com_desvio_caa(client: Client, username: str, password: str,
                          verification_code: str = "") -> bool:
     """
@@ -1959,6 +1975,20 @@ def login_com_desvio_caa(client: Client, username: str, password: str,
     Depois do CAA passar, o que `login()` faria em seguida: `login_flow()`,
     carimbo do último login, contador de relogin zerado.
     """
+    global _classico_recusou_em
+
+    if _classico_esta_morto():
+        # Direto ao CAA: a tentativa clássica falharia e gastaria uma das
+        # poucas tentativas por conta que o Instagram concede por hora.
+        # `login()` faria isto antes de chamar o endpoint; sem ele, é aqui.
+        client.username = username
+        client.password = password
+        exc = UnknownError("classic login em quarentena (needs_upgrade recente)",
+                           error_type="needs_upgrade")
+        _slog("LOGIN_DIRETO_NO_CAA", "-", username=username,
+              quarentena_restante_min=int((_CLASSICO_QUARENTENA_S - (time.time() - _classico_recusou_em)) / 60))
+        return _login_via_caa(client, username, verification_code, exc)
+
     try:
         return client.login(username, password, verification_code=verification_code)
     except UnknownError as exc:
@@ -1969,71 +1999,84 @@ def login_com_desvio_caa(client: Client, username: str, password: str,
         if error_type != "needs_upgrade":
             raise
 
+        _classico_recusou_em = time.time()
         _slog("LOGIN_NEEDS_UPGRADE_DESVIO_CAA", "-", username=username,
               build=str((getattr(client, "device_settings", None) or {}).get("app_version")))
+        return _login_via_caa(client, username, verification_code, exc)
 
-        # A mesma lógica de `_try_caa_login`, aberta — porque ela descarta o
-        # `reason` e o conteúdo da resposta, e sem isso "não concluiu" é tudo
-        # o que o log diria. Aqui cada saída do CAA vira uma linha que diz
-        # ONDE parou: recusa do fornecedor, 2FA, desafio, ou uma tela que a
-        # biblioteca não soube ler.
-        try:
-            outcome = client.bloks_caa_login(verification_code=verification_code)
-        except (ChallengeRequired, TwoFactorRequired):
-            raise
-        except Exception as caa_exc:  # noqa: BLE001
-            _slog(
-                "LOGIN_CAA_FALHOU", "-", username=username,
-                erro=type(caa_exc).__name__, detalhe=str(caa_exc)[:200],
-                http=getattr(getattr(client, "last_response", None), "status_code", None),
-            )
-            raise exc from caa_exc
 
-        if outcome.get("logged_in"):
+def _login_via_caa(client: Client, username: str, verification_code: str, exc: Exception) -> bool:
+    """O login pelo CAA, com cada saída no log. Ver `login_com_desvio_caa`."""
+
+    # A mesma lógica de `_try_caa_login`, aberta — porque ela descarta o
+    # `reason` e o conteúdo da resposta, e sem isso "não concluiu" é tudo
+    # o que o log diria. Aqui cada saída do CAA vira uma linha que diz
+    # ONDE parou: recusa do fornecedor, 2FA, desafio, ou uma tela que a
+    # biblioteca não soube ler.
+    try:
+        outcome = client.bloks_caa_login(verification_code=verification_code)
+    except (ChallengeRequired, TwoFactorRequired):
+        raise
+    except Exception as caa_exc:  # noqa: BLE001
+        http = getattr(getattr(client, "last_response", None), "status_code", None)
+        _slog(
+            "LOGIN_CAA_FALHOU", "-", username=username,
+            erro=type(caa_exc).__name__, detalhe=str(caa_exc)[:200], http=http,
+        )
+        # Limite de tentativas SOBE como limite, não como "versão
+        # desatualizada". A mensagem original mandaria a pessoa tentar de
+        # novo — que é exatamente o que gasta a próxima tentativa e prolonga
+        # o bloqueio. Classificado como RATE_LIMITED, o painel diz "aguarde"
+        # e o portão de login passa a espaçar por conta própria.
+        if http == 429 or classify_error(caa_exc) == "RATE_LIMITED":
+            raise caa_exc
+        raise exc from caa_exc
+
+    if outcome.get("logged_in"):
+        client.login_flow()
+        client.last_login = time.time()
+        client.relogin_attempt = 0
+        _slog("LOGIN_VIA_CAA_OK", "-", username=username)
+        return True
+
+    context = str(outcome.get("two_step_verification_context") or "")
+    if context and not verification_code.strip():
+        _slog("LOGIN_CAA_PEDE_2FA", "-", username=username)
+        raise TwoFactorRequired(
+            f"{exc} (o fluxo CAA devolveu um contexto de dois fatores; informe o código)",
+            response=getattr(exc, "response", None),
+        ) from exc
+    if context:
+        logged = client._login_with_bloks_two_factor(
+            verification_code, {"two_step_verification_context": context}, exc,
+        )
+        if logged:
             client.login_flow()
             client.last_login = time.time()
             client.relogin_attempt = 0
-            _slog("LOGIN_VIA_CAA_OK", "-", username=username)
+            _slog("LOGIN_VIA_CAA_OK", "-", username=username, com_2fa=True)
             return True
 
-        context = str(outcome.get("two_step_verification_context") or "")
-        if context and not verification_code.strip():
-            _slog("LOGIN_CAA_PEDE_2FA", "-", username=username)
-            raise TwoFactorRequired(
-                f"{exc} (o fluxo CAA devolveu um contexto de dois fatores; informe o código)",
-                response=getattr(exc, "response", None),
-            ) from exc
-        if context:
-            logged = client._login_with_bloks_two_factor(
-                verification_code, {"two_step_verification_context": context}, exc,
-            )
-            if logged:
-                client.login_flow()
-                client.last_login = time.time()
-                client.relogin_attempt = 0
-                _slog("LOGIN_VIA_CAA_OK", "-", username=username, com_2fa=True)
-                return True
-
-        # Sem sessão e sem 2FA: o que a tela dizia? O Bloks não traz frase
-        # legível, mas traz marcadores — e é a presença deles que separa
-        # "senha recusada" de "desafio" de "resposta que a biblioteca não lê".
-        try:
-            texto = client._bloks_all_text(outcome.get("result") or {}).lower()
-        except Exception:  # noqa: BLE001
-            texto = ""
-        marcadores = [m for m in (
-            "checkpoint", "challenge", "two_factor", "two_step", "suspend",
-            "logged_in_user", "login_response", "incorrect", "password",
-            "rate_limit", "feedback_required", "needs_upgrade",
-        ) if m in texto]
-        _slog(
-            "LOGIN_CAA_SEM_SESSAO", "-", username=username,
-            reason=str(outcome.get("reason") or "")[:120],
-            http=getattr(getattr(client, "last_response", None), "status_code", None),
-            marcadores=marcadores, tamanho=len(texto),
-            chaves=sorted((outcome.get("result") or {}).keys())[:8],
-        )
-        raise
+    # Sem sessão e sem 2FA: o que a tela dizia? O Bloks não traz frase
+    # legível, mas traz marcadores — e é a presença deles que separa
+    # "senha recusada" de "desafio" de "resposta que a biblioteca não lê".
+    try:
+        texto = client._bloks_all_text(outcome.get("result") or {}).lower()
+    except Exception:  # noqa: BLE001
+        texto = ""
+    marcadores = [m for m in (
+        "checkpoint", "challenge", "two_factor", "two_step", "suspend",
+        "logged_in_user", "login_response", "incorrect", "password",
+        "rate_limit", "feedback_required", "needs_upgrade",
+    ) if m in texto]
+    _slog(
+        "LOGIN_CAA_SEM_SESSAO", "-", username=username,
+        reason=str(outcome.get("reason") or "")[:120],
+        http=getattr(getattr(client, "last_response", None), "status_code", None),
+        marcadores=marcadores, tamanho=len(texto),
+        chaves=sorted((outcome.get("result") or {}).keys())[:8],
+    )
+    raise
 
 
 def classify_error(e: Exception) -> str:

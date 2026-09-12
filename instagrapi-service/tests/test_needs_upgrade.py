@@ -37,6 +37,13 @@ SEM_SESSAO = {"logged_in": False, "two_step_verification_context": "", "result":
               "two_step": {}, "reason": "CAA login did not return a session"}
 
 
+@pytest.fixture(autouse=True)
+def _sem_quarentena():
+    session_pool._classico_recusou_em = 0.0
+    yield
+    session_pool._classico_recusou_em = 0.0
+
+
 def _cliente(erro_do_login, caa):
     c = Mock()
     c.login = Mock(side_effect=erro_do_login)
@@ -119,6 +126,47 @@ def test_2fa_do_caa_com_codigo_conclui_pelo_bloks():
     c._login_with_bloks_two_factor.assert_called_once()
     assert c._login_with_bloks_two_factor.call_args.args[0] == "654321"
     c.login_flow.assert_called_once_with()
+
+
+def test_limite_de_tentativas_no_caa_sobe_como_limite_e_nao_como_versao():
+    """Medido em 12/09: 429 no CAA de dois IPs — o limite é por conta. A tela
+    precisa dizer "aguarde"; "versão desatualizada" manda tentar de novo, que
+    é o que prolonga o bloqueio."""
+    from instagrapi.exceptions import ClientThrottledError
+    erro = UnknownError("Sua versão está desatualizada.", error_type="needs_upgrade")
+    throttle = ClientThrottledError("429 Client Error: Too Many Requests")
+    c = _cliente(erro, caa=throttle)
+    c.last_response = Mock(status_code=429)
+
+    with pytest.raises(ClientThrottledError):
+        session_pool.login_com_desvio_caa(c, "conta", "senha")
+    assert session_pool.classify_error(throttle) == "RATE_LIMITED"
+
+
+def test_depois_de_um_needs_upgrade_o_classico_entra_em_quarentena():
+    """Cada clique gastava DUAS tentativas por conta — a clássica, já morta,
+    e a CAA. Vista a recusa uma vez, as próximas vão direto ao CAA."""
+    erro = UnknownError("x", error_type="needs_upgrade")
+    c1 = _cliente(erro, caa={"logged_in": True})
+    assert session_pool.login_com_desvio_caa(c1, "conta", "senha") is True
+    c1.login.assert_called_once()
+
+    c2 = _cliente(erro, caa={"logged_in": True})
+    assert session_pool.login_com_desvio_caa(c2, "outra", "senha") is True
+    c2.login.assert_not_called()               # nem tentou o clássico
+    c2.bloks_caa_login.assert_called_once()
+    assert c2.username == "outra"              # o CAA lê as credenciais do cliente
+
+
+def test_quarentena_expira_e_o_classico_volta_a_ser_tentado():
+    erro = UnknownError("x", error_type="needs_upgrade")
+    c1 = _cliente(erro, caa={"logged_in": True})
+    session_pool.login_com_desvio_caa(c1, "conta", "senha")
+    session_pool._classico_recusou_em -= session_pool._CLASSICO_QUARENTENA_S + 1
+
+    c2 = _cliente(erro, caa={"logged_in": True})
+    session_pool.login_com_desvio_caa(c2, "conta", "senha")
+    c2.login.assert_called_once()
 
 
 def test_login_normal_nem_passa_pelo_desvio():
