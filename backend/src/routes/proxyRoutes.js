@@ -19,12 +19,13 @@ router.get('/status', async (req, res) => {
   try {
     const cfg = await getGlobalProxyConfig();
     res.json({
-      ativo:     cfg.ativo,
-      proxy_url: cfg.url,
-      ip:        cfg.ip,
-      ok:        cfg.ok,
-      error:     cfg.error,
-      lastCheck: cfg.lastCheck,
+      ativo:      cfg.ativo,
+      proxy_url:  cfg.url,
+      ip:         cfg.ip,
+      ok:         cfg.ok,
+      error:      cfg.error,
+      lastCheck:  cfg.lastCheck,
+      isolamento: cfg.isolamento || null,   // persistido no último teste
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -69,12 +70,42 @@ router.post('/test', async (req, res) => {
       rotating = !!(segundo.ok && ipSegundo && ipSegundo !== result.ip);
     }
 
+    /* O IP que as CONTAS realmente usam — não o gateway cru.
+     *
+     * Sem molde, o proxy sai pelo gateway (no Axtron, um IP de datacenter), e
+     * era esse que o painel mostrava como "IP em uso" — assustando à toa,
+     * porque conta nenhuma sai por ali. Com molde, cada conta manda um
+     * `__sessid.<hash>` próprio e recebe um IP residencial/móvel só dela.
+     *
+     * Aqui medimos DUAS sessões de amostra: se derem IPs diferentes, o
+     * isolamento por conta está funcionando, e é esse IP (o de amostra) que
+     * representa o que as contas usam. */
+    const { moldeDeSessao, moldarSessao } = require('../services/globalProxy');
+    const molde = moldeDeSessao();
+    let isolamento = null;
+    if (result.ok && molde && url.includes('@')) {
+      try {
+        const urlA = moldarSessao(url, molde, 'amostra0a1b2c3d');
+        const urlB = moldarSessao(url, molde, 'amostra9z8y7x6w');
+        const [a, b] = await Promise.all([testProxy(urlA), testProxy(urlB)]);
+        isolamento = {
+          ativo: !!(a.ok && b.ok && a.ip && b.ip && a.ip !== b.ip),
+          ipAmostra: a.ip || '',
+          ipAmostra2: b.ip || '',
+          molde,
+        };
+      } catch { /* medição de amostra falhou — segue sem ela */ }
+    }
+
     if (cfg.ativo && normalizeProxy(cfg.url) === url) {
       await saveGlobalProxyConfig({
         ip:        result.ip,
         ok:        result.ok,
         error:     result.error,
         lastCheck: new Date(),
+        /* Guarda o estado do isolamento para o card renderizar mesmo sem
+           reteste — e para o vigia poder alertar se ele cair. */
+        isolamento: isolamento || undefined,
       });
     }
 
@@ -83,9 +114,10 @@ router.post('/test', async (req, res) => {
     }
     res.json({
       ok:        true,
-      ip:        result.ip,
+      ip:        result.ip,          // o gateway cru
       ip2:       ipSegundo,
       rotating,
+      isolamento,                    // o que as contas usam, por conta
       latencyMs: result.latencyMs,
       proxy_url: url,
     });

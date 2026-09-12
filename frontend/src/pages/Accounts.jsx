@@ -167,11 +167,12 @@ export default function Accounts() {
       const { data } = await api.get('/proxy/status');
       setProxyStatus(s => ({
         ...s,
-        ativo:     !!data.ativo,
-        ok:        !!data.ok,
-        ip:        data.ip || null,
-        erro:      data.error || null,
-        lastCheck: data.lastCheck || null,
+        ativo:      !!data.ativo,
+        ok:         !!data.ok,
+        ip:         data.ip || null,
+        erro:       data.error || null,
+        lastCheck:  data.lastCheck || null,
+        isolamento: data.isolamento || null,
       }));
       if (data.proxy_url) setProxyUrl(prev => (prev.trim() ? prev : data.proxy_url));
     } catch (err) {
@@ -187,9 +188,13 @@ export default function Accounts() {
       setProxyStatus(s => ({
         ...s,
         ip: data.ip, ok: true, erro: null, rotating: !!data.rotating, ip2: data.ip2 || null,
+        isolamento: data.isolamento || null,
         lastCheck: new Date().toISOString(),
       }));
-      if (data.rotating) {
+      if (data.isolamento?.ativo) {
+        showToast('success', 'Isolamento por conta ativo',
+          `Cada conta sai por um IP próprio (ex.: ${data.isolamento.ipAmostra} e ${data.isolamento.ipAmostra2}). O gateway ${data.ip} não é usado pelas contas.`);
+      } else if (data.rotating) {
         showToast('warning', 'Proxy rotativa', `IP mudou entre duas medições: ${data.ip} → ${data.ip2}`);
       } else {
         showToast('success', 'Proxy OK', `IP de saída: ${data.ip} (${data.latencyMs} ms)`);
@@ -1511,9 +1516,11 @@ export default function Accounts() {
                     {online ? 'Ativo e funcionando' : caiu ? 'Ativo — proxy fora do ar' : 'Inativo'}
                   </span>
                   <span style={{ color:'var(--mf-text-3)' }}>
-                    {proxyStatus.ativo
-                      ? 'toda a automação sai por este IP'
-                      : `automação saindo pelo IP do servidor${ipDireto ? ` (${ipDireto})` : ''}`}
+                    {!proxyStatus.ativo
+                      ? `automação saindo pelo IP do servidor${ipDireto ? ` (${ipDireto})` : ''}`
+                      : proxyStatus.isolamento?.ativo
+                        ? 'cada conta sai por um IP próprio (isolamento ativo)'
+                        : 'toda a automação sai por este IP'}
                   </span>
                 </div>
               </div>
@@ -1521,18 +1528,39 @@ export default function Accounts() {
 
             {proxyStatus.ativo && (
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {ipDireto && (
-                  <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
-                    <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:'var(--mf-text-3)', letterSpacing:'.08em' }}>IP DO SERVIDOR</div>
-                    <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{ipDireto}</div>
-                  </div>
+                {/* Com isolamento, o gateway cru NÃO é o que as contas usam —
+                    ele fica riscado como referência, e o destaque vai para o
+                    IP por conta. Sem isolamento, o IP de saída é o gateway
+                    mesmo, e é ele que importa. */}
+                {proxyStatus.isolamento?.ativo ? (
+                  <>
+                    <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:'var(--mf-text-3)', letterSpacing:'.08em' }}>GATEWAY (NÃO USADO)</div>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{proxyStatus.ip || '—'}</div>
+                    </div>
+                    <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP POR CONTA (AMOSTRA)</div>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:accent, marginTop:2 }}>
+                        {proxyStatus.isolamento.ipAmostra} · {proxyStatus.isolamento.ipAmostra2}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {ipDireto && (
+                      <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
+                        <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:'var(--mf-text-3)', letterSpacing:'.08em' }}>IP DO SERVIDOR</div>
+                        <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{ipDireto}</div>
+                      </div>
+                    )}
+                    <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP EM USO AGORA</div>
+                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:accent, marginTop:2 }}>
+                        {proxyStatus.ip || '—'}
+                      </div>
+                    </div>
+                  </>
                 )}
-                <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP EM USO AGORA</div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:accent, marginTop:2 }}>
-                    {proxyStatus.ip || '—'}
-                  </div>
-                </div>
               </div>
             )}
           </div>

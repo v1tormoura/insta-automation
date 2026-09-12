@@ -167,10 +167,48 @@ async function resolverComOrigem(account, { contabilizar = true } = {}) {
   return { url: global, origem };
 }
 
+/**
+ * O molde de sessão configurado (env), ou '' se não houver.
+ *
+ * O `.env` é carregado no container do backend também, então o Node vê o
+ * mesmo `PROXY_SESSAO_MOLDE` que o serviço Python usa para isolar por conta.
+ * Serve para o painel MEDIR e MOSTRAR o IP que as contas de fato usam, em vez
+ * do gateway cru — que era o `38.211.x` de datacenter assustando à toa.
+ */
+function moldeDeSessao() {
+  return (process.env.PROXY_SESSAO_MOLDE || '').trim();
+}
+
+/**
+ * Aplica um identificador de sessão à URL, do mesmo jeito que o Python
+ * (`moldar_proxy_por_conta`): o sufixo entra no NOME DE USUÁRIO, antes da
+ * senha. Usado só para amostrar o IP isolado no teste do painel — o molde de
+ * produção continua sendo aplicado no Python, uma fonte só.
+ */
+function moldarSessao(url, molde, sessao) {
+  if (!url || !molde || !molde.includes('{sessao}')) return url;
+  const m = /^([a-z0-9+.-]+):\/\/(.+)$/i.exec(url);
+  if (!m) return url;
+  const [, esquema, resto] = m;
+  const at = resto.lastIndexOf('@');
+  if (at < 0) return url;                     // sem credencial, nada a moldar
+  const cred = resto.slice(0, at);
+  const destino = resto.slice(at + 1);
+  const doisPontos = cred.indexOf(':');
+  if (doisPontos < 0) return url;
+  const usuario = cred.slice(0, doisPontos);
+  const senha = cred.slice(doisPontos + 1);
+  const sufixo = molde.replace('{sessao}', sessao);
+  if (usuario.includes(sufixo)) return url;   // idempotente
+  return `${esquema}://${usuario}${sufixo}:${senha}@${destino}`;
+}
+
 module.exports = {
   getGlobalProxyConfig,
   getGlobalProxyUrl,
   saveGlobalProxyConfig,
   resolveProxyFor,
   resolverComOrigem,
+  moldeDeSessao,
+  moldarSessao,
 };
