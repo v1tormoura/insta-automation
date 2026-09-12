@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import api from '../services/api';
+import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
 
@@ -576,6 +577,22 @@ export default function Warmup() {
     const t=setInterval(loadLogs,10000);
     return()=>clearInterval(t);
   },[loadLogs]);
+
+  /* Tempo real. O servidor emite uma linha por AÇÃO (`log`) — visualizou,
+     curtiu, viu story, seguiu — e uma por fim de ciclo. A linha entra no topo
+     na hora, sem esperar o polling de 10 s acima, que fica só como rede de
+     segurança para quando a conexão de eventos cair. O fim de ciclo recarrega
+     o resumo dos cartões (contadores por conta), que não vem no evento. */
+  useServerEvents(['warmup'], dados => {
+    if (dados?.action === 'log' && dados.entry) {
+      setLogs(prev => {
+        if (prev.some(l => l._id === dados.entry._id)) return prev;
+        return [dados.entry, ...prev].slice(0, 80);
+      });
+      return;
+    }
+    if (dados?.action === 'cycle_done') load();
+  });
 
   function updateCfg(id,key,value){ setConfigs(prev=>({...prev,[id]:{...prev[id],[key]:value}})); }
   function toggleAction(id,action){

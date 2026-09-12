@@ -27,13 +27,18 @@ async function igPost(path, token, body = {}) {
 
 async function log(accountId, username, action, detail = '', opts = {}) {
   try {
-    await WarmupLog.create({
+    const entrada = await WarmupLog.create({
       accountId, username, action, detail,
       targetUser:   opts.targetUser   || '',
       targetPostId: opts.targetPostId || '',
       status:       opts.status       || 'success',
       errorMsg:     opts.error        || '',
     });
+    /* Cada ação vira evento NA HORA. Só o fim do ciclo era transmitido, e a
+       tela fazia polling a cada 10 s — "Curtiu @fulano" chegava em lote, com
+       atraso, e o log de atividade não respondia à pergunta que ele existe
+       para responder: "está fazendo agora?". */
+    broadcast('warmup', { action: 'log', entry: entrada.toObject() });
     const count = await WarmupLog.countDocuments({ accountId });
     if (count > 500) {
       const oldest = await WarmupLog.find({ accountId }).sort({ createdAt: 1 }).limit(count - 500).select('_id');
