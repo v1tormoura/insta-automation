@@ -35,6 +35,7 @@ from instagrapi.exceptions import (
     FeedbackRequired,
     LoginRequired,
     TwoFactorRequired,
+    UnknownError,
 )
 
 # Optional extras not available in all instagrapi 2.x minor versions.
@@ -1929,6 +1930,56 @@ def clear_pending_challenge(account_id: str) -> None:
 
 
 # ── Error classification ──────────────────────────────────────────────────────
+
+def login_com_desvio_caa(client: Client, username: str, password: str,
+                         verification_code: str = "") -> bool:
+    """
+    `client.login()` — e, se o Instagram responder `needs_upgrade`, o mesmo
+    login pelo fluxo CAA/Bloks, que é o do app atual.
+
+    ── O que aconteceu em 11/09/2026
+
+    O endpoint clássico (`accounts/login/`) passou a recusar a build que a
+    biblioteca anuncia — 428.0.0.47.67, a mais nova que ela tem — com
+    `error_type=needs_upgrade`: "Sua versão do Instagram está desatualizada".
+    Para TODO mundo, em qualquer instalação (issue #2791 do instagrapi, aberta
+    nesse dia). Medido daqui, com usuário falso: trocar a versão na string do
+    User-Agent — 446, 460 — não muda nada. O portão não olha a versão; olha
+    outro sinal do cliente, e não há build nova na biblioteca para anunciar.
+
+    ── Por que o CAA passa
+
+    É outro endpoint, o do fluxo de login atual do app, e ele NÃO aplica esse
+    portão — medido: com a mesma build 428, devolve a tela Bloks normal em
+    vez de `needs_upgrade`. A biblioteca já tem o fluxo (`bloks_caa_login`,
+    `_try_caa_login`), mas o `login()` dela só desvia para ele em
+    `BadPassword`. O PR #2792 (12/09/2026) acrescenta o desvio em
+    `needs_upgrade`; isto é o mesmo desvio, aqui, sem esperar a publicação.
+
+    Depois do CAA passar, o que `login()` faria em seguida: `login_flow()`,
+    carimbo do último login, contador de relogin zerado.
+    """
+    try:
+        return client.login(username, password, verification_code=verification_code)
+    except UnknownError as exc:
+        error_type = str(getattr(exc, "error_type", "") or "").strip().lower()
+        if not error_type:
+            lj = getattr(client, "last_json", None) or {}
+            error_type = str(lj.get("error_type") or "").strip().lower()
+        if error_type != "needs_upgrade":
+            raise
+
+        _slog("LOGIN_NEEDS_UPGRADE_DESVIO_CAA", "-", username=username,
+              build=str((getattr(client, "device_settings", None) or {}).get("app_version")))
+        logged = client._try_caa_login(exc, verification_code=verification_code)
+        if not logged:
+            raise
+        client.login_flow()
+        client.last_login = time.time()
+        client.relogin_attempt = 0
+        _slog("LOGIN_VIA_CAA_OK", "-", username=username)
+        return True
+
 
 def classify_error(e: Exception) -> str:
     """

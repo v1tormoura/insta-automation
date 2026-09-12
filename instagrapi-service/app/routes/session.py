@@ -181,7 +181,11 @@ async def login(body: LoginRequest):
         session_pool._slog("LOGIN_FLOW_START", body.account_id)  # [TEMP-DEBUG]
         t0 = time.perf_counter()
         try:
-            await loop.run_in_executor(None, lambda: client.login(
+            # `login_com_desvio_caa` e não `client.login`: desde 11/09/2026 o
+            # endpoint clássico recusa a build da biblioteca com `needs_upgrade`;
+            # o desvio refaz o login pelo fluxo CAA, que não tem esse portão.
+            await loop.run_in_executor(None, lambda: session_pool.login_com_desvio_caa(
+                client,
                 body.username,
                 body.password,
                 verification_code=body.verification_code or "",
@@ -269,7 +273,8 @@ async def login(body: LoginRequest):
                 client.set_proxy(cru)
                 session_pool._slog("LOGIN_REFEITO_SEM_MOLDE", body.account_id)
                 try:
-                    await loop.run_in_executor(None, lambda: client.login(
+                    await loop.run_in_executor(None, lambda: session_pool.login_com_desvio_caa(
+                        client,
                         body.username,
                         body.password,
                         verification_code=body.verification_code or "",
@@ -772,8 +777,14 @@ async def verify_2fa(body: TwoFactorVerifyRequest):
                     )
                 except UnknownError as exc:
                     message = (getattr(exc, "message", "") or "").strip().lower()
-                    if message == "invalid parameters":
-                        # Só aqui o fluxo bloks é o correto.
+                    error_type = (str(getattr(exc, "error_type", "") or "")
+                                  or str((getattr(client, "last_json", None) or {}).get("error_type") or "")
+                                  ).strip().lower()
+                    # "invalid parameters" era o único caso em que o fluxo bloks
+                    # é o certo. Desde 11/09/2026 o endpoint clássico também
+                    # responde `needs_upgrade` (ver `login_com_desvio_caa`), e o
+                    # bloks — que é o fluxo do app atual — é a saída nos dois.
+                    if message == "invalid parameters" or error_type == "needs_upgrade":
                         logged = client._login_with_bloks_two_factor(code, login_json, exc)
                     else:
                         raise
