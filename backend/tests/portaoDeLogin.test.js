@@ -222,13 +222,22 @@ describe('a rota usa o portão', () => {
   test('espera antes de gastar a tentativa, em vez de devolver erro', () => {
     /* Um módulo pode estar perfeito e ninguém chamá-lo — foi o defeito do
        arquivo por conta. */
-    expect(fonte).toContain('portao.conferir(accountId)');
+    expect(fonte).toContain('portao.conferir(freioLogin)');
     expect(fonte).toContain('setTimeout(r, vez.esperaMs)');
+  });
+
+  test('o freio é chaveado pelo USERNAME, não pelo _id que a conta órfã recria', () => {
+    /* Conta nova que falha é apagada e recriada com _id novo; se o freio fosse
+       pelo _id, cada recriação o zeraria e o clique gastaria de novo a
+       tentativa que o Instagram conta por @. */
+    expect(fonte).toContain('const freioLogin = clean');
+    expect(fonte).toContain('portao.conferir(freioLogin)');
+    expect(fonte).not.toContain('portao.conferir(accountId)');
   });
 
   test('registra a tentativa ANTES do login', () => {
     // Senha errada consome a tentativa do Instagram do mesmo jeito.
-    const i = fonte.indexOf('portao.registrarTentativa(accountId)');
+    const i = fonte.indexOf('portao.registrarTentativa(freioLogin)');
     const j = fonte.indexOf('await http.login(account, clean');
     expect(i).toBeGreaterThan(0);
     expect(i).toBeLessThan(j);
@@ -236,7 +245,7 @@ describe('a rota usa o portão', () => {
 
   test('registra o limite quando o Instagram o confirma', () => {
     expect(fonte).toContain("code === 'RATE_LIMITED'");
-    expect(fonte).toContain('registrarLimite(accountId, segundos)');
+    expect(fonte).toContain('registrarLimite(freioKey, segundos)');
   });
 
   test('espera longa vira contagem na tela, não requisição pendurada', () => {

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * O espaçamento entre logins por senha — POR CONTA.
+ * O espaçamento entre logins por senha — POR CONTA, chaveado pelo USERNAME.
  *
  * ── Por que por conta, e não global
  *
@@ -14,6 +14,14 @@
  * porque a `contaA` — outro IP — levou 429. O usuário via "aguarde 5 min" numa
  * conta que nunca tinha tentado nada. O freio tem de seguir a unidade de
  * isolamento, e essa unidade virou a conta.
+ *
+ * ── Por que a chave é o USERNAME, não o `_id`
+ *
+ * Conta nova que falha o login é apagada como órfã e recriada com `_id` novo no
+ * próximo clique. Se a chave fosse o `_id`, cada recriação zeraria o freio e o
+ * clique gastaria de novo a tentativa que o Instagram conta — e o Instagram
+ * conta POR @, não por registro nosso. O @ é estável entre recriações e é a
+ * unidade que ele de fato limita. Por isso `chave` aqui é o username.
  *
  * ── O que este módulo NÃO faz
  *
@@ -78,11 +86,11 @@ function gravar() {
 }
 
 /** Sub-estado de uma conta, criado sob demanda. `null`/vazio cai num balde comum. */
-function _conta(accountId) {
+function _conta(chave) {
   const e = carregar();
-  const chave = String(accountId || '__sem_conta__');
-  if (!e.contas[chave]) e.contas[chave] = _novaConta();
-  const c = e.contas[chave];
+  const k = String(chave || '__sem_conta__');
+  if (!e.contas[k]) e.contas[k] = _novaConta();
+  const c = e.contas[k];
   if (typeof c.limitesSeguidos !== 'number') c.limitesSeguidos = 0;
   if (typeof c.ultimoLimiteEm !== 'number') c.ultimoLimiteEm = 0;
   return c;
@@ -94,10 +102,11 @@ function esperaSorteada(aleatorio = Math.random) {
 
 /**
  * Esta conta pode tentar um login por senha agora?
+ * @param {string} chave — o username da conta (a unidade que o Instagram limita)
  * @returns {{pode: boolean, esperaMs: number, motivo: string}}
  */
-function conferir(accountId, agora = Date.now()) {
-  const c = _conta(accountId);
+function conferir(chave, agora = Date.now()) {
+  const c = _conta(chave);
 
   if (c.bloqueadoAte > agora) {
     return { pode: false, esperaMs: c.bloqueadoAte - agora, motivo: 'o Instagram pediu espera nesta conta' };
@@ -109,8 +118,8 @@ function conferir(accountId, agora = Date.now()) {
 }
 
 /** Registra uma tentativa gasta desta conta, e espaça a próxima. */
-function registrarTentativa(accountId, agora = Date.now(), aleatorio = Math.random) {
-  const c = _conta(accountId);
+function registrarTentativa(chave, agora = Date.now(), aleatorio = Math.random) {
+  const c = _conta(chave);
   c.ultimaTentativa = agora;
   c.proximaLiberacao = agora + esperaSorteada(aleatorio);
   gravar();
@@ -121,8 +130,8 @@ function registrarTentativa(accountId, agora = Date.now(), aleatorio = Math.rand
  * O Instagram confirmou o limite DESTA conta. Guarda até quando, com backoff.
  * @param {number} [segundos] — o que ele informou, quando informa
  */
-function registrarLimite(accountId, segundos, agora = Date.now()) {
-  const c = _conta(accountId);
+function registrarLimite(chave, segundos, agora = Date.now()) {
+  const c = _conta(chave);
 
   const seguido = c.ultimoLimiteEm > 0 && (agora - c.ultimoLimiteEm) < JANELA_SEQUENCIA_MS;
   c.limitesSeguidos = seguido ? c.limitesSeguidos + 1 : 1;
@@ -141,8 +150,8 @@ function registrarLimite(accountId, segundos, agora = Date.now()) {
 }
 
 /** Um login desta conta deu certo — abre mais cedo e zera a escalada dela. */
-function registrarSucesso(accountId, agora = Date.now()) {
-  const c = _conta(accountId);
+function registrarSucesso(chave, agora = Date.now()) {
+  const c = _conta(chave);
   c.bloqueadoAte = 0;
   c.limitesSeguidos = 0;
   c.ultimoLimiteEm = 0;
@@ -151,11 +160,11 @@ function registrarSucesso(accountId, agora = Date.now()) {
   return c.proximaLiberacao;
 }
 
-/** Zera o freio: de uma conta (com id) ou de todas (sem id). */
-function limpar(accountId) {
+/** Zera o freio: de uma conta (com a chave) ou de todas (sem chave). */
+function limpar(chave) {
   const e = carregar();
-  if (accountId) {
-    delete e.contas[String(accountId)];
+  if (chave) {
+    delete e.contas[String(chave)];
   } else {
     _estado = { contas: {} };
     try { fs.unlinkSync(ARQUIVO); return; } catch { /* já não existe */ }

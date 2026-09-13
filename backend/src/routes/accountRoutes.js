@@ -1365,18 +1365,29 @@ async function _guardarSenha(accountId, senha) {
   } catch { /* não guardar não invalida nada do que já aconteceu */ }
 }
 
-async function _handleInstagrapiError(err, res, accountId = null) {
+/**
+ * @param {string|{freioKey?:string, accountId?:string}} [chaveOuOpts]
+ *   A chave do freio como string (estilo antigo) OU `{ freioKey, accountId }`.
+ *   `freioKey` é o USERNAME — a unidade que o Instagram limita, e que sobrevive
+ *   à recriação da conta órfã (o `_id` troca a cada tentativa, o @ não).
+ *   `accountId` serve só para gravar a suspensão no banco.
+ */
+async function _handleInstagrapiError(err, res, chaveOuOpts = null) {
+  const ehOpts    = chaveOuOpts && typeof chaveOuOpts === 'object';
+  const freioKey  = ehOpts ? (chaveOuOpts.freioKey  ?? null) : chaveOuOpts;
+  const accountId = ehOpts ? (chaveOuOpts.accountId ?? null) : chaveOuOpts;
+
   const code = err?.code || 'UNKNOWN_ERROR';
 
-  /* O Instagram confirmou o limite do IP. O portão precisa saber.
+  /* O Instagram confirmou o limite. O portão precisa saber — por USERNAME.
 
      Sem registrar, o próximo clique passaria pelo espaçamento normal — dois
-     minutos — e gastaria uma tentativa num IP que acabou de dizer para
-     esperar cinco. Insistir dentro da janela piora o bloqueio, e é a própria
-     tela que avisa isso. */
+     minutos — e gastaria uma tentativa numa conta que acabou de ouvir para
+     esperar. Insistir dentro da janela piora o bloqueio, e é a própria tela
+     que avisa isso. */
   if (code === 'RATE_LIMITED') {
     const segundos = Number(err?.retryAfterSeconds) || Number(err?.retry_after) || 0;
-    require('../services/portaoDeLogin').registrarLimite(accountId, segundos);
+    require('../services/portaoDeLogin').registrarLimite(freioKey, segundos);
   }
 
   // Suspensão é estado da conta, não falha transitória: registra no healthStatus
@@ -1495,6 +1506,12 @@ router.post('/instagrapi-direct', async (req, res) => {
   }
 
   const accountId = String(account._id);
+  /* A chave do freio de login é o USERNAME, não o `_id`. Conta nova que falha é
+     apagada como órfã (ver o catch) e recriada com `_id` novo no próximo clique
+     — se o freio fosse pelo `_id`, cada recriação o zeraria e o clique gastaria
+     de novo a tentativa que o Instagram conta POR @. O @ é estável entre as
+     recriações e é a unidade que o Instagram de fato limita. */
+  const freioLogin = clean;
   const http = _getHttp();
 
   // ── FASE 3: per-account login lock (95 s) — prevents duplicate logins ─────
@@ -1508,7 +1525,7 @@ router.post('/instagrapi-direct', async (req, res) => {
         console.log(`[IG-LOGIN] restore result — restored=${restore.restored} networkError=${!!restore.networkError} errCode=${restore.err?.code || 'none'}`);
         if (restore.networkError) {
           console.warn(`[IG-LOGIN] restore failed with network error — code=${restore.err?.code}`);
-          _handleInstagrapiError(restore.err, res);
+          _handleInstagrapiError(restore.err, res, { freioKey: freioLogin, accountId: account?._id });
           return;
         }
         if (restore.restored) {
@@ -1550,7 +1567,7 @@ router.post('/instagrapi-direct', async (req, res) => {
          e mostra a contagem, que é o comportamento que já existia. */
       const portao = require('../services/portaoDeLogin');
       const TETO_DE_ESPERA_MS = 75_000;
-      const vez = portao.conferir(accountId);
+      const vez = portao.conferir(freioLogin);
 
       if (!vez.pode && vez.esperaMs > TETO_DE_ESPERA_MS) {
         console.log(`[IG-LOGIN] portão fechado por ${Math.round(vez.esperaMs / 1000)}s — ${vez.motivo}`);
@@ -1569,11 +1586,11 @@ router.post('/instagrapi-direct', async (req, res) => {
 
       /* Registrado ANTES do login: uma tentativa que falha por senha errada
          conta para o Instagram do mesmo jeito que uma que dá certo. */
-      portao.registrarTentativa(accountId);
+      portao.registrarTentativa(freioLogin);
 
       console.log(`[IG-LOGIN] calling Python service — POST /session/login (timeout=90s)`);
       const result = await http.login(account, clean, password.trim(), (totp || '').trim());
-      if (result.status === 'AUTHENTICATED') portao.registrarSucesso(accountId);
+      if (result.status === 'AUTHENTICATED') portao.registrarSucesso(freioLogin);
       console.log(`[IG-LOGIN] Python response — status=${result.status} has_settings=${!!result.settings}`);
 
       if (result.status === 'TWO_FACTOR_REQUIRED') {
@@ -1620,12 +1637,11 @@ router.post('/instagrapi-direct', async (req, res) => {
       console.log(`[IG-LOGIN] orphan account ${account?._id} deleted — login failed with code=${err?.code}`);
     }
     console.error(`[IG-LOGIN] error — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
-    /* Passa o id SEMPRE: o freio de login (portão) precisa registrar o 429 na
-       MESMA conta que o `conferir` consultou, senão o limite iria para o balde
-       errado e a conta seguiria "liberada". A marcação de suspensão lá dentro
-       já é no-op numa conta órfã recém-removida — findByIdAndUpdate não acha
-       nada. */
-    return _handleInstagrapiError(err, res, account?._id);
+    /* O freio pelo USERNAME (`freioLogin`), o mesmo que o `conferir` consultou —
+       assim o 429 fica registrado no @ e sobrevive à remoção da conta órfã logo
+       abaixo. O `accountId` vai junto só para a suspensão no banco (no-op numa
+       órfã recém-removida: findByIdAndUpdate não acha nada). */
+    return _handleInstagrapiError(err, res, { freioKey: freioLogin, accountId: account?._id });
   }
 });
 
@@ -1660,7 +1676,7 @@ router.post('/instagrapi-verify-2fa', async (req, res) => {
     broadcast('accounts', { action: 'synced' });
     return res.json({ success: true, message: `@${clean} conectada via API Mobile` });
   } catch (err) {
-    return _handleInstagrapiError(err, res, account?._id);
+    return _handleInstagrapiError(err, res, { freioKey: clean, accountId: account?._id });
   }
 });
 
@@ -1711,15 +1727,17 @@ router.get('/preflight', async (req, res) => {
  *        espaçamento; se o dele ainda valer, o 429 volta e o portão refecha.
  */
 router.get('/login/portao', (req, res) => {
-  // O freio é por conta: `?accountId=` diz de qual. Sem ele, não há estado a
-  // mostrar (cada conta tem o seu).
-  const vez = require('../services/portaoDeLogin').conferir(req.query.accountId || null);
+  // O freio é por USERNAME (a unidade que o Instagram limita): `?username=` diz
+  // de qual. Sem ele, não há estado a mostrar (cada @ tem o seu).
+  const chave = (req.query.username || req.query.accountId || '').toString().trim().replace(/^@/, '').toLowerCase() || null;
+  const vez = require('../services/portaoDeLogin').conferir(chave);
   res.json({ pode: vez.pode, esperaSegundos: Math.ceil(vez.esperaMs / 1000), motivo: vez.motivo });
 });
 
 router.post('/login/portao/liberar', (req, res) => {
-  // Com `accountId`, libera só aquela conta; sem ele, todas.
-  require('../services/portaoDeLogin').limpar(req.body?.accountId || null);
+  // Com `username`, libera só aquele @; sem ele, todos.
+  const chave = (req.body?.username || req.body?.accountId || '').toString().trim().replace(/^@/, '').toLowerCase() || null;
+  require('../services/portaoDeLogin').limpar(chave);
   res.json({ ok: true, mensagem: 'Espaçamento zerado. Se o Instagram ainda estiver limitando, o aviso volta na próxima tentativa.' });
 });
 
@@ -2080,7 +2098,7 @@ router.post('/:id/mobile-1clique', async (req, res) => {
                  message: `@${account.username} conectada na API Mobile` });
     });
   } catch (err) {
-    _handleInstagrapiError(err, res, accountId);
+    _handleInstagrapiError(err, res, { freioKey: account.username, accountId });
   }
 });
 
