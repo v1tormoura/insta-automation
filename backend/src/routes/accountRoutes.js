@@ -1376,7 +1376,7 @@ async function _handleInstagrapiError(err, res, accountId = null) {
      tela que avisa isso. */
   if (code === 'RATE_LIMITED') {
     const segundos = Number(err?.retryAfterSeconds) || Number(err?.retry_after) || 0;
-    require('../services/portaoDeLogin').registrarLimite(segundos);
+    require('../services/portaoDeLogin').registrarLimite(accountId, segundos);
   }
 
   // Suspensão é estado da conta, não falha transitória: registra no healthStatus
@@ -1550,7 +1550,7 @@ router.post('/instagrapi-direct', async (req, res) => {
          e mostra a contagem, que é o comportamento que já existia. */
       const portao = require('../services/portaoDeLogin');
       const TETO_DE_ESPERA_MS = 75_000;
-      const vez = portao.conferir();
+      const vez = portao.conferir(accountId);
 
       if (!vez.pode && vez.esperaMs > TETO_DE_ESPERA_MS) {
         console.log(`[IG-LOGIN] portão fechado por ${Math.round(vez.esperaMs / 1000)}s — ${vez.motivo}`);
@@ -1569,11 +1569,11 @@ router.post('/instagrapi-direct', async (req, res) => {
 
       /* Registrado ANTES do login: uma tentativa que falha por senha errada
          conta para o Instagram do mesmo jeito que uma que dá certo. */
-      portao.registrarTentativa();
+      portao.registrarTentativa(accountId);
 
       console.log(`[IG-LOGIN] calling Python service — POST /session/login (timeout=90s)`);
       const result = await http.login(account, clean, password.trim(), (totp || '').trim());
-      if (result.status === 'AUTHENTICATED') portao.registrarSucesso();
+      if (result.status === 'AUTHENTICATED') portao.registrarSucesso(accountId);
       console.log(`[IG-LOGIN] Python response — status=${result.status} has_settings=${!!result.settings}`);
 
       if (result.status === 'TWO_FACTOR_REQUIRED') {
@@ -1620,9 +1620,12 @@ router.post('/instagrapi-direct', async (req, res) => {
       console.log(`[IG-LOGIN] orphan account ${account?._id} deleted — login failed with code=${err?.code}`);
     }
     console.error(`[IG-LOGIN] error — code=${err?.code} msg=${err?.message?.slice(0, 150)}`);
-    // Passa o id só quando a conta permanece cadastrada — em conta órfã recém
-    // removida não há o que marcar.
-    return _handleInstagrapiError(err, res, _isNewAccount ? null : account?._id);
+    /* Passa o id SEMPRE: o freio de login (portão) precisa registrar o 429 na
+       MESMA conta que o `conferir` consultou, senão o limite iria para o balde
+       errado e a conta seguiria "liberada". A marcação de suspensão lá dentro
+       já é no-op numa conta órfã recém-removida — findByIdAndUpdate não acha
+       nada. */
+    return _handleInstagrapiError(err, res, account?._id);
   }
 });
 
@@ -1707,14 +1710,17 @@ router.get('/preflight', async (req, res) => {
  *        de cliques acumulou. Não remove o limite do Instagram — só o nosso
  *        espaçamento; se o dele ainda valer, o 429 volta e o portão refecha.
  */
-router.get('/login/portao', (_req, res) => {
-  const vez = require('../services/portaoDeLogin').conferir();
+router.get('/login/portao', (req, res) => {
+  // O freio é por conta: `?accountId=` diz de qual. Sem ele, não há estado a
+  // mostrar (cada conta tem o seu).
+  const vez = require('../services/portaoDeLogin').conferir(req.query.accountId || null);
   res.json({ pode: vez.pode, esperaSegundos: Math.ceil(vez.esperaMs / 1000), motivo: vez.motivo });
 });
 
-router.post('/login/portao/liberar', (_req, res) => {
-  require('../services/portaoDeLogin').limpar();
-  res.json({ ok: true, mensagem: 'Espaçamento zerado. Se o Instagram ainda estiver limitando o IP, o aviso volta na próxima tentativa.' });
+router.post('/login/portao/liberar', (req, res) => {
+  // Com `accountId`, libera só aquela conta; sem ele, todas.
+  require('../services/portaoDeLogin').limpar(req.body?.accountId || null);
+  res.json({ ok: true, mensagem: 'Espaçamento zerado. Se o Instagram ainda estiver limitando, o aviso volta na próxima tentativa.' });
 });
 
 router.get('/check-username/:username', async (req, res) => {
