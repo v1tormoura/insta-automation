@@ -373,17 +373,31 @@ export default function Posts() {
   const [primeiraCarga, setPrimeiraCarga] = useState(true);
 
   async function load(targetPage = postPage) {
-    try {
-      const [postsRes, accountsRes, legendsRes] = await Promise.all([
-        api.get(`/posts?page=${targetPage}&limit=20`),
-        api.get('/accounts?limit=200'),
-        api.get('/legends'),
-      ]);
-      setPosts(postsRes.data.posts || []);
-      setPostPagination(postsRes.data.pagination || null);
-      setAccounts(accountsRes.data.accounts || []);
-      setLegends(Array.isArray(legendsRes.data) ? legendsRes.data : []);
-    } catch { /* silencioso — estado anterior mantido */ }
+    /* Três buscas INDEPENDENTES, não um `Promise.all`.
+
+       Estavam juntas num `Promise.all` com catch silencioso: se `/legends`
+       (ou `/posts`) falhasse, a promessa inteira rejeitava e as CONTAS nunca
+       eram preenchidas — o seletor mostrava "Nenhuma conta disponível" por
+       causa de um erro em outra rota, sem nada na tela explicando. Agora cada
+       uma preenche a sua lista no próprio sucesso; a falha de uma não derruba
+       as outras. */
+    const [postsR, accountsR, legendsR] = await Promise.allSettled([
+      api.get(`/posts?page=${targetPage}&limit=20`),
+      api.get('/accounts?limit=200'),
+      api.get('/legends'),
+    ]);
+    if (postsR.status === 'fulfilled') {
+      setPosts(postsR.value.data.posts || []);
+      setPostPagination(postsR.value.data.pagination || null);
+    }
+    if (accountsR.status === 'fulfilled') {
+      setAccounts(accountsR.value.data.accounts || []);
+    } else {
+      console.warn('[Posts] falha ao carregar contas:', accountsR.reason?.message);
+    }
+    if (legendsR.status === 'fulfilled') {
+      setLegends(Array.isArray(legendsR.value.data) ? legendsR.value.data : []);
+    }
   }
 
   function goToPostPage(p) { setPostPage(p); load(p); }

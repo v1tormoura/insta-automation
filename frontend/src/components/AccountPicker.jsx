@@ -140,8 +140,20 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
         WebkitOverflowScrolling: 'touch',
       }}>
         {filtered.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '24px 0', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>
-            {search ? 'Nenhuma conta encontrada' : 'Nenhuma conta disponível'}
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '24px 8px', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', lineHeight: 1.6 }}>
+            {/* Distingue "não há conta nenhuma" de "há, mas o filtro/busca
+                escondeu" — a primeira manda conectar, a segunda manda mudar o
+                filtro. "Nenhuma conta disponível" sem contexto virava um
+                beco sem saída. */}
+            {accounts.length === 0
+              ? <>Nenhuma conta cadastrada.<br />Conecte uma conta em <strong style={{ color: 'var(--mf-text-2)' }}>Contas</strong> antes de publicar.</>
+              : search
+                ? 'Nenhuma conta com esse @.'
+                : statusTab === 'ativa'
+                  ? `Nenhuma conta ativa (${accounts.length} cadastrada${accounts.length > 1 ? 's' : ''}, mas sem sessão válida). Reconecte em Contas.`
+                  : statusTab === 'session'
+                    ? `Nenhuma conta com sessão (${accounts.length} cadastrada${accounts.length > 1 ? 's' : ''}). Reconecte em Contas.`
+                    : 'Nenhuma conta disponível.'}
           </div>
         )}
 
