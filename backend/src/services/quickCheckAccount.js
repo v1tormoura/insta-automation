@@ -13,6 +13,19 @@ const UA_MOBILE = 'Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2340; sa
 const UA_WEB    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
+ * O QuickCheck saía por `fetch()` cru — o IP do VPS, direto, sem proxy. Rodando
+ * a cada poucos minutos em TODA conta, era um IP de datacenter batendo no
+ * `web_profile_info` do Instagram sem parar: 429 na certa, e o 429 é do IP, não
+ * da conta — envenenava o endereço que outras operações também usam. Pior, era
+ * a MESMA rota para todas as contas, o oposto do isolamento por conta que o
+ * resto do sistema mantém. Agora cada verificação sai pelo proxy da conta (o
+ * mesmo `dispatcher` que o healthCheck já usa), residencial e isolado. */
+function _proxyDispatcher(proxyUrl) {
+  if (!proxyUrl?.trim()) return undefined;
+  try { return new (require('undici').ProxyAgent)(proxyUrl.trim()); } catch { return undefined; }
+}
+
+/**
  * Verifica se a conta do Instagram está acessível.
  *
  * Estratégia (mais confiável primeiro):
@@ -20,10 +33,13 @@ const UA_WEB    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
  * 2. Scrape da meta og:title na página pública
  *
  * @param {string} username
+ * @param {import('undici').Dispatcher} [dispatcher] proxy da conta; sem ele, sai
+ *        pelo IP do host (só use assim em contexto que não tem conta — teste manual).
  * @returns {Promise<'ativa'|'banida'|'restrita'|'desconhecido'>}
  */
-async function checkInstagramProfile(username) {
+async function checkInstagramProfile(username, dispatcher) {
   if (/^\d+$/.test(username)) return 'desconhecido'; // userId numérico — ignora
+  const comProxy = dispatcher ? { dispatcher } : {};
 
   // ── Método 1: API JSON web_profile_info ──────────────────────────────────
   // Esse endpoint retorna JSON estruturado sem precisar de JS no browser
@@ -44,6 +60,7 @@ async function checkInstagramProfile(username) {
           'Origin':          'https://www.instagram.com',
         },
         signal: ctrl.signal,
+        ...comProxy,
       }
     );
     clearTimeout(tid);
@@ -53,6 +70,14 @@ async function checkInstagramProfile(username) {
     if (res.status === 404) {
       console.log(`🚫 [QuickCheck] @${username} — 404 (banida/deletada)`);
       return 'banida';
+    }
+
+    /* 429 é o IP throttled, não sinal de ban. Devolve 'desconhecido' e para
+       aqui: insistir no método 2 seria outra batida no mesmo endereço já
+       limitado, piorando o bloqueio em vez de descobrir algo. */
+    if (res.status === 429) {
+      console.log(`🐢 [QuickCheck] @${username} — 429 (IP throttled), pulando verificação`);
+      return 'desconhecido';
     }
 
     if (res.ok) {
@@ -95,6 +120,7 @@ async function checkInstagramProfile(username) {
       },
       signal: ctrl.signal,
       redirect: 'follow',
+      ...comProxy,
     });
     clearTimeout(tid);
 
@@ -232,8 +258,14 @@ async function quickCheckAndUpdate(account) {
     }
   }
 
-  // 2. Verifica ban/restrição via perfil público
-  const status = await checkInstagramProfile(username);
+  // 2. Verifica ban/restrição via perfil público — SEMPRE pelo proxy da conta,
+  //    nunca pelo IP cru do host (era o que envenenava o datacenter).
+  let dispatcher;
+  try {
+    const { resolveProxyFor } = require('./globalProxy');
+    dispatcher = _proxyDispatcher(await resolveProxyFor(account));
+  } catch { /* sem proxy configurado — cai no fetch direto, como antes */ }
+  const status = await checkInstagramProfile(username, dispatcher);
   console.log(`🔍 [QuickCheck] @${username} → ${status}`);
 
   if (status === 'banida' && account.healthStatus !== 'banida') {

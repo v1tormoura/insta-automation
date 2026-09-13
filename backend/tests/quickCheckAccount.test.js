@@ -23,7 +23,13 @@ jest.mock('../src/models/Account', () => ({
   findByIdAndUpdate: (...a) => mockFindByIdAndUpdate(...a),
 }));
 
-const { quickCheckAndUpdate } = require('../src/services/quickCheckAccount');
+// O proxy da conta é resolvido pelo globalProxy. Mockado aqui para não depender
+// de banco nem de env, e para poder provar que o QuickCheck o consulta.
+let mockProxyUrl = '';
+const mockResolveProxyFor = jest.fn(async () => mockProxyUrl);
+jest.mock('../src/services/globalProxy', () => ({ resolveProxyFor: (...a) => mockResolveProxyFor(...a) }));
+
+const { quickCheckAndUpdate, checkInstagramProfile } = require('../src/services/quickCheckAccount');
 
 const contaOficial = (overrides = {}) => ({
   _id: 'acc1', username: 'contaoficial', provider: 'official',
@@ -56,7 +62,40 @@ beforeEach(() => {
   mockDecrypt.mockReset().mockImplementation(v => v.startsWith('enc1:') ? v.slice(5) : v);
   mockFindByIdAndUpdate.mockReset().mockResolvedValue({});
   oauthResponder = async () => ({ ok: true, json: async () => ({ id: '123' }) });
+  mockProxyUrl = '';
+  mockResolveProxyFor.mockClear();
   perfilPublicoOk();
+});
+
+describe('o QuickCheck sai pelo proxy da conta, não pelo IP cru do host', () => {
+  /* O defeito: `checkInstagramProfile` fazia fetch cru, sem proxy — o IP do VPS
+     batendo no web_profile_info do Instagram a cada poucos minutos, em toda
+     conta. IP de datacenter + volume = 429, e o 429 é do IP: envenenava o
+     endereço que outras operações também usam, e era a MESMA rota para todas as
+     contas — o oposto do isolamento por conta. */
+  test('checkInstagramProfile repassa ao fetch o dispatcher que recebe', async () => {
+    // Prova o encanamento sem depender do undici: um dispatcher sentinela tem
+    // de chegar às opções do fetch de perfil.
+    const sentinela = { _proxy: 'sentinela' };
+    const opts = [];
+    global.fetch = jest.fn(async (_url, o) => { opts.push(o); return { ok: true, status: 200, json: async () => ({}) }; });
+
+    await checkInstagramProfile('alguem', sentinela);
+
+    expect(opts[0].dispatcher).toBe(sentinela);
+  });
+
+  test('quickCheckAndUpdate resolve o proxy DA CONTA antes de checar o perfil', async () => {
+    const conta = contaOficial({ healthStatus: 'ativa' });
+    await quickCheckAndUpdate(conta);
+    expect(mockResolveProxyFor).toHaveBeenCalledWith(conta);
+  });
+
+  test('sem proxy, não quebra — sai direto, como era antes', async () => {
+    mockProxyUrl = '';
+    const r = await quickCheckAndUpdate(contaOficial({ healthStatus: 'ativa' }));
+    expect(r.status).not.toBe('token_invalido');
+  });
 });
 
 describe('token é descriptografado antes de ir para o Meta', () => {
