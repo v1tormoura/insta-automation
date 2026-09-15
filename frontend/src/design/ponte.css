@@ -199,13 +199,20 @@
               box-shadow var(--mf-fast) var(--mf-ease-out);
 }
 
+/* Ciano SÓLIDO e chapado, texto escuro — o botão do painel de publicação que
+   o usuário aprovou, agora padrão em todo o SaaS. Era um gradiente 500→600; o
+   chapado lê mais limpo e "de última linha", e é a mesma cor da marca
+   (`--mf-primary-500`, o #00C8FF). O peso sobe para 700 para o rótulo aguentar
+   o fundo vivo. */
 [data-mf] .btn-primary {
-  background: linear-gradient(180deg, var(--mf-primary-500), var(--mf-primary-600));
+  background: var(--mf-primary-500);
   color: var(--mf-primary-fg);
   border-color: transparent;
+  font-weight: 700;
   box-shadow: var(--mf-shadow-1);
 }
 [data-mf] .btn-primary:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--mf-primary-500) 85%, white);
   box-shadow: var(--mf-glow-primary);
   /* sem translateY: o botão primário costuma abrir modal, e mover o alvo
      sob o cursor no hover atrapalha quem tem pouca precisão de mouse */
@@ -694,18 +701,14 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
 
 /* ── Barra lateral ───────────────────────────────────────────────────────*/
 .mf-side {
-  /* CIBER — vidro, não superfície opaca.
-  
-     `--mf-surface-1` é a cor dos CARTÕES, e cartão e casca têm funções
-     opostas: o cartão isola o dado do fundo, a casca deixa o fundo aparecer.
-     Com a mesma cor nos dois, o campo de filamentos morria atrás de duas
-     paredes chapadas e o fundo animado só existia na faixa central.
-
-     A saturação no desfoque não é enfeite: sem ela o `backdrop-filter`
-     dessatura o que passa por baixo, e o ciano do fundo chega aqui cinza. */
-  background: var(--mf-casca);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  /* Casca OPACA, por escolha do usuário: o vidro deixava o fundo animado passar
+     por baixo da barra em todas as telas, e a leitura era de "sidebar
+     transparente". `--mf-casca-solida` é a MESMA cor da casca de vidro, só que
+     sem o canal alfa — mesma identidade, sem o fundo vazando. Sem o vidro, o
+     `backdrop-filter` não tem mais função (nada passa por baixo) e sai: além de
+     custar GPU à toa, ele abria um contexto de empilhamento que já foi origem
+     de bugs de z-index (painel atrás do cabeçalho). */
+  background: var(--mf-casca-solida);
   border-right: 1px solid var(--mf-border);
   display: flex; flex-direction: column;
   position: sticky; top: 0; height: 100vh; height: 100svh;
@@ -953,14 +956,11 @@ body:has([data-mf])::-webkit-scrollbar { width: 10px; height: 10px; }
   /* Sólida, pelo mesmo motivo do cabeçalho de página: com 78% o conteúdo
      passava por baixo e aparecia ao rolar, e a barra superior é o último lugar
      onde se quer texto competindo com números fantasma. */
-  /* CIBER — o mesmo vidro da barra lateral. O comentário acima explicava por
-     que o fundo era SÓLIDO: sobre uma grade densa de dados, o conteúdo
-     passava por baixo e aparecia ao rolar. Isso continua verdade para o
-     cabeçalho de PÁGINA (`.mf-page-head`, que segue opaco) — mas a barra
-     superior não tem dado rolando por baixo dela: tem a casca. */
-  background: var(--mf-casca);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  /* OPACA, junto com a barra lateral: o usuário não quer o vidro deixando o
+     fundo passar por baixo da moldura em nenhuma tela. `--mf-casca-solida` é a
+     mesma casca sem o canal alfa; sem o vidro, o `backdrop-filter` perde a
+     função e sai (poupa GPU e não abre contexto de empilhamento à toa). */
+  background: var(--mf-casca-solida);
   /* UM acima do cabeçalho de página, e não o mesmo `--mf-z-sticky`.
 
      Os dois são `sticky` no mesmo contexto (`.mf-app`), e no mesmo z-index
