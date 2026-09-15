@@ -188,14 +188,16 @@ async function publishViaInstagrapi(account, post) {
      todas as contas. Todo o pipeline de vídeo vivia no ramo do Graph API, e
      estas contas não passam por lá.
 
-     Agora cada conta recebe um arquivo próprio, derivado do par (post, conta):
-     em spec de Reels, sem metadados de origem, e com as micro-variações do
-     humanizador. Mesma conta reprocessando o mesmo post recebe o mesmo
-     arquivo — ver o comentário sobre a semente em midiaPorConta.js.
+     Agora cada conta recebe um arquivo próprio, ÚNICO POR PUBLICAÇÃO: em spec
+     de Reels, sem metadados de origem, e com as micro-variações do humanizador
+     semeadas por um token de publicação. Não só a conta A difere da B — a mesma
+     conta repostando o mesmo reel (o caso do loop) sai com bytes diferentes a
+     cada vez. Ver o comentário sobre a semente em midiaPorConta.js.
 
-     A conversão fica FORA do laço de tentativas de propósito: reconverter a
-     cada 429 gastaria minutos de CPU para produzir exatamente o mesmo arquivo,
-     já que a semente não muda. */
+     A conversão fica FORA do laço de tentativas de propósito: o token é sorteado
+     UMA vez aqui, então os retries de 429 reusam o mesmo arquivo (não re-encodam
+     à toa). Só uma nova execução do job gera um arquivo novo — que é o certo,
+     é outra publicação. */
   const midia = await prepararParaConta(post, account);
   const postParaPublicar = midia.caminho === post.media
     ? post

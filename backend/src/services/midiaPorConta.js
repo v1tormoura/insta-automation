@@ -75,22 +75,45 @@ function criarAleatorio(semente) {
   };
 }
 
-/** Semente estável para o par — mesmo par, mesma semente, sempre. */
-function sementeDe(postId, accountId) {
+/**
+ * Semente do arquivo desta publicação.
+ *
+ * O `token` é o que torna o arquivo único por PUBLICAÇÃO, não só por par
+ * (post, conta). Sem ele (token vazio) a função continua pura e determinística
+ * — mesmo par, mesma semente — que é o contrato que os testes de unidade e a
+ * unicidade ENTRE contas dependem. Com um token diferente a cada vez que o reel
+ * sai, a MESMA conta repostando o MESMO reel (o caso do loop) gera bytes
+ * diferentes: sai como novo por mais que se poste.
+ */
+function sementeDe(postId, accountId, token = '') {
   const digest = crypto
     .createHash('sha256')
-    .update(`${postId}:${accountId}`)
+    .update(`${postId}:${accountId}:${token}`)
     .digest();
   return digest.readUInt32BE(0);
 }
 
 /** Um identificador curto para o nome do arquivo, derivado da mesma semente. */
-function marcaDe(postId, accountId) {
+function marcaDe(postId, accountId, token = '') {
   return crypto
     .createHash('sha256')
-    .update(`${postId}:${accountId}`)
+    .update(`${postId}:${accountId}:${token}`)
     .digest('hex')
     .slice(0, 10);
+}
+
+/**
+ * O token que faz cada publicação ser única.
+ *
+ * `opcoes.tokenPublicacao` é um id ESTÁVEL da publicação (quando o chamador tem
+ * um — ex.: o id da publicação da campanha, o ciclo do loop): duas conversões
+ * da MESMA publicação (um retry) dão o mesmo arquivo, sem re-encodar à toa. Sem
+ * ele, um nonce aleatório garante que cada saída seja diferente — que é o
+ * comportamento que o produto quer por padrão: reel novo a cada publicação.
+ */
+function tokenDaPublicacao(opcoes = {}) {
+  if (opcoes.tokenPublicacao) return String(opcoes.tokenPublicacao);
+  return crypto.randomBytes(8).toString('hex');
 }
 
 /**
@@ -151,8 +174,9 @@ async function prepararParaConta(post, account, opcoes = {}) {
   const pedido = opcoes.processMode || post.processMode || 'humanizador';
   const modo = VARIAM.has(pedido) ? pedido : 'humanizador';
 
-  const semente = sementeDe(String(post._id), String(account._id));
-  const marca = marcaDe(String(post._id), String(account._id));
+  const token = tokenDaPublicacao(opcoes);
+  const semente = sementeDe(String(post._id), String(account._id), token);
+  const marca = marcaDe(String(post._id), String(account._id), token);
 
   /* ── A marca d'água desta conta ───────────────────────────────────────────
 
@@ -178,8 +202,10 @@ async function prepararParaConta(post, account, opcoes = {}) {
      é essencial; mas deixava o arquivo sem metadado NENHUM, e vídeo de celular
      tem hora de gravação. Sem hora nenhuma, o vazio é o sinal.
 
-     A hora sai do instante do POST, não do relógio: é o que mantém a promessa
-     de que a mesma conta reprocessando o mesmo post recebe o mesmo arquivo. */
+     A hora sai do instante do POST, não do relógio: é uma "hora de gravação"
+     plausível e estável para a mídia de origem. A unicidade por publicação NÃO
+     vem daqui — vem da semente (o `token`), que muda os pixels do humanizador e
+     portanto o hash do arquivo, mesmo com a mesma hora de metadado. */
   const metadados = argumentosDeMetadado(post, account);
 
   try {
@@ -239,7 +265,7 @@ async function marcarImagem(absoluto, post, account, opcoes = {}) {
   if (!filtro) return null;
 
   const ext = path.extname(absoluto) || '.jpg';
-  const marca = marcaDe(String(post._id), String(account._id));
+  const marca = marcaDe(String(post._id), String(account._id), tokenDaPublicacao(opcoes));
   const saida = path.join(RAIZ_UPLOADS, 'processed', `${path.basename(absoluto, ext)}-c${marca}${ext}`);
 
   try {

@@ -45,6 +45,25 @@ describe('a semente', () => {
     expect(sementeDe('post1', 'conta1')).not.toBe(sementeDe('post2', 'conta1'));
   });
 
+  test('o token torna a saída única POR PUBLICAÇÃO — mesmo par, tokens diferentes', () => {
+    /* O buraco que isto fecha: o mesmo par (post, conta) dava sempre o mesmo
+       arquivo, então a MESMA conta repostando o MESMO reel (o loop voltando na
+       mídia) subia bytes idênticos. Com um token por publicação, cada saída
+       difere. */
+    expect(sementeDe('post1', 'conta1', 'pub1')).not.toBe(sementeDe('post1', 'conta1', 'pub2'));
+    expect(marcaDe('post1', 'conta1', 'pub1')).not.toBe(marcaDe('post1', 'conta1', 'pub2'));
+  });
+
+  test('o MESMO token dá a MESMA semente — retry não re-encoda à toa', () => {
+    // Um id estável de publicação (retry da mesma publicação) mantém a idempotência.
+    expect(sementeDe('post1', 'conta1', 'pubX')).toBe(sementeDe('post1', 'conta1', 'pubX'));
+    expect(marcaDe('post1', 'conta1', 'pubX')).toBe(marcaDe('post1', 'conta1', 'pubX'));
+  });
+
+  test('sem token, a função segue pura — contrato dos testes e da unicidade entre contas', () => {
+    expect(sementeDe('post1', 'conta1')).toBe(sementeDe('post1', 'conta1'));
+  });
+
   test('a marca do arquivo é curta e serve como nome', () => {
     expect(marcaDe('a', 'b')).toMatch(/^[0-9a-f]{10}$/);
   });
@@ -174,6 +193,15 @@ talvez('o vídeo sai diferente por conta', () => {
     const a = await hashComSemente(sementeDe('ciclo1', 'contaA'), 'c1');
     const b = await hashComSemente(sementeDe('ciclo2', 'contaA'), 'c2');
     expect(a.hash).not.toBe(b.hash);
+  });
+
+  test('a MESMA conta repostando o MESMO reel gera arquivos diferentes por publicação', async () => {
+    /* O caso real do loop: mesmo post, mesma conta, publicações diferentes.
+       Antes davam o mesmo hash (bytes idênticos); com o token por publicação
+       saem diferentes — reel novo por mais que se poste. */
+    const pub1 = await hashComSemente(sementeDe('post1', 'contaA', 'publicacao-1'), 'p1');
+    const pub2 = await hashComSemente(sementeDe('post1', 'contaA', 'publicacao-2'), 'p2');
+    expect(pub1.hash).not.toBe(pub2.hash);
   });
 
   test('a saída está em 1080x1920 e sem metadados de origem', async () => {
