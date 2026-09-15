@@ -160,6 +160,31 @@ class InstagrapiHttpClient {
     const { resolverComOrigem } = require('../globalProxy');
     const rota = await resolverComOrigem(account);
 
+    /* ── O login por senha FOGE do proxy 4G compartilhado ──────────────────
+
+       IP de 4G do Axtron é dividido por milhares de usuários. O Instagram
+       mantém o endpoint de LOGIN dessas faixas permanentemente throttled e
+       devolve 429 mesmo em conta e IP novos — medido em 13/09: três contas,
+       três IPs residenciais DISTINTOS, todas 429 no mesmo passo
+       (`send_login_request`), depois de 4 etapas `[200]`. Não é a conta nem o
+       IP individual: é a reputação do pool 4G no passo de login.
+
+       Navegar e PUBLICAR por 4G o Instagram tolera — sessão já criada troca de
+       rede como um celular real (loga no WiFi, posta no 4G). Criar a sessão
+       (o login) a partir do pool 4G é o que ele barra. Antes de o login sair
+       por esse proxy, ele saía pelo IP direto do VPS e passava.
+
+       Então: quando o proxy é o GLOBAL (o pool compartilhado, origem 'global'),
+       o login vai DIRETO. Um proxy DEDICADO da conta (origem 'conta'/'pool') é
+       limpo e continua valendo. A PUBLICAÇÃO não muda — segue isolada pelo
+       molde por conta; só a criação da sessão evita o 4G.
+       `LOGIN_VIA_PROXY_GLOBAL=true` força o comportamento antigo, para quem
+       tenha um proxy global que NÃO seja um 4G compartilhado. */
+    const forcarGlobalNoLogin = String(process.env.LOGIN_VIA_PROXY_GLOBAL || '').toLowerCase() === 'true';
+    const loginDireto = rota.origem === 'global' && !forcarGlobalNoLogin;
+    const proxyLogin  = loginDireto ? null : (rota.url || null);
+    console.log(`[IG-LOGIN] rota do login — origem=${rota.origem} ${loginDireto ? '→ DIRETO (evita o 4G compartilhado no login)' : 'via proxy'}`);
+
     /* O aparelho virtual desta conta.
 
        O Python escolhia por hash do id, e hash não garante distinção: com 23
