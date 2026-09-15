@@ -66,9 +66,15 @@ async function resolveMetaApp(metaAppId) {
       ? await MetaApp.findById(metaAppId).lean()
       : await MetaApp.findOne({ isDefault: true }).lean();
     if (!doc) return null;
+    /* O segredo é guardado cifrado (ver metaAppRoutes). `decrypt` devolve texto
+       puro inalterado quando o valor não está cifrado — então apps criados
+       antes desta mudança seguem funcionando. O id e o segredo saem do MESMO
+       sub-app: se há um sub-app Instagram, usa o par dele; senão, o principal. */
+    const { decrypt } = require('../services/tokenEncryption');
+    const usaIg = !!(doc.instagramAppId && doc.instagramAppSecret);
     return {
-      appId:     doc.instagramAppId  || doc.appId,
-      appSecret: doc.instagramAppSecret || doc.appSecret,
+      appId:     usaIg ? doc.instagramAppId : doc.appId,
+      appSecret: decrypt(usaIg ? doc.instagramAppSecret : doc.appSecret),
       loginConfigId: doc.loginConfigId || '',
       _id: String(doc._id),
     };

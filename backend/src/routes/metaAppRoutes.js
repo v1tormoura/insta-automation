@@ -1,6 +1,7 @@
 'use strict';
 const router   = require('express').Router();
 const MetaApp  = require('../models/MetaApp');
+const { encrypt } = require('../services/tokenEncryption');
 
 // GET /meta-apps — lista todos
 router.get('/', async (req, res) => {
@@ -26,10 +27,13 @@ router.post('/', async (req, res) => {
 
     const count = await MetaApp.countDocuments();
     const app = await MetaApp.create({
-      name, appId, appSecret,
-      loginConfigId:      loginConfigId      || '',
-      instagramAppId:     instagramAppId     || '',
-      instagramAppSecret: instagramAppSecret || '',
+      name: name.trim(), appId: appId.trim(),
+      // Cifrado em repouso (AES-256-GCM). Sem ENCRYPTION_KEY, encrypt() é no-op
+      // e guarda em texto puro — mesmo comportamento de antes.
+      appSecret:          encrypt(appSecret.trim()),
+      loginConfigId:      (loginConfigId || '').trim(),
+      instagramAppId:     (instagramAppId || '').trim(),
+      instagramAppSecret: encrypt((instagramAppSecret || '').trim()),
       isDefault: count === 0, // primeiro app criado vira padrão automaticamente
     });
     res.status(201).json({ ...app.toObject(), appSecret: mask(app.appSecret), instagramAppSecret: mask(app.instagramAppSecret) });
@@ -45,10 +49,10 @@ router.patch('/:id', async (req, res) => {
     const { name, appId, appSecret, loginConfigId, instagramAppId, instagramAppSecret } = req.body;
     if (name !== undefined)               doc.name               = name.trim();
     if (appId !== undefined)              doc.appId              = appId.trim();
-    if (appSecret?.trim())                doc.appSecret          = appSecret.trim();
+    if (appSecret?.trim())                doc.appSecret          = encrypt(appSecret.trim());
     if (loginConfigId !== undefined)      doc.loginConfigId      = loginConfigId.trim();
     if (instagramAppId !== undefined)     doc.instagramAppId     = instagramAppId.trim();
-    if (instagramAppSecret?.trim())       doc.instagramAppSecret = instagramAppSecret.trim();
+    if (instagramAppSecret?.trim())       doc.instagramAppSecret = encrypt(instagramAppSecret.trim());
     await doc.save();
     res.json({ ...doc.toObject(), appSecret: mask(doc.appSecret), instagramAppSecret: mask(doc.instagramAppSecret) });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -78,10 +82,11 @@ router.delete('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* Nunca devolve o segredo — nem um pedaço dele. O valor guardado está cifrado
+   (`enc1:…`), então fatiá-lo mostraria só ciphertext; e o front não exibe o
+   segredo em lugar nenhum. Um indicador fixo diz apenas "existe um segredo". */
 function mask(s) {
-  if (!s) return '';
-  if (s.length <= 8) return '•'.repeat(s.length);
-  return s.slice(0, 4) + '•'.repeat(Math.min(s.length - 8, 20)) + s.slice(-4);
+  return s ? '••••••••' : '';
 }
 
 module.exports = router;
