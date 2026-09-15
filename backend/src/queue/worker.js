@@ -199,9 +199,19 @@ async function publishViaInstagrapi(account, post) {
      à toa). Só uma nova execução do job gera um arquivo novo — que é o certo,
      é outra publicação. */
   const midia = await prepararParaConta(post, account);
-  const postParaPublicar = midia.caminho === post.media
-    ? post
-    : { ...(post.toObject ? post.toObject() : post), media: midia.caminho };
+  /* Legenda variada POR CONTA (spintax `{a|b}`), resolvida aqui porque é aqui
+     que se sabe QUAL conta publica — a mesma semente estável (post+conta) do
+     arquivo, então a legenda também é fixa por conta e sobrevive a retry. Sem
+     `{…}` na legenda, `resolverLegenda` devolve o texto intacto (no-op). Cópia
+     sempre, nunca o doc do Mongoose: mutar `post.caption` no laço vazaria a
+     legenda de uma conta para a próxima. */
+  const { resolverLegenda } = require('../services/variarLegenda');
+  const legendaFinal = resolverLegenda(post.caption, `${post._id}:${account._id}`);
+  const postParaPublicar = {
+    ...(post.toObject ? post.toObject() : post),
+    media:   midia.caminho,
+    caption: legendaFinal,
+  };
 
   let attempt = 0;
   try {
