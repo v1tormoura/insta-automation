@@ -318,8 +318,17 @@
    e havia uma media query com `!important` consertando isso só no celular.
    `min(480px, 100vw - 2rem)` resolve em qualquer largura sem exceção: nunca
    passa da tela, e nunca fica menor que a tela quando há espaço. */
+/* O overlay do tema só tinha fundo+blur, SEM posicionamento — então o diálogo
+   não centralizava e renderizava colado no topo (a tela "bugada" ao abrir).
+   A posição vinha (ou deveria vir) do CSS-base por uma regra de MENOR
+   especificidade, e no cascade real não estava aplicando. Aqui, com a
+   especificidade de `[data-mf]`, o modal centraliza sempre. Scrim escuro de
+   verdade (`--mf-overlay`) no lugar do painel translúcido que lavava a tela. */
 [data-mf] .modal-overlay {
-  background: color-mix(in oklch, var(--mf-surface-1) 74%, transparent);
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: var(--mf-overlay, oklch(0.10 0.03 259 / 0.82));
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 [data-mf] .modal {
@@ -330,6 +339,7 @@
   min-width: min(480px, 100vw - 2rem);
   max-width: min(92vw, 720px);
   max-height: min(85vh, 100dvh - 2rem);
+  overflow-y: auto;
 }
 [data-mf] .modal-header { padding: var(--mf-4) var(--mf-5); border-bottom: 1px solid var(--mf-border); }
 [data-mf] .modal-header h3 { font-size: var(--mf-t-h2); font-weight: 650; color: var(--mf-text); }
