@@ -104,7 +104,11 @@ async function syncViaWebSession(account) {
   const SESSION_ISSUES = ['sessao_expirada', 'erro_login', 'token_invalido'];
   const healthFields = SESSION_ISSUES.includes(account.healthStatus)
     ? { healthStatus: 'ativa', lastError: '' }
-    : {};
+    /* Conta já 'ativa' mas com um erro antigo guardado: a leitura de agora deu
+       certo, então o erro não é mais verdade — some do card. */
+    : (account.healthStatus === 'ativa' && account.lastError)
+      ? { lastError: '' }
+      : {};
 
   await Account.findByIdAndUpdate(account._id, {
     followers,
@@ -212,7 +216,11 @@ async function syncOneAccountFast(account) {
   const SESSION_ISSUES = ['sessao_expirada', 'erro_login', 'token_invalido'];
   const healthFields = SESSION_ISSUES.includes(account.healthStatus)
     ? { healthStatus: 'ativa', lastError: '' }
-    : {};
+    /* Conta já 'ativa' com erro obsoleto guardado: o sync de agora leu o perfil
+       com sucesso, o erro antigo não vale mais — limpa. */
+    : (account.healthStatus === 'ativa' && account.lastError)
+      ? { lastError: '' }
+      : {};
 
   const updates = {
     lastSync:   new Date(),

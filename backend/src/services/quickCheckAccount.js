@@ -292,7 +292,24 @@ async function quickCheckAndUpdate(account) {
     console.log(`✅ [QuickCheck] @${username} — REATIVADA`);
 
   } else {
-    await Account.findByIdAndUpdate(account._id, { lastSync: now });
+    /* ── Limpa erro obsoleto de uma conta que está saudável AGORA ──────────
+       O `lastError` era gravado por uma operação passada (ex.: um publish ou
+       uma sincronização que bateu num endpoint da Graph com o método errado —
+       "Unsupported request - method type: get") e ficava congelado no card
+       para sempre: nenhum ramo acima o limpava numa conta que já era 'ativa'.
+       Se a verificação de agora confirma saúde (token respondeu, ou o perfil
+       está no ar), o erro antigo não é mais verdade e sai. Só limpo com prova
+       positiva de saúde — não apago o motivo de uma conta 'restrita'/'banida',
+       e não limpo em 'desconhecido' sem o token ter validado. */
+    const saudavelAgora = tokenOk === true || status === 'ativa';
+    const limpaErro = (saudavelAgora && account.healthStatus === 'ativa' && account.lastError)
+      ? { lastError: '' }
+      : {};
+    if (limpaErro.lastError === '') {
+      console.log(`🧹 [QuickCheck] @${username} — erro obsoleto da API limpo (conta saudável agora)`);
+      changed = true;
+    }
+    await Account.findByIdAndUpdate(account._id, { lastSync: now, ...limpaErro });
   }
 
   return { username, status, changed };
