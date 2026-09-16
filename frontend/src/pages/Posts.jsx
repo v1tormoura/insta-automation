@@ -249,6 +249,27 @@ function MediaCard({ file, index, onRemove }) {
   );
 }
 
+/* ── Prévia da variação de legenda (spintax) ──────────────────────────────
+   Espelha backend/services/variarLegenda.js: só grupos COM `|` são escolha
+   (`{data}`, uma variável, fica intacta). A prévia é ilustrativa — no publish a
+   semente é post+conta e aqui é só a conta, mas a propriedade que importa (cada
+   conta uma combinação FIXA e DIFERENTE) é a mesma. */
+function _temVariacao(tpl) {
+  return /\{[^{}]*\|[^{}]*\}/.test(String(tpl || ''));
+}
+function _previewLegenda(tpl, seed) {
+  const texto = String(tpl == null ? '' : tpl);
+  if (texto.indexOf('{') === -1) return texto;
+  let h = 0;
+  for (const c of String(seed)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  let k = 0;
+  return texto.replace(/\{([^{}]*\|[^{}]*)\}/g, (_todo, corpo) => {
+    const opcoes = corpo.split('|');
+    const idx = (h + k * 2654435761) >>> 0; k += 1;
+    return opcoes[idx % opcoes.length].trim();
+  });
+}
+
 export default function Posts() {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
@@ -459,9 +480,9 @@ export default function Posts() {
     form.append('midiasAleatorias', String(midiasAleatorias));
     form.append('loopInfinito', String(loopInfinito));
     if (nomeDoEnvio.trim()) form.append('name', nomeDoEnvio.trim());
-    /* Vai como número e o servidor normaliza de novo: ele é quem manda, e
-       `normalizarTeto` recusa o que não é um teto utilizável. */
-    form.append('postsPor24h', String(postsPor24h));
+    /* `postsPor24h` não vai mais: o teto diário saiu deste painel a pedido do
+       usuário. Sem o campo, o backend (`normalizarTeto` → null) não mexe no
+       `dailyPostLimit` das contas — cada uma mantém o seu. */
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
@@ -581,6 +602,15 @@ export default function Posts() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
           >
+
+            {/* Cabeçalho do grupo — "Compor": mídia, legenda, comentário, modo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0, background: 'color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)', color: 'var(--mf-mod-publicar)', display: 'grid', placeItems: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </span>
+              <h2 style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-2)', margin: 0 }}>Compor</h2>
+              <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
+            </div>
 
             {/* Upload / Biblioteca */}
             {showLibPicker && (
@@ -871,6 +901,37 @@ export default function Posts() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>Aleatória</button>
                 </div>
+
+                {/* ── Variação de legenda por conta (spintax) ──────────────────
+                    Guia + prévia. O backend resolve `{a|b}` por conta no publish
+                    (variarLegenda.js) sempre que houver o padrão — a UI aqui só
+                    explica e mostra o resultado. Distinto das {variáveis}: aqui
+                    é escolha entre opções, com `|`. */}
+                <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-mod-publicar)', fontWeight: 700, marginBottom: 4 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+                    Variação por conta
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>engajamento</span>
+                  </div>
+                  <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.65 }}>
+                    Escreva opções entre chaves separadas por <code style={{ fontFamily: 'var(--mf-mono)', color: 'var(--mf-mod-publicar)' }}>|</code>: <code style={{ fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-2)' }}>{'{Bom dia|Oi|E aí}'} pessoal</code>. Cada conta recebe uma combinação fixa e diferente — evita a mesma legenda idêntica em todas.
+                  </div>
+                  {_temVariacao(applyCTASuffix(caption, ctaSuffix)) && selectedCount > 0 && (
+                    <div style={{ marginTop: 8, border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden' }}>
+                      <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', color: 'var(--mf-text-3)', padding: '7px 10px', background: 'var(--mf-surface-2)', borderBottom: '1px solid var(--mf-border)' }}>
+                        Prévia por conta
+                      </div>
+                      {accounts.filter(a => selectedAccounts.includes(a._id)).slice(0, 3).map(a => (
+                        <div key={a._id} style={{ padding: '8px 10px', borderBottom: '1px solid var(--mf-border-subtle)' }}>
+                          <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-mod-publicar)', fontFamily: 'var(--mf-mono)' }}>@{a.username}</div>
+                          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', lineHeight: 1.5, marginTop: 2, whiteSpace: 'pre-wrap' }}>
+                            {_previewLegenda(applyCTASuffix(caption, ctaSuffix), a.username)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {/* CTA sufixo automático */}
                 <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ctaSuffix.enabled ? 8 : 0 }}>
@@ -978,6 +1039,15 @@ export default function Posts() {
             transition={{ duration: 0.25, delay: 0.06 }}
           >
 
+            {/* Cabeçalho do grupo — "Enviar": ritmo, contas, publicar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0, background: 'color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)', color: 'var(--mf-mod-publicar)', display: 'grid', placeItems: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+              </span>
+              <h2 style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-2)', margin: 0 }}>Enviar</h2>
+              <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
+            </div>
+
             {/* Simultaneous publications */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
@@ -1033,72 +1103,42 @@ export default function Posts() {
                     números no rótulo evita ter de adivinhar o que ele fez. */}
                 <ChaveDeOpcao
                   titulo="Envio de aquecimento"
-                  descricao="Conta nova, ritmo de conta nova: 1 post a cada 3h, teto de 4 por dia. Marcar ajusta o intervalo e o teto abaixo."
+                  descricao="Conta nova, ritmo de conta nova: 1 post a cada 3h. Marcar ajusta o intervalo abaixo."
                   marcada={aquecimento}
                   onChange={v => {
                     setAquecimento(v);
-                    if (v) { setIntervalMins(180); setPostsPor24h(4); }
+                    if (v) setIntervalMins(180);
                   }}
                 />
 
                 <label style={{ ...rotuloForm, marginTop: 18 }}>Intervalo entre posts</label>
-                <input type="range" min="1" max="240" step="1" value={Math.max(1, intervalMins)}
-                  onChange={e => setIntervalMins(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
+                {/* Arrastar OU digitar: a barra vai até 360 min, mas o campo
+                    aceita qualquer valor de 1 a 1440 (24h). Os dois se espelham,
+                    e os atalhos abaixo continuam como toque rápido. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input type="range" min="1" max="360" step="1" value={Math.min(360, Math.max(1, intervalMins))}
+                    onChange={e => setIntervalMins(Number(e.target.value))}
+                    style={{ flex: 1, minWidth: 0, accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <input className="inp" type="number" min="1" max="1440" value={intervalMins}
+                      onChange={e => setIntervalMins(Math.min(1440, Math.max(1, Number(e.target.value) || 1)))}
+                      style={{ width: 74, textAlign: 'center', fontFamily: 'var(--mf-mono)' }} />
+                    <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>min</span>
+                  </div>
+                </div>
                 <Atalhos
                   opcoes={[[10, '10 min'], [30, '30 min'], [60, '1 hora'], [240, '4 horas']]}
                   atual={intervalMins}
                   onEscolher={setIntervalMins}
                 />
-
-                <label style={{ ...rotuloForm, marginTop: 18 }}>Postagens por conta em 24h</label>
-                <input className="inp" type="number" min="1" max="48" value={postsPor24h}
-                  onChange={e => setPostsPor24h(Math.min(48, Math.max(1, Number(e.target.value) || 1)))} />
-                <Atalhos
-                  opcoes={[[6, '6'], [10, '10'], [24, '24'], [48, '48']]}
-                  atual={postsPor24h}
-                  onEscolher={setPostsPor24h}
-                />
-                {/* O efeito colateral, escrito. Este número mora na CONTA
-                    (`dailyPostLimit`), não no envio — é o campo que o
-                    planejador e a verificação de publicação já obedecem. */}
-                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 7, lineHeight: 1.6 }}>
-                  Vale para as contas selecionadas de agora em diante, não só para este envio.
+                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.6 }}>
+                  Arraste, digite os minutos, ou toque num atalho — qualquer valor de 1 a 1440.
                 </div>
 
-                {/* O aviso que eu não posso deixar de dar: 6 a 10 por dia é o
-                    que o sistema sorteia por padrão, e esse número saiu da
-                    correção de "as contas não estão aguentando". */}
-                {postsPor24h > 10 && (
-                  <div style={{ marginTop: 9, padding: '9px 11px', borderRadius: 'var(--mf-r-sm)',
-                    background: 'color-mix(in oklch, var(--mf-warning-500) 9%, transparent)',
-                    border: '1px solid color-mix(in oklch, var(--mf-warning-500) 26%, transparent)',
-                    fontSize: 'var(--mf-t-nano)', color: 'var(--mf-warning-500)', lineHeight: 1.65 }}>
-                    Acima de 10 por dia. O sistema sorteia 6 a 10 por conta justamente
-                    porque o padrão anterior — dezenas por dia, dia e noite — foi a causa
-                    mais provável de as contas pararem de entregar. É sua escolha, mas é
-                    esta a troca.
-                  </div>
-                )}
-
-                {/* O resumo fecha a conta: quantas, de quanto em quanto, e
-                    quantas horas do dia isso ocupa. Passando de 24h, o próprio
-                    teto deixa de caber no dia — e é melhor saber antes. */}
-                {(() => {
-                  const horas = (postsPor24h * intervalMins) / 60;
-                  const cabe = horas <= 24;
-                  const tom = cabe ? 'var(--mf-success-500)' : 'var(--mf-danger-500)';
-                  return (
-                    <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 'var(--mf-r-sm)',
-                      background: `color-mix(in oklch, ${tom} 9%, transparent)`,
-                      border: `1px solid color-mix(in oklch, ${tom} 26%, transparent)`,
-                      fontSize: 'var(--mf-t-micro)', color: tom, lineHeight: 1.6 }}>
-                      {cabe
-                        ? `${postsPor24h} posts por conta em 24h, um a cada ${rotuloDeIntervalo(intervalMins)} (ocupa ${horas.toFixed(horas % 1 ? 1 : 0)}h do dia).`
-                        : `${postsPor24h} posts a cada ${rotuloDeIntervalo(intervalMins)} pedem ${horas.toFixed(0)}h — não cabe em 24h. O teto será alcançado antes; reduza um dos dois.`}
-                    </div>
-                  );
-                })()}
+                {/* "Postagens por conta em 24h" foi removido do painel a pedido
+                    do usuário. O teto diário continua existindo POR CONTA
+                    (dailyPostLimit, em Contas) — este painel apenas não o altera
+                    mais, e o publish não manda mais esse campo. */}
 
                 <label style={{ ...rotuloForm, marginTop: 18 }}>Quando começar a postar?</label>
                 <Atalhos
