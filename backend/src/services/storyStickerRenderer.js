@@ -25,9 +25,11 @@ const path   = require('path');
 const fs     = require('fs');
 const crypto = require('crypto');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+/* Este renderer também usa `drawtext` (as figurinhas de texto do story), então
+   depende de um ffmpeg que tenha o filtro. Ver ffmpegBin.js. */
+const { FFMPEG_BIN } = require('./ffmpegBin');
 
-ffmpeg.setFfmpegPath(ffmpegStatic);
+ffmpeg.setFfmpegPath(FFMPEG_BIN);
 
 const PROCESSED_DIR = path.resolve(__dirname, '../../uploads/processed');
 const STICKERS_DIR  = path.resolve(__dirname, '../../uploads/stickers');

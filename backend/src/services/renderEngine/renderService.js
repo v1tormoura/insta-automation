@@ -2,7 +2,8 @@
 const path      = require('path');
 const fsExtra   = require('fs-extra');
 const ffmpeg    = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+/* ffmpeg com drawtext (o ffmpeg-static não tem). Ver services/ffmpegBin.js. */
+const { FFMPEG_BIN: ffmpegStatic } = require('../ffmpegBin');
 const { buildFilterComplex } = require('./filterBuilder');
 const VideoRenderJob = require('../../models/VideoRenderJob');
 const VideoBatch     = require('../../models/VideoBatch');

@@ -16,7 +16,10 @@ const path         = require('path');
 const fs           = require('fs');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
-const ffmpegBin    = require('ffmpeg-static');
+/* ffmpeg do sistema (com drawtext e demais filtros) em vez do ffmpeg-static,
+   que vem sem drawtext. Ver ffmpegBin.js. O nome `ffmpegBin` segue igual porque
+   as chamadas de execFile abaixo o usam como caminho do binário. */
+const { FFMPEG_BIN: ffmpegBin } = require('./ffmpegBin');
 const ffmpeg       = require('fluent-ffmpeg');
 
 ffmpeg.setFfmpegPath(ffmpegBin);

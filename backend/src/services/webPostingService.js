@@ -22,7 +22,8 @@ const IG_BASE       = 'https://www.instagram.com';
 const delay         = ms => new Promise(r => setTimeout(r, ms));
 
 function getFfmpegPath() {
-  try { return require('ffmpeg-static'); } catch {}
+  /* ffmpeg com drawtext (o ffmpeg-static não tem). Ver ffmpegBin.js. */
+  try { return require('./ffmpegBin').FFMPEG_BIN; } catch {}
   return 'ffmpeg';
 }
 

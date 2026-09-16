@@ -1,9 +1,12 @@
 const path = require('path');
 const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('ffmpeg-static');
+/* NÃO usa ffmpeg-static direto: o build dele não tem o filtro `drawtext`, e a
+   marca d'água (drawtext) derrubava a conversão inteira com "Filter not found".
+   `ffmpegBin` escolhe um ffmpeg que tenha drawtext. Ver ffmpegBin.js. */
+const { FFMPEG_BIN } = require('./ffmpegBin');
 
-ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfmpegPath(FFMPEG_BIN);
 
 // Deduplicação de conversão concorrente: evita que dois workers convertam o mesmo arquivo simultaneamente
 const _inProgress = new Map();
