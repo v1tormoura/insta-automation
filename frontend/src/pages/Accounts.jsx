@@ -8,6 +8,7 @@ import { montarLinkGuiado } from '../services/conexaoGuiada';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
+import PortalModal from '../components/PortalModal';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
 
@@ -2127,6 +2128,10 @@ export default function Accounts() {
 
       </PageShell>
 
+      {/* Todos os modais desta página vão para o <body> via PortalModal — fora
+          de qualquer ancestral com container-type/transform, para nunca abrirem
+          "colados no topo". Ver components/PortalModal.jsx. */}
+      <PortalModal>
       {/* ── OAuth Modal ──────────────────────────────────────────── */}
       {oauthModal && (
         <div className="modal-overlay">
@@ -3116,6 +3121,7 @@ export default function Accounts() {
           </div>
         </div>
       )}
+      </PortalModal>
     </>
   );
 }

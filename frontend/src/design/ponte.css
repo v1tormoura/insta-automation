@@ -324,9 +324,16 @@
    especificidade, e no cascade real não estava aplicando. Aqui, com a
    especificidade de `[data-mf]`, o modal centraliza sempre. Scrim escuro de
    verdade (`--mf-overlay`) no lugar do painel translúcido que lavava a tela. */
+/* `!important` no posicionamento: o Tailwind v4 organiza o CSS em camadas
+   (`@layer`), e uma regra em camada pode, dependendo da ordem de importação no
+   build real, ganhar desta e deixar o overlay sem o `display:flex` — aí o scrim
+   cobre a tela (o fundo escurece), mas o diálogo cai no topo, sem centralizar.
+   `!important` fecha essa porta: vence qualquer camada e qualquer ordem. É o
+   par do PortalModal — um garante que o overlay centraliza, o outro que ele não
+   fica preso a um ancestral com `container-type`/`transform`. */
 [data-mf] .modal-overlay {
-  position: fixed; inset: 0; z-index: 2000;
-  display: flex; align-items: center; justify-content: center;
+  position: fixed !important; inset: 0 !important; z-index: 2000 !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
   padding: 16px;
   background: var(--mf-overlay, oklch(0.10 0.03 259 / 0.82));
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);

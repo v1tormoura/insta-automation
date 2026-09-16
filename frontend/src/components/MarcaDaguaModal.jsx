@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Segmentado from './Segmentado';
+import PortalModal from './PortalModal';
 import { MARCA_PADRAO, POSICOES, TAMANHOS, OPACIDADE_MIN, CORPO_POR_TAMANHO, REEL, alturaRelativa } from '../services/marcaDagua';
 
 /**
@@ -53,6 +54,7 @@ function Conteudo({ valor, contas = 0, mod = 'publicar', arroba = '', onCancelar
   const desligada = !rascunho.ativa;
 
   return (
+    <PortalModal>
     <div className="modal-overlay">
       <div className="modal" style={{ width: 'min(440px,100%)', '--mf-mod': `var(--mf-mod-${mod})` }}>
 
@@ -135,6 +137,7 @@ function Conteudo({ valor, contas = 0, mod = 'publicar', arroba = '', onCancelar
         </div>
       </div>
     </div>
+    </PortalModal>
   );
 }
 
