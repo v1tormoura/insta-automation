@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import PageShell from '../components/PageShell';
 import api from '../services/api';
@@ -266,10 +267,21 @@ export default function ApiMeta() {
         </div>
       )}
 
-      {/* ── Modal: Criar / Editar ────────────────────────────── */}
-      {showForm && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(540px,100%)' }}>
+      {/* ── Modal: Criar / Editar ──────────────────────────────
+          Renderizado por PORTAL no <body> (com `data-mf` para os tokens
+          resolverem): escapa do `isolation: isolate` do `.mf-app` e de qualquer
+          contêiner de rolagem do PageShell, que era o que deixava tudo bugado
+          ao abrir. Estilos explícitos (fixed/centralizado/rolável) em vez de
+          depender do cascade das classes .modal, que aqui vinha sem padding e
+          sem scroll próprio. */}
+      {showForm && createPortal(
+        <div data-mf onClick={closeForm}
+          style={{ position: 'fixed', inset: 0, zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+            background: 'var(--mf-overlay, oklch(0.10 0.03 259 / 0.82))', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: 'min(540px,100%)', maxHeight: '88vh', overflowY: 'auto',
+              background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)',
+              boxShadow: 'var(--mf-shadow-3)', padding: '20px 22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0 }}>{editId ? 'Editar App' : 'Novo App Meta'}</h3>
@@ -300,7 +312,8 @@ export default function ApiMeta() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </PageShell>
   );
