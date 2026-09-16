@@ -233,17 +233,19 @@ export default function CampaignWizard() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  /* ── Rascunho: sobrevive a recarregar a página ─────────────────────────── */
-  useEffect(() => {
-    try {
-      const salvo = localStorage.getItem(RASCUNHO);
-      if (salvo) setForm(f => ({ ...f, ...JSON.parse(salvo) }));
-    } catch { /* rascunho corrompido é descartado em silêncio */ }
-  }, []);
+  /* ── Sem rascunho: toda campanha nova começa do zero ────────────────────
+     Antes o wizard salvava o formulário no localStorage e o restaurava ao
+     abrir. Efeito colateral: uma campanha abandonada no meio voltava com nome,
+     descrição, contas e conteúdos da tentativa anterior — e, pior, a pessoa
+     seguia achando que estava criando uma nova e publicava com a configuração
+     velha. "Nova campanha" tem de significar nova.
 
+     O rascunho antigo que já está gravado no navegador é apagado aqui, senão
+     quem tem um guardado continuaria vendo o formulário preenchido mesmo depois
+     desta mudança. */
   useEffect(() => {
-    try { localStorage.setItem(RASCUNHO, JSON.stringify(form)); } catch { /* cota cheia */ }
-  }, [form]);
+    try { localStorage.removeItem(RASCUNHO); } catch { /* sem localStorage */ }
+  }, []);
 
   useEffect(() => {
     if (!contasPodadas) return;
