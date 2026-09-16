@@ -55,11 +55,18 @@ const IG_TOKEN_ENDPOINTS = [
 ];
 const IG_GRAPH = 'https://graph.instagram.com/v21.0';
 
-function getAppId()     { return process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID; }
-function getAppSecret() { return process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET; }
+/* O app do OAuth vem SÓ do banco (página API Meta) — sem fallback de .env.
+   Era esse fallback que o usuário chamava de "app padrão": mesmo cadastrando o
+   próprio app, um app do .env podia entrar no fluxo. Agora, sem app cadastrado,
+   o fluxo avisa "cadastre um app" em vez de usar um escondido no ambiente. */
+async function exigeAppConfigurado(res) {
+  return res.status(400).json({
+    error: 'Nenhum app Meta configurado. Cadastre um app na página API Meta antes de conectar.',
+  });
+}
 
 // Retorna credenciais de um MetaApp do banco (por _id) ou do app padrão.
-// Retorna null se não há nenhum app cadastrado — cai no fallback de env vars.
+// Retorna null se não há nenhum app cadastrado — o chamador avisa para cadastrar.
 async function resolveMetaApp(metaAppId) {
   try {
     const doc = metaAppId
@@ -178,8 +185,11 @@ const SCOPES = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function exchangeCodeForToken(code, creds) {
-  const appId     = creds?.appId     || getAppId();
-  const appSecret = creds?.appSecret || getAppSecret();
+  const appId     = creds?.appId;
+  const appSecret = creds?.appSecret;
+  if (!appId || !appSecret) {
+    throw new Error('Nenhum app Meta configurado — cadastre um app na página API Meta.');
+  }
   const params = new URLSearchParams({
     client_id:     appId,
     client_secret: appSecret,
@@ -252,8 +262,8 @@ async function exchangeCodeForToken(code, creds) {
 }
 
 async function getLongLivedToken(shortToken, creds) {
-  const secret = creds?.appSecret || process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
-  if (!secret) throw new Error('META_APP_SECRET não configurado');
+  const secret = creds?.appSecret;
+  if (!secret) throw new Error('App Meta não configurado (secret ausente) — cadastre um app na página API Meta.');
 
   // Passo 1: ig_exchange_token — troca curto por longo (60 dias).
   // Funciona para IGAA e outros tokens curtos emitidos pelo Instagram Business Login.
@@ -368,8 +378,8 @@ router.get('/url', async (req, res) => {
   // Usa MetaApp do banco se disponível, senão cai nas env vars
   const metaAppId  = req.query.metaAppId || null;
   const dbApp      = await resolveMetaApp(metaAppId);
-  const appId      = dbApp?.appId || process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
-  if (!appId) return res.status(500).json({ error: 'INSTAGRAM_APP_ID não configurado' });
+  const appId      = dbApp?.appId;
+  if (!appId) return exigeAppConfigurado(res);
 
   // Encoda o metaAppId no state para o callback saber qual app usar
   const accountId = req.query.accountId || 'new';
@@ -435,7 +445,10 @@ router.post('/connect-by-token', async (req, res) => {
     let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback 1h
 
     try {
-      const ll = await getLongLivedToken(accessToken);
+      /* Sem app na chamada: usa o app padrão cadastrado para o exchange
+         long-lived. Se não houver app, getLongLivedToken lança e o catch
+         mantém o token como veio — conectar por token não depende do exchange. */
+      const ll = await getLongLivedToken(accessToken, await resolveMetaApp(null));
       accessToken    = ll.accessToken;
       tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
       console.log(`✅ [Token Connect] Long-lived token obtido (${Math.round(ll.expiresIn / 86400)} dias)`);
@@ -728,7 +741,7 @@ router.get('/callback', async (req, res) => {
     let accessToken    = shortToken;
     let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback: 1h (token curto)
     try {
-      const ll = await getLongLivedToken(shortToken);
+      const ll = await getLongLivedToken(shortToken, appDaConexao);
       accessToken    = ll.accessToken;
       tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
       console.log(`✅ [OAuth Callback] Long-lived token (expira em ${Math.round(ll.expiresIn / 86400)} dias)`);
@@ -910,9 +923,11 @@ const _openBrowsers = new Set();
 
 router.get('/browser/:accountId', async (req, res) => {
   const accountId = req.params.accountId;
-  // instagram.com/oauth/authorize só aceita INSTAGRAM_APP_ID (sub-app Instagram 790847580661717)
-  const appId = process.env.INSTAGRAM_APP_ID;
-  if (!appId) return res.status(500).json({ error: 'INSTAGRAM_APP_ID não configurado' });
+  // App vem do banco (página API Meta), não do .env. instagram.com/oauth/authorize
+  // usa o Instagram App ID do app cadastrado (resolveMetaApp já escolhe o sub-app IG).
+  const dbApp = await resolveMetaApp(req.query.metaAppId || null);
+  const appId = dbApp?.appId;
+  if (!appId) return exigeAppConfigurado(res);
 
   // Já tem um browser aberto para esta conta — não abre outro
   if (_openBrowsers.has(accountId)) {
@@ -1100,8 +1115,9 @@ router.get('/browser/:accountId', async (req, res) => {
 // ── POST /oauth/auto-connect/:accountId ──────────────────────────────────────
 router.post('/auto-connect/:accountId', async (req, res) => {
   const accountId = req.params.accountId;
-  const appId     = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
-  if (!appId) return res.status(500).json({ error: 'INSTAGRAM_APP_ID não configurado' });
+  const dbApp     = await resolveMetaApp(req.query.metaAppId || null);
+  const appId     = dbApp?.appId;
+  if (!appId) return exigeAppConfigurado(res);
 
   const account = await Account.findById(accountId);
   if (!account) return res.status(404).json({ error: 'Conta não encontrada' });
