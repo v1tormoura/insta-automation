@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { criarPedido, decidirEmenda } from './emendaMobile';
@@ -60,6 +61,11 @@ export default function Accounts() {
   const [tokenError,     setTokenError]     = useState('');
   const [metaApps,       setMetaApps]       = useState([]);
   const [selectedAppId,  setSelectedAppId]  = useState('');
+  /* Nenhum App Meta cadastrado: o OAuth não tem como começar. Em vez de um
+     toast de erro (beco sem saída — foi o que aconteceu quando o app padrão do
+     .env saiu), esta tela explica e leva ao cadastro. */
+  const [precisaApp,     setPrecisaApp]     = useState(false);
+  const navigate = useNavigate();
   const [connecting,     setConnecting]     = useState({});
   const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
@@ -525,6 +531,10 @@ export default function Accounts() {
   }, [emendaMobile, accounts]);
 
   async function openOAuthConnect(account) {
+    /* Sem App Meta cadastrado o servidor recusa o /oauth/url, e antes disso o
+       clique virava só um toast vermelho — parecia que o botão não fazia nada.
+       Aqui a falta de app deixa de ser erro e vira o primeiro passo. */
+    if (!metaApps.length) { setPrecisaApp(true); return; }
     const key = account?._id || 'new';
     setConnecting(p => ({ ...p, [key]: true }));
     try {
@@ -840,6 +850,7 @@ export default function Accounts() {
 
   /* O mesmo link, direto do cabeçalho — para quem já sabe o que fazer com ele. */
   async function copiarLinkOAuth() {
+    if (!metaApps.length) { setPrecisaApp(true); return; }
     try {
       const { data } = await api.get('/oauth/url', { params: selectedAppId ? { metaAppId: selectedAppId } : {} });
       if (!data?.url) throw new Error('URL não retornada');
@@ -2132,6 +2143,45 @@ export default function Accounts() {
           de qualquer ancestral com container-type/transform, para nunca abrirem
           "colados no topo". Ver components/PortalModal.jsx. */}
       <PortalModal>
+      {/* ── Falta cadastrar o App Meta ─────────────────────────────────────
+          O OAuth usa SÓ apps cadastrados aqui (o app padrão do .env foi
+          removido de propósito — era compartilhado, e app compartilhado que
+          derruba contas leva a reputação de todo mundo junto). Sem app, este
+          é o caminho, não um erro. */}
+      {precisaApp && (
+        <div className="modal-overlay" onClick={() => setPrecisaApp(false)}>
+          <div className="modal" style={{ width:'min(460px,100%)' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin:'0 0 8px', fontSize:'var(--mf-t-h2)', fontWeight:800 }}>
+              Cadastre seu App Meta primeiro
+            </h3>
+            <p style={{ fontSize:'var(--mf-t-sm)', color:'var(--mf-text-2)', lineHeight:1.7, margin:'0 0 14px' }}>
+              Para conectar contas pela API oficial, o sistema usa <strong>o seu</strong> app
+              do Meta — não existe mais app padrão embutido. Cadastre o app uma vez e
+              ele fica disponível para todas as conexões.
+            </p>
+            <div style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-3)', lineHeight:1.8,
+              background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)',
+              borderRadius:'var(--mf-r-md)', padding:'11px 13px', marginBottom:16 }}>
+              Você vai precisar de: <strong style={{ color:'var(--mf-text-2)' }}>Meta App ID</strong>,
+              <strong style={{ color:'var(--mf-text-2)' }}> App Secret</strong>,
+              <strong style={{ color:'var(--mf-text-2)' }}> Instagram App ID</strong> e
+              <strong style={{ color:'var(--mf-text-2)' }}> Instagram App Secret</strong> —
+              todos em developers.facebook.com, no seu app.
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className="btn-ghost" style={{ flex:1, justifyContent:'center' }}
+                onClick={() => setPrecisaApp(false)}>
+                Agora não
+              </button>
+              <button className="btn-primary" style={{ flex:1, justifyContent:'center' }}
+                onClick={() => { setPrecisaApp(false); navigate('/api-meta'); }}>
+                Cadastrar App Meta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── OAuth Modal ──────────────────────────────────────────── */}
       {oauthModal && (
         <div className="modal-overlay">
