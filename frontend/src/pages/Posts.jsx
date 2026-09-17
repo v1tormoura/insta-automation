@@ -9,6 +9,7 @@ import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
+import CardMetadados from '../components/CardMetadados';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
@@ -1200,6 +1201,8 @@ export default function Posts() {
                     ? `Marca d'água ativa — ${marcaDagua.posicao}, ${marcaDagua.opacidade}%`
                     : "Adicionar marca d'água"}
                 </button>
+
+                <CardMetadados style={{ marginTop: 12 }} />
 
                 {/* Summary */}
                 <div className="g3" style={{ gap: 6, marginTop: 12 }}>

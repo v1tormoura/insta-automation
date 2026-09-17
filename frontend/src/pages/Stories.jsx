@@ -14,6 +14,7 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
+import CardMetadados from '../components/CardMetadados';
 import useServerEvents from '../services/useServerEvents';
 import { EsqueletoLista } from '../components/Estados';
 
@@ -844,6 +845,8 @@ export default function Stories() {
                 </div>
               </div>
             </div>
+
+            <CardMetadados tipo="ambos" style={{ marginBottom: 14 }} />
 
             {/* Link sticker + Publicar */}
             <div style={{ ...PANEL, padding: 18 }}>

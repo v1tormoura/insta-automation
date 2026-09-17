@@ -8,6 +8,7 @@ import CaptionEditor from '../components/campaign/CaptionEditor';
 import CommentEditor from '../components/campaign/CommentEditor';
 import CampaignPreview from '../components/campaign/CampaignPreview';
 import ContentPicker from '../components/campaign/ContentPicker';
+import CardMetadados from '../components/CardMetadados';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 import { EsqueletoLista } from '../components/Estados';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
@@ -572,6 +573,8 @@ export default function CampaignWizard() {
   // (busca, filtro, upload, capa) e hooks só são legais dentro de um componente.
   function EtapaConteudos() {
     return painel(null, (
+      <>
+      <CardMetadados style={{ marginBottom: 16 }} />
       <ContentPicker
         selecionados={form.contentIds}
         onSelecionar={ids => mudar('contentIds', ids)}
@@ -596,6 +599,7 @@ export default function CampaignWizard() {
         onMidiasConhecidas={registrarMidias}
         aviso={aviso}
       />
+      </>
     ));
   }
   function EtapaLegendas() {
