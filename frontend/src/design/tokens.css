@@ -49,7 +49,7 @@
   --mf-primary-500: oklch(0.776 0.149 227);  /* #00C8FF — a marca */
   --mf-primary-600: oklch(0.678 0.180 247);  /* #009DFF — o neon */
   --mf-primary-700: oklch(0.579 0.232 260);  /* #006EFF — o glow */
-  --mf-primary-fg:  oklch(0.150 0.034 259);  /* escuro sobre cor viva */
+  --mf-primary-fg:  oklch(1 0 0);  /* branco sobre a cor viva — decisao do usuario */
 
   /* Os dois azuis de baixo, nomeados pelo que fazem e não pela posição na
      rampa. Um gradiente de botão escrito como `600→700` obriga a lembrar o

@@ -14,6 +14,7 @@ const Account              = require('../models/Account');
 const { broadcast }        = require('../events/broadcaster');
 const { classifyError }    = require('../jobs/healthCheck');
 const { refreshToken }     = require('./instagramAPI');
+const { decrypt: _decryptTok } = require('./tokenEncryption');
 const path                 = require('path');
 const fs                   = require('fs');
 const https                = require('https');
@@ -53,7 +54,12 @@ async function syncViaAPI(account) {
   }
 
   const daysLeft = expiresAt ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : '?';
-  const isIgaal  = account.accessToken.startsWith('IGAAL');
+  /* Decifra o token UMA vez. Chamada com objeto .lean() nao passa pelo getter
+     do Mongoose, entao account.accessToken chega cifrado (enc1:); mandar isso ao
+     Meta dava 'Invalid access token' e a conta virava sessao_expirada com token
+     bom. decrypt e transparente em texto puro. */
+  const tokenPlano = (() => { try { return _decryptTok(account.accessToken) || account.accessToken; } catch { return account.accessToken; } })();
+  const isIgaal  = tokenPlano.startsWith('IGAAL');
 
   // ── 2. Verificação real via API ───────────────────────────────────────────
   const update = { healthStatus: 'ativa', lastError: '', lastSync: now };
@@ -63,7 +69,7 @@ async function syncViaAPI(account) {
   try {
     const url = new URL('https://graph.instagram.com/me');
     url.searchParams.set('fields', 'id,username,name,followers_count,follows_count,media_count,profile_picture_url');
-    url.searchParams.set('access_token', account.accessToken);
+    url.searchParams.set('access_token', tokenPlano);
 
     const res  = await fetch(url.toString());
     const data = await res.json();
@@ -80,9 +86,9 @@ async function syncViaAPI(account) {
         console.log(`🚫 [API Sync] @${account.username} — BANIDA/DESATIVADA`);
       } else if (code === 190 || data.error.type === 'OAuthException' || /session.*expired|token.*expired|expired.*token/i.test(errMsg)) {
         // Tenta renovar o token antes de desistir (funciona se o token ainda não venceu no TTL)
-        if (account.accessToken?.match(/^(IGAAL|IGQ|IG)/)) {
+        if (tokenPlano.match(/^(IGAAL|IGQ|IG)/)) {
           try {
-            const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);
+            const { accessToken: newToken, expiresIn } = await refreshToken(tokenPlano);
             update.accessToken    = newToken;
             update.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
             update.healthStatus   = 'ativa';
@@ -129,9 +135,9 @@ async function syncViaAPI(account) {
       // Renovação proativa: renova se expira em menos de 15 dias (ou se não temos data de expiração)
       const fifteenDays = 15 * 24 * 60 * 60 * 1000;
       const needsRefresh = expiresAt && (expiresAt - now) < fifteenDays;
-      if (needsRefresh && account.accessToken?.match(/^(IGAAL|IGQ|IG)/)) {
+      if (needsRefresh && tokenPlano.match(/^(IGAAL|IGQ|IG)/)) {
         try {
-          const { accessToken: newToken, expiresIn } = await refreshToken(account.accessToken);
+          const { accessToken: newToken, expiresIn } = await refreshToken(tokenPlano);
           update.accessToken    = newToken;
           update.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
           const newDays = Math.ceil(expiresIn / 86400);
