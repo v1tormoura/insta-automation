@@ -9,6 +9,7 @@ import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
+import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import CardMetadados from '../components/CardMetadados';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
@@ -661,17 +662,10 @@ export default function Posts() {
                 </div>
               </div>
               <div style={cardBodyStyle}>
-                {/* Type tabs */}
-                <div style={{ marginBottom: 'var(--mf-3)' }}>
-                  <Segmentado
-                    full rotulo="Tipo de publicação"
-                    opcoes={[
-                      { value:'reel',  label:'Reel'  },
-                      { value:'post',  label:'Post'  },
-                      { value:'story', label:'Story' },
-                    ]}
-                    valor={postType} onChange={setPostType} mod="publicar"
-                  />
+                {/* Tipo da publicação — cartões grandes: é a decisão que muda
+                    formato do arquivo, existência de capa e caminho de publicação. */}
+                <div style={{ marginBottom: 'var(--mf-4)' }}>
+                  <SeletorTipoPublicacao valor={postType} onChange={setPostType} mod="publicar" />
                 </div>
 
                 {/* Media Source Buttons (Upload vs Biblioteca) */}
@@ -686,7 +680,7 @@ export default function Posts() {
                       fontWeight: mediaSource === 'upload' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 16.6A5 5 0 0018 7h-1.26A8 8 0 104 15.25"/><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
                     Upload de arquivos
                   </button>
 
@@ -717,7 +711,7 @@ export default function Posts() {
                       <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
                         onChange={e => setMedia(Array.from(e.target.files || []))} />
                       <div style={{ marginBottom: 8 }}>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--mf-text-3)' }}>
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--mf-mod, var(--mf-primary-500))' }}>
                           <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
                       </div>

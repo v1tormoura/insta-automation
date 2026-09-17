@@ -1804,3 +1804,40 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
     animation: none;
   }
 }
+
+/* ── Área de envio de mídia ───────────────────────────────────────────────
+   A zona do tema antigo tinha 28px de padding e borda cinza: num painel cheio
+   de cartões, ela lia como mais uma caixa, não como o lugar onde se solta o
+   arquivo — que é a ação principal da tela. Aqui ela ganha altura, a cor da
+   marca no tracejado e um brilho de acolhimento ao arrastar, para o alvo ser
+   óbvio antes de o arquivo sair da mão. */
+[data-mf] .upload-zone {
+  min-height: 176px;
+  padding: var(--mf-7) var(--mf-5);
+  gap: 2px;
+  border: 1.5px dashed color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 38%, var(--mf-border));
+  border-radius: var(--mf-r-lg);
+  background:
+    radial-gradient(120% 80% at 50% 0%,
+      color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 7%, transparent) 0%,
+      transparent 70%),
+    var(--mf-surface-2);
+  transition: border-color var(--mf-normal) var(--mf-ease-out),
+              background var(--mf-normal), box-shadow var(--mf-normal);
+}
+[data-mf] .upload-zone:hover,
+[data-mf] .upload-zone.drag-over {
+  border-color: var(--mf-mod, var(--mf-primary-500));
+  border-style: solid;
+  background:
+    radial-gradient(120% 80% at 50% 0%,
+      color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 14%, transparent) 0%,
+      transparent 72%),
+    var(--mf-surface-2);
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 12%, transparent);
+}
+[data-mf] .upload-zone strong {
+  font-size: var(--mf-t-body); font-weight: 750; color: var(--mf-text); margin-bottom: 2px;
+}
+[data-mf] .upload-zone span { font-size: var(--mf-t-xs); color: var(--mf-text-3); }
+
