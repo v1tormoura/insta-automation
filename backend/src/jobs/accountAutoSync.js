@@ -26,12 +26,32 @@ async function runAutoSync() {
       isBusy: { $ne: true },
     }).sort({ lastSync: 1 });   // a mais antiga primeiro — ver ritmoDeSincronizacao.js
 
-    const daVez = ritmo.fatiaDaVez(accounts);
+    /* ── Conta da API oficial não entra no rodízio ──────────────────────────
+
+       O rodízio (fatia + silêncio noturno) de `ritmoDeSincronizacao` existe por
+       um motivo específico: consultar o perfil pela API PRIVADA a cada poucos
+       minutos, a noite toda, é um padrão que nenhum celular produz — e igual
+       entre as contas, denuncia que são a mesma mão.
+
+       Isso não vale para quem tem token do Graph. Ali a chamada é
+       servidor-a-servidor, pelo endereço público da Meta, autenticada por um
+       token que ela mesma emitiu: é exatamente o tráfego que a plataforma
+       espera, e o limite por token é folgado (uma leitura a cada 5 min dá 12/h,
+       muito abaixo do teto). Prender essas contas ao rodízio só fazia o painel
+       mostrar seguidores e publicações defasados em até 30 minutos, sem ganho
+       nenhum de segurança.
+
+       Então: oficiais em todo tique; as de sessão seguem no rodízio. */
+    const ehOficial = c => !!(c.accessToken && c.igUserId);
+    const oficiais  = accounts.filter(ehOficial);
+    const deSessao  = accounts.filter(c => !ehOficial(c));
+
+    const daVez = [...oficiais, ...ritmo.fatiaDaVez(deSessao)];
     if (!daVez.length) {
       if (accounts.length) console.log(`⏸️  AutoSync — ${ritmo.emSilencio() ? 'silêncio noturno' : 'nada na vez'}`);
       return;
     }
-    console.log(`🔄 AutoSync — ${daVez.length} de ${accounts.length} conta(s)`);
+    console.log(`🔄 AutoSync — ${daVez.length} de ${accounts.length} conta(s) (${oficiais.length} oficial(is) em todo tique)`);
 
     for (const acc of daVez) {
       const fresh = await Account.findById(acc._id);

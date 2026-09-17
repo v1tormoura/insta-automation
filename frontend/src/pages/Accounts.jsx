@@ -2612,7 +2612,11 @@ export default function Accounts() {
                     <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
                       style={{ flex:1, padding:'8px 0', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
                         background: instaModal.loginMethod === method ? 'color-mix(in oklch, var(--mf-mod-publicar) 80%, transparent)' : 'transparent',
-                        color: instaModal.loginMethod === method ? 'var(--mf-text)' : 'var(--mf-text-2)' }}>
+                        /* Branco fixo na aba ativa. O token `--mf-text` podia ser
+                           reinterpretado por folha externa e a legenda saía quase
+                           preta sobre o ciano — ilegível. Branco literal não
+                           depende de token nenhum. */
+                        color: instaModal.loginMethod === method ? '#fff' : 'var(--mf-text-2)' }}>
                       {label}
                     </button>
                   ))}
