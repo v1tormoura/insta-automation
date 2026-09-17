@@ -338,6 +338,26 @@
   background: var(--mf-overlay, oklch(0.10 0.03 259 / 0.82));
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
+/* ── Blindagem do diálogo ────────────────────────────────────────────────
+   Medido no navegador do usuário: o `.modal` chegava com `position: fixed` e
+   `display: flex` sem NENHUMA regra do nosso CSS declarar isso (a varredura de
+   `document.styleSheets` voltou vazia) e sem estilo inline — sinal de folha
+   injetada por fora da aplicação (extensão do navegador é a origem típica; na
+   janela anônima, onde extensões não rodam, o mesmo build funcionava).
+
+   O efeito era grave: `fixed` tira o diálogo do fluxo do flex, então ele ignora
+   o `center` do overlay e cola em (0,0); e `flex` em linha espalha o conteúdo
+   lado a lado, achatando o diálogo numa faixa de ~50px. É a "tela bugada".
+
+   `position: static` e `display: block` são o que o diálogo sempre precisou
+   ser — um item de flex normal dentro do overlay. Com `!important` e a
+   especificidade do filho direto (0,3,1), esta regra vence uma injeção que use
+   apenas `.modal`, mesmo que venha depois na cascata. */
+[data-mf] .modal-overlay > .modal {
+  position: static !important;
+  display: block !important;
+}
+
 [data-mf] .modal {
   background: var(--mf-surface-1);
   border: 1px solid var(--mf-border);
