@@ -356,6 +356,17 @@
 [data-mf] .modal-overlay > .modal {
   position: static !important;
   display: block !important;
+  /* A injeção também achatava a ALTURA: travadas position/display, o diálogo
+     voltou ao centro mas ficou numa faixa de ~55px com barra de rolagem,
+     mostrando só o primeiro campo. Altura de diálogo é sempre o conteúdo —
+     quem limita é o `max-height` logo abaixo, que mantém o scroll quando o
+     conteúdo passa da tela. `inset`/`transform` entram na mesma limpeza para
+     nenhuma sobra de posicionamento deslocar o diálogo. */
+  height: auto !important;
+  min-height: 0 !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 0 1 auto !important;
 }
 
 [data-mf] .modal {
