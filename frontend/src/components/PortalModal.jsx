@@ -27,5 +27,18 @@ import { createPortal } from 'react-dom';
  */
 export default function PortalModal({ children }) {
   if (typeof document === 'undefined') return null;
-  return createPortal(<div data-mf>{children}</div>, document.body);
+
+  /* O tema viaja junto. Os tokens claros moram em seletores como
+     `[data-tema='claro'] [data-mf]`; montado em <body>, fora da casca do app, o
+     portal podia cair num escopo de tema diferente do resto da tela — o
+     diálogo saindo escuro com o painel claro, ou o contrário. Copiando os
+     atributos da casca, o modal resolve exatamente os mesmos tokens. */
+  const casca = document.querySelector('.mf-app') || document.documentElement;
+  const tema = casca?.getAttribute?.('data-tema') || undefined;
+  const densidade = casca?.getAttribute?.('data-densidade') || undefined;
+
+  return createPortal(
+    <div data-mf data-tema={tema} data-densidade={densidade}>{children}</div>,
+    document.body,
+  );
 }

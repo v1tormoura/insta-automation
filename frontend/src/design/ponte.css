@@ -371,6 +371,12 @@
 
 [data-mf] .modal {
   background: var(--mf-surface-1);
+  /* Cor do texto EXPLICITA. Sem ela o conteudo do dialogo dependia de herdar
+     do <body> — e desde que os modais passaram a ser montados por portal, o no
+     fica fora da casca do app e essa heranca se perde: titulo e descricao saiam
+     quase pretos sobre o fundo escuro, ilegiveis. Declarada aqui, vale para TODO
+     modal (h3, p, div sem cor propria), em qualquer tema. */
+  color: var(--mf-text);
   border: 1px solid var(--mf-border);
   border-radius: var(--mf-r-lg);
   box-shadow: var(--mf-shadow-3);
