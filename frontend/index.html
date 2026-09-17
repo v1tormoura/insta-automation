@@ -36,16 +36,31 @@
         transition: opacity .35s ease;
       }
       #boot-splash[data-saindo] { opacity: 0; pointer-events: none; }
-      #boot-splash__logo { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
+      #boot-splash__logo { position: relative; width: 132px; height: 132px; display: grid; place-items: center; }
       #boot-splash__halo {
-        position: absolute; inset: 0; border-radius: 999px;
-        background: radial-gradient(circle, rgba(0,212,255,.32), transparent 70%);
+        position: absolute; inset: 14px; border-radius: 999px;
+        background: radial-gradient(circle, rgba(0,190,255,.30), transparent 68%);
         animation: boot-halo 2.8s ease-in-out infinite;
       }
+      /* Anel de progresso girando, como no kit da marca: dois trilhos tenues,
+         um arco vivo e um ponto de luz na ponta. SVG e nao border porque o arco
+         precisa de ponta arredondada e de um comprimento fracionario exato. */
+      #boot-splash__ring { position: absolute; inset: 0; width: 132px; height: 132px; }
+      #boot-splash__ring .bs-trilho { fill: none; stroke: rgba(0,180,255,.12); stroke-width: 2; }
+      #boot-splash__ring .bs-trilho--fora { stroke: rgba(0,180,255,.06); }
+      #boot-splash__ring .bs-gira { transform-origin: 66px 66px; animation: boot-gira 1.6s linear infinite; }
+      #boot-splash__ring .bs-arco {
+        fill: none; stroke: #2fc4ff; stroke-width: 3; stroke-linecap: round;
+        /* circunferencia de r=56 e ~352; 96 desenha ~27% do anel */
+        stroke-dasharray: 96 352; transform: rotate(-90deg); transform-origin: 66px 66px;
+        filter: drop-shadow(0 0 5px rgba(47,196,255,.75));
+      }
+      #boot-splash__ring .bs-ponto { fill: #9ee4ff; filter: drop-shadow(0 0 7px #2fc4ff); }
       #boot-splash__logo img {
-        position: relative; z-index: 1; width: 72px; height: 72px;
+        position: relative; z-index: 1; width: 62px; height: 62px;
         animation: boot-logo 2.8s ease-in-out infinite;
       }
+      @keyframes boot-gira { to { transform: rotate(360deg); } }
       @keyframes boot-logo {
         0%, 100% { transform: scale(1);     filter: drop-shadow(0 0 10px rgba(0,212,255,.45)); }
         50%      { transform: scale(1.055); filter: drop-shadow(0 0 22px rgba(0,212,255,.7)); }
@@ -55,7 +70,7 @@
         50%      { opacity: 1;   transform: scale(1.08); }
       }
       @media (prefers-reduced-motion: reduce) {
-        #boot-splash__logo img, #boot-splash__halo { animation: none; }
+        #boot-splash__logo img, #boot-splash__halo, #boot-splash__ring .bs-gira { animation: none; }
       }
     </style>
   </head>
@@ -63,7 +78,15 @@
     <div id="boot-splash" aria-hidden="true">
       <div id="boot-splash__logo">
         <span id="boot-splash__halo"></span>
-        <img src="/nexora-icon-512.png?v=1" alt="" width="72" height="72" />
+        <svg id="boot-splash__ring" viewBox="0 0 132 132">
+          <circle class="bs-trilho bs-trilho--fora" cx="66" cy="66" r="63" />
+          <circle class="bs-trilho" cx="66" cy="66" r="56" />
+          <g class="bs-gira">
+            <circle class="bs-arco" cx="66" cy="66" r="56" />
+            <circle class="bs-ponto" cx="66" cy="10" r="3.4" />
+          </g>
+        </svg>
+        <img src="/nexora-icon-512.png?v=1" alt="" width="62" height="62" />
       </div>
     </div>
     <div id="root"></div>
