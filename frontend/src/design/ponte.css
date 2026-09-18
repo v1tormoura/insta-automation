@@ -1862,7 +1862,10 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
 [data-mf] input[type="checkbox"] {
   appearance: none; -webkit-appearance: none;
   width: 17px; height: 17px; flex-shrink: 0; margin: 0;
-  border-radius: var(--mf-r-sm);
+  /* Raio pequeno e fixo, nao o token: com o raio do tema o quadrado ficava
+     quase redondo e o checkbox desmarcado virava sosia do radio ao lado. A
+     forma e o que distingue "posso marcar varios" de "escolha um". */
+  border-radius: 5px;
   border: 1.5px solid var(--mf-border-strong);
   background: var(--mf-surface-2);
   cursor: pointer;
