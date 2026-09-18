@@ -110,6 +110,11 @@ function convertToReelFormat(inputPath, options = {}) {
   const porConta = [
     typeof options.marcaDagua === 'string' ? options.marcaDagua.trim() : '',
     Array.isArray(options.metadados) ? options.metadados.join('|') : '',
+    /* A edição entra na digital do nome: sem ela, dois arquivos com a mesma
+       semente mas cortes/ganchos diferentes disputariam o MESMO caminho de
+       saída, e um sobrescreveria o outro. */
+    options.variacao ? JSON.stringify(options.variacao) : '',
+    typeof options.ganchoFiltro === 'string' ? options.ganchoFiltro : '',
   ].filter(Boolean).join('||');
   if (porConta) {
     const digital = require('crypto')
@@ -235,6 +240,33 @@ function convertToReelFormat(inputPath, options = {}) {
 
        Vem por `options.marcaDagua` já montada pelo chamador: o texto é o @ da
        conta, e este módulo não conhece contas. Ver `marcaDagua.js`. */
+    /* ── Variação de edição por conta ────────────────────────────────────
+       Vem resolvida de `variacaoDeEdicao`, semeada em (post, conta): cada
+       conta recebe uma abertura e um ritmo diferentes. O corte do início não
+       entra aqui — é `-ss` na ENTRADA, mais abaixo, porque cortar por filtro
+       decodificaria os segundos descartados à toa. */
+    const varEdicao = options.variacao || null;
+
+    if (varEdicao && Number(varEdicao.velocidade) && Number(varEdicao.velocidade) !== 1) {
+      /* `setpts` reescreve o carimbo de tempo de cada quadro: dividir acelera.
+         O áudio acompanha com `atempo` lá embaixo — sem ele, a voz ficaria
+         dessincronizada do vídeo. */
+      scaleFilter += `,setpts=PTS/${Number(varEdicao.velocidade).toFixed(4)}`;
+    }
+
+    /* O gancho: texto grande nos primeiros segundos, o eixo que mais pesa na
+       retenção — a maior parte assiste sem som, e o que segura nos 2 primeiros
+       segundos é o que está escrito.
+
+       Chega PRONTO de quem chama, exatamente como `marcaDagua`: montar
+       `drawtext` exige escapar caminho de fonte e texto livre, e esse
+       conhecimento já mora num módulo só (ver variacaoDeEdicao.filtroDoGancho).
+       Duplicá-lo aqui seria um segundo lugar para a mesma regra de escape
+       errar. */
+    if (typeof options.ganchoFiltro === 'string' && options.ganchoFiltro.trim()) {
+      scaleFilter += `,${options.ganchoFiltro.trim()}`;
+    }
+
     if (typeof options.marcaDagua === 'string' && options.marcaDagua.trim()) {
       scaleFilter += `,${options.marcaDagua.trim()}`;
     }
@@ -277,9 +309,26 @@ function convertToReelFormat(inputPath, options = {}) {
       ? String(17 + Math.floor(aleatorio() * 4))
       : cfg.crf;
 
-    const audioFilterOpts = humanAudioFilter ? ['-af', humanAudioFilter] : [];
+    /* O áudio precisa seguir a mesma velocidade do vídeo, senão a voz
+       dessincroniza. `atempo` se soma ao pitch do humanizador quando os dois
+       existem — são filtros de áudio na mesma cadeia. */
+    const cadeiaAudio = [
+      humanAudioFilter,
+      (varEdicao && Number(varEdicao.velocidade) && Number(varEdicao.velocidade) !== 1)
+        ? `atempo=${Number(varEdicao.velocidade).toFixed(4)}`
+        : null,
+    ].filter(Boolean).join(',');
+    const audioFilterOpts = cadeiaAudio ? ['-af', cadeiaAudio] : [];
 
-    ffmpeg(inputPath)
+    /* Corte do inicio: `-ss` ANTES da entrada (seekInput), nao filtro.
+       Por filtro o ffmpeg decodificaria os segundos descartados so para joga-los
+       fora; no seek de entrada ele pula direto, o que em lote de dezenas de
+       videos e a diferenca entre segundos e minutos. */
+    const cortaInicio = c => (varEdicao && Number(varEdicao.trimInicio) > 0)
+      ? c.seekInput(Number(varEdicao.trimInicio))
+      : c;
+
+    cortaInicio(ffmpeg(inputPath))
       .outputOptions([
         '-vf', scaleFilter,
         '-c:v', 'libx264',
@@ -329,7 +378,7 @@ function convertToReelFormat(inputPath, options = {}) {
         if (cfg.preset === 'slow') {
           console.log('🔄 Tentando fallback com preset veryfast...');
           const fallbackPath = path.join(outputDir, `${filename}-reel-fallback.mp4`);
-          ffmpeg(inputPath)
+          cortaInicio(ffmpeg(inputPath))
             .outputOptions([
               '-vf', scaleFilter,
               '-c:v', 'libx264',

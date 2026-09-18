@@ -208,6 +208,28 @@ async function prepararParaConta(post, account, opcoes = {}) {
      portanto o hash do arquivo, mesmo com a mesma hora de metadado. */
   const metadados = argumentosDeMetadado(post, account);
 
+  /* ── A EDIÇÃO desta conta ────────────────────────────────────────────────
+
+     O arquivo único resolve duplicata de arquivo, e só. O vídeo continuava
+     sendo o mesmo: mesma abertura, mesmo ritmo, mesmo texto. Cinco contas
+     postando o mesmo material disputavam o mesmo público com a mesma ideia.
+
+     Aqui cada conta recebe um corte de início, uma velocidade e um gancho
+     diferentes. A semente é DERIVADA da do arquivo (não a mesma) para o sorteio
+     da edição não consumir valores do gerador do humanizador — senão ligar a
+     variação mudaria também o micro-crop e o CRF, e duas coisas independentes
+     ficariam amarradas sem motivo. */
+  const configVariacao = opcoes.variacaoEdicao || post.variacaoEdicao || null;
+  const variacao = configVariacao
+    ? require('./variacaoDeEdicao').resolver(
+        configVariacao,
+        criarAleatorio((semente ^ 0x9e3779b9) >>> 0),
+      )
+    : null;
+  const ganchoFiltro = variacao && variacao.gancho
+    ? require('./variacaoDeEdicao').filtroDoGancho(variacao.gancho, variacao.segundosDoGancho)
+    : null;
+
   try {
     const saida = await convertToReelFormat(absoluto, {
       processMode: modo,
@@ -216,6 +238,8 @@ async function prepararParaConta(post, account, opcoes = {}) {
       sufixo: `c${marca}`,
       metadados,
       ...(filtro ? { marcaDagua: filtro } : {}),
+      ...(variacao ? { variacao } : {}),
+      ...(ganchoFiltro ? { ganchoFiltro } : {}),
     });
 
     // O publicador espera caminho relativo à raiz de uploads.
