@@ -52,13 +52,31 @@ async function recoverStuckPosts() {
 // Jobs em 'running' ao reiniciar o worker indicam crash durante execução.
 // Jobs em 'waiting_interval' com nextRoundAt expirado indicam Redis reiniciado (sem persistência).
 // Ambos são re-enfileirados automaticamente.
-async function recoverStuckJobs() {
+/**
+ * @param {{naPartida?: boolean}} [opts]
+ *
+ * ── Por que a partida não espera os 15 minutos
+ *
+ * A carência existe para o tique periódico: ali um job em `running` PODE estar
+ * rodando de verdade neste instante, e re-enfileirá-lo criaria publicação
+ * duplicada. Na PARTIDA é o contrário — o processo acabou de subir, então não
+ * há execução nenhuma em curso e todo `running` no banco é, por definição,
+ * órfão de um worker que morreu.
+ *
+ * Esperar a carência ali custava caro e sem ganho: um deploy no meio de uma
+ * conversão de vídeo deixava o envio parado por até 20 minutos (15 de carência
+ * mais o tique de 5), e da tela isso se via como "está processando e não sai
+ * nada" — sem nenhum erro para explicar.
+ */
+async function recoverStuckJobs({ naPartida = false } = {}) {
   const Job      = require('../models/Job');
   const postQueue = require('./postQueue');
   const cutoff   = new Date(Date.now() - 15 * 60 * 1000);
 
   // 1. Jobs travados em 'running' (crash durante execução)
-  const stuck = await Job.find({ status: 'running', updatedAt: { $lt: cutoff } });
+  const stuck = await Job.find(
+    naPartida ? { status: 'running' } : { status: 'running', updatedAt: { $lt: cutoff } }
+  );
   for (const job of stuck) {
     try {
       const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
@@ -92,7 +110,7 @@ async function recoverCampaigns() {
 
 unlockStuck();
 recoverStuckPosts().catch(e => console.error('recoverStuckPosts:', e.message));
-recoverStuckJobs().catch(e => console.error('recoverStuckJobs:', e.message));
+recoverStuckJobs({ naPartida: true }).catch(e => console.error('recoverStuckJobs:', e.message));
 recoverCampaigns().catch(e => console.error('recoverCampaigns:', e.message));
 setInterval(async () => { try { await unlockStuck(); } catch {} }, 60_000);
 setInterval(async () => { try { await recoverStuckJobs(); } catch (e) { console.error('recoverStuckJobs interval:', e.message); } }, 5 * 60_000);
