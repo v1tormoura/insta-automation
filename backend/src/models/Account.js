@@ -212,6 +212,23 @@ const accountSchema = new mongoose.Schema(
       default: '',
     },
 
+    /* ── Por qual App Meta esta conta entrou ────────────────────────────────
+       O app só é usado no momento de CONECTAR (para emitir o token); depois
+       quem trabalha é o token. Mesmo assim o registro importa: reputação de app
+       é real — quando várias contas do mesmo app caem, as demais daquele app
+       sentem. Sem este campo não dava para ver a distribuição, equilibrar as
+       contas entre apps, nem descobrir QUAIS contas estão expostas quando um
+       app começa a falhar.
+
+       Fica vazio nas contas conectadas antes desta mudança: não há como
+       descobrir o app retroativamente, e inventar um palpite seria pior que
+       admitir que não se sabe. */
+    metaAppId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MetaApp',
+      default: null,
+    },
+
     accessToken: {
       type: String,
       default: '',

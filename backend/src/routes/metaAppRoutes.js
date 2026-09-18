@@ -7,11 +7,32 @@ const { encrypt } = require('../services/tokenEncryption');
 router.get('/', async (req, res) => {
   try {
     const apps = await MetaApp.find().sort({ isDefault: -1, createdAt: 1 }).lean();
+
+    /* Quantas contas cada app carrega.
+       Reputação de app é real: quando várias contas do mesmo app caem, as
+       demais daquele app sentem. Sem este número não dá para equilibrar a
+       distribuição nem saber quais contas estão expostas quando um app começa a
+       falhar. Uma agregação só, em vez de uma consulta por app. */
+    const Account = require('../models/Account');
+    const porApp = await Account.aggregate([
+      { $match: { metaAppId: { $ne: null } } },
+      { $group: {
+        _id: '$metaAppId',
+        contas: { $sum: 1 },
+        comProblema: { $sum: { $cond: [
+          { $in: ['$healthStatus', ['sessao_expirada', 'token_invalido', 'banida', 'restrita']] }, 1, 0,
+        ] } },
+      } },
+    ]).catch(() => []);
+    const mapa = Object.fromEntries(porApp.map(p => [String(p._id), p]));
+
     // nunca expõe secrets em claro: mascara
     const safe = apps.map(a => ({
       ...a,
       appSecret:          mask(a.appSecret),
       instagramAppSecret: mask(a.instagramAppSecret),
+      contas:      mapa[String(a._id)]?.contas || 0,
+      comProblema: mapa[String(a._id)]?.comProblema || 0,
     }));
     res.json(safe);
   } catch (err) { res.status(500).json({ error: err.message }); }

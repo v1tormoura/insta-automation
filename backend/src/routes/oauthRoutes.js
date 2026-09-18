@@ -443,12 +443,14 @@ router.post('/connect-by-token', async (req, res) => {
   try {
     let accessToken    = token.trim();
     let tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1_000); // fallback 1h
+    let appDoToken     = null;   // qual App Meta respondeu por esta conexão
 
     try {
       /* Sem app na chamada: usa o app padrão cadastrado para o exchange
          long-lived. Se não houver app, getLongLivedToken lança e o catch
          mantém o token como veio — conectar por token não depende do exchange. */
-      const ll = await getLongLivedToken(accessToken, await resolveMetaApp(null));
+      appDoToken = await resolveMetaApp(null);
+      const ll = await getLongLivedToken(accessToken, appDoToken);
       accessToken    = ll.accessToken;
       tokenExpiresAt = new Date(Date.now() + ll.expiresIn * 1_000);
       console.log(`✅ [Token Connect] Long-lived token obtido (${Math.round(ll.expiresIn / 86400)} dias)`);
@@ -469,6 +471,7 @@ router.post('/connect-by-token', async (req, res) => {
 
     const profileFields = {
       accessToken, igUserId: userIdStr, tokenExpiresAt, healthStatus: 'ativa', lastError: '',
+      metaAppId: appDoToken?._id || null,
       name:       me.name                || username,
       followers:  me.followers_count     || 0,
       following:  me.follows_count       || 0,
@@ -582,6 +585,7 @@ router.post('/connect/:accountId', async (req, res) => {
     if (accountId !== 'new') {
       await Account.findByIdAndUpdate(accountId, {
         accessToken, igUserId: userIdStr, tokenExpiresAt, healthStatus: 'ativa',
+        metaAppId: dbApp?._id || null,
       });
       let account = await Account.findById(accountId).lean();
       const username = account?.username || userIdStr;
@@ -638,6 +642,7 @@ router.post('/connect/:accountId', async (req, res) => {
     if (existing) {
       Object.assign(existing, {
         accessToken, igUserId: userIdStr, tokenExpiresAt,
+        metaAppId:   dbApp?._id || null,
         name:        profile.name                || existing.name       || username,
         followers:   profile.followers_count     || existing.followers  || 0,
         following:   profile.follows_count       || existing.following  || 0,
@@ -650,6 +655,7 @@ router.post('/connect/:accountId', async (req, res) => {
       await Account.create({
         username, name: profile.name || username,
         igUserId: userIdStr, accessToken, tokenExpiresAt,
+        metaAppId: dbApp?._id || null,
         followers:  profile.followers_count     || 0,
         following:  profile.follows_count       || 0,
         postsCount: profile.media_count         || 0,
@@ -779,6 +785,7 @@ router.get('/callback', async (req, res) => {
     if (existing) {
       Object.assign(existing, {
         accessToken, igUserId: userIdStr, tokenExpiresAt,
+        metaAppId:  appDaConexao?._id || null,
         name:       profile.name            || existing.name       || username,
         followers:  profile.followers_count || existing.followers  || 0,
         following:  profile.follows_count   || existing.following  || 0,
@@ -790,6 +797,7 @@ router.get('/callback', async (req, res) => {
       await Account.create({
         username, name: profile.name || username,
         igUserId: userIdStr, accessToken, tokenExpiresAt,
+        metaAppId: appDaConexao?._id || null,
         followers: profile.followers_count || 0,
         following: profile.follows_count   || 0,
         postsCount: profile.media_count    || 0,

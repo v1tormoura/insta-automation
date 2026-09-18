@@ -209,6 +209,19 @@ export default function ApiMeta() {
                       {app.isDefault && (
                         <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 800, padding: '2px 8px', borderRadius: 'var(--mf-r-xl)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 15%, transparent)', color: 'var(--mf-mod-publicar)', letterSpacing: .5 }}>PADRÃO</span>
                       )}
+                      {/* Quantas contas este app carrega. Reputação de app é
+                          real — quando várias contas do mesmo app caem, as
+                          outras daquele app sentem. Ver a distribuição é o que
+                          permite equilibrar antes de concentrar demais. */}
+                      <span title="Contas conectadas por este app" style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 9px', borderRadius: 'var(--mf-r-xl)', fontFamily: 'var(--mf-mono)', background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-2)' }}>
+                        {app.contas || 0} conta{app.contas === 1 ? '' : 's'}
+                      </span>
+                      {app.comProblema > 0 && (
+                        <span title="Contas deste app com sessão expirada, token inválido, restrita ou banida"
+                          style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 9px', borderRadius: 'var(--mf-r-xl)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', color: 'var(--mf-danger-500)' }}>
+                          {app.comProblema} com problema
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>

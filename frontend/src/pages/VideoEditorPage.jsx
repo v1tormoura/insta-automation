@@ -355,7 +355,11 @@ export default function VideoEditorPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [tmpl,       setTmpl]       = useState(() => ({ ...DEFAULT_TMPL, elements: [{ ...DEFAULT_TMPL.elements[0], id: uid() }] }));
   const [batchName,  setBatchName]  = useState('');
-  const [sections,   setSections]   = useState({ canvas: false, enquadramento: true, reels: false, moldura: false, borda: false, ajustes: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: true, metadados: false });
+  /* Todas fechadas ao abrir. Enquadramento e Qualidade nasciam abertas e
+     empurravam o resto da lista para fora da dobra — as duas já têm padrão
+     bom (Cover e 1080p) e o resumo no topo mostra o valor escolhido, então
+     ficavam ocupando altura para confirmar o que já estava certo. */
+  const [sections,   setSections]   = useState({ canvas: false, enquadramento: false, reels: false, moldura: false, borda: false, ajustes: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: false, metadados: false });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [toast,   setToast]   = useState(null);
