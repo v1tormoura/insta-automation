@@ -9,6 +9,7 @@ import CommentEditor from '../components/campaign/CommentEditor';
 import CampaignPreview from '../components/campaign/CampaignPreview';
 import ContentPicker from '../components/campaign/ContentPicker';
 import CardMetadados from '../components/CardMetadados';
+import TituloDeCartao from '../components/TituloDeCartao';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 import { EsqueletoLista } from '../components/Estados';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
@@ -451,14 +452,27 @@ export default function CampaignWizard() {
     <label style={{ display:'block', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:6, letterSpacing:'.04em' }}>{t}</label>
   );
 
+  /* Ícone de cada painel, resolvido pelo título: as chamadas de `painel()`
+     seguem passando só o texto, então nenhuma delas precisou mudar. */
+  const ICONE_DO_PAINEL = {
+    'Informações da campanha': 'info',
+    'Como distribuir as publicações': 'simultaneo',
+    'Intervalo entre publicações': 'envio',
+    'Janela de publicação': 'relogio',
+    'Limite diário': 'limite',
+    'Plano gerado': 'plano',
+    "Marca d'água": 'marca',
+    'Configuração': 'config',
+  };
+
   const painel = (titulo, filhos, extra = {}) => (
     <div style={{ background:'var(--mf-surface-1)', border:'1px solid var(--mf-border)',
       borderRadius: 'var(--mf-r-lg)', padding:18, marginBottom:14,
       boxShadow:'0 1px 2px oklch(0 0 0 / .28)', ...extra }}>
       {titulo && (
-        <h3 style={{ margin:'0 0 14px', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)' }}>
-          {titulo}
-        </h3>
+        <div style={{ marginBottom: 14 }}>
+          <TituloDeCartao icone={ICONE_DO_PAINEL[titulo] || 'config'} mod="campanhas">{titulo}</TituloDeCartao>
+        </div>
       )}
       {filhos}
     </div>

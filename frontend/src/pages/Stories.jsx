@@ -15,6 +15,7 @@ import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import CardMetadados from '../components/CardMetadados';
+import TituloDeCartao from '../components/TituloDeCartao';
 import useServerEvents from '../services/useServerEvents';
 import { EsqueletoLista } from '../components/Estados';
 
@@ -530,7 +531,7 @@ export default function Stories() {
             <div style={{ ...PANEL, padding: 18 }}>
               <div style={PANEL_HEAD}>
                 <div style={{ minWidth: 0 }}>
-                  <h3 style={PANEL_TITLE}>Como vai sair</h3>
+                  <TituloDeCartao icone="previa" mod="stories">Como vai sair</TituloDeCartao>
                   <p style={{ margin: '3px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
                     Enquadramento, figurinha e texto no tamanho real do story
                   </p>
@@ -668,7 +669,7 @@ export default function Stories() {
               {/* Panel heading */}
               <div style={PANEL_HEAD}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--mf-2)', flexWrap: 'wrap', minWidth: 0 }}>
-                  <h3 style={PANEL_TITLE}>Mídias do story</h3>
+                  <TituloDeCartao icone="midia" mod="stories">Mídias do story</TituloDeCartao>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{selectedMedia.length} de {medias.length > 0 ? medias.length : 60} selecionadas</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-2)', flexWrap: 'wrap', minWidth: 0 }}>
@@ -778,7 +779,7 @@ export default function Stories() {
             {results && (
               <div style={PANEL}>
                 <div style={PANEL_HEAD}>
-                  <h3 style={PANEL_TITLE}>Resultado</h3>
+                  <TituloDeCartao icone="resultado" mod="stories">Resultado</TituloDeCartao>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{results.successCount} de {results.total} publicados</span>
                 </div>
                 <div style={{ padding: '8px 16px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -808,7 +809,7 @@ export default function Stories() {
             {/* Contas */}
             <div style={PANEL}>
               <div style={{ ...PANEL_HEAD, borderRadius: '11px 11px 0 0' }}>
-                <h3 style={PANEL_TITLE}>Contas</h3>
+                <TituloDeCartao icone="contas" mod="stories">Contas</TituloDeCartao>
               </div>
               <div style={{ padding: '8px 12px 12px' }}>
                 {contasCarregando && !accounts.length
@@ -825,7 +826,7 @@ export default function Stories() {
             <div style={PANEL}>
               <div style={{ minHeight: 56, padding: '12px 16px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h3 style={{ ...PANEL_TITLE, margin: 0 }}>Intervalo entre stories</h3>
+                  <TituloDeCartao icone="envio" mod="stories">Intervalo entre stories</TituloDeCartao>
                   <p style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', margin: '4px 0 0' }}>Aguarda este tempo entre cada publicação.</p>
                 </div>
               </div>
@@ -852,7 +853,7 @@ export default function Stories() {
             <div style={{ ...PANEL, padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{ ...PANEL_TITLE, margin: 0 }}>Link sticker no story</h3>
+                  <TituloDeCartao icone="link" mod="stories">Link sticker no story</TituloDeCartao>
                   <p style={{ margin: '3px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Figurinha clicável — contas API Mobile e OAuth</p>
                 </div>
                 <button onClick={() => setLinkOn(p => !p)} style={{
