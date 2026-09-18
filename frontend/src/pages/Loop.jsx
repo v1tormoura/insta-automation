@@ -392,7 +392,7 @@ function LoopModal({ onClose, onCreated }) {
 
           {/* Nome */}
           <div className="lm-row">
-            <label className="lm-label">Nome</label>
+            <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="nome" />Nome</label>
             <input className="lm-input" placeholder="Ex.: Ciclo motivacional"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -401,7 +401,8 @@ function LoopModal({ onClose, onCreated }) {
           {/* Contas */}
           <div className="lm-row">
             <div className="lm-row-hd">
-              <label className="lm-label">
+              <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IcoRotulo k="contas" />
                 Contas&nbsp;<span className="lm-count">({form.accounts.length} selecionada{form.accounts.length !== 1 ? 's' : ''})</span>
               </label>
             </div>
@@ -415,7 +416,7 @@ function LoopModal({ onClose, onCreated }) {
           {/* Tipo + Intervalo */}
           <div className="lm-2col">
             <div className="lm-row">
-              <label className="lm-label">Tipo</label>
+              <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="tipo" />Tipo</label>
               <div className="lm-tabs">
                 {[['reel','Reels'],['post','Feed'],['story','Stories']].map(([v,l]) => (
                   <button key={v} type="button"
@@ -425,7 +426,7 @@ function LoopModal({ onClose, onCreated }) {
               </div>
             </div>
             <div className="lm-row">
-              <label className="lm-label">Intervalo entre posts</label>
+              <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="intervalo" />Intervalo entre posts</label>
               <div className="lm-int">
                 <input type="text" inputMode="numeric" placeholder="minutos"
                   value={form.intervalMinutes}
@@ -462,7 +463,7 @@ function LoopModal({ onClose, onCreated }) {
             <div className="lm-section-hd">
               <div className="lm-section-hd-l">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
-                <span className="lm-label">Reels do loop</span>
+                <span className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="reels" />Reels do loop</span>
                 {form.mediaFiles.length === 0
                   ? <span className="lm-section-note">Nenhum reel — envie agora</span>
                   : <span className="lm-section-count">{form.mediaFiles.length}</span>}
@@ -566,7 +567,7 @@ function LoopModal({ onClose, onCreated }) {
             <div className="lm-section-hd">
               <div className="lm-section-hd-l">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                <span className="lm-label">Capa dos Reels (opcional)</span>
+                <span className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="capa" />Capa dos Reels (opcional)</span>
               </div>
               <button type="button" className="lm-upload-btn" onClick={() => setShowCoverPicker(true)}>
                 <Film size={11} /> Da biblioteca
@@ -607,7 +608,7 @@ function LoopModal({ onClose, onCreated }) {
 
           {/* Legenda */}
           <div className="lm-row">
-            <label className="lm-label">Legenda</label>
+            <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="legenda" />Legenda</label>
             <div ref={legendRef} className="lm-legend-wrap">
               <button type="button" className="lm-legend-trigger" onClick={() => setLegendOpen(o => !o)}>
                 <span>{selectedLegendLabel()}</span>
@@ -689,7 +690,7 @@ function LoopModal({ onClose, onCreated }) {
 
           {/* Modo de processamento */}
           <div className="lm-row">
-            <label className="lm-label">Modo de processamento</label>
+            <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="processo" />Modo de processamento</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
               {processModes.map(m => (
                 <div key={m.id} onClick={() => setForm(f => ({ ...f, processMode: m.id }))}
@@ -812,6 +813,31 @@ function LoopModal({ onClose, onCreated }) {
 }
 
 /* ──────────────────── Página ──────────────────── */
+
+/* Ícone de rótulo do Loop.
+   A tela é densa de propósito — linhas, não cartões — então aqui o ícone é de
+   12px inline, e não o chip de 28px das telas de cartão. O que se corrigiu foi
+   a INCONSISTÊNCIA: três rótulos tinham ícone e oito não, o que fazia os três
+   parecerem mais importantes sem nenhum motivo. */
+const ICO = {
+  nome:      <><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></>,
+  contas:    <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></>,
+  tipo:      <><rect x="2" y="2" width="20" height="20" rx="2.2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></>,
+  intervalo: <><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></>,
+  reels:     <><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></>,
+  capa:      <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>,
+  legenda:   <><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></>,
+  processo:  <><path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/></>,
+};
+function IcoRotulo({ k }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: .75 }}>
+      {ICO[k]}
+    </svg>
+  );
+}
+
 export default function LoopPage() {
   const [loops,     setLoops]     = useState([]);
   const [loading,   setLoading]   = useState(true);
