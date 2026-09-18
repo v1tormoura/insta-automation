@@ -11,6 +11,7 @@ import LibraryPickerModal from '../components/LibraryPickerModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import TituloDeCartao from '../components/TituloDeCartao';
+import CartaoRecolhivel from '../components/CartaoRecolhivel';
 import CardMetadados from '../components/CardMetadados';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
@@ -1000,11 +1001,12 @@ export default function Posts() {
                 ritmo; e a coluna da esquerda acabava no comentário fixado
                 enquanto a direita seguia por mais uma tela, deixando um vazio
                 do tamanho deste card exatamente onde ele agora está. */}
-            <div style={cardStyle}>
-              <div style={cardHdStyle}>
-                <TituloDeCartao icone="processo">Modo de processamento</TituloDeCartao>
-                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Limpeza aplicada</span>
-              </div>
+            <CartaoRecolhivel
+              icone="processo"
+              titulo="Modo de processamento"
+              resumo={(processModes.find(m => m.id === processMode) || {}).label || processMode}
+              estilo={cardStyle}
+            >
               <div style={cardBodyStyle}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {processModes.map(m => (
@@ -1024,7 +1026,7 @@ export default function Posts() {
                   ))}
                 </div>
               </div>
-            </div>
+            </CartaoRecolhivel>
           </motion.div>
 
           {/* ── RIGHT COLUMN ── */}
@@ -1042,39 +1044,6 @@ export default function Posts() {
               </span>
               <h2 style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-2)', margin: 0 }}>Enviar</h2>
               <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
-            </div>
-
-            {/* Simultaneous publications */}
-            <div style={cardStyle}>
-              <div style={cardHdStyle}>
-                <TituloDeCartao icone="simultaneo">Publicações simultâneas</TituloDeCartao>
-                <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-primary-500) 10%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>
-                  {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
-                </span>
-              </div>
-              <div style={cardBodyStyle}>
-                <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 12 }}>
-                  Quantos reels entram em cada rodada. Dentro da rodada as publicações saem
-                  uma a uma, com 2 a 5 min entre elas e ordem de contas sorteada.
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>LOTE</span>
-                  <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, color: 'var(--mf-info-500)', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
-                  <span style={{ fontSize: 'var(--mf-t-body)', color: 'var(--mf-text-3)' }}>/{Math.max(media.length, 1)} reels</span>
-                </div>
-                <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
-                  onChange={e => setSimultaneousLimit(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
-                  <span>1</span><span>{Math.max(media.length, 1)}</span>
-                </div>
-                <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 15%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-info-500)', lineHeight: 1.5 }}>
-                  {simultaneousLimit === 1
-                    ? 'Sequencial — 1 reel por rodada, enviado conta a conta com intervalo humano entre cada publicação.'
-                    : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} entram na mesma rodada, mas as publicações saem uma de cada vez: nenhuma conta recebe dois posts seguidos.`
-                  }
-                </div>
-              </div>
             </div>
 
             {/* ── Ritmo: intervalo, teto por conta e início ─────────────────
@@ -1156,6 +1125,39 @@ export default function Posts() {
                   {scheduledAt
                     ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR')} — os próximos seguem o intervalo acima.`
                     : 'Começa agora — os próximos posts seguem o intervalo definido acima.'}
+                </div>
+
+                {/* ── Lote por rodada ──────────────────────────────────────
+                    Estava num cartão próprio ao lado. Era a mesma pergunta que
+                    o intervalo responde — com que ritmo isso sai — partida em
+                    dois cartões, e a pessoa tinha de somar as duas telas de
+                    cabeça para saber o que ia acontecer. Junto, a conta fecha
+                    num lugar só. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 12px' }}>
+                  <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
+                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--mf-text-3)' }}>Lote por rodada</span>
+                  <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
+                </div>
+                <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 12 }}>
+                  Quantos reels entram em cada rodada. Dentro da rodada as publicações saem
+                  uma a uma, com 2 a 5 min entre elas e ordem de contas sorteada.
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>LOTE</span>
+                  <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, color: 'var(--mf-info-500)', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
+                  <span style={{ fontSize: 'var(--mf-t-body)', color: 'var(--mf-text-3)' }}>/{Math.max(media.length, 1)} reels</span>
+                </div>
+                <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
+                  onChange={e => setSimultaneousLimit(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
+                  <span>1</span><span>{Math.max(media.length, 1)}</span>
+                </div>
+                <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 15%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-info-500)', lineHeight: 1.5 }}>
+                  {simultaneousLimit === 1
+                    ? 'Sequencial — 1 reel por rodada, enviado conta a conta com intervalo humano entre cada publicação.'
+                    : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} entram na mesma rodada, mas as publicações saem uma de cada vez: nenhuma conta recebe dois posts seguidos.`
+                  }
                 </div>
               </div>
             </div>
