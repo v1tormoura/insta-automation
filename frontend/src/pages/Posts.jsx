@@ -10,6 +10,7 @@ import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
+import TituloDeCartao from '../components/TituloDeCartao';
 import CardMetadados from '../components/CardMetadados';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
@@ -645,7 +646,7 @@ export default function Posts() {
             )}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Mídia</h3>
+                <TituloDeCartao icone="midia">Mídia</TituloDeCartao>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   {/* Source toggle */}
                   <Segmentado
@@ -826,7 +827,7 @@ export default function Posts() {
             {/* Cover */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Capa do Reel</h3>
+                <TituloDeCartao icone="capa">Capa do Reel</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Opcional — aplica a todos</span>
               </div>
               <div style={cardBodyStyle}>
@@ -868,7 +869,7 @@ export default function Posts() {
             {/* Caption */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Legenda</h3>
+                <TituloDeCartao icone="legenda">Legenda</TituloDeCartao>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/legends')}>Gerenciar →</button>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{caption.length}/2200</span>
@@ -968,7 +969,7 @@ export default function Posts() {
             {/* CTA Comment */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Comentário fixado automático</h3>
+                <TituloDeCartao icone="comentario">Comentário fixado automático</TituloDeCartao>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: ctaComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
                   <input
                     type="checkbox"
@@ -1001,7 +1002,7 @@ export default function Posts() {
                 do tamanho deste card exatamente onde ele agora está. */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Modo de processamento</h3>
+                <TituloDeCartao icone="processo">Modo de processamento</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Limpeza aplicada</span>
               </div>
               <div style={cardBodyStyle}>
@@ -1046,7 +1047,7 @@ export default function Posts() {
             {/* Simultaneous publications */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Publicações simultâneas</h3>
+                <TituloDeCartao icone="simultaneo">Publicações simultâneas</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-micro)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-primary-500) 10%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 20%, transparent)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>
                   {simultaneousLimit === 1 ? 'Sequencial' : `Lotes de ${simultaneousLimit}`}
                 </span>
@@ -1082,7 +1083,7 @@ export default function Posts() {
                 verde fecha a conta, que é o que ninguém faz de cabeça. */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Configurações de envio</h3>
+                <TituloDeCartao icone="envio">Configurações de envio</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>
                   {rotuloDeIntervalo(intervalMins)}
                 </span>
@@ -1162,7 +1163,7 @@ export default function Posts() {
             {/* Accounts */}
             <div style={cardStyle}>
               <div style={cardHdStyle}>
-                <h3 style={cardH3Style}>Contas</h3>
+                <TituloDeCartao icone="contas">Contas</TituloDeCartao>
               </div>
               <div style={cardBodyStyle}>
                 <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 10 }}>
@@ -1210,12 +1211,18 @@ export default function Posts() {
 
                 <button className="btn-primary" type="submit" disabled={posting}
                   style={{
-                    width: '100%', justifyContent: 'center', padding: '12px', marginTop: 12,
-                    fontSize: 'var(--mf-t-body)', display: 'flex', alignItems: 'center', gap: 8, borderRadius: 'var(--mf-r-md)',
+                    width: '100%', justifyContent: 'center', padding: '14px 12px', marginTop: 12,
+                    fontSize: 'var(--mf-t-body)', fontWeight: 750, letterSpacing: '.01em',
+                    display: 'flex', alignItems: 'center', gap: 9, borderRadius: 'var(--mf-r-lg)',
+                    border: 'none',
                     transition: 'all var(--mf-normal) var(--mf-ease-out)',
+                    /* Gradiente e brilho: e o botao que dispara a acao da tela
+                       inteira, e ate aqui tinha o mesmo peso de um secundario. */
                     background: posted
-                      ? 'linear-gradient(135deg,var(--mf-success-500),#059669)'
-                      : undefined,
+                      ? 'linear-gradient(135deg, var(--mf-success-500), #059669)'
+                      : 'linear-gradient(135deg, color-mix(in oklch, var(--mf-mod-publicar) 86%, white) 0%, var(--mf-mod-publicar) 48%, color-mix(in oklch, var(--mf-mod-publicar) 72%, black) 100%)',
+                    boxShadow: posting ? 'none'
+                      : '0 6px 20px -6px color-mix(in oklch, var(--mf-mod-publicar) 65%, transparent), inset 0 1px 0 color-mix(in oklch, white 28%, transparent)',
                     opacity: posting ? 0.85 : 1,
                   }}>
                   {posting ? (
@@ -1229,7 +1236,14 @@ export default function Posts() {
                       Publicado!
                     </>
                   ) : (
-                    scheduledAt ? 'Agendar postagens' : 'Publicar agora'
+                    <>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        {scheduledAt
+                          ? <><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></>
+                          : <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}
+                      </svg>
+                      {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
+                    </>
                   )}
                 </button>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -1257,7 +1271,7 @@ export default function Posts() {
         {posts.length > 0 && (
           <div style={{ ...cardStyle, marginTop: 4 }}>
             <div style={cardHdStyle}>
-              <h3 style={cardH3Style}>Posts registrados</h3>
+              <TituloDeCartao icone="fila">Posts registrados</TituloDeCartao>
               <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{postPagination?.total || posts.length} no total</span>
             </div>
             <div className="queue-list">
