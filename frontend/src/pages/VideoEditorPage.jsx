@@ -11,7 +11,7 @@ const DEFAULT_TMPL = {
   canvas:      { width: 1080, height: 1920, fps: 30, background: '#000000' },
   output:      { crf: 20, preset: 'medium', removeMetadata: true },
   elements:    [{ id: 'vid0', type: 'video', source: '{{VIDEO}}', fit: 'cover', label: 'Vídeo', zIndex: 0, x: 0, y: 0, width: 0, height: 0 }],
-  audio:       { keepOriginal: true, originalVolume: 1.0, musicTrack: '', musicVolume: 0.3 },
+  audio:       { keepOriginal: true, originalVolume: 1.0, musicTrack: '', musicName: '', musicVolume: 0.3 },
   border:      { enabled: false, thickness: 4, color: 'var(--mf-text)', opacity: 1.0 },
   ajustes:     { enabled: false, brilho: 0, contraste: 0, saturacao: 0, nitidez: 0, ruido: 0, zoom: 0, espelhar: false, quebrarHash: false },
   trim:        { startTime: 0, endTime: null },
@@ -370,6 +370,7 @@ export default function VideoEditorPage() {
   const fileInputRef   = useRef();
   const folderInputRef = useRef();
   const pngInputRef    = useRef();
+  const audioInputRef  = useRef();
   const listRef        = useRef();
   const thumbCache     = useRef(new Map());
   const urlCache       = useRef(new Map());
@@ -486,6 +487,29 @@ export default function VideoEditorPage() {
       if (!next.templatePng.templates.length) next.templatePng.enabled = false;
       return next;
     });
+  }
+
+  /* Gêmeo de handlePngUpload. O upload existe porque o render precisa do caminho
+     ABSOLUTO do arquivo no container — quem digitava "/uploads/musica.mp3" à mão
+     acertava um caminho que não existe, e o vídeo saía sem trilha em silêncio. */
+  async function handleAudioUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post('/video-templates/upload-audio', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { serverPath, name } = r.data;
+      setTmpl(prev => ({ ...prev, audio: { ...(prev.audio || {}), musicTrack: serverPath, musicName: name } }));
+      toast3('success', 'Trilha', `"${name}" carregada.`);
+    } catch (err) {
+      toast3('error', 'Erro', err?.response?.data?.error || 'Falha ao enviar o áudio.');
+    }
+  }
+
+  function removeTrilha() {
+    setTmpl(prev => ({ ...prev, audio: { ...(prev.audio || {}), musicTrack: '', musicName: '' } }));
   }
 
   const videoEl  = tmpl.elements?.find(el => el.type === 'video') || tmpl.elements?.[0];
@@ -657,6 +681,7 @@ export default function VideoEditorPage() {
           <input ref={fileInputRef} type="file" multiple accept="video/*,.mp4,.mov,.avi,.mkv,.webm" style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
           <input ref={folderInputRef} type="file" multiple accept="video/*" webkitdirectory="" directory="" style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
           <input ref={pngInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp" style={{ display: 'none' }} onChange={handlePngUpload} />
+          <input ref={audioInputRef} type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.opus,.flac" style={{ display: 'none' }} onChange={handleAudioUpload} />
         </div>
 
         {/* Selection bar */}
@@ -1006,14 +1031,49 @@ export default function VideoEditorPage() {
 
           {/* ÁUDIO 2ª CAMADA */}
           <Acc title="Áudio (2ª camada)" id="audio" open={sections.audio} toggle={toggleSection}>
-            <Fld label="Trilha de fundo (caminho no servidor)">
-              <input className="inp" value={tmpl.audio?.musicTrack || ''} onChange={e => setT('audio.musicTrack', e.target.value)} placeholder="/uploads/musica.mp3" style={INP} />
-            </Fld>
-            <Fld label={`Volume da trilha: ${Math.round((tmpl.audio?.musicVolume ?? 0.3) * 100)}%`} style={{ marginTop: 8 }}>
+            {tmpl.audio?.musicTrack ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', marginBottom: 9, borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)', background: 'var(--mf-surface-2)' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-info-500)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tmpl.audio.musicTrack}>
+                  {tmpl.audio?.musicName || tmpl.audio.musicTrack.split('/').pop()}
+                </span>
+                <button onClick={removeTrilha} className="btn-ghost" title="Remover trilha" style={{ padding: '2px 8px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', borderRadius: 'var(--mf-r-xs)', flexShrink: 0 }}>✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => audioInputRef.current?.click()}
+                className="btn-ghost"
+                style={{ width: '100%', padding: '8px 0', marginBottom: 9, borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, border: '1px dashed color-mix(in oklch, var(--mf-primary-500) 45%, transparent)', color: 'var(--mf-info-500)' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Escolher trilha de áudio
+              </button>
+            )}
+
+            <Fld label={`Volume da trilha: ${Math.round((tmpl.audio?.musicVolume ?? 0.3) * 100)}%`}>
               <input type="range" min="0" max="2" step="0.05" value={tmpl.audio?.musicVolume ?? 0.3} onChange={e => setT('audio.musicVolume', Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--mf-info-500)', marginTop: 2 }} />
             </Fld>
-            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.4 }}>Mistura automaticamente com o áudio original via amix no FFmpeg.</p>
+
+            <p style={{ margin: '8px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.45 }}>
+              Mistura com o áudio original (amix). Entre <strong style={{ color: 'var(--mf-text-2)' }}>10% e 20%</strong> fica de fundo sem competir com a fala.
+            </p>
+            {(tmpl.audio?.musicVolume ?? 0.3) > 0.5 && (
+              <p style={{ margin: '5px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', lineHeight: 1.45 }}>
+                Acima de 50% a trilha soma com o original sem normalizar — o áudio pode saturar.
+              </p>
+            )}
+
+            {/* Caminho manual: continua aqui por causa de template antigo salvo com
+                caminho digitado. Recolhido porque era justamente ele que confundia. */}
+            <details style={{ marginTop: 9 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Caminho manual (avançado)</summary>
+              <input className="inp" value={tmpl.audio?.musicTrack || ''} onChange={e => setT('audio.musicTrack', e.target.value)} placeholder="/app/uploads/musica.mp3" style={{ ...INP, marginTop: 6 }} />
+              <p style={{ margin: '5px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.45 }}>
+                Precisa existir dentro do container — a raiz é <code style={{ fontFamily: 'var(--mf-mono)' }}>/app/uploads/</code>, não <code style={{ fontFamily: 'var(--mf-mono)' }}>/uploads/</code>.
+              </p>
+            </details>
           </Acc>
+
 
           {/* QUALIDADE */}
           <Acc title="Qualidade" id="qualidade" open={sections.qualidade} toggle={toggleSection}>

@@ -271,6 +271,13 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
   const musicSrc = audio.musicTrack ? resolveVars(audio.musicTrack, resolvedVars) : '';
   const hasMusicFile = musicSrc && !musicSrc.includes('{{') && fs.existsSync(musicSrc);
 
+  /* Trilha configurada que não está no disco: o render seguia mudo e o vídeo
+     saía sem a 2ª camada sem ninguém entender por quê. Não é para falhar — um
+     caminho errado não vale perder o lote inteiro —, mas tem que ir para o log. */
+  if (musicSrc && !musicSrc.includes('{{') && !hasMusicFile) {
+    console.warn(`⚠️ [Render] trilha não encontrada, vídeo sai sem 2ª camada: ${musicSrc}`);
+  }
+
   if (hasMusicFile) {
     inputs.push(musicSrc);
     const mIdx   = inputIdx++;

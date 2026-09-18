@@ -120,6 +120,9 @@ const videoTemplateSchema = new mongoose.Schema({
     keepOriginal:   { type: Boolean, default: true },
     originalVolume: { type: Number, default: 1.0 },
     musicTrack:     { type: String, default: '' },
+    /* Só para a tela: em disco o arquivo vira `aud_1758…_x9k2.mp3`, e mostrar
+       isso no lugar de "trilha-suave.mp3" não diz nada a quem escolheu. */
+    musicName:      { type: String, default: '' },
     musicVolume:    { type: Number, default: 0.3 },
   },
 
