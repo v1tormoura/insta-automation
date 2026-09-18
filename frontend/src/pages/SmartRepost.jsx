@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
@@ -118,7 +119,7 @@ export default function SmartRepost() {
           {/* Rules */}
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={cardStyle}>
             <div style={cardHdStyle}>
-              <h3 style={cardTitleStyle}>Regras</h3>
+              <TituloDeCartao icone="regras" mod="auto">Regras</TituloDeCartao>
               <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setCreating(v => !v)}>+ Nova</button>
             </div>
 
@@ -198,7 +199,7 @@ export default function SmartRepost() {
           {/* Queue */}
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
             <div style={cardHdStyle}>
-              <h3 style={cardTitleStyle}>Fila de reposts</h3>
+              <TituloDeCartao icone="fila" mod="auto">Fila de reposts</TituloDeCartao>
               <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{queue.length} agendados</span>
             </div>
             {queue.length === 0
@@ -227,7 +228,7 @@ export default function SmartRepost() {
         {/* Right: stats */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} style={{ ...cardStyle, alignSelf:'start' }}>
           <div style={{ ...cardHdStyle, marginBottom:16 }}>
-            <h3 style={cardTitleStyle}>Visão geral</h3>
+            <TituloDeCartao icone="grafico" mod="auto">Visão geral</TituloDeCartao>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {[

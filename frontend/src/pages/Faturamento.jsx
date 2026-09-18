@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PageShell from '../components/PageShell';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const KEY_GOAL    = 'fat_goal';
 const KEY_ENTRIES = 'fat_entries';
@@ -126,7 +127,7 @@ export default function Faturamento() {
         {/* Registrar venda */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
           <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Registrar venda</h3>
+            <TituloDeCartao icone="venda" mod="auto">Registrar venda</TituloDeCartao>
           </div>
           <div style={{ padding:'12px 16px' }}>
             <form onSubmit={addEntry} style={{ display:'flex', flexDirection:'column', gap:12 }}>
@@ -156,7 +157,7 @@ export default function Faturamento() {
         {/* Histórico */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} style={cardStyle}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Histórico do mês</h3>
+            <TituloDeCartao icone="grafico" mod="auto">Histórico do mês</TituloDeCartao>
             <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</span>
           </div>
           <div style={{ maxHeight:300, overflowY:'auto' }}>

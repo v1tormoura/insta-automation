@@ -4,6 +4,7 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import { EsqueletoTabela } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -457,7 +458,7 @@ export default function Proxies() {
         {/* Table card */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Proxies por conta</h3>
+            <TituloDeCartao icone="proxy" mod="auto">Proxies por conta</TituloDeCartao>
             <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>Atualiza a cada 30s</span>
           </div>
           <div style={{ overflowX:'auto' }}>

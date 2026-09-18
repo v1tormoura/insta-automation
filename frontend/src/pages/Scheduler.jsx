@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 function jobsToSchedulerItems(jobs) {
   const items = [];
@@ -136,7 +137,7 @@ export default function Scheduler() {
             transition={{ duration: 0.25 }}
             style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)' }}
           >
-            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 12 }}>Filtro por data</h3>
+            <TituloDeCartao icone="plano" mod="auto">Filtro por data</TituloDeCartao>
             <input
               className="inp"
               type="date"
@@ -163,7 +164,7 @@ export default function Scheduler() {
             style={{ background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow: 'hidden', backdropFilter: 'blur(12px)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Fila de publicação</h3>
+              <TituloDeCartao icone="fila" mod="auto">Fila de publicação</TituloDeCartao>
               <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', background: 'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding: '2px 8px' }}>{filteredPosts.length} itens</span>
             </div>
 

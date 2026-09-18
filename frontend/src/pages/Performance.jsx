@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import { EsqueletoMetricas, EsqueletoTabela, Bloco } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -185,7 +186,7 @@ export default function Performance() {
             {/* ── Top Contas ── */}
             <motion.div initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-                <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Contas</h3>
+                <TituloDeCartao icone="contas" mod="auto">Top Contas</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
               </div>
 
@@ -293,7 +294,7 @@ export default function Performance() {
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-                  <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Tipo de Conteúdo</h3>
+                  <TituloDeCartao icone="midia" mod="auto">Tipo de Conteúdo</TituloDeCartao>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{totalTyped} posts</span>
                 </div>
                 <div style={{ padding:'16px 16px' }}>

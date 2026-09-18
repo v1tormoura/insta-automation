@@ -4,6 +4,7 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const SYS_ROWS = [
   { label:'Backend', ok:true },
@@ -67,7 +68,7 @@ export default function Settings() {
           {/* Headless toggle card */}
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={cardStyle}>
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Automação</h3>
+              <TituloDeCartao icone="automacao" mod="auto">Automação</TituloDeCartao>
             </div>
             <div style={{ padding:'16px' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
@@ -97,7 +98,7 @@ export default function Settings() {
           {/* Mode info + system status card */}
           <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Modo atual</h3>
+              <TituloDeCartao icone="config" mod="auto">Modo atual</TituloDeCartao>
             </div>
             <div style={{ padding:'16px' }}>
               <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, marginBottom:8, color: settings.headless ? 'var(--mf-success-500)' : 'var(--mf-primary-600)' }}>

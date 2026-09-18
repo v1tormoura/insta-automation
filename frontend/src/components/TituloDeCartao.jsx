@@ -29,11 +29,22 @@ const ICONES = {
   plano:      <><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
   config:     <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.2.63.77 1.05 1.43 1.05H21a2 2 0 110 4h-.09c-.66 0-1.23.42-1.51 1z"/></>,
   marca:      <><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 16l3.5-4.5 2.5 3 2-2.5L19 16"/><circle cx="8.5" cy="8.5" r="1.3"/></>,
+  grafico:    <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+  proxy:      <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></>,
+  teste:      <><path d="M9 2v6.5L4.2 17A2 2 0 006 20h12a2 2 0 001.8-3L15 8.5V2"/><line x1="8" y1="2" x2="16" y2="2"/><line x1="7.5" y1="13" x2="16.5" y2="13"/></>,
+  automacao:  <><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>,
+  regras:     <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></>,
+  venda:      <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>,
   fila:       <><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>,
 };
 
 export default function TituloDeCartao({ icone, children, mod = 'publicar' }) {
-  const cor = `var(--mf-mod-${mod}, var(--mf-primary-500))`;
+  /* `mod="auto"` herda a cor que a própria página define em `--mf-mod`. Telas
+     genéricas (Proxies, Settings, Performance…) não pertencem a um módulo fixo,
+     e fixar 'publicar' nelas pintaria tudo de ciano-publicar sem razão. */
+  const cor = mod === 'auto'
+    ? 'var(--mf-mod, var(--mf-primary-500))'
+    : `var(--mf-mod-${mod}, var(--mf-primary-500))`;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
       <span aria-hidden="true" style={{

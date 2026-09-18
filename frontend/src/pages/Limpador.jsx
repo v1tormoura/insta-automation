@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const MODES = [
   {
@@ -258,7 +259,7 @@ export default function Limpador() {
           {items.length > 0 && (
             <div style={cardStyle}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Fila de processamento</h3>
+                <TituloDeCartao icone="fila" mod="auto">Fila de processamento</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
                   {items.filter(i => i.status === 'done').length}/{items.length} prontos
                 </span>
@@ -299,7 +300,7 @@ export default function Limpador() {
           {/* Mode selector */}
           <div style={cardStyle}>
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Modo de limpeza</h3>
+              <TituloDeCartao icone="processo" mod="auto">Modo de limpeza</TituloDeCartao>
             </div>
             <div style={{ padding:'12px 12px', display:'flex', flexDirection:'column', gap:8 }}>
               {MODES.map(m => {

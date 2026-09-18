@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
@@ -128,7 +129,7 @@ export default function ABTest() {
           {pending.length > 0 && (
             <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} style={cardStyle}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-                <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Pendentes</h3>
+                <TituloDeCartao icone="relogio" mod="auto">Pendentes</TituloDeCartao>
               </div>
               {pending.map((test, i) => (
                 <div key={test._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom: i < pending.length - 1 ? '1px solid var(--mf-border)' : 'none' }}>
@@ -147,7 +148,7 @@ export default function ABTest() {
           {finished.length > 0 && (
             <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} style={cardStyle}>
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-                <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Concluídos</h3>
+                <TituloDeCartao icone="resultado" mod="auto">Concluídos</TituloDeCartao>
               </div>
               {finished.map((test, i) => (
                 <div key={test._id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom: i < finished.length - 1 ? '1px solid var(--mf-border)' : 'none' }}>
@@ -176,7 +177,7 @@ export default function ABTest() {
         {/* Right — create form */}
         <form onSubmit={submit} style={cardStyle}>
           <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
-            <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Novo teste</h3>
+            <TituloDeCartao icone="teste" mod="auto">Novo teste</TituloDeCartao>
           </div>
           <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:12 }}>
             <div>

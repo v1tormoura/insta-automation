@@ -4,6 +4,7 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
+import TituloDeCartao from '../components/TituloDeCartao';
 
 export default function Legends() {
   const [legends, setLegends]   = useState([]);
@@ -156,7 +157,7 @@ export default function Legends() {
           {/* ── Lista ── */}
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', flexWrap: 'wrap', gap: 8 }}>
-              <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 }}>Legendas salvas</h3>
+              <TituloDeCartao icone="legenda" mod="auto">Legendas salvas</TituloDeCartao>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', padding: '4px 8px', flex: 1, minWidth: 160, transition: 'border-color var(--mf-fast) var(--mf-ease-out)' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
