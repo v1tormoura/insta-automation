@@ -334,6 +334,11 @@ export default function Posts() {
   const [midiasAleatorias, setMidiasAleatorias] = useState(false);
   const [loopInfinito,    setLoopInfinito]    = useState(false);
   const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
+  /* Variação de edição por conta — ver backend/services/variacaoDeEdicao.js.
+     Guarda só as opções; qual combinação cada conta recebe é sorteado na hora
+     de publicar, com semente em (post, conta). */
+  const [varEdicao, setVarEdicao] = useState({ ativa: false, ganchos: [] });
+  const [ganchoNovo, setGanchoNovo] = useState('');
   const [marcaModal,      setMarcaModal]      = useState(false);
 
   /* ── Configurações de envio ───────────────────────────────────────────────
@@ -488,6 +493,7 @@ export default function Posts() {
        usuário. Sem o campo, o backend (`normalizarTeto` → null) não mexe no
        `dailyPostLimit` das contas — cada uma mantém o seu. */
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
+    if (varEdicao.ativa) form.append('variacaoEdicao', JSON.stringify(varEdicao));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     setPosting(true);
@@ -1001,6 +1007,78 @@ export default function Posts() {
                 ritmo; e a coluna da esquerda acabava no comentário fixado
                 enquanto a direita seguia por mais uma tela, deixando um vazio
                 do tamanho deste card exatamente onde ele agora está. */}
+            {/* ── Variação de edição por conta ────────────────────────────
+                Vizinha do modo de processamento porque as duas tratam do PREPARO
+                da mídia — mas fazem coisas diferentes: o modo deixa o arquivo
+                único em bytes, esta muda a EDIÇÃO que cada conta publica. */}
+            <CartaoRecolhivel
+              icone="processo"
+              titulo="Variação por conta"
+              resumo={varEdicao.ativa ? (varEdicao.ganchos.length ? `${varEdicao.ganchos.length} gancho(s)` : 'ligada') : 'desligada'}
+              estilo={cardStyle}
+            >
+              <div style={cardBodyStyle}>
+                <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:12 }}>
+                  <input type="checkbox" checked={varEdicao.ativa}
+                    onChange={e => setVarEdicao(v => ({ ...v, ativa: e.target.checked }))} />
+                  <span style={{ fontSize:'var(--mf-t-sm)', fontWeight:600 }}>
+                    Cada conta publica uma edição diferente
+                  </span>
+                </label>
+
+                <p style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.65, margin:'0 0 14px' }}>
+                  Sorteia por conta o <strong>início do corte</strong> (0 / 0,6 / 1,2s), a
+                  <strong> velocidade</strong> (1,00 / 1,04 / 1,07) e um <strong>gancho</strong> de texto
+                  nos primeiros segundos. Serve para as contas não publicarem a mesma abertura —
+                  é o que mais pesa na retenção.
+                </p>
+
+                <div style={{ opacity: varEdicao.ativa ? 1 : .45, pointerEvents: varEdicao.ativa ? 'auto' : 'none' }}>
+                  <label style={rotuloForm}>Ganchos (opcional — um por linha)</label>
+                  <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                    <input className="inp" style={{ flex:1 }} value={ganchoNovo}
+                      placeholder="Ex.: Assiste até o final"
+                      onChange={e => setGanchoNovo(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        const t = ganchoNovo.trim();
+                        if (!t) return;
+                        setVarEdicao(v => ({ ...v, ganchos: [...v.ganchos, t].slice(0, 20) }));
+                        setGanchoNovo('');
+                      }} />
+                    <button type="button" className="btn-ghost"
+                      onClick={() => {
+                        const t = ganchoNovo.trim();
+                        if (!t) return;
+                        setVarEdicao(v => ({ ...v, ganchos: [...v.ganchos, t].slice(0, 20) }));
+                        setGanchoNovo('');
+                      }}>Adicionar</button>
+                  </div>
+
+                  {varEdicao.ganchos.length > 0 && (
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                      {varEdicao.ganchos.map((g, i) => (
+                        <span key={`${g}-${i}`} style={{ display:'inline-flex', alignItems:'center', gap:6,
+                          fontSize:'var(--mf-t-micro)', padding:'4px 8px', borderRadius:'var(--mf-r-full)',
+                          background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)', color:'var(--mf-text-2)' }}>
+                          {g}
+                          <button type="button" aria-label={`Remover ${g}`}
+                            onClick={() => setVarEdicao(v => ({ ...v, ganchos: v.ganchos.filter((_, j) => j !== i) }))}
+                            style={{ background:'none', border:'none', color:'var(--mf-text-3)', cursor:'pointer', lineHeight:1, padding:0 }}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:10, lineHeight:1.6 }}>
+                    Sem ganchos, a variação ainda muda corte e velocidade. O texto some
+                    depois de 2,5s e sai com contorno, para aparecer sobre qualquer fundo.
+                  </div>
+                </div>
+              </div>
+            </CartaoRecolhivel>
+
             <CartaoRecolhivel
               icone="processo"
               titulo="Modo de processamento"

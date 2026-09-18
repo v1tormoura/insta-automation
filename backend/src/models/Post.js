@@ -95,6 +95,17 @@ const postSchema = new mongoose.Schema(
       tamanho:   { type: String, enum: ['pequena', 'media', 'grande'], default: 'pequena' },
     },
 
+    /* Variação de EDIÇÃO por conta — ver services/variacaoDeEdicao.js.
+       Guarda só as OPÇÕES; qual combinação cada conta recebe é sorteado na hora
+       de publicar, com semente em (post, conta). */
+    variacaoEdicao: {
+      ativa:            { type: Boolean, default: false },
+      inicios:          { type: [Number], default: undefined },
+      velocidades:      { type: [Number], default: undefined },
+      ganchos:          { type: [String], default: undefined },
+      segundosDoGancho: { type: Number, default: 2.5, min: 1, max: 8 },
+    },
+
     engageComment: {
       type: String,
       default: '',

@@ -5,6 +5,7 @@ const postQueue = require('../queue/postQueue');
 const { broadcast } = require('../events/broadcaster');
 const { ordenar, naOrdemDosIds, ORDENS, ORDEM_PADRAO } = require('../services/ordemDasMidias');
 const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
+const { lerDoCorpo: lerVariacaoEdicao } = require('../services/variacaoDeEdicao');
 const { aplicarNasContas: aplicarTetoDiario } = require('../services/tetoDiario');
 const fs   = require('fs');
 const path = require('path');
@@ -94,6 +95,7 @@ exports.createPost = async (req, res) => {
     const loopInfinito = req.body.loopInfinito === 'true' || req.body.loopInfinito === true;
 
     const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
+    const variacaoEdicao = lerVariacaoEdicao(req.body.variacaoEdicao);
 
     /* ── Publicações por conta em 24h ─────────────────────────────────────
 
@@ -121,6 +123,7 @@ exports.createPost = async (req, res) => {
       midiasAleatorias:  midiasAleatorias,
       sementeDaOrdem:    sementeDaOrdem,
       ...(marcaDagua ? { marcaDagua } : {}),
+      ...(variacaoEdicao ? { variacaoEdicao } : {}),
       postType,
       caption:           req.body.caption       || '',
       cover:             coverFile ? coverFile.filename : (req.body.coverFilename || ''),

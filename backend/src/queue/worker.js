@@ -816,6 +816,10 @@ async function processJobRound(jobId) {
          recebe. Sem esta linha o campo existiria nos dois schemas e nunca
          chegaria a quem desenha — o defeito mais barato de cometer aqui. */
       ...(jobDoc.marcaDagua?.ativa ? { marcaDagua: jobDoc.marcaDagua } : {}),
+      /* Mesma razão da marca: é o Post que a mídia por conta recebe, então sem
+         esta linha o campo existiria nos dois schemas e nunca chegaria a quem
+         desenha. */
+      ...(jobDoc.variacaoEdicao?.ativa ? { variacaoEdicao: jobDoc.variacaoEdicao } : {}),
       accounts:      jobDoc.accounts.map(a => a._id),
       status:        'processando',
       scheduledAt:   new Date(),
