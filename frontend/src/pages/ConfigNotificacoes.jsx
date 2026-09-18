@@ -330,7 +330,11 @@ export default function ConfigNotificacoes() {
             {[
               { titulo: 'MARCOS DE AUDIÊNCIA', itens: [...METRICAS, RESUMO], comInterruptor: true },
               { titulo: 'PUBLICAÇÃO',          itens: PUBLICACAO,           comInterruptor: true },
-              { titulo: 'AVISOS DO SISTEMA',   itens: SISTEMA,               comInterruptor: false },
+              /* AVISOS DO SISTEMA saíram do editor a pedido: eles não têm
+                 interruptor (desligar o aviso de que a automação parou seria
+                 desligar a única coisa que avisa que ela parou), então o que
+                 este grupo oferecia era só reescrever o texto deles. Fora
+                 daqui, continuam disparando normalmente — com o texto padrão. */
             ].map(grupo => (
               <div key={grupo.titulo} style={{ display: 'grid', gap: 'var(--mf-2)' }}>
                 <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.09em',
