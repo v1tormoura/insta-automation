@@ -1841,3 +1841,78 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
 }
 [data-mf] .upload-zone span { font-size: var(--mf-t-xs); color: var(--mf-text-3); }
 
+/* ── Controles nativos do navegador ───────────────────────────────────────
+   Checkbox, radio, setinha do campo numérico e seletor de data vinham com a
+   pintura PADRÃO do navegador: caixa branca, setas cinza-claro, calendário
+   claro. Num painel escuro isso não é "um detalhe fora do tom" — é o único
+   pedaço da tela que parece de outro programa, e aparece justamente nos
+   lugares de decisão (ligar marca d'água, digitar intervalo, marcar data).
+
+   `color-scheme: dark` é o que faz o navegador repintar o que NÃO dá para
+   estilizar por CSS: as setas do `type=number`, o ícone e o painel do
+   `type=date`/`time`, e a barra de rolagem interna. Sem ela, nenhum truque de
+   CSS alcança essas partes. */
+[data-mf] { color-scheme: dark; }
+
+/* Cor de destaque para o que fica com a pintura nativa (range, progress). */
+[data-mf] input[type="range"],
+[data-mf] progress { accent-color: var(--mf-mod, var(--mf-primary-500)); }
+
+/* ── Checkbox ──────────────────────────────────────────────────────────── */
+[data-mf] input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; flex-shrink: 0; margin: 0;
+  border-radius: var(--mf-r-sm);
+  border: 1.5px solid var(--mf-border-strong);
+  background: var(--mf-surface-2);
+  cursor: pointer;
+  display: inline-grid; place-content: center;
+  transition: background var(--mf-fast) var(--mf-ease-out),
+              border-color var(--mf-fast), box-shadow var(--mf-fast);
+}
+[data-mf] input[type="checkbox"]:hover:not(:disabled) {
+  border-color: color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 60%, var(--mf-border-strong));
+}
+[data-mf] input[type="checkbox"]:checked {
+  background-color: var(--mf-mod, var(--mf-primary-500));
+  border-color: var(--mf-mod, var(--mf-primary-500));
+  /* O "v" vem como imagem porque `input` é elemento substituído: ::after não
+     é confiável nele entre navegadores. */
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  background-size: 11px 11px; background-position: center; background-repeat: no-repeat;
+}
+[data-mf] input[type="checkbox"]:focus-visible,
+[data-mf] input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mf-mod, var(--mf-primary-500)) 32%, transparent);
+}
+[data-mf] input[type="checkbox"]:disabled,
+[data-mf] input[type="radio"]:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Radio ─────────────────────────────────────────────────────────────── */
+[data-mf] input[type="radio"] {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; flex-shrink: 0; margin: 0;
+  border-radius: var(--mf-r-full);
+  border: 1.5px solid var(--mf-border-strong);
+  background: var(--mf-surface-2);
+  cursor: pointer;
+  transition: border-color var(--mf-fast), box-shadow var(--mf-fast), background var(--mf-fast);
+}
+[data-mf] input[type="radio"]:checked {
+  border-color: var(--mf-mod, var(--mf-primary-500));
+  background: radial-gradient(circle,
+    var(--mf-mod, var(--mf-primary-500)) 0 41%, transparent 43%);
+}
+
+/* ── Campo numérico ────────────────────────────────────────────────────────
+   As setas ficam discretas e só ganham cor no hover do campo: elas são ajuste
+   fino, não o jeito principal de preencher (o teclado é). */
+[data-mf] input[type="number"]::-webkit-inner-spin-button,
+[data-mf] input[type="number"]::-webkit-outer-spin-button {
+  opacity: .45;
+  transition: opacity var(--mf-fast) var(--mf-ease-out);
+}
+[data-mf] input[type="number"]:hover::-webkit-inner-spin-button,
+[data-mf] input[type="number"]:focus::-webkit-inner-spin-button { opacity: 1; }
+
