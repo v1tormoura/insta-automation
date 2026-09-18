@@ -1127,6 +1127,11 @@ export default function Posts() {
                     : 'Começa agora — os próximos posts seguem o intervalo definido acima.'}
                 </div>
 
+                {/* O teto do lote sai de `activeMediaCount`, e NÃO de
+                    `media.length`: este último conta só o upload, então
+                    escolhendo da Biblioteca o máximo caía para 1 e o
+                    controle travava com "/1 reels" mesmo havendo 10
+                    mídias selecionadas. */}
                 {/* ── Lote por rodada ──────────────────────────────────────
                     Estava num cartão próprio ao lado. Era a mesma pergunta que
                     o intervalo responde — com que ritmo isso sai — partida em
@@ -1145,13 +1150,13 @@ export default function Posts() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>LOTE</span>
                   <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, color: 'var(--mf-info-500)', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
-                  <span style={{ fontSize: 'var(--mf-t-body)', color: 'var(--mf-text-3)' }}>/{Math.max(media.length, 1)} reels</span>
+                  <span style={{ fontSize: 'var(--mf-t-body)', color: 'var(--mf-text-3)' }}>/{Math.max(activeMediaCount, 1)} reels</span>
                 </div>
-                <input type="range" min="1" max={Math.max(media.length, 1)} value={Math.min(simultaneousLimit, Math.max(media.length, 1))}
+                <input type="range" min="1" max={Math.max(activeMediaCount, 1)} value={Math.min(simultaneousLimit, Math.max(activeMediaCount, 1))}
                   onChange={e => setSimultaneousLimit(Number(e.target.value))}
                   style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
-                  <span>1</span><span>{Math.max(media.length, 1)}</span>
+                  <span>1</span><span>{Math.max(activeMediaCount, 1)}</span>
                 </div>
                 <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 15%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-info-500)', lineHeight: 1.5 }}>
                   {simultaneousLimit === 1
