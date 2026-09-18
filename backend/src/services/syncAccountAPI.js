@@ -154,6 +154,15 @@ async function syncViaAPI(account) {
     update.healthStatus = account.healthStatus || 'ativa';
   }
 
+  /* Avisa ANTES de vencer. Sem isto, o token acabava em silêncio e a conta só
+     "aparecia" quebrada quando a fila tentava publicar. O módulo de aviso já
+     limita a um por conta a cada 24h. */
+  if (typeof daysLeft === 'number' && daysLeft <= 7 && daysLeft >= 0) {
+    require('./smartActivity/eventosDePublicacao')
+      .notificarTokenExpirando({ conta: account, dias: daysLeft })
+      .catch(e => console.log('[Aviso] token expirando falhou:', e.message));
+  }
+
   await Account.findByIdAndUpdate(account._id, update);
   console.log(`✅ [API Sync] @${account.username} — status: ${update.healthStatus} (expira em ${daysLeft} dias)`);
 

@@ -129,4 +129,126 @@ async function notificarErro({ conta, contentType, erro } = {}) {
   });
 }
 
-module.exports = { notificarPublicado, notificarErro };
+/**
+ * Já existe aviso IGUAL para esta conta há pouco tempo?
+ *
+ * Sem isto, "token vence em 6 dias" sairia a cada sincronização — uma vez a
+ * cada 5 minutos, por seis dias. O aviso que se repete demais deixa de ser
+ * lido, e aí o dia em que ele importa passa batido junto com os outros.
+ */
+async function _repetidoRecentemente(eventType, accountId, horas = 24) {
+  try {
+    const desde = new Date(Date.now() - horas * 3600_000);
+    const achou = await Notificacao.exists({
+      eventType, accountId: accountId || null, createdAt: { $gte: desde },
+    });
+    return !!achou;
+  } catch { return false; }
+}
+
+/**
+ * O token da conta está perto de vencer.
+ *
+ * Nasceu de um caso real: o token saiu com 1 hora de validade em vez de 60
+ * dias, a conta caiu sozinha e ninguém soube até tentar publicar. Avisar ANTES
+ * é a diferença entre reconectar com calma e descobrir com a fila parada.
+ *
+ * Um aviso por conta a cada 24h — ver `_repetidoRecentemente`.
+ */
+async function notificarTokenExpirando({ conta, dias } = {}) {
+  if (!thresholds.bancoConectado() || !conta) return null;
+
+  const cfg = await thresholds.carregar().catch(() => null);
+  if (!cfg || cfg.ativos.tokenExpirando === false) return null;
+  if (await _repetidoRecentemente('tokenExpirando', conta._id)) return null;
+
+  const vars = templates.discretas({
+    username: conta.username || '',
+    account:  conta.username ? `@${conta.username}` : 'a conta',
+    dias:     String(Math.max(0, Math.round(Number(dias) || 0))),
+  }, cfg.privacidade || {});
+
+  const modelo = templates.modeloDe('tokenExpirando', cfg.mensagens);
+  return _gravar({
+    accountId: conta._id || null,
+    username:  conta.username || '',
+    avatar:    conta.avatar || '',
+    eventType: 'tokenExpirando',
+    tema:      modelo.tema,
+    prioridade: 'alta',
+    titulo:    templates.render(modelo.titulo, vars),
+    mensagem:  templates.render(modelo.mensagem, vars),
+    metadados: { dias: Number(dias) || 0 },
+  });
+}
+
+/**
+ * A conta saiu do ar (sessão expirada, token inválido, banida).
+ *
+ * Quem chama só dispara na TRANSIÇÃO para o estado ruim — uma conta que já
+ * estava caída não gera aviso novo a cada tentativa de publicar, senão um lote
+ * de 20 mídias viraria 20 avisos da mesma conta.
+ */
+async function notificarContaCaiu({ conta, motivo } = {}) {
+  if (!thresholds.bancoConectado() || !conta) return null;
+
+  const cfg = await thresholds.carregar().catch(() => null);
+  if (!cfg || cfg.ativos.contaCaiu === false) return null;
+  if (await _repetidoRecentemente('contaCaiu', conta._id, 6)) return null;
+
+  const vars = templates.discretas({
+    username: conta.username || '',
+    account:  conta.username ? `@${conta.username}` : 'a conta',
+    motivo:   String(motivo || 'parou de responder').slice(0, 200),
+  }, cfg.privacidade || {});
+
+  const modelo = templates.modeloDe('contaCaiu', cfg.mensagens);
+  return _gravar({
+    accountId: conta._id || null,
+    username:  conta.username || '',
+    avatar:    conta.avatar || '',
+    eventType: 'contaCaiu',
+    tema:      modelo.tema,
+    prioridade: 'alta',
+    titulo:    templates.render(modelo.titulo, vars),
+    mensagem:  templates.render(modelo.mensagem, vars),
+    metadados: { motivo: String(motivo || '').slice(0, 300) },
+  });
+}
+
+/**
+ * Uma rodada de envio terminou, com o placar.
+ *
+ * Não é por conta: é o fechamento do lote. Sem ele, saber se o envio deu certo
+ * exigia abrir a fila e contar linha por linha.
+ */
+async function notificarEnvioConcluido({ nome, publicados, falhas } = {}) {
+  if (!thresholds.bancoConectado()) return null;
+
+  const cfg = await thresholds.carregar().catch(() => null);
+  if (!cfg || cfg.ativos.envioConcluido === false) return null;
+
+  const vars = templates.discretas({
+    nome:       String(nome || 'Envio'),
+    publicados: String(Number(publicados) || 0),
+    falhas:     String(Number(falhas) || 0),
+  }, cfg.privacidade || {});
+
+  const modelo = templates.modeloDe('envioConcluido', cfg.mensagens);
+  return _gravar({
+    accountId: null,
+    username:  '',
+    avatar:    '',
+    eventType: 'envioConcluido',
+    tema:      Number(falhas) > 0 ? 'warning' : modelo.tema,
+    prioridade: 'normal',
+    titulo:    templates.render(modelo.titulo, vars),
+    mensagem:  templates.render(modelo.mensagem, vars),
+    metadados: { publicados: Number(publicados) || 0, falhas: Number(falhas) || 0 },
+  });
+}
+
+module.exports = {
+  notificarPublicado, notificarErro,
+  notificarTokenExpirando, notificarContaCaiu, notificarEnvioConcluido,
+};

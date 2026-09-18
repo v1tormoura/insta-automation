@@ -43,6 +43,11 @@ const VARIAVEIS = Object.freeze({
      dicionário porque `validar()` sem tipo confere contra ele — mas cada
      aviso oferece só as suas, por `VARIAVEIS_POR_TIPO`. */
   erro:          'O que o serviço respondeu quando falhou',
+  dias:          'Quantos dias faltam para o token vencer',
+  motivo:        'Por que a conta parou (sessão expirada, banida…)',
+  nome:          'Nome do envio ou do loop',
+  publicados:    'Quantas publicações saíram com sucesso',
+  falhas:        'Quantas publicações falharam',
   proxies:       'Quantos proxies existem no pool',
   contasRuins:   'Contas que não conseguem conectar',
   contasTotal:   'Total de contas cadastradas',
@@ -82,6 +87,9 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   /* Publicação em si — dispara na hora, por publicação, não por métrica. */
   postPublicado:  Object.freeze(['account', 'username', 'contentType', 'time']),
   erroPublicacao: Object.freeze(['account', 'username', 'contentType', 'erro', 'time']),
+  tokenExpirando: Object.freeze(['account', 'username', 'dias']),
+  contaCaiu:      Object.freeze(['account', 'username', 'motivo']),
+  envioConcluido: Object.freeze(['nome', 'publicados', 'falhas']),
 
   /* Avisos do vigia do sistema. */
   cota:    Object.freeze(['percentual', 'restanteGb', 'totalGb', 'diasRestantes', 'previsao']),
@@ -149,6 +157,26 @@ const PADRAO = Object.freeze({
     titulo: 'Falha ao publicar ⚠️',
     mensagem: '{{account}}: {{erro}}',
     tema: 'warning',
+  }),
+
+  /* ── Avisos que faltavam ───────────────────────────────────────────────
+     Os três nasceram de problemas reais que passaram despercebidos até doer:
+     token vencendo sem ninguém ver (a conta parava de publicar do nada), conta
+     caindo no meio de um lote, e envio terminando sem dizer o placar. */
+  tokenExpirando: Object.freeze({
+    titulo: 'Token vence em {{dias}} dias 🔑',
+    mensagem: '{{account}} precisa ser reconectada antes disso, ou para de publicar.',
+    tema: 'warning',
+  }),
+  contaCaiu: Object.freeze({
+    titulo: 'Conta parou ⛔',
+    mensagem: '{{account}}: {{motivo}}',
+    tema: 'danger',
+  }),
+  envioConcluido: Object.freeze({
+    titulo: 'Envio concluído 🏁',
+    mensagem: '{{nome}} — {{publicados}} publicada(s), {{falhas}} falha(s).',
+    tema: 'success',
   }),
 
   /* ── Avisos do vigia do sistema ────────────────────────────────────────
@@ -330,6 +358,8 @@ const EXEMPLOS = Object.freeze({
   percentual: '87', restanteGb: '12', totalGb: '100',
   diasRestantes: '4', previsao: 'No ritmo atual, acaba em cerca de 4 dia(s).',
   aviso: 'proxy', horas: '3',
+  dias: '6', motivo: 'Sessão expirada — reconecte pela API.',
+  nome: 'Reels da manhã', publicados: '8', falhas: '1',
 });
 
 /**
