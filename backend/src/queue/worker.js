@@ -744,9 +744,16 @@ async function processJobRound(jobId) {
     return;
   }
 
-  // O preparo (documento Post e pré-processamento de vídeo) não fala com o
-  // Instagram — segue em paralelo, antes de qualquer publicação.
-  const preparadas = await Promise.all(roundMedia.map(async (mediaFile) => {
+  /* O preparo (documento Post e pré-processamento de vídeo) não fala com o
+     Instagram — segue em paralelo, antes de qualquer publicação.
+
+     `allSettled` e não `all`: com `all`, UMA mídia que falhasse no preparo
+     (validação do Post, disco cheio, tropeço do banco) rejeitava a promessa
+     inteira e a rodada morria sem publicar NADA — inclusive as mídias que
+     estavam boas. Isso contradizia o resto do motor, onde cada publicação é
+     isolada e o erro de uma não para as outras. Agora a mídia problemática é
+     registrada e pulada, e a rodada segue com as que deram certo. */
+  const preparosBrutos = await Promise.allSettled(roundMedia.map(async (mediaFile) => {
     const isVideo   = /\.(mp4|mov|webm|avi|mkv)$/i.test(mediaFile);
     const mediaType = isVideo ? 'video' : 'image';
     let   postType  = jobDoc.postType || 'reel';
@@ -788,6 +795,20 @@ async function processJobRound(jobId) {
 
     return { mediaFile, post, preProcessedVideoUrl, sucessos: 0, erros: [] };
   }));
+
+  const preparadas = [];
+  preparosBrutos.forEach((r, i) => {
+    if (r.status === 'fulfilled') { preparadas.push(r.value); return; }
+    console.log(`⚠️  [Job] "${jobDoc.name}" — preparo de ${roundMedia[i]} falhou: `
+      + `${r.reason?.message || r.reason} — as outras mídias da rodada seguem`);
+  });
+
+  /* Nenhuma mídia preparou: não há o que publicar nesta rodada. Sai sem criar
+     sequência (evita laço vazio) e sem marcar o job como concluído — a próxima
+     rodada é agendada normalmente lá embaixo pelo fluxo de sempre. */
+  if (!preparadas.length) {
+    console.log(`⚠️  [Job] "${jobDoc.name}" — nenhuma mídia da rodada pôde ser preparada`);
+  }
 
   // `contasDisponiveis`, não `contasDaRodada`: uma conta bloqueada por teto
   // ou janela não deve nem ser tentada — ver o filtro logo acima.

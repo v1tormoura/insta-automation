@@ -158,15 +158,25 @@ describe('a ligação com a tela e com o Postar', () => {
     expect(c.indexOf('aplicarTetoDiario')).toBeLessThan(c.indexOf('await Job.create'));
   });
 
-  test('a tela manda o campo', () => {
-    /* Um serviço perfeito que ninguém chama é o defeito mais barato daqui. */
-    expect(ler('../../frontend/src/pages/Posts.jsx')).toContain("form.append('postsPor24h'");
+  /* ── O campo saiu da tela, e é assim que tem de ser ─────────────────────
+     Estes dois testes exigiam que o Postar enviasse `postsPor24h`. O campo foi
+     REMOVIDO da tela a pedido de quem opera: ele escrevia em
+     `Account.dailyPostLimit`, ou seja, mexia na configuração DAS CONTAS a
+     partir de um envio — efeito colateral que surpreendia.
+
+     Sem o campo, `ritmoDaConta` volta a mandar sozinho: sorteia de 6 a 10 por
+     conta e por dia. É o comportamento seguro, e é o que o teste abaixo trava —
+     junto com a garantia de que o backend aguenta a ausência do campo sem
+     zerar o teto de ninguém. */
+  test('a tela NÃO manda mais o campo (o teto fica com o ritmoDaConta)', () => {
+    expect(ler('../../frontend/src/pages/Posts.jsx')).not.toContain("form.append('postsPor24h'");
   });
 
-  test('a tela avisa acima da faixa segura', () => {
-    /* Aceitar 24 ou 48 é decisão de quem opera. Aceitar calado não é: foi este
-       número, sem teto, que fez as contas pararem de entregar. */
-    const tela = ler('../../frontend/src/pages/Posts.jsx');
-    expect(tela).toContain('postsPor24h > 10');
+  test('sem o campo, o teto das contas não é tocado', () => {
+    /* `null` e não um padrão: quem não mandou o campo não quer mexer no teto,
+       e escrever um padrão ali apagaria o ajuste de quem já configurou. */
+    expect(normalizarTeto(undefined)).toBeNull();
+    expect(normalizarTeto('')).toBeNull();
+    expect(normalizarTeto(null)).toBeNull();
   });
 });
