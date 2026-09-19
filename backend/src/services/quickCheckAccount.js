@@ -258,8 +258,49 @@ async function quickCheckAndUpdate(account) {
     }
   }
 
+  /* ── Conta oficial: o Graph é a única fonte. Acaba aqui. ──────────────────
+     O passo 2 (perfil público em instagram.com) era redundante para ela e
+     custava caro: sem proxy na conta e sem proxy global, saía pelo IP cru do
+     host — datacenter — lendo o perfil de TODAS as contas oficiais a cada
+     Sincronizar. Não é login e não carrega sessão, mas é um IP de datacenter
+     agrupando todos os perfis que o painel conhece, e era de onde vinham os
+     429 (que são do IP, e envenenam o endereço para o resto do sistema).
+
+     O que o perfil público diria que o token não diz: nada que importe. Conta
+     desativada perde o token (o Meta invalida), então "banida" já apareceu no
+     passo 1 como token_invalido. O "restrita" da leitura anônima era heurística
+     fraca; o `syncAccountAPI` já marca restrita pelo Graph (checkpoint,
+     feedback_required, spam), com prova de verdade — e por isso NÃO é desfeito
+     aqui: token válido não significa conta liberada para publicar.
+
+     Token válido é prova de vida: desfaz uma 'banida' antiga (só o passo 2
+     gravava isso em conta oficial), limpa erro obsoleto, marca a sincronização.
+     `null` (sem token, ou o Graph não respondeu) não muda status nenhum — e
+     também não vai perguntar ao instagram.com. */
+  if (!usaInstagrapi) {
+    if (tokenOk !== true) {
+      await Account.findByIdAndUpdate(account._id, { lastSync: now });
+      return { username, status: 'desconhecido', changed: false };
+    }
+    const patch = { lastSync: now };
+    let changed = false;
+    if (account.healthStatus === 'banida') {
+      Object.assign(patch, { healthStatus: 'ativa', lastError: '' });
+      changed = true;
+      console.log(`✅ [QuickCheck] @${username} — token OK, 'banida' antiga desfeita`);
+    } else if (account.healthStatus === 'ativa' && account.lastError) {
+      patch.lastError = '';
+      changed = true;
+      console.log(`🧹 [QuickCheck] @${username} — erro obsoleto da API limpo (token OK)`);
+    }
+    await Account.findByIdAndUpdate(account._id, patch);
+    return { username, status: 'ativa', changed };
+  }
+
   // 2. Verifica ban/restrição via perfil público — SEMPRE pelo proxy da conta,
   //    nunca pelo IP cru do host (era o que envenenava o datacenter).
+  //    Só chega aqui conta instagrapi: para ela a sessão é a fonte, e o perfil
+  //    público é o que sobra para detectar ban sem gastar a sessão.
   let dispatcher;
   try {
     const { resolveProxyFor } = require('./globalProxy');

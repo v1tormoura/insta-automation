@@ -86,15 +86,73 @@ describe('o QuickCheck sai pelo proxy da conta, não pelo IP cru do host', () =>
   });
 
   test('quickCheckAndUpdate resolve o proxy DA CONTA antes de checar o perfil', async () => {
-    const conta = contaOficial({ healthStatus: 'ativa' });
+    // Conta instagrapi: é a única que ainda chega ao perfil público — a oficial
+    // para no Graph (ver o describe "nunca encosta no instagram.com").
+    const conta = contaInstagrapi({ healthStatus: 'ativa' });
     await quickCheckAndUpdate(conta);
     expect(mockResolveProxyFor).toHaveBeenCalledWith(conta);
   });
 
   test('sem proxy, não quebra — sai direto, como era antes', async () => {
     mockProxyUrl = '';
-    const r = await quickCheckAndUpdate(contaOficial({ healthStatus: 'ativa' }));
+    const r = await quickCheckAndUpdate(contaInstagrapi({ healthStatus: 'ativa' }));
     expect(r.status).not.toBe('token_invalido');
+  });
+});
+
+describe('conta oficial nunca encosta no instagram.com pela VPS', () => {
+  /* O passo 2 (perfil público) era redundante para conta oficial — o token já
+     respondeu — e saía pelo IP cru do host quando a conta não tinha proxy:
+     datacenter lendo o perfil de todas as contas oficiais a cada Sincronizar.
+     Não é login, mas é o mesmo IP agrupando todos os perfis, e era de onde
+     vinham os 429. Para conta oficial, o Graph é a única fonte. */
+  const urlsChamadas = () => global.fetch.mock.calls.map(c => String(c[0]));
+
+  test('token OK: só o Graph é consultado, nem proxy é resolvido', async () => {
+    await quickCheckAndUpdate(contaOficial({ healthStatus: 'ativa' }));
+
+    expect(urlsChamadas().every(u => u.startsWith('https://graph.instagram.com/'))).toBe(true);
+    expect(urlsChamadas().some(u => u.includes('instagram.com/api/v1/users/web_profile_info'))).toBe(false);
+    expect(mockResolveProxyFor).not.toHaveBeenCalled();
+  });
+
+  test('token OK desfaz uma "banida" antiga — só o perfil público gravava isso em conta oficial', async () => {
+    const r = await quickCheckAndUpdate(contaOficial({ healthStatus: 'banida' }));
+    expect(r.status).toBe('ativa');
+    expect(r.changed).toBe(true);
+    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('acc1', expect.objectContaining({ healthStatus: 'ativa', lastError: '' }));
+  });
+
+  test('token OK NÃO desfaz "restrita" — o Graph marca isso com prova, e token válido não é conta liberada', async () => {
+    const r = await quickCheckAndUpdate(contaOficial({ healthStatus: 'restrita', lastError: 'feedback_required' }));
+    expect(r.status).toBe('ativa');
+    expect(r.changed).toBe(false);
+    expect(mockFindByIdAndUpdate).not.toHaveBeenCalledWith('acc1', expect.objectContaining({ healthStatus: 'ativa' }));
+  });
+
+  test('token OK limpa erro obsoleto de conta ativa', async () => {
+    const r = await quickCheckAndUpdate(contaOficial({ healthStatus: 'ativa', lastError: 'Unsupported request - method type: get' }));
+    expect(r.changed).toBe(true);
+    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('acc1', expect.objectContaining({ lastError: '' }));
+  });
+
+  test('Graph fora do ar: não muda status e TAMBÉM não vai perguntar ao instagram.com', async () => {
+    oauthResponder = async () => { throw new Error('ETIMEDOUT'); };
+    const r = await quickCheckAndUpdate(contaOficial({ healthStatus: 'ativa' }));
+
+    expect(r.status).toBe('desconhecido');
+    expect(r.changed).toBe(false);
+    expect(urlsChamadas().some(u => u.includes('web_profile_info'))).toBe(false);
+    expect(mockFindByIdAndUpdate).not.toHaveBeenCalledWith('acc1', expect.objectContaining({ healthStatus: expect.anything() }));
+  });
+
+  test('conta instagrapi continua checando o perfil público — pelo proxy dela', async () => {
+    mockProxyUrl = 'http://user:pass@proxy.exemplo:8080';
+    const conta = contaInstagrapi({ healthStatus: 'ativa' });
+    await quickCheckAndUpdate(conta);
+
+    expect(mockResolveProxyFor).toHaveBeenCalledWith(conta);
+    expect(urlsChamadas().some(u => u.includes('web_profile_info'))).toBe(true);
   });
 });
 
