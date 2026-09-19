@@ -20,6 +20,7 @@ const DEFAULT_TMPL = {
   border:      { enabled: false, thickness: 4, color: 'var(--mf-text)', opacity: 1.0 },
   ajustes:     { enabled: false, brilho: 0, contraste: 0, saturacao: 0, nitidez: 0, ruido: 0, zoom: 0, espelhar: false, quebrarHash: false },
   trim:        { startTime: 0, endTime: null },
+  voz:         { enabled: false, pitch: 0, velocidade: 0 },
   templatePng: { enabled: false, templates: [], videoX: 0, videoY: 0, videoW: 540, videoH: 960, videoFit: 'cover' },
 };
 
@@ -364,7 +365,7 @@ export default function VideoEditorPage() {
      empurravam o resto da lista para fora da dobra — as duas já têm padrão
      bom (Cover e 1080p) e o resumo no topo mostra o valor escolhido, então
      ficavam ocupando altura para confirmar o que já estava certo. */
-  const [sections,   setSections]   = useState({ canvas: false, enquadramento: false, reels: false, moldura: false, borda: false, ajustes: false, overlays: false, textos: false, corte: false, volume: false, audio: false, qualidade: false, metadados: false });
+  const [sections,   setSections]   = useState({ canvas: false, enquadramento: false, reels: false, moldura: false, borda: false, ajustes: false, overlays: false, textos: false, corte: false, volume: false, audio: false, voz: false, qualidade: false, metadados: false });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving,  setSaving]  = useState(false);
   const [toast,   setToast]   = useState(null);
@@ -540,7 +541,7 @@ export default function VideoEditorPage() {
     try {
       const r = await api.get(`/video-templates/${id}`);
       const t = r.data;
-      setTmpl({ _id: t._id, name: t.name, canvas: t.canvas || DEFAULT_TMPL.canvas, output: t.output || DEFAULT_TMPL.output, elements: t.elements?.length ? t.elements : DEFAULT_TMPL.elements, audio: t.audio || DEFAULT_TMPL.audio, border: t.border || DEFAULT_TMPL.border, ajustes: t.ajustes || DEFAULT_TMPL.ajustes, trim: t.trim || DEFAULT_TMPL.trim, templatePng: t.templatePng || DEFAULT_TMPL.templatePng });
+      setTmpl({ _id: t._id, name: t.name, canvas: t.canvas || DEFAULT_TMPL.canvas, output: t.output || DEFAULT_TMPL.output, elements: t.elements?.length ? t.elements : DEFAULT_TMPL.elements, audio: t.audio || DEFAULT_TMPL.audio, border: t.border || DEFAULT_TMPL.border, ajustes: t.ajustes || DEFAULT_TMPL.ajustes, trim: t.trim || DEFAULT_TMPL.trim, voz: t.voz || DEFAULT_TMPL.voz, templatePng: t.templatePng || DEFAULT_TMPL.templatePng });
       toast3('success', 'Carregado', t.name);
     } catch { toast3('error', 'Erro', 'Falha ao carregar template.'); }
   }
@@ -1088,6 +1089,45 @@ export default function VideoEditorPage() {
             </details>
           </Acc>
 
+
+          {/* VOZ ALTERADA (EXPERIMENTAL) */}
+          <Acc title="Voz alterada (experimental)" id="voz" open={sections.voz} toggle={toggleSection}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', cursor: 'pointer', marginBottom: 9 }}>
+              <input type="checkbox" checked={tmpl.voz?.enabled === true} onChange={e => setT('voz.enabled', e.target.checked)} style={{ accentColor: 'var(--mf-warning-500)' }} />
+              Alterar pitch e velocidade da fala original
+            </label>
+
+            <div style={{ opacity: tmpl.voz?.enabled ? 1 : .45, pointerEvents: tmpl.voz?.enabled ? 'auto' : 'none' }}>
+              <button
+                onClick={() => setTmpl(prev => ({ ...prev, voz: { ...(prev.voz || {}), enabled: true, pitch: -6, velocidade: 7 } }))}
+                className="btn-ghost"
+                style={{ width: '100%', padding: '7px 0', marginBottom: 9, borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', border: '1px dashed color-mix(in oklch, var(--mf-warning-500) 55%, transparent)', color: 'var(--mf-warning-500)' }}
+              >
+                Aplicar preset: pitch −6 % · velocidade +7 %
+              </button>
+
+              <Fld label={`Pitch: ${(tmpl.voz?.pitch ?? 0) > 0 ? '+' : ''}${tmpl.voz?.pitch ?? 0} %`}>
+                <input type="range" min="-20" max="20" step="1" value={tmpl.voz?.pitch ?? 0} onChange={e => setT('voz.pitch', Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--mf-warning-500)', marginTop: 2 }} />
+              </Fld>
+              <div style={{ marginTop: 8 }}>
+                <Fld label={`Velocidade: ${(tmpl.voz?.velocidade ?? 0) > 0 ? '+' : ''}${tmpl.voz?.velocidade ?? 0} %`}>
+                  <input type="range" min="-20" max="30" step="1" value={tmpl.voz?.velocidade ?? 0} onChange={e => setT('voz.velocidade', Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--mf-warning-500)', marginTop: 2 }} />
+                </Fld>
+              </div>
+            </div>
+
+            <p style={{ margin: '10px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>
+              Mantém a voz original, deslocada. O vídeo acompanha a velocidade para a fala não descolar da imagem.
+            </p>
+            <p style={{ margin: '5px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', lineHeight: 1.5 }}>
+              É uma aposta, não uma garantia: fingerprint de áudio tolera variação pequena, e o limiar do Instagram ninguém conhece. Teste em 3–4 vídeos e compare o alcance em uma semana antes de aplicar em tudo.
+            </p>
+            {(Math.abs(tmpl.voz?.pitch ?? 0) > 10 || (tmpl.voz?.velocidade ?? 0) > 15) && (
+              <p style={{ margin: '5px 0 0', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', lineHeight: 1.5 }}>
+                Nesses valores a voz já não soa como uma pessoa. Se o objetivo é manter a voz, isso derrota o objetivo.
+              </p>
+            )}
+          </Acc>
 
           {/* QUALIDADE */}
           <Acc title="Qualidade" id="qualidade" open={sections.qualidade} toggle={toggleSection}>

@@ -134,6 +134,56 @@ function buildAjustes(ajustes = {}, W = 1080, H = 1920, rand = Math.random) {
   return partes.join(',');
 }
 
+/**
+ * Voz alterada — EXPERIMENTAL.
+ *
+ * Pitch e velocidade da fala original, para testar se o casamento por áudio
+ * do Instagram baixa do limiar. É uma aposta declarada: fingerprint de áudio
+ * foi feito para atravessar ruído, EQ e pequenas variações de velocidade, e
+ * ninguém fora do Meta sabe o limiar. O que dá para dizer é o que a técnica
+ * tolera pouco — deslocamento de pitch e de tempo juntos — e é isso que este
+ * bloco mexe. Quem decide se funcionou é o alcance, uma semana depois.
+ *
+ * Como funciona no ffmpeg (não há filtro "pitch" nativo sem rubberband):
+ *
+ *   aresample=44100         normaliza a taxa — sem isto, `asetrate` numa
+ *                           entrada de 48 kHz deslocaria o pitch errado
+ *   asetrate=44100*p        toca as amostras mais rápido/devagar: pitch × p
+ *                           E duração × 1/p
+ *   aresample=44100         volta à taxa de saída
+ *   atempo=t/p              compensa a duração: sobra pitch × p e duração × 1/t
+ *
+ * O vídeo recebe `setpts=PTS/t` para acompanhar — senão a fala termina antes
+ * (ou depois) da imagem. Pitch sozinho não mexe no vídeo.
+ *
+ * Limites: pitch ±20 % e velocidade −20..+30 % — além disso a voz não é mais
+ * uma pessoa, e `atempo` fica dentro da faixa que o ffmpeg aceita.
+ */
+const VOZ_PITCH_MAX = 20;
+const VOZ_VEL_MIN = -20;
+const VOZ_VEL_MAX = 30;
+
+function buildVoz(voz) {
+  if (!voz || voz.enabled !== true) return { ativo: false, p: 1, t: 1, filtroAudio: '', filtroVideo: '' };
+  const lim = (v, a, b) => Math.min(b, Math.max(a, Number(v) || 0));
+  const pitchPct = lim(voz.pitch, -VOZ_PITCH_MAX, VOZ_PITCH_MAX);
+  const velPct   = lim(voz.velocidade, VOZ_VEL_MIN, VOZ_VEL_MAX);
+  const p = 1 + pitchPct / 100;
+  const t = 1 + velPct / 100;
+  if (p === 1 && t === 1) return { ativo: false, p, t, filtroAudio: '', filtroVideo: '' };
+
+  const partes = ['aresample=44100'];
+  if (p !== 1) partes.push(`asetrate=${Math.round(44100 * p)}`, 'aresample=44100');
+  const k = t / p;
+  if (Math.abs(k - 1) > 1e-4) partes.push(`atempo=${k.toFixed(4)}`);
+
+  return {
+    ativo: true, p, t,
+    filtroAudio: partes.join(','),
+    filtroVideo: t !== 1 ? `setpts=PTS/${t.toFixed(4)}` : '',
+  };
+}
+
 function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {}) {
   const { canvas = {}, elements = [], audio = {} } = template;
   const W = canvas.width  || 1080;
@@ -269,6 +319,19 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
   // ── Audio ────────────────────────────────────────────────────────
   let audioMap = '0:a?';
   let cortarNoMaisCurto = false;
+
+  /* Voz alterada (experimental): o áudio ORIGINAL passa por pitch/tempo antes
+     de qualquer mistura. Com a voz ligada o áudio deixa de ser opcional
+     (`0:a?`) — um filtro precisa da faixa existir. Vídeo sem áudio com voz
+     ligada falha alto em vez de sair mudo em silêncio; é o certo para um
+     preset que só faz sentido em vídeo com fala. */
+  const voz = buildVoz(template.voz);
+  let origemAudio = '0:a';
+  if (voz.ativo && audio.keepOriginal !== false) {
+    filters.push(`[0:a]${voz.filtroAudio}[a_voz]`);
+    origemAudio = 'a_voz';
+    audioMap = '[a_voz]';
+  }
   const musicSrc = audio.musicTrack ? resolveVars(audio.musicTrack, resolvedVars) : '';
   const hasMusicFile = Boolean(musicSrc && !musicSrc.includes('{{') && fs.existsSync(musicSrc));
 
@@ -298,7 +361,7 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
       filters.push(`[${mIdx}:a]volume=${musVol},apad[a_out]`);
       cortarNoMaisCurto = true;
     } else {
-      filters.push(`[0:a]volume=${origVol}[ao0]`);
+      filters.push(`[${origemAudio}]volume=${origVol}[ao0]`);
       filters.push(`[${mIdx}:a]volume=${musVol}[ao1]`);
       /* duration=first: sem isto o amix usa "longest", e uma música de 3 min num
          vídeo de 15s gera um arquivo de 3 min — vídeo congelado e trilha tocando
@@ -330,6 +393,15 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
     curLabel = 'brd';
   }
 
+  // ── Velocidade (voz alterada) ────────────────────────────────────────
+  // Por último: acompanha o atempo do áudio para a fala não descolar da
+  // imagem. Depois do drawtext, então o "3s" do gancho vira ~2,8s a +7 % —
+  // desprezível, e mantém a regra simples: acelera o vídeo inteiro.
+  if (voz.filtroVideo) {
+    filters.push(`[${curLabel}]${voz.filtroVideo}[vel]`);
+    curLabel = 'vel';
+  }
+
   return {
     inputs,
     filterComplex: filters.join(';'),
@@ -343,4 +415,4 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
   };
 }
 
-module.exports = { buildFilterComplex, buildAjustes, DETECTED_FONT };
+module.exports = { buildFilterComplex, buildAjustes, buildVoz, DETECTED_FONT, VOZ_PITCH_MAX, VOZ_VEL_MIN, VOZ_VEL_MAX };

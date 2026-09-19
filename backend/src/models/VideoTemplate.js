@@ -90,6 +90,14 @@ const videoTemplateSchema = new mongoose.Schema({
     quebrarHash: { type: Boolean, default: false },
   },
 
+  /* Voz alterada — experimental. Pitch e velocidade da fala original, em %.
+     Ver buildVoz em renderEngine/filterBuilder.js para o que isso é e não é. */
+  voz: {
+    enabled:    { type: Boolean, default: false },
+    pitch:      { type: Number,  default: 0, min: -20, max: 20 },
+    velocidade: { type: Number,  default: 0, min: -20, max: 30 },
+  },
+
   trim: {
     startTime: { type: Number,                         default: 0    },
     endTime:   { type: mongoose.Schema.Types.Mixed,    default: null },
