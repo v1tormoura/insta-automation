@@ -59,7 +59,11 @@ function montarMensagem(modelo, vars = {}, agora = new Date()) {
     .replace(/\{nome\}/gi, vars.nome || arroba)
     .replace(/\{data\}/gi, agora.toLocaleDateString('pt-BR'))
     .replace(/\{hora\}/gi, agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }))
-    .replace(/\{cidade\}/gi, vars.cidade || '');
+    .replace(/\{cidade\}/gi, vars.cidade || '')
+    /* `{username}` já sai com o @. Quem escreve "@{username}" — que é o jeito
+       natural de escrever uma menção — ganharia "@@conta", e o Instagram não
+       liga @@ a ninguém. Colapsar aqui deixa os dois jeitos certos. */
+    .replace(/@{2,}/g, '@');
 }
 
 /**

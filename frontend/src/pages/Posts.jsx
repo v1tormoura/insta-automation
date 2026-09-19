@@ -353,6 +353,15 @@ export default function Posts() {
 
   const DRAFT_POSTS_KEY = 'posts_form_draft_v1';
 
+  /* O comentário fixado que a pessoa escreve vira o PADRÃO dela: ao marcar
+     "Ativo" volta o texto que ela usa, não o exemplo do código. Antes, cada
+     envio apagava o campo e o "Ativo" trazia de volta o exemplo — quem usava
+     um texto próprio digitava de novo a cada publicação. */
+  const CTA_PADRAO_KEY = 'posts_cta_padrao_v1';
+  const CTA_EXEMPLO = '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}';
+  const ctaPadrao = () => { try { return localStorage.getItem(CTA_PADRAO_KEY) || CTA_EXEMPLO; } catch { return CTA_EXEMPLO; } };
+  const lembrarCta = v => { if (String(v).trim()) { try { localStorage.setItem(CTA_PADRAO_KEY, v); } catch {} } };
+
   /* ── Restaura rascunho de posts salvo ────────────────────────────────────── */
   useEffect(() => {
     try {
@@ -501,7 +510,7 @@ export default function Posts() {
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null);
       setLocation(''); setSelectedAccounts([]); setScheduledAt('');
-      setIntervalMins(0); setSelectedLegend(''); setCtaComment('');
+      setIntervalMins(0); setSelectedLegend('');
       setLibraryMedia([]);
       showToast(
         'success',
@@ -981,7 +990,7 @@ export default function Posts() {
                   <input
                     type="checkbox"
                     checked={!!ctaComment}
-                    onChange={e => setCtaComment(e.target.checked ? '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}' : '')}
+                    onChange={e => setCtaComment(e.target.checked ? ctaPadrao() : '')}
                   />
                   {ctaComment ? 'Ativo' : 'Inativo'}
                 </label>
@@ -991,9 +1000,9 @@ export default function Posts() {
                   <textarea className="txta" rows={3}
                     placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
                     value={ctaComment}
-                    onChange={e => setCtaComment(e.target.value)} />
+                    onChange={e => { setCtaComment(e.target.value); lembrarCta(e.target.value); }} />
                   <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4 }}>
-                    Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'}
+                    Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'} · {'{username}'} vira o @ da conta que publicou · o que você deixar aqui fica como padrão
                   </div>
                 </div>
               )}

@@ -91,6 +91,27 @@ describe('as variáveis do texto', () => {
   });
 });
 
+describe('o @ na frente de {username}', () => {
+  /* O jeito natural de escrever uma menção é "@{username}". Como a variável
+     já sai com o @, isso dava "@@conta" — e @@ não menciona ninguém. */
+  test('"@{username}" e "{username}" dão o mesmo resultado', () => {
+    expect(montarMensagem('Completo nos destaques! 🔥➡️ @{username}', { username: 'elisangela' }))
+      .toBe('Completo nos destaques! 🔥➡️ @elisangela');
+    expect(montarMensagem('Completo nos destaques! 🔥➡️ {username}', { username: 'elisangela' }))
+      .toBe('Completo nos destaques! 🔥➡️ @elisangela');
+  });
+
+  test('username gravado com @ também não dobra', () => {
+    expect(montarMensagem('@{username}', { username: '@elisangela' })).toBe('@elisangela');
+  });
+
+  test('cada conta recebe o próprio @', () => {
+    const modelo = 'Completo nos destaques! 🔥➡️ @{username}';
+    expect(montarMensagem(modelo, { username: 'conta_a' })).toContain('@conta_a');
+    expect(montarMensagem(modelo, { username: 'conta_b' })).toContain('@conta_b');
+  });
+});
+
 describe('o link que falta', () => {
   test('modelo com {link} e conta sem promoLink', () => {
     /* O modelo padrão da tela é "🤖 {link}". Sem link ele vira "🤖 " —
