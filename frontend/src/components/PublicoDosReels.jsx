@@ -67,6 +67,34 @@ function Lista({ titulo, itens, rotular = x => x }) {
   );
 }
 
+/* Seguidores × não-seguidores: duas classes, dois tons do mesmo azul, rótulo
+   escrito. É o dado que o Instagram NÃO retém — e o que diz se ele está
+   recomendando para fora. */
+function SeguidoresOuNao({ p }) {
+  if (!p || p.pctNaoSeguidores == null) return null;
+  const nao = p.pctNaoSeguidores, sim = Number((100 - nao).toFixed(1));
+  const recomendando = nao >= 80;
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ ...mono, marginBottom: 6 }}>quem viu · alcance nos últimos {p.dias} dias</div>
+      <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', gap: 2 }}>
+        <div title={`Não seguem: ${p.naoSeguidores.toLocaleString('pt-BR')} contas`} style={{ width: `${nao}%`, background: 'var(--mf-primary-500)', minWidth: nao > 0 ? 2 : 0 }} />
+        <div title={`Seguem: ${p.seguidores.toLocaleString('pt-BR')} contas`} style={{ width: `${sim}%`, background: 'color-mix(in oklch, var(--mf-primary-500) 45%, var(--mf-surface-2))', minWidth: sim > 0 ? 2 : 0 }} />
+      </div>
+      <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: 'var(--mf-primary-500)', marginRight: 6, verticalAlign: 'middle' }} />Não seguem <strong style={{ color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{nao}%</strong> <span style={{ color: 'var(--mf-text-3)' }}>({fmt(p.naoSeguidores)})</span></span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: 'color-mix(in oklch, var(--mf-primary-500) 45%, var(--mf-surface-2))', marginRight: 6, verticalAlign: 'middle' }} />Seguem <strong style={{ color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{sim}%</strong> <span style={{ color: 'var(--mf-text-3)' }}>({fmt(p.seguidores)})</span></span>
+        <span style={{ color: 'var(--mf-text-3)' }}>views: reels <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(p.viewsReels)}</strong>{p.viewsStories ? <> · stories <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(p.viewsStories)}</strong></> : null}</span>
+      </div>
+      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.5 }}>
+        {recomendando
+          ? <>O Instagram <strong style={{ color: 'var(--mf-text-2)' }}>está recomendando</strong> para fora: quase todo o alcance é de quem não segue. O teto, quando existe, é <strong style={{ color: 'var(--mf-text-2)' }}>retenção do vídeo</strong> — não distribuição.</>
+          : <>A maior parte do alcance vem de quem já segue — o Instagram está recomendando pouco para fora.</>}
+      </div>
+    </div>
+  );
+}
+
 function Bloco({ dados }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
@@ -139,10 +167,13 @@ export default function PublicoDosReels({ cardStyle }) {
                   {!c.disponivel && (
                     <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'right', lineHeight: 1.4, maxWidth: 260 }}>
                       {c.motivo === 'poucos_seguidores'
-                        ? <>sem público ainda — faltam <strong style={{ color: 'var(--mf-text-2)' }}>{Math.max(0, minimo - c.followers)}</strong> seguidores para o Instagram liberar</>
+                        ? <>gênero, país e idade: faltam <strong style={{ color: 'var(--mf-text-2)' }}>{Math.max(0, minimo - c.followers)}</strong> seguidores para o Instagram liberar</>
                         : c.motivo === 'sem_token' ? 'conta sem token da API' : 'sem dados no período'}
                     </span>
                   )}
+                </div>
+                <div style={{ marginTop: c.disponivel ? 0 : 10 }}>
+                  <SeguidoresOuNao p={c.porTipo} />
                 </div>
                 {c.disponivel && <Bloco dados={c.alcancados} />}
               </div>

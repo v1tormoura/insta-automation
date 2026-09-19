@@ -28,6 +28,15 @@
  */
 
 const MINIMO_SEGUIDORES = 100;
+
+/* Quantos dias cada timeframe cobre — para as métricas que usam since/until
+   em vez de timeframe. `this_month`/`prev_month` viram 30: é aproximação, e a
+   tela diz "últimos N dias" em vez de fingir que é o mês-calendário. */
+const DIAS_DO_TIMEFRAME = Object.freeze({
+  this_week: 7, last_14_days: 14, last_30_days: 30, last_90_days: 90, this_month: 30, prev_month: 30,
+});
+/* A Graph recusa since/until com mais de 30 dias em period=day. */
+const JANELA_MAX_DIAS = 30;
 const CACHE_MS = 60 * 60 * 1000;
 const PERIODOS = Object.freeze(['this_week', 'last_14_days', 'last_30_days', 'last_90_days', 'this_month', 'prev_month']);
 
@@ -74,6 +83,55 @@ function rotularGenero(lista) {
 }
 
 /**
+ * Seguidores × não-seguidores e views por tipo — o que o Instagram NÃO retém.
+ *
+ * Medido nas contas de 9 e 7 seguidores: `reach` com `breakdown=follow_type`
+ * e `views` com `breakdown=media_product_type` respondem (gênero/país/idade
+ * nas mesmas métricas dão "unknown error", a mesma retenção com outra cara).
+ *
+ * É o número que diz se o Instagram está RECOMENDANDO: 99 % de não-seguidores
+ * no alcance é distribuição para fora acontecendo — e aí o teto é retenção,
+ * não conta. Somado em janelas de 30 dias porque a Graph não aceita mais que
+ * isso por chamada.
+ */
+async function alcancePorTipoDeConta(account, dias) {
+  const token = account.accessToken;
+  const agora = Math.floor(Date.now() / 1000);
+  const inicio = agora - dias * 86_400;
+  const janelas = [];
+  for (let fim = agora; fim > inicio; fim -= JANELA_MAX_DIAS * 86_400) {
+    janelas.push({ since: Math.max(inicio, fim - JANELA_MAX_DIAS * 86_400), until: fim });
+  }
+  const somaPor = async (metric, breakdown) => {
+    const acc = new Map();
+    for (const j of janelas) {
+      const lista = await _get(account.igUserId, token, {
+        metric, period: 'day', breakdown, metric_type: 'total_value', since: j.since, until: j.until,
+      }).then(interpretar).catch(() => []);
+      for (const x of lista) acc.set(x.chave, (acc.get(x.chave) || 0) + x.valor);
+    }
+    return acc;
+  };
+  const [porSeguidor, porTipo] = await Promise.all([
+    somaPor('reach', 'follow_type'),
+    somaPor('views', 'media_product_type'),
+  ]);
+  const seguidores = porSeguidor.get('FOLLOWER') || 0;
+  const naoSeguidores = porSeguidor.get('NON_FOLLOWER') || 0;
+  const total = seguidores + naoSeguidores;
+  if (!total && !porTipo.size) return null;
+  return {
+    dias,
+    seguidores,
+    naoSeguidores,
+    pctNaoSeguidores: total ? Number(((naoSeguidores / total) * 100).toFixed(1)) : null,
+    viewsReels: porTipo.get('REEL') || 0,
+    viewsStories: porTipo.get('STORY') || 0,
+    viewsPosts: (porTipo.get('POST') || 0) + (porTipo.get('FEED') || 0) + (porTipo.get('CAROUSEL_CONTAINER') || 0),
+  };
+}
+
+/**
  * O público de uma conta.
  *
  * @returns {{ username, followers, disponivel, motivo, timeframe, alcancados: {genero, paises, idades} | null, engajados: {...}|null }}
@@ -95,17 +153,19 @@ async function buscarPublico(account, timeframe = 'last_30_days') {
     metric, period: 'lifetime', timeframe: tf, breakdown, metric_type: 'total_value',
   }).then(interpretar).catch(() => []);
 
-  const [gA, pA, iA, gE, pE] = await Promise.all([
+  const [gA, pA, iA, gE, pE, porTipo] = await Promise.all([
     pede('reached_audience_demographics', 'gender'),
     pede('reached_audience_demographics', 'country'),
     pede('reached_audience_demographics', 'age'),
     pede('engaged_audience_demographics', 'gender'),
     pede('engaged_audience_demographics', 'country'),
+    alcancePorTipoDeConta(account, DIAS_DO_TIMEFRAME[tf] || 30).catch(() => null),
   ]);
 
   const temAlcancados = gA.length || pA.length || iA.length;
   const dados = temAlcancados
     ? {
+        porTipo,
         disponivel: true,
         motivo: 'ok',
         alcancados: { genero: rotularGenero(comPercentual(gA)), paises: comPercentual(pA).slice(0, 10), idades: comPercentual(iA) },
@@ -114,6 +174,7 @@ async function buscarPublico(account, timeframe = 'last_30_days') {
           : null,
       }
     : {
+        porTipo,
         disponivel: false,
         /* Vazio sem erro = o Meta reteve. O número de seguidores é o que a
            pessoa consegue mudar; por isso vai junto. */
@@ -150,4 +211,4 @@ function agregar(lista) {
   };
 }
 
-module.exports = { buscarPublico, agregar, interpretar, comPercentual, rotularGenero, MINIMO_SEGUIDORES, PERIODOS, _cache };
+module.exports = { buscarPublico, agregar, interpretar, comPercentual, rotularGenero, alcancePorTipoDeConta, MINIMO_SEGUIDORES, PERIODOS, DIAS_DO_TIMEFRAME, _cache };
