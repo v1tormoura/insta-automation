@@ -10,6 +10,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
 import FundoCiber from '../components/FundoCiber';
+import LimpadorFlutuante from '../components/LimpadorFlutuante';
 import { lidas as lerPreferencias, salvar as salvarPreferencias } from '../services/preferencias';
 
 /**
@@ -556,6 +557,8 @@ export default function MainLayout({ children }) {
           <main className="mf-container" style={{ flex: 1, minWidth: 0, paddingBottom: 'var(--mf-10)' }}>
             {children}
           </main>
+          {/* A fila do Limpador, visível de qualquer tela enquanto roda. */}
+          <LimpadorFlutuante />
         </div>
       </div>
 

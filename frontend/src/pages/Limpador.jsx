@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
-import api from '../services/api';
+import {
+  useLimpador, addFiles, removeItem, clearDone, setMode, setWmPreset, processAll,
+} from '../services/limpadorStore';
 import PageShell from '../components/PageShell';
 import TituloDeCartao from '../components/TituloDeCartao';
 
@@ -73,11 +74,6 @@ function fmtSize(bytes) {
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 
-// estado por arquivo: 'waiting' | 'uploading' | 'processing' | 'done' | 'error'
-function makeItem(f) {
-  return { id: `${f.name}-${f.size}-${Date.now()}`, file: f, status: 'waiting', pct: 0, error: null };
-}
-
 const WM_PRESETS = [
   { key: 'auto',      label: 'Auto',      desc: 'Detecta automaticamente' },
   { key: 'kwai',      label: 'Kwai',      desc: 'Username + logo (baixo)' },
@@ -91,84 +87,11 @@ const WM_PRESETS = [
 ];
 
 export default function Limpador() {
-  const [items,    setItems]    = useState([]);   // [{ id, file, status, pct, error }]
-  const [mode,     setMode]     = useState('limpeza_leve');
-  const [wmPreset, setWmPreset] = useState('auto');
-  const [running,  setRunning]  = useState(false);
+  /* A fila, o modo e o "rodando" vivem em services/limpadorStore.js — fora
+     da página, para sobreviverem à navegação. Aqui só o que é da tela. */
+  const { items, mode, wmPreset, running } = useLimpador();
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef();
-
-  function updateItem(id, patch) {
-    setItems(prev => prev.map(it => it.id === id ? { ...it, ...patch } : it));
-  }
-
-  function addFiles(fileList) {
-    const list = Array.from(fileList);
-    const valid = [];
-    for (const f of list) {
-      if (f.size > 500 * 1024 * 1024) { toast.error(`${f.name}: máximo 500 MB.`); continue; }
-      if (!f.type.startsWith('video/') && !f.type.startsWith('image/')) {
-        toast.error(`${f.name}: tipo não suportado.`); continue;
-      }
-      valid.push(makeItem(f));
-    }
-    if (valid.length) setItems(prev => [...prev, ...valid]);
-  }
-
-  function removeItem(id) {
-    setItems(prev => prev.filter(it => it.id !== id));
-  }
-
-  function clearDone() {
-    setItems(prev => prev.filter(it => it.status !== 'done' && it.status !== 'error'));
-  }
-
-  async function processOne(item) {
-    updateItem(item.id, { status: 'uploading', pct: 0, error: null });
-    try {
-      const form = new FormData();
-      form.append('file', item.file);
-      form.append('mode', mode);
-      if (mode === 'watermark') form.append('preset', wmPreset);
-
-      const res = await api.post('/api/limpador/process', form, {
-        responseType: 'blob',
-        onUploadProgress: e => {
-          const pct = e.total ? Math.round(e.loaded * 100 / e.total) : 0;
-          updateItem(item.id, { pct, status: pct >= 100 ? 'processing' : 'uploading' });
-        },
-      });
-
-      const prefix   = mode === 'watermark' ? 'sem_marca' : 'limpo';
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${prefix}_${item.file.name}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-
-      updateItem(item.id, { status: 'done', pct: 100 });
-    } catch (e) {
-      let msg = e.message || 'Erro ao processar.';
-      if (e.response?.data instanceof Blob) {
-        try { const j = JSON.parse(await e.response.data.text()); msg = j.error || msg; } catch {}
-      }
-      updateItem(item.id, { status: 'error', error: msg });
-    }
-  }
-
-  async function processAll() {
-    const waiting = items.filter(it => it.status === 'waiting' || it.status === 'error');
-    if (!waiting.length) return toast.warning('Nenhum arquivo na fila.');
-    setRunning(true);
-    for (const item of waiting) {
-      await processOne(item);
-    }
-    setRunning(false);
-    toast.success('Fila concluída!');
-  }
 
   const selectedMode = MODES.find(m => m.key === mode);
   const hasPending   = items.some(it => it.status === 'waiting' || it.status === 'error');
@@ -409,7 +332,7 @@ export default function Limpador() {
           {running && (
             <div style={{ background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding:'12px 12px' }}>
               <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', marginBottom:6, fontWeight:600 }}>
-                ⚙ Processando — os downloads iniciam automaticamente
+                ⚙ Processando — os downloads iniciam automaticamente · pode sair desta tela, a fila continua
               </div>
               <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', animation:'limpador-pulse 1.5s infinite' }}>
                 Aguarde — cada arquivo é enviado, processado com FFmpeg e baixado em sequência.
