@@ -3,53 +3,69 @@
 /**
  * Quanto e quando uma conta pode publicar.
  *
- * ── O que este módulo corrige
+ * ── Estado atual: teto e janela DESLIGADOS
  *
- * `dailyPostLimit` tinha padrão 999999 — na prática, sem teto. Com o loop a
- * cada 40 minutos, cada conta publicava cerca de 36 reels por dia, 24 horas por
- * dia, sem parar de madrugada.
+ * Por decisão de quem opera o sistema (18/09/2026): publicar a qualquer hora e
+ * em qualquer quantidade. Sem nada no ambiente, este módulo libera tudo — é
+ * `podePublicar` devolvendo `pode: true` sempre, a menos que a CONTA tenha um
+ * teto próprio configurado, que continua sendo obedecido.
  *
- * Uma conta real publica de um a três reels por dia e dorme. Trinta e seis
- * publicações distribuídas uniformemente pelas 24 horas é o padrão mais
- * característico de automação que existe: não depende de analisar conteúdo,
- * arquivo, IP ou dispositivo — basta contar publicações por hora.
+ * Para religar, sem tocar no código nem subir imagem nova:
  *
- * Nenhuma humanização de pixel compensa isso. É por isso que este módulo vem
- * depois de `midiaPorConta` na ordem de importância mas antes na de efeito.
+ *     TETO_DIARIO_PADRAO=6-10     # publicações por dia, sorteadas na faixa
+ *     JANELA_PUBLICACAO=7-23      # horário em que a conta publica
  *
- * ── Por que o teto tem jitter
+ * ── Por que o mecanismo continua aqui em vez de ser apagado
+ *
+ * O que ele fazia não era invenção. `dailyPostLimit` tinha padrão 999999 — na
+ * prática, sem teto. Com o loop a cada 40 minutos, cada conta publicava cerca
+ * de 36 reels por dia, 24 horas por dia. Trinta e seis publicações distribuídas
+ * uniformemente pelas 24 horas é o padrão mais característico de automação que
+ * existe: não depende de analisar conteúdo, arquivo, IP ou dispositivo — basta
+ * contar publicações por hora, e nenhuma humanização de pixel compensa isso.
+ *
+ * Apagar o código significaria reescrevê-lo do zero no dia em que as contas
+ * pararem de entregar e a hipótese voltar à mesa. Duas linhas no `.env` é o
+ * preço de manter essa porta aberta.
+ *
+ * ── O jitter, para quando estiver ligado
  *
  * Cinco contas parando exatamente na oitava publicação, todo dia, é outro
- * padrão. O teto é sorteado por conta e por dia dentro de uma faixa: hoje uma
- * conta para em 6, outra em 9, e amanhã trocam.
- *
- * ── Por que a janela é por conta
- *
- * Todas as contas acordando às 08:00 em ponto se comportam como um enxame. O
- * deslocamento vem do id da conta, então é estável — a conta que acorda mais
- * cedo acorda mais cedo todo dia, como uma pessoa com rotina.
+ * padrão. Ligado, o teto é sorteado por conta e por dia dentro da faixa: hoje
+ * uma para em 6, outra em 9, e amanhã trocam. A janela ganha um deslocamento de
+ * até 45 minutos vindo do id da conta — a que acorda mais cedo acorda mais cedo
+ * todo dia, como uma pessoa com rotina, em vez de um enxame às 07:00 em ponto.
  */
-
 const crypto = require('crypto');
 
-/* Faixas padrão.
+/* ── Os padrões, lidos do ambiente ────────────────────────────────────────
+   Ausentes (o caso normal hoje) = teto e janela desligados. Ver o cabeçalho. */
 
-   6 a 10 publicações por dia é acima do que uma pessoa comum faz e abaixo do
-   que chama atenção em conta de conteúdo — que é o uso real aqui. Não é um
-   número que eu possa provar: é um teto conservador onde antes não havia
-   nenhum, e é configurável por conta.
+/** Lê "6-10" do ambiente. Qualquer outra coisa vira `null` — ou seja, desligado. */
+function _faixaDoAmbiente(bruto) {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*$/.exec(String(bruto ?? ''));
+  if (!m) return null;
+  const min = Number(m[1]);
+  const max = Number(m[2]);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) return null;
+  return { min, max };
+}
 
-   A janela 07:00–23:00 deixa 8 horas de silêncio. O silêncio é o sinal: uma
-   conta que nunca dorme não se parece com ninguém. */
-const TETO_MIN = 6;
-const TETO_MAX = 10;
-const JANELA_INICIO = 7;    // 07:00
-const JANELA_FIM = 23;      // 23:00
+/* `null` = sem teto. Não é 0: zero seria um teto de zero publicações, que
+   barraria tudo — o oposto exato do que "desligado" quer dizer. */
+const TETO_PADRAO = _faixaDoAmbiente(process.env.TETO_DIARIO_PADRAO);
+const TETO_MIN = TETO_PADRAO ? TETO_PADRAO.min : 0;
+const TETO_MAX = TETO_PADRAO ? TETO_PADRAO.max : 0;
+
+/* Sem janela configurada, 0–24: `dentroDaJanela` já trata o dia inteiro como
+   "regra desligada", então não há caso especial a escrever aqui. */
+const JANELA = _faixaDoAmbiente(process.env.JANELA_PUBLICACAO) || { min: 0, max: 24 };
+const JANELA_INICIO = JANELA.min;
+const JANELA_FIM = JANELA.max;
 
 /* O valor que significa "nunca foi configurado". O schema nasceu com ele, e
    toda conta existente o tem gravado — então não dá para distinguir "sem teto"
-   de "não mexeram nisso" olhando só o número. Tratar 999999 como ausência é o
-   que faz a correção valer para as contas que já existem, sem migração. */
+   de "não mexeram nisso" olhando só o número. */
 const SEM_TETO = 999999;
 
 /** Número estável em [0, 1) a partir de uma chave. */
@@ -67,17 +83,21 @@ function fracaoDe(chave) {
 function tetoDeHoje(account, hoje = new Date()) {
   const configurado = Number(account?.dailyPostLimit);
 
-  /* Teto configurado à mão vale como está — sem jitter. Quem digitou 3 quer 3,
-     e sortear entre 2 e 4 seria desobedecer em nome de uma heurística. */
+  /* Teto configurado à mão vale como está — sem jitter, e mesmo com o padrão
+     desligado. Quem digitou 3 na tela de Contas quer 3, e o desligamento geral
+     é sobre o que o sistema IMPÕE por conta própria, não sobre o que o dono
+     pediu explicitamente. */
   if (Number.isFinite(configurado) && configurado > 0 && configurado !== SEM_TETO) {
     return configurado;
   }
+
+  /* Sem faixa padrão no ambiente: sem teto. */
+  if (!TETO_PADRAO) return SEM_TETO;
 
   const dia = `${hoje.getFullYear()}-${hoje.getMonth()}-${hoje.getDate()}`;
   const f = fracaoDe(`${account?._id || 'sem-id'}:${dia}`);
   return TETO_MIN + Math.floor(f * (TETO_MAX - TETO_MIN + 1));
 }
-
 /**
  * O deslocamento desta conta, em minutos, dentro da hora.
  *

@@ -746,14 +746,22 @@ async function processJobRound(jobId) {
   const paraRitmo = conta => (isSameDay(conta.lastPostDate)
     ? conta
     : { _id: conta._id, dailyPostLimit: conta.dailyPostLimit, postsToday: 0, lastPostDate: conta.lastPostDate });
-  const contasDisponiveis = contasDaRodada.filter(c => podePublicar(paraRitmo(c), agoraRitmo).pode);
+  /* Um veredito por conta, calculado UMA vez: `.pode` filtra e `.motivo`
+     explica. Antes eram duas passadas e o motivo era jogado fora. */
+  const vereditos = contasDaRodada.map(c => ({ conta: c, ritmo: podePublicar(paraRitmo(c), agoraRitmo) }));
+  const contasDisponiveis = vereditos.filter(v => v.ritmo.pode).map(v => v.conta);
 
   if (contasDaRodada.length > 0 && contasDisponiveis.length === 0) {
-    const aberturas = contasDaRodada
-      .map(c => podePublicar(paraRitmo(c), agoraRitmo).ate)
-      .filter(Boolean);
+    const aberturas = vereditos.map(v => v.ritmo.ate).filter(Boolean);
     const proximaAbertura = aberturas.length ? new Date(Math.min(...aberturas.map(d => d.getTime()))) : null;
-    console.log(`[Job] "${jobDoc.name}" — nenhuma conta disponível agora (teto diário ou janela de silêncio)`
+    /* O motivo de CADA conta, em vez do genérico "teto diário ou janela de
+       silêncio". Os dois param a rodada do mesmo jeito e se consertam de formas
+       diferentes — o genérico mandava investigar a coisa errada, e do lado de
+       fora a publicação simplesmente não acontecia sem explicação. */
+    const motivos = vereditos
+      .map(v => `${v.conta.username || v.conta._id}: ${v.ritmo.motivo}`)
+      .join(' | ');
+    console.log(`[Job] "${jobDoc.name}" — nenhuma conta disponível agora — ${motivos}`
       + (proximaAbertura ? ` — a primeira reabre ${proximaAbertura.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '')
       + '. Rodada adiada, sem criar publicação.');
 

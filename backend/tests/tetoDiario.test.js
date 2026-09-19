@@ -84,13 +84,14 @@ describe('o aviso da faixa segura', () => {
   });
 
   test('a linha do aviso bate com a faixa do ritmoDaConta', () => {
-    /* Os dois números vivem em módulos diferentes de propósito — lá é o que o
-       sistema faz por padrão, aqui é onde a tela avisa. Mas se um mudar e o
-       outro não, a tela passa a avisar errado. */
+    /* O teto padrão está DESLIGADO, então este número não espelha mais uma
+       regra ativa: ele espelha a faixa recomendada que o cabeçalho do
+       ritmoDaConta documenta para religar (TETO_DIARIO_PADRAO=6-10). Se a
+       recomendação mudar e este aviso não, a tela passa a avisar errado. */
     const fs = require('fs');
     const path = require('path');
     const fonte = fs.readFileSync(path.resolve(__dirname, '../src/services/ritmoDaConta.js'), 'utf8');
-    const achado = Number(fonte.match(/const TETO_MAX = (\d+)/)?.[1]);
+    const achado = Number(fonte.match(/TETO_DIARIO_PADRAO=\d+-(\d+)/)?.[1]);
     expect(achado).toBe(SEGURO_MAX);
   });
 });
