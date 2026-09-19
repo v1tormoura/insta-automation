@@ -268,8 +268,9 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
 
   // ── Audio ────────────────────────────────────────────────────────
   let audioMap = '0:a?';
+  let cortarNoMaisCurto = false;
   const musicSrc = audio.musicTrack ? resolveVars(audio.musicTrack, resolvedVars) : '';
-  const hasMusicFile = musicSrc && !musicSrc.includes('{{') && fs.existsSync(musicSrc);
+  const hasMusicFile = Boolean(musicSrc && !musicSrc.includes('{{') && fs.existsSync(musicSrc));
 
   /* Trilha configurada que não está no disco: o render seguia mudo e o vídeo
      saía sem a 2ª camada sem ninguém entender por quê. Não é para falhar — um
@@ -283,13 +284,28 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
     const mIdx   = inputIdx++;
     const origVol = audio.originalVolume ?? 1.0;
     const musVol  = audio.musicVolume  ?? 0.3;
-    filters.push(`[0:a]volume=${origVol}[ao0]`);
-    filters.push(`[${mIdx}:a]volume=${musVol}[ao1]`);
-    /* duration=first: sem isto o amix usa "longest", e uma música de 3 min num
-       vídeo de 15s gera um arquivo de 3 min — vídeo congelado e trilha tocando
-       sozinha. "first" é o áudio original, ou seja, a duração do vídeo. Música
-       mais curta que o vídeo completa com silêncio, que é o comportamento certo. */
-    filters.push(`[ao0][ao1]amix=inputs=2:duration=first:normalize=0[a_out]`);
+
+    if (audio.keepOriginal === false) {
+      /* SUBSTITUIR, não misturar: só a trilha vai para a saída. Antes,
+         `keepOriginal: false` virava `-an` no comando e descartava TUDO — o
+         vídeo saía mudo mesmo com trilha escolhida, que é o oposto do que a
+         caixa desmarcada + trilha quer dizer.
+
+         `apad` estende a trilha com silêncio para além do fim dela, e o
+         `-shortest` (ver `cortarNoMaisCurto`) corta a saída no fim do VÍDEO:
+         trilha curta completa com silêncio, trilha longa é cortada. Sem os
+         dois, uma música de 3 min faria o arquivo ter 3 min. */
+      filters.push(`[${mIdx}:a]volume=${musVol},apad[a_out]`);
+      cortarNoMaisCurto = true;
+    } else {
+      filters.push(`[0:a]volume=${origVol}[ao0]`);
+      filters.push(`[${mIdx}:a]volume=${musVol}[ao1]`);
+      /* duration=first: sem isto o amix usa "longest", e uma música de 3 min num
+         vídeo de 15s gera um arquivo de 3 min — vídeo congelado e trilha tocando
+         sozinha. "first" é o áudio original, ou seja, a duração do vídeo. Música
+         mais curta que o vídeo completa com silêncio, que é o comportamento certo. */
+      filters.push(`[ao0][ao1]amix=inputs=2:duration=first:normalize=0[a_out]`);
+    }
     audioMap = '[a_out]';
   }
 
@@ -319,7 +335,11 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
     filterComplex: filters.join(';'),
     videoMap: `[${curLabel}]`,
     audioMap,
-    hasOriginalAudio: audio.keepOriginal !== false,
+    /* A saída tem faixa de áudio? Original mantido, OU trilha substituindo.
+       Era `keepOriginal !== false` sozinho — e por isso trilha-sem-original
+       virava vídeo mudo. */
+    temAudio: audio.keepOriginal !== false || hasMusicFile,
+    cortarNoMaisCurto,
   };
 }
 

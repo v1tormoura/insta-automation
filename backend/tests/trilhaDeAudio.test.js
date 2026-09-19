@@ -52,9 +52,52 @@ describe('2ª camada de áudio — quando a trilha entra', () => {
     expect(r.filterComplex).toContain(`[${idx}:a]volume=`);
   });
 
-  test('keepOriginal=false é reportado para quem monta o comando', () => {
+  test('keepOriginal=false sem trilha é reportado como sem áudio', () => {
+    const r = montar({ keepOriginal: false });
+    // Sem trilha e sem original: mudo de propósito.
+    expect(r.temAudio).toBe(false);
+  });
+});
+
+describe('2ª camada de áudio — SUBSTITUINDO o original', () => {
+  /* `keepOriginal: false` + trilha virava `-an`: descartava tudo, inclusive a
+     trilha, e o vídeo saía mudo — o oposto do que a caixa desmarcada quer
+     dizer. É o caminho do template de repost com música. */
+  test('sem original e com trilha, a saída TEM áudio: só a trilha', () => {
+    const r = montar({ keepOriginal: false, musicTrack: ARQUIVO_QUE_EXISTE, musicVolume: 1 });
+    expect(r.temAudio).toBe(true);
+    expect(r.audioMap).toBe('[a_out]');
+    expect(r.filterComplex).not.toContain('amix');
+    expect(r.filterComplex).not.toContain('[0:a]');
+    expect(r.filterComplex).toContain('volume=1,apad[a_out]');
+  });
+
+  test('a trilha é preenchida com silêncio e o vídeo manda no fim', () => {
+    // apad estende a trilha para sempre; -shortest corta no fim do vídeo.
+    // Sem os dois, música de 3 min = arquivo de 3 min.
     const r = montar({ keepOriginal: false, musicTrack: ARQUIVO_QUE_EXISTE });
-    expect(r.hasOriginalAudio).toBe(false);
+    expect(r.filterComplex).toContain('apad');
+    expect(r.cortarNoMaisCurto).toBe(true);
+  });
+
+  test('misturando, NÃO pede -shortest — o amix já limita ao original', () => {
+    /* -shortest no caminho de mistura poderia cortar um vídeo cujo áudio
+       original termina antes da imagem. */
+    const r = montar({ keepOriginal: true, musicTrack: ARQUIVO_QUE_EXISTE });
+    expect(r.cortarNoMaisCurto).toBe(false);
+  });
+
+  test('sem original e SEM trilha, aí sim sai mudo — e é o que foi pedido', () => {
+    const r = montar({ keepOriginal: false });
+    expect(r.temAudio).toBe(false);
+  });
+
+  test('o renderService respeita a flag', () => {
+    const fs = require('fs');
+    const fonte = fs.readFileSync(path.resolve(__dirname, '../src/services/renderEngine/renderService.js'), 'utf8');
+    expect(fonte).toContain("temAudio ? '-map' : '-an'");
+    expect(fonte).toContain("cortarNoMaisCurto ? ['-shortest'] : []");
+    expect(fonte).not.toContain('hasOriginalAudio');
   });
 });
 

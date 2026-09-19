@@ -30,7 +30,7 @@ async function renderVideo(renderJob, template) {
   const resolvedVars = Object.assign({}, renderJob.variables || {});
   resolvedVars['VIDEO'] = renderJob.inputPath;
 
-  const { inputs, filterComplex, videoMap, audioMap, hasOriginalAudio } =
+  const { inputs, filterComplex, videoMap, audioMap, temAudio, cortarNoMaisCurto } =
     buildFilterComplex(template, resolvedVars);
 
   const preset = template.output?.preset || 'medium';
@@ -55,8 +55,12 @@ async function renderVideo(renderJob, template) {
     const outputOpts = [
       '-filter_complex', filterComplex,
       '-map', videoMap,
-      hasOriginalAudio ? '-map' : '-an',
-      ...(hasOriginalAudio ? [audioMap] : []),
+      temAudio ? '-map' : '-an',
+      ...(temAudio ? [audioMap] : []),
+      /* Só quando a trilha SUBSTITUI o original: ela vem com apad (infinita) e
+         é o vídeo que manda no fim. No caminho de mistura o amix já limita ao
+         original, e -shortest ali poderia cortar vídeo cujo áudio termina cedo. */
+      ...(cortarNoMaisCurto ? ['-shortest'] : []),
       '-c:v', 'libx264',
       '-profile:v', 'high',
       '-level', '4.1',
