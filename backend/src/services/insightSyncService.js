@@ -86,6 +86,30 @@ async function fetchMediaMetrics(mediaId, mediaType, token) {
   }
 }
 
+/**
+ * Tempo assistido de um reel — em chamada SEPARADA de propósito.
+ *
+ * Uma métrica inválida derruba a chamada inteira (foi assim com `impressions`
+ * em vídeo). Pedir o tempo assistido junto do resto faria uma mídia que não é
+ * reel — vídeo de feed antigo, IGTV — zerar alcance, views e tudo. Separado,
+ * o pior caso é ficar sem o tempo, com o resto intacto.
+ */
+async function fetchWatchTime(mediaId, token) {
+  try {
+    const d = await gGet(`/${mediaId}/insights`, { metric: 'ig_reels_avg_watch_time,ig_reels_video_view_total_time' }, token);
+    const m = {};
+    for (const item of (d.data || [])) m[item.name] = item.values?.[0]?.value ?? item.value ?? null;
+    const avg = Number(m.ig_reels_avg_watch_time);
+    const total = Number(m.ig_reels_video_view_total_time);
+    return {
+      avgWatchTimeMs:   Number.isFinite(avg)   ? avg   : null,
+      totalWatchTimeMs: Number.isFinite(total) ? total : null,
+    };
+  } catch {
+    return { avgWatchTimeMs: null, totalWatchTimeMs: null };
+  }
+}
+
 async function syncAccountInsights(account) {
   if (!account.accessToken || !account.igUserId) return { skipped: true, reason: 'no_token' };
   if (account.healthStatus === 'banida')         return { skipped: true, reason: 'banned'   };
@@ -131,6 +155,8 @@ async function syncAccountInsights(account) {
   for (const media of mediaList) {
     try {
       const metrics = await fetchMediaMetrics(media.id, media.media_type || 'IMAGE', account.accessToken);
+      const ehVideo = (media.media_type || '') === 'VIDEO' || (media.media_type || '') === 'REEL';
+      const tempo = ehVideo ? await fetchWatchTime(media.id, account.accessToken) : { avgWatchTimeMs: null, totalWatchTimeMs: null };
 
       // Use max of media-field value and insights-endpoint value for accuracy.
       // Insights API `likes`/`comments` is more reliable than media fields for hidden counts.
@@ -170,6 +196,10 @@ async function syncAccountInsights(account) {
           postedAt:     media.timestamp ? new Date(media.timestamp) : null,
           likeCount, commentsCount, shareCount, savedCount,
           reach, impressions, videoViews, totalInteractions, engagementScore,
+          /* Só sobrescreve quando veio: um sync em que a Graph falhou nesta
+             métrica não pode apagar o tempo que o sync anterior tinha. */
+          ...(tempo.avgWatchTimeMs   != null ? { avgWatchTimeMs:   tempo.avgWatchTimeMs }   : {}),
+          ...(tempo.totalWatchTimeMs != null ? { totalWatchTimeMs: tempo.totalWatchTimeMs } : {}),
           syncedAt: now,
         },
         { upsert: true, new: true }

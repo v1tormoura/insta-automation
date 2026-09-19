@@ -66,7 +66,7 @@ export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
       ) : (
         <div>
           <p style={{ margin: 0, padding: '10px 16px 4px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.55 }}>
-            Cada envio do Postar é um lote do mesmo tipo de vídeo. Se um envio alcança 10× outro nas <strong style={{ color: 'var(--mf-text-2)' }}>mesmas contas</strong>, a diferença é o vídeo — não a conta, não o IP.
+            Cada envio do Postar é um lote do mesmo tipo de vídeo. Se um envio alcança 10× outro nas <strong style={{ color: 'var(--mf-text-2)' }}>mesmas contas</strong>, a diferença é o vídeo — não a conta, não o IP. <strong style={{ color: 'var(--mf-text-2)' }}>Assistido</strong> é o tempo médio que a pessoa fica: é a retenção, o número que decide se o Instagram continua distribuindo.
           </p>
 
           {envios.map((e, i) => {
@@ -92,6 +92,7 @@ export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
                       <span>views <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(e.views)}</strong></span>
                       <span>likes <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(e.likes)}</strong></span>
                       {e.taxa != null && <span>taxa <strong style={{ color: 'var(--mf-text-2)' }}>{e.taxa}%</strong></span>}
+                      {e.assistidoS != null && <span title="tempo médio assistido, ponderado por views">assistido <strong style={{ color: 'var(--mf-text-2)' }}>{e.assistidoS}s</strong></span>}
                     </div>
                   </div>
                 </div>
@@ -110,7 +111,7 @@ export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
                         </div>
                         <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                           <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 800, color: 'var(--mf-text)' }}>{fmt(r.reach)}</div>
-                          <div style={{ ...mono, textTransform: 'none', letterSpacing: 0 }}>{fmt(r.views)} views · {r.likes} likes</div>
+                          <div style={{ ...mono, textTransform: 'none', letterSpacing: 0 }}>{fmt(r.views)} views · {r.likes} likes{r.assistidoS != null ? ` · ${r.assistidoS}s assistidos` : ''}</div>
                         </div>
                       </a>
                     ))}

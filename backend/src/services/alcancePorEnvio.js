@@ -75,6 +75,9 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
       /* (likes + saves) / views — a mesma taxa que a tela de Performance já
          mostra por conta, para os dois números serem comparáveis. */
       taxa: views ? Number((((likes + saves) / views) * 100).toFixed(1)) : null,
+      /* Segundos assistidos em média. É a retenção: o que decide se o
+         Instagram continua distribuindo depois do público-teste. */
+      assistidoS: i.avgWatchTimeMs != null ? Number((Number(i.avgWatchTimeMs) / 1000).toFixed(1)) : null,
       jobId: envio.jobId,
       jobName: envio.jobName,
     };
@@ -86,6 +89,7 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
     const e = porEnvio.get(r.jobId) || {
       jobId: r.jobId, jobName: r.jobName, reels: 0, reach: 0, views: 0, likes: 0, saves: 0, shares: 0,
       reachMax: 0, contas: new Set(), primeiro: null, ultimo: null, top: [],
+      _tempoPonderado: 0, _viewsComTempo: 0,
     };
     e.reels++; e.reach += r.reach; e.views += r.views; e.likes += r.likes; e.saves += r.saves; e.shares += r.shares;
     e.reachMax = Math.max(e.reachMax, r.reach);
@@ -96,6 +100,8 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
       if (!e.ultimo || t > e.ultimo) e.ultimo = t;
     }
     if (e.top.length < topReelsPorEnvio) e.top.push(r); // reels já vem ordenado por alcance
+    /* Média ponderada por views: um reel com 5.000 views pesa mais que um com 6. */
+    if (r.assistidoS != null && r.views > 0) { e._tempoPonderado += r.assistidoS * r.views; e._viewsComTempo += r.views; }
     porEnvio.set(r.jobId, e);
 
     const c = porConta.get(r.username) || { username: r.username, accountId: r.accountId, reels: 0, reach: 0, views: 0, likes: 0, saves: 0, reachMax: 0 };
@@ -104,8 +110,9 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
     porConta.set(r.username, c);
   }
 
-  const envios = [...porEnvio.values()].map(e => ({
+  const envios = [...porEnvio.values()].map(({ _tempoPonderado, _viewsComTempo, ...e }) => ({
     ...e,
+    assistidoS: _viewsComTempo ? Number((_tempoPonderado / _viewsComTempo).toFixed(1)) : null,
     contas: [...e.contas],
     reachMedio: e.reels ? Math.round(e.reach / e.reels) : 0,
     viewsMedio: e.reels ? Math.round(e.views / e.reels) : 0,

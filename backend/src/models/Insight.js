@@ -22,6 +22,12 @@ const insightSchema = new mongoose.Schema({
   impressions:       { type: Number, default: 0 },
   videoViews:        { type: Number, default: 0 },
   totalInteractions: { type: Number, default: 0 },
+  /* Tempo assistido, em ms, só para reels (ig_reels_avg_watch_time e
+     ig_reels_video_view_total_time). É a RETENÇÃO — o número que o algoritmo
+     usa para decidir se continua distribuindo. null = não veio (mídia que não
+     é reel, ou a Graph não respondeu); 0 é um valor real. */
+  avgWatchTimeMs:    { type: Number, default: null },
+  totalWatchTimeMs:  { type: Number, default: null },
   // Weighted engagement score for ranking
   engagementScore:   { type: Number, default: 0, index: true },
   syncedAt:          { type: Date, default: null },
