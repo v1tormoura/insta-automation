@@ -56,5 +56,8 @@
     "vite": "^8.0.12",
     "vite-plugin-mkcert": "^2.1.0",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "react-is": "^19.0.0"
   }
 }
