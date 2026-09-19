@@ -5,6 +5,8 @@ import api from '../services/api';
 import PageShell from '../components/PageShell';
 import { EsqueletoMetricas, EsqueletoTabela, Bloco } from '../components/Estados';
 import TituloDeCartao from '../components/TituloDeCartao';
+import AlcancePorEnvio from '../components/AlcancePorEnvio';
+import PublicoDosReels from '../components/PublicoDosReels';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -349,6 +351,15 @@ export default function Performance() {
                 </div>
               </motion.div>
             </div>
+          </div>
+
+          {/* ── O que está subindo / Quem viu ─────────────────────────────
+              As duas perguntas que os números do banco já respondiam e a tela
+              não mostrava: qual TIPO de vídeo alcança (por envio) e QUEM é
+              alcançado (demografia, quando o Instagram libera). */}
+          <div style={{ display:"flex", flexDirection:"column", gap:16, marginTop:16 }}>
+            <AlcancePorEnvio period={period} cardStyle={cardStyle} />
+            <PublicoDosReels cardStyle={cardStyle} />
           </div>
         </>
       )}

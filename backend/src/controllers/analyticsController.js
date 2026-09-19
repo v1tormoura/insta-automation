@@ -2,6 +2,58 @@
 const mongoose = require('mongoose');
 const Insight  = require('../models/Insight');
 const Account  = require('../models/Account');
+const Post     = require('../models/Post');
+const { agrupar: agruparPorEnvio } = require('../services/alcancePorEnvio');
+const publicoDaConta = require('../services/publicoDaConta');
+
+/**
+ * GET /analytics/alcance-por-envio?dias=30
+ *
+ * Alcance e views por envio (job) e por conta, com os reels de maior alcance
+ * de cada envio. Ver services/alcancePorEnvio.js para o porquê de "envio" ser
+ * a unidade: cada lote do Postar é, na prática, um tipo de vídeo.
+ */
+exports.getAlcancePorEnvio = async (req, res) => {
+  try {
+    const dias = Math.min(365, Math.max(1, parseInt(req.query.dias, 10) || 30));
+    const desde = new Date(Date.now() - dias * 86_400_000);
+    const insights = await Insight.find({
+      postedAt: { $gte: desde },
+      mediaType: { $in: ['VIDEO', 'REELS', 'REEL'] },
+    }).lean();
+    const ids = insights.map(i => i.igMediaId).filter(Boolean);
+    const posts = ids.length
+      ? await Post.find({ $or: [{ igMediaId: { $in: ids } }, { 'midiasPublicadas.igMediaId': { $in: ids } }] })
+          .select('igMediaId midiasPublicadas jobId jobName').lean()
+      : [];
+    res.json({ dias, ...agruparPorEnvio(insights, posts) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * GET /analytics/publico?timeframe=last_30_days
+ *
+ * Gênero, país e idade de quem os reels alcançaram, por conta oficial, e o
+ * agregado das contas que têm dados. Conta pequena volta `disponivel: false`
+ * com o motivo — o Meta retém demografia abaixo de ~100 seguidores.
+ */
+exports.getPublico = async (req, res) => {
+  try {
+    const contas = await Account.find({ accessToken: { $exists: true, $ne: '' }, igUserId: { $exists: true, $ne: '' } })
+      .select('username followers accessToken igUserId avatar');
+    const lista = await Promise.all(contas.map(c => publicoDaConta.buscarPublico(c, req.query.timeframe)));
+    res.json({
+      timeframe: lista[0]?.timeframe || 'last_30_days',
+      minimoSeguidores: publicoDaConta.MINIMO_SEGUIDORES,
+      contas: lista.map((p, i) => ({ ...p, avatar: contas[i].avatar || '' })),
+      agregado: publicoDaConta.agregar(lista),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 /**
  * Métricas dos perfis — somadas e por conta.

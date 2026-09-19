@@ -1,6 +1,9 @@
 'use strict';
 const router = require('express').Router();
-const { getBestTimes, getTrendingAudio, getGlobalMetrics, getMetricasDosPerfis } = require('../controllers/analyticsController');
+const {
+  getBestTimes, getTrendingAudio, getGlobalMetrics, getMetricasDosPerfis,
+  getAlcancePorEnvio, getPublico,
+} = require('../controllers/analyticsController');
 
 const { syncAllStoryInsights } = require('../services/storyInsightSync');
 
@@ -9,6 +12,10 @@ router.get('/global-metrics',  getGlobalMetrics);
    faixa livre por data — ver o comentário no controller. */
 router.get('/metricas-dos-perfis', getMetricasDosPerfis);
 router.get('/best-times',      getBestTimes);
+/* O que está subindo: alcance por envio e por conta — ver alcancePorEnvio.js. */
+router.get('/alcance-por-envio', getAlcancePorEnvio);
+/* Quem viu: gênero, país, idade por conta — ver publicoDaConta.js. */
+router.get('/publico',           getPublico);
 router.get('/trending-audio',  getTrendingAudio);
 
 /**

@@ -81,6 +81,19 @@ const postSchema = new mongoose.Schema(
        normal, e um índice único transformaria isso em erro de gravação. */
     igMediaId: { type: String, default: '', index: true },
 
+    /* Uma mídia POR CONTA. O Post é um só para N contas e `igMediaId` guarda
+       a última publicada — com três contas, duas ficavam sem elo com as
+       métricas. Aqui cada publicação empurra o seu id; `igMediaId` continua
+       existindo para quem já lia dele. */
+    midiasPublicadas: {
+      type: [{
+        accountId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' },
+        igMediaId: { type: String, default: '' },
+        em:        { type: Date, default: Date.now },
+      }],
+      default: undefined,
+    },
+
     /* Marca d'água com o @ de cada conta.
        Só COMO desenhar — o texto é o @ de quem publica, resolvido na hora.
        Guardá-lo aqui faria a marca de uma conta aparecer no vídeo de outra.

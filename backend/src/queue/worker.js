@@ -499,8 +499,15 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
        publicado em várias contas em paralelo — dois `save()` concorrentes num
        doc carregado sobrescreveriam campos um do outro. */
     if (idDaMidia) {
-      await Post.updateOne({ _id: post._id }, { $set: { igMediaId: idDaMidia } })
-        .catch(e => console.log('[Post] não deu para gravar o igMediaId:', e.message));
+      await Post.updateOne(
+        { _id: post._id },
+        {
+          $set: { igMediaId: idDaMidia },
+          /* Por conta, além do "último": é o elo que a tela de alcance por
+             envio usa para não perder as outras N-1 contas do mesmo Post. */
+          $push: { midiasPublicadas: { accountId: account._id, igMediaId: idDaMidia, em: new Date() } },
+        },
+      ).catch(e => console.log('[Post] não deu para gravar o igMediaId:', e.message));
     }
 
     await agendarComentarioFixado(account, post, idDaMidia);
