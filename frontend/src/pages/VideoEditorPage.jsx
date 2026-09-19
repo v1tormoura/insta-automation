@@ -6,6 +6,11 @@ import Toast from '../components/Toast';
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ITEM_H = 72;
 
+/* Teto de vídeos por lote. Espelha MAX_ARQUIVOS_POR_LOTE em
+   backend/src/controllers/videoBatchController.js — loteDeVideos.test.js falha
+   se os dois saírem de sincronia. */
+const MAX_LOTE = 200;
+
 const DEFAULT_TMPL = {
   name: '',
   canvas:      { width: 1080, height: 1920, fps: 30, background: '#000000' },
@@ -561,6 +566,15 @@ export default function VideoEditorPage() {
   const selectedCount = selectedFiles.length;
 
   async function startProcessing() {
+    /* Barra ANTES de enviar: passar do teto só era descoberto depois de subir
+       53 arquivos, e o envio inteiro ia para o lixo. O número espelha
+       MAX_ARQUIVOS_POR_LOTE em backend/src/controllers/videoBatchController.js
+       — há um teste que falha se os dois divergirem. */
+    if (selectedCount > MAX_LOTE) {
+      toast3('error', 'Vídeos demais', `Máximo de ${MAX_LOTE} por lote — você selecionou ${selectedCount}. Desmarque ${selectedCount - MAX_LOTE} e crie outro lote depois.`);
+      setConfirmOpen(false);
+      return;
+    }
     setSaving(true); setConfirmOpen(false);
     try {
       const name = tmpl.name?.trim() || 'Template Editor';

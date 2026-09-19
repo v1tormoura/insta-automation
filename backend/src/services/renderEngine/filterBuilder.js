@@ -285,7 +285,11 @@ function buildFilterComplex(template, resolvedVars, { rand = Math.random } = {})
     const musVol  = audio.musicVolume  ?? 0.3;
     filters.push(`[0:a]volume=${origVol}[ao0]`);
     filters.push(`[${mIdx}:a]volume=${musVol}[ao1]`);
-    filters.push(`[ao0][ao1]amix=inputs=2:normalize=0[a_out]`);
+    /* duration=first: sem isto o amix usa "longest", e uma música de 3 min num
+       vídeo de 15s gera um arquivo de 3 min — vídeo congelado e trilha tocando
+       sozinha. "first" é o áudio original, ou seja, a duração do vídeo. Música
+       mais curta que o vídeo completa com silêncio, que é o comportamento certo. */
+    filters.push(`[ao0][ao1]amix=inputs=2:duration=first:normalize=0[a_out]`);
     audioMap = '[a_out]';
   }
 

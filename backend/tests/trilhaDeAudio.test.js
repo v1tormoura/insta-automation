@@ -37,7 +37,9 @@ describe('2ª camada de áudio — quando a trilha entra', () => {
     const r = montar({ keepOriginal: true, originalVolume: 1, musicTrack: ARQUIVO_QUE_EXISTE, musicVolume: 0.15 });
     expect(r.inputs).toEqual(['/app/uploads/entrada.mp4', ARQUIVO_QUE_EXISTE]);
     expect(r.audioMap).toBe('[a_out]');
-    expect(r.filterComplex).toContain('amix=inputs=2');
+    /* duration=first e nao o padrao longest: musica mais longa que o video
+       geraria um arquivo do tamanho da MUSICA, com o video congelado no fim. */
+    expect(r.filterComplex).toContain('amix=inputs=2:duration=first:normalize=0');
     // Os dois volumes chegam ao ffmpeg como o usuário deixou nos sliders.
     expect(r.filterComplex).toContain('[0:a]volume=1[ao0]');
     expect(r.filterComplex).toContain('volume=0.15[ao1]');

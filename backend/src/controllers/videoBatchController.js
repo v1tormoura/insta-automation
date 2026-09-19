@@ -29,9 +29,43 @@ const fileFilter = (req, file, cb) => {
   cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 500 * 1024 * 1024, files: 50 } });
+/* Quantos vídeos cabem num lote.
+   Estava em 50 — número que só aparecia quando o envio já tinha terminado e o
+   multer devolvia "Too many files" em inglês, sem dizer o limite. 53 vídeos
+   selecionados é lote normal para quem edita em massa, então o teto subiu.
+   Ele existe para o envio não virar uma requisição eterna, não por limite de
+   processamento: o render-worker pega 2 por vez e a fila aguenta o resto. */
+const MAX_ARQUIVOS_POR_LOTE = 200;
+const MAX_BYTES_POR_VIDEO   = 500 * 1024 * 1024;
 
-exports.uploadMiddleware = upload.array('videos', 50);
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_BYTES_POR_VIDEO, files: MAX_ARQUIVOS_POR_LOTE },
+});
+
+/** Erro do multer em português, dizendo qual é o limite. */
+function mensagemDoErroDeUpload(err) {
+  if (err?.code === 'LIMIT_FILE_COUNT') {
+    return `Máximo de ${MAX_ARQUIVOS_POR_LOTE} vídeos por lote. Desmarque alguns e crie um segundo lote depois.`;
+  }
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return `Cada vídeo pode ter no máximo ${Math.round(MAX_BYTES_POR_VIDEO / 1024 / 1024)} MB.`;
+  }
+  return err?.message || 'Falha no envio dos vídeos.';
+}
+
+const _upload = upload.array('videos', MAX_ARQUIVOS_POR_LOTE);
+
+/* Sem este embrulho o erro do multer sobe cru até a tela. "Too many files" não
+   diz quantos cabem, e o usuário fica tentando adivinhar. */
+exports.uploadMiddleware = (req, res, next) => _upload(req, res, err => {
+  if (err) return res.status(400).json({ error: mensagemDoErroDeUpload(err) });
+  next();
+});
+
+exports.MAX_ARQUIVOS_POR_LOTE = MAX_ARQUIVOS_POR_LOTE;
+exports.mensagemDoErroDeUpload = mensagemDoErroDeUpload;
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
