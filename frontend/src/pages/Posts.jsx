@@ -358,8 +358,17 @@ export default function Posts() {
      envio apagava o campo e o "Ativo" trazia de volta o exemplo — quem usava
      um texto próprio digitava de novo a cada publicação. */
   const CTA_PADRAO_KEY = 'posts_cta_padrao_v1';
-  const CTA_EXEMPLO = '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}';
-  const ctaPadrao = () => { try { return localStorage.getItem(CTA_PADRAO_KEY) || CTA_EXEMPLO; } catch { return CTA_EXEMPLO; } };
+  const CTA_PADRAO_SISTEMA = 'Completo nos destaques! 🔥➡️ @{username}';
+  /* O exemplo antigo ("Acesse meu bot gratuito no Telegram") pode ter ficado
+     guardado como padrão de quem só marcou e desmarcou. Não é escolha de
+     ninguém — cede ao padrão novo. */
+  const CTA_EXEMPLO_ANTIGO = '👇 Acesse meu bot gratuito no Telegram!\n🤖 {link}';
+  const ctaPadrao = () => {
+    try {
+      const salvo = localStorage.getItem(CTA_PADRAO_KEY);
+      return (salvo && salvo !== CTA_EXEMPLO_ANTIGO) ? salvo : CTA_PADRAO_SISTEMA;
+    } catch { return CTA_PADRAO_SISTEMA; }
+  };
   const lembrarCta = v => { if (String(v).trim()) { try { localStorage.setItem(CTA_PADRAO_KEY, v); } catch {} } };
 
   /* ── Restaura rascunho de posts salvo ────────────────────────────────────── */
@@ -998,7 +1007,7 @@ export default function Posts() {
               {!!ctaComment && (
                 <div style={cardBodyStyle}>
                   <textarea className="txta" rows={3}
-                    placeholder="Ex: 👇 Acesse meu bot no Telegram! {link}"
+                    placeholder="Ex: Completo nos destaques! 🔥➡️ @{username}"
                     value={ctaComment}
                     onChange={e => { setCtaComment(e.target.value); lembrarCta(e.target.value); }} />
                   <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4 }}>
