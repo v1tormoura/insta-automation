@@ -115,6 +115,11 @@ function convertToReelFormat(inputPath, options = {}) {
        saída, e um sobrescreveria o outro. */
     options.variacao ? JSON.stringify(options.variacao) : '',
     typeof options.ganchoFiltro === 'string' ? options.ganchoFiltro : '',
+    /* Trilhas diferentes = arquivos diferentes; sem isto duas contas com
+       trilhas distintas disputariam o mesmo caminho de saída. */
+    options.trilha && options.trilha.caminho
+      ? JSON.stringify({ t: options.trilha.caminho, m: options.trilha.modo, v: options.trilha.volume })
+      : '',
   ].filter(Boolean).join('||');
   if (porConta) {
     const digital = require('crypto')
@@ -318,7 +323,41 @@ function convertToReelFormat(inputPath, options = {}) {
         ? `atempo=${Number(varEdicao.velocidade).toFixed(4)}`
         : null,
     ].filter(Boolean).join(',');
-    const audioFilterOpts = cadeiaAudio ? ['-af', cadeiaAudio] : [];
+    /* ── Trilha de áudio por conta ─────────────────────────────────────────
+       Chega pronta de midiaPorConta: `{ caminho, modo, volume }`.
+
+       substituir: o original sai. `-map` explícito (vídeo do input 0, áudio do
+         input 1), `apad` estende a trilha com silêncio e `-shortest` corta no
+         fim do VÍDEO — sem os dois, música de 3 min viraria arquivo de 3 min. O
+         pitch do humanizador e o atempo da edição não se aplicam à trilha: ela
+         não está presa a nada na imagem.
+
+       misturar: precisa de `-filter_complex` (amix). O `-vf` continua valendo
+         para o vídeo porque ele é mapeado direto do input 0, e a cadeia de
+         áudio do original (pitch + atempo) entra no ramo `[0:a]` — um `-af`
+         solto num stream que vem do grafo complexo é erro do ffmpeg.
+         `duration=first` limita ao original, ou seja, ao vídeo. */
+    const trilha = options.trilha && options.trilha.caminho ? options.trilha : null;
+    let audioFilterOpts;
+    if (!trilha) {
+      audioFilterOpts = cadeiaAudio ? ['-af', cadeiaAudio] : [];
+    } else {
+      const vol = Math.min(1.5, Math.max(0.05,
+        Number(trilha.volume) || (trilha.modo === 'misturar' ? 0.3 : 1))).toFixed(3);
+      if (trilha.modo === 'misturar') {
+        const ramoOriginal = cadeiaAudio ? `[0:a]${cadeiaAudio},volume=1[ao0]` : '[0:a]volume=1[ao0]';
+        audioFilterOpts = [
+          '-filter_complex',
+          `${ramoOriginal};[1:a]volume=${vol}[ao1];[ao0][ao1]amix=inputs=2:duration=first:normalize=0[a_out]`,
+          '-map', '0:v:0', '-map', '[a_out]',
+        ];
+      } else {
+        audioFilterOpts = ['-map', '0:v:0', '-map', '1:a:0', '-af', `volume=${vol},apad`, '-shortest'];
+      }
+    }
+    /* Segunda entrada DEPOIS do seekInput: o `-ss` do corte de início é opção
+       da entrada mais recente no fluent-ffmpeg, e tem que ficar no vídeo. */
+    const comTrilha = c => trilha ? c.input(trilha.caminho) : c;
 
     /* Corte do inicio: `-ss` ANTES da entrada (seekInput), nao filtro.
        Por filtro o ffmpeg decodificaria os segundos descartados so para joga-los
@@ -328,7 +367,7 @@ function convertToReelFormat(inputPath, options = {}) {
       ? c.seekInput(Number(varEdicao.trimInicio))
       : c;
 
-    cortaInicio(ffmpeg(inputPath))
+    comTrilha(cortaInicio(ffmpeg(inputPath)))
       .outputOptions([
         '-vf', scaleFilter,
         '-c:v', 'libx264',
@@ -378,7 +417,7 @@ function convertToReelFormat(inputPath, options = {}) {
         if (cfg.preset === 'slow') {
           console.log('🔄 Tentando fallback com preset veryfast...');
           const fallbackPath = path.join(outputDir, `${filename}-reel-fallback.mp4`);
-          cortaInicio(ffmpeg(inputPath))
+          comTrilha(cortaInicio(ffmpeg(inputPath)))
             .outputOptions([
               '-vf', scaleFilter,
               '-c:v', 'libx264',

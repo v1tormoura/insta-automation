@@ -53,6 +53,37 @@ const { argumentosDeMetadado } = require('./metadadosDoArquivo');
 
 const RAIZ_UPLOADS = path.resolve(__dirname, '../../uploads');
 
+/**
+ * Resolve a trilha desta conta em algo que o conversor consome:
+ * `{ caminho (absoluto), modo, volume }` — ou `null` para "sem trilha".
+ *
+ * Trilha escolhida que sumiu do disco não derruba a publicação: sai sem
+ * trilha e loga. Um caminho quebrado não vale perder o post — mas tem que
+ * aparecer, senão a pessoa acha que a troca aconteceu.
+ */
+async function _trilhaDaConta(config, aleatorio, account) {
+  if (!config || !config.modo || config.modo === 'nenhuma') return null;
+  const ids = Array.isArray(config.ids) ? config.ids : [];
+  if (!ids.length) return null;
+  try {
+    const Trilha = require('../models/Trilha');
+    const { escolher } = require('./trilhaPorConta');
+    const docs = await Trilha.find({ _id: { $in: ids } }).lean();
+    const t = escolher(config, docs, aleatorio);
+    if (!t) return null;
+    const caminho = path.join(RAIZ_UPLOADS, t.arquivo);
+    if (!fs.existsSync(caminho)) {
+      console.log(`⚠️ [MidiaPorConta] trilha "${t.nome}" não está no disco (${t.arquivo}) — @${account?.username || account?._id} sai sem trilha`);
+      return null;
+    }
+    console.log(`🎵 [MidiaPorConta] @${account?.username || account?._id} → trilha "${t.nome}" (${t.modo}, vol ${t.volume})`);
+    return { caminho, modo: t.modo, volume: t.volume, nome: t.nome };
+  } catch (err) {
+    console.log(`⚠️ [MidiaPorConta] trilha indisponível (${err.message}) — publicando sem trilha`);
+    return null;
+  }
+}
+
 /* Os modos que produzem arquivo diferente a cada semente. Os outros são
    determinísticos — mesma entrada, mesmos bytes de saída. */
 const VARIAM = new Set(['ultra_clean', 'humanizador']);
@@ -230,6 +261,19 @@ async function prepararParaConta(post, account, opcoes = {}) {
     ? require('./variacaoDeEdicao').filtroDoGancho(variacao.gancho, variacao.segundosDoGancho)
     : null;
 
+  /* ── A TRILHA desta conta ────────────────────────────────────────────────
+
+     O áudio é o sinal mais forte do reconhecimento de conteúdo reutilizado.
+     Aqui cada conta pode sair com outra trilha (substituindo o original) ou
+     com uma trilha por baixo (misturando — que NÃO muda o fingerprint; a tela
+     avisa). Semente própria, derivada, pela mesma razão da edição: sortear a
+     trilha não pode mexer no que o humanizador e a edição sortearam. */
+  const trilha = await _trilhaDaConta(
+    opcoes.trilha || post.trilha || null,
+    criarAleatorio((semente ^ 0x7f4a7c15) >>> 0),
+    account,
+  );
+
   try {
     const saida = await convertToReelFormat(absoluto, {
       processMode: modo,
@@ -240,6 +284,7 @@ async function prepararParaConta(post, account, opcoes = {}) {
       ...(filtro ? { marcaDagua: filtro } : {}),
       ...(variacao ? { variacao } : {}),
       ...(ganchoFiltro ? { ganchoFiltro } : {}),
+      ...(trilha ? { trilha } : {}),
     });
 
     // O publicador espera caminho relativo à raiz de uploads.

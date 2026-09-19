@@ -828,6 +828,9 @@ async function processJobRound(jobId) {
          esta linha o campo existiria nos dois schemas e nunca chegaria a quem
          desenha. */
       ...(jobDoc.variacaoEdicao?.ativa ? { variacaoEdicao: jobDoc.variacaoEdicao } : {}),
+      /* Idem para a trilha: é na conversão por conta que ela entra. */
+      ...(jobDoc.trilha?.modo && jobDoc.trilha.modo !== 'nenhuma' && jobDoc.trilha.ids?.length
+        ? { trilha: jobDoc.trilha } : {}),
       accounts:      jobDoc.accounts.map(a => a._id),
       status:        'processando',
       scheduledAt:   new Date(),

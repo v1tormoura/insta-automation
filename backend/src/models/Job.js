@@ -64,6 +64,15 @@ const jobSchema = new mongoose.Schema({
     segundosDoGancho: { type: Number, default: 2.5, min: 1, max: 8 },
   },
 
+  /* Trilha de áudio por conta — ver services/trilhaPorConta.js. Guarda só as
+     OPÇÕES (modo, quais trilhas, volume); qual trilha cada conta recebe é
+     sorteado na hora de publicar, com semente em (publicação, conta). */
+  trilha: {
+    modo:   { type: String, enum: ['nenhuma', 'substituir', 'misturar'], default: 'nenhuma' },
+    ids:    { type: [mongoose.Schema.Types.ObjectId], ref: 'Trilha', default: undefined },
+    volume: { type: Number, default: 1, min: 0.05, max: 1.5 },
+  },
+
   // Controle de rodadas
   intervalMinutes:   { type: Number, default: 0, min: 0 },
   simultaneousLimit: { type: Number, default: 1, min: 1 },

@@ -339,6 +339,46 @@ export default function Posts() {
      de publicar, com semente em (post, conta). */
   const [varEdicao, setVarEdicao] = useState({ ativa: false, ganchos: [] });
   const [ganchoNovo, setGanchoNovo] = useState('');
+
+  /* ── Trilha de áudio por conta ────────────────────────────────────────────
+     `modo` nenhuma | substituir | misturar; `ids` as trilhas da biblioteca
+     entre as quais cada conta sorteia; `volume` 0.05..1.5. Só as OPÇÕES vão
+     no job — o sorteio é na publicação (services/trilhaPorConta.js). */
+  const [trilha, setTrilha] = useState({ modo: 'nenhuma', ids: [], volume: 1 });
+  const [trilhas, setTrilhas] = useState([]);
+  const [enviandoTrilha, setEnviandoTrilha] = useState(false);
+  const trilhaUploadRef = useRef();
+
+  async function carregarTrilhas() {
+    try { const r = await api.get('/trilhas'); setTrilhas(Array.isArray(r.data) ? r.data : []); } catch {}
+  }
+  async function enviarTrilha(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setEnviandoTrilha(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post('/trilhas', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setTrilhas(prev => [r.data, ...prev]);
+      // Quem acabou de subir uma trilha quer usá-la: já entra marcada.
+      setTrilha(cfg => ({ ...cfg, ids: [...cfg.ids, r.data._id] }));
+      showToast('success', 'Trilha', `"${r.data.nome}" adicionada à biblioteca.`);
+    } catch (err) {
+      showToast('error', 'Erro', err?.response?.data?.error || 'Falha ao enviar a trilha.');
+    } finally { setEnviandoTrilha(false); }
+  }
+  async function removerTrilha(tr) {
+    if (!window.confirm(`Remover "${tr.nome}" da biblioteca? Publicações já criadas que a usam vão sair sem trilha.`)) return;
+    try {
+      await api.delete(`/trilhas/${tr._id}`);
+      setTrilhas(prev => prev.filter(x => x._id !== tr._id));
+      setTrilha(cfg => ({ ...cfg, ids: cfg.ids.filter(id => id !== tr._id) }));
+    } catch (err) {
+      showToast('error', 'Erro', err?.response?.data?.error || 'Falha ao remover a trilha.');
+    }
+  }
   const [marcaModal,      setMarcaModal]      = useState(false);
 
   /* ── Configurações de envio ───────────────────────────────────────────────
@@ -393,6 +433,7 @@ export default function Posts() {
         if (d.nomeDoEnvio !== undefined) setNomeDoEnvio(d.nomeDoEnvio);
         if (d.postsPor24h !== undefined) setPostsPor24h(d.postsPor24h);
         if (d.aquecimento !== undefined) setAquecimento(!!d.aquecimento);
+        if (d.trilha && typeof d.trilha === 'object') setTrilha({ modo: 'nenhuma', ids: [], volume: 1, ...d.trilha, ids: Array.isArray(d.trilha.ids) ? d.trilha.ids : [] });
       }
     } catch {}
   }, []);
@@ -404,10 +445,10 @@ export default function Posts() {
         caption, postType, intervalMins, simultaneousLimit, processMode,
         location, ctaComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
-        nomeDoEnvio, postsPor24h, aquecimento,
+        nomeDoEnvio, postsPor24h, aquecimento, trilha,
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha]);
 
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
@@ -434,6 +475,7 @@ export default function Posts() {
       api.get('/accounts?limit=200'),
       api.get('/legends'),
     ]);
+    carregarTrilhas();
     if (postsR.status === 'fulfilled') {
       setPosts(postsR.value.data.posts || []);
       setPostPagination(postsR.value.data.pagination || null);
@@ -512,6 +554,7 @@ export default function Posts() {
        `dailyPostLimit` das contas — cada uma mantém o seu. */
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (varEdicao.ativa) form.append('variacaoEdicao', JSON.stringify(varEdicao));
+    if (trilha.modo !== 'nenhuma' && trilha.ids.length) form.append('trilha', JSON.stringify(trilha));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     setPosting(true);
@@ -1092,6 +1135,78 @@ export default function Posts() {
                   <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:10, lineHeight:1.6 }}>
                     Sem ganchos, a variação ainda muda corte e velocidade. O texto some
                     depois de 2,5s e sai com contorno, para aparecer sobre qualquer fundo.
+                  </div>
+                </div>
+              </div>
+            </CartaoRecolhivel>
+
+            {/* ── Trilha de áudio por conta ────────────────────────────────
+                Vizinha da variação de edição porque é o mesmo movimento — mudar
+                o que cada conta publica — só que no ÁUDIO, que é o sinal mais
+                forte do reconhecimento de conteúdo reutilizado. Substituir muda
+                o fingerprint; misturar não, e a tela diz isso. */}
+            <CartaoRecolhivel
+              icone="processo"
+              titulo="Trilha de áudio"
+              resumo={trilha.modo === 'nenhuma' ? 'original' : `${trilha.modo} · ${trilha.ids.length} trilha(s)`}
+              estilo={cardStyle}
+            >
+              <div style={cardBodyStyle}>
+                <input ref={trilhaUploadRef} type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg" style={{ display:'none' }} onChange={enviarTrilha} />
+
+                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
+                  {[
+                    ['nenhuma',    'Manter o áudio original',       'Nada muda.'],
+                    ['substituir', 'Substituir pela trilha',        'O original sai. É o único modo que muda o fingerprint de áudio — só para vídeo sem fala.'],
+                    ['misturar',   'Misturar por baixo do original', 'Clima. NÃO muda o fingerprint: o original continua lá, e o reconhecimento ouve através de fundo.'],
+                  ].map(([modo, rotulo, nota]) => (
+                    <label key={modo} style={{ display:'flex', gap:10, alignItems:'flex-start', cursor:'pointer', padding:'8px 10px', borderRadius:'var(--mf-r-sm)', border:`1px solid ${trilha.modo === modo ? 'var(--mf-mod-publicar)' : 'var(--mf-border)'}`, background: trilha.modo === modo ? 'color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent)' : 'transparent' }}>
+                      <input type="radio" name="trilha-modo" checked={trilha.modo === modo} onChange={() => setTrilha(t => ({ ...t, modo, volume: modo === 'misturar' ? Math.min(t.volume, 0.5) : t.volume }))} style={{ marginTop:3 }} />
+                      <span style={{ flex:1 }}>
+                        <span style={{ display:'block', fontSize:'var(--mf-t-sm)', fontWeight:600 }}>{rotulo}</span>
+                        <span style={{ display:'block', fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.5, marginTop:2 }}>{nota}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                <div style={{ opacity: trilha.modo !== 'nenhuma' ? 1 : .45, pointerEvents: trilha.modo !== 'nenhuma' ? 'auto' : 'none' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                    <label style={{ ...rotuloForm, margin:0 }}>Trilhas ({trilha.ids.length} escolhida{trilha.ids.length === 1 ? '' : 's'})</label>
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={enviandoTrilha} onClick={() => trilhaUploadRef.current?.click()}>
+                      {enviandoTrilha ? 'Enviando…' : '+ Subir trilha'}
+                    </button>
+                  </div>
+
+                  {trilhas.length === 0 ? (
+                    <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', padding:'10px 0' }}>
+                      Nenhuma trilha na biblioteca ainda. Suba um mp3 — música livre de direitos; música comercial conhecida o Instagram detecta e pode silenciar o Reels.
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:180, overflowY:'auto' }}>
+                      {trilhas.map(t => {
+                        const marcada = trilha.ids.includes(t._id);
+                        return (
+                          <div key={t._id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:'var(--mf-r-xs)', background: marcada ? 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)' : 'var(--mf-surface-2)' }}>
+                            <input type="checkbox" checked={marcada}
+                              onChange={e => setTrilha(cfg => ({ ...cfg, ids: e.target.checked ? [...cfg.ids, t._id] : cfg.ids.filter(id => id !== t._id) }))} />
+                            <span style={{ flex:1, minWidth:0, fontSize:'var(--mf-t-xs)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={t.nome}>{t.nome}</span>
+                            <span style={{ fontSize:'var(--mf-t-nano)', fontFamily:'var(--mf-mono)', color:'var(--mf-text-3)' }}>{t.tamanho ? `${(t.tamanho/1024/1024).toFixed(1)} MB` : ''}</span>
+                            <button type="button" className="btn-ghost" title="Remover da biblioteca" onClick={() => removerTrilha(t)} style={{ padding:'2px 7px', fontSize:'var(--mf-t-micro)', color:'var(--mf-danger-500)', borderRadius:'var(--mf-r-xs)' }}>✕</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop:12 }}>
+                    <label style={rotuloForm}>Volume da trilha: {Math.round(trilha.volume * 100)}%</label>
+                    <input type="range" min="0.05" max={trilha.modo === 'misturar' ? 0.8 : 1.5} step="0.05" value={trilha.volume}
+                      onChange={e => setTrilha(t => ({ ...t, volume: Number(e.target.value) }))} style={{ width:'100%' }} />
+                  </div>
+
+                  <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:10, lineHeight:1.6 }}>
+                    Com mais de uma trilha marcada, <strong>cada conta sorteia a sua</strong> — fixa por publicação, então o retry repete a mesma. Trilha mais curta que o vídeo completa com silêncio; mais longa é cortada no fim do vídeo.
                   </div>
                 </div>
               </div>
