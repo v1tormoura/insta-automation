@@ -33,7 +33,12 @@ const TABS = [
  *   selected  — string[] de IDs selecionados
  *   onChange  — (ids: string[]) => void
  */
-export default function AccountPicker({ accounts = [], selected = [], onChange }) {
+import ChipDeCota from './ChipDeCota';
+
+/* `cotas`: mapa accountId → cota da API (ver services/useCotas.js). Opcional —
+   sem ele o seletor é o de sempre. Com ele, cada conta mostra "32/50" e a
+   pessoa escolhe sabendo quanto cabe hoje. */
+export default function AccountPicker({ accounts = [], selected = [], onChange, cotas = {} }) {
   const [search,    setSearch]    = useState('');
   const [statusTab, setStatusTab] = useState('all');
 
@@ -223,6 +228,9 @@ export default function AccountPicker({ accounts = [], selected = [], onChange }
                 color: isSel ? 'var(--mf-primary-300)' : 'var(--mf-text)',
                 width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>@{acc.username}</div>
+              {cotas[String(acc._id)] && (
+                <ChipDeCota cota={cotas[String(acc._id)]} compacto />
+              )}
             </button>
           );
         })}

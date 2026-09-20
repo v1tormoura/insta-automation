@@ -11,6 +11,7 @@ import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
 import FundoCiber from '../components/FundoCiber';
 import LimpadorFlutuante from '../components/LimpadorFlutuante';
+import AvisoDeVersao from '../components/AvisoDeVersao';
 import { lidas as lerPreferencias, salvar as salvarPreferencias } from '../services/preferencias';
 
 /**
@@ -559,6 +560,8 @@ export default function MainLayout({ children }) {
           </main>
           {/* A fila do Limpador, visível de qualquer tela enquanto roda. */}
           <LimpadorFlutuante />
+          {/* "Nova versão — Atualizar": o app instalado no celular não recarrega sozinho. */}
+          <AvisoDeVersao />
         </div>
       </div>
 

@@ -31,6 +31,36 @@ function Barra({ valor, maximo, rotulo }) {
   );
 }
 
+/* O chão de uma conta: os últimos 10 alcances como barrinhas (mais antigo à
+   esquerda), a mediana escrita, o pico, e o veredito. Uma cor só para as
+   barras — é magnitude; o veredito vem no texto e num chip, não em cor. */
+function ChaoDaConta({ c }) {
+  const ultimos = c.ultimos || [];
+  const max = Math.max(1, ...ultimos);
+  const pronta = !!c.prontaParaTrocar;
+  const poucos = ultimos.length < 5;
+  const cor = pronta ? 'var(--mf-success-500)' : 'var(--mf-warning-500)';
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1.4fr) auto', gap: 14, alignItems: 'center', padding: '7px 0', borderTop: '1px solid var(--mf-border-subtle)' }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{c.username}</div>
+        <div style={{ ...mono, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>
+          chão <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(c.piso)}</strong> · pico <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(c.pico)}</strong> · {c.reels} reels
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 26 }} title={`últimos ${ultimos.length} reels, do mais antigo ao mais novo: ${ultimos.map(v => v.toLocaleString('pt-BR')).join(' · ')}`}>
+        {ultimos.map((v, i) => (
+          <span key={i} style={{ flex: 1, height: `${Math.max(6, Math.round((v / max) * 100))}%`, background: 'var(--mf-primary-500)', borderRadius: 2, opacity: .55 + (i / Math.max(1, ultimos.length - 1)) * .45 }} />
+        ))}
+        {ultimos.length === 0 && <span style={{ ...mono, textTransform: 'none' }}>sem reels no período</span>}
+      </div>
+      <span style={{ fontFamily: 'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--mf-r-xl)', whiteSpace: 'nowrap', background: `color-mix(in oklch, ${cor} 12%, transparent)`, color: cor, border: `1px solid color-mix(in oklch, ${cor} 28%, transparent)` }}>
+        {poucos ? 'poucos dados' : pronta ? 'pronta pra trocar' : 'aquecendo'}
+      </span>
+    </div>
+  );
+}
+
 export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState('');
@@ -121,15 +151,14 @@ export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
             );
           })}
 
-          {dados.contas?.length > 1 && (
+          {dados.contas?.length > 0 && (
             <div style={{ borderTop: '1px solid var(--mf-border)', padding: '10px 16px 12px' }}>
-              <div style={{ ...mono, marginBottom: 8 }}>por conta · alcance total</div>
-              {dados.contas.map(c => (
-                <div key={c.username} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)', gap: 14, alignItems: 'center', padding: '4px 0' }}>
-                  <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: 'var(--mf-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{c.username} <span style={{ ...mono, textTransform: 'none' }}>{c.reels} reels</span></div>
-                  <Barra valor={c.reach} maximo={Math.max(...dados.contas.map(x => x.reach))} rotulo="alcance total" />
-                </div>
-              ))}
+              <div style={{ ...mono, marginBottom: 4 }}>chão por conta · mediana dos últimos 10 reels</div>
+              <p style={{ margin: '0 0 10px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.55 }}>
+                O chão é o público-teste que o Instagram dá a cada reel novo — é o que o aquecimento constrói.
+                Conta fria testa em ~100; aquecida, em milhares. Acima de <strong style={{ color: 'var(--mf-text-2)' }}>1.000</strong> ela está pronta pra receber o conteúdo que importa.
+              </p>
+              {dados.contas.map(c => <ChaoDaConta key={c.username} c={c} />)}
             </div>
           )}
         </div>

@@ -79,6 +79,46 @@ describe('alcance por envio — o elo', () => {
   });
 });
 
+describe('chão por conta', () => {
+  const { mediana, JANELA_DO_CHAO, PISO_PRONTA } = require('../src/services/alcancePorEnvio');
+  const dia = i => new Date(2026, 8, 1 + i);
+
+  test('mediana: pico não puxa o chão', () => {
+    expect(mediana([100, 110, 120, 194000])).toBe(115);
+    expect(mediana([])).toBe(0);
+    expect(mediana([7])).toBe(7);
+  });
+
+  test('o chão é a mediana dos ÚLTIMOS 10 reels, por data', () => {
+    // 15 reels: os 5 mais antigos altos (3.000), os 10 mais novos baixos (100).
+    const insights = [];
+    for (let i = 0; i < 15; i++) insights.push(ins('r' + i, { username: 'a', reach: i < 5 ? 3000 : 100, postedAt: dia(i) }));
+    const c = agrupar(insights, []).contas[0];
+    expect(c.ultimos).toHaveLength(JANELA_DO_CHAO);
+    expect(c.piso).toBe(100);          // os antigos altos ficaram fora da janela
+    expect(c.pico).toBe(3000);         // o pico olha o período inteiro
+    expect(c.prontaParaTrocar).toBe(false);
+  });
+
+  test('pronta pra trocar: chão acima do piso e pelo menos 5 reels', () => {
+    const quente = [];
+    for (let i = 0; i < 8; i++) quente.push(ins('q' + i, { username: 'eliane', reach: 3000 + i, postedAt: dia(i) }));
+    expect(agrupar(quente, []).contas[0].prontaParaTrocar).toBe(true);
+
+    // 3 reels acima do piso ainda é pouco dado para decidir.
+    const poucos = quente.slice(0, 3);
+    const c = agrupar(poucos, []).contas[0];
+    expect(c.piso).toBeGreaterThanOrEqual(PISO_PRONTA);
+    expect(c.prontaParaTrocar).toBe(false);
+  });
+
+  test('reel sem data não entra na série do chão, mas conta no total', () => {
+    const c = agrupar([ins('x', { username: 'a', reach: 500, postedAt: null }), ins('y', { username: 'a', reach: 900, postedAt: dia(1) })], []).contas[0];
+    expect(c.ultimos).toEqual([900]);
+    expect(c.reels).toBe(2);
+  });
+});
+
 describe('público — o formato da Graph', () => {
   const resposta = { data: [{ name: 'reached_audience_demographics', total_value: { breakdowns: [{
     dimension_keys: ['gender'],

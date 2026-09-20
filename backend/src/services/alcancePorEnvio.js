@@ -24,6 +24,23 @@
 
 const SEM_ENVIO = 'sem-envio';
 
+/* O "chão" de uma conta: a mediana do alcance dos últimos N reels. É o que o
+   aquecimento constrói — o tamanho do público-teste que o Instagram dá a cada
+   reel novo. Medido em 19–20/09/2026: conta fria testa em ~110, conta
+   aquecida em ~3.000; o mesmo vídeo alcançou 194 mil numa e 105 na outra.
+   Acima de PISO_PRONTA a conta está pronta para receber o conteúdo que
+   importa; abaixo, ainda está aquecendo. Mediana e não média: um pico de
+   194 mil não pode fazer uma conta de chão 300 parecer pronta. */
+const JANELA_DO_CHAO = 10;
+const PISO_PRONTA = 1000;
+
+function mediana(nums) {
+  const a = nums.filter(n => Number.isFinite(n)).sort((x, y) => x - y);
+  if (!a.length) return 0;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+}
+
 function _num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
 /**
@@ -119,13 +136,30 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
     taxa: e.views ? Number((((e.likes + e.saves) / e.views) * 100).toFixed(1)) : null,
   })).sort((a, b) => b.reachMedio - a.reachMedio);
 
-  const contas = [...porConta.values()].map(c => ({
-    ...c,
-    reachMedio: c.reels ? Math.round(c.reach / c.reels) : 0,
-    taxa: c.views ? Number((((c.likes + c.saves) / c.views) * 100).toFixed(1)) : null,
-  })).sort((a, b) => b.reach - a.reach);
+  /* Os últimos N reels de cada conta, do mais antigo ao mais novo — a série
+     do chão e o desenho da tela saem daqui. */
+  const ultimosPorConta = new Map();
+  for (const r of [...reels].filter(r => r.postedAt).sort((a, b) => new Date(a.postedAt) - new Date(b.postedAt))) {
+    const l = ultimosPorConta.get(r.username) || [];
+    l.push(r.reach);
+    ultimosPorConta.set(r.username, l.slice(-JANELA_DO_CHAO));
+  }
+
+  const contas = [...porConta.values()].map(c => {
+    const ultimos = ultimosPorConta.get(c.username) || [];
+    const piso = mediana(ultimos);
+    return {
+      ...c,
+      reachMedio: c.reels ? Math.round(c.reach / c.reels) : 0,
+      taxa: c.views ? Number((((c.likes + c.saves) / c.views) * 100).toFixed(1)) : null,
+      ultimos,
+      piso,
+      pico: c.reachMax,
+      prontaParaTrocar: ultimos.length >= 5 && piso >= PISO_PRONTA,
+    };
+  }).sort((a, b) => b.reach - a.reach);
 
   return { envios, contas, reels };
 }
 
-module.exports = { agrupar, indiceDeEnvios, SEM_ENVIO };
+module.exports = { agrupar, indiceDeEnvios, mediana, SEM_ENVIO, JANELA_DO_CHAO, PISO_PRONTA };

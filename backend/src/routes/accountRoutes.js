@@ -25,6 +25,34 @@ const connectAccount = require('../services/connectAccount');
 
 router.post('/', createAccount);
 router.get('/', getAccounts);
+
+/**
+ * GET /accounts/cota — a cota da API do Instagram por conta (50 em 24h).
+ *
+ * Aqui em cima de propósito: qualquer `/:id/...` abaixo capturaria "cota"
+ * como id. Só contas com token da API têm cota da Graph; as outras não
+ * aparecem. Ver services/cotaDaApi.js (cache de 60 s por conta).
+ */
+router.get('/cota', async (req, res) => {
+  try {
+    const cotaDaApi = require('../services/cotaDaApi');
+    const contas = await Account.find({ accessToken: { $exists: true, $ne: '' }, igUserId: { $exists: true, $ne: '' } })
+      .select('username accessToken igUserId');
+    const lista = await Promise.all(contas.map(async c => {
+      const cota = await cotaDaApi.consultar(c);
+      if (!cota) return { accountId: c._id, username: c.username, disponivel: false };
+      const libera = cota.cheia ? await cotaDaApi.proximaLiberacao(c) : null;
+      return {
+        accountId: c._id, username: c.username, disponivel: true,
+        usage: cota.usage, limite: cota.limite, restante: Math.max(0, cota.limite - cota.usage),
+        cheia: cota.cheia, libera,
+      };
+    }));
+    res.json({ limite: cotaDaApi.LIMITE, contas: lista });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 router.post('/sync-all', syncAllAccounts);
 router.post('/import-bulk', importBulkAccounts);
 router.post('/reconnect-all', reconnectAllAccounts);

@@ -10,6 +10,7 @@ import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
+import { useCotas, diasPelaCota } from '../services/useCotas';
 import TituloDeCartao from '../components/TituloDeCartao';
 import CartaoRecolhivel from '../components/CartaoRecolhivel';
 import CardMetadados from '../components/CardMetadados';
@@ -453,6 +454,17 @@ export default function Posts() {
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
   const totalEstimated = activeMediaCount * selectedCount;
+
+  /* Cota da API por conta, para o seletor e para a estimativa de duração.
+     O gargalo é a conta selecionada com MENOS cota restante hoje: todas
+     recebem todas as mídias. */
+  const { cotas, limite: limiteDaCota } = useCotas();
+  const restantes = selectedAccounts.map(id => cotas[String(id)]?.restante).filter(v => v != null);
+  const restanteMinimo = restantes.length ? Math.min(...restantes) : null;
+  const diasCota = diasPelaCota({ midias: activeMediaCount, restanteMinimo, limite: limiteDaCota });
+  const horasIntervalo = activeMediaCount > 0
+    ? (Math.ceil(activeMediaCount / Math.max(1, simultaneousLimit)) * Math.max(1, intervalMins || 1)) / 60
+    : 0;
 
   function showToast(type, title, message) {
     setToast({ type, title, message });
@@ -1375,6 +1387,27 @@ export default function Posts() {
                     : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} entram na mesma rodada, mas as publicações saem uma de cada vez: nenhuma conta recebe dois posts seguidos.`
                   }
                 </div>
+
+                {/* ── Quanto tempo isso leva ───────────────────────────────
+                    Duas contas: a do intervalo (o que você escolheu) e a da
+                    cota da API do Instagram (50 por conta em 24h — o Meta
+                    recusa acima disso, e a fila espera). Vale a maior. Sem
+                    isto a pessoa mandava 124 vídeos numa conta e descobria
+                    dois dias depois que tinha uma parede no caminho. */}
+                {activeMediaCount > 0 && selectedCount > 0 && (
+                  <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 50%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mf-text-3)', marginBottom: 3 }}>Quanto tempo leva</div>
+                    Pelo intervalo: <strong style={{ color: 'var(--mf-text)' }}>≈ {horasIntervalo < 1 ? `${Math.round(horasIntervalo * 60)} min` : horasIntervalo < 48 ? `${horasIntervalo.toFixed(horasIntervalo < 10 ? 1 : 0)} h` : `${(horasIntervalo / 24).toFixed(1)} dias`}</strong>
+                    {diasCota != null && (
+                      <> · pela cota da API ({limiteDaCota}/dia por conta): <strong style={{ color: diasCota > 1 ? 'var(--mf-warning-500)' : 'var(--mf-text)' }}>≈ {diasCota} dia{diasCota === 1 ? '' : 's'}</strong>
+                        {restanteMinimo != null && <span style={{ color: 'var(--mf-text-3)' }}> — hoje ainda cabem {restanteMinimo} na conta mais cheia</span>}
+                      </>
+                    )}
+                    {diasCota != null && diasCota > 1 && selectedCount === 1 && (
+                      <div style={{ marginTop: 4, color: 'var(--mf-text-3)' }}>Dividir entre mais contas encurta: cada conta tem a própria cota.</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1389,6 +1422,7 @@ export default function Posts() {
                 </div>
 
                 <AccountPicker
+                  cotas={cotas}
                   accounts={accounts}
                   selected={selectedAccounts}
                   onChange={setSelectedAccounts}

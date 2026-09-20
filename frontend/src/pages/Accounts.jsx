@@ -7,6 +7,8 @@ import { lerAviso, deveAnunciar, chaveDoArroba } from './janelaDeAutorizacao';
 import PassosDeConexao from '../components/PassosDeConexao';
 import { montarLinkGuiado } from '../services/conexaoGuiada';
 import { useServerEvents } from '../services/useServerEvents';
+import { useCotas } from '../services/useCotas';
+import ChipDeCota from '../components/ChipDeCota';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import PortalModal from '../components/PortalModal';
@@ -60,6 +62,7 @@ export default function Accounts() {
   const [tokenConnecting,setTokenConnecting]= useState(false);
   const [tokenError,     setTokenError]     = useState('');
   const [metaApps,       setMetaApps]       = useState([]);
+  const { cotas } = useCotas();
   const [selectedAppId,  setSelectedAppId]  = useState('');
   /* Nenhum App Meta cadastrado: o OAuth não tem como começar. Em vez de um
      toast de erro (beco sem saída — foi o que aconteceu quando o app padrão do
@@ -1869,6 +1872,7 @@ export default function Accounts() {
                           {hl}
                         </span>
                         <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'var(--mf-border-subtle)', color:'var(--mf-text-3)', letterSpacing:'.5px' }}>{accType}</span>
+                        {cotas[String(account._id)] && <ChipDeCota cota={cotas[String(account._id)]} />}
                         {account.provider === 'instagrapi' && (
                           <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)', letterSpacing:'.4px' }}>
                             API Mobile
