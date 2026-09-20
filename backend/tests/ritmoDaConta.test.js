@@ -193,7 +193,10 @@ describe('o worker usa o módulo', () => {
   test('checkDailyLimit consulta o ritmo, não o campo cru', () => {
     /* Um módulo pode estar perfeito e ninguém chamá-lo. */
     const trecho = fonte.slice(fonte.indexOf('async function checkDailyLimit'));
-    expect(trecho).toContain('podePublicar(account)');
+    // Via podePublicarAgora, que soma a cota da API ao ritmo — os dois saem
+    // pelo mesmo veredito.
+    expect(trecho).toContain('podePublicarAgora(account)');
+    expect(fonte).toContain('const ritmo = podePublicar(account, agora);');
     expect(trecho.slice(0, 900)).not.toContain('account.postsToday < account.dailyPostLimit');
   });
 

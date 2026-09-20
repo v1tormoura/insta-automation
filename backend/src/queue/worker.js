@@ -139,12 +139,34 @@ function isSameDay(date) {
  * `ritmoDaConta` decide teto e janela; aqui fica só a virada do dia, que é
  * responsabilidade de quem tem o banco na mão.
  */
+/**
+ * Ritmo E cota da API, no mesmo veredito.
+ *
+ * O ritmo (teto/janela, hoje desligado por padrão) é escolha de quem opera. A
+ * cota é do Meta: 50 publicações por conta em 24h pela API, e não há como
+ * desligar. Os dois param a publicação do mesmo jeito, então saem pelo mesmo
+ * `{ pode, motivo, ate }` — quem chama não precisa saber qual dos dois foi.
+ *
+ * Só consulta a cota se o ritmo já liberou: não gasta chamada na Graph para
+ * uma conta que o ritmo ia barrar de qualquer jeito.
+ */
+async function podePublicarAgora(account, agora = new Date()) {
+  const ritmo = podePublicar(account, agora);
+  if (!ritmo.pode) return ritmo;
+  if (!account?.accessToken || !account?.igUserId) return ritmo; // cota é só da Graph
+  const cotaDaApi = require('../services/cotaDaApi');
+  const cota = await cotaDaApi.consultar(account);
+  if (!cota?.cheia) return ritmo;
+  const ate = await cotaDaApi.proximaLiberacao(account, agora);
+  return { pode: false, motivo: cotaDaApi.motivo(cota, ate), ate, cotaCheia: true };
+}
+
 async function checkDailyLimit(account) {
   if (!isSameDay(account.lastPostDate)) {
     await Account.findByIdAndUpdate(account._id, { postsToday: 0, lastPostDate: new Date() });
     account.postsToday = 0;
   }
-  return podePublicar(account);
+  return podePublicarAgora(account);
 }
 
 async function registerSuccess(account) {
@@ -157,8 +179,11 @@ async function registerSuccess(account) {
   });
 }
 
+/* Inclui o francês do app ("nombre maximal de publications…"): era a mensagem
+   que chegava e não casava com nada, virando erro genérico 55 vezes num dia. */
 function isGraphApiPublishLimit(err) {
-  return /número máximo de posts|content_publish_rate_limit|application request limit|maximum number of posts|too many publishes/i.test(err.message || '');
+  return require('../services/cotaDaApi').ehErroDeCota(err)
+    || /application request limit/i.test(err?.message || '');
 }
 
 // ── Publicação instagrapi ─────────────────────────────────────────────────
@@ -319,12 +344,28 @@ async function publishWithRetry(post, account, preProcessedVideoUrl) {
     } catch (err) {
       writeAccountLog(account.username, `Graph API: ${err.message}`);
       if (!isGraphApiPublishLimit(err)) throw err;
-      writeAccountLog(account.username, 'Limite diário da Graph API atingido — usando Private API como fallback...');
+      /* O Meta disse que a cota encheu — vale mais que a consulta com cache.
+         Gravar aqui faz a PRÓXIMA rodada adiar em vez de tentar de novo. */
+      require('../services/cotaDaApi').marcarCheia(account);
+      writeAccountLog(account.username, 'Cota da API do Instagram cheia (50/24h) — tentando Private API como fallback...');
     }
   }
 
   const hasCookies = fs.existsSync(path.join(__dirname, '../../sessions', account.username, 'cookies.json'));
   const hasMethod  = hasCookies || !!(account.password) || !!(account.igSession);
+
+  /* Conta só de API oficial com a cota cheia: não há fallback. A mensagem em
+     francês virava "erro" na fila; agora diz o que é e quando libera. */
+  if (!hasMethod && account.accessToken && account.igUserId) {
+    const cotaDaApi = require('../services/cotaDaApi');
+    const ate = await cotaDaApi.proximaLiberacao(account);
+    const msg = cotaDaApi.motivo({ usage: cotaDaApi.LIMITE, limite: cotaDaApi.LIMITE }, ate);
+    writeAccountLog(account.username, msg);
+    const erro = new Error(`@${account.username}: ${msg}`);
+    erro.code = 'API_QUOTA';
+    erro.retryAt = ate;
+    throw erro;
+  }
 
   if (!hasMethod) {
     const msg = 'Sem sessão/senha e sem token de API — conecte via Meta API ou importe cookies (🍪)';
@@ -755,8 +796,23 @@ async function processJobRound(jobId) {
     : { _id: conta._id, dailyPostLimit: conta.dailyPostLimit, postsToday: 0, lastPostDate: conta.lastPostDate });
   /* Um veredito por conta, calculado UMA vez: `.pode` filtra e `.motivo`
      explica. Antes eram duas passadas e o motivo era jogado fora. */
-  const vereditos = contasDaRodada.map(c => ({ conta: c, ritmo: podePublicar(paraRitmo(c), agoraRitmo) }));
+  const vereditos = await Promise.all(contasDaRodada.map(async c => ({
+    conta: c,
+    /* `paraRitmo` normaliza o dia; a cota precisa da conta REAL (token e id). */
+    ritmo: await podePublicarAgora({ ...c, ...paraRitmo(c) }, agoraRitmo),
+  })));
   const contasDisponiveis = vereditos.filter(v => v.ritmo.pode).map(v => v.conta);
+
+  /* Cota cheia é coisa que a pessoa precisa saber — o envio para por horas
+     sem erro nenhum na fila. Um aviso por conta por janela; o dedupe está no
+     próprio notificador. */
+  for (const v of vereditos) {
+    if (v.ritmo.cotaCheia) {
+      require('../services/smartActivity/eventosDePublicacao')
+        .notificarCotaDaApi({ conta: v.conta, motivo: v.ritmo.motivo, ate: v.ritmo.ate })
+        .catch(e => console.log('[Aviso] cota da API falhou:', e.message));
+    }
+  }
 
   if (contasDaRodada.length > 0 && contasDisponiveis.length === 0) {
     const aberturas = vereditos.map(v => v.ritmo.ate).filter(Boolean);
@@ -775,7 +831,16 @@ async function processJobRound(jobId) {
     const PISO_INTERVALO_MS = 60_000;
     const rawIntervalMs = Math.max(PISO_INTERVALO_MS, (jobDoc.intervalMinutes || 0) * 60 * 1000);
     const jitterFactor  = 1 + ((Math.random() * 0.24) - 0.12);
-    const intervalMs    = Math.max(PISO_INTERVALO_MS, Math.round(rawIntervalMs * jitterFactor));
+    const intervaloDoJob = Math.max(PISO_INTERVALO_MS, Math.round(rawIntervalMs * jitterFactor));
+
+    /* Espera até a primeira conta liberar — não só o intervalo do job. Com
+       cota cheia e intervalo de 10 min, isso eram 144 tentativas em 24h, cada
+       uma virando erro na fila. Teto de 6h: a estimativa da liberação vem das
+       nossas gravações e pode estar incompleta; errar para menos custa uma
+       checagem barata, errar para mais custaria um dia de fila parada. */
+    const TETO_ESPERA_MS = 6 * 60 * 60 * 1000;
+    const ateLiberar = proximaAbertura ? proximaAbertura.getTime() - Date.now() : 0;
+    const intervalMs = Math.min(TETO_ESPERA_MS, Math.max(intervaloDoJob, ateLiberar));
 
     const bullJob = await postQueue.add('job_round', { jobId: String(jobDoc._id) }, { delay: intervalMs });
     await Job.findByIdAndUpdate(jobDoc._id, {

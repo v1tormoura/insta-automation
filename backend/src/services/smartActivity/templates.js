@@ -48,6 +48,9 @@ const VARIAVEIS = Object.freeze({
   nome:          'Nome do envio ou do loop',
   publicados:    'Quantas publicações saíram com sucesso',
   falhas:        'Quantas publicações falharam',
+  usado:         'Publicações feitas pela API nas últimas 24h',
+  limite:        'Quantas a API do Instagram aceita em 24h (50)',
+  libera:        'Horário estimado em que a cota volta a aceitar',
   proxies:       'Quantos proxies existem no pool',
   contasRuins:   'Contas que não conseguem conectar',
   contasTotal:   'Total de contas cadastradas',
@@ -90,6 +93,7 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   tokenExpirando: Object.freeze(['account', 'username', 'dias']),
   contaCaiu:      Object.freeze(['account', 'username', 'motivo']),
   envioConcluido: Object.freeze(['nome', 'publicados', 'falhas']),
+  cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
 
   /* Avisos do vigia do sistema. */
   cota:    Object.freeze(['percentual', 'restanteGb', 'totalGb', 'diasRestantes', 'previsao']),
@@ -177,6 +181,13 @@ const PADRAO = Object.freeze({
     titulo: 'Envio concluído 🏁',
     mensagem: '{{nome}} — {{publicados}} publicada(s), {{falhas}} falha(s).',
     tema: 'success',
+  }),
+  /* A cota da API do Meta: 50 publicações por conta em 24h. O envio para por
+     horas sem erro nenhum na fila — sem este aviso, parece que travou. */
+  cotaApi: Object.freeze({
+    titulo: 'Cota da API do Instagram cheia ⏳',
+    mensagem: '{{account}} publicou {{usado}}/{{limite}} pela API em 24h. O envio segue sozinho quando liberar, por volta de {{libera}}.',
+    tema: 'warning',
   }),
 
   /* ── Avisos do vigia do sistema ────────────────────────────────────────
@@ -360,6 +371,7 @@ const EXEMPLOS = Object.freeze({
   aviso: 'proxy', horas: '3',
   dias: '6', motivo: 'Sessão expirada — reconecte pela API.',
   nome: 'Reels da manhã', publicados: '8', falhas: '1',
+  usado: '50', limite: '50', libera: '14:35',
 });
 
 /**

@@ -222,6 +222,43 @@ async function notificarContaCaiu({ conta, motivo } = {}) {
  * Não é por conta: é o fechamento do lote. Sem ele, saber se o envio deu certo
  * exigia abrir a fila e contar linha por linha.
  */
+/**
+ * A cota da API do Meta encheu para uma conta (50 publicações em 24h).
+ *
+ * Um aviso por conta por janela — a rodada é adiada e re-checada; sem o
+ * dedupe, cada re-checagem repetiria o aviso. 20h e não 24h: a janela é
+ * deslizante e a conta pode encher de novo antes de completar um dia.
+ */
+async function notificarCotaDaApi({ conta, motivo, ate } = {}) {
+  if (!thresholds.bancoConectado() || !conta) return null;
+
+  const cfg = await thresholds.carregar().catch(() => null);
+  if (!cfg || cfg.ativos.cotaApi === false) return null;
+  if (await _repetidoRecentemente('cotaApi', conta._id, 20)) return null;
+
+  const m = /\((\d+)\/(\d+)/.exec(String(motivo || ''));
+  const vars = templates.discretas({
+    username: conta.username || '',
+    account:  conta.username ? `@${conta.username}` : 'a conta',
+    usado:    m ? m[1] : '50',
+    limite:   m ? m[2] : '50',
+    libera:   ate ? new Date(ate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'em até 24h',
+  }, cfg.privacidade || {});
+
+  const modelo = templates.modeloDe('cotaApi', cfg.mensagens);
+  return _gravar({
+    accountId: conta._id || null,
+    username:  conta.username || '',
+    avatar:    conta.avatar || '',
+    eventType: 'cotaApi',
+    tema:      modelo.tema,
+    prioridade: 'media',
+    titulo:    templates.render(modelo.titulo, vars),
+    mensagem:  templates.render(modelo.mensagem, vars),
+    metadados: { motivo: String(motivo || '').slice(0, 300), libera: ate || null },
+  });
+}
+
 async function notificarEnvioConcluido({ nome, publicados, falhas } = {}) {
   if (!thresholds.bancoConectado()) return null;
 
@@ -249,6 +286,7 @@ async function notificarEnvioConcluido({ nome, publicados, falhas } = {}) {
 }
 
 module.exports = {
+  notificarCotaDaApi,
   notificarPublicado, notificarErro,
   notificarTokenExpirando, notificarContaCaiu, notificarEnvioConcluido,
 };
