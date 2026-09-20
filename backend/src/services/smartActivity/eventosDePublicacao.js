@@ -259,34 +259,8 @@ async function notificarCotaDaApi({ conta, motivo, ate } = {}) {
   });
 }
 
-async function notificarEnvioConcluido({ nome, publicados, falhas } = {}) {
-  if (!thresholds.bancoConectado()) return null;
-
-  const cfg = await thresholds.carregar().catch(() => null);
-  if (!cfg || cfg.ativos.envioConcluido === false) return null;
-
-  const vars = templates.discretas({
-    nome:       String(nome || 'Envio'),
-    publicados: String(Number(publicados) || 0),
-    falhas:     String(Number(falhas) || 0),
-  }, cfg.privacidade || {});
-
-  const modelo = templates.modeloDe('envioConcluido', cfg.mensagens);
-  return _gravar({
-    accountId: null,
-    username:  '',
-    avatar:    '',
-    eventType: 'envioConcluido',
-    tema:      Number(falhas) > 0 ? 'warning' : modelo.tema,
-    prioridade: 'normal',
-    titulo:    templates.render(modelo.titulo, vars),
-    mensagem:  templates.render(modelo.mensagem, vars),
-    metadados: { publicados: Number(publicados) || 0, falhas: Number(falhas) || 0 },
-  });
-}
-
 module.exports = {
   notificarCotaDaApi,
   notificarPublicado, notificarErro,
-  notificarTokenExpirando, notificarContaCaiu, notificarEnvioConcluido,
+  notificarTokenExpirando, notificarContaCaiu,
 };

@@ -991,11 +991,9 @@ async function processJobRound(jobId) {
 
   broadcast('posts', { action: 'created' });
 
-  /* Placar da rodada. Sem ele, saber se o envio deu certo exigia abrir a fila
-     e contar linha por linha. */
-  require('../services/smartActivity/eventosDePublicacao')
-    .notificarEnvioConcluido({ nome: jobDoc.name || 'Envio', publicados: roundSuccess, falhas: roundErrors })
-    .catch(e => console.log('[Aviso] envio concluído falhou:', e.message));
+  /* Não há aviso por rodada. Existiu ("Envio concluído", com o placar) e saiu
+     a pedido: com uma mídia por rodada a cada 10 min, eram 124 avisos iguais
+     num envio só — ruído, não informação. O placar continua na tela de Jobs. */
 
   if (!hasMoreRounds) {
     await Job.findByIdAndUpdate(jobDoc._id, { status: 'completed', completedAt: new Date() });

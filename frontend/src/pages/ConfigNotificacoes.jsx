@@ -68,7 +68,6 @@ const RESUMO = { id: 'resumo', rotulo: 'Resumo do dia', desc: 'O balanço de tod
 const PUBLICACAO = [
   { id: 'postPublicado',  rotulo: 'Publicado',        desc: 'Quando uma publicação sai com sucesso' },
   { id: 'erroPublicacao', rotulo: 'Falha ao publicar', desc: 'Quando uma publicação falha' },
-  { id: 'envioConcluido', rotulo: 'Envio concluído',   desc: 'O placar da rodada: quantas saíram e quantas falharam' },
   { id: 'cotaApi',        rotulo: 'Cota da API cheia', desc: 'O Instagram aceita 50 publicações por conta em 24h pela API; avisa quando enche e quando libera' },
   { id: 'contaCaiu',      rotulo: 'Conta parou',       desc: 'Sessão expirada, token inválido ou banimento' },
   { id: 'tokenExpirando', rotulo: 'Token vencendo',    desc: 'Avisa 7 dias antes, para dar tempo de reconectar' },
