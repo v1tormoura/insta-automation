@@ -15,6 +15,7 @@ const { startStoryInsightAutoSync } = require('./services/storyInsightSync');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
 const { startRepostJob }      = require('./jobs/repostJob');
 const { startProxyHealthCheck } = require('./jobs/proxyHealthCheck');
+const { startLimpezaDeArquivos } = require('./jobs/limpezaDeArquivos');
 const auth = require('./middleware/auth');
 const app = express();
 
@@ -215,6 +216,9 @@ startStoryInsightAutoSync();
 startTokenRefreshJob();
 startRepostJob();
 startProxyHealthCheck();
+/* tmp/ do editor em lote e processed/ das publicacoes nunca eram apagados —
+   ver jobs/limpezaDeArquivos.js. */
+startLimpezaDeArquivos();
 
 // Limpa vídeos processados antigos a cada 6 horas
 setInterval(() => cleanProcessedFiles(24), 6 * 60 * 60 * 1000);

@@ -1,54 +1,70 @@
 import './App.css';
 
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import MainLayout from './layouts/MainLayout';
 import { LimiteDeRota } from './components/LimiteDeErro';
-import Dashboard from './pages/Dashboard';
-import DashboardV2 from './pages/DashboardV2';
-import PrototipoApp from './prototipo/PrototipoApp';
-import DesignPreview from './prototipo-v2/DesignPreview';
-import Accounts from './pages/Accounts';
-import Posts from './pages/Posts';
-import Scheduler from './pages/Scheduler';
-import Logs from './pages/Logs';
-import Settings from './pages/Settings';
-import Legends from './pages/Legends';
-import Sessions from './pages/Sessions';
-import Health from './pages/Health';
-import Proxies from './pages/Proxies';
-import Stories from './pages/Stories';
-import Warmup from './pages/Warmup';
-import Loop from './pages/Loop';
-import JobManager from './pages/JobManager';
-import Campaigns from './pages/Campaigns';
-import CampaignWizard from './pages/CampaignWizard';
-import ConfigNotificacoes from './pages/ConfigNotificacoes';
-import CampaignDetail from './pages/CampaignDetail';
+/* Cada tela vira um pedaço separado do bundle, carregado na primeira visita.
+   Antes era um arquivo só de 2 MB — e foi ele que travou na rede instável do
+   dia 19: a pessoa esperava o editor de vídeo inteiro baixar para ver o
+   painel. Login e as páginas públicas ficam no bundle principal: são a
+   primeira coisa que aparece, e são pequenas. */
+const Dashboard           = lazy(() => import('./pages/Dashboard'));
+const DashboardV2         = lazy(() => import('./pages/DashboardV2'));
+const PrototipoApp        = lazy(() => import('./prototipo/PrototipoApp'));
+const DesignPreview       = lazy(() => import('./prototipo-v2/DesignPreview'));
+const Accounts            = lazy(() => import('./pages/Accounts'));
+const Posts               = lazy(() => import('./pages/Posts'));
+const Scheduler           = lazy(() => import('./pages/Scheduler'));
+const Logs                = lazy(() => import('./pages/Logs'));
+const Settings            = lazy(() => import('./pages/Settings'));
+const Legends             = lazy(() => import('./pages/Legends'));
+const Sessions            = lazy(() => import('./pages/Sessions'));
+const Health              = lazy(() => import('./pages/Health'));
+const Proxies             = lazy(() => import('./pages/Proxies'));
+const Stories             = lazy(() => import('./pages/Stories'));
+const Warmup              = lazy(() => import('./pages/Warmup'));
+const Loop                = lazy(() => import('./pages/Loop'));
+const JobManager          = lazy(() => import('./pages/JobManager'));
+const Campaigns           = lazy(() => import('./pages/Campaigns'));
+const CampaignWizard      = lazy(() => import('./pages/CampaignWizard'));
+const ConfigNotificacoes  = lazy(() => import('./pages/ConfigNotificacoes'));
+const CampaignDetail      = lazy(() => import('./pages/CampaignDetail'));
 import OAuthCallback from './pages/OAuthCallback';
-import ConectarGuiado from './pages/ConectarGuiado';
-import TopPosts from './pages/TopPosts';
-import BestTimes from './pages/BestTimes';
-import SmartRepost from './pages/SmartRepost';
-import Promo from './pages/Promo';
-import Ranking from './pages/Ranking';
-import Faturamento from './pages/Faturamento';
-import Performance from './pages/Performance';
-import MetricasDosPerfis from './pages/MetricasDosPerfis';
-import MinhaConta from './pages/MinhaConta';
-import Limpador from './pages/Limpador';
-import MediaLibrary from './pages/MediaLibrary';
-import OAuthAccounts from './pages/OAuthAccounts';
-import VideoTemplates from './pages/VideoTemplates';
-import VideoTemplateEditor from './pages/VideoTemplateEditor';
-import VideoBatches from './pages/VideoBatches';
-import VideoBatchDetail from './pages/VideoBatchDetail';
-import VideoEditorPage from './pages/VideoEditorPage';
+const ConectarGuiado      = lazy(() => import('./pages/ConectarGuiado'));
+const TopPosts            = lazy(() => import('./pages/TopPosts'));
+const BestTimes           = lazy(() => import('./pages/BestTimes'));
+const SmartRepost         = lazy(() => import('./pages/SmartRepost'));
+const Promo               = lazy(() => import('./pages/Promo'));
+const Ranking             = lazy(() => import('./pages/Ranking'));
+const Faturamento         = lazy(() => import('./pages/Faturamento'));
+const Performance         = lazy(() => import('./pages/Performance'));
+const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
+const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
+const Limpador            = lazy(() => import('./pages/Limpador'));
+const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
+const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
+const VideoTemplates      = lazy(() => import('./pages/VideoTemplates'));
+const VideoTemplateEditor = lazy(() => import('./pages/VideoTemplateEditor'));
+const VideoBatches        = lazy(() => import('./pages/VideoBatches'));
+const VideoBatchDetail    = lazy(() => import('./pages/VideoBatchDetail'));
+const VideoEditorPage     = lazy(() => import('./pages/VideoEditorPage'));
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
-import ApiMeta from './pages/ApiMeta';
+const ApiMeta             = lazy(() => import('./pages/ApiMeta'));
 import { isAuthenticated } from './services/auth';
+
+/* O que aparece entre clicar no menu e o pedaço da tela chegar. Discreto de
+   propósito: em conexão boa dura menos de 200 ms e nem se nota. */
+function CarregandoTela() {
+  return (
+    <div style={{ minHeight: '40vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', fontFamily: 'var(--mf-mono)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
+      carregando…
+    </div>
+  );
+}
 
 function PrivateRoute({ children }) {
   return isAuthenticated() ? children : <Navigate to="/login" replace />;
@@ -71,6 +87,7 @@ export default function App() {
         },
       }}
     />
+    <Suspense fallback={<CarregandoTela />}>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/termos" element={<Termos />} />
@@ -106,6 +123,7 @@ export default function App() {
                 navegação — sem ela, uma tela que falhou deixaria o erro
                 preso na tela seguinte, que talvez esteja perfeita. */}
             <LimiteDeRota titulo="Esta tela encontrou um erro">
+            <Suspense fallback={<CarregandoTela />}>
             <Routes>
               <Route path="/"             element={<Dashboard />} />
               <Route path="/accounts"     element={<Accounts />} />
@@ -152,11 +170,13 @@ export default function App() {
               <Route path="/video-batches"           element={<VideoBatches />} />
               <Route path="/video-batches/:id"       element={<VideoBatchDetail />} />
             </Routes>
+            </Suspense>
             </LimiteDeRota>
           </MainLayout>
         </PrivateRoute>
       } />
     </Routes>
+    </Suspense>
     </>
   );
 }

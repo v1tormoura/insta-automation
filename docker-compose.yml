@@ -1,5 +1,14 @@
+# Limite de log por container. Sem isto o json-file do Docker cresce sem fim:
+# o worker ja tinha 14 MB num dia. 20 MB x 5 arquivos = 100 MB por servico, no
+# maximo, com rotacao automatica. Aplica-se quando o container e recriado.
+x-log: &log
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
 services:
   mongo:
+    <<: *log
     image: mongo:7
     restart: unless-stopped
     volumes:
@@ -8,6 +17,7 @@ services:
       - instaflow
 
   redis:
+    <<: *log
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
@@ -17,6 +27,7 @@ services:
       - instaflow
 
   backend:
+    <<: *log
     build: ./backend
     restart: unless-stopped
     env_file: .env
@@ -73,6 +84,7 @@ services:
       - instaflow
 
   worker:
+    <<: *log
     build: ./backend
     restart: unless-stopped
     env_file: .env
@@ -111,6 +123,7 @@ services:
       - instaflow
 
   video-render-worker:
+    <<: *log
     build: ./backend
     restart: unless-stopped
     env_file: .env
@@ -143,6 +156,7 @@ services:
       - instaflow
 
   instagrapi-svc:
+    <<: *log
     build: ./instagrapi-service
     restart: unless-stopped
     environment:
@@ -212,6 +226,7 @@ services:
       - instaflow
 
   frontend:
+    <<: *log
     build:
       context: ./frontend
       args:
