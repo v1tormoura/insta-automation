@@ -73,6 +73,18 @@ const jobSchema = new mongoose.Schema({
     volume: { type: Number, default: 1, min: 0.05, max: 1.5 },
   },
 
+  /* Legenda sorteada da biblioteca a cada post — ver services/legendaAleatoria.js.
+     O texto NÃO fica aqui: é sorteado por rodada, na hora. `ultimas` é o
+     histórico curto dos ids sorteados, para as rodadas não repetirem a mesma
+     legenda em seguida. `sufixo` é o "Link na bio" da tela, que antes vinha
+     colado em `caption` — com o sorteio, a caixa deixa de ser a legenda. */
+  legendaAleatoria: {
+    ativa:     { type: Boolean, default: false },
+    categoria: { type: String, default: '' },
+    sufixo:    { type: String, default: '' },
+    ultimas:   { type: [String], default: undefined },
+  },
+
   // Controle de rodadas
   intervalMinutes:   { type: Number, default: 0, min: 0 },
   simultaneousLimit: { type: Number, default: 1, min: 1 },

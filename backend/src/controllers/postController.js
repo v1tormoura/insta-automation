@@ -7,6 +7,7 @@ const { ordenar, naOrdemDosIds, ORDENS, ORDEM_PADRAO } = require('../services/or
 const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
 const { lerDoCorpo: lerVariacaoEdicao } = require('../services/variacaoDeEdicao');
 const { lerDoCorpo: lerTrilha } = require('../services/trilhaPorConta');
+const { lerDoCorpo: lerLegendaAleatoria } = require('../services/legendaAleatoria');
 const { aplicarNasContas: aplicarTetoDiario } = require('../services/tetoDiario');
 const fs   = require('fs');
 const path = require('path');
@@ -98,6 +99,9 @@ exports.createPost = async (req, res) => {
     const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
     const variacaoEdicao = lerVariacaoEdicao(req.body.variacaoEdicao);
     const trilha = lerTrilha(req.body.trilha);
+    /* Desligado ou estragado vira `null`: o job fica sem o campo e a legenda
+       da caixa segue valendo, como sempre valeu. */
+    const legendaAleatoria = lerLegendaAleatoria(req.body.legendaAleatoria);
 
     /* ── Publicações por conta em 24h ─────────────────────────────────────
 
@@ -127,6 +131,7 @@ exports.createPost = async (req, res) => {
       ...(marcaDagua ? { marcaDagua } : {}),
       ...(variacaoEdicao ? { variacaoEdicao } : {}),
       ...(trilha ? { trilha } : {}),
+      ...(legendaAleatoria ? { legendaAleatoria } : {}),
       postType,
       caption:           req.body.caption       || '',
       cover:             coverFile ? coverFile.filename : (req.body.coverFilename || ''),

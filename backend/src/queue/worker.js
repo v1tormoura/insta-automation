@@ -864,7 +864,22 @@ async function processJobRound(jobId) {
      estavam boas. Isso contradizia o resto do motor, onde cada publicação é
      isolada e o erro de uma não para as outras. Agora a mídia problemática é
      registrada e pulada, e a rodada segue com as que deram certo. */
-  const preparosBrutos = await Promise.allSettled(roundMedia.map(async (mediaFile) => {
+  /* ── Legenda sorteada POR MÍDIA ──────────────────────────────────────
+
+     Decidida para a rodada inteira ANTES do preparo, que corre em paralelo:
+     sortear dentro do `map` deixaria duas mídias com a mesma legenda por
+     corrida no histórico. Biblioteca vazia cai na legenda da caixa, e um
+     sorteio que falhe (banco) também — a rodada nunca para por causa de
+     legenda. `null` = o envio não pediu. */
+  const sorteioDeLegenda = await require('../services/legendaAleatoria')
+    .sortearParaRodada(jobDoc, roundMedia.length)
+    .catch(e => { console.log(`[Job] "${jobDoc.name}" — sorteio de legenda falhou: ${e.message} — usando a legenda do envio`); return null; });
+  if (sorteioDeLegenda?.vazia) {
+    const cat = jobDoc.legendaAleatoria?.categoria;
+    console.log(`[Job] "${jobDoc.name}" — legenda aleatória ligada, mas não há legenda ativa${cat ? ` na categoria "${cat}"` : ' na biblioteca'} — usando a legenda do envio`);
+  }
+
+  const preparosBrutos = await Promise.allSettled(roundMedia.map(async (mediaFile, indiceNaRodada) => {
     const isVideo   = /\.(mp4|mov|webm|avi|mkv)$/i.test(mediaFile);
     const mediaType = isVideo ? 'video' : 'image';
     let   postType  = jobDoc.postType || 'reel';
@@ -881,12 +896,17 @@ async function processJobRound(jobId) {
       }
     }
 
+    const legendaSorteada = sorteioDeLegenda?.legendas?.[indiceNaRodada] || null;
+    if (legendaSorteada) {
+      console.log(`[Job] "${jobDoc.name}" — ${mediaFile}: legenda sorteada «${legendaSorteada.titulo || legendaSorteada.id}»`);
+    }
+
     const post = await Post.create({
       media:         mediaFile,
       mediaType,
       postType,
       cover:         jobDoc.cover         || '',
-      caption:       jobDoc.caption       || '',
+      caption:       legendaSorteada ? legendaSorteada.texto : (jobDoc.caption || ''),
       ctaComment:    jobDoc.ctaComment    || '',
       engageComment: jobDoc.engageComment || '',
       location:      jobDoc.location      || '',

@@ -306,6 +306,10 @@ export default function Posts() {
   const [toast, setToast] = useState(null);
   const [legends, setLegends] = useState([]);
   const [selectedLegend, setSelectedLegend] = useState('');
+  /* Sortear uma legenda da biblioteca A CADA POST (o worker sorteia por
+     rodada, sem repetir em sequência). A caixa continua existindo como
+     reserva: só entra se a biblioteca ficar vazia. */
+  const [legendaAleatoria, setLegendaAleatoria] = useState({ ativa: false, categoria: '' });
   const [location, setLocation] = useState('');
   const [ctaSuffix, setCtaSuffixState] = useState(() => getCTASuffix());
 
@@ -435,6 +439,7 @@ export default function Posts() {
         if (d.postsPor24h !== undefined) setPostsPor24h(d.postsPor24h);
         if (d.aquecimento !== undefined) setAquecimento(!!d.aquecimento);
         if (d.trilha && typeof d.trilha === 'object') setTrilha({ modo: 'nenhuma', ids: [], volume: 1, ...d.trilha, ids: Array.isArray(d.trilha.ids) ? d.trilha.ids : [] });
+        if (d.legendaAleatoria && typeof d.legendaAleatoria === 'object') setLegendaAleatoria({ ativa: !!d.legendaAleatoria.ativa, categoria: String(d.legendaAleatoria.categoria || '') });
       }
     } catch {}
   }, []);
@@ -446,10 +451,23 @@ export default function Posts() {
         caption, postType, intervalMins, simultaneousLimit, processMode,
         location, ctaComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
-        nomeDoEnvio, postsPor24h, aquecimento, trilha,
+        nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria,
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria]);
+
+  /* A biblioteca, do jeito que o sorteio a vê: só ativas, agrupadas por
+     categoria. É o que o bloco "sortear a cada post" mostra — o mesmo filtro
+     que o worker aplica (`isActive`, e `category` quando escolhida). */
+  const legendasAtivas = legends.filter(l => l.isActive !== false);
+  const categoriasDeLegenda = [...legendasAtivas.reduce((m, l) => {
+    const nome = (l.category || 'Geral').trim() || 'Geral';
+    m.set(nome, (m.get(nome) || 0) + 1);
+    return m;
+  }, new Map())].sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+  const legendasNoSorteio = legendaAleatoria.categoria
+    ? legendasAtivas.filter(l => ((l.category || 'Geral').trim() || 'Geral') === legendaAleatoria.categoria).length
+    : legendasAtivas.length;
 
   const selectedCount  = selectedAccounts.length;
   const activeMediaCount = mediaSource === 'library' ? libraryMedia.length : media.length;
@@ -548,6 +566,15 @@ export default function Posts() {
     if (cover) form.append('cover', cover);
     else if (coverLibFile?.filename) form.append('coverFilename', coverLibFile.filename);
     form.append('caption', applyCTASuffix(caption, ctaSuffix));
+    /* O sufixo vai SEPARADO no sorteio: a caixa (com sufixo colado) é só a
+       reserva; o texto que sai é o sorteado, e o worker cola o sufixo nele. */
+    if (legendaAleatoria.ativa) {
+      form.append('legendaAleatoria', JSON.stringify({
+        ativa: true,
+        categoria: legendaAleatoria.categoria || '',
+        sufixo: ctaSuffix.enabled && ctaSuffix.text.trim() ? ctaSuffix.text : '',
+      }));
+    }
     if (location) form.append('location', location);
     form.append('postType', postType);
     form.append('accounts', JSON.stringify(selectedAccounts));
@@ -976,6 +1003,42 @@ export default function Posts() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={useRandomLegend}>Aleatória</button>
+                </div>
+
+                {/* ── Sortear da biblioteca a cada post ─────────────────────
+                    "Aleatória" acima preenche a caixa UMA vez; isto aqui faz o
+                    worker sortear uma legenda diferente para cada post do
+                    envio (legendaAleatoria.js), sem repetir em sequência. */}
+                <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                      <input type="checkbox" checked={legendaAleatoria.ativa}
+                        onChange={e => setLegendaAleatoria(p => ({ ...p, ativa: e.target.checked }))}
+                        style={{ accentColor: 'var(--mf-mod, var(--mf-accent-500))', width: 14, height: 14 }} />
+                      Sortear da biblioteca a cada post
+                      <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{legendasAtivas.length} ativa{legendasAtivas.length === 1 ? '' : 's'}</span>
+                    </label>
+                    {legendaAleatoria.ativa && categoriasDeLegenda.length > 1 && (
+                      <select className="inp" value={legendaAleatoria.categoria}
+                        onChange={e => setLegendaAleatoria(p => ({ ...p, categoria: e.target.value }))}
+                        style={{ width: 'auto', padding: '4px 8px', fontSize: 'var(--mf-t-xs)' }} aria-label="Categoria das legendas sorteadas">
+                        <option value="">Todas as categorias</option>
+                        {categoriasDeLegenda.map(([nome, n]) => <option key={nome} value={nome}>{nome} ({n})</option>)}
+                      </select>
+                    )}
+                  </div>
+                  {legendaAleatoria.ativa && (
+                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.65 }}>
+                      {legendasNoSorteio > 0 ? (
+                        <>Cada post recebe uma das <strong style={{ color: 'var(--mf-text-2)' }}>{legendasNoSorteio}</strong> legendas{legendaAleatoria.categoria ? <> de <strong style={{ color: 'var(--mf-text-2)' }}>{legendaAleatoria.categoria}</strong></> : ''}, sem repetir em sequência. Variáveis, <code style={{ fontFamily: 'var(--mf-mono)', color: 'var(--mf-mod-publicar)' }}>{'{a|b}'}</code> e o sufixo continuam valendo. O texto acima só entra se a biblioteca ficar vazia.</>
+                      ) : (
+                        <span style={{ color: 'var(--mf-warning-500)' }}>
+                          Nenhuma legenda ativa{legendaAleatoria.categoria ? ` em ${legendaAleatoria.categoria}` : ' na biblioteca'} — o envio sairia com o texto acima.{' '}
+                          <button type="button" onClick={() => navigate('/legends')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--mf-mod-publicar)', cursor: 'pointer', fontSize: 'inherit', fontWeight: 700 }}>Cadastrar legendas →</button>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Variação de legenda por conta (spintax) ──────────────────
