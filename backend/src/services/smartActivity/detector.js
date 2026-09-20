@@ -33,6 +33,27 @@ const templates = require('./templates');
 
 const CHAVE_SEMEADO = 'smartActivitySemeado';
 
+/* ── Coalescência (20/09/2026) ─────────────────────────────────────────────
+   Clicar em Sincronizar despejava dezenas de avisos de uma vez. Três causas,
+   três regras:
+
+   1. Um reel que saltou vários marcos entre duas leituras (0 → 194 mil)
+      gerava um aviso POR marco: 100, 500, 1k, 5k … 100k — oito avisos do
+      mesmo reel. Agora só o MAIOR marco cruzado vira aviso; os intermediários
+      sobem o teto em silêncio. A pessoa quer saber que passou de 100 mil, não
+      receber a escada inteira.
+
+   2. Uma sincronização em que muitos reels cruzam marcos (o dia em que a
+      conta estoura) virava uma avalanche. Por conta e por varredura, saem os
+      ${LIMITE_POR_VARREDURA} maiores individualmente; o resto vira UM resumo
+      ("mais 9 reels passaram de marcos — o maior: 194 mil").
+
+   3. Conta conectada DEPOIS da semeadura global nascia com teto zero e, na
+      primeira sincronização, disparava todo o histórico dela. Agora uma conta
+      sem nenhum Milestone é semeada na hora, sem avisar — só o que crescer a
+      partir dali dispara. */
+const LIMITE_POR_VARREDURA = 3;
+
 /**
  * Grava a notificação. Devolve `null` quando o marco já tinha sido notificado
  * — o índice único é a segunda barreira contra duplicata, e colidir com ele é
@@ -74,7 +95,7 @@ async function _gravar(doc) {
  * @param {object} conta    { _id, username, avatar }
  * @param {object} cfg      configuração já carregada
  */
-async function processarInsight(insight, conta, cfg) {
+async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
   const criadas = [];
   const ehStory = insight.mediaType === 'STORY';
   const metricas = ehStory ? ['storyViews'] : ['contentViews', 'reach'];
@@ -119,36 +140,109 @@ async function processarInsight(insight, conta, cfg) {
 
     const modelo = templates.modeloDe(metricType, cfg.mensagens);
 
-    for (const threshold of cruzados) {
-      const vars = templates.contexto({ conta, insight, threshold, valor, metricType,
-        /* O que a pessoa pediu para nao aparecer na tela de bloqueio.
-           Aplicado aqui, onde as variaveis nascem, e nao no render: assim
-           vale para a Central e para o push com um caminho so. */
-        privacidade: cfg.privacidade });
-      const nova = await _gravar({
-        accountId: conta._id,
-        username: conta.username || '',
-        avatar: conta.avatar || '',
-        contentId,
-        eventType: 'milestone',
-        metricType,
-        threshold,
-        tema: modelo.tema,
-        prioridade: threshold >= 10000 ? 'alta' : 'normal',
-        titulo: templates.render(modelo.titulo, vars),
-        mensagem: templates.render(modelo.mensagem, vars),
-        metadados: {
-          valor,
-          mediaType: insight.mediaType || '',
-          permalink: insight.permalink || '',
-          thumbnailUrl: insight.thumbnailUrl || '',
-          postedAt: insight.postedAt || null,
-        },
-      });
-      if (nova) criadas.push(nova);
-    }
+    /* Só o MAIOR marco cruzado vira aviso (regra 1). Os intermediários já
+       subiram o teto acima; não voltam a disparar. */
+    const threshold = maior;
+    const vars = templates.contexto({ conta, insight, threshold, valor, metricType,
+      /* O que a pessoa pediu para nao aparecer na tela de bloqueio.
+         Aplicado aqui, onde as variaveis nascem, e nao no render: assim
+         vale para a Central e para o push com um caminho so. */
+      privacidade: cfg.privacidade });
+    const doc = {
+      accountId: conta._id,
+      username: conta.username || '',
+      avatar: conta.avatar || '',
+      contentId,
+      eventType: 'milestone',
+      metricType,
+      threshold,
+      tema: modelo.tema,
+      prioridade: threshold >= 10000 ? 'alta' : 'normal',
+      titulo: templates.render(modelo.titulo, vars),
+      mensagem: templates.render(modelo.mensagem, vars),
+      metadados: {
+        valor,
+        mediaType: insight.mediaType || '',
+        permalink: insight.permalink || '',
+        thumbnailUrl: insight.thumbnailUrl || '',
+        postedAt: insight.postedAt || null,
+      },
+    };
+    if (!gravar) { criadas.push(doc); continue; }
+    const nova = await _gravar(doc);
+    if (nova) criadas.push(nova);
   }
 
+  return criadas;
+}
+
+/**
+ * Semeia UMA conta: grava o teto de cada conteúdo no maior marco já
+ * ultrapassado, sem notificar (regra 3). Devolve quantos tetos gravou.
+ */
+async function semearConta(conta, cfg) {
+  const insights = await Insight.find({ accountId: conta._id })
+    .select('igMediaId mediaType impressions reach videoViews')
+    .lean();
+  let tetos = 0;
+  for (const ins of insights) {
+    const ehStory = ins.mediaType === 'STORY';
+    for (const metricType of (ehStory ? ['storyViews'] : ['contentViews', 'reach'])) {
+      const marcos = cfg.thresholds[metricType] || [];
+      const valor = thresholds.valorDaMetrica(ins, metricType);
+      if (!valor || !marcos.length) continue;
+      const piso = marcos.filter(m => m <= valor).pop() || 0;
+      await Milestone.updateOne(
+        { accountId: conta._id, contentId: String(ins.igMediaId), metricType },
+        { $max: { maiorDisparado: piso }, $set: { ultimoValor: valor } },
+        { upsert: true }
+      );
+      tetos++;
+    }
+  }
+  return tetos;
+}
+
+/**
+ * Grava os candidatos de uma conta respeitando o limite por varredura
+ * (regra 2): os LIMITE maiores saem inteiros; o resto vira um resumo só.
+ */
+async function _gravarCoalescido(conta, candidatos, cfg) {
+  const criadas = [];
+  if (!candidatos.length) return criadas;
+  const ordenados = [...candidatos].sort((a, b) => (b.metadados?.valor || 0) - (a.metadados?.valor || 0));
+  const individuais = ordenados.slice(0, LIMITE_POR_VARREDURA);
+  const resto = ordenados.slice(LIMITE_POR_VARREDURA);
+
+  for (const doc of individuais) {
+    const nova = await _gravar(doc);
+    if (nova) criadas.push(nova);
+  }
+  if (!resto.length) return criadas;
+
+  const maior = resto[0];
+  const modelo = templates.modeloDe('resumoMarcos', cfg.mensagens);
+  const vars = templates.discretas({
+    username: conta.username || '',
+    account: conta.username ? `@${conta.username}` : 'sua conta',
+    quantidade: String(resto.length),
+    maior: templates.formatarNumero(maior.metadados?.valor || 0),
+  }, cfg.privacidade || {});
+  const resumo = await _gravar({
+    accountId: conta._id,
+    username: conta.username || '',
+    avatar: conta.avatar || '',
+    eventType: 'resumoMarcos',
+    tema: modelo.tema,
+    prioridade: 'normal',
+    titulo: templates.render(modelo.titulo, vars),
+    mensagem: templates.render(modelo.mensagem, vars),
+    metadados: {
+      quantidade: resto.length,
+      conteudos: resto.map(d => ({ contentId: d.contentId, metricType: d.metricType, threshold: d.threshold, valor: d.metadados?.valor || 0, permalink: d.metadados?.permalink || '' })),
+    },
+  });
+  if (resumo) criadas.push(resumo);
   return criadas;
 }
 
@@ -169,6 +263,15 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
   const criadas = [];
 
   for (const conta of contas) {
+    /* Conta que nunca passou por aqui (regra 3): semeia e segue — nada a
+       avisar sobre o que já aconteceu antes de ela existir no painel. */
+    const jaConhecida = await Milestone.exists({ accountId: conta._id });
+    if (!jaConhecida) {
+      const tetos = await semearConta(conta, cfg);
+      if (tetos) console.log(`[SmartActivity] @${conta.username || conta._id}: conta nova, ${tetos} teto(s) semeado(s) sem avisar`);
+      continue;
+    }
+
     const filtro = { accountId: conta._id };
     if (apenasStories) filtro.mediaType = 'STORY';
     else filtro.mediaType = { $ne: 'STORY' };
@@ -183,15 +286,16 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
       .limit(200)
       .lean();
 
+    const candidatos = [];
     for (const insight of insights) {
       try {
-        const novas = await processarInsight(insight, conta, cfg);
-        criadas.push(...novas);
+        candidatos.push(...await processarInsight(insight, conta, cfg, { gravar: false }));
       } catch (err) {
         // Um insight problemático não derruba a varredura dos outros.
         console.warn(`[SmartActivity] ${insight.igMediaId}: ${err.message}`);
       }
     }
+    criadas.push(...await _gravarCoalescido(conta, candidatos, cfg));
   }
 
   return criadas;
@@ -370,4 +474,5 @@ async function resumoDoDia({ agora = new Date() } = {}) {
   });
 }
 
-module.exports = { processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO };
+module.exports = {
+  semearConta, _gravarCoalescido, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO };

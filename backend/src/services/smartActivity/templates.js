@@ -48,6 +48,8 @@ const VARIAVEIS = Object.freeze({
   usado:         'Publicações feitas pela API nas últimas 24h',
   limite:        'Quantas a API do Instagram aceita em 24h (50)',
   libera:        'Horário estimado em que a cota volta a aceitar',
+  quantidade:    'Quantos conteúdos cruzaram marcos além dos 3 avisados',
+  maior:         'O maior valor entre eles, já formatado',
   proxies:       'Quantos proxies existem no pool',
   contasRuins:   'Contas que não conseguem conectar',
   contasTotal:   'Total de contas cadastradas',
@@ -90,6 +92,7 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   tokenExpirando: Object.freeze(['account', 'username', 'dias']),
   contaCaiu:      Object.freeze(['account', 'username', 'motivo']),
   cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
+  resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'maior']),
 
   /* Avisos do vigia do sistema. */
   cota:    Object.freeze(['percentual', 'restanteGb', 'totalGb', 'diasRestantes', 'previsao']),
@@ -175,6 +178,13 @@ const PADRAO = Object.freeze({
   }),
   /* A cota da API do Meta: 50 publicações por conta em 24h. O envio para por
      horas sem erro nenhum na fila — sem este aviso, parece que travou. */
+  /* Vários reels cruzando marcos na mesma sincronização: os 3 maiores saem
+     inteiros, o resto vira este resumo. Sem ele era uma avalanche. */
+  resumoMarcos: Object.freeze({
+    titulo: 'Mais {{quantidade}} marcos de uma vez 🚀',
+    mensagem: '{{account}}: mais {{quantidade}} conteúdos passaram de marcos nesta sincronização — o maior chegou a {{maior}}.',
+    tema: 'viral',
+  }),
   cotaApi: Object.freeze({
     titulo: 'Cota da API do Instagram cheia ⏳',
     mensagem: '{{account}} publicou {{usado}}/{{limite}} pela API em 24h. O envio segue sozinho quando liberar, por volta de {{libera}}.',
@@ -362,6 +372,7 @@ const EXEMPLOS = Object.freeze({
   aviso: 'proxy', horas: '3',
   dias: '6', motivo: 'Sessão expirada — reconecte pela API.',
   usado: '50', limite: '50', libera: '14:35',
+  quantidade: '9', maior: '194.000',
 });
 
 /**

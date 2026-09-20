@@ -74,8 +74,14 @@ jest.mock('../src/models/Notificacao', () => ({
    o Mongo real distingue pela forma da consulta, não por quem chamou. */
 const mockAgregados = { principal: null, stories: null, porConta: [] };
 
+const mockInsights = [];
+
 jest.mock('../src/models/Insight', () => ({
-  find() { return { select: () => ({ limit: () => ({ lean: async () => [] }) }), lean: async () => [] }; },
+  find(filtro = {}) {
+    const lista = () => mockInsights.filter(i => !filtro.accountId || String(i.accountId) === String(filtro.accountId));
+    const q = { select: () => q, limit: () => q, lean: async () => lista() };
+    return q;
+  },
   async aggregate(pipeline) {
     const match = pipeline?.[0]?.$match || {};
     const group = pipeline?.find(s => s.$group)?.$group || {};
@@ -115,6 +121,7 @@ async function disparados(insight, c = conta(), cfg = CFG) {
 beforeEach(() => {
   mockMarcos.length = 0;
   mockNotificacoes.length = 0;
+  mockInsights.length = 0;
   mockAgregados.principal = null;
   mockAgregados.stories = null;
   mockAgregados.porConta = [];
@@ -152,10 +159,15 @@ describe('salto entre leituras', () => {
     expect(await disparados(story('s1', 1200))).toEqual([1000]);
   });
 
-  test('salto sobre VÁRIOS marcos dispara todos, em ordem', async () => {
-    // Do zero a 2.600 atravessa 30, 50, 100, 250, 500, 1.000 e 2.500.
-    expect(await disparados(story('s1', 2600)))
-      .toEqual([30, 50, 100, 250, 500, 1000, 2500]);
+  test('salto sobre VÁRIOS marcos avisa só o MAIOR — os outros sobem o teto em silêncio', async () => {
+    /* Era "dispara todos, em ordem": um reel que ia de 0 a 194 mil entre duas
+       leituras gerava oito avisos do mesmo reel, e clicar em Sincronizar
+       despejava a escada inteira. A pessoa quer saber que passou de 2.500,
+       não receber 30, 50, 100, 250, 500 e 1.000 junto. */
+    expect(await disparados(story('s1', 2600))).toEqual([2500]);
+    // E os intermediários não voltam depois: o teto já está em 2.500.
+    expect(await disparados(story('s1', 2700))).toEqual([]);
+    expect(await disparados(story('s1', 5000))).toEqual([5000]);
   });
 });
 
@@ -165,17 +177,17 @@ describe('independência', () => {
   test('6. duas contas não se contaminam', async () => {
     await disparados(story('s1', 100), conta('c1', 'ana'));
     // Mesmo ID de conteúdo, outra conta: o teto de uma não vale para a outra.
-    expect(await disparados(story('s1', 100), conta('c2', 'bia'))).toEqual([30, 50, 100]);
+    expect(await disparados(story('s1', 100), conta('c2', 'bia'))).toEqual([100]);
   });
 
   test('7. dois stories da MESMA conta são independentes', async () => {
     await disparados(story('s1', 100));
-    expect(await disparados(story('s2', 50))).toEqual([30, 50]);
+    expect(await disparados(story('s2', 50))).toEqual([50]);
   });
 
   test('story e reel não compartilham teto', async () => {
     await disparados(story('s1', 500));
-    expect(await disparados(reel('r1', 500))).toEqual([100, 500]);
+    expect(await disparados(reel('r1', 500))).toEqual([500]);
   });
 });
 
@@ -184,8 +196,8 @@ describe('independência', () => {
 describe('não repete', () => {
   test('8. reprocessar a mesma leitura não duplica', async () => {
     // Equivale ao refresh da página: o estado vive no banco, não na tela.
-    // Seis marcos até 1.000: 30, 50, 100, 250, 500 e 1.000.
-    expect(await disparados(story('s1', 1000))).toEqual([30, 50, 100, 250, 500, 1000]);
+    // Seis marcos até 1.000; só o maior avisa, e nunca de novo.
+    expect(await disparados(story('s1', 1000))).toEqual([1000]);
     expect(await disparados(story('s1', 1000))).toEqual([]);
     expect(await disparados(story('s1', 1000))).toEqual([]);
   });
@@ -221,6 +233,62 @@ describe('não repete', () => {
 
 /* ── 10 e 11: configuração ────────────────────────────────────────────────── */
 
+describe('coalescência por varredura', () => {
+  const { LIMITE_POR_VARREDURA } = detector;
+
+  test('candidatos sem gravar: processarInsight devolve o doc, e nada vai ao banco', async () => {
+    const r = await detector.processarInsight(story('s1', 100), conta(), CFG, { gravar: false });
+    expect(r).toHaveLength(1);
+    expect(r[0].threshold).toBe(100);
+    expect(mockNotificacoes).toHaveLength(0);
+  });
+
+  test(`mais de ${LIMITE_POR_VARREDURA} conteúdos cruzando marcos viram ${LIMITE_POR_VARREDURA} avisos + 1 resumo`, async () => {
+    /* O dia em que a conta estoura: dez reels cruzam marcos na mesma
+       sincronização. Sem coalescer eram dez avisos de uma vez. */
+    const c = conta();
+    const candidatos = [];
+    for (let i = 1; i <= 10; i++) {
+      candidatos.push(...await detector.processarInsight(reel('r' + i, i * 1000), c, CFG, { gravar: false }));
+    }
+    expect(candidatos).toHaveLength(10);
+    const criadas = await detector._gravarCoalescido(c, candidatos, CFG);
+    const marcos = criadas.filter(n => n.eventType === 'milestone');
+    const resumos = criadas.filter(n => n.eventType === 'resumoMarcos');
+    expect(marcos).toHaveLength(LIMITE_POR_VARREDURA);
+    expect(resumos).toHaveLength(1);
+    // Os que saem inteiros são os MAIORES.
+    expect(marcos.map(n => n.metadados.valor).sort((a, b) => b - a)).toEqual([10000, 9000, 8000]);
+    expect(resumos[0].metadados.quantidade).toBe(10 - LIMITE_POR_VARREDURA);
+    expect(resumos[0].mensagem).toContain('7');
+    expect(resumos[0].mensagem).toContain('7.000');
+  });
+
+  test(`até ${LIMITE_POR_VARREDURA} conteúdos saem inteiros, sem resumo`, async () => {
+    const c = conta();
+    const candidatos = [];
+    for (let i = 1; i <= LIMITE_POR_VARREDURA; i++) {
+      candidatos.push(...await detector.processarInsight(reel('r' + i, 1000), c, CFG, { gravar: false }));
+    }
+    const criadas = await detector._gravarCoalescido(c, candidatos, CFG);
+    expect(criadas.filter(n => n.eventType === 'resumoMarcos')).toHaveLength(0);
+    expect(criadas).toHaveLength(LIMITE_POR_VARREDURA);
+  });
+});
+
+describe('semeadura por conta', () => {
+  test('semearConta grava o teto no maior marco já ultrapassado, sem avisar', async () => {
+    mockInsights.push({ accountId: 'nova', igMediaId: 'x1', mediaType: 'VIDEO', videoViews: 7000 });
+    mockInsights.push({ accountId: 'nova', igMediaId: 'x2', mediaType: 'STORY', impressions: 60 });
+    const tetos = await detector.semearConta(conta('nova', 'nova'), CFG);
+    expect(tetos).toBeGreaterThan(0);
+    expect(mockNotificacoes).toHaveLength(0);
+    // Depois da semeadura, o mesmo valor não dispara; só o que crescer.
+    expect(await disparados(reel('x1', 7000), conta('nova', 'nova'))).toEqual([]);
+    expect(await disparados(reel('x1', 12000), conta('nova', 'nova'))).toEqual([10000]);
+  });
+});
+
 describe('configuração', () => {
   test('10. métrica desligada não notifica', async () => {
     const cfg = { ...CFG, ativos: { ...CFG.ativos, storyViews: false } };
@@ -230,7 +298,7 @@ describe('configuração', () => {
 
   test('11. marcos personalizados funcionam', async () => {
     const cfg = { ...CFG, thresholds: { ...CFG.thresholds, storyViews: [7, 77] } };
-    expect(await disparados(story('s1', 80), conta(), cfg)).toEqual([7, 77]);
+    expect(await disparados(story('s1', 80), conta(), cfg)).toEqual([77]);
   });
 
   test('lista de marcos vazia não quebra', async () => {
