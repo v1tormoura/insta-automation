@@ -150,8 +150,12 @@ function isSameDay(date) {
  * Só consulta a cota se o ritmo já liberou: não gasta chamada na Graph para
  * uma conta que o ritmo ia barrar de qualquer jeito.
  */
-async function podePublicarAgora(account, agora = new Date()) {
-  const ritmo = podePublicar(account, agora);
+async function podePublicarAgora(account, agora = new Date(), contaParaRitmo = account) {
+  /* `contaParaRitmo` e a versao normalizada (postsToday zerado na virada do
+     dia); `account` e o DOCUMENTO real — e dele que sai o token, via getter
+     do schema. Espalhar um doc do Mongoose ({ ...doc }) copia $__ e _doc, nao
+     os campos: foi assim que a cota passou em branco na primeira rodada. */
+  const ritmo = podePublicar(contaParaRitmo, agora);
   if (!ritmo.pode) return ritmo;
   if (!account?.accessToken || !account?.igUserId) return ritmo; // cota é só da Graph
   const cotaDaApi = require('../services/cotaDaApi');
@@ -798,8 +802,7 @@ async function processJobRound(jobId) {
      explica. Antes eram duas passadas e o motivo era jogado fora. */
   const vereditos = await Promise.all(contasDaRodada.map(async c => ({
     conta: c,
-    /* `paraRitmo` normaliza o dia; a cota precisa da conta REAL (token e id). */
-    ritmo: await podePublicarAgora({ ...c, ...paraRitmo(c) }, agoraRitmo),
+    ritmo: await podePublicarAgora(c, agoraRitmo, paraRitmo(c)),
   })));
   const contasDisponiveis = vereditos.filter(v => v.ritmo.pode).map(v => v.conta);
 

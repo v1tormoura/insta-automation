@@ -102,6 +102,14 @@ describe('quando libera — janela deslizante', () => {
     expect(cota.liberacaoEstimada([], agora).getTime()).toBe(agora.getTime() + H);
   });
 
+  test('registro incompleto que cairia no passado vira agora + 1h', () => {
+    /* O registro por conta é recente: a publicação mais antiga conhecida pode
+       ter mais de 24h e a estimativa cair ATRÁS do relógio ("libera 12:11" às
+       14:11). Nunca no passado — a fila esperaria zero e tentaria de novo já. */
+    const momentos = [new Date(agora.getTime() - 26 * H)];
+    expect(cota.liberacaoEstimada(momentos, agora).getTime()).toBe(agora.getTime() + H);
+  });
+
   test('a estimativa é sempre no futuro quando há registro recente', () => {
     const momentos = [new Date(agora.getTime() - 5 * 60_000)];
     expect(cota.liberacaoEstimada(momentos, agora).getTime()).toBeGreaterThan(agora.getTime());

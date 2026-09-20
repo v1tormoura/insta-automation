@@ -196,7 +196,7 @@ describe('o worker usa o módulo', () => {
     // Via podePublicarAgora, que soma a cota da API ao ritmo — os dois saem
     // pelo mesmo veredito.
     expect(trecho).toContain('podePublicarAgora(account)');
-    expect(fonte).toContain('const ritmo = podePublicar(account, agora);');
+    expect(fonte).toContain('const ritmo = podePublicar(contaParaRitmo, agora);');
     expect(trecho.slice(0, 900)).not.toContain('account.postsToday < account.dailyPostLimit');
   });
 

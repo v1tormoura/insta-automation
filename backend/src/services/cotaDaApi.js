@@ -90,9 +90,12 @@ function marcarCheia(account, { agora = Date.now() } = {}) {
  */
 function liberacaoEstimada(momentos, agora = new Date()) {
   const ts = (momentos || []).map(m => new Date(m).getTime()).filter(Number.isFinite).sort((a, b) => a - b);
-  if (ts.length >= LIMITE) return new Date(ts[ts.length - LIMITE] + JANELA_MS); // a mais antiga das últimas LIMITE sai da janela
-  if (ts.length) return new Date(ts[0] + JANELA_MS);                             // registro incompleto: quando a mais antiga que conhecemos sai
-  return new Date(agora.getTime() + SEM_REGISTRO_MS);                            // sem registro: tenta em 1h
+  const piso = agora.getTime() + SEM_REGISTRO_MS; // nunca no passado: registro incompleto dava "libera 12:11" as 14:11
+  let estimada;
+  if (ts.length >= LIMITE) estimada = ts[ts.length - LIMITE] + JANELA_MS; // a mais antiga das últimas LIMITE sai da janela
+  else if (ts.length)      estimada = ts[0] + JANELA_MS;                  // registro incompleto: quando a mais antiga que conhecemos sai
+  else                     estimada = piso;                               // sem registro: tenta em 1h
+  return new Date(Math.max(estimada, piso));
 }
 
 async function proximaLiberacao(account, agora = new Date()) {
