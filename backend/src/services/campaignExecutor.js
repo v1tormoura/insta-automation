@@ -497,7 +497,7 @@ async function processarPublicacao(publicationId, deps = {}) {
 
     // Capa do vídeo (opcional). Só faz sentido em vídeo: o Instagram ignora
     // cover em foto, e mandar mesmo assim gastaria uma consulta por publicação.
-    const capa = ehVideo ? await _arquivoDaCapa(campanha, pub.contentId) : '';
+    const capa = ehVideo ? await _arquivoDaCapa(campanha, pub.contentId, pub.accountId) : '';
 
     const post = await Post.create({
       media:       arquivo,
@@ -586,13 +586,14 @@ async function processarPublicacao(publicationId, deps = {}) {
  * Capa apagada da biblioteca não derruba a publicação — o vídeo sai com o frame
  * que o Instagram escolher, que é o comportamento de quem não configurou capa.
  */
-async function _arquivoDaCapa(campanha, contentId) {
-  const mapa = campanha?.covers?.byContent;
-  if (!mapa) return '';
-
-  const capaId = typeof mapa.get === 'function'
-    ? mapa.get(String(contentId))
-    : mapa[String(contentId)];
+async function _arquivoDaCapa(campanha, contentId, accountId) {
+  const ler = (mapa, chave) => {
+    if (!mapa || chave == null) return '';
+    return (typeof mapa.get === 'function' ? mapa.get(String(chave)) : mapa[String(chave)]) || '';
+  };
+  /* A capa do PERFIL vale acima da do conteúdo: é a escolha mais específica
+     ("este perfil tem esta cara"), e é o que "capa por perfil" promete. */
+  const capaId = ler(campanha?.covers?.byAccount, accountId) || ler(campanha?.covers?.byContent, contentId);
   if (!capaId) return '';
 
   try {

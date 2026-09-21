@@ -85,6 +85,13 @@ const jobSchema = new mongoose.Schema({
     ultimas:   { type: [String], default: undefined },
   },
 
+  /* Capa por perfil — ver services/capaPorConta.js. `arquivo` é o nome em
+     uploads/, o mesmo formato de `cover`; conta sem capa própria usa `cover`. */
+  capasPorConta: {
+    type: [{ accountId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' }, arquivo: String, _id: false }],
+    default: undefined,
+  },
+
   // Controle de rodadas
   intervalMinutes:   { type: Number, default: 0, min: 0 },
   simultaneousLimit: { type: Number, default: 1, min: 1 },

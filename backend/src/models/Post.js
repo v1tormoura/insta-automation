@@ -128,6 +128,13 @@ const postSchema = new mongoose.Schema(
       volume: { type: Number, default: 1, min: 0.05, max: 1.5 },
     },
 
+    /* Capa por perfil — ver services/capaPorConta.js. `arquivo` é o nome em
+       uploads/, o mesmo formato de `cover`; conta sem capa própria usa `cover`. */
+    capasPorConta: {
+      type: [{ accountId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' }, arquivo: String, _id: false }],
+      default: undefined,
+    },
+
     engageComment: {
       type: String,
       default: '',

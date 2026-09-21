@@ -136,6 +136,9 @@ exports.create = async (req, res) => {
     }).map(x => x.filename);
 
     const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
+    /* Capa por perfil: no loop os arquivos já estão em uploads/ (biblioteca ou
+       /loops/upload-media), então só vêm nomes — sem upload nesta requisição. */
+    const capasPorConta = require('../services/capaPorConta').lerDoCorpo(req.body.capasPorConta);
 
     const totalRounds = filaOrdenada.length; // loops sempre postam 1 mídia por rodada
 
@@ -149,6 +152,7 @@ exports.create = async (req, res) => {
       midiasAleatorias:  midiasAleatorias,
       sementeDaOrdem:    sementeDaOrdem,
       ...(marcaDagua ? { marcaDagua } : {}),
+      ...(capasPorConta ? { capasPorConta } : {}),
       postType:          type || 'reel',
       caption:           caption       || '',
       cover:             coverFile     || '',

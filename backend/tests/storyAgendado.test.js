@@ -120,7 +120,8 @@ describe('a fila delega, não decide de novo', () => {
     // Depois dela, o story cairia no caminho de reel de novo.
     const desvio = fonte.indexOf('const ehStory');
     // Sem casar espaçamento exato: o que importa é a ordem, não a formatação.
-    const bifurcacao = fonte.search(/\?\s*await publishViaInstagrapi\(account, post\)/);
+    // `postDaConta` é o post com a capa do perfil aplicada (capaPorConta.js).
+    const bifurcacao = fonte.search(/\?\s*await publishViaInstagrapi\(account, post(DaConta)?\)/);
     expect(desvio).toBeGreaterThan(-1);
     expect(bifurcacao).toBeGreaterThan(-1);
     expect(desvio).toBeLessThan(bifurcacao);

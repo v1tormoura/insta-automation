@@ -13,6 +13,8 @@ import TituloDeCartao from '../components/TituloDeCartao';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 import { EsqueletoLista } from '../components/Estados';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
+import LibraryPickerModal from '../components/LibraryPickerModal';
+import CapasPorPerfil from '../components/CapasPorPerfil';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 
 /**
@@ -205,8 +207,9 @@ const estadoInicial = {
     windowStart: '', windowEnd: '', weekdays: [],
   },
   settings: { respectDailyLimit: true, postType: 'reel', marcaDagua: MARCA_PADRAO },
-  // contentId -> mediaId da imagem usada como capa do Reel
-  covers: { byContent: {} },
+  // contentId -> mediaId da imagem usada como capa do Reel;
+  // accountId -> mediaId para a capa POR PERFIL (vale acima da por conteúdo).
+  covers: { byContent: {}, byAccount: {} },
 };
 
 export default function CampaignWizard() {
@@ -220,6 +223,11 @@ export default function CampaignWizard() {
   const [contasPodadas, setContasPodadas] = useState(0);
   const [contasCarregando, setContasCarregando] = useState(true);
   const [midias, setMidias] = useState([]);
+  /* Capa por perfil: qual conta abriu o seletor da biblioteca. A escolha vai
+     para form.covers.byAccount[accountId] = mediaId; a miniatura vem de
+     `midias` (a biblioteca já carregada), então não há estado paralelo. */
+  const [capaDePerfilPara, setCapaDePerfilPara] = useState(null);
+  const [mostrarCapasPorPerfil, setMostrarCapasPorPerfil] = useState(false);
   const [buscaConta, setBuscaConta]   = useState('');
   const [filtroConta, setFiltroConta] = useState('todas');
   const [enviando, setEnviando] = useState(false);
@@ -579,6 +587,53 @@ export default function CampaignWizard() {
           </div>
         )}
       </div>
+
+      {/* ── Capa por perfil ──────────────────────────────────────────────────
+          Uma capa para cada conta da campanha. Vale acima da capa por
+          conteúdo (etapa seguinte): "este perfil tem esta cara" é a escolha
+          mais específica. Guardada como id de Media, igual à por conteúdo. */}
+      {form.accountIds.length > 0 && (
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--mf-border)', paddingTop: 12 }}>
+          <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={mostrarCapasPorPerfil || Object.keys(form.covers?.byAccount || {}).length > 0}
+              onChange={e => {
+                setMostrarCapasPorPerfil(e.target.checked);
+                if (!e.target.checked) setForm(f => ({ ...f, covers: { ...f.covers, byAccount: {} } }));
+              }}
+              style={{ accentColor: 'var(--mf-mod, var(--mf-accent-500))', width: 14, height: 14 }} />
+            Capa por perfil
+            <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>vale acima da capa por conteúdo</span>
+          </label>
+          {(mostrarCapasPorPerfil || Object.keys(form.covers?.byAccount || {}).length > 0) && (
+            <div style={{ marginTop: 8 }}>
+              <CapasPorPerfil
+                contas={contas.filter(c => form.accountIds.includes(c._id))}
+                capas={Object.fromEntries(Object.entries(form.covers?.byAccount || {}).map(([accountId, mediaId]) => {
+                  const m = midias.find(x => String(x._id) === String(mediaId));
+                  return [accountId, { url: m?.url || '', rotulo: m?.originalName || m?.filename || 'capa da biblioteca' }];
+                }))}
+                onBiblioteca={id => setCapaDePerfilPara(id)}
+                onLimpar={id => setForm(f => { const byAccount = { ...(f.covers?.byAccount || {}) }; delete byAccount[id]; return { ...f, covers: { ...f.covers, byAccount } }; })}
+              />
+            </div>
+          )}
+        </div>
+      )}
+      {capaDePerfilPara && (
+        <LibraryPickerModal
+          mode="single"
+          accept="image"
+          onClose={() => setCapaDePerfilPara(null)}
+          onConfirm={items => {
+            const m = items.find(i => i?._id);
+            if (m) {
+              registrarMidias([m]);
+              setForm(f => ({ ...f, covers: { ...f.covers, byAccount: { ...(f.covers?.byAccount || {}), [capaDePerfilPara]: String(m._id) } } }));
+            }
+            setCapaDePerfilPara(null);
+          }}
+        />
+      )}
     </>);
   }
 
@@ -597,7 +652,7 @@ export default function CampaignWizard() {
           const byContent = { ...(f.covers?.byContent || {}) };
           if (mediaId) byContent[contentId] = mediaId;
           else delete byContent[contentId];
-          return { ...f, covers: { byContent } };
+          return { ...f, covers: { ...f.covers, byContent } };
         })}
         /* Em lote. O ContentPicker sabe quais dos selecionados são vídeo, então
            manda a lista pronta — aqui só se grava. Capa em imagem não existe:
@@ -608,7 +663,7 @@ export default function CampaignWizard() {
             if (mediaId) byContent[id] = mediaId;
             else delete byContent[id];
           }
-          return { ...f, covers: { byContent } };
+          return { ...f, covers: { ...f.covers, byContent } };
         })}
         onMidiasConhecidas={registrarMidias}
         aviso={aviso}

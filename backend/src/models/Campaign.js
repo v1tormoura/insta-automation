@@ -177,6 +177,11 @@ const campaignSchema = new mongoose.Schema({
   // sem capa continuam usando o frame que o Instagram escolhe.
   covers: {
     byContent: { type: Map, of: String, default: () => new Map() },
+    /* Capa por perfil: accountId → _id da Media. Quando a conta tem capa
+       própria, ela vale para TODOS os vídeos dela na campanha, acima da capa
+       por conteúdo — é a escolha mais específica de quem monta a campanha
+       ("este perfil tem esta cara"). */
+    byAccount: { type: Map, of: String, default: () => new Map() },
   },
 
   // Contadores desnormalizados — evitam contar CampaignPublication a cada

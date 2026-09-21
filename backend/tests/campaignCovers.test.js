@@ -110,3 +110,47 @@ describe('_arquivoDaCapa — id vira nome de arquivo', () => {
     await expect(_arquivoDaCapa(campanha, { toString: () => 'c1' })).resolves.toBe('capa-real.jpg');
   });
 });
+
+/* ── Capa por PERFIL ──────────────────────────────────────────────────────
+   accountId → mediaId. Vale acima da capa por conteúdo: é a escolha mais
+   específica de quem monta a campanha. */
+describe('covers.byAccount — capa por perfil', () => {
+  const { _filtrarCapasPorConta } = require('../src/services/campaignService');
+  let original;
+
+  beforeEach(() => {
+    original = Media.findById;
+    Media.findById = jest.fn(id => ({
+      select: () => ({ lean: async () => ({ filename: `arquivo-de-${id}.jpg` }) }),
+    }));
+  });
+  afterEach(() => { Media.findById = original; });
+
+  test('o schema guarda o mapa por conta, e nasce vazio', () => {
+    const c = new Campaign({ name: 'x', covers: { byAccount: { conta1: 'media9' } } });
+    expect(c.covers.byAccount.get('conta1')).toBe('media9');
+    expect(new Campaign({ name: 'y' }).covers.byAccount.size).toBe(0);
+  });
+
+  test('_filtrarCapasPorConta: só contas que continuam na campanha, Map ou objeto', () => {
+    expect(_filtrarCapasPorConta({ byAccount: { a1: 'm1', a2: 'm2', a3: '' } }, ['a1', 'a3'])).toEqual({ a1: 'm1' });
+    expect(_filtrarCapasPorConta({ byAccount: new Map([['a1', 'm1']]) }, [{ toString: () => 'a1' }])).toEqual({ a1: 'm1' });
+    expect(_filtrarCapasPorConta(undefined, ['a1'])).toEqual({});
+  });
+
+  test('a capa do perfil vale acima da do conteúdo', async () => {
+    const campanha = { covers: { byContent: new Map([['c1', 'media-conteudo']]), byAccount: new Map([['a1', 'media-perfil']]) } };
+    await expect(_arquivoDaCapa(campanha, 'c1', 'a1')).resolves.toBe('arquivo-de-media-perfil.jpg');
+  });
+
+  test('conta sem capa própria cai na capa do conteúdo', async () => {
+    const campanha = { covers: { byContent: new Map([['c1', 'media-conteudo']]), byAccount: new Map([['a1', 'media-perfil']]) } };
+    await expect(_arquivoDaCapa(campanha, 'c1', 'a2')).resolves.toBe('arquivo-de-media-conteudo.jpg');
+  });
+
+  test('sem accountId (chamada antiga) continua funcionando pela capa do conteúdo', async () => {
+    const campanha = { covers: { byContent: { c1: 'media-conteudo' }, byAccount: { a1: 'media-perfil' } } };
+    await expect(_arquivoDaCapa(campanha, 'c1')).resolves.toBe('arquivo-de-media-conteudo.jpg');
+    await expect(_arquivoDaCapa(campanha, 'c9', 'a9')).resolves.toBe('');
+  });
+});

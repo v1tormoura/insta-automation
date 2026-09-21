@@ -8,6 +8,7 @@ const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
 const { lerDoCorpo: lerVariacaoEdicao } = require('../services/variacaoDeEdicao');
 const { lerDoCorpo: lerTrilha } = require('../services/trilhaPorConta');
 const { lerDoCorpo: lerLegendaAleatoria } = require('../services/legendaAleatoria');
+const { lerDoCorpo: lerCapasPorConta } = require('../services/capaPorConta');
 const { aplicarNasContas: aplicarTetoDiario } = require('../services/tetoDiario');
 const fs   = require('fs');
 const path = require('path');
@@ -102,6 +103,9 @@ exports.createPost = async (req, res) => {
     /* Desligado ou estragado vira `null`: o job fica sem o campo e a legenda
        da caixa segue valendo, como sempre valeu. */
     const legendaAleatoria = lerLegendaAleatoria(req.body.legendaAleatoria);
+    /* Capa por perfil: itens com `arquivo` vêm da biblioteca; itens com
+       `indice` apontam para os uploads do campo `capas` desta requisição. */
+    const capasPorConta = lerCapasPorConta(req.body.capasPorConta, allFiles.filter(f => f.fieldname === 'capas'));
 
     /* ── Publicações por conta em 24h ─────────────────────────────────────
 
@@ -132,6 +136,7 @@ exports.createPost = async (req, res) => {
       ...(variacaoEdicao ? { variacaoEdicao } : {}),
       ...(trilha ? { trilha } : {}),
       ...(legendaAleatoria ? { legendaAleatoria } : {}),
+      ...(capasPorConta ? { capasPorConta } : {}),
       postType,
       caption:           req.body.caption       || '',
       cover:             coverFile ? coverFile.filename : (req.body.coverFilename || ''),

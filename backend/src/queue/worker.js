@@ -496,11 +496,17 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
       urlDaConta = midiaGraph?.url || null;
     }
 
+    /* A capa DESTA conta, se ela tem uma própria — senão o mesmo `post`,
+       intacto. Cópia e não mutação: o Post é publicado em N contas em
+       paralelo (ver capaPorConta.js). Story não tem capa. */
+    const postDaConta = ehStory ? post : require('../services/capaPorConta').aplicar(post, account);
+    if (postDaConta !== post) writeAccountLog(account.username, `Capa própria deste perfil: ${postDaConta.cover}`);
+
     const resultado = ehStory
       ? await publicarStoryAgendado(account, post)
       : account.provider === 'instagrapi'
-        ? await publishViaInstagrapi(account, post)
-        : await publishWithRetry(post, account, urlDaConta || preProcessedVideoUrl);
+        ? await publishViaInstagrapi(account, postDaConta)
+        : await publishWithRetry(postDaConta, account, urlDaConta || preProcessedVideoUrl);
 
     /* O arquivo desta conta já cumpriu o papel.
 
@@ -921,6 +927,8 @@ async function processJobRound(jobId) {
       /* Idem para a trilha: é na conversão por conta que ela entra. */
       ...(jobDoc.trilha?.modo && jobDoc.trilha.modo !== 'nenhuma' && jobDoc.trilha.ids?.length
         ? { trilha: jobDoc.trilha } : {}),
+      /* E para a capa por perfil: é em publishOneAccount que se sabe a conta. */
+      ...(jobDoc.capasPorConta?.length ? { capasPorConta: jobDoc.capasPorConta } : {}),
       accounts:      jobDoc.accounts.map(a => a._id),
       status:        'processando',
       scheduledAt:   new Date(),

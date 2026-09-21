@@ -195,6 +195,21 @@ function _filtrarCapas(covers = {}, contentIds = []) {
   return saida;
 }
 
+/**
+ * Capa por perfil: só entra o que aponta para uma conta da campanha — mesma
+ * razão do filtro por conteúdo.
+ */
+function _filtrarCapasPorConta(covers = {}, accountIds = []) {
+  const fonte = covers?.byAccount || {};
+  const validos = new Set(accountIds.map(String));
+  const saida = {};
+  const entradas = typeof fonte.entries === 'function' ? [...fonte.entries()] : Object.entries(fonte);
+  for (const [accountId, mediaId] of entradas) {
+    if (validos.has(String(accountId)) && mediaId) saida[String(accountId)] = String(mediaId);
+  }
+  return saida;
+}
+
 async function montarPlano(dados, agora = new Date()) {
   const {
     name,
@@ -285,7 +300,10 @@ async function criarCampanha(dados, agora = new Date()) {
     comments,
     // Capa por conteúdo: só entra o que aponta para uma mídia da campanha, para
     // não guardar referência a arquivo que foi retirado da seleção.
-    covers: { byContent: _filtrarCapas(covers, contentIds) },
+    covers: {
+      byContent: _filtrarCapas(covers, contentIds),
+      byAccount: _filtrarCapasPorConta(covers, accountIds),
+    },
     captionMode,
     commentMode,
     totalPublications:     plano.length,
@@ -455,7 +473,8 @@ async function preverCampanha(dados, agora = new Date()) {
 
   // Capas escolhidas: uma consulta só para todas, em vez de uma por publicação.
   const capasPorConteudo = _filtrarCapas(dados.covers, dados.contentIds || []);
-  const idsDasCapas = [...new Set(Object.values(capasPorConteudo))];
+  const capasPorConta    = _filtrarCapasPorConta(dados.covers, dados.accountIds || []);
+  const idsDasCapas = [...new Set([...Object.values(capasPorConteudo), ...Object.values(capasPorConta)])];
   const capas = idsDasCapas.length
     ? new Map((await Media.find({ _id: { $in: idsDasCapas } }).select('filename url').lean())
         .map(m => [String(m._id), m]))
@@ -498,8 +517,10 @@ async function preverCampanha(dados, agora = new Date()) {
         const ehVideo = midia?.type === 'video'
           || /\.(mp4|mov|webm|avi|mkv)$/i.test(midia?.filename || '');
         if (!ehVideo) return null;
-        const capa = capas.get(String(capasPorConteudo[String(item.contentId)] || ''));
-        return capa ? { id: String(capa._id), url: capa.url || '' } : null;
+        /* A do perfil vale acima da do conteúdo — a mesma regra do executor. */
+        const idDaCapa = capasPorConta[String(item.accountId)] || capasPorConteudo[String(item.contentId)] || '';
+        const capa = capas.get(String(idDaCapa));
+        return capa ? { id: String(capa._id), url: capa.url || '', porPerfil: !!capasPorConta[String(item.accountId)] } : null;
       })(),
       commentTemplate: comentando ? item.commentTemplate : '',
       resolvedComment: comentando ? comentario.text : '',
@@ -537,6 +558,7 @@ async function preverCampanha(dados, agora = new Date()) {
 module.exports = {
   // Exportado para teste: a limpeza das capas decide o que é gravado.
   _filtrarCapas,
+  _filtrarCapasPorConta,
 
   CampaignError,
   ESTRATEGIAS_VALIDAS,

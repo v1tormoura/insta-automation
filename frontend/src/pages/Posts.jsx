@@ -8,6 +8,7 @@ import PageShell from '../components/PageShell';
 import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
+import CapasPorPerfil from '../components/CapasPorPerfil';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import { useCotas, diasPelaCota } from '../services/useCotas';
@@ -285,6 +286,12 @@ export default function Posts() {
   const [cover, setCover] = useState(null);
   const [coverLibFile, setCoverLibFile] = useState(null);
   const [showCoverPicker, setShowCoverPicker] = useState(false);
+  /* Capa por perfil: { [accountId]: { arquivo? (biblioteca), file? (upload
+     ainda não enviado), url, rotulo } }. A capa geral (`cover`/`coverLibFile`)
+     continua valendo para quem não tem a sua. */
+  const [capaPorPerfil, setCapaPorPerfil] = useState(false);
+  const [capasPorConta, setCapasPorConta] = useState({});
+  const [pickerCapaDe, setPickerCapaDe] = useState(null);   // accountId aguardando escolha na biblioteca
 
   /* A biblioteca guarda o arquivo em `filename` e o caminho servido em `url`,
      e nenhum dos dois é obrigatório. Derivar aqui, uma vez, evita repetir a
@@ -440,6 +447,12 @@ export default function Posts() {
         if (d.aquecimento !== undefined) setAquecimento(!!d.aquecimento);
         if (d.trilha && typeof d.trilha === 'object') setTrilha({ modo: 'nenhuma', ids: [], volume: 1, ...d.trilha, ids: Array.isArray(d.trilha.ids) ? d.trilha.ids : [] });
         if (d.legendaAleatoria && typeof d.legendaAleatoria === 'object') setLegendaAleatoria({ ativa: !!d.legendaAleatoria.ativa, categoria: String(d.legendaAleatoria.categoria || '') });
+        if (d.capaPorPerfil !== undefined) setCapaPorPerfil(!!d.capaPorPerfil);
+        if (d.capasPorConta && typeof d.capasPorConta === 'object') {
+          const so = {};
+          for (const [id, c] of Object.entries(d.capasPorConta)) if (c?.arquivo) so[id] = { arquivo: c.arquivo, url: c.url || '', rotulo: c.rotulo || c.arquivo };
+          setCapasPorConta(so);
+        }
       }
     } catch {}
   }, []);
@@ -451,10 +464,13 @@ export default function Posts() {
         caption, postType, intervalMins, simultaneousLimit, processMode,
         location, ctaComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
-        nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria,
+        nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil,
+        /* Só o que veio da biblioteca: um File escolhido do computador não
+           sobrevive ao refresh, e guardar só o nome enganaria. */
+        capasPorConta: Object.fromEntries(Object.entries(capasPorConta).filter(([, c]) => c?.arquivo).map(([id, c]) => [id, { arquivo: c.arquivo, url: c.url, rotulo: c.rotulo }])),
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil, capasPorConta]);
 
   /* A biblioteca, do jeito que o sorteio a vê: só ativas, agrupadas por
      categoria. É o que o bloco "sortear a cada post" mostra — o mesmo filtro
@@ -565,6 +581,19 @@ export default function Posts() {
     }
     if (cover) form.append('cover', cover);
     else if (coverLibFile?.filename) form.append('coverFilename', coverLibFile.filename);
+    /* Capa por perfil: uploads vão no campo `capas` (na ordem) e a lista diz
+       qual conta recebe qual — por `indice` (upload desta requisição) ou por
+       `arquivo` (já na biblioteca). Só contas ainda selecionadas. */
+    if (capaPorPerfil) {
+      const itens = [];
+      let indice = 0;
+      for (const [accountId, c] of Object.entries(capasPorConta)) {
+        if (!selectedAccounts.includes(accountId) || !c) continue;
+        if (c.file) { form.append('capas', c.file); itens.push({ accountId, indice: indice++ }); }
+        else if (c.arquivo) itens.push({ accountId, arquivo: c.arquivo });
+      }
+      if (itens.length) form.append('capasPorConta', JSON.stringify(itens));
+    }
     form.append('caption', applyCTASuffix(caption, ctaSuffix));
     /* O sufixo vai SEPARADO no sorteio: a caixa (com sufixo colado) é só a
        reserva; o texto que sai é o sorteado, e o worker cola o sufixo nele. */
@@ -599,7 +628,7 @@ export default function Posts() {
     setPosting(true);
     try {
       await api.post('/posts', form);
-      setCaption(''); setMedia([]); setCover(null);
+      setCaption(''); setMedia([]); setCover(null); setCapasPorConta({});
       setLocation(''); setSelectedAccounts([]); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend('');
       setLibraryMedia([]);
@@ -748,6 +777,23 @@ export default function Posts() {
                   if (escolhido) { setCoverLibFile(escolhido); setCover(null); }
                   else if (items.length) setToast({ type: 'error', title: 'Capa inválida', message: 'Esse item da biblioteca está sem arquivo. Escolha outro.' });
                   setShowCoverPicker(false);
+                }}
+              />
+            )}
+            {/* Picker de capa POR PERFIL: mesma biblioteca, mas o resultado vai
+                para a conta que abriu o modal. */}
+            {pickerCapaDe && (
+              <LibraryPickerModal
+                mode="single"
+                accept="image"
+                onClose={() => setPickerCapaDe(null)}
+                onConfirm={items => {
+                  const escolhido = items.find(i => i?.filename);
+                  if (escolhido) {
+                    const url = escolhido.url ? `${API}${escolhido.url}` : `${API}/uploads/${escolhido.filename}`;
+                    setCapasPorConta(p => ({ ...p, [pickerCapaDe]: { arquivo: escolhido.filename, url, rotulo: escolhido.originalName || escolhido.filename } }));
+                  } else if (items.length) setToast({ type: 'error', title: 'Capa inválida', message: 'Esse item da biblioteca está sem arquivo. Escolha outro.' });
+                  setPickerCapaDe(null);
                 }}
               />
             )}
@@ -935,7 +981,7 @@ export default function Posts() {
             <div style={cardStyle}>
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="capa">Capa do Reel</TituloDeCartao>
-                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Opcional — aplica a todos</span>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{capaPorPerfil ? 'Geral + uma por perfil' : 'Opcional — aplica a todos'}</span>
               </div>
               <div style={cardBodyStyle}>
                 {/* Botões de origem */}
@@ -970,6 +1016,32 @@ export default function Posts() {
                 ) : (
                   <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontStyle: 'italic' }}>Sem capa — usa o primeiro frame do vídeo</div>
                 )}
+
+                {/* ── Capa por perfil ───────────────────────────────────────
+                    Uma capa diferente para cada conta do envio (a cara da dona
+                    do perfil, a cor da marca). Quem não tem a sua herda a capa
+                    geral acima. O backend troca `cover` por conta na hora de
+                    publicar — capaPorConta.js. */}
+                <div style={{ marginTop: 12, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
+                  <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                    <input type="checkbox" checked={capaPorPerfil} onChange={e => setCapaPorPerfil(e.target.checked)}
+                      style={{ accentColor: 'var(--mf-mod, var(--mf-accent-500))', width: 14, height: 14 }} />
+                    Capa por perfil
+                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>uma capa para cada conta</span>
+                  </label>
+                  {capaPorPerfil && (
+                    <div style={{ marginTop: 8 }}>
+                      <CapasPorPerfil
+                        contas={accounts.filter(a => selectedAccounts.includes(a._id))}
+                        capas={capasPorConta}
+                        capaGeralUrl={cover ? URL.createObjectURL(cover) : (coverLibFile ? urlDaCapa : '')}
+                        onBiblioteca={id => setPickerCapaDe(id)}
+                        onArquivo={(id, f) => setCapasPorConta(p => ({ ...p, [id]: { file: f, url: URL.createObjectURL(f), rotulo: f.name } }))}
+                        onLimpar={id => setCapasPorConta(p => { const n = { ...p }; delete n[id]; return n; })}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

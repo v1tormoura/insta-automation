@@ -11,6 +11,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
+import CapasPorPerfil from '../components/CapasPorPerfil';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import CardMetadados from '../components/CardMetadados';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
@@ -239,6 +240,12 @@ function LoopModal({ onClose, onCreated }) {
   const [uploadingCover,setUploadingCover]= useState(false);
   const [dragOver,      setDragOver]      = useState(false);
   const [dragOverCover, setDragOverCover] = useState(false);
+  /* Capa por perfil. No loop tudo já está em uploads/ (biblioteca ou
+     /loops/upload-media), então o form guarda só [{ accountId, arquivo }] e
+     vai como JSON junto com o resto — o backend lê em capaPorConta.js. */
+  const [capaPorPerfil, setCapaPorPerfil] = useState(false);
+  const [pickerCapaDe, setPickerCapaDe] = useState(null);
+  const [enviandoCapaDe, setEnviandoCapaDe] = useState(null);
   const [legendOpen,    setLegendOpen]    = useState(false);
   const [saving,        setSaving]        = useState(false);
   const [err,           setErr]           = useState('');
@@ -260,6 +267,7 @@ function LoopModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
     name: '', accounts: [], mediaFiles: [],
     type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '',
+    capasPorConta: [],
     processMode: 'limpeza_leve',
     /* Ordem e marca viajam para o backend na criação do loop.
        O loop recebe NOMES de arquivo, não ids da biblioteca, então não há
@@ -294,6 +302,32 @@ function LoopModal({ onClose, onCreated }) {
     ...f,
     [key]: f[key].includes(val) ? f[key].filter(x => x !== val) : [...f[key], val],
   }));
+
+  /* Capa de UMA conta: substitui a entrada daquela conta na lista. */
+  function definirCapaDaConta(accountId, arquivo) {
+    setForm(f => ({
+      ...f,
+      capasPorConta: [...(f.capasPorConta || []).filter(c => String(c.accountId) !== String(accountId)),
+        ...(arquivo ? [{ accountId: String(accountId), arquivo }] : [])],
+    }));
+  }
+
+  async function enviarCapaDaConta(accountId, file) {
+    if (!file) return;
+    setEnviandoCapaDe(accountId);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/loops/upload-media', fd);
+      const novo = (res.data.files || []).slice(-1)[0];
+      if (novo?.filename) definirCapaDaConta(accountId, novo.filename);
+      else setErr('A capa não foi aceita pelo servidor.');
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Falha ao enviar a capa.');
+    } finally {
+      setEnviandoCapaDe(null);
+    }
+  }
 
   async function handleUpload(files, isCover = false) {
     if (!files?.length) return;
@@ -344,7 +378,14 @@ function LoopModal({ onClose, onCreated }) {
     if (!intervalVal || intervalVal < 1) return setErr('Informe um intervalo válido (mínimo 1 minuto).');
     setSaving(true);
     try {
-      const res = await api.post('/loops', { ...form, caption: applyCTASuffix(form.caption, ctaSuffix), intervalMinutes: intervalVal });
+      const res = await api.post('/loops', {
+        ...form,
+        caption: applyCTASuffix(form.caption, ctaSuffix),
+        intervalMinutes: intervalVal,
+        /* Desligado, a lista não vai — o que estava escolhido fica guardado no
+           form para religar sem refazer. */
+        capasPorConta: capaPorPerfil ? (form.capasPorConta || []).filter(c => form.accounts.includes(String(c.accountId))) : [],
+      });
       onCreated(res.data); onClose();
     } catch (ex) {
       setErr(ex.response?.data?.error || ex.message);
@@ -456,6 +497,17 @@ function LoopModal({ onClose, onCreated }) {
               onConfirm={items => {
                 if (items[0]) setForm(f => ({ ...f, coverFile: items[0].filename }));
                 setShowCoverPicker(false);
+              }}
+            />
+          )}
+          {pickerCapaDe && (
+            <LibraryPickerModal
+              mode="single"
+              accept="image"
+              onClose={() => setPickerCapaDe(null)}
+              onConfirm={items => {
+                if (items[0]?.filename) definirCapaDaConta(pickerCapaDe, items[0].filename);
+                setPickerCapaDe(null);
               }}
             />
           )}
@@ -603,7 +655,31 @@ function LoopModal({ onClose, onCreated }) {
               </div>
             )}
 
-            <p className="lm-section-footer">Sem capa selecionada — usa o primeiro frame do vídeo.</p>
+            <p className="lm-section-footer">{form.coverFile ? 'Capa geral definida — vale para quem não tem capa própria.' : 'Sem capa selecionada — usa o primeiro frame do vídeo.'}</p>
+
+            {/* ── Capa por perfil ── uma capa para cada conta do loop; quem não
+                tem a sua herda a geral acima (capaPorConta.js no backend). */}
+            <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
+              <label style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={capaPorPerfil} onChange={e => setCapaPorPerfil(e.target.checked)}
+                  style={{ accentColor: 'var(--mf-mod, var(--mf-accent-500))', width: 14, height: 14 }} />
+                Capa por perfil
+                <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>uma capa para cada conta</span>
+              </label>
+              {capaPorPerfil && (
+                <div style={{ marginTop: 8 }}>
+                  <CapasPorPerfil
+                    contas={accounts.filter(a => form.accounts.includes(a._id))}
+                    capas={Object.fromEntries((form.capasPorConta || []).map(c => [String(c.accountId), { url: `${API_URL}/uploads/${c.arquivo}`, rotulo: c.arquivo }]))}
+                    capaGeralUrl={form.coverFile ? `${API_URL}/uploads/${form.coverFile}` : ''}
+                    ocupado={!!enviandoCapaDe}
+                    onBiblioteca={id => setPickerCapaDe(id)}
+                    onArquivo={(id, f) => enviarCapaDaConta(id, f)}
+                    onLimpar={id => definirCapaDaConta(id, '')}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Legenda */}
