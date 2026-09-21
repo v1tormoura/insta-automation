@@ -139,8 +139,12 @@ async function notificarErro({ conta, contentType, erro } = {}) {
 async function _repetidoRecentemente(eventType, accountId, horas = 24) {
   try {
     const desde = new Date(Date.now() - horas * 3600_000);
+    /* `criadaEm`, não `createdAt`: o schema renomeia o timestamp
+       (`timestamps: { createdAt: 'criadaEm' }`). Com o nome errado a consulta
+       nunca achava nada, e "conta caiu", "token vencendo" e "cota cheia"
+       repetiam a cada chamada. */
     const achou = await Notificacao.exists({
-      eventType, accountId: accountId || null, createdAt: { $gte: desde },
+      eventType, accountId: accountId || null, criadaEm: { $gte: desde },
     });
     return !!achou;
   } catch { return false; }

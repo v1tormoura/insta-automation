@@ -597,16 +597,11 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
         `[worker] erro não classificado em @${acc.username} — saúde preservada. code=${err?.code || '-'} msg=${String(err?.message || '').slice(0, 120)}`
       );
     }
-    /* Aviso de conta fora do ar — só na TRANSIÇÃO. `classificado` só vem
-       preenchido quando o Instagram disse algo sobre a CONTA (sessão, bloqueio,
-       banimento); e comparar com o estado anterior evita que um lote de 20
-       mídias na mesma conta caída vire 20 avisos iguais. */
-    if (classificado && classificado !== acc.healthStatus) {
-      require('../services/smartActivity/eventosDePublicacao')
-        .notificarContaCaiu({ conta: acc, motivo: healthUpdate.lastError || err.message })
-        .catch(e => console.log('[Aviso] conta caiu falhou:', e.message));
-    }
-
+    /* O aviso de "conta caiu" sai do gancho do modelo (Account.js →
+       saudeDaConta.js) quando este update muda `healthStatus` para um estado
+       ruim — o mesmo gancho que cobre o QuickCheck e os syncs, que antes não
+       avisavam. Só na transição: um lote de 20 mídias na mesma conta caída
+       continua sendo UM aviso. */
     await Account.findByIdAndUpdate(acc._id, healthUpdate);
     broadcast('accounts', { action: 'health_update', accountId: String(acc._id), username: acc.username, healthStatus: healthUpdate.healthStatus || acc.healthStatus });
 

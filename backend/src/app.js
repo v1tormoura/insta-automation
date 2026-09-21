@@ -210,6 +210,13 @@ require('./services/vigiaDoSistema').iniciar();
 startHealthCheck();
 // startLoopJob() — desativado; loops antigos foram arquivados, novos usam Job Engine
 startInsightAutoSync();
+
+/* A ponte SSE com o worker: o que o worker emite (publicou, falhou, conta
+   caiu, notificação nova) chega aos navegadores ligados AQUI. Sem ela, esses
+   eventos morriam no worker — ver events/broadcaster.js. */
+require('./events/broadcaster').iniciarPonte()
+  .then(ok => console.log(ok ? '[SSE] ponte com o worker ativa' : '[SSE] ponte desligada — só eventos locais'))
+  .catch(e => console.warn('[SSE] ponte falhou:', e.message));
 // Stories vivem 24h — o ciclo precisa passar dentro dessa janela, senão a
 // audiência some junto com o story e nunca chega ao painel.
 startStoryInsightAutoSync();

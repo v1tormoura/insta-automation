@@ -445,6 +445,52 @@ accountSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], async functio
   }
 });
 
+/* ── Aviso quando a saúde piora ─────────────────────────────────────────────
+
+   A conta vira restrita/banida/sessão expirada em seis lugares do código, e só
+   a falha de publicação avisava. Aqui, no modelo, o aviso sai de QUALQUER
+   escrita que mude `healthStatus` para um estado ruim — ver saudeDaConta.js.
+
+   Barato de propósito: a consulta ao estado anterior só acontece quando o
+   update TOCA em healthStatus com um valor ruim. O lock de `isBusy`, que roda
+   a cada publicação, nem entra aqui. O aviso é disparado sem `await` no
+   `post`: a escrita já foi feita e uma lentidão no notificador não pode
+   atrasar quem gravou. */
+const _saude = require('../services/saudeDaConta');
+
+accountSchema.pre(['findOneAndUpdate', 'updateOne'], async function () {
+  const para = _saude.novoStatusDoUpdate(this.getUpdate());
+  if (!_saude.ehRuim(para)) return;
+  this._saudeAntes = await this.model.findOne(this.getQuery())
+    .select('healthStatus username avatar').lean().catch(() => null);
+});
+
+accountSchema.post(['findOneAndUpdate', 'updateOne'], function () {
+  const antes = this._saudeAntes;
+  if (!antes) return;
+  this._saudeAntes = null;
+  const u = this.getUpdate();
+  _saude.avisarTransicao({
+    conta: antes, de: antes.healthStatus,
+    para: _saude.novoStatusDoUpdate(u), lastError: _saude.lastErrorDoUpdate(u),
+  }).catch(e => console.log('[Aviso] transição de saúde falhou:', e.message));
+});
+
+accountSchema.pre('save', async function () {
+  this.$locals.saudeAntes = undefined;
+  if (this.isNew || !this.isModified('healthStatus') || !_saude.ehRuim(this.healthStatus)) return;
+  const antes = await this.constructor.findById(this._id).select('healthStatus').lean().catch(() => null);
+  this.$locals.saudeAntes = antes ? antes.healthStatus : null;
+});
+
+accountSchema.post('save', function (doc) {
+  const de = this.$locals.saudeAntes;
+  if (de === undefined) return;
+  this.$locals.saudeAntes = undefined;
+  _saude.avisarTransicao({ conta: doc, de, para: doc.healthStatus, lastError: doc.lastError })
+    .catch(e => console.log('[Aviso] transição de saúde falhou:', e.message));
+});
+
 // Ensure getters run on toObject / toJSON calls used by controllers
 accountSchema.set('toObject', { getters: true });
 accountSchema.set('toJSON',   { getters: true });

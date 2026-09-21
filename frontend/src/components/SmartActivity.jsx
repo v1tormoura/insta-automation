@@ -259,6 +259,8 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
 /* ── Estado compartilhado ───────────────────────────────────────────────── */
 
 const MAX_VISIVEIS = 3;
+/* Avisos do sistema por carga: além disto, um resumo. */
+const MAX_AVISOS_DO_SISTEMA = 3;
 
 
 export function SmartActivityProvider({ children }) {
@@ -296,8 +298,22 @@ export function SmartActivityProvider({ children }) {
       const novas = lista.filter(n => !vistasRef.current.has(n._id) && !n.lidaEm);
       novas.forEach(n => vistasRef.current.add(n._id));
       if (novas.length) {
-        setFila(f => [...f, ...novas.reverse()]);
-        novas.forEach(n => notificacaoDoNavegador.mostrar(n));
+        /* Cartões internos: todos, na fila (a fila já limita quantos ficam na
+           tela ao mesmo tempo). Aviso do sistema: no máximo 3 — os mais
+           recentes — e um resumo para o resto. Agora que o worker avisa em
+           tempo real, "novas" costuma ser uma; um lote grande só aparece
+           depois de o app ficar fechado, e aí vinte pop-ups seguidos são a
+           pior forma de contar. */
+        setFila(f => [...f, ...[...novas].reverse()]);
+        novas.slice(0, MAX_AVISOS_DO_SISTEMA).forEach(n => notificacaoDoNavegador.mostrar(n));
+        if (novas.length > MAX_AVISOS_DO_SISTEMA) {
+          const resto = novas.length - MAX_AVISOS_DO_SISTEMA;
+          notificacaoDoNavegador.mostrar({
+            _id: 'lote-' + Date.now(),
+            titulo: `+${resto} aviso${resto === 1 ? '' : 's'} na Central`,
+            mensagem: 'Abra o painel para ver todos.',
+          });
+        }
       }
     } catch { /* a Central some, o app segue */ }
   }, []);
