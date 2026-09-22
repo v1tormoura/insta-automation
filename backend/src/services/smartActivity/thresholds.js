@@ -61,6 +61,15 @@ const PADRAO = Object.freeze({
     normalizado: false,
   }),
 
+  /**
+   * O resumo do dia: a que hora sai. Era uma constante (22h) no detector;
+   * agora é dado, como os marcos — quem prefere o fechamento às 20h ou à
+   * meia-noite muda na tela. Fuso do contêiner (America/Sao_Paulo).
+   */
+  resumo: Object.freeze({
+    hora: '22:00',
+  }),
+
   /** Aparência e comportamento do aviso na tela. */
   exibicao: Object.freeze({
     duracaoMs: 6000,
@@ -153,6 +162,7 @@ async function carregar() {
       thresholds: { ...PADRAO.thresholds, ...(v.thresholds || {}) },
       ativos:     { ...PADRAO.ativos,     ...(v.ativos     || {}) },
       exibicao:   { ...PADRAO.exibicao,   ...(v.exibicao   || {}) },
+      resumo:     { ...PADRAO.resumo,     ...(v.resumo     || {}) },
       mensagens:  v.mensagens || {},
       privacidade,
     };
@@ -255,6 +265,24 @@ function pisoDe(valor, regra) {
   return r.aPartirDe + Math.floor((v - r.aPartirDe) / r.passo) * r.passo;
 }
 
+/**
+ * "HH:MM" válido, ou null. Aceita "22", "22:0", "9:05"; devolve sempre com
+ * dois dígitos. É o formato do `<input type="time">` da tela.
+ */
+function normalizarHora(bruto) {
+  const m = /^\s*(\d{1,2})(?::(\d{1,2}))?\s*$/.exec(String(bruto ?? ''));
+  if (!m) return null;
+  const h = Number(m[1]); const min = m[2] == null ? 0 : Number(m[2]);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+/** Minutos desde a meia-noite de um "HH:MM" já normalizado. */
+function minutosDe(hora) {
+  const [h, m] = String(hora).split(':').map(Number);
+  return h * 60 + m;
+}
+
 /** Exportado como função para o teste poder substituir. Ver proxyPool.js. */
 function bancoConectado() {
   return require('mongoose').connection?.readyState === 1;
@@ -263,5 +291,5 @@ function bancoConectado() {
 module.exports = {
   CHAVE, PADRAO, CAMPO_DA_METRICA, LIMITE_LISTA,
   carregar, marcosCruzados, valorDaMetrica, bancoConectado,
-  normalizarRegra, regraDe, pisoDe,
+  normalizarRegra, regraDe, pisoDe, normalizarHora, minutosDe,
 };

@@ -111,7 +111,14 @@ router.get('/config', async (_req, res) => {
  */
 router.put('/config', async (req, res) => {
   try {
-    const { thresholds: marcos, ativos, exibicao, mensagens } = req.body || {};
+    const { thresholds: marcos, ativos, exibicao, mensagens, resumo } = req.body || {};
+
+    /* Hora do resumo: "HH:MM" válido ou nada — hora estragada não é gravada,
+       e a configuração segue com a anterior (ou o padrão, 22:00). */
+    const horaDoResumo = resumo && typeof resumo === 'object' ? thresholds.normalizarHora(resumo.hora) : null;
+    if (resumo && typeof resumo === 'object' && resumo.hora != null && !horaDoResumo) {
+      return res.status(400).json({ error: 'Hora do resumo inválida. Use HH:MM, de 00:00 a 23:59.', code: 'HORA_INVALIDA' });
+    }
 
     if (mensagens && typeof mensagens === 'object') {
       const invalidas = [];
@@ -158,6 +165,7 @@ router.put('/config', async (req, res) => {
       ...(ativos   ? { ativos }   : {}),
       ...(exibicao ? { exibicao } : {}),
       ...(mensagens ? { mensagens } : {}),
+      ...(horaDoResumo ? { resumo: { ...(atual?.value?.resumo || {}), hora: horaDoResumo } } : {}),
     };
 
     await Setting.updateOne({ key: thresholds.CHAVE }, { $set: { value: valor } }, { upsert: true });

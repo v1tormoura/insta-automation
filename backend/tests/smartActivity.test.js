@@ -572,3 +572,44 @@ describe('thresholds — modo contínuo', () => {
     expect(th.regraDe(null, 'reach')).toBeNull();
   });
 });
+
+/* ── Hora do resumo configurável ─────────────────────────────────────────── */
+describe('resumo do dia — hora configurável', () => {
+  const th = require('../src/services/smartActivity/thresholds');
+
+  test('normalizarHora aceita HH, HH:M, H:MM e devolve HH:MM; recusa fora da faixa', () => {
+    expect(th.normalizarHora('22')).toBe('22:00');
+    expect(th.normalizarHora('9:5')).toBe('09:05');
+    expect(th.normalizarHora('23:59')).toBe('23:59');
+    expect(th.normalizarHora('00:00')).toBe('00:00');
+    expect(th.normalizarHora('24:00')).toBeNull();
+    expect(th.normalizarHora('22:60')).toBeNull();
+    expect(th.normalizarHora('abc')).toBeNull();
+    expect(th.normalizarHora('')).toBeNull();
+    expect(th.normalizarHora(null)).toBeNull();
+    expect(th.minutosDe('20:30')).toBe(1230);
+  });
+
+  test('a hora da configuração manda: às 20:30 configurado, 20:31 sai e 20:29 não', async () => {
+    const detectorLocal = require('../src/services/smartActivity/detector');
+    const antes = thresholds.carregar;
+    thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: true }, resumo: { hora: '20:30' } });
+    mockNotificacoes.length = 0;
+    mockAgregados.principal = { publicacoes: 3, contas: ['a'], views: 500 };
+    expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 20, 29) })).toBeNull();
+    const n = await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 20, 31) });
+    expect(n).toBeTruthy();
+    thresholds.carregar = antes;
+  });
+
+  test('sem `resumo` na configuração, vale o padrão de sempre (22h)', async () => {
+    const detectorLocal = require('../src/services/smartActivity/detector');
+    const antes = thresholds.carregar;
+    thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: true } });
+    mockNotificacoes.length = 0;
+    mockAgregados.principal = { publicacoes: 3, contas: ['a'], views: 500 };
+    expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 21, 59) })).toBeNull();
+    expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 22, 0) })).toBeTruthy();
+    thresholds.carregar = antes;
+  });
+});

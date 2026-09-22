@@ -210,6 +210,9 @@ require('./services/vigiaDoSistema').iniciar();
 startHealthCheck();
 // startLoopJob() — desativado; loops antigos foram arquivados, novos usam Job Engine
 startInsightAutoSync();
+/* Resumo do dia na hora marcada (Notificações → Comportamento), não "no
+   primeiro ciclo de sincronização depois dela". */
+require('./services/smartActivity/detector').iniciarRelogioDoResumo();
 
 /* A ponte SSE com o worker: o que o worker emite (publicou, falhou, conta
    caiu, notificação nova) chega aos navegadores ligados AQUI. Sem ela, esses

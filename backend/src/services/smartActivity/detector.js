@@ -375,14 +375,19 @@ async function semear() {
  * `agora` entra por parâmetro para o teste poder fixar a hora; em produção
  * ninguém passa nada.
  */
-const HORA_DO_RESUMO = 22;
+const HORA_DO_RESUMO = 22;                 // legado — o padrão de PADRAO.resumo.hora
+const HORA_PADRAO_DO_RESUMO = '22:00';
 
 async function resumoDoDia({ agora = new Date() } = {}) {
   if (!thresholds.bancoConectado()) return null;
-  if (agora.getHours() < HORA_DO_RESUMO) return null;
 
   const cfg = await thresholds.carregar();
   if (!cfg.ativos.global) return null;
+
+  /* A hora agora é configuração (Notificações → Comportamento), não a
+     constante. Configuração ilegível cai no padrão de sempre, 22h. */
+  const hora = thresholds.normalizarHora(cfg.resumo?.hora) || HORA_PADRAO_DO_RESUMO;
+  if (agora.getHours() * 60 + agora.getMinutes() < thresholds.minutosDe(hora)) return null;
 
   const inicioDoDia = new Date(agora);
   inicioDoDia.setHours(0, 0, 0, 0);
@@ -476,4 +481,31 @@ async function resumoDoDia({ agora = new Date() } = {}) {
 }
 
 module.exports = {
-  semearConta, _gravarCoalescido, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO };
+  semearConta, _gravarCoalescido, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO,
+  HORA_PADRAO_DO_RESUMO, iniciarRelogioDoResumo };
+
+/**
+ * O resumo tem hora marcada — então tem relógio próprio.
+ *
+ * Antes ele só era tentado no fim de cada ciclo de sincronização, a cada 30
+ * min: "às 22h" queria dizer "entre 22:00 e 22:30, depende". Com a hora
+ * escolhida pela pessoa, atrasar meia hora é errar o pedido. Um tique por
+ * minuto; a checagem barata (`carregar` + um `findOne`) e o "um por dia" no
+ * banco seguram a repetição. A chamada no fim da sincronização continua — é
+ * inofensiva e cobre o minuto em que este relógio estiver reiniciando.
+ */
+function iniciarRelogioDoResumo({ intervaloMs = 60_000 } = {}) {
+  const tique = async () => {
+    try {
+      const n = await resumoDoDia();
+      if (n) {
+        try { require('../../events/broadcaster').broadcast('notificacoes', { novas: 1 }); } catch { /* sem SSE */ }
+      }
+    } catch (err) {
+      console.warn('[SmartActivity] resumo do dia falhou:', err.message);
+    }
+  };
+  const t = setInterval(tique, intervaloMs);
+  if (typeof t.unref === 'function') t.unref();
+  return t;
+}

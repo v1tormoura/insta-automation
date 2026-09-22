@@ -156,6 +156,7 @@ export default function ConfigNotificacoes() {
         thresholds: data.thresholds || {},
         ativos: data.ativos || {},
         exibicao: data.exibicao || {},
+        resumo: { hora: '22:00', ...(data.resumo || {}) },
         mensagens: data.mensagens || {},
         variaveis: data.variaveis || {},
         /* Quais variáveis cada aviso oferece. Sem isto o editor listaria
@@ -290,6 +291,7 @@ export default function ConfigNotificacoes() {
         ativos: cfg.ativos,
         exibicao: cfg.exibicao,
         mensagens: cfg.mensagens,
+        resumo: { hora: cfg.resumo?.hora || '22:00' },
       });
       aviso('success', 'Salvo', 'As notificações passam a usar estes modelos.');
     } catch (err) {
@@ -627,6 +629,20 @@ export default function ConfigNotificacoes() {
                       Resumo de todas as contas
                     </span>
                   </label>
+                  {/* A hora do resumo era uma constante (22h) no código. Agora é
+                      escolha: o relógio do servidor dispara no minuto marcado,
+                      com o total do dia até ali. Fuso de Brasília. */}
+                  {!!cfg.ativos.global && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '4px 0 8px 23px', borderBottom: '1px solid var(--mf-border-subtle)' }}>
+                      <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.5 }}>
+                        Sai todo dia às <strong style={{ color: 'var(--mf-text-2)' }}>{cfg.resumo?.hora || '22:00'}</strong> (horário de Brasília), com o total do dia até ali.
+                      </span>
+                      <input type="time" className="input" value={cfg.resumo?.hora || '22:00'} step={60}
+                        onChange={e => setCfg(c => ({ ...c, resumo: { ...(c.resumo || {}), hora: e.target.value || '22:00' } }))}
+                        style={{ width: 'auto', padding: '4px 8px', fontFamily: 'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', colorScheme: 'dark' }}
+                        aria-label="Hora do resumo do dia" />
+                    </div>
+                  )}
 
                   {/* Notificação do navegador: a permissão só é pedida ao ligar
                       este interruptor. Ver o comentário em SmartActivity.jsx. */}
