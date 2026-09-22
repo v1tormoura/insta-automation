@@ -221,6 +221,39 @@ async function notificarContaCaiu({ conta, motivo } = {}) {
 }
 
 /**
+ * A conta voltou (verificação concluída, sessão refeita, token válido de novo).
+ *
+ * Fecha o ciclo de "conta parou": sem isto a pessoa fica recarregando o
+ * painel para saber se o que fez no Instagram pegou. Um por conta por hora.
+ */
+async function notificarContaVoltou({ conta, motivo } = {}) {
+  if (!thresholds.bancoConectado() || !conta) return null;
+
+  const cfg = await thresholds.carregar().catch(() => null);
+  if (!cfg || cfg.ativos.contaVoltou === false) return null;
+  if (await _repetidoRecentemente('contaVoltou', conta._id, 1)) return null;
+
+  const vars = templates.discretas({
+    username: conta.username || '',
+    account:  conta.username ? `@${conta.username}` : 'a conta',
+    motivo:   String(motivo || 'voltou a responder').slice(0, 200),
+  }, cfg.privacidade || {});
+
+  const modelo = templates.modeloDe('contaVoltou', cfg.mensagens);
+  return _gravar({
+    accountId: conta._id || null,
+    username:  conta.username || '',
+    avatar:    conta.avatar || '',
+    eventType: 'contaVoltou',
+    tema:      modelo.tema,
+    prioridade: 'normal',
+    titulo:    templates.render(modelo.titulo, vars),
+    mensagem:  templates.render(modelo.mensagem, vars),
+    metadados: { motivo: String(motivo || '').slice(0, 300) },
+  });
+}
+
+/**
  * Uma rodada de envio terminou, com o placar.
  *
  * Não é por conta: é o fechamento do lote. Sem ele, saber se o envio deu certo
@@ -264,6 +297,7 @@ async function notificarCotaDaApi({ conta, motivo, ate } = {}) {
 }
 
 module.exports = {
+  notificarContaVoltou,
   notificarCotaDaApi,
   notificarPublicado, notificarErro,
   notificarTokenExpirando, notificarContaCaiu,

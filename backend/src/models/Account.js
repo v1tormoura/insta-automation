@@ -460,7 +460,9 @@ const _saude = require('../services/saudeDaConta');
 
 accountSchema.pre(['findOneAndUpdate', 'updateOne'], async function () {
   const para = _saude.novoStatusDoUpdate(this.getUpdate());
-  if (!_saude.ehRuim(para)) return;
+  /* Ruim OU 'ativa': a volta a ativa também é transição (conta recuperada).
+     Update que não toca em saúde (o lock de isBusy) continua sem consulta. */
+  if (!_saude.ehRuim(para) && para !== 'ativa') return;
   this._saudeAntes = await this.model.findOne(this.getQuery())
     .select('healthStatus username avatar').lean().catch(() => null);
 });
@@ -478,7 +480,8 @@ accountSchema.post(['findOneAndUpdate', 'updateOne'], function () {
 
 accountSchema.pre('save', async function () {
   this.$locals.saudeAntes = undefined;
-  if (this.isNew || !this.isModified('healthStatus') || !_saude.ehRuim(this.healthStatus)) return;
+  if (this.isNew || !this.isModified('healthStatus')) return;
+  if (!_saude.ehRuim(this.healthStatus) && this.healthStatus !== 'ativa') return;
   const antes = await this.constructor.findById(this._id).select('healthStatus').lean().catch(() => null);
   this.$locals.saudeAntes = antes ? antes.healthStatus : null;
 });

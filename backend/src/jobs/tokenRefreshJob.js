@@ -124,11 +124,17 @@ async function runTokenRefresh() {
           }
         } catch (err) {
           // Recuperação falhou — requer reconexão manual via OAuth
-          console.log(`[TokenRefresh] @${acc.username} — recuperação falhou (${err.message}) — reconexão OAuth necessária`);
-          await Account.findByIdAndUpdate(acc._id, {
-            healthStatus: 'sessao_expirada',
-            lastError:    `Token inválido — reconecte via 🔗 API (erro: ${err.message.slice(0, 80)})`,
-          });
+          const verificacao = require('../services/verificacaoDoInstagram');
+          if (verificacao.ehVerificacaoPendente(err.message)) {
+            console.log(`[TokenRefresh] @${acc.username} — em VERIFICAÇÃO no Instagram; não é reconexão`);
+            await Account.findByIdAndUpdate(acc._id, verificacao.saudeDeVerificacao());
+          } else {
+            console.log(`[TokenRefresh] @${acc.username} — recuperação falhou (${err.message}) — reconexão OAuth necessária`);
+            await Account.findByIdAndUpdate(acc._id, {
+              healthStatus: 'sessao_expirada',
+              lastError:    `Token inválido — reconecte via 🔗 API (erro: ${err.message.slice(0, 80)})`,
+            });
+          }
           errors++;
         }
         continue;

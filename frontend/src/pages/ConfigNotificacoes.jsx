@@ -86,7 +86,8 @@ const PUBLICACAO = [
   { id: 'postPublicado',  rotulo: 'Publicado',        desc: 'Quando uma publicação sai com sucesso' },
   { id: 'erroPublicacao', rotulo: 'Falha ao publicar', desc: 'Quando uma publicação falha' },
   { id: 'cotaApi',        rotulo: 'Cota da API cheia', desc: 'O Instagram aceita 50 publicações por conta em 24h pela API; avisa quando enche e quando libera' },
-  { id: 'contaCaiu',      rotulo: 'Conta parou',       desc: 'Sessão expirada, token inválido ou banimento' },
+  { id: 'contaCaiu',      rotulo: 'Conta parou',       desc: 'Verificação pedida pelo Instagram, sessão expirada, token inválido ou banimento — de qualquer origem' },
+  { id: 'contaVoltou',    rotulo: 'Conta voltou',      desc: 'Quando uma conta que estava parada volta a ativa (verificação concluída, sessão refeita)' },
   { id: 'tokenExpirando', rotulo: 'Token vencendo',    desc: 'Avisa 7 dias antes, para dar tempo de reconectar' },
 ];
 

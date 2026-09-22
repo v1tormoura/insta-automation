@@ -91,6 +91,7 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   erroPublicacao: Object.freeze(['account', 'username', 'contentType', 'erro', 'time']),
   tokenExpirando: Object.freeze(['account', 'username', 'dias']),
   contaCaiu:      Object.freeze(['account', 'username', 'motivo']),
+  contaVoltou:    Object.freeze(['account', 'username', 'motivo']),
   cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
   resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'maior']),
 
@@ -175,6 +176,11 @@ const PADRAO = Object.freeze({
     titulo: 'Conta parou ⛔',
     mensagem: '{{account}}: {{motivo}}',
     tema: 'danger',
+  }),
+  contaVoltou: Object.freeze({
+    titulo: 'Conta voltou ✅',
+    mensagem: '{{account}} {{motivo}}.',
+    tema: 'success',
   }),
   /* A cota da API do Meta: 50 publicações por conta em 24h. O envio para por
      horas sem erro nenhum na fila — sem este aviso, parece que travou. */

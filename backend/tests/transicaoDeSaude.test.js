@@ -48,10 +48,11 @@ describe('o motivo', () => {
     expect(s.motivo('banida', '')).toBe('conta suspensa ou desativada pelo Instagram');
     expect(s.motivo('banida', 'conta suspensa ou desativada pelo Instagram')).toBe('conta suspensa ou desativada pelo Instagram');
   });
-  test('detalhe longo é cortado e espaços colapsados', () => {
+  test('detalhe curto entra entre parênteses; detalhe longo (já uma frase) vale sozinho, cortado', () => {
+    expect(s.motivo('token_invalido', 'x\n\n  y')).toBe('o token da API ficou inválido — reconecte a conta (x y)');
     const m = s.motivo('token_invalido', 'x\n\n  y ' + 'z'.repeat(500));
-    expect(m.length).toBeLessThan(260);
-    expect(m).toContain('(x y zzz');
+    expect(m.length).toBeLessThanOrEqual(220);
+    expect(m.startsWith('x y zzz')).toBe(true);
   });
 });
 

@@ -78,8 +78,18 @@ async function syncViaAPI(account) {
       const code      = data.error.code;
       const errMsg    = data.error.message || 'Erro API';
 
+      /* Conta em VERIFICAÇÃO ("confirme que você é humano"). Vem como 190,
+         então tem de ser lida ANTES do ramo do 190: não é token vencido, é
+         token suspenso — renovar falha com a mesma frase, e "reconecte" era
+         a instrução errada. Vira `restrita` com o que fazer; o próprio sync,
+         a cada 5 min, devolve a conta a `ativa` quando a pessoa concluir. */
+      const verificacao = require('./verificacaoDoInstagram');
+      if (verificacao.ehVerificacaoPendente(errMsg)) {
+        Object.assign(update, verificacao.saudeDeVerificacao());
+        console.log(`⚠️ [API Sync] @${account.username} — em VERIFICAÇÃO (checkpoint): token suspenso até concluir no instagram.com`);
+      }
       // Detecta ban/desativação
-      if (/disabled|banned|violat/i.test(errMsg) || code === 326) {
+      else if (/disabled|banned|violat/i.test(errMsg) || code === 326) {
         update.healthStatus = 'banida';
         update.status       = 'banida';
         update.lastError    = errMsg;

@@ -31,6 +31,12 @@ const ESTADOS_RUINS = Object.freeze({
   erro_login:      'não conseguiu entrar na conta',
 });
 
+/** Como cada estado ruim é chamado na frase de recuperação ("saiu de …"). */
+const ROTULO_CURTO = Object.freeze({
+  restrita: 'verificação/restrição', banida: 'suspensão', sessao_expirada: 'sessão expirada',
+  token_invalido: 'token inválido', erro_login: 'erro de login',
+});
+
 /** É um estado que merece aviso? */
 function ehRuim(status) {
   return typeof status === 'string' && Object.prototype.hasOwnProperty.call(ESTADOS_RUINS, status);
@@ -41,12 +47,25 @@ function mudouParaRuim(de, para) {
   return ehRuim(para) && de !== para;
 }
 
-/** "o Instagram pediu verificação (challenge_required)" — o estado, e o detalhe se houver. */
+/**
+ * "o Instagram pediu verificação (challenge_required)" — o estado, e o
+ * detalhe se houver. Um `lastError` longo já é uma frase escrita para gente
+ * (o sync grava a instrução completa no caso da verificação); aí ele vale
+ * sozinho, sem o estado na frente repetindo a mesma coisa.
+ */
+const DETALHE_JA_E_FRASE = 60;
+
 function motivo(status, lastError) {
   const base = ESTADOS_RUINS[status] || `estado ${status || 'desconhecido'}`;
   const detalhe = String(lastError || '').trim().replace(/\s+/g, ' ');
   if (!detalhe || detalhe.toLowerCase() === base.toLowerCase()) return base;
+  if (detalhe.length >= DETALHE_JA_E_FRASE) return detalhe.slice(0, 220);
   return `${base} (${detalhe.slice(0, 160)})`;
+}
+
+/** Saiu de um estado ruim e voltou a `ativa`? */
+function recuperou(de, para) {
+  return para === 'ativa' && ehRuim(de);
 }
 
 /**
@@ -79,12 +98,21 @@ function lastErrorDoUpdate(update) {
  * @param {Function} [p.notificar] injeção para testes; padrão: notificarContaCaiu
  * @returns {Promise<object|null>} a notificação criada, ou null
  */
-async function avisarTransicao({ conta, de, para, lastError, notificar } = {}) {
-  if (!conta || !mudouParaRuim(de, para)) return null;
-  const fn = notificar || require('./smartActivity/eventosDePublicacao').notificarContaCaiu;
-  return fn({ conta, motivo: motivo(para, lastError) });
+async function avisarTransicao({ conta, de, para, lastError, notificar, notificarVolta } = {}) {
+  if (!conta) return null;
+  if (mudouParaRuim(de, para)) {
+    const fn = notificar || require('./smartActivity/eventosDePublicacao').notificarContaCaiu;
+    return fn({ conta, motivo: motivo(para, lastError) });
+  }
+  /* A volta também é notícia — é o que fecha o ciclo "conta caiu": sem
+     isto a pessoa fica olhando o painel para saber se a verificação pegou. */
+  if (recuperou(de, para)) {
+    const fn = notificarVolta || require('./smartActivity/eventosDePublicacao').notificarContaVoltou;
+    return fn({ conta, motivo: `saiu de ${ROTULO_CURTO[de] || de} e voltou a publicar normalmente` });
+  }
+  return null;
 }
 
 module.exports = {
-  ESTADOS_RUINS, ehRuim, mudouParaRuim, motivo, novoStatusDoUpdate, lastErrorDoUpdate, avisarTransicao,
+  ESTADOS_RUINS, ehRuim, mudouParaRuim, recuperou, motivo, novoStatusDoUpdate, lastErrorDoUpdate, avisarTransicao,
 };

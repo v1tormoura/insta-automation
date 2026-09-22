@@ -1247,8 +1247,8 @@ export default function Accounts() {
   const FILTERS = [
     { key: 'all',         label: 'Todas',          count: safeAccounts.length },
     { key: 'active',      label: 'Ativas',          count: activeAccounts },
-    { key: 'restricted',  label: 'Restritas',       count: countBy('restrita') },
-    { key: 'token',       label: 'Token expirado',  count: countBy('token_invalido') },
+    { key: 'restricted',  label: 'Em verificação',  count: countBy('restrita') },
+    { key: 'token',       label: 'Token inválido',  count: countBy('token_invalido') },
     { key: 'banned',      label: 'Banidas',         count: countBy('banida') },
     { key: 'error',       label: 'Com erro',        count: safeAccounts.filter(a => a.healthStatus === 'erro_login' || a.healthStatus === 'sessao_expirada').length },
     { key: 'offline',     label: 'Desconectadas',   count: countBy('desconectada') },
@@ -1288,9 +1288,9 @@ export default function Accounts() {
     return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ', ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
   function healthLabel(s) {
-    if (s === 'restrita')        return 'Restrita';
+    if (s === 'restrita')        return 'Em verificação';
     if (s === 'banida')          return 'Banida';
-    if (s === 'token_invalido')  return 'Token expirado';
+    if (s === 'token_invalido')  return 'Token inválido';
     if (s === 'sessao_expirada') return 'Sessão expirada';
     if (s === 'erro_login')      return 'Erro de login';
     if (s === 'desconectada')    return 'Desconectada';
@@ -1921,13 +1921,31 @@ export default function Accounts() {
                     </span>
                   ) : (
                     <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:isHealthy?'var(--mf-success-500)':account.healthStatus==='restrita'?'var(--mf-warning-500)':'var(--mf-danger-500)', display:'flex', alignItems:'center', gap:5 }}>
-                      <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Conta restrita' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
+                      <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Em verificação no Instagram' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
                     </span>
                   )}
                   <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
                     <IcoWave /> {compact}
                   </span>
                 </div>
+
+                {/* O QUE FAZER: o texto do erro que o sync gravou. Antes só o
+                    rótulo aparecia ("Token inválido") e a pessoa reconectava
+                    uma conta que só precisava de um clique no Instagram — a
+                    verificação "confirme que você é humano". Com o texto e o
+                    atalho, a instrução está onde o problema está. */}
+                {!isHealthy && account.lastError && (
+                  <div style={{ padding:'6px 12px 7px', borderTop:'1px solid var(--mf-border)', fontSize:'var(--mf-t-nano)', lineHeight:1.55, color:'var(--mf-text-3)', display:'flex', gap:8, alignItems:'flex-start' }}>
+                    <span style={{ flex:1, minWidth:0 }}>{account.lastError}</span>
+                    {account.healthStatus === 'restrita' && (
+                      <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer"
+                        title="Abra o Instagram no navegador/perfil desta conta e conclua a verificação"
+                        style={{ flexShrink:0, fontFamily:'var(--mf-mono)', fontWeight:700, color:'var(--mf-warning-500)', textDecoration:'none', whiteSpace:'nowrap' }}>
+                        Verificar ↗
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 {/* proxy row — por onde esta conta está saindo, ao vivo */}
                 <div style={{ height:1, background:'var(--mf-border)' }} />
