@@ -159,3 +159,39 @@ describe('o loop é a quarta origem', () => {
     expect(r.pendentes).toBe(6);
   });
 });
+
+/* ── Mídias que restam num Job, por rodada ─────────────────────────────────
+   O painel somava mediaFiles.length inteiro: "Processando 30" da primeira à
+   última rodada, "Na fila 0" sempre. Medido em produção com um envio de 30. */
+describe('midiasDoJob / contarJobs — o que resta, não o total', () => {
+  const { midiasDoJob, contarJobs } = require('../src/controllers/contagemDaFila');
+  const job = (status, rodada, total = 30, limite = 1) => ({ status, currentRound: rodada, mediaFiles: Array(total).fill('m'), simultaneousLimit: limite });
+
+  test('running: a rodada atual está saindo, o resto espera', () => {
+    expect(midiasDoJob(job('running', 0))).toEqual({ processando: 1, naFila: 29 });
+    expect(midiasDoJob(job('running', 29))).toEqual({ processando: 1, naFila: 0 });
+    expect(midiasDoJob(job('running', 2, 30, 5))).toEqual({ processando: 5, naFila: 15 });
+  });
+
+  test('entre rodadas e antes de começar: tudo o que resta espera, nada "processando"', () => {
+    expect(midiasDoJob(job('waiting_interval', 1))).toEqual({ processando: 0, naFila: 29 });
+    expect(midiasDoJob(job('queued', 0))).toEqual({ processando: 0, naFila: 30 });
+  });
+
+  test('o número desce conforme o envio avança', () => {
+    const serie = [0, 5, 10, 29, 30].map(r => midiasDoJob(job('waiting_interval', r)).naFila);
+    expect(serie).toEqual([30, 25, 20, 1, 0]);
+  });
+
+  test('pausado, concluído e cancelado ficam fora da fila; job estragado não quebra', () => {
+    for (const s of ['paused', 'completed', 'cancelled']) expect(midiasDoJob(job(s, 3))).toEqual({ processando: 0, naFila: 0 });
+    expect(midiasDoJob(null)).toEqual({ processando: 0, naFila: 0 });
+    expect(midiasDoJob({ status: 'running' })).toEqual({ processando: 0, naFila: 0 });
+    expect(midiasDoJob({ status: 'running', mediaFiles: ['a'], currentRound: 7 })).toEqual({ processando: 0, naFila: 0 });
+  });
+
+  test('contarJobs soma os ativos', () => {
+    expect(contarJobs([job('running', 0), job('waiting_interval', 10), job('queued', 0, 12)])).toEqual({ rodando: 1, enfileirados: 61 });
+    expect(contarJobs(null)).toEqual({ rodando: 0, enfileirados: 0 });
+  });
+});

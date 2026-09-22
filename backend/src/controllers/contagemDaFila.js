@@ -106,4 +106,54 @@ function porStatus(linhas) {
   );
 }
 
-module.exports = { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus };
+/**
+ * Quantas mídias de um Job (Postar/Loop) estão saindo AGORA e quantas ainda
+ * ESPERAM.
+ *
+ * ── O que estava errado
+ *
+ * O painel somava `mediaFiles.length` inteiro para todo job ativo: um envio
+ * de 30 mídias na rodada 0 aparecia como "Processando 30, Na fila 0" — e
+ * continuava 30 na rodada 29, com uma mídia faltando. O número não descia
+ * nunca, e "Processando" nunca foi 30 coisas ao mesmo tempo.
+ *
+ * ── A conta
+ *
+ * O worker avança `currentRound` ao fechar cada rodada (é o índice da PRÓXIMA,
+ * 0-based); cada rodada leva `simultaneousLimit` mídias. Então:
+ *   - running:          a rodada `currentRound` está no ar → essas mídias
+ *                       são "processando"; as das rodadas seguintes esperam.
+ *   - waiting_interval: a rodada anterior fechou; a `currentRound` ainda
+ *                       não começou → tudo o que resta espera.
+ *   - queued:           nada começou → tudo espera.
+ * Loop entra igual, para o ciclo atual (`pendentesDoLoop` cobre o modelo
+ * antigo de Loop; o Job de tipo 'loop' passa por aqui).
+ */
+function midiasDoJob(job) {
+  if (!job) return { processando: 0, naFila: 0 };
+  const total  = Array.isArray(job.mediaFiles) ? job.mediaFiles.length : 0;
+  const limite = Math.max(1, Number(job.simultaneousLimit) || 1);
+  const rodada = Math.max(0, Number(job.currentRound) || 0);
+  const inicio = Math.min(total, rodada * limite);
+  if (job.status === 'running') {
+    const nestaRodada = Math.min(limite, total - inicio);
+    return { processando: Math.max(0, nestaRodada), naFila: Math.max(0, total - inicio - nestaRodada) };
+  }
+  if (job.status === 'waiting_interval' || job.status === 'queued') {
+    return { processando: 0, naFila: Math.max(0, total - inicio) };
+  }
+  return { processando: 0, naFila: 0 };   // paused/cancelled/completed: fora da fila
+}
+
+/** Soma de `midiasDoJob` para a lista de jobs ativos. */
+function contarJobs(jobs) {
+  const soma = { rodando: 0, enfileirados: 0 };
+  for (const j of Array.isArray(jobs) ? jobs : []) {
+    const m = midiasDoJob(j);
+    soma.rodando      += m.processando;
+    soma.enfileirados += m.naFila;
+  }
+  return soma;
+}
+
+module.exports = { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus, midiasDoJob, contarJobs };

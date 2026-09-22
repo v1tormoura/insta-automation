@@ -8,7 +8,7 @@ const CampaignPublication = require('../models/CampaignPublication');
 /* A aritmética mora fora do controller e é testada sozinha. Aqui ela estava no
    meio de um `Promise.all` de quinze consultas, onde ninguém revisa uma soma —
    e foi assim que uma das três origens da fila ficou de fora sem nada acusar. */
-const { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus } = require('./contagemDaFila');
+const { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus, contarJobs } = require('./contagemDaFila');
 const mongoose = require('mongoose');
 let Insight;
 try { Insight = require('../models/Insight'); } catch {}
@@ -191,14 +191,13 @@ exports.getDashboard = async (req, res) => {
       job.accounts?.some(acc => acc && !BANNED_STATUSES.includes(acc.healthStatus))
     );
 
-    // Conta mídias individuais por job (não apenas 1 por job)
-    const countJobMedia = (jobs, status) =>
-      jobs.filter(j => j.status === status)
-          .reduce((sum, j) => sum + (j.mediaFiles?.length || 1), 0);
-
-    const jobsWaiting = countJobMedia(allActiveJobs, 'waiting_interval');
-    const jobsRunning = countJobMedia(allActiveJobs, 'running');
-    const jobsQueued  = countJobMedia(allActiveJobs, 'queued');
+    /* Mídias que RESTAM, por rodada — ver midiasDoJob em contagemDaFila.js.
+       Antes era `mediaFiles.length` inteiro por job: um envio de 30 mídias
+       aparecia como "Processando 30" da primeira à última rodada. O que está
+       entre rodadas (waiting_interval) espera na fila, não é "agendado": não
+       tem horário marcado, sai quando o intervalo vencer. */
+    const { rodando: jobsRunning, enfileirados: jobsQueued } = contarJobs(allActiveJobs);
+    const jobsWaiting = 0;
 
     /* Três origens: publicação avulsa (`Post`), lote (`Job`) e campanha
        (`CampaignPublication`). O painel diz "a fila", e fila com uma das três
