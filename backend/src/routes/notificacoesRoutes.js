@@ -137,12 +137,18 @@ router.put('/config', async (req, res) => {
     }
 
     // Marcos precisam ser números crescentes: uma lista fora de ordem faria a
-    // detecção pular marcos sem que ninguém entendesse por quê.
+    // detecção pular marcos sem que ninguém entendesse por quê. Lista vazia é
+    // gravada (desliga a métrica). O modo contínuo é gravado normalizado;
+    // contínuo inválido (passo 0, "a partir de" vazio) é ignorado, não gravado.
     const marcosLimpos = {};
     for (const [k, v] of Object.entries(marcos || {})) {
-      if (!Array.isArray(v)) continue;
-      marcosLimpos[k] = [...new Set(v.map(Number).filter(n => Number.isFinite(n) && n > 0))]
-        .sort((a, b) => a - b);
+      if (Array.isArray(v)) {
+        marcosLimpos[k] = [...new Set(v.map(Number).filter(n => Number.isFinite(n) && n > 0))]
+          .sort((a, b) => a - b);
+        continue;
+      }
+      const regra = thresholds.normalizarRegra(v);
+      if (regra?.modo === 'continuo') marcosLimpos[k] = { modo: 'continuo', aPartirDe: regra.aPartirDe, passo: regra.passo };
     }
 
     const atual = await Setting.findOne({ key: thresholds.CHAVE }).lean();

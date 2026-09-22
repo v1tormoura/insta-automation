@@ -103,8 +103,9 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
   for (const metricType of metricas) {
     if (!cfg.ativos[metricType]) continue;
 
-    const marcos = cfg.thresholds[metricType] || [];
-    if (!marcos.length) continue;
+    /* Lista fixa ou contínuo — o detector não precisa saber qual. */
+    const regra = thresholds.regraDe(cfg, metricType);
+    if (!regra) continue;
 
     const valor = thresholds.valorDaMetrica(insight, metricType);
     if (!valor) continue;
@@ -115,7 +116,7 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
     const marco = await Milestone.findOne(chave).lean();
     const teto = marco?.maiorDisparado || 0;
 
-    const cruzados = thresholds.marcosCruzados(teto, valor, marcos);
+    const cruzados = thresholds.marcosCruzados(teto, valor, regra);
 
     /* Mesmo sem marco novo, o último valor é atualizado: serve de diagnóstico
        e cria o documento na primeira passagem, o que evita `findOne` inútil
@@ -188,10 +189,10 @@ async function semearConta(conta, cfg) {
   for (const ins of insights) {
     const ehStory = ins.mediaType === 'STORY';
     for (const metricType of (ehStory ? ['storyViews'] : ['contentViews', 'reach'])) {
-      const marcos = cfg.thresholds[metricType] || [];
+      const regra = thresholds.regraDe(cfg, metricType);
       const valor = thresholds.valorDaMetrica(ins, metricType);
-      if (!valor || !marcos.length) continue;
-      const piso = marcos.filter(m => m <= valor).pop() || 0;
+      if (!valor || !regra) continue;
+      const piso = thresholds.pisoDe(valor, regra);
       await Milestone.updateOne(
         { accountId: conta._id, contentId: String(ins.igMediaId), metricType },
         { $max: { maiorDisparado: piso }, $set: { ultimoValor: valor } },

@@ -162,6 +162,50 @@ async function carregar() {
   }
 }
 
+/* ── Duas formas de dizer "quando avisar" ───────────────────────────────────
+
+   MARCOS FIXOS: uma lista — 100, 500, 1.000 … 100.000. Um aviso por marco,
+   uma vez, e depois do último marco o reel silencia para sempre. Era a única
+   forma, e é o que a pessoa não queria: "se passar dessa views, já não
+   aparece mais".
+
+   CONTÍNUO: { modo: 'continuo', aPartirDe, passo }. A partir de `aPartirDe`,
+   um degrau a cada `passo`, sem teto: 1.000, 2.000, 3.000 … enquanto o reel
+   crescer. Os degraus não existem como lista em lugar nenhum — são
+   calculados do valor atual. O detector continua vendo "marcos cruzados" e
+   "o maior"; só a origem dos números muda.
+
+   Um reel que pula de 5 mil para 50 mil numa sincronização cruza 45 degraus
+   de mil, e o detector avisa só o maior (regra 1 do detector) — então o
+   contínuo não vira metralhadora; vira "50.000 visualizações", uma vez. */
+
+const LIMITE_LISTA = 100;
+
+/**
+ * Normaliza a regra de UMA métrica, venha do padrão, do banco ou da tela.
+ * Lista (marcos fixos) ou objeto contínuo; qualquer outra coisa é null =
+ * nada a detectar para esta métrica.
+ */
+function normalizarRegra(bruto) {
+  if (Array.isArray(bruto)) {
+    const lista = [...new Set(bruto.map(Number).filter(n => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
+    return lista.length ? { modo: 'marcos', lista } : null;
+  }
+  if (bruto && typeof bruto === 'object' && bruto.modo === 'continuo') {
+    const aPartirDe = Math.floor(Number(bruto.aPartirDe));
+    const passo     = Math.floor(Number(bruto.passo));
+    if (!Number.isFinite(aPartirDe) || aPartirDe < 1) return null;
+    if (!Number.isFinite(passo) || passo < 1) return null;
+    return { modo: 'continuo', aPartirDe, passo };
+  }
+  return null;
+}
+
+/** A regra da métrica na configuração efetiva. */
+function regraDe(cfg, metricType) {
+  return normalizarRegra(cfg?.thresholds?.[metricType]);
+}
+
 /**
  * Marcos cruzados entre o teto já disparado e o valor atual.
  *
@@ -170,17 +214,45 @@ async function carregar() {
  * a operação idempotente: rodar duas vezes com o mesmo valor não dispara nada
  * na segunda, e um salto de 95 para 145 detecta o 100 sem lógica especial.
  *
+ * No modo contínuo a lista devolvida é limitada aos últimos `LIMITE_LISTA`
+ * degraus: o detector usa só "há algum?" e "o maior", e um reel de 5 milhões
+ * com passo de mil não precisa de 5.000 números na memória para isso.
+ *
  * @param {number} teto   maior marco já disparado (0 se nunca)
  * @param {number} atual  valor da métrica agora
- * @param {number[]} marcos
+ * @param {number[]|object} regra  lista de marcos, ou a regra normalizada
  * @returns {number[]} marcos a disparar, do menor para o maior
  */
-function marcosCruzados(teto, atual, marcos) {
-  const piso = Number(teto) || 0;
+function marcosCruzados(teto, atual, regra) {
+  const piso  = Number(teto) || 0;
   const valor = Number(atual) || 0;
-  return (marcos || [])
-    .filter(m => m > piso && m <= valor)
-    .sort((a, b) => a - b);
+  const r = (regra && regra.modo) ? regra : normalizarRegra(regra);
+  if (!r) return [];
+
+  if (r.modo === 'marcos') return r.lista.filter(m => m > piso && m <= valor);
+
+  if (valor < r.aPartirDe) return [];
+  const maior = r.aPartirDe + Math.floor((valor - r.aPartirDe) / r.passo) * r.passo;
+  if (maior <= piso) return [];
+  const kMin = piso < r.aPartirDe ? 0 : Math.floor((piso - r.aPartirDe) / r.passo) + 1;
+  const primeiro = r.aPartirDe + kMin * r.passo;
+  const inicio = Math.max(primeiro, maior - (LIMITE_LISTA - 1) * r.passo);
+  const saida = [];
+  for (let t = inicio; t <= maior; t += r.passo) saida.push(t);
+  return saida;
+}
+
+/**
+ * O maior degrau já alcançado por um valor — o que a semeadura grava como
+ * "já avisado" para uma conta nova não despejar o histórico inteiro.
+ */
+function pisoDe(valor, regra) {
+  const v = Number(valor) || 0;
+  const r = (regra && regra.modo) ? regra : normalizarRegra(regra);
+  if (!r || !v) return 0;
+  if (r.modo === 'marcos') return r.lista.filter(m => m <= v).pop() || 0;
+  if (v < r.aPartirDe) return 0;
+  return r.aPartirDe + Math.floor((v - r.aPartirDe) / r.passo) * r.passo;
 }
 
 /** Exportado como função para o teste poder substituir. Ver proxyPool.js. */
@@ -189,6 +261,7 @@ function bancoConectado() {
 }
 
 module.exports = {
-  CHAVE, PADRAO, CAMPO_DA_METRICA,
+  CHAVE, PADRAO, CAMPO_DA_METRICA, LIMITE_LISTA,
   carregar, marcosCruzados, valorDaMetrica, bancoConectado,
+  normalizarRegra, regraDe, pisoDe,
 };

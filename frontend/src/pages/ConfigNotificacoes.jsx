@@ -37,6 +37,23 @@ const METRICAS = [
   { id: 'reach',        rotulo: 'Alcance',  desc: 'Contas únicas alcançadas' },
 ];
 
+/* Duas formas de dizer "quando avisar" (ver thresholds.js no backend):
+   lista fixa de marcos — que acaba no último — ou CONTÍNUO: a partir de X,
+   um aviso a cada Y, sem teto. Os padrões abaixo espelham o backend e servem
+   para voltar de um modo ao outro sem deixar a métrica vazia. */
+const MARCOS_PADRAO = {
+  storyViews:   [30, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
+  contentViews: [100, 500, 1000, 5000, 10000, 25000, 50000, 100000],
+  reach:        [500, 1000, 5000, 10000, 50000, 100000],
+};
+const CONTINUO_PADRAO = {
+  storyViews:   { modo: 'continuo', aPartirDe: 100,  passo: 100 },
+  contentViews: { modo: 'continuo', aPartirDe: 1000, passo: 1000 },
+  reach:        { modo: 'continuo', aPartirDe: 1000, passo: 1000 },
+};
+const ehContinuo = regra => !!regra && !Array.isArray(regra) && regra.modo === 'continuo';
+const fmtN = n => Number(n || 0).toLocaleString('pt-BR');
+
 /**
  * Os avisos do SISTEMA: nascem do vigia encontrando um problema.
  *
@@ -518,20 +535,65 @@ export default function ConfigNotificacoes() {
                       </div>
                     </div>
                   ))
-                  : painel('Marcos', <>
-                    <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
-                      marginBottom: 'var(--mf-2)', lineHeight: 1.6 }}>
-                      Um aviso por marco, uma única vez. Separe por vírgula.
-                    </div>
-                    <input className="input" style={{ width: '100%', fontFamily: 'var(--mf-mono)' }}
-                      value={(cfg.thresholds[metrica] || []).join(', ')}
-                      onChange={e => setCfg(c => ({
-                        ...c,
-                        thresholds: {
-                          ...c.thresholds,
-                          [metrica]: e.target.value.split(',').map(v => Number(v.trim())).filter(Boolean),
-                        },
-                      }))} />
+                  : painel('Quando avisar', <>
+                    {(() => {
+                      const regra = cfg.thresholds[metrica];
+                      const continuo = ehContinuo(regra);
+                      const definir = valor => setCfg(c => ({ ...c, thresholds: { ...c.thresholds, [metrica]: valor } }));
+                      const botao = (ativo, rotulo, aoClicar) => (
+                        <button type="button" onClick={aoClicar} style={{
+                          flex: 1, padding: '7px 10px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer',
+                          background: ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
+                          color: ativo ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)',
+                          border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'var(--mf-border)'}`,
+                        }}>{rotulo}</button>
+                      );
+                      return (<>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--mf-3)' }}>
+                          {botao(!continuo, 'Marcos fixos', () => { if (continuo) definir(MARCOS_PADRAO[metrica] || [1000, 5000, 10000]); })}
+                          {botao(continuo, 'Contínuo · sem teto', () => {
+                            if (!continuo) {
+                              const primeiro = (Array.isArray(regra) && regra[0]) || CONTINUO_PADRAO[metrica].aPartirDe;
+                              definir({ ...CONTINUO_PADRAO[metrica], aPartirDe: primeiro });
+                            }
+                          })}
+                        </div>
+
+                        {continuo ? (<>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                            <label style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', display: 'grid', gap: 4 }}>
+                              A partir de
+                              <input className="input" type="number" min={1} step={1} style={{ width: '100%', fontFamily: 'var(--mf-mono)' }}
+                                value={regra.aPartirDe}
+                                onChange={e => definir({ ...regra, aPartirDe: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
+                            </label>
+                            <label style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', display: 'grid', gap: 4 }}>
+                              A cada
+                              <input className="input" type="number" min={1} step={1} style={{ width: '100%', fontFamily: 'var(--mf-mono)' }}
+                                value={regra.passo}
+                                onChange={e => definir({ ...regra, passo: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
+                            </label>
+                          </div>
+                          <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 'var(--mf-2)', lineHeight: 1.6 }}>
+                            {regra.aPartirDe >= 1 && regra.passo >= 1 ? (<>
+                              Avisa em <strong style={{ color: 'var(--mf-text-2)' }}>{fmtN(regra.aPartirDe)}</strong>, depois a cada{' '}
+                              <strong style={{ color: 'var(--mf-text-2)' }}>{fmtN(regra.passo)}</strong> — {fmtN(regra.aPartirDe + regra.passo)}, {fmtN(regra.aPartirDe + 2 * regra.passo)}, {fmtN(regra.aPartirDe + 3 * regra.passo)}… enquanto o conteúdo crescer.
+                              Se ele saltar vários degraus numa sincronização, sai <strong style={{ color: 'var(--mf-text-2)' }}>um</strong> aviso, com o maior.
+                            </>) : (
+                              <span style={{ color: 'var(--mf-warning-500)' }}>Os dois números precisam ser maiores que zero — assim não será salvo.</span>
+                            )}
+                          </div>
+                        </>) : (<>
+                          <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)',
+                            marginBottom: 'var(--mf-2)', lineHeight: 1.6 }}>
+                            Um aviso por marco, uma única vez. Separe por vírgula. Depois do último marco, o conteúdo não avisa mais.
+                          </div>
+                          <input className="input" style={{ width: '100%', fontFamily: 'var(--mf-mono)' }}
+                            value={(Array.isArray(regra) ? regra : []).join(', ')}
+                            onChange={e => definir(e.target.value.split(',').map(v => Number(v.trim())).filter(Boolean))} />
+                        </>)}
+                      </>);
+                    })()}
                   </>)}
 
                 {painel('Comportamento', <>

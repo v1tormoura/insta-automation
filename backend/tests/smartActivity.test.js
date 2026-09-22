@@ -503,3 +503,72 @@ describe('resumo do dia', () => {
     expect(n.mensagem).toContain('@oliviapaganini: •••');
   });
 });
+
+/* ── Modo contínuo ───────────────────────────────────────────────────────────
+   "A partir de X, a cada Y, sem teto" — em vez de uma lista que acaba. */
+describe('thresholds — modo contínuo', () => {
+  const th = require('../src/services/smartActivity/thresholds');
+  const r = th.normalizarRegra({ modo: 'continuo', aPartirDe: 1000, passo: 1000 });
+
+  test('a regra normaliza; lista continua sendo lista; inválido é null', () => {
+    expect(r).toEqual({ modo: 'continuo', aPartirDe: 1000, passo: 1000 });
+    expect(th.normalizarRegra([500, 100, 100])).toEqual({ modo: 'marcos', lista: [100, 500] });
+    expect(th.normalizarRegra({ modo: 'continuo', aPartirDe: 0, passo: 1000 })).toBeNull();
+    expect(th.normalizarRegra({ modo: 'continuo', aPartirDe: 1000, passo: 0 })).toBeNull();
+    expect(th.normalizarRegra([])).toBeNull();
+    expect(th.normalizarRegra('lixo')).toBeNull();
+    expect(th.normalizarRegra({ modo: 'continuo', aPartirDe: '2500', passo: '500.9' })).toEqual({ modo: 'continuo', aPartirDe: 2500, passo: 500 });
+  });
+
+  test('abaixo do "a partir de" nada dispara; o primeiro degrau é o próprio "a partir de"', () => {
+    expect(th.marcosCruzados(0, 999, r)).toEqual([]);
+    expect(th.marcosCruzados(0, 1000, r)).toEqual([1000]);
+    expect(th.marcosCruzados(0, 1500, r)).toEqual([1000]);
+  });
+
+  test('idempotente: mesmo valor de novo não dispara; só o que ficou acima do teto', () => {
+    expect(th.marcosCruzados(1000, 1500, r)).toEqual([]);
+    expect(th.marcosCruzados(1000, 3999, r)).toEqual([2000, 3000]);
+    expect(th.marcosCruzados(3000, 3999, r)).toEqual([]);
+  });
+
+  test('sem teto: um reel de 5 milhões ainda cruza degraus — a lista vem limitada, terminando no maior', () => {
+    const l = th.marcosCruzados(5000, 5_000_000, r);
+    expect(l.length).toBe(th.LIMITE_LISTA);
+    expect(l[l.length - 1]).toBe(5_000_000);
+    expect(l[0]).toBe(5_000_000 - (th.LIMITE_LISTA - 1) * 1000);
+    for (let i = 1; i < l.length; i++) expect(l[i] - l[i - 1]).toBe(1000);
+  });
+
+  test('troca de lista fixa para contínuo: o teto antigo (100.000) é respeitado', () => {
+    expect(th.marcosCruzados(100000, 100999, r)).toEqual([]);
+    expect(th.marcosCruzados(100000, 101500, r)).toEqual([101000]);
+  });
+
+  test('degraus alinhados ao "a partir de", não a zero', () => {
+    const r2 = th.normalizarRegra({ modo: 'continuo', aPartirDe: 1500, passo: 1000 });
+    expect(th.marcosCruzados(0, 2600, r2)).toEqual([1500, 2500]);
+    expect(th.pisoDe(2600, r2)).toBe(2500);
+  });
+
+  test('pisoDe: o maior degrau já alcançado (semeadura de conta nova)', () => {
+    expect(th.pisoDe(12345, r)).toBe(12000);
+    expect(th.pisoDe(999, r)).toBe(0);
+    expect(th.pisoDe(7000, [100, 500, 1000, 5000, 10000])).toBe(5000);
+    expect(th.pisoDe(0, r)).toBe(0);
+  });
+
+  test('marcosCruzados aceita a lista crua (chamada legada) e a regra normalizada', () => {
+    expect(th.marcosCruzados(500, 1200, [100, 500, 1000, 5000])).toEqual([1000]);
+    expect(th.marcosCruzados(500, 1200, th.normalizarRegra([100, 500, 1000, 5000]))).toEqual([1000]);
+    expect(th.marcosCruzados(0, 100, null)).toEqual([]);
+  });
+
+  test('regraDe lê a configuração efetiva por métrica', () => {
+    const cfg = { thresholds: { contentViews: { modo: 'continuo', aPartirDe: 1000, passo: 500 }, reach: [500, 1000], storyViews: [] } };
+    expect(th.regraDe(cfg, 'contentViews')).toEqual({ modo: 'continuo', aPartirDe: 1000, passo: 500 });
+    expect(th.regraDe(cfg, 'reach')).toEqual({ modo: 'marcos', lista: [500, 1000] });
+    expect(th.regraDe(cfg, 'storyViews')).toBeNull();
+    expect(th.regraDe(null, 'reach')).toBeNull();
+  });
+});
