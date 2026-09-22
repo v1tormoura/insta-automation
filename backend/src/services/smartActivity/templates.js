@@ -34,7 +34,7 @@ const VARIAVEIS = Object.freeze({
   /* Só do resumo do dia. Aparecem na lista do editor porque escondê-las
      obrigaria quem edita o resumo a adivinhar que existem. */
   publicacoes:  'Publicações do dia (só no Resumo)',
-  contas:       'Contas que publicaram hoje (só no Resumo)',
+  contas:       'Contas envolvidas (no Resumo: que publicaram hoje; no resumo de marcos: com marcos nesta varredura)',
   viewsStories: 'Visualizações de stories no dia (só no Resumo)',
   porConta:     'Visualizações do dia, uma linha por conta (só no Resumo)',
 
@@ -93,7 +93,7 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   contaCaiu:      Object.freeze(['account', 'username', 'motivo']),
   contaVoltou:    Object.freeze(['account', 'username', 'motivo']),
   cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
-  resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'maior']),
+  resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'contas', 'maior']),
 
   /* Avisos do vigia do sistema. */
   cota:    Object.freeze(['percentual', 'restanteGb', 'totalGb', 'diasRestantes', 'previsao']),
@@ -187,8 +187,8 @@ const PADRAO = Object.freeze({
   /* Vários reels cruzando marcos na mesma sincronização: os 3 maiores saem
      inteiros, o resto vira este resumo. Sem ele era uma avalanche. */
   resumoMarcos: Object.freeze({
-    titulo: 'Mais {{quantidade}} marcos de uma vez 🚀',
-    mensagem: '{{account}}: mais {{quantidade}} conteúdos passaram de marcos nesta sincronização — o maior chegou a {{maior}}.',
+    titulo: 'Mais {{quantidade}} marcos 🚀',
+    mensagem: 'Mais {{quantidade}} conteúdos de {{contas}} conta(s) passaram de marcos nesta sincronização — o maior foi {{account}}, com {{maior}}.',
     tema: 'viral',
   }),
   cotaApi: Object.freeze({

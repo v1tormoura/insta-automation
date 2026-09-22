@@ -252,7 +252,7 @@ describe('coalescência por varredura', () => {
       candidatos.push(...await detector.processarInsight(reel('r' + i, i * 1000), c, CFG, { gravar: false }));
     }
     expect(candidatos).toHaveLength(10);
-    const criadas = await detector._gravarCoalescido(c, candidatos, CFG);
+    const criadas = await detector._gravarCoalescido(candidatos, CFG);
     const marcos = criadas.filter(n => n.eventType === 'milestone');
     const resumos = criadas.filter(n => n.eventType === 'resumoMarcos');
     expect(marcos).toHaveLength(LIMITE_POR_VARREDURA);
@@ -270,9 +270,40 @@ describe('coalescência por varredura', () => {
     for (let i = 1; i <= LIMITE_POR_VARREDURA; i++) {
       candidatos.push(...await detector.processarInsight(reel('r' + i, 1000), c, CFG, { gravar: false }));
     }
-    const criadas = await detector._gravarCoalescido(c, candidatos, CFG);
+    const criadas = await detector._gravarCoalescido(candidatos, CFG);
     expect(criadas.filter(n => n.eventType === 'resumoMarcos')).toHaveLength(0);
     expect(criadas).toHaveLength(LIMITE_POR_VARREDURA);
+  });
+
+  test('o teto é GLOBAL: seis contas com três marcos cada viram 3 avisos + 1 resumo, não 24', async () => {
+    /* Medido em produção: "3 por conta + resumo" com seis contas era uma
+       rajada de 12–15 a cada 30 min. */
+    const candidatos = [];
+    for (let k = 1; k <= 6; k++) {
+      const c = { _id: 'conta' + k, username: 'conta' + k };
+      for (let i = 1; i <= 3; i++) {
+        candidatos.push(...await detector.processarInsight(reel(`c${k}r${i}`, k * 1000 + i), c, CFG, { gravar: false }));
+      }
+    }
+    expect(candidatos).toHaveLength(18);
+    const criadas = await detector._gravarCoalescido(candidatos, CFG);
+    const marcos = criadas.filter(n => n.eventType === 'milestone');
+    const resumos = criadas.filter(n => n.eventType === 'resumoMarcos');
+    expect(marcos).toHaveLength(LIMITE_POR_VARREDURA);
+    expect(resumos).toHaveLength(1);
+    expect(resumos[0].metadados.quantidade).toBe(15);
+    expect(resumos[0].mensagem).toMatch(/15 conteúdos de [56] conta/);
+  });
+
+  test('views e alcance do MESMO reel na mesma varredura: sai só o de views', async () => {
+    const c = conta();
+    const cfgComReach = { ...CFG, ativos: { ...CFG.ativos, reach: true } };
+    // reach 600 cruza 500; videoViews 1200 cruza 1000 — o mesmo conteúdo.
+    const candidatos = await detector.processarInsight({ ...reel('r1', 1200), reach: 600 }, c, cfgComReach, { gravar: false });
+    expect(candidatos.map(x => x.metricType).sort()).toEqual(['contentViews', 'reach']);
+    const criadas = await detector._gravarCoalescido(candidatos, cfgComReach);
+    expect(criadas).toHaveLength(1);
+    expect(criadas[0].metricType).toBe('contentViews');
   });
 });
 

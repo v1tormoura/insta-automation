@@ -108,7 +108,13 @@ async function syncViaAPI(account) {
             // Refresh falhou — não altera tokenExpiresAt (mantém a data original para referência)
             // O health check detectará o token inválido na próxima rodada via /me
             update.healthStatus = 'token_invalido';
-            update.lastError    = `Token inválido — reconecte via 🔗 API`;
+            /* "Session key is malformed because of invalid user id": o usuário
+               do token não existe mais para o Instagram — conta desativada ou
+               suspensa depois de falhar a verificação. Reconectar não resolve
+               sozinho; a pessoa precisa conferir se a conta ainda existe. */
+            update.lastError    = /malformed|invalid user id/i.test(errMsg)
+              ? 'O Instagram não reconhece mais o usuário deste token — a conta pode ter sido desativada. Confira se ela ainda existe; se sim, reconecte via API.'
+              : `Token inválido — reconecte via 🔗 API`;
             console.log(`⚠️ [API Sync] @${account.username} — refresh falhou: ${refreshErr.message}`);
           }
         } else {

@@ -204,13 +204,23 @@ async function validateOAuthToken(account) {
     const data = await res.json();
     if (data.error) {
       console.log(`🔑 [TokenCheck] @${account.username} — token inválido: ${data.error.message}`);
+      /* A mensagem fica guardada para o chamador distinguir VERIFICAÇÃO
+         ("log in to www.instagram.com…") de token morto. Devolver só `false`
+         fazia o QuickCheck rebaixar para token_invalido uma conta que o sync
+         já sabia estar em verificação — e o vai-e-vem restrita → token_invalido
+         → restrita gerava um "Conta parou" a cada 6h sem nada ter mudado. */
+      _ultimoErroDoToken.set(String(account._id), String(data.error.message || ''));
       return false;
     }
+    _ultimoErroDoToken.delete(String(account._id));
     return true;
   } catch {
     return null; // timeout ou erro de rede — não muda o status
   }
 }
+
+/** accountId → última mensagem de erro do /me. Só para o QuickCheck ler logo em seguida. */
+const _ultimoErroDoToken = new Map();
 
 /**
  * Verifica e atualiza o healthStatus de uma conta no banco.
@@ -238,10 +248,23 @@ async function quickCheckAndUpdate(account) {
   //    conta de fato depende dele para publicar.
   const tokenOk = usaInstagrapi ? null : await validateOAuthToken(account);
   if (tokenOk === false) {
+    const verificacao = require('./verificacaoDoInstagram');
+    const erroDoToken = _ultimoErroDoToken.get(String(account._id)) || '';
+    /* Verificação pendente: a mesma leitura do sync (syncAccountAPI). Só
+       escreve na TRANSIÇÃO — repetir o mesmo estado não é notícia. */
+    if (verificacao.ehVerificacaoPendente(erroDoToken)) {
+      if (account.healthStatus !== 'restrita') {
+        await Account.findByIdAndUpdate(account._id, { ...verificacao.saudeDeVerificacao(), lastSync: now });
+        console.log(`⚠️ [QuickCheck] @${username} — em VERIFICAÇÃO no Instagram`);
+      }
+      return { username, status: 'restrita', changed: account.healthStatus !== 'restrita' };
+    }
     if (account.healthStatus !== 'token_invalido') {
       await Account.findByIdAndUpdate(account._id, {
         healthStatus: 'token_invalido',
-        lastError:    'Token OAuth expirado — reconecte a conta via API',
+        lastError:    /malformed|invalid user id/i.test(erroDoToken)
+          ? 'O Instagram não reconhece mais o usuário deste token — a conta pode ter sido desativada. Confira se ela ainda existe; se sim, reconecte via API.'
+          : 'Token OAuth expirado — reconecte a conta via API',
         lastSync:      now,
       });
       console.log(`🔑 [QuickCheck] @${username} — TOKEN INVÁLIDO`);

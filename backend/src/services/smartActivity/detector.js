@@ -204,14 +204,30 @@ async function semearConta(conta, cfg) {
   return tetos;
 }
 
+/* Quando o MESMO conteúdo cruza marco de views e de alcance na mesma
+   varredura, só um aviso: o de views. São dois números do mesmo reel, e o
+   segundo só dobrava a pilha. */
+const PRIORIDADE_DA_METRICA = { contentViews: 3, storyViews: 2, reach: 1 };
+
+function _umPorConteudo(candidatos) {
+  const porConteudo = new Map();
+  for (const c of candidatos) {
+    const chave = `${c.accountId}:${c.contentId}`;
+    const atual = porConteudo.get(chave);
+    if (!atual || (PRIORIDADE_DA_METRICA[c.metricType] || 0) > (PRIORIDADE_DA_METRICA[atual.metricType] || 0)) porConteudo.set(chave, c);
+  }
+  return [...porConteudo.values()];
+}
+
 /**
- * Grava os candidatos de uma conta respeitando o limite por varredura
- * (regra 2): os LIMITE maiores saem inteiros; o resto vira um resumo só.
+ * Grava os candidatos de UMA VARREDURA (todas as contas) respeitando o limite
+ * global (regra 2): os LIMITE maiores saem inteiros; o resto vira UM resumo,
+ * assinado pela conta do maior deles.
  */
-async function _gravarCoalescido(conta, candidatos, cfg) {
+async function _gravarCoalescido(candidatos, cfg) {
   const criadas = [];
   if (!candidatos.length) return criadas;
-  const ordenados = [...candidatos].sort((a, b) => (b.metadados?.valor || 0) - (a.metadados?.valor || 0));
+  const ordenados = _umPorConteudo(candidatos).sort((a, b) => (b.metadados?.valor || 0) - (a.metadados?.valor || 0));
   const individuais = ordenados.slice(0, LIMITE_POR_VARREDURA);
   const resto = ordenados.slice(LIMITE_POR_VARREDURA);
 
@@ -222,17 +238,19 @@ async function _gravarCoalescido(conta, candidatos, cfg) {
   if (!resto.length) return criadas;
 
   const maior = resto[0];
+  const contasNoResto = new Set(resto.map(d => String(d.accountId)));
   const modelo = templates.modeloDe('resumoMarcos', cfg.mensagens);
   const vars = templates.discretas({
-    username: conta.username || '',
-    account: conta.username ? `@${conta.username}` : 'sua conta',
+    username: maior.username || '',
+    account: maior.username ? `@${maior.username}` : 'uma conta',
     quantidade: String(resto.length),
+    contas: String(contasNoResto.size),
     maior: templates.formatarNumero(maior.metadados?.valor || 0),
   }, cfg.privacidade || {});
   const resumo = await _gravar({
-    accountId: conta._id,
-    username: conta.username || '',
-    avatar: conta.avatar || '',
+    accountId: maior.accountId,
+    username: maior.username || '',
+    avatar: maior.avatar || '',
     eventType: 'resumoMarcos',
     tema: modelo.tema,
     prioridade: 'normal',
@@ -262,6 +280,7 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
 
   const cfg = await thresholds.carregar();
   const criadas = [];
+  const candidatos = [];
 
   for (const conta of contas) {
     /* Conta que nunca passou por aqui (regra 3): semeia e segue — nada a
@@ -287,7 +306,6 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
       .limit(200)
       .lean();
 
-    const candidatos = [];
     for (const insight of insights) {
       try {
         candidatos.push(...await processarInsight(insight, conta, cfg, { gravar: false }));
@@ -296,9 +314,13 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
         console.warn(`[SmartActivity] ${insight.igMediaId}: ${err.message}`);
       }
     }
-    criadas.push(...await _gravarCoalescido(conta, candidatos, cfg));
   }
 
+  /* UMA coalescência para a varredura inteira, não uma por conta. "3 por
+     conta + resumo" com seis contas ainda era uma rajada de 12–15 a cada 30
+     min — medido em produção. Agora: 3 no total + 1 resumo geral. Os tetos
+     dos que não saem já subiram em processarInsight: não voltam a disparar. */
+  criadas.push(...await _gravarCoalescido(candidatos, cfg));
   return criadas;
 }
 
