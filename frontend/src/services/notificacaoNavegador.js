@@ -168,6 +168,82 @@ export const notificacaoDoNavegador = {
   },
 
   /**
+   * O estado REAL deste aparelho — não o interruptor.
+   *
+   * O interruptor é um "1" no localStorage; a permissão, o service worker e
+   * a inscrição são do navegador; e o servidor pode ter apagado a inscrição
+   * depois de o serviço de push a dar como morta. Quatro fontes que podem
+   * discordar, e quando discordam a pessoa vê "ligado" e não recebe nada.
+   * Aqui as quatro ficam lado a lado.
+   */
+  async estadoLocal() {
+    const saida = {
+      suportada: this.suportada(), permissao: this.permissao(), interruptor: this.ligada(),
+      swRegistrado: false, inscritoLocal: false, endpoint: '', servidor: null,
+      ios: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+      instalado: !!(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true),
+    };
+    try {
+      const reg = temSW() ? await navigator.serviceWorker.getRegistration('/') : null;
+      saida.swRegistrado = !!reg;
+      const ins = reg ? await reg.pushManager.getSubscription() : null;
+      saida.inscritoLocal = !!ins;
+      saida.endpoint = ins?.endpoint || '';
+    } catch { /* fica como "não" */ }
+    if (saida.endpoint) {
+      try {
+        const { data } = await api.get('/notificacoes/push/estado', { params: { endpoint: saida.endpoint } });
+        saida.servidor = data || null;
+      } catch { saida.servidor = null; }
+    }
+    return saida;
+  },
+
+  /**
+   * Aviso LOCAL, sem passar pelo servidor nem pelo serviço de push.
+   *
+   * É a metade do diagnóstico que faltava: se este aparecer, o sistema
+   * (Windows, iOS) deixa o Nexora mostrar avisos e o problema, se houver,
+   * está no caminho do push; se não aparecer, o bloqueio é do sistema —
+   * Não Perturbe, Assistente de Foco, notificações do Chrome desligadas no
+   * Windows, Resumo Programado no iPhone. Ignora o interruptor e a
+   * visibilidade de propósito: é teste.
+   */
+  async mostrarTeste() {
+    if (!temNotif() || !temSW()) return { ok: false, motivo: 'sem-suporte', texto: 'Este navegador não mostra avisos do sistema.' };
+    if (Notification.permission !== 'granted') return { ok: false, motivo: 'sem-permissao', texto: 'A permissão de notificação não está concedida neste navegador.' };
+    const reg = await registrar();
+    if (!reg) return { ok: false, motivo: 'sem-worker', texto: 'O service worker não pôde ser registrado.' };
+    try {
+      await reg.showNotification('Aviso local do Nexora ✅', {
+        body: 'Se você está vendo isto, o aparelho deixa o Nexora avisar. O caminho do push é o próximo a testar.',
+        icon: '/nexora-icon.png?v=3', badge: '/nexora-badge.png?v=3',
+        tag: 'teste-local', data: { url: '/', id: 'teste-local' },
+      });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, motivo: 'falhou', texto: err.message || 'O navegador recusou mostrar o aviso.' };
+    }
+  },
+
+  /**
+   * Refaz a inscrição deste aparelho do zero: descarta a atual (que pode
+   * estar morta no serviço de push) e cria outra. O servidor limpa a antiga
+   * sozinho quando o próximo envio a ela falhar com 404/410.
+   */
+  async reinscrever() {
+    try {
+      const reg = await registrar();
+      const atual = await reg?.pushManager.getSubscription();
+      if (atual) {
+        await api.post('/notificacoes/push/cancelar', { endpoint: atual.endpoint }).catch(() => {});
+        await atual.unsubscribe().catch(() => {});
+      }
+    } catch { /* segue para o ligar() */ }
+    return this.ligar();
+  },
+
+  /**
    * Aviso local, para quando o app está aberto em outra aba.
    *
    * Vai pelo service worker, não por `new Notification` — ver o comentário no

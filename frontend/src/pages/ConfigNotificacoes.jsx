@@ -125,6 +125,15 @@ export default function ConfigNotificacoes() {
   const [metrica, setMetrica] = useState('storyViews');
   const [salvando, setSalvando] = useState(false);
   const [toast, setToast] = useState(null);
+  /* Estado real deste aparelho (permissão, worker, inscrição, servidor) —
+     ver estadoLocal() em notificacaoNavegador.js. Recarregado ao ligar,
+     desligar, reinscrever e depois de cada teste. */
+  const [aparelho, setAparelho] = useState(null);
+  const lerAparelho = useCallback(async () => {
+    try { setAparelho(await notificacaoDoNavegador.estadoLocal()); } catch { setAparelho(null); }
+  }, []);
+  useEffect(() => { lerAparelho(); }, [lerAparelho]);
+
   const [navegadorLigado, setNavegadorLigado] = useState(
     () => notificacaoDoNavegador.ligada() && notificacaoDoNavegador.permissao() === 'granted');
   /* Por que o interruptor não pode ser ligado, quando não pode. Um botão que
@@ -631,11 +640,13 @@ export default function ConfigNotificacoes() {
                         if (!e.target.checked) {
                           await notificacaoDoNavegador.desligar();
                           setNavegadorLigado(false);
+                          lerAparelho();
                           aviso('info', 'Desligado', 'Este aparelho não recebe mais avisos do sistema.');
                           return;
                         }
                         const r = await notificacaoDoNavegador.ligar();
                         setNavegadorLigado(r.ok);
+                        lerAparelho();
                         aviso(r.ok ? 'success' : 'warning',
                           r.ok ? 'Aparelho inscrito' : 'Não foi possível ativar',
                           r.ok ? 'O celular passa a avisar mesmo com o app fechado.' : r.texto);
@@ -685,6 +696,65 @@ export default function ConfigNotificacoes() {
                                cursor: testando ? 'wait' : 'pointer' }}>
                       {testando ? 'Enviando…' : 'Testar os três, um a um'}
                     </button>
+                  </div>
+
+                  {/* ── Este aparelho ──────────────────────────────────────
+                      "Enviado" no botão acima significa que o SERVIDOR
+                      entregou ao serviço de push (Apple/Google) e ele aceitou.
+                      Daí até a tela há quatro coisas que podem estar erradas
+                      neste aparelho, e nenhuma delas aparecia. Agora aparecem,
+                      com um teste que não passa pelo push (aviso local): se
+                      ele aparece e o push não, o problema é no caminho do
+                      push; se nem ele aparece, o sistema está bloqueando. */}
+                  <div style={{ marginTop: 'var(--mf-4)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      {rotulo('ESTE APARELHO')}
+                      <button type="button" onClick={lerAparelho} className="mf-btn mf-btn--ghost" style={{ padding: '2px 8px', fontSize: 'var(--mf-t-nano)' }}>atualizar</button>
+                    </div>
+                    {!aparelho ? (
+                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>lendo…</div>
+                    ) : (() => {
+                      const ok  = v => <span style={{ color: 'var(--mf-success-500)', fontWeight: 700 }}>{v}</span>;
+                      const nao = v => <span style={{ color: 'var(--mf-danger-500)', fontWeight: 700 }}>{v}</span>;
+                      const linha = (nome, valor) => (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '4px 0', borderBottom: '1px solid var(--mf-border-subtle)', fontSize: 'var(--mf-t-nano)' }}>
+                          <span style={{ color: 'var(--mf-text-3)' }}>{nome}</span><span style={{ fontFamily: 'var(--mf-mono)', textAlign: 'right' }}>{valor}</span>
+                        </div>
+                      );
+                      const hora = d => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+                      const tudoCerto = aparelho.permissao === 'granted' && aparelho.swRegistrado && aparelho.inscritoLocal && aparelho.servidor?.inscrito;
+                      return (<>
+                        {linha('Permissão do navegador', aparelho.permissao === 'granted' ? ok('concedida') : aparelho.permissao === 'denied' ? nao('bloqueada') : nao('não pedida'))}
+                        {linha('Service worker', aparelho.swRegistrado ? ok('registrado') : nao('ausente'))}
+                        {linha('Inscrição neste navegador', aparelho.inscritoLocal ? ok('sim') : nao('não'))}
+                        {linha('Servidor conhece este aparelho', aparelho.servidor == null ? (aparelho.inscritoLocal ? nao('sem resposta') : '—') : aparelho.servidor.inscrito ? ok(`sim · ${aparelho.servidor.falhas || 0} falha(s)`) : nao('não — reinscreva'))}
+                        {aparelho.servidor?.inscrito && linha('Último push enviado a ele', hora(aparelho.servidor.ultimoEnvio))}
+                        {aparelho.ios && linha('iPhone: aberto pela Tela de Início', aparelho.instalado ? ok('sim') : nao('não — push exige'))}
+                        {aparelho.servidor && linha('Aparelhos inscritos no total', String(aparelho.servidor.total))}
+
+                        <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                          <button type="button" className="mf-btn mf-btn--ghost" style={{ flex: 1, minWidth: 140 }}
+                            onClick={async () => {
+                              const r = await notificacaoDoNavegador.mostrarTeste();
+                              aviso(r.ok ? 'success' : 'warning', r.ok ? 'Aviso local disparado' : 'Não deu para mostrar',
+                                r.ok ? 'Se NÃO apareceu na tela, o bloqueio é do sistema (Não Perturbe / Foco / notificações do navegador desligadas no Windows ou no iPhone).' : r.texto);
+                            }}>Aviso local (sem push)</button>
+                          <button type="button" className="mf-btn mf-btn--ghost" style={{ flex: 1, minWidth: 140 }}
+                            disabled={!diagnostico.pode}
+                            onClick={async () => {
+                              const r = await notificacaoDoNavegador.reinscrever();
+                              setNavegadorLigado(r.ok);
+                              await lerAparelho();
+                              aviso(r.ok ? 'success' : 'warning', r.ok ? 'Aparelho reinscrito' : 'Não foi possível', r.ok ? 'Inscrição nova criada. Teste um aviso agora.' : r.texto);
+                            }}>Reinscrever este aparelho</button>
+                        </div>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 8, lineHeight: 1.6 }}>
+                          {tudoCerto
+                            ? <>Tudo certo do lado do app. Se o teste de push não aparece, faça o <strong style={{ color: 'var(--mf-text-2)' }}>aviso local</strong>: aparecendo, o bloqueio está entre o serviço de push e este aparelho (Chrome fechado, iPhone em Não Perturbe ou Resumo Programado); não aparecendo, o sistema está silenciando o navegador.</>
+                            : <>Há um elo faltando acima. Permissão bloqueada se resolve nas configurações do site no navegador; inscrição ausente ou desconhecida do servidor se resolve em <strong style={{ color: 'var(--mf-text-2)' }}>Reinscrever</strong>.</>}
+                        </div>
+                      </>);
+                    })()}
                   </div>
 
                   <div style={{ marginTop: 'var(--mf-4)' }}>

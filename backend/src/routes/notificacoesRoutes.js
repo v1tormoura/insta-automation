@@ -348,6 +348,36 @@ router.post('/push/testar', async (req, res) => {
   }
 });
 
+/**
+ * O servidor conhece ESTE aparelho?
+ *
+ * O interruptor da tela é local; a inscrição vive no banco e pode ter sido
+ * apagada quando o serviço de push a deu como morta (404/410). Sem esta
+ * consulta, "ligado" na tela e "nada chega" no aparelho não tinham como ser
+ * explicados juntos.
+ */
+router.get('/push/estado', async (req, res) => {
+  try {
+    const endpoint = String(req.query.endpoint || '');
+    if (!endpoint) return res.status(400).json({ error: 'endpoint obrigatório', code: 'SEM_ENDPOINT' });
+    const PushSubscription = require('../models/PushSubscription');
+    const [doc, total] = await Promise.all([
+      PushSubscription.findOne({ endpoint }).select('falhas ultimoEnvio createdAt').lean(),
+      PushSubscription.countDocuments(),
+    ]);
+    res.json({
+      inscrito:    !!doc,
+      falhas:      doc?.falhas || 0,
+      ultimoEnvio: doc?.ultimoEnvio || null,
+      desde:       doc?.createdAt || null,
+      total,
+      vapid:       require('../services/smartActivity/webPush').disponivel(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'PUSH_ESTADO_ERRO' });
+  }
+});
+
 router.post('/push/cancelar', async (req, res) => {
   try {
     const webPush = require('../services/smartActivity/webPush');
