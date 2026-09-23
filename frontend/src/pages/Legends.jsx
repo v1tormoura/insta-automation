@@ -92,7 +92,6 @@ export default function Legends() {
   const [porPagina, setPorPagina] = useState(12);
   const [paraExcluir, setParaExcluir] = useState(null);
   const [iaAberta, setIaAberta] = useState(false);
-  const [menuDe, setMenuDe] = useState(null);
 
   const aviso = (type, title, message) => setToast({ type, title, message, id: Date.now() });
 
@@ -127,7 +126,6 @@ export default function Legends() {
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
   const paginaSegura = Math.min(pagina, totalPaginas);
   const visiveis = filtradas.slice((paginaSegura - 1) * porPagina, paginaSegura * porPagina);
-  useEffect(() => { setPagina(1); }, [busca, filtroCat, porPagina]);
 
   const favoritas = legendas.filter(l => l.favorita).length;
 
@@ -155,12 +153,10 @@ export default function Legends() {
 
   function editar(l) {
     setEditando(l._id); setTitulo(l.title || ''); setCategoria(l.category || 'Geral'); setTexto(l.text || '');
-    setMenuDe(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function duplicar(l) {
-    setMenuDe(null);
     try {
       await api.post('/legends', { title: `${l.title} (cópia)`, category: l.category, text: l.text, isActive: true });
       aviso('success', 'Duplicada', l.title);
@@ -286,10 +282,10 @@ export default function Legends() {
             <div className="lg-filtros">
               <div className="lg-busca">
                 <Svg k="busca" />
-                <input value={busca} onChange={e => setBusca(e.target.value)}
+                <input value={busca} onChange={e => { setBusca(e.target.value); setPagina(1); }}
                   placeholder="Buscar legendas…" aria-label="Buscar legendas" />
               </div>
-              <select className="lg-select" value={filtroCat} onChange={e => setFiltroCat(e.target.value)}
+              <select className="lg-select" value={filtroCat} onChange={e => { setFiltroCat(e.target.value); setPagina(1); }}
                 aria-label="Filtrar por categoria">
                 <option value="">Todas as categorias</option>
                 {categorias.map(([c, n]) => <option key={c} value={c}>{c} ({n})</option>)}
@@ -355,7 +351,7 @@ export default function Legends() {
                       onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} aria-label="Próxima página">›</button>
                     <label className="lg-porpagina">
                       Mostrar
-                      <select value={porPagina} onChange={e => setPorPagina(Number(e.target.value))}>
+                      <select value={porPagina} onChange={e => { setPorPagina(Number(e.target.value)); setPagina(1); }}>
                         {POR_PAGINA.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </label>
