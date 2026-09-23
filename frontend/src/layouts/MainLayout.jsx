@@ -184,65 +184,83 @@ const ICONS = {
   oauth:       ic(<><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>),
 };
 
+/* ── O menu ────────────────────────────────────────────────────────────────
+ *
+ * Os grupos seguem a TAREFA, e cada grupo tem uma cor de módulo só.
+ *
+ * Antes eles se contradiziam com a cor: "Performance" é métrica e vivia em
+ * CONTEÚDO; "Engajamento" é de contas e estava no mesmo lugar; "Limpador" era
+ * pintado de sistema no meio de conteúdo. As métricas, que são uma pergunta
+ * só ("como foi?"), estavam espalhadas por três grupos — VISÃO GERAL, CONTEÚDO
+ * e MAIS. E "MAIS" não é um assunto: é onde se joga o que não se decidiu.
+ *
+ * Também sai o único jargão em inglês do menu ("Jobs"), e "Agendamentos"
+ * deixa de se anunciar como "fila" para não competir com a tela ao lado.
+ */
 const NAV_GROUPS = [
   {
     title: 'VISÃO GERAL',
     items: [
-      { to: '/', mod: 'metricas',            label: 'Dashboard',   sub: 'Visão geral',          icon: ICONS.dashboard   },
-      { to: '/metricas-perfis', mod: 'metricas', label: 'Métricas dos Perfis', sub: 'Seguidores e curtidas', icon: ICONS.perfis },
-      { to: '/ranking', mod: 'metricas',     label: 'Ranking',     sub: 'Posts do mês',         icon: ICONS.ranking     },
-      { to: '/faturamento', mod: 'metricas', label: 'Faturamento', sub: 'Meta de vendas',       icon: ICONS.faturamento },
+      { to: '/', mod: 'metricas', label: 'Dashboard', sub: 'O dia de hoje', icon: ICONS.dashboard },
     ],
   },
   {
-    title: 'PUBLICAÇÃO',
+    /* Tudo que COLOCA conteúdo no ar, do envio avulso à regra automática. */
+    title: 'PUBLICAR',
     items: [
-      { to: '/posts', mod: 'publicar',        label: 'Postar',       sub: 'Criar e agendar',    icon: ICONS.posts     },
-      { to: '/loop', mod: 'publicar',         label: 'Loop',         sub: 'Ciclos contínuos',   icon: ICONS.loop      },
-      { to: '/jobs', mod: 'jobs',         label: 'Jobs',         sub: 'Gerenciar execuções', icon: ICONS.jobs      },
-      { to: '/campaigns', mod: 'campanhas',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking  },
-      { to: '/stories', mod: 'publicar',      label: 'Stories',      sub: 'Publicar em massa',  icon: ICONS.stories   },
-      { to: '/scheduler', mod: 'jobs',    label: 'Agendamentos', sub: 'Fila e calendário',  icon: ICONS.scheduler },
-      { to: '/smart-repost', mod: 'jobs', label: 'Automatizar',  sub: 'Regras automáticas', icon: ICONS.repost    },
+      { to: '/posts', mod: 'publicar',         label: 'Postar',       sub: 'Criar e agendar',        icon: ICONS.posts     },
+      { to: '/loop', mod: 'publicar',          label: 'Loop',         sub: 'Ciclos contínuos',       icon: ICONS.loop      },
+      { to: '/stories', mod: 'publicar',       label: 'Stories',      sub: 'Publicar em massa',      icon: ICONS.stories   },
+      { to: '/campaigns', mod: 'campanhas',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking   },
+      { to: '/jobs', mod: 'jobs',              label: 'Execuções',    sub: 'Lotes em andamento',     icon: ICONS.jobs      },
+      { to: '/scheduler', mod: 'jobs',         label: 'Agendamentos', sub: 'Calendário de posts',    icon: ICONS.scheduler },
+      { to: '/smart-repost', mod: 'jobs',      label: 'Automações',   sub: 'Regras de repostagem',   icon: ICONS.repost    },
     ],
   },
   {
+    /* O material e as ferramentas que o preparam, antes de virar publicação. */
     title: 'CONTEÚDO',
     items: [
-      { to: '/biblioteca', mod: 'publicar',  label: 'Biblioteca',  sub: 'Mídias e pastas',       icon: ICONS.media       },
-      { to: '/legends', mod: 'publicar',     label: 'Legendas',    sub: 'Textos salvos',         icon: ICONS.legends     },
-      { to: '/limpador', mod: 'sistema',    label: 'Limpador',    sub: 'Remover metadados',     icon: ICONS.limpador    },
-      { to: '/performance', mod: 'metricas', label: 'Performance', sub: 'Insights gerais',       icon: ICONS.performance },
-      { to: '/warmup', mod: 'contas',      label: 'Engajamento', sub: 'Interações por conta',  icon: ICONS.warmup      },
-      { to: '/top-posts', mod: 'metricas',   label: 'Top Posts',   sub: 'Republique os melhores',icon: ICONS.topposts    },
+      { to: '/biblioteca', mod: 'publicar',      label: 'Biblioteca',     sub: 'Mídias e pastas',     icon: ICONS.media       },
+      { to: '/legends', mod: 'publicar',         label: 'Legendas',       sub: 'Textos salvos',       icon: ICONS.legends     },
+      { to: '/video-editor', mod: 'publicar',    label: 'Editor',         sub: 'Editor de vídeos',    icon: ICONS.videoeditor },
+      { to: '/video-templates', mod: 'publicar', label: 'Templates',      sub: 'Modelos de vídeo',    icon: ICONS.videotpl    },
+      { to: '/video-batches', mod: 'publicar',   label: 'Processamentos', sub: 'Lotes e resultados',  icon: ICONS.videobatch  },
+      { to: '/limpador', mod: 'publicar',        label: 'Limpador',       sub: 'Remover metadados',   icon: ICONS.limpador    },
     ],
   },
   {
-    title: 'VÍDEO',
+    /* Uma pergunta só: como foi? Antes a resposta morava em três grupos. */
+    title: 'MÉTRICAS',
     items: [
-      { to: '/video-editor', mod: 'publicar',    label: 'Editor',        sub: 'Editor de vídeos',      icon: ICONS.videoeditor },
-      { to: '/video-templates', mod: 'publicar', label: 'Templates',     sub: 'Modelos de vídeo',      icon: ICONS.videotpl    },
-      { to: '/video-batches', mod: 'publicar',   label: 'Processamentos', sub: 'Lotes e resultados',   icon: ICONS.videobatch  },
+      { to: '/performance', mod: 'metricas',     label: 'Performance',       sub: 'Alcance e retenção',     icon: ICONS.performance },
+      { to: '/metricas-perfis', mod: 'metricas', label: 'Perfis',            sub: 'Seguidores e curtidas',  icon: ICONS.perfis      },
+      { to: '/ranking', mod: 'metricas',         label: 'Ranking',           sub: 'Posts do mês',           icon: ICONS.ranking     },
+      { to: '/top-posts', mod: 'metricas',       label: 'Top Posts',         sub: 'Republique os melhores', icon: ICONS.topposts    },
+      { to: '/best-times', mod: 'metricas',      label: 'Melhores Horários', sub: 'Quando postar',          icon: ICONS.besttimes   },
+      { to: '/faturamento', mod: 'metricas',     label: 'Faturamento',       sub: 'Meta de vendas',         icon: ICONS.faturamento },
     ],
   },
   {
-    title: 'CONFIGURAÇÃO',
+    /* Os perfis e o que os mantém vivos — conexão, saúde, IP, aquecimento.
+       Contas não é "configuração": é a tela que mais se abre depois do Postar. */
+    title: 'CONTAS',
     items: [
-      { to: '/accounts', mod: 'contas',  label: 'Contas',   sub: 'Gerenciar contas',  icon: ICONS.accounts },
-      { to: '/health', mod: 'contas',    label: 'Saúde',    sub: 'Status das contas', icon: ICONS.health   },
-      { to: '/proxies', mod: 'contas',   label: 'Proxies',  sub: 'Gerenciar proxies', icon: ICONS.proxies  },
-      { to: '/api-meta', mod: 'sistema',    label: 'API Meta',  sub: 'Apps Meta / OAuth',  icon: ICONS.apimeta },
-      { to: '/oauth-contas', mod: 'contas', label: 'OAuth',    sub: 'Conexões por conta', icon: ICONS.oauth   },
-      { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Avisos de marco', icon: ICONS.bell },
-      { to: '/minha-conta', mod: 'sistema', label: 'Minha Conta', sub: 'Perfil, senha e aparência', icon: ICONS.usuario },
+      { to: '/accounts', mod: 'contas',     label: 'Contas',      sub: 'Gerenciar contas',     icon: ICONS.accounts },
+      { to: '/health', mod: 'contas',       label: 'Saúde',       sub: 'Status das contas',    icon: ICONS.health   },
+      { to: '/oauth-contas', mod: 'contas', label: 'OAuth',       sub: 'Conexões por conta',   icon: ICONS.oauth    },
+      { to: '/proxies', mod: 'contas',      label: 'Proxies',     sub: 'Por onde cada uma sai', icon: ICONS.proxies },
+      { to: '/warmup', mod: 'contas',       label: 'Engajamento', sub: 'Interações por conta', icon: ICONS.warmup   },
     ],
   },
   {
-    title: 'MAIS',
+    title: 'SISTEMA',
     items: [
-      { to: '/best-times', mod: 'metricas', label: 'Melhores Horários', sub: 'Quando postar',        icon: ICONS.besttimes },
-      { to: '/promo', mod: 'campanhas',      label: 'Divulgação',        sub: 'Captação de clientes', icon: ICONS.promo     },
-      { to: '/logs', mod: 'sistema',       label: 'Histórico',         sub: 'Logs de atividade',    icon: ICONS.logs      },
+      { to: '/api-meta', mod: 'sistema',              label: 'API Meta',    sub: 'Apps Meta / OAuth',          icon: ICONS.apimeta },
+      { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Quando e como avisar',      icon: ICONS.bell    },
+      { to: '/minha-conta', mod: 'sistema',           label: 'Minha Conta', sub: 'Perfil, senha e aparência',  icon: ICONS.usuario },
+      { to: '/promo', mod: 'campanhas',               label: 'Divulgação',  sub: 'Captação de clientes',       icon: ICONS.promo   },
+      { to: '/logs', mod: 'sistema',                  label: 'Histórico',   sub: 'Logs de atividade',          icon: ICONS.logs    },
     ],
   },
 ];
