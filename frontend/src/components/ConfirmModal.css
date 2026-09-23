@@ -1,61 +1,162 @@
-.modalOverlay {
+/* ── A caixa de confirmação ───────────────────────────────────────────────────
+
+   Reescrita sobre os tokens. A versão anterior trazia as cores cravadas
+   (`#081225`, `#94a3b8`, `rgba(59,130,246,.25)`), de antes de `design/`
+   existir: ficava fora do tema, não acompanhava a cor do módulo e destoava de
+   qualquer tela em que aparecesse.
+
+   O tom (`data-tom`) pinta só três coisas — o fio de cima, o ícone e o botão
+   de ação. O resto é a superfície de sempre: a caixa não precisa gritar para
+   ser levada a sério; o que ela pede é atenção a UMA frase. */
+
+.mf-confirma__fundo {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  z-index: var(--mf-z-modal, 1000);
+  display: grid;
+  place-items: center;
+  padding: var(--mf-4);
+  /* Escurece com a cor do FUNDO do tema, não com preto: preto sobre um tema
+     claro suja em vez de afastar. */
+  background: color-mix(in oklch, var(--mf-bg) 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: mf-confirma-fundo 160ms var(--mf-ease-out, ease-out);
+}
 
+.mf-confirma {
+  --tom: var(--mf-danger-500);
+  position: relative;
+  width: min(440px, 100%);
+  overflow: hidden;
+  background: var(--mf-surface-1);
+  border: 1px solid var(--mf-border);
+  border-radius: var(--mf-r-lg);
+  box-shadow: var(--mf-shadow-3, 0 24px 64px rgba(0, 0, 0, .5));
+  animation: mf-confirma-entra 200ms var(--mf-ease-spring, cubic-bezier(.34, 1.3, .64, 1));
+}
+.mf-confirma[data-tom='primary'] { --tom: var(--mf-primary-500); }
+
+/* O fio de luz no topo — o mesmo gesto do resto do painel, aqui na cor do
+   tom. É o que diz "isto é sério" sem pintar a caixa inteira de vermelho. */
+.mf-confirma::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 14px; right: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--tom) 55%, transparent), transparent);
+}
+
+.mf-confirma__topo {
   display: flex;
-  align-items: center;
-  justify-content: center;
-
-  z-index: 99999;
-  backdrop-filter: blur(6px);
+  gap: var(--mf-3);
+  padding: var(--mf-5) var(--mf-5) var(--mf-4);
 }
 
-.modalCard {
-  width: min(420px, calc(100vw - 32px));
-
-  background: #081225;
-
-  border: 1px solid rgba(59, 130, 246, 0.25);
-
-  border-radius: 20px;
-
-  padding: 24px;
-
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+.mf-confirma__ico {
+  flex-shrink: 0;
+  width: 38px; height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--mf-r-md);
+  color: var(--tom);
+  background: color-mix(in oklch, var(--tom) 13%, transparent);
+  border: 1px solid color-mix(in oklch, var(--tom) 28%, transparent);
 }
 
-.modalCard h2 {
-  margin: 0 0 12px;
-  color: white;
+.mf-confirma__titulo {
+  margin: 2px 0 0;
+  font-size: var(--mf-t-h2);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--mf-text);
+  text-wrap: balance;
 }
 
-.modalCard p {
-  color: #94a3b8;
+.mf-confirma__texto {
+  margin: 6px 0 0;
+  font-size: var(--mf-t-sm);
   line-height: 1.6;
+  color: var(--mf-text-2);
+  /* Medida de leitura: a frase que descreve a consequência é o que precisa
+     ser lido de primeira, e ela não pode virar uma linha de 90 caracteres. */
+  max-width: 48ch;
 }
 
-.modalActions {
+/* O QUE exatamente vai acontecer — contagem, lista, nomes. Fica num degrau
+   abaixo do texto: é detalhe para conferir, não a frase que decide. */
+.mf-confirma__detalhe {
+  margin: 0 var(--mf-5) var(--mf-4);
+  padding: var(--mf-3);
+  border-radius: var(--mf-r-sm);
+  background: color-mix(in oklch, var(--mf-surface-2) 70%, transparent);
+  border: 1px solid var(--mf-border-subtle, var(--mf-border));
+  font-size: var(--mf-t-xs);
+  line-height: 1.55;
+  color: var(--mf-text-2);
+}
+
+.mf-confirma__acoes {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
+  gap: var(--mf-2);
+  padding: var(--mf-3) var(--mf-5) var(--mf-5);
+  border-top: 1px solid var(--mf-border);
+  background: color-mix(in oklch, var(--mf-surface-2) 40%, transparent);
 }
 
-.modalCancel {
-  border: none;
-  background: #1e293b;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
+.mf-confirma__btn {
+  padding: 9px 18px;
+  border-radius: var(--mf-r-sm);
+  font-size: var(--mf-t-xs);
+  font-weight: 700;
   cursor: pointer;
+  transition: background var(--mf-fast) var(--mf-ease-out), border-color var(--mf-fast) var(--mf-ease-out), opacity var(--mf-fast);
+}
+.mf-confirma__btn:disabled { opacity: .55; cursor: wait; }
+
+.mf-confirma__btn--fantasma {
+  background: transparent;
+  border: 1px solid var(--mf-border);
+  color: var(--mf-text-2);
+}
+.mf-confirma__btn--fantasma:hover:not(:disabled) {
+  background: var(--mf-surface-2);
+  border-color: var(--mf-border-strong, var(--mf-border));
+  color: var(--mf-text);
 }
 
-.modalConfirm {
-  border: none;
-  background: #ef4444;
-  color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
-  cursor: pointer;
+.mf-confirma__btn--acao {
+  background: var(--tom);
+  border: 1px solid var(--tom);
+  /* Texto na cor do FUNDO do painel, não branco fixo: no tema claro, branco
+     sobre o tom some. */
+  color: var(--mf-bg);
+}
+.mf-confirma__btn--acao:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--tom) 86%, var(--mf-text));
+}
+
+/* O anel de foco é o que guia quem usa teclado — e o foco começa no Cancelar
+   de propósito (ver o componente). Ele precisa estar visível nos dois botões. */
+.mf-confirma__btn:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--tom) 70%, transparent);
+  outline-offset: 2px;
+}
+
+@keyframes mf-confirma-fundo { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mf-confirma-entra {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* No celular os botões ocupam a largura e empilham, com o destrutivo EMBAIXO:
+   é o mais longe do polegar que rola a tela. */
+@media (max-width: 480px) {
+  .mf-confirma__acoes { flex-direction: column-reverse; }
+  .mf-confirma__btn { width: 100%; padding: 12px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-confirma, .mf-confirma__fundo { animation: none; }
 }

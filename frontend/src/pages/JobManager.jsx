@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import PageShell from '../components/PageShell';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ── Icons SVG inline ────────────────────────────────────────────────────────
 const ic = (children, w = 16) => (
@@ -350,6 +351,10 @@ export default function JobManager() {
      aparece no clique. */
   const [selecionados, setSelecionados] = useState(() => new Set());
   const [apagando, setApagando] = useState(false);
+  /* A pergunta antes de apagar sai do `window.confirm`: aquele aparece colado
+     na barra de endereço, com a fonte do sistema e "instaflow.pro diz" em
+     cima — parece aviso de site suspeito, não o painel. */
+  const [perguntando, setPerguntando] = useState(false);
   const alternarSelecao = useCallback(id => {
     setSelecionados(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
@@ -407,15 +412,15 @@ export default function JobManager() {
      A confirmação conta quantos ATIVOS estão na seleção, porque é a diferença
      que importa: apagar finalizado é arrumação, apagar envio rodando para uma
      publicação que ainda ia sair. */
+  /* Quantos dos selecionados ainda estão publicando — é a diferença que muda
+     a decisão, então ela é calculada uma vez e mostrada na caixa. */
+  const ativosSelecionados = jobs.filter(j =>
+    selecionados.has(j._id) && ['queued', 'running', 'waiting_interval'].includes(j.status)).length;
+
   async function apagarSelecionados() {
     const ids = [...selecionados];
     if (!ids.length) return;
-    const ativos = jobs.filter(j => ids.includes(j._id) && ['queued', 'running', 'waiting_interval'].includes(j.status)).length;
-    const aviso = ativos
-      ? `Apagar ${ids.length} envio(s)?\n\n${ativos} ainda está(ão) publicando — apagar interrompe o que faltava.`
-      : `Apagar ${ids.length} envio(s) finalizado(s)?`;
-    if (!window.confirm(aviso)) return;
-
+    setPerguntando(false);
     setApagando(true);
     try {
       const { data } = await api.post('/jobs/excluir-varios', { ids });
@@ -538,7 +543,7 @@ export default function JobManager() {
               <button type="button" onClick={() => setSelecionados(new Set())} className="btn btn-ghost btn-sm">
                 Limpar
               </button>
-              <button type="button" onClick={apagarSelecionados} disabled={apagando}
+              <button type="button" onClick={() => setPerguntando(true)} disabled={apagando}
                 style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
                   fontSize: 'var(--mf-t-xs)', fontWeight: 700, borderRadius: 'var(--mf-r-sm)', cursor: apagando ? 'wait' : 'pointer',
                   border: '1px solid color-mix(in oklch, var(--mf-danger-500) 35%, transparent)',
@@ -550,6 +555,21 @@ export default function JobManager() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        open={perguntando}
+        title={`Excluir ${selecionados.size} envio${selecionados.size === 1 ? '' : 's'}?`}
+        message={ativosSelecionados
+          ? 'Os envios saem da lista e o que faltava publicar não sai. As publicações que já foram ao ar continuam no Instagram.'
+          : 'Eles saem da lista. As publicações que já foram ao ar continuam no Instagram.'}
+        detalhe={ativosSelecionados
+          ? <><strong style={{ color: 'var(--mf-danger-500)' }}>{ativosSelecionados} ainda está{ativosSelecionados === 1 ? '' : 'ão'} publicando</strong> — interromper agora cancela o que faltava.{selecionados.size > ativosSelecionados && <> Os outros {selecionados.size - ativosSelecionados} já terminaram.</>}</>
+          : <>Todos os {selecionados.size} já terminaram — nada em andamento será interrompido.</>}
+        confirmLabel={`Excluir ${selecionados.size}`}
+        carregando={apagando}
+        onConfirm={apagarSelecionados}
+        onCancel={() => setPerguntando(false)}
+      />
 
       {/* Error banner */}
       {error && (

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
+import ConfirmModal from '../components/ConfirmModal';
 import Segmentado from '../components/Segmentado';
 /* A mesma contagem do Loop. Um segundo relógio, escrito de novo, escreveria
    "12min" de um jeito aqui e "12 min" de outro lá — e as duas telas do mesmo
@@ -67,16 +68,17 @@ export default function Campaigns() {
    * está rodando deixaria publicações enfileiradas sem dono: elas sairiam de
    * qualquer jeito, e não haveria onde ver que saíram.
    */
+  /* A campanha aguardando confirmação na caixa do painel. */
+  const [paraExcluir, setParaExcluir] = useState(null);
+
   async function excluir(c) {
+    if (!c) return;
+    setParaExcluir(null);
     const publicadas = c.publicadas || 0;
+    void publicadas;
     /* `texto`, e não `aviso`: há uma função `aviso()` no escopo de fora, e um
        `const` com o mesmo nome a sombreia — a chamada logo abaixo tentaria
        invocar uma string. O build não vê isso; só o clique veria. */
-    const texto = publicadas
-      ? `Excluir "${c.name}"?\n\nAs ${publicadas} publicação(ões) já feitas continuam no Instagram — o que sai daqui é o plano e o histórico desta campanha.`
-      : `Excluir "${c.name}"?\n\nNada foi publicado por ela. O plano e o histórico saem.`;
-    if (!window.confirm(texto)) return;
-
     try {
       await api.delete(`/campaigns/${c._id}`);
       aviso('success', 'Campanha excluída', c.name);
@@ -352,7 +354,7 @@ export default function Campaigns() {
                       certeza sobre o quê é a pergunta que ninguém responde. */}
                   {['cancelled', 'completed', 'draft'].includes(c.status) && (
                     <button
-                      onClick={() => excluir(c)}
+                      onClick={() => setParaExcluir(c)}
                       style={{ ...botao('var(--mf-danger-500)'), marginLeft:'auto' }}>
                       Excluir
                     </button>
@@ -376,6 +378,18 @@ export default function Campaigns() {
             onClick={() => setPagina(p => p + 1)}>Próxima</button>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!paraExcluir}
+        title={`Excluir "${paraExcluir?.name || ''}"?`}
+        message="O plano e o histórico desta campanha saem do painel."
+        detalhe={(paraExcluir?.publicadas || 0) > 0
+          ? <>As <strong style={{ color: 'var(--mf-text)' }}>{paraExcluir.publicadas}</strong> publicação(ões) já feitas <strong style={{ color: 'var(--mf-text)' }}>continuam no Instagram</strong> — o que sai daqui é o registro delas.</>
+          : <>Nada foi publicado por ela: nenhum reel sai do ar.</>}
+        confirmLabel="Excluir campanha"
+        onConfirm={() => excluir(paraExcluir)}
+        onCancel={() => setParaExcluir(null)}
+      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </PageShell>

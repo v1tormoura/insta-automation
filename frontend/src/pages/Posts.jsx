@@ -9,6 +9,7 @@ import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import CapasPorPerfil from '../components/CapasPorPerfil';
+import ConfirmModal from '../components/ConfirmModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import { useCotas, diasPelaCota } from '../services/useCotas';
@@ -292,6 +293,8 @@ export default function Posts() {
   const [capaPorPerfil, setCapaPorPerfil] = useState(false);
   const [capasPorConta, setCapasPorConta] = useState({});
   const [pickerCapaDe, setPickerCapaDe] = useState(null);   // accountId aguardando escolha na biblioteca
+  /* A trilha aguardando confirmação na caixa do painel. */
+  const [trilhaParaRemover, setTrilhaParaRemover] = useState(null);
 
   /* A biblioteca guarda o arquivo em `filename` e o caminho servido em `url`,
      e nenhum dos dois é obrigatório. Derivar aqui, uma vez, evita repetir a
@@ -386,7 +389,8 @@ export default function Posts() {
     } finally { setEnviandoTrilha(false); }
   }
   async function removerTrilha(tr) {
-    if (!window.confirm(`Remover "${tr.nome}" da biblioteca? Publicações já criadas que a usam vão sair sem trilha.`)) return;
+    if (!tr) return;
+    setTrilhaParaRemover(null);
     try {
       await api.delete(`/trilhas/${tr._id}`);
       setTrilhas(prev => prev.filter(x => x._id !== tr._id));
@@ -781,6 +785,16 @@ export default function Posts() {
             )}
             {/* Picker de capa POR PERFIL: mesma biblioteca, mas o resultado vai
                 para a conta que abriu o modal. */}
+            <ConfirmModal
+              open={!!trilhaParaRemover}
+              title={`Remover "${trilhaParaRemover?.nome || ''}" da biblioteca?`}
+              message="A trilha sai da lista e não poderá mais ser escolhida em novos envios."
+              detalhe={<>Publicações <strong style={{ color: 'var(--mf-text)' }}>já criadas</strong> que a usam vão sair <strong style={{ color: 'var(--mf-text)' }}>sem trilha</strong> — o arquivo de áudio some do servidor.</>}
+              confirmLabel="Remover trilha"
+              onConfirm={() => removerTrilha(trilhaParaRemover)}
+              onCancel={() => setTrilhaParaRemover(null)}
+            />
+
             {pickerCapaDe && (
               <LibraryPickerModal
                 mode="single"
@@ -1318,7 +1332,7 @@ export default function Posts() {
                               onChange={e => setTrilha(cfg => ({ ...cfg, ids: e.target.checked ? [...cfg.ids, t._id] : cfg.ids.filter(id => id !== t._id) }))} />
                             <span style={{ flex:1, minWidth:0, fontSize:'var(--mf-t-xs)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={t.nome}>{t.nome}</span>
                             <span style={{ fontSize:'var(--mf-t-nano)', fontFamily:'var(--mf-mono)', color:'var(--mf-text-3)' }}>{t.tamanho ? `${(t.tamanho/1024/1024).toFixed(1)} MB` : ''}</span>
-                            <button type="button" className="btn-ghost" title="Remover da biblioteca" onClick={() => removerTrilha(t)} style={{ padding:'2px 7px', fontSize:'var(--mf-t-micro)', color:'var(--mf-danger-500)', borderRadius:'var(--mf-r-xs)' }}>✕</button>
+                            <button type="button" className="btn-ghost" title="Remover da biblioteca" onClick={() => setTrilhaParaRemover(t)} style={{ padding:'2px 7px', fontSize:'var(--mf-t-micro)', color:'var(--mf-danger-500)', borderRadius:'var(--mf-r-xs)' }}>✕</button>
                           </div>
                         );
                       })}
