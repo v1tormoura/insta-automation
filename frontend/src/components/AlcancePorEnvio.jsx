@@ -95,7 +95,7 @@ export default function AlcancePorEnvio({ period = '30d' }) {
         </div>
       ) : (
         <div>
-          <p style={{ margin: 0, padding: '10px 16px 4px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.55 }}>
+          <p className="mf-prosa" style={{ margin: 0, padding: '10px 16px 4px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.55 }}>
             Cada envio do Postar é um lote do mesmo tipo de vídeo. Se um envio alcança 10× outro nas <strong style={{ color: 'var(--mf-text-2)' }}>mesmas contas</strong>, a diferença é o vídeo — não a conta, não o IP. <strong style={{ color: 'var(--mf-text-2)' }}>Assistido</strong> é o tempo médio que a pessoa fica: é a retenção, o número que decide se o Instagram continua distribuindo.
           </p>
 
@@ -154,7 +154,7 @@ export default function AlcancePorEnvio({ period = '30d' }) {
           {dados.contas?.length > 0 && (
             <div style={{ borderTop: '1px solid var(--mf-border)', padding: '10px 16px 12px' }}>
               <div style={{ ...mono, marginBottom: 4 }}>chão por conta · mediana dos últimos 10 reels</div>
-              <p style={{ margin: '0 0 10px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.55 }}>
+              <p className="mf-prosa" style={{ margin: '0 0 10px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.55 }}>
                 O chão é o público-teste que o Instagram dá a cada reel novo — é o que o aquecimento constrói.
                 Conta fria testa em ~100; aquecida, em milhares. Acima de <strong style={{ color: 'var(--mf-text-2)' }}>1.000</strong> ela está pronta pra receber o conteúdo que importa.
               </p>

@@ -1470,6 +1470,13 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
 .mf-empty__t { font-size: var(--mf-t-h2); font-weight: 650; margin: 0; }
 .mf-empty__d { font-size: var(--mf-t-sm); color: var(--mf-text-3); max-width: 46ch; margin: 0; }
 
+/* ── Medida de leitura ──────────────────────────────────────────────────────
+   Texto explicativo nao acompanha a largura do painel. Medido a 1440px, as
+   explicacoes do Performance chegavam a 1308px com 267 caracteres: mais de
+   180 por linha, quando o olho ja perde o comeco da linha seguinte perto dos
+   90. 65-75 e a medida em que se le sem reler. */
+.mf-prosa { max-width: 68ch; }
+
 /* ── Paleta de comandos ──────────────────────────────────────────────────*/
 .mf-cmd-backdrop {
   position: fixed; inset: 0; z-index: var(--mf-z-command);
