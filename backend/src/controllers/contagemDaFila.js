@@ -70,7 +70,10 @@ function pendentesDoLoop(loops) {
     if (!loop || loop.status !== 'ativo') return soma;
     const total = Array.isArray(loop.mediaFiles) ? loop.mediaFiles.length : 0;
     const feitas = Number(loop.currentIndex) || 0;
-    return soma + Math.max(0, total - feitas);
+    /* Por conta, pela mesma razão de `midiasDoJob`: a fila é medida em
+       publicações, e o loop publica cada mídia em todas as contas dele. */
+    const contas = Math.max(1, Array.isArray(loop.accounts) ? loop.accounts.length : 1);
+    return soma + Math.max(0, total - feitas) * contas;
   }, 0);
 }
 
@@ -128,6 +131,15 @@ function porStatus(linhas) {
  *   - queued:           nada começou → tudo espera.
  * Loop entra igual, para o ciclo atual (`pendentesDoLoop` cobre o modelo
  * antigo de Loop; o Job de tipo 'loop' passa por aqui).
+ *
+ * ── A unidade: PUBLICAÇÕES, não mídias
+ *
+ * Um envio de 20 mídias para 10 contas produz 200 publicações — é o que o
+ * próprio Job grava em `postsTotal` (totalRounds × contas) e é o que a fila
+ * de verdade tem pela frente. O painel contava as 20 mídias e mostrava "21"
+ * enquanto 200 publicações esperavam. Medido em produção com um envio real.
+ *
+ * Cada mídia vale, então, uma publicação POR CONTA do envio.
  */
 function midiasDoJob(job) {
   if (!job) return { processando: 0, naFila: 0 };
@@ -135,12 +147,17 @@ function midiasDoJob(job) {
   const limite = Math.max(1, Number(job.simultaneousLimit) || 1);
   const rodada = Math.max(0, Number(job.currentRound) || 0);
   const inicio = Math.min(total, rodada * limite);
+  /* Sem contas declaradas, uma publicação por mídia — é o mínimo verdadeiro,
+     e evita zerar a fila por causa de um campo ausente. */
+  const contas = Math.max(1, Array.isArray(job.accounts) ? job.accounts.length : 1);
+  const porConta = n => Math.max(0, n) * contas;
+
   if (job.status === 'running') {
     const nestaRodada = Math.min(limite, total - inicio);
-    return { processando: Math.max(0, nestaRodada), naFila: Math.max(0, total - inicio - nestaRodada) };
+    return { processando: porConta(nestaRodada), naFila: porConta(total - inicio - nestaRodada) };
   }
   if (job.status === 'waiting_interval' || job.status === 'queued') {
-    return { processando: 0, naFila: Math.max(0, total - inicio) };
+    return { processando: 0, naFila: porConta(total - inicio) };
   }
   return { processando: 0, naFila: 0 };   // paused/cancelled/completed: fora da fila
 }

@@ -149,9 +149,15 @@ exports.getDashboard = async (req, res) => {
     ] = await Promise.all([
       Post.countDocuments(),
       Post.countDocuments({ status: 'concluido' }),
-      Post.countDocuments({ status: 'agendado' }),
-      Post.countDocuments({ status: 'processando' }),
-      Post.countDocuments({ status: 'pendente' }),
+      /* `jobId: null` — só as publicações AVULSAS.
+
+         Um envio cria um Post por mídia e o guarda com `jobId`. Sem este
+         filtro a mesma publicação era contada duas vezes: uma pelo Job (que
+         sabe quantas rodadas faltam) e outra pelo Post que a rodada acabou de
+         criar. Era o "2 saindo agora" quando só uma mídia estava saindo. */
+      Post.countDocuments({ status: 'agendado',    jobId: null }),
+      Post.countDocuments({ status: 'processando', jobId: null }),
+      Post.countDocuments({ status: 'pendente',    jobId: null }),
       Post.countDocuments({ status: 'parcial' }),
       Post.countDocuments({ status: 'erro' }),
       Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
