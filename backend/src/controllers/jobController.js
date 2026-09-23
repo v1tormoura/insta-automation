@@ -197,6 +197,46 @@ exports.remove = async (req, res) => {
   }
 };
 
+/**
+ * Exclui vários envios de uma vez.
+ *
+ * ── Por que não é um laço de `DELETE /jobs/:id` no navegador
+ *
+ * Limpar a tela de Jobs é apagar vinte e poucos itens; vinte e poucas
+ * requisições deixam a lista piscando a cada resposta, e uma que falhe no
+ * meio deixa o usuário sem saber o que foi e o que ficou. Aqui sai um número
+ * só: quantos foram.
+ *
+ * ── O que ele NÃO faz
+ *
+ * Não cancela o que está rodando antes de apagar — apagar já para o envio
+ * (a rodada seguinte não encontra o documento e desiste), e a rodada em voo
+ * termina o que começou. É o mesmo comportamento do `DELETE` de um só, e
+ * inventar aqui uma regra diferente faria a mesma ação ter dois significados
+ * conforme o botão. Quem precisa parar na hora usa Cancelar.
+ */
+exports.removeVarios = async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [];
+    if (!ids.length) return res.status(400).json({ error: 'Nenhum id enviado', code: 'SEM_IDS' });
+    /* Teto: o corpo vem do navegador, e uma lista sem limite é um jeito
+       barato de pedir ao banco uma operação enorme por engano. */
+    if (ids.length > 500) return res.status(400).json({ error: 'Máximo de 500 por vez', code: 'LISTA_LONGA' });
+
+    const validos = ids.filter(id => /^[a-f\d]{24}$/i.test(id));
+    const [jobs, loops] = await Promise.all([
+      Job.deleteMany({ _id: { $in: validos } }),
+      Loop.deleteMany({ _id: { $in: validos } }),
+    ]);
+    const apagados = (jobs.deletedCount || 0) + (loops.deletedCount || 0);
+
+    broadcast('jobs', { action: 'jobs_deleted', quantos: apagados });
+    res.json({ ok: true, apagados, pedidos: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 /* ── Alternar pause/resume (compatibilidade com Loop page) ── */
 exports.togglePause = async (req, res) => {
   try {

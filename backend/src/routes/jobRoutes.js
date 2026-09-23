@@ -4,6 +4,8 @@ const router = require('express').Router();
 const ctrl   = require('../controllers/jobController');
 
 router.get   ('/',               ctrl.list);
+/* ANTES de '/:id': o Express casa na ordem, e 'excluir-varios' viraria um id. */
+router.post  ('/excluir-varios', ctrl.removeVarios);
 router.get   ('/:id',            ctrl.get);
 router.post  ('/:id/pause',      ctrl.pause);
 router.post  ('/:id/resume',     ctrl.resume);

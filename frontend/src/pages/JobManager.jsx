@@ -148,7 +148,7 @@ function fmtN(n) {
 }
 
 // ── Job card ────────────────────────────────────────────────────────────────
-function JobCard({ job, onAction }) {
+function JobCard({ job, onAction, selecionado = false, aoSelecionar }) {
   const isLoop      = job.type === 'loop';
   const isActive    = ['queued', 'running', 'waiting_interval'].includes(job.status);
   const isCompleted = job.status === 'completed';
@@ -174,11 +174,26 @@ function JobCard({ job, onAction }) {
       borderRadius: 'var(--mf-r-lg)', minWidth: 0, containerType: 'inline-size',
       padding: 'var(--mf-4)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-3)',
       borderLeft: `3px solid ${STATUS[job.status]?.cor || 'var(--mf-border)'}`,
+      /* Marcado se vê de longe: numa grade de vinte, contar quais estão
+         selecionados pela caixinha exige olhar um por um. */
+      ...(selecionado ? {
+        outline: '1px solid color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 55%, transparent)',
+        background: 'color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 7%, var(--mf-surface-1))',
+      } : {}),
     }}>
       {/* Header: nome + badges */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, justifyContent: 'space-between' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* A caixa vem ANTES do ícone do tipo: é o primeiro elemento da
+                linha, onde o olho começa a ler, e é o que a seleção em massa
+                precisa achar sem procurar em vinte cartões. */}
+            {aoSelecionar && (
+              <input type="checkbox" checked={selecionado} onChange={aoSelecionar}
+                aria-label={`Selecionar ${job.name || 'este envio'}`}
+                style={{ width: 15, height: 15, flexShrink: 0, cursor: 'pointer',
+                  accentColor: 'var(--mf-mod, var(--mf-accent-500))' }} />
+            )}
             <span style={{ color: isLoop ? 'var(--mf-mod-jobs)' : 'var(--mf-text-3)', display: 'flex', flexShrink: 0 }}>
               {isLoop ? ICONS.loop : ICONS.post}
             </span>
@@ -330,6 +345,14 @@ export default function JobManager() {
   const [error,      setError]      = useState(null);
   const [filter,     setFilter]     = useState('all');   // all | active | loop | post | done
   const [confirming, setConfirming] = useState(null);    // { id, action }
+  /* Seleção em massa. `Set` e não array: entrar e sair da seleção é o que
+     mais acontece aqui, e em lista de 24 itens a busca linear de um array
+     aparece no clique. */
+  const [selecionados, setSelecionados] = useState(() => new Set());
+  const [apagando, setApagando] = useState(false);
+  const alternarSelecao = useCallback(id => {
+    setSelecionados(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -373,6 +396,39 @@ export default function JobManager() {
       if (action === 'rerun')  await api.post(`/jobs/${id}/rerun`);
       load();
     } catch (e) { alert(e.response?.data?.error || 'Erro'); }
+  }
+
+  /* Apagar os selecionados.
+
+     Uma requisição só, não uma por item: limpar esta tela são vinte e poucos
+     envios, e vinte requisições deixam a lista piscando a cada resposta — e
+     uma que falhe no meio deixa sem saber o que foi e o que ficou.
+
+     A confirmação conta quantos ATIVOS estão na seleção, porque é a diferença
+     que importa: apagar finalizado é arrumação, apagar envio rodando para uma
+     publicação que ainda ia sair. */
+  async function apagarSelecionados() {
+    const ids = [...selecionados];
+    if (!ids.length) return;
+    const ativos = jobs.filter(j => ids.includes(j._id) && ['queued', 'running', 'waiting_interval'].includes(j.status)).length;
+    const aviso = ativos
+      ? `Apagar ${ids.length} envio(s)?\n\n${ativos} ainda está(ão) publicando — apagar interrompe o que faltava.`
+      : `Apagar ${ids.length} envio(s) finalizado(s)?`;
+    if (!window.confirm(aviso)) return;
+
+    setApagando(true);
+    try {
+      const { data } = await api.post('/jobs/excluir-varios', { ids });
+      setSelecionados(new Set());
+      await load();
+      if (data?.apagados !== ids.length) {
+        setError(`${data?.apagados ?? 0} de ${ids.length} apagados — os demais já não existiam.`);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Não foi possível apagar os selecionados.');
+    } finally {
+      setApagando(false);
+    }
   }
 
   const filtered = jobs.filter(j => {
@@ -452,6 +508,49 @@ export default function JobManager() {
         </button>
       </div>
 
+      {/* ── Seleção em massa ────────────────────────────────────────────────
+          "Selecionar todos" marca os que estão À VISTA, não a base inteira:
+          o filtro ativo é a intenção que a pessoa acabou de declarar, e
+          selecionar o que está fora dele apagaria o que ela não viu. */}
+      {filtered.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-2)', flexWrap: 'wrap',
+          marginBottom: 'var(--mf-3)', padding: selecionados.size ? '8px 12px' : 0,
+          borderRadius: 'var(--mf-r-md)',
+          background: selecionados.size ? 'color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 8%, transparent)' : 'transparent',
+          border: selecionados.size ? '1px solid color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 24%, transparent)' : '1px solid transparent',
+          transition: 'background var(--mf-fast) var(--mf-ease-out)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none',
+            fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
+            <input type="checkbox"
+              checked={filtered.length > 0 && filtered.every(j => selecionados.has(j._id))}
+              /* Traço, e não vazio, quando parte está marcada: sem isto a
+                 caixa mente — mostra "nada marcado" com dez selecionados. */
+              ref={el => { if (el) el.indeterminate = selecionados.size > 0 && !filtered.every(j => selecionados.has(j._id)); }}
+              onChange={e => setSelecionados(e.target.checked ? new Set(filtered.map(j => j._id)) : new Set())}
+              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--mf-mod, var(--mf-accent-500))' }} />
+            Selecionar todos <span style={{ color: 'var(--mf-text-3)' }}>({filtered.length} à vista)</span>
+          </label>
+
+          {selecionados.size > 0 && (
+            <>
+              <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-mod, var(--mf-accent-500))',
+                fontFamily: 'var(--mf-mono)' }}>{selecionados.size} selecionado(s)</span>
+              <button type="button" onClick={() => setSelecionados(new Set())} className="btn btn-ghost btn-sm">
+                Limpar
+              </button>
+              <button type="button" onClick={apagarSelecionados} disabled={apagando}
+                style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
+                  fontSize: 'var(--mf-t-xs)', fontWeight: 700, borderRadius: 'var(--mf-r-sm)', cursor: apagando ? 'wait' : 'pointer',
+                  border: '1px solid color-mix(in oklch, var(--mf-danger-500) 35%, transparent)',
+                  background: 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)',
+                  color: 'var(--mf-danger-500)', opacity: apagando ? .6 : 1 }}>
+                {ICONS.trash} {apagando ? 'Apagando…' : `Excluir ${selecionados.size}`}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Error banner */}
       {error && (
         /* `role="alert"` para o leitor de tela anunciar a falha assim que
@@ -502,6 +601,8 @@ export default function JobManager() {
             <JobCard
               key={job._id}
               job={job}
+              selecionado={selecionados.has(job._id)}
+              aoSelecionar={() => alternarSelecao(job._id)}
               onAction={(id, action) => {
                 if (confirming?.id === id) handleAction(id, action);
                 else handleAction(id, action);
