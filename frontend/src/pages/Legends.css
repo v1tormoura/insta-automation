@@ -1,0 +1,289 @@
+/* ── Banco de Legendas ───────────────────────────────────────────────────────
+
+   A tela anterior era duas colunas de cartões altos, cada um com seis linhas
+   de texto cinza e dois botões grandes do mesmo tamanho ("Editar", "Excluir").
+   Numa tela cuja tarefa é ESCOLHER entre várias legendas, o espaço ia para o
+   texto que ninguém lê inteiro e para a ação que quase nunca se usa.
+
+   Aqui o peso vai para o que identifica — título e categoria — e as ações
+   viram ícones no rodapé, que só ganham cor quando o ponteiro chega. */
+
+.lg-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: var(--mf-4);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .lg-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Os números do cabeçalho ───────────────────────────────────────────────*/
+.lg-stats { display: flex; gap: var(--mf-5); align-items: center; }
+.lg-stat { display: flex; flex-direction: column; line-height: 1.1; }
+.lg-stat strong {
+  font-family: var(--mf-mono);
+  font-size: var(--mf-t-h1);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--mf-text);
+  font-variant-numeric: tabular-nums;
+}
+.lg-stat span {
+  font-size: var(--mf-t-nano);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mf-text-3);
+  margin-top: 3px;
+}
+@media (max-width: 640px) { .lg-stats { gap: var(--mf-4); } }
+
+/* ── Formulário ────────────────────────────────────────────────────────────*/
+.lg-form { position: sticky; top: var(--mf-4); }
+@media (max-width: 900px) { .lg-form { position: static; } }
+
+.lg-form__corpo { display: flex; flex-direction: column; gap: var(--mf-4); }
+
+.lg-campo { display: flex; flex-direction: column; gap: 6px; position: relative; }
+.lg-rotulo {
+  font-size: var(--mf-t-nano);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mf-text-3);
+}
+.lg-texto { min-height: 190px; resize: vertical; line-height: 1.6; }
+
+/* O contador fica ABAIXO e à direita do campo, não dentro: dentro ele cobre
+   o texto quando a legenda chega no fim da linha. */
+.lg-contador {
+  align-self: flex-end;
+  font-family: var(--mf-mono);
+  font-size: var(--mf-t-nano);
+  color: var(--mf-text-3);
+  font-variant-numeric: tabular-nums;
+}
+/* O limite do Instagram é 2.200 — a cor avisa antes de a pessoa bater nele. */
+.lg-contador[data-alerta='sim'] { color: var(--mf-warning-500); font-weight: 700; }
+
+.lg-ferramentas { display: flex; gap: var(--mf-2); flex-wrap: wrap; }
+.lg-ferramenta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--mf-r-sm);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+  color: var(--mf-text-2);
+  font-size: var(--mf-t-xs);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  transition: border-color var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out);
+}
+.lg-ferramenta::-webkit-details-marker { display: none; }
+.lg-ferramenta:hover { border-color: var(--mf-mod, var(--mf-accent-500)); color: var(--mf-mod, var(--mf-accent-500)); }
+
+.lg-vars { position: relative; }
+.lg-vars__lista {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: var(--mf-2);
+  padding: var(--mf-2);
+  border-radius: var(--mf-r-sm);
+  background: var(--mf-surface-2);
+  border: 1px solid var(--mf-border);
+}
+.lg-vars__lista button {
+  font-family: var(--mf-mono);
+  font-size: var(--mf-t-nano);
+  padding: 4px 8px;
+  border-radius: var(--mf-r-xs);
+  border: 1px solid color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 26%, transparent);
+  background: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 10%, transparent);
+  color: var(--mf-mod, var(--mf-accent-500));
+  cursor: pointer;
+}
+.lg-vars__lista button:hover { background: color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 20%, transparent); }
+
+.lg-form__pe {
+  padding: var(--mf-3) var(--mf-5) var(--mf-5);
+  border-top: 1px solid var(--mf-border);
+}
+/* O botão que conclui a tarefa é o único elemento cheio de cor da coluna —
+   é o que o olho procura depois de escrever. */
+.lg-salvar {
+  width: 100%;
+  padding: 12px 18px;
+  border: none;
+  border-radius: var(--mf-r-md);
+  font-size: var(--mf-t-sm);
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--mf-bg);
+  background: linear-gradient(135deg,
+    var(--mf-mod, var(--mf-accent-500)),
+    color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 70%, var(--mf-primary-500)));
+  box-shadow: 0 6px 20px color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 22%, transparent);
+  transition: transform var(--mf-fast) var(--mf-ease-out), box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+.lg-salvar:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 30%, transparent); }
+.lg-salvar:disabled { opacity: .6; cursor: wait; }
+
+/* ── Lista ─────────────────────────────────────────────────────────────────*/
+.lg-lista__head { flex-wrap: wrap; gap: var(--mf-3); }
+.lg-filtros { display: flex; gap: var(--mf-2); flex-wrap: wrap; align-items: center; }
+
+.lg-busca {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 11px;
+  border-radius: var(--mf-r-sm);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+  color: var(--mf-text-3);
+}
+.lg-busca:focus-within { border-color: var(--mf-mod, var(--mf-accent-500)); }
+.lg-busca input {
+  border: none; background: transparent; outline: none;
+  color: var(--mf-text); font-size: var(--mf-t-xs); width: 150px;
+}
+.lg-select {
+  padding: 7px 10px;
+  border-radius: var(--mf-r-sm);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+  color: var(--mf-text-2);
+  font-size: var(--mf-t-xs);
+  cursor: pointer;
+  color-scheme: dark;
+}
+
+.lg-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: var(--mf-3);
+}
+
+.lg-cartao {
+  --cat: var(--mf-primary-500);
+  position: relative;
+  display: flex; flex-direction: column; gap: 7px;
+  padding: var(--mf-3) var(--mf-4) var(--mf-3);
+  border-radius: var(--mf-r-md);
+  background: var(--mf-surface-2);
+  border: 1px solid var(--mf-border);
+  /* A cor da categoria entra por um fio na borda esquerda: identifica de
+     relance numa grade de doze, sem tingir o cartão inteiro. */
+  border-left: 3px solid var(--cat);
+  transition: border-color var(--mf-fast) var(--mf-ease-out), transform var(--mf-fast) var(--mf-ease-out), box-shadow var(--mf-fast) var(--mf-ease-out);
+}
+.lg-cartao:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--cat) 45%, transparent);
+  border-left-color: var(--cat);
+  box-shadow: var(--mf-shadow-2, 0 8px 24px rgba(0,0,0,.3));
+}
+
+.lg-cartao__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--mf-2); }
+.lg-chip {
+  font-size: var(--mf-t-nano);
+  font-weight: 700;
+  letter-spacing: .3px;
+  padding: 3px 9px;
+  border-radius: var(--mf-r-full);
+  color: var(--cat);
+  background: color-mix(in oklch, var(--cat) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--cat) 30%, transparent);
+  max-width: 60%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.lg-estrela {
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: var(--mf-r-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--mf-text-3);
+  cursor: pointer;
+  transition: color var(--mf-fast) var(--mf-ease-out), background var(--mf-fast) var(--mf-ease-out);
+}
+.lg-estrela:hover { color: var(--mf-warning-500); background: color-mix(in oklch, var(--mf-warning-500) 12%, transparent); }
+.lg-estrela[data-ativa='sim'] { color: var(--mf-warning-500); }
+.lg-estrela[data-ativa='sim'] svg { fill: currentColor; }
+
+.lg-cartao__titulo {
+  margin: 0;
+  font-size: var(--mf-t-sm);
+  font-weight: 700;
+  color: var(--mf-text);
+  line-height: 1.35;
+  /* Duas linhas: títulos com emoji e caixa alta ("🚨 OLHE OS STORYS 🚨")
+     passam de uma, e cortar na primeira esconde o que identifica. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Três linhas de prévia: o suficiente para RECONHECER a legenda. Quem quer
+   ler inteiro abre para editar — e o texto todo está a um clique de cópia. */
+.lg-cartao__previa {
+  margin: 0;
+  font-size: var(--mf-t-xs);
+  line-height: 1.55;
+  color: var(--mf-text-3);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.lg-cartao__pe {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--mf-2);
+  font-family: var(--mf-mono);
+  font-size: var(--mf-t-nano);
+  color: var(--mf-text-3);
+  padding-top: 6px;
+  border-top: 1px solid var(--mf-border-subtle, var(--mf-border));
+}
+.lg-chars { font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+.lg-acoes { display: flex; gap: 2px; justify-content: flex-end; }
+.lg-acoes button {
+  display: grid; place-items: center;
+  width: 28px; height: 28px;
+  border-radius: var(--mf-r-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--mf-text-3);
+  cursor: pointer;
+  transition: color var(--mf-fast) var(--mf-ease-out), background var(--mf-fast) var(--mf-ease-out);
+}
+.lg-acoes button:hover { color: var(--mf-text); background: var(--mf-surface-3, var(--mf-surface-1)); }
+.lg-acoes__perigo:hover { color: var(--mf-danger-500) !important; background: color-mix(in oklch, var(--mf-danger-500) 12%, transparent) !important; }
+
+/* ── Paginação ─────────────────────────────────────────────────────────────*/
+.lg-paginacao {
+  display: flex; align-items: center; justify-content: center; gap: var(--mf-3);
+  margin-top: var(--mf-4);
+  padding-top: var(--mf-3);
+  border-top: 1px solid var(--mf-border);
+  font-size: var(--mf-t-xs);
+  color: var(--mf-text-3);
+}
+.lg-paginacao > button {
+  width: 30px; height: 30px;
+  border-radius: var(--mf-r-sm);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+  color: var(--mf-text-2);
+  cursor: pointer;
+  font-size: var(--mf-t-body);
+}
+.lg-paginacao > button:disabled { opacity: .4; cursor: default; }
+.lg-paginacao > button:not(:disabled):hover { border-color: var(--mf-mod, var(--mf-accent-500)); color: var(--mf-mod, var(--mf-accent-500)); }
+.lg-porpagina { display: flex; align-items: center; gap: 6px; margin-left: var(--mf-3); }
+.lg-porpagina select {
+  padding: 4px 8px;
+  border-radius: var(--mf-r-xs);
+  border: 1px solid var(--mf-border);
+  background: var(--mf-surface-2);
+  color: var(--mf-text-2);
+  cursor: pointer;
+  color-scheme: dark;
+}

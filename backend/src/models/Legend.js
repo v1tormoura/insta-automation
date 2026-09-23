@@ -21,6 +21,13 @@ const legendSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+    /* Favorita: a legenda que você usa toda semana não pode ficar na terceira
+       página junto das que escreveu uma vez. Ordena antes de tudo na lista. */
+    favorita: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
