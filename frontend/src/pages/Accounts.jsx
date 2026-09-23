@@ -2019,7 +2019,11 @@ export default function Accounts() {
 
                 {/* actions */}
                 <div style={{ height:1, background:'var(--mf-border)' }} />
-                <div onClick={e => e.stopPropagation()} style={{ padding:'8px 8px', display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
+                {/* As sete ações. `align-items: stretch` (e não center) para que
+                    todas tenham a MESMA altura quando a linha quebra — com
+                    `center`, botões de uma linha e de duas ficavam desalinhados
+                    entre si. O excluir vai para a ponta por `margin-left:auto`. */}
+                <div onClick={e => e.stopPropagation()} style={{ padding:'8px 8px', display:'flex', gap:5, alignItems:'stretch', flexWrap:'wrap' }}>
                   <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer"
                     style={{ display:'flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', color:'var(--mf-text-3)', background:'transparent', textDecoration:'none', whiteSpace:'nowrap', transition:'all .15s', flexShrink:0 }}
                     onMouseEnter={e => { e.currentTarget.style.color='var(--mf-text)'; e.currentTarget.style.borderColor='var(--mf-border-strong)'; }}
@@ -2088,8 +2092,13 @@ export default function Accounts() {
                     <span>{account.hasInstagrapiSession ? 'Mobile on' : 'Mobile'}</span>
                   </button>
 
+                  {/* A única ação irreversível do cartão. Empurrada para a ponta
+                      direita e afastada das demais: encostada nelas, ela
+                      tinha a mesma presença de "Ver" — e é a distância que
+                      separa "abrir" de "apagar". */}
                   <button onClick={() => deleteAccount(account._id)} title="Excluir conta"
                     style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', flexShrink:0,
+                      marginLeft:'auto',
                       background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color:'var(--mf-danger-500)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', cursor:'pointer', transition:'all .15s' }}
                     onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-danger-500) 16%, transparent)'}
                     onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-danger-500) 8%, transparent)'}
