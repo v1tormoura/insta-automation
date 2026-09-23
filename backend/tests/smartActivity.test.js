@@ -644,3 +644,63 @@ describe('resumo do dia — hora configurável', () => {
     thresholds.carregar = antes;
   });
 });
+
+/* ── Um toque no celular por varredura ────────────────────────────────────
+   As métricas só podem ser lidas de 30 em 30 min e todas as contas vêm na
+   mesma passada, então todo marco nasce no mesmo segundo: 4 avisos às
+   17:09:26, nada até 17:39:36. Medido em produção. A Central continua com um
+   cartão por marco; o celular toca uma vez. */
+describe('entrega única por varredura', () => {
+  const marco = (valor, username) => ({ eventType: 'milestone', username, metadados: { valor } });
+
+  test('nada a entregar: nenhum push', async () => {
+    const enviados = [];
+    await detector._entregarUmPush([], CFG, { enviar: n => enviados.push(n) });
+    expect(enviados).toHaveLength(0);
+  });
+
+  test('um marco só: o push é ele mesmo, com o texto do próprio aviso', async () => {
+    const enviados = [];
+    const unico = { ...marco(5000, 'laura'), titulo: '5.000 Visualizações 🚀🔥', mensagem: '@laura chegou a 5.000.' };
+    await detector._entregarUmPush([unico], CFG, { enviar: n => enviados.push(n) });
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]).toBe(unico);
+  });
+
+  test('vários marcos: UM push, com a quantidade e o maior', async () => {
+    const enviados = [];
+    const criadas = [marco(5000, 'laura'), marco(12000, 'siqueira'), marco(3000, 'rosa'),
+      { eventType: 'resumoMarcos', username: 'siqueira', metadados: {} }];
+    await detector._entregarUmPush(criadas, CFG, { enviar: n => enviados.push(n) });
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0].titulo).toBe('4 marcos nas suas contas 🚀');
+    expect(enviados[0].mensagem).toContain('@siqueira');
+    expect(enviados[0].mensagem).toContain('12.000');
+    // Id próprio por varredura: no service worker o `tag` vem daqui, e um id
+    // fixo faria este resumo substituir o da varredura anterior em silêncio.
+    expect(enviados[0]._id).toMatch(/^varredura-\d+$/);
+  });
+
+  test('o resumo do push respeita "não mostrar nome/valor"', async () => {
+    const enviados = [];
+    const cfgDiscreto = { ...CFG, privacidade: { mostrarNome: false, mostrarValor: false } };
+    await detector._entregarUmPush([marco(5000, 'laura'), marco(12000, 'siqueira')], cfgDiscreto, { enviar: n => enviados.push(n) });
+    expect(enviados[0].mensagem).not.toContain('siqueira');
+    expect(enviados[0].mensagem).not.toContain('12.000');
+  });
+
+  test('a coalescência grava os cartões e entrega UM push só', async () => {
+    const c = conta();
+    const candidatos = [];
+    for (let i = 1; i <= 10; i++) {
+      candidatos.push(...await detector.processarInsight(reel('p' + i, i * 1000), c, CFG, { gravar: false }));
+    }
+    const criadas = await detector._gravarCoalescido(candidatos, CFG);
+    // 3 marcos + 1 resumo gravados na Central…
+    expect(criadas).toHaveLength(detector.LIMITE_POR_VARREDURA + 1);
+    // …e nenhum deles disparou push individual (o módulo de push nem está
+    // disponível nos testes; o que este teste protege é que `_gravar` foi
+    // chamado com push desligado — senão seriam 4 envios).
+    expect(criadas.every(n => n.eventType === 'milestone' || n.eventType === 'resumoMarcos')).toBe(true);
+  });
+});

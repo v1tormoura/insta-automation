@@ -343,7 +343,7 @@ function discretas(vars, { mostrarNome = true, mostrarValor = true } = {}) {
        visualizacoes`, e qualquer substantivo ali produz "chegou a um marco
        visualizacoes". O ponto suspensivo se le como "escondido" e nao
        atropela a frase em volta. */
-    for (const campo of ['views', 'threshold', 'likes', 'comments', 'shares', 'reach', 'viewsStories']) {
+    for (const campo of ['views', 'threshold', 'likes', 'comments', 'shares', 'reach', 'viewsStories', 'maior']) {
       saida[campo] = '•••';
     }
   }

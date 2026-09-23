@@ -59,7 +59,7 @@ const LIMITE_POR_VARREDURA = 3;
  * — o índice único é a segunda barreira contra duplicata, e colidir com ele é
  * resultado esperado, não erro.
  */
-async function _gravar(doc) {
+async function _gravar(doc, { push = true } = {}) {
   let nova;
   try {
     nova = await Notificacao.create(doc);
@@ -67,6 +67,7 @@ async function _gravar(doc) {
     if (err?.code === 11000) return null;   // outro ciclo chegou primeiro
     throw err;
   }
+  if (!push) return nova;   // quem chamou entrega um push só por todos (ver _entregarUmPush)
 
   /* Push depois de GRAVAR, e sem esperar.
   
@@ -87,6 +88,9 @@ async function _gravar(doc) {
 
   return nova;
 }
+
+/** Açúcar para deixar claro, no ponto de uso, que o push vem depois e é só um. */
+const _gravarSemPush = doc => _gravar(doc, { push: false });
 
 /**
  * Processa UM insight e devolve as notificações criadas.
@@ -204,6 +208,71 @@ async function semearConta(conta, cfg) {
   return tetos;
 }
 
+/**
+ * UM push por varredura — o registro continua um por marco.
+ *
+ * ── O que a pessoa via
+ *
+ * As métricas do Instagram só podem ser lidas de tempos em tempos (a cada 30
+ * min), e TODAS as contas são lidas na mesma passada. Então todo marco daquela
+ * passada nasce no mesmo segundo: quatro avisos às 17:09:26, nada até
+ * 17:39:36, mais quatro. Medido em produção — e é exatamente o "chega tudo em
+ * lote de uma hora pra outra".
+ *
+ * Reduzir a quantidade (o teto global) não resolveu porque o problema não é
+ * quantos são, é o celular tocar quatro vezes seguidas e depois silenciar meia
+ * hora.
+ *
+ * ── O que muda
+ *
+ * A Central continua recebendo um cartão por marco — é o histórico, e é lá que
+ * se vê qual reel foi. O CELULAR recebe um toque só: o marco, quando é um; um
+ * resumo ("4 conteúdos passaram de marcos — o maior: @conta com 12 mil"),
+ * quando são vários.
+ *
+ * O que isto NÃO conserta: a detecção continua de meia em meia hora. Um marco
+ * atingido às 17:15 aparece às 17:39. Isso é limite da API de métricas do
+ * Instagram, não deste código.
+ */
+async function _entregarUmPush(criadas, cfg, { enviar } = {}) {
+  if (!criadas.length) return;
+  if (!enviar) {
+    try {
+      const webPush = require('./webPush');
+      if (!webPush.disponivel()) return;
+      enviar = n => webPush.enviar(n);
+    } catch { return; }
+  }
+
+  if (criadas.length === 1) {
+    Promise.resolve(enviar(criadas[0])).catch(err => console.warn('[WebPush] envio falhou:', err.message));
+    return;
+  }
+
+  /* O maior valor dá o rosto do resumo: é o que a pessoa quer abrir primeiro.
+     `discretas` respeita "não mostrar nome/valor" na tela de bloqueio, igual
+     ao resto — esconder no cartão e revelar no push seria esconder pela
+     metade. */
+  const marcos = criadas.filter(n => n.eventType === 'milestone');
+  const maior = [...(marcos.length ? marcos : criadas)]
+    .sort((a, b) => (b.metadados?.valor || 0) - (a.metadados?.valor || 0))[0];
+  const vars = templates.discretas({
+    quantidade: String(criadas.length),
+    account: maior?.username ? `@${maior.username}` : 'uma conta',
+    maior: templates.formatarNumero(maior?.metadados?.valor || 0),
+  }, cfg?.privacidade || {});
+
+  Promise.resolve(enviar({
+    /* Id próprio: no service worker o `tag` vem daqui, e um id fixo faria o
+       resumo desta varredura SUBSTITUIR o da anterior sem avisar. */
+    _id: `varredura-${Date.now()}`,
+    titulo: `${vars.quantidade} marcos nas suas contas 🚀`,
+    mensagem: `O maior: ${vars.account} com ${vars.maior}. Abra a Central para ver todos.`,
+    tema: 'viral',
+    username: maior?.username || '',
+  })).catch(err => console.warn('[WebPush] envio falhou:', err.message));
+}
+
 /* Quando o MESMO conteúdo cruza marco de views e de alcance na mesma
    varredura, só um aviso: o de views. São dois números do mesmo reel, e o
    segundo só dobrava a pilha. */
@@ -232,10 +301,13 @@ async function _gravarCoalescido(candidatos, cfg) {
   const resto = ordenados.slice(LIMITE_POR_VARREDURA);
 
   for (const doc of individuais) {
-    const nova = await _gravar(doc);
+    const nova = await _gravar(doc, { push: false });
     if (nova) criadas.push(nova);
   }
-  if (!resto.length) return criadas;
+  if (!resto.length) {
+    await _entregarUmPush(criadas, cfg);
+    return criadas;
+  }
 
   const maior = resto[0];
   const contasNoResto = new Set(resto.map(d => String(d.accountId)));
@@ -247,7 +319,7 @@ async function _gravarCoalescido(candidatos, cfg) {
     contas: String(contasNoResto.size),
     maior: templates.formatarNumero(maior.metadados?.valor || 0),
   }, cfg.privacidade || {});
-  const resumo = await _gravar({
+  const resumo = await _gravarSemPush({
     accountId: maior.accountId,
     username: maior.username || '',
     avatar: maior.avatar || '',
@@ -262,6 +334,7 @@ async function _gravarCoalescido(candidatos, cfg) {
     },
   });
   if (resumo) criadas.push(resumo);
+  await _entregarUmPush(criadas, cfg);
   return criadas;
 }
 
@@ -503,7 +576,7 @@ async function resumoDoDia({ agora = new Date() } = {}) {
 }
 
 module.exports = {
-  semearConta, _gravarCoalescido, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO,
+  semearConta, _gravarCoalescido, _entregarUmPush, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO,
   HORA_PADRAO_DO_RESUMO, iniciarRelogioDoResumo };
 
 /**
