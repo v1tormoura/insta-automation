@@ -373,6 +373,9 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
 function QueuePanel({ d, accountStats }) {
   const naFila      = (d.pendingPosts || 0) + (d.scheduledPosts || 0);
   const processando = d.processingPosts  || 0;
+  /* A soma das três filas, nomeada: ela aparecia inteira dentro do JSX do
+     cartão, e o mesmo número era recalculado para decidir o rodapé. */
+  const filaTotal = (d.pendingPosts || 0) + (d.processingPosts || 0) + (d.scheduledPosts || 0);
   const cutoff24h   = Date.now() + 24 * 60 * 60 * 1000;
   const proximas24h = (d.upcomingPosts || []).filter(p =>
     !p.scheduledAt || new Date(p.scheduledAt) <= cutoff24h
@@ -1277,10 +1280,22 @@ export default function Dashboard() {
           <EsqueletoMetricas quantas={4} />
         ) : (
         <motion.section variants={stagger} initial="hidden" animate="show" className="metric-grid">
-          <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)} meta={`${d.totalAccounts||0} total`}                            orbType="cyan"   spark={[]}         delay={0}    Icone={Users2} />
-          <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}     meta={`Meta: ${d.dailyPostLimit>0?fmt(d.dailyPostLimit):'—'}`}   orbType="warm"   spark={sparkDaily} delay={.06}  Icone={Send} />
-          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}    meta={d.errorsToday>0?`${d.errorsToday} erro(s)`:'Nenhum erro'} orbType="erro"   spark={sparkErrors} delay={.12}  Icone={AlertTriangle} />
-          <MetricCard title="FILA"           value={fmt((d.pendingPosts||0)+(d.processingPosts||0)+(d.scheduledPosts||0))} meta={`${d.processingPosts||0} processando`} orbType="fila" spark={[]}         delay={.18} Icone={Layers3} />
+          {/* O rodapé de cada cartão só existe se ACRESCENTA: ou dá o
+              denominador, ou diz o que o número significa. Repetir o valor em
+              miniatura logo abaixo dele — "9" e "9 total" — é ruído, e era o
+              que os quatro faziam. */}
+          <MetricCard title="CONTAS ATIVAS"  value={fmt(d.activeAccounts)}
+            meta={(d.totalAccounts || 0) > (d.activeAccounts || 0) ? `de ${fmt(d.totalAccounts)} conectadas` : 'todas conectadas'}
+            orbType="cyan" spark={[]} delay={0} Icone={Users2} />
+          <MetricCard title="POSTAGENS HOJE" value={fmt(d.postsToday)}
+            meta={d.dailyPostLimit > 0 ? `meta ${fmt(d.dailyPostLimit)}` : ''}
+            orbType="warm" spark={sparkDaily} delay={.06} Icone={Send} />
+          <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}
+            meta={d.errorsToday > 0 ? (d.errorsToday === 1 ? 'uma publicação falhou' : 'publicações falharam') : 'nenhum erro'}
+            orbType="erro" spark={sparkErrors} delay={.12} Icone={AlertTriangle} />
+          <MetricCard title="FILA"           value={fmt(filaTotal)}
+            meta={filaTotal === 0 ? 'nada esperando' : (d.processingPosts > 0 ? `${fmt(d.processingPosts)} saindo agora` : 'aguardando o intervalo')}
+            orbType="fila" spark={[]} delay={.18} Icone={Layers3} />
             {/* As duas métricas de conta vinham numa fileira própria logo
                 abaixo. Medindo: 154px de altura e três textos cada, o mesmo
                 conteúdo de um cartão KPI — só que em 471px de largura contra
@@ -1290,12 +1305,16 @@ export default function Dashboard() {
                 é o ganho de verdade: antes, comparar "contas ativas" com
                 "contas com problema" exigia olhar duas seções separadas por
                 três painéis. A altura total é praticamente a mesma. */}
+          {/* Sem legenda de período: o seletor à direita já diz "Hoje".
+              Sem selo repetindo o valor — "+2" ao lado de um "2" em corpo
+              grande não é tendência, é eco. E "-0" é um número que não
+              existe: o selo agora só aparece quando há o que mostrar. */}
           <WideMetric title="CONTAS ADICIONADAS" value={fmt(accountsAddedValue)}
-          subtitle={accountsPeriod==='hoje'?'adicionadas hoje':accountsPeriod==='7d'?'nos últimos 7 dias':'nos últimos 30 dias'}
-          kind="orb" activePeriod={accountsPeriod} onPeriodChange={setAccountsPeriod} chip={`+${accountsAddedValue}`} spark={sparkDaily} />
+          subtitle={(d.totalAccounts || 0) > 0 ? `de ${fmt(d.totalAccounts)} no total` : ''}
+          kind="orb" activePeriod={accountsPeriod} onPeriodChange={setAccountsPeriod} spark={sparkDaily} />
           <WideMetric title="CONTAS COM PROBLEMA" value={fmt(problemsValue)}
-          subtitle={problemsPeriod==='hoje'?'com problema hoje':problemsPeriod==='7d'?'com problema em 7d':'com problema total'}
-          kind="ice" activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} chip={`-${problemsValue}`} tone="muted" spark={sparkDaily} />
+          subtitle={problemsValue > 0 ? 'precisam de atenção' : 'nenhuma precisa de atenção'}
+          kind="ice" activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} tone="muted" spark={sparkDaily} />
         </motion.section>)}
 
         {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
