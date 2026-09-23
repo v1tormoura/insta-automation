@@ -251,7 +251,17 @@ export default function MediaLibrary() {
                       </span>
                     </div>
                     <div style={{ padding:'8px 8px' }}>
-                      <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={item.originalName}>{item.originalName}</div>
+                      {/* DUAS linhas, não uma com "…".
+
+                          Medido na tela: os arquivos que vêm do Instagram são
+                          "(new)iguana.48857380_1785665793_3954773593527109116_36483433700.mp4".
+                          Numa linha só, os 34 caracteres que cabem são iguais em
+                          todos — oito itens diferentes viram oito linhas
+                          idênticas, e escolher mídia é o que se faz nesta tela.
+                          Cortar no meio também não resolve: o fim (o id da
+                          conta) também é comum. O que separa um do outro é o
+                          miolo, e é ele que a segunda linha revela. */}
+                      <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-text)', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', lineHeight:1.35, wordBreak:'break-all' }} title={item.originalName}>{item.originalName}</div>
                       <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:2 }}>{fmt(item.size)}</div>
                     </div>
                     <div style={{ display:'flex', gap:6, padding:'0 8px 8px' }}>
