@@ -741,8 +741,21 @@ async function processJobRound(jobId) {
     }
   }
 
-  const endIdx     = Math.min(startIdx + jobDoc.simultaneousLimit, totalMedia);
-  const roundMedia = jobDoc.mediaFiles.slice(startIdx, endIdx);
+  /* O que cada conta publica nesta rodada — ver services/rodizioDeMidias.js.
+     Sem rodízio, `distintas` é a mesma fatia de antes e `porConta` dá a
+     mesma lista para todas: nada muda para quem não ligou a opção. */
+  const { midiasDaRodada } = require('../services/rodizioDeMidias');
+  const plano = midiasDaRodada({
+    midias:    jobDoc.mediaFiles,
+    contas:    jobDoc.accounts,
+    rodada:    round,
+    porRodada: jobDoc.simultaneousLimit,
+    rodizio:   !!jobDoc.rodizioDeMidias,
+  });
+  const roundMedia = plano.distintas;
+  if (jobDoc.rodizioDeMidias) {
+    console.log(`[Job] "${jobDoc.name}" — rodízio: ${roundMedia.length} mídia(s) distinta(s) nesta rodada, uma por conta`);
+  }
 
   // Update condicional: não sobrescreve pause/cancel emitido concorrentemente
   const activated = await Job.findOneAndUpdate(
@@ -979,9 +992,18 @@ async function processJobRound(jobId) {
     console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} repetida: ${jaPublicado.size} publicação(ões) já feita(s) serão puladas`);
   }
 
+  /* Os pares vêm do PLANO da rodada, não do produto conta × mídia: com
+     rodízio, cada conta tem a sua mídia, e o produto mandaria todas as
+     mídias para todas as contas — exatamente o que a opção existe para
+     evitar. Sem rodízio o plano devolve a mesma lista para todas e o
+     resultado é o de antes, par a par. */
+  const porMidia = new Map(preparadas.map(p => [p.mediaFile, p]));
   const pares = [];
   for (const conta of contasDisponiveis) {
-    for (const preparada of preparadas) {
+    const daConta = plano.porConta.get(String(conta._id)) || [];
+    for (const nome of daConta) {
+      const preparada = porMidia.get(nome);
+      if (!preparada) continue;   // mídia que não pôde ser preparada — já registrada acima
       if (jaPublicado.has(`${preparada.post._id}:${conta._id}`)) continue;
       pares.push({ accountId: String(conta._id), conta, preparada });
     }

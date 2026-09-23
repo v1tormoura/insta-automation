@@ -137,6 +137,7 @@ exports.createPost = async (req, res) => {
       ...(trilha ? { trilha } : {}),
       ...(legendaAleatoria ? { legendaAleatoria } : {}),
       ...(capasPorConta ? { capasPorConta } : {}),
+      rodizioDeMidias: req.body.rodizioDeMidias === 'true' || req.body.rodizioDeMidias === true,
       postType,
       caption:           req.body.caption       || '',
       cover:             coverFile ? coverFile.filename : (req.body.coverFilename || ''),

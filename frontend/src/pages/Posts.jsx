@@ -344,6 +344,10 @@ export default function Posts() {
      no servidor na hora de publicar. */
   const [ordemDasMidias,  setOrdemDasMidias]  = useState('antigos_primeiro');
   const [midiasAleatorias, setMidiasAleatorias] = useState(false);
+  /* Rodízio: cada conta percorre a mesma fila começando de um ponto
+     diferente. Sem ele, a rodada manda a MESMA mídia para todas as contas —
+     dez perfis com o mesmo reel no mesmo intervalo. */
+  const [rodizioDeMidias, setRodizioDeMidias] = useState(false);
   const [loopInfinito,    setLoopInfinito]    = useState(false);
   const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
   /* Variação de edição por conta — ver backend/services/variacaoDeEdicao.js.
@@ -440,6 +444,7 @@ export default function Posts() {
         if (d.mediaSource) setMediaSource(d.mediaSource);
         if (d.ordemDasMidias) setOrdemDasMidias(d.ordemDasMidias);
         if (d.midiasAleatorias !== undefined) setMidiasAleatorias(!!d.midiasAleatorias);
+        if (d.rodizioDeMidias !== undefined) setRodizioDeMidias(!!d.rodizioDeMidias);
         if (d.loopInfinito !== undefined) setLoopInfinito(!!d.loopInfinito);
         if (d.marcaDagua) setMarcaDagua({ ...MARCA_PADRAO, ...d.marcaDagua });
         if (d.nomeDoEnvio !== undefined) setNomeDoEnvio(d.nomeDoEnvio);
@@ -463,14 +468,14 @@ export default function Posts() {
       localStorage.setItem(DRAFT_POSTS_KEY, JSON.stringify({
         caption, postType, intervalMins, simultaneousLimit, processMode,
         location, ctaComment, selectedAccounts, mediaSource,
-        ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua,
+        ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua,
         nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil,
         /* Só o que veio da biblioteca: um File escolhido do computador não
            sobrevive ao refresh, e guardar só o nome enganaria. */
         capasPorConta: Object.fromEntries(Object.entries(capasPorConta).filter(([, c]) => c?.arquivo).map(([id, c]) => [id, { arquivo: c.arquivo, url: c.url, rotulo: c.rotulo }])),
       }));
     } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil, capasPorConta]);
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil, capasPorConta]);
 
   /* A biblioteca, do jeito que o sorteio a vê: só ativas, agrupadas por
      categoria. É o que o bloco "sortear a cada post" mostra — o mesmo filtro
@@ -615,6 +620,7 @@ export default function Posts() {
        as duas formas; ver `lerDoCorpo` em marcaDagua.js. */
     form.append('ordemDasMidias', ordemDasMidias);
     form.append('midiasAleatorias', String(midiasAleatorias));
+    form.append('rodizioDeMidias', String(rodizioDeMidias));
     form.append('loopInfinito', String(loopInfinito));
     if (nomeDoEnvio.trim()) form.append('name', nomeDoEnvio.trim());
     /* `postsPor24h` não vai mais: o teto diário saiu deste painel a pedido do
@@ -932,6 +938,14 @@ export default function Posts() {
                       descricao="Posta os vídeos embaralhados. Sem marcar, segue a ordem escolhida acima."
                       marcada={midiasAleatorias}
                       onChange={setMidiasAleatorias}
+                    />
+                    <ChaveDeOpcao
+                      titulo="Rodízio entre as contas"
+                      descricao={selectedCount > 1 && activeMediaCount > 1
+                        ? `Cada conta começa a fila num ponto diferente: as ${selectedCount} publicam as ${activeMediaCount} mídias, mas nunca duas com o mesmo vídeo ao mesmo tempo. Sem marcar, a mesma mídia vai para todas de uma vez.`
+                        : 'Cada conta começa a fila num ponto diferente — todas publicam tudo, mas nunca duas com o mesmo vídeo ao mesmo tempo. Sem marcar, a mesma mídia vai para todas de uma vez.'}
+                      marcada={rodizioDeMidias}
+                      onChange={setRodizioDeMidias}
                     />
                     <ChaveDeOpcao
                       titulo="Modo Loop Infinito"

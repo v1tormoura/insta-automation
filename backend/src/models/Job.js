@@ -73,6 +73,13 @@ const jobSchema = new mongoose.Schema({
     volume: { type: Number, default: 1, min: 0.05, max: 1.5 },
   },
 
+  /* Rodízio de mídias entre as contas — ver services/rodizioDeMidias.js.
+     Desligado, a rodada publica a MESMA mídia em todas as contas (o de
+     sempre). Ligado, cada conta percorre a mesma fila começando de um ponto
+     diferente: todas publicam tudo, e nunca duas com o mesmo reel ao mesmo
+     tempo. O total de publicações é idêntico nos dois modos. */
+  rodizioDeMidias: { type: Boolean, default: false },
+
   /* Legenda sorteada da biblioteca a cada post — ver services/legendaAleatoria.js.
      O texto NÃO fica aqui: é sorteado por rodada, na hora. `ultimas` é o
      histórico curto dos ids sorteados, para as rodadas não repetirem a mesma
