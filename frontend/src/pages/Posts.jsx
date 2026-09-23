@@ -815,36 +815,10 @@ export default function Posts() {
                   <SeletorTipoPublicacao valor={postType} onChange={setPostType} mod="publicar" />
                 </div>
 
-                {/* Media Source Buttons (Upload vs Biblioteca) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                  <button type="button"
-                    onClick={() => setMediaSource('upload')}
-                    style={{
-                      padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      border: `1.5px solid ${mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
-                      background: mediaSource === 'upload' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-bg)',
-                      color: mediaSource === 'upload' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
-                      fontWeight: mediaSource === 'upload' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 16.6A5 5 0 0018 7h-1.26A8 8 0 104 15.25"/><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/></svg>
-                    Upload de arquivos
-                  </button>
-
-                  <button type="button"
-                    onClick={() => { setMediaSource('library'); setShowLibPicker(true); }}
-                    style={{
-                      padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      border: `1.5px solid ${mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border)'}`,
-                      background: mediaSource === 'library' ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-bg)',
-                      color: mediaSource === 'library' ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-2)',
-                      fontWeight: mediaSource === 'library' ? 700 : 500, fontSize: 'var(--mf-t-sm)', transition: 'all var(--mf-fast) var(--mf-ease-out)',
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                    Abrir biblioteca
-                  </button>
-                </div>
+                {/* O par "Upload de arquivos | Abrir biblioteca" que ficava aqui
+                    duplicava o seletor do cabeçalho (que escolhe a fonte) E os
+                    botões de dentro da área de arraste (que fazem a ação). Eram
+                    seis botões para duas ações, um terço da tela em 510px. */}
 
                 {mediaSource === 'upload' ? (
                   <>
