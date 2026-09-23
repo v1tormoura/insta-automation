@@ -29,7 +29,11 @@
 .live-status span { display: block; width: 9px; height: 9px; border-radius: 50%; }
 
 /* ── Toolbar ─────────────────────────────────────────── */
-.toolbar { display: flex; align-items: center; gap: 8px; }
+/* `flex-wrap` e `min-width: 0`: medido a 823px, o botao "Nova publicacao"
+   terminava em 828px — a acao PRINCIPAL da tela cortada pela borda, e a barra
+   rolando de lado no lugar de quebrar. Sem o wrap, tudo que nao cabe some do
+   alcance em qualquer largura entre o celular e o desktop largo. */
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
 .clock-chip, .toolbar-button, .icon-button, .refresh-button {
   min-height: 36px;
   border: 1px solid var(--border);
