@@ -22,7 +22,13 @@
 }
 .dash-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
 .header-left { display: flex; gap: 12px; }
-.title-line { display: flex; align-items: center; gap: 13px; }
+/* `wrap` + `baseline`: a linha era rigida, entao a 823px o titulo era
+   espremido ate quebrar em duas linhas ENQUANTO o status flutuava
+   centralizado no vao ao lado — desalinhado com as duas. Agora, quando os
+   dois nao cabem, o status desce e o titulo fica com a linha inteira. E
+   `baseline` no lugar de `center`: textos de tamanhos diferentes lado a lado
+   se alinham pela base da letra, nao pelo meio da caixa. */
+.title-line { display: flex; align-items: baseline; gap: 13px; flex-wrap: wrap; }
 .dashboard h1 { margin: 0; font-size: clamp(24px, 2.4vw, 34px); letter-spacing: -.04em; font-weight: 800; }
 .header-left p { margin: 5px 0 0; color: var(--mf-text-2); font-size: 13px; }
 .live-status { display: flex; align-items: center; gap: 7px; color: var(--mf-text-2); font-size: 12px; }
