@@ -1368,7 +1368,9 @@ export default function Accounts() {
   const STAT_DEFS = [
     { label:'Conectadas',  value:fmt(safeAccounts.filter(isLinked).length), cor:'var(--mf-mod-publicar)', Icon:IcoUsers  },
     { label:'Saudáveis',   value:fmt(activeAccounts),  cor:'var(--mf-success-500)', Icon:IcoShield },
-    { label:'Com erro',    value:fmt(errorAccounts),   cor:'var(--mf-danger-500)',  Icon:IcoWarn   },
+    /* A cor descreve o ESTADO, não a categoria: "Com erro 0" pintado de
+       vermelho fazia a tela gritar por uma notícia boa. */
+    { label:'Com erro',    value:fmt(errorAccounts),   cor: errorAccounts > 0 ? 'var(--mf-danger-500)' : 'var(--mf-text-3)', Icon:IcoWarn   },
     { label:'Seguidores',  value:fmt(totalFollowers),  cor:'var(--mf-warning-500)', Icon:IcoTrend  },
     { label:'Publicações', value:fmt(totalPosts),      cor:'var(--mf-mod-contas)',  Icon:IcoGrid   },
   ];
@@ -1734,7 +1736,7 @@ export default function Accounts() {
         {/* ── Filters + search ── */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
-            {FILTERS.map(f => {
+            {FILTERS.filter(f => f.key === 'all' || f.count > 0 || filter === f.key).map(f => {
               const active = filter === f.key;
               return (
                 <button key={f.key} onClick={() => setFilter(f.key)} style={{
