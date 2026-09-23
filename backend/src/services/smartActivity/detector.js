@@ -245,9 +245,13 @@ async function _entregarUmPush(criadas, cfg, { enviar } = {}) {
   }
 
   if (criadas.length === 1) {
+    console.log('[SmartActivity] varredura: 1 aviso na Central, 1 push');
     Promise.resolve(enviar(criadas[0])).catch(err => console.warn('[WebPush] envio falhou:', err.message));
     return;
   }
+  /* A linha existe para responder, do log, a pergunta que só o dono do
+     celular conseguia responder antes: "quantas vezes o aparelho tocou?". */
+  console.log(`[SmartActivity] varredura: ${criadas.length} avisos na Central, 1 push (resumo)`);
 
   /* O maior valor dá o rosto do resumo: é o que a pessoa quer abrir primeiro.
      `discretas` respeita "não mostrar nome/valor" na tela de bloqueio, igual
