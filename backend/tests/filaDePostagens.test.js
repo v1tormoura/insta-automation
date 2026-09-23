@@ -278,7 +278,11 @@ describe('a ligação com o resto do sistema', () => {
     /* Campo no schema que ninguém preenche é o defeito mais barato daqui: a
        fila abriria com a coluna de envio vazia em toda linha. */
     const w = ler('../src/queue/worker.js');
-    expect(w).toContain('jobId:         jobDoc._id');
+    /* `jobId` passou para o FILTRO do upsert (a rodada virou idempotente —
+       ver `jobRound` em models/Post.js); o Mongo grava os campos do filtro
+       sozinho na inserção. O que este teste protege continua igual: o worker
+       tem de gravar o elo com o envio. */
+    expect(w).toContain('jobId: jobDoc._id, media: mediaFile, jobRound: round');
     expect(w).toContain("jobName:       jobDoc.name || ''");
     expect(w).toMatch(/\$set:\s*\{\s*igMediaId:\s*idDaMidia\s*\}/);
   });

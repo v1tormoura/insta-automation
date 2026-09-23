@@ -902,8 +902,15 @@ async function processJobRound(jobId) {
       console.log(`[Job] "${jobDoc.name}" — ${mediaFile}: legenda sorteada «${legendaSorteada.titulo || legendaSorteada.id}»`);
     }
 
-    const post = await Post.create({
-      media:         mediaFile,
+    /* `findOneAndUpdate` com upsert, e não `create`: a MESMA rodada pode
+       rodar duas vezes (ver `jobRound` em models/Post.js). Com `create`, a
+       segunda vez criava um Post novo para a mesma mídia e republicava tudo;
+       com a chave (envio, mídia, rodada), ela reencontra o Post da primeira e
+       continua de onde parou. `$setOnInsert`: nada é reescrito na segunda
+       passagem — inclusive a legenda sorteada, que seria outra. */
+    const post = await Post.findOneAndUpdate(
+      { jobId: jobDoc._id, media: mediaFile, jobRound: round },
+      { $setOnInsert: {
       mediaType,
       postType,
       cover:         jobDoc.cover         || '',
@@ -914,7 +921,10 @@ async function processJobRound(jobId) {
       processMode:   jobDoc.processMode   || 'limpeza_leve',
       /* De onde esta publicação veio. O Job tem o nome em mãos aqui — buscá-lo
          depois, por linha da fila, seria uma consulta por linha. */
-      jobId:         jobDoc._id,
+      /* `jobId` NÃO entra aqui: ele já está no filtro do upsert, e o Mongo
+         recusa a gravação quando o mesmo campo aparece nos dois lugares
+         ("would create a conflict"). O upsert grava os campos do filtro
+         sozinho. */
       jobName:       jobDoc.name || '',
       /* A marca desce do job para o post porque é o post que a mídia por conta
          recebe. Sem esta linha o campo existiria nos dois schemas e nunca
@@ -932,7 +942,9 @@ async function processJobRound(jobId) {
       accounts:      jobDoc.accounts.map(a => a._id),
       status:        'processando',
       scheduledAt:   new Date(),
-    });
+      } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
 
     return { mediaFile, post, preProcessedVideoUrl, sucessos: 0, erros: [] };
   }));
@@ -953,9 +965,24 @@ async function processJobRound(jobId) {
 
   // `contasDisponiveis`, não `contasDaRodada`: uma conta bloqueada por teto
   // ou janela não deve nem ser tentada — ver o filtro logo acima.
+  /* O que esta rodada JÁ publicou — quando ela é repetida (ver `jobRound`),
+     as contas que já receberam não podem receber de novo. `midiasPublicadas`
+     é gravado por publicação bem-sucedida, então ele é o registro do que de
+     fato saiu. Numa rodada nova o conjunto está vazio e nada muda. */
+  const jaPublicado = new Set();
+  for (const p of preparadas) {
+    for (const m of (p.post.midiasPublicadas || [])) {
+      jaPublicado.add(`${p.post._id}:${m.accountId}`);
+    }
+  }
+  if (jaPublicado.size) {
+    console.log(`[Job] "${jobDoc.name}" — rodada ${round + 1} repetida: ${jaPublicado.size} publicação(ões) já feita(s) serão puladas`);
+  }
+
   const pares = [];
   for (const conta of contasDisponiveis) {
     for (const preparada of preparadas) {
+      if (jaPublicado.has(`${preparada.post._id}:${conta._id}`)) continue;
       pares.push({ accountId: String(conta._id), conta, preparada });
     }
   }

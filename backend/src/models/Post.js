@@ -67,6 +67,19 @@ const postSchema = new mongoose.Schema(
        linha. O `jobId` fica para o filtro e para o vínculo continuar válido se
        o nome mudar. */
     jobId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null, index: true },
+    /* A RODADA do envio que criou este Post.
+
+       É a chave que torna a rodada repetível sem duplicar: `recoverStuckJobs`
+       re-enfileira um envio que ficou em 'running' (restart do worker, Redis
+       sem AOF), e como `currentRound` só avança no FIM, a rodada recomeçava do
+       zero — criava um segundo Post para a mesma mídia e publicava tudo de
+       novo. Medido em produção em 22/09/2026: dois Posts da mesma mídia, do
+       mesmo envio, com 2 minutos de diferença, nas mesmas 4 contas. */
+    jobRound: {
+      type: Number,
+      default: undefined,
+    },
+
     jobName: { type: String, default: '' },
 
     /* ── O id da mídia no Instagram ───────────────────────────────────────
