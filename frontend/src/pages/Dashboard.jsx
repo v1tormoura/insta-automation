@@ -1291,7 +1291,9 @@ export default function Dashboard() {
             meta={d.dailyPostLimit > 0 ? `meta ${fmt(d.dailyPostLimit)}` : ''}
             orbType="warm" spark={sparkDaily} delay={.06} Icone={Send} />
           <MetricCard title="ERROS HOJE"     value={fmt(d.errorsToday)}
-            meta={d.errorsToday > 0 ? (d.errorsToday === 1 ? 'uma publicação falhou' : 'publicações falharam') : 'nenhum erro'}
+            /* Curto porque o rodapé trunca em 510px — medido na tela. E diz
+               ONDE olhar, que é o que falta quando o número não é zero. */
+            meta={d.errorsToday > 0 ? 'ver em Execuções' : 'nenhum erro'}
             orbType="erro" spark={sparkErrors} delay={.12} Icone={AlertTriangle} />
           <MetricCard title="FILA"           value={fmt(filaTotal)}
             meta={filaTotal === 0 ? 'nada esperando' : (d.processingPosts > 0 ? `${fmt(d.processingPosts)} saindo agora` : 'aguardando o intervalo')}
