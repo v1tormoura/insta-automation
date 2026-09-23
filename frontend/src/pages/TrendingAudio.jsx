@@ -54,8 +54,6 @@ export default function TrendingAudio() {
     </div>
   );
 
-  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-
   return (
     <PageShell icon={pageIcon} title="Áudio Trending" subtitle="Reels com melhor desempenho do período — rankeados por visualizações" accent="pink" actions={pageActions}>
 
@@ -64,7 +62,7 @@ export default function TrendingAudio() {
       )}
 
       {error && (
-        <div style={{ ...cardStyle, color:'var(--mf-danger-500)', textAlign:'center', padding:32 }}>{error}</div>
+        <div className="mf-card" style={{ color:'var(--mf-danger-500)', textAlign:'center', padding:32 }}>{error}</div>
       )}
 
       {!loading && !error && items.length === 0 && (
@@ -86,7 +84,7 @@ export default function TrendingAudio() {
                 initial={{ opacity:0, y:8 }}
                 animate={{ opacity:1, y:0 }}
                 transition={{ delay: idx * 0.03, duration:.2 }}
-                style={{ ...cardStyle, position:'relative' }}
+                className="mf-card" style={{ position:'relative' }}
               >
                 <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${color},transparent)` }} />
 

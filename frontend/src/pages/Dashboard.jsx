@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
+import { MetricaLinha, ListaDeMetricas } from '../components/Metrica';
 import FilaDePostagens from '../components/FilaDePostagens';
 import { useServerEvents } from '../services/useServerEvents';
 import { NumberTicker } from '../components/magicui/number-ticker';
@@ -1396,15 +1397,11 @@ export default function Dashboard() {
                   <div className="queue-orbit orbit-1" /><div className="queue-orbit orbit-2" />
                   <div className="hourglass"><span className="hg-top"/><span className="hg-middle"/><span className="hg-bottom"/><span className="hg-sand"/></div>
                 </div>
-                <ul className="queue-list">
+                <ListaDeMetricas>
                   {queueItems.map(item => (
-                    <li key={item.label}>
-                      <span className="queue-dot" style={{ backgroundColor:item.color }} />
-                      <span>{item.label}</span>
-                      <strong style={{ color:item.color }}>{item.value}</strong>
-                    </li>
+                    <MetricaLinha key={item.label} rotulo={item.label} valor={item.value} cor={item.color} />
                   ))}
-                </ul>
+                </ListaDeMetricas>
               </div>
             </div>
           </section>

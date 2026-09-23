@@ -57,8 +57,6 @@ export default function Faturamento() {
     </svg>
   );
 
-  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-
   return (
     <PageShell
       icon={pageIcon}
@@ -67,7 +65,7 @@ export default function Faturamento() {
       accent="gold"
     >
       {/* Progress card */}
-      <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={{ ...cardStyle, marginBottom:14 }}>
+      <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} className="mf-card" style={{ marginBottom:14 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
           <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>{MONTHS[now.getMonth()]} {now.getFullYear()}</h3>
           <button onClick={() => { setGoalInput(goal ? goal.toFixed(2) : ''); setEditGoal(true); }}
@@ -125,7 +123,7 @@ export default function Faturamento() {
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap:14 }}>
         {/* Registrar venda */}
-        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} className="mf-card">
           <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <TituloDeCartao icone="venda" mod="auto">Registrar venda</TituloDeCartao>
           </div>
@@ -155,7 +153,7 @@ export default function Faturamento() {
         </motion.div>
 
         {/* Histórico */}
-        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} style={cardStyle}>
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} className="mf-card">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <TituloDeCartao icone="grafico" mod="auto">Histórico do mês</TituloDeCartao>
             <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{thisMonth.length} {thisMonth.length === 1 ? 'venda' : 'vendas'}</span>

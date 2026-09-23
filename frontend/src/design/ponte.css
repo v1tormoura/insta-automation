@@ -1321,6 +1321,10 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
   font-variant-numeric: tabular-nums;
 }
 .mf-kpi__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--mf-2); }
+
+/* A lista compacta de números (Metrica.jsx → MetricaLinha). A borda separa as
+   linhas; na última ela só sublinharia o bloco inteiro sem separar nada. */
+.mf-metricas-lista > :last-child { border-bottom: 0; }
 .mf-trend { display: inline-flex; align-items: center; gap: 3px; font-size: var(--mf-t-xs); font-weight: 650; }
 .mf-trend[data-dir='up']   { color: var(--mf-success-500); }
 .mf-trend[data-dir='down'] { color: var(--mf-danger-500); }

@@ -75,15 +75,13 @@ export default function ViralHunter() {
       ))}
     </div>
   );
-
-  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
   const inputStyle = { flex:1, minWidth:200, padding:'8px 8px 8px 32px', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
 
   return (
     <PageShell icon={pageIcon} title="Caçador de Virais" subtitle="Mine os vídeos mais virais do seu nicho direto da API do Instagram" accent="cyan" actions={pageActions}>
 
       {/* Search form */}
-      <form onSubmit={search} style={{ ...cardStyle, padding:'16px', marginBottom:14 }}>
+      <form onSubmit={search} className="mf-card" style={{ padding:'16px', marginBottom:14 }}>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
           <div style={{ flex:1, minWidth:200, position:'relative' }}>
             <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-h2)', fontWeight:700, pointerEvents:'none' }}>#</span>
@@ -172,7 +170,7 @@ export default function ViralHunter() {
                 initial={{ opacity:0, y:6 }}
                 animate={{ opacity:1, y:0 }}
                 transition={{ delay:idx*.03, duration:.18 }}
-                style={{ ...cardStyle, borderRadius: 'var(--mf-r-md)' }}
+                className="mf-card" style={{ borderRadius: 'var(--mf-r-md)' }}
               >
                 <div style={{ height:3, background: idx < 3 ? 'linear-gradient(90deg,var(--mf-mod, var(--mf-accent-500)),var(--mf-primary-600))' : 'var(--mf-border)' }} />
 
@@ -222,7 +220,7 @@ export default function ViralHunter() {
 
       {/* Footer info */}
       {(items.length > 0 || searched) && (
-        <div style={{ marginTop:14, ...cardStyle, padding:'12px 16px', display:'flex', alignItems:'flex-start', gap:14 }}>
+        <div className="mf-card" style={{ marginTop:14, padding:'12px 16px', display:'flex', alignItems:'flex-start', gap:14 }}>
           <div style={{ fontSize: 'var(--mf-t-h1)', flexShrink:0 }}>🔒</div>
           <div>
             <div style={{ fontWeight:600, fontSize: 'var(--mf-t-sm)', marginBottom:3 }}>Download via CDN oficial — qualidade 100% original</div>

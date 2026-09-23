@@ -81,14 +81,6 @@ export default function Legends() {
     </span>
   );
 
-  const cardStyle = {
-    background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
-    border: '1px solid var(--mf-border)',
-    borderRadius: 'var(--mf-r-lg)',
-    backdropFilter: 'blur(12px)',
-    overflow: 'hidden',
-  };
-
   return (
     <>
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -105,7 +97,7 @@ export default function Legends() {
           {/* ── Form criar / editar ── */}
           <form
             onSubmit={submit}
-            style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 0, position: 'sticky', top: 16, alignSelf: 'start' }}
+            className="mf-card" style={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'sticky', top: 16, alignSelf: 'start' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -155,7 +147,7 @@ export default function Legends() {
           </form>
 
           {/* ── Lista ── */}
-          <div style={cardStyle}>
+          <div className="mf-card">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', flexWrap: 'wrap', gap: 8 }}>
               <TituloDeCartao icone="legenda" mod="auto">Legendas salvas</TituloDeCartao>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>

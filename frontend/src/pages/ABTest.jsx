@@ -8,8 +8,6 @@ import TituloDeCartao from '../components/TituloDeCartao';
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
 const EMPTY_FORM = { name: '', accountId: '', igMediaIdA: '', igMediaIdB: '', durationHours: '48' };
-
-const cardStyle  = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 const inputStyle = { width:'100%', height:40, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', boxSizing:'border-box', outline:'none', fontFamily:'var(--font)' };
 const labelStyle = { fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', display:'block', marginBottom:5, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.05em' };
 
@@ -86,7 +84,7 @@ export default function ABTest() {
             const maxV = Math.max(a.views || 0, b.views || 0, 1);
             const pct  = v => Math.round(((v||0) / maxV) * 100);
             return (
-              <motion.div key={test._id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.04 }} style={cardStyle}>
+              <motion.div key={test._id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.04 }} className="mf-card">
                 <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <div>
                     <div style={{ fontWeight:700, fontSize: 'var(--mf-t-body)', color:'var(--mf-text)' }}>{test.name}</div>
@@ -127,7 +125,7 @@ export default function ABTest() {
 
           {/* Pending */}
           {pending.length > 0 && (
-            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} style={cardStyle}>
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} className="mf-card">
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
                 <TituloDeCartao icone="relogio" mod="auto">Pendentes</TituloDeCartao>
               </div>
@@ -146,7 +144,7 @@ export default function ABTest() {
 
           {/* Finished */}
           {finished.length > 0 && (
-            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} style={cardStyle}>
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} className="mf-card">
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
                 <TituloDeCartao icone="resultado" mod="auto">Concluídos</TituloDeCartao>
               </div>
@@ -175,7 +173,7 @@ export default function ABTest() {
         </div>
 
         {/* Right — create form */}
-        <form onSubmit={submit} style={cardStyle}>
+        <form onSubmit={submit} className="mf-card">
           <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <TituloDeCartao icone="teste" mod="auto">Novo teste</TituloDeCartao>
           </div>

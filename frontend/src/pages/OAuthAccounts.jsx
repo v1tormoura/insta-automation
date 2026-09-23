@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import api from '../services/api';
 import { EsqueletoLista } from '../components/Estados';
+import Metrica, { FileiraDeMetricas } from '../components/Metrica';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -199,17 +200,6 @@ function AccountCard({ account, metaAppId, onAction }) {
   );
 }
 
-// ── StatCard ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, color = 'var(--mf-text)' }) {
-  return (
-    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-md)', padding: '12px 16px', flex: 1, minWidth: 100 }}>
-      <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color, fontFamily: 'var(--mf-mono)', letterSpacing: '-1px' }}>{value}</div>
-      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 2 }}>{label}</div>
-    </div>
-  );
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const FILTERS = [
@@ -311,13 +301,16 @@ export default function OAuthAccounts() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <StatCard label="Total de contas" value={loading ? '—' : stats.total} />
-        <StatCard label="Conectadas (API)"  value={loading ? '—' : stats.connected} color="var(--mf-success-500)" />
-        <StatCard label="Sem OAuth"         value={loading ? '—' : stats.none}      color="var(--mf-text-3)" />
-        <StatCard label="Com problema"      value={loading ? '—' : stats.problems}  color={stats.problems > 0 ? 'var(--mf-danger-500)' : 'var(--mf-text-3)'} />
-      </div>
+      {/* Números do topo — o mesmo bloco do resto do painel (Metrica.jsx).
+          `carregando` em vez de "—": travessão quer dizer "não sei", e aqui
+          a gente sabe, só ainda não chegou. */}
+      <FileiraDeMetricas style={{ marginBottom: 20 }}>
+        <Metrica rotulo="Total de contas"  valor={stats.total}    carregando={loading} />
+        <Metrica rotulo="Conectadas (API)" valor={stats.connected} carregando={loading} cor="var(--mf-success-500)" />
+        <Metrica rotulo="Sem OAuth"        valor={stats.none}      carregando={loading} cor="var(--mf-text-3)" />
+        <Metrica rotulo="Com problema"     valor={stats.problems}  carregando={loading}
+          cor={stats.problems > 0 ? 'var(--mf-danger-500)' : 'var(--mf-text-3)'} />
+      </FileiraDeMetricas>
 
       {/* Meta info box */}
       <div style={{ background: 'color-mix(in oklch, var(--mf-mod-contas) 4%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)', borderRadius: 'var(--mf-r-md)', padding: '8px 12px', marginBottom: 20, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>

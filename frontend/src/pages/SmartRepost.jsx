@@ -4,6 +4,7 @@ import api from '../services/api';
 import PageShell from '../components/PageShell';
 import { EsqueletoLista } from '../components/Estados';
 import TituloDeCartao from '../components/TituloDeCartao';
+import { MetricaLinha, ListaDeMetricas } from '../components/Metrica';
 
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
@@ -99,8 +100,6 @@ export default function SmartRepost() {
       </button>
     </>
   );
-
-  const cardStyle = { background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding: '16px', backdropFilter: 'blur(12px)', overflow: 'hidden' };
   const cardHdStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 };
   const cardTitleStyle = { fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)', margin: 0 };
 
@@ -117,7 +116,7 @@ export default function SmartRepost() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Rules */}
-          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={cardStyle}>
+          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} className="mf-card">
             <div style={cardHdStyle}>
               <TituloDeCartao icone="regras" mod="auto">Regras</TituloDeCartao>
               <button className="btn-ghost" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)' }} onClick={() => setCreating(v => !v)}>+ Nova</button>
@@ -197,7 +196,7 @@ export default function SmartRepost() {
           </motion.div>
 
           {/* Queue */}
-          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
+          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} className="mf-card">
             <div style={cardHdStyle}>
               <TituloDeCartao icone="fila" mod="auto">Fila de reposts</TituloDeCartao>
               <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{queue.length} agendados</span>
@@ -226,23 +225,15 @@ export default function SmartRepost() {
         </div>
 
         {/* Right: stats */}
-        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} style={{ ...cardStyle, alignSelf:'start' }}>
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.1 }} className="mf-card" style={{ alignSelf:'start' }}>
           <div style={{ ...cardHdStyle, marginBottom:16 }}>
             <TituloDeCartao icone="grafico" mod="auto">Visão geral</TituloDeCartao>
           </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {[
-              { label:'Regras no total',  value: stats.totalRules  ?? '—', color:'var(--mf-mod, var(--mf-accent-500))'  },
-              { label:'Regras ativas',    value: stats.activeRules ?? '—', color:'var(--mf-success-500)' },
-              { label:'Na fila agora',    value: queue.length,              color:'var(--mf-primary-300)'      },
-            ].map(s => (
-              <div key={s.label} style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ width:8, height:8, borderRadius: 'var(--mf-r-full)', background:s.color, flexShrink:0, boxShadow:`0 0 6px ${s.color}` }} />
-                <div style={{ flex:1 }}><div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)' }}>{s.label}</div></div>
-                <div style={{ fontWeight:800, fontSize: 'var(--mf-t-h1)', color:s.color, fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
+          <ListaDeMetricas>
+            <MetricaLinha rotulo="Regras no total" valor={stats.totalRules  ?? null} cor="var(--mf-mod, var(--mf-accent-500))" />
+            <MetricaLinha rotulo="Regras ativas"   valor={stats.activeRules ?? null} cor="var(--mf-success-500)" />
+            <MetricaLinha rotulo="Na fila agora"   valor={queue.length}              cor="var(--mf-primary-300)" />
+          </ListaDeMetricas>
           <div style={{ marginTop:20, padding:'12px 12px', background:'color-mix(in oklch, var(--mf-mod-contas) 5%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.6 }}>
             O job de repost roda automaticamente a cada hora e verifica quais posts atingiram as condições das regras ativas.
           </div>

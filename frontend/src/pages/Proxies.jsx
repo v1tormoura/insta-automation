@@ -239,8 +239,6 @@ export default function Proxies() {
       <button className="btn-primary" style={{ fontSize: 'var(--mf-t-xs)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)' }} onClick={testAllProxies}>Testar todos</button>
     </div>
   );
-
-  const cardStyle  = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
   const modalStyle = { position:'fixed', inset:0, background:'color-mix(in oklch, var(--mf-bg) 85%, transparent)', backdropFilter:'blur(6px)', display:'grid', placeItems:'center', zIndex:9999 };
   const modalBoxStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 98%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', padding:'16px 24px',
     /* `minWidth: 380` sozinho estourava a tela de 320px em 60 pixels — o
@@ -269,7 +267,7 @@ export default function Proxies() {
         <div className="resp-grid-5" style={{ marginBottom:14 }}>
           {STATS.map((s, i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.2, delay:i*.04 }}
-              style={{ ...cardStyle, padding:'12px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
+              className="mf-card" style={{ padding:'12px 12px', textAlign:'center', borderTop:`2px solid ${s.color}` }}>
               <div style={{ fontSize: 'var(--mf-t-display)', fontWeight:900, color:s.color, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>{s.value}</div>
               <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:3, fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
             </motion.div>
@@ -281,7 +279,7 @@ export default function Proxies() {
             "quais tenho". Foi a ausência desta resposta que deixou o produto
             parado quatro dias e meio. */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.03 }}
-          style={{ ...cardStyle, padding:'var(--mf-4) var(--mf-5)', marginBottom:'var(--mf-4)' }}>
+          className="mf-card" style={{ padding:'var(--mf-4) var(--mf-5)', marginBottom:'var(--mf-4)' }}>
           <div style={{ display:'flex', alignItems:'baseline', gap:'var(--mf-3)', flexWrap:'wrap', marginBottom:'var(--mf-4)' }}>
             <h3 style={{ fontSize:'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
               Cota do plano
@@ -353,7 +351,7 @@ export default function Proxies() {
             ao conectar. Quem importa com zero contas precisa ver que a lista
             entrou em algum lugar. */}
         <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }}
-          style={{ ...cardStyle, marginBottom:14 }}>
+          className="mf-card" style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <div style={{ minWidth:0 }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
@@ -456,7 +454,7 @@ export default function Proxies() {
         </motion.div>
 
         {/* Table card */}
-        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} style={cardStyle}>
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.12 }} className="mf-card">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <TituloDeCartao icone="proxy" mod="auto">Proxies por conta</TituloDeCartao>
             <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>Atualiza a cada 30s</span>

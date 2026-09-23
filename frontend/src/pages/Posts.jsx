@@ -699,13 +699,6 @@ export default function Posts() {
      saiu: a tela tem oito cards empilhados, e desfocar o que está atrás de
      cada um custa uma camada de composição por card sem nada por baixo que
      valha a pena ver desfocado. */
-  const cardStyle = {
-    background: 'var(--mf-surface-1)',
-    border: '1px solid var(--mf-border)',
-    borderRadius: 'var(--mf-r-lg)',
-    overflow: 'hidden',
-    containerType: 'inline-size',
-  };
   const cardHdStyle = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     gap: 'var(--mf-3)', padding: 'var(--mf-3) var(--mf-4)',
@@ -797,7 +790,7 @@ export default function Posts() {
                 }}
               />
             )}
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="midia">Mídia</TituloDeCartao>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -978,7 +971,7 @@ export default function Posts() {
             </div>
 
             {/* Cover */}
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="capa">Capa do Reel</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{capaPorPerfil ? 'Geral + uma por perfil' : 'Opcional — aplica a todos'}</span>
@@ -1046,7 +1039,7 @@ export default function Posts() {
             </div>
 
             {/* Caption */}
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="legenda">Legenda</TituloDeCartao>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1182,7 +1175,7 @@ export default function Posts() {
             </div>
 
             {/* CTA Comment */}
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="comentario">Comentário fixado automático</TituloDeCartao>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 'var(--mf-t-xs)', color: ctaComment ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text-3)' }}>
@@ -1223,7 +1216,6 @@ export default function Posts() {
               icone="processo"
               titulo="Variação por conta"
               resumo={varEdicao.ativa ? (varEdicao.ganchos.length ? `${varEdicao.ganchos.length} gancho(s)` : 'ligada') : 'desligada'}
-              estilo={cardStyle}
             >
               <div style={cardBodyStyle}>
                 <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:12 }}>
@@ -1296,7 +1288,6 @@ export default function Posts() {
               icone="processo"
               titulo="Trilha de áudio"
               resumo={trilha.modo === 'nenhuma' ? 'original' : `${trilha.modo} · ${trilha.ids.length} trilha(s)`}
-              estilo={cardStyle}
             >
               <div style={cardBodyStyle}>
                 <input ref={trilhaUploadRef} type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg" style={{ display:'none' }} onChange={enviarTrilha} />
@@ -1363,7 +1354,6 @@ export default function Posts() {
               icone="processo"
               titulo="Modo de processamento"
               resumo={(processModes.find(m => m.id === processMode) || {}).label || processMode}
-              estilo={cardStyle}
             >
               <div style={cardBodyStyle}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1408,7 +1398,7 @@ export default function Posts() {
                 Os três andam juntos porque respondem à mesma pergunta — quanto
                 esta conta publica por dia — vista de três ângulos. O resumo
                 verde fecha a conta, que é o que ninguém faz de cabeça. */}
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="envio">Configurações de envio</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>
@@ -1547,7 +1537,7 @@ export default function Posts() {
             </div>
 
             {/* Accounts */}
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="contas">Contas</TituloDeCartao>
               </div>
@@ -1656,7 +1646,7 @@ export default function Posts() {
 
         {/* Posts list */}
         {posts.length > 0 && (
-          <div style={{ ...cardStyle, marginTop: 4 }}>
+          <div className="mf-card" style={{ marginTop: 4 }}>
             <div style={cardHdStyle}>
               <TituloDeCartao icone="fila">Posts registrados</TituloDeCartao>
               <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{postPagination?.total || posts.length} no total</span>

@@ -31,8 +31,6 @@ async function dlFile(url, filename) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
 }
-
-const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
 const inputStyle = { flex:1, minWidth:200, padding:'8px 12px', background:'color-mix(in oklch, var(--mf-bg) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', outline:'none' };
 
 const IC_DL = (
@@ -136,7 +134,7 @@ export default function Downloader() {
     <PageShell icon={pageIcon} title="Baixar Perfil" subtitle="Baixe todas as mídias de qualquer perfil público sem perder qualidade." accent="cyan" actions={pageActions}>
 
       {/* Search */}
-      <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }} style={{ ...cardStyle, padding:'16px 16px', marginBottom:14 }}>
+      <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }} className="mf-card" style={{ padding:'16px 16px', marginBottom:14 }}>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <input
             value={username}
@@ -160,7 +158,7 @@ export default function Downloader() {
       {/* Profile card */}
       {profile && (
         <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:.22 }}
-          style={{ ...cardStyle, padding:'16px 16px', marginBottom:14, display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
+          className="mf-card" style={{ padding:'16px 16px', marginBottom:14, display:'flex', gap:16, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ width:64, height:64, borderRadius: 'var(--mf-r-full)', overflow:'hidden', border:'2px solid var(--mf-mod, var(--mf-accent-500))', flexShrink:0, background:'var(--mf-bg)' }}>
             <img
               src={proxyImg(profile.profile_pic_url)}

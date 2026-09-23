@@ -175,13 +175,11 @@ export default function Logs() {
     </div>
   );
 
-  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-
   return (
     <PageShell icon={pageIcon} title="Logs do Sistema" subtitle="Histórico completo de publicações e automações." accent="cyan" actions={pageActions}>
 
       {/* Filter tabs */}
-      <div style={{ ...cardStyle, padding:'8px 12px', marginBottom:14, display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
+      <div className="mf-card" style={{ padding:'8px 12px', marginBottom:14, display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
         {FILTERS.map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             height:28, padding:'0 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-xs)', fontWeight:600,

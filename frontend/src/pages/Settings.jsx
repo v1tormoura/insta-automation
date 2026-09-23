@@ -51,8 +51,6 @@ export default function Settings() {
     </div>
   );
 
-  const cardStyle  = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-
   return (
     <>
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -66,7 +64,7 @@ export default function Settings() {
           {primeiraCarga && <EsqueletoLista itens={2} />}
 
           {/* Headless toggle card */}
-          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} style={cardStyle}>
+          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25 }} className="mf-card">
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
               <TituloDeCartao icone="automacao" mod="auto">Automação</TituloDeCartao>
             </div>
@@ -96,7 +94,7 @@ export default function Settings() {
           </motion.div>
 
           {/* Mode info + system status card */}
-          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} style={cardStyle}>
+          <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ duration:.25, delay:.06 }} className="mf-card">
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
               <TituloDeCartao icone="config" mod="auto">Modo atual</TituloDeCartao>
             </div>

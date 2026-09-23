@@ -134,13 +134,6 @@ export default function Performance() {
     </div>
   );
 
-  const cardStyle = {
-    background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
-    border:'1px solid var(--mf-border)',
-    borderRadius: 'var(--mf-r-lg)', overflow:'hidden',
-    backdropFilter:'blur(12px)',
-  };
-
   return (
     <PageShell
       icon={pageIcon}
@@ -186,7 +179,7 @@ export default function Performance() {
 
           <div className="layout-2col">
             {/* ── Top Contas ── */}
-            <motion.div initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
+            <motion.div initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} className="mf-card">
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
                 <TituloDeCartao icone="contas" mod="auto">Top Contas</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', textTransform:'uppercase', letterSpacing:'.04em' }}>por visualizações · clique para ver</span>
@@ -294,7 +287,7 @@ export default function Performance() {
 
             {/* ── Tipo de conteúdo + Engajamento ── */}
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} style={cardStyle}>
+              <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25 }} className="mf-card">
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
                   <TituloDeCartao icone="midia" mod="auto">Tipo de Conteúdo</TituloDeCartao>
                   <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>{totalTyped} posts</span>
@@ -323,7 +316,7 @@ export default function Performance() {
 
               {/* Engagement summary */}
               <motion.div initial={{ opacity:0, x:8 }} animate={{ opacity:1, x:0 }} transition={{ duration:.25, delay:.06 }}
-                style={{ ...cardStyle, padding:'16px 16px' }}>
+                className="mf-card" style={{ padding:'16px 16px' }}>
                 <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Métricas de engajamento</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
@@ -358,8 +351,8 @@ export default function Performance() {
               não mostrava: qual TIPO de vídeo alcança (por envio) e QUEM é
               alcançado (demografia, quando o Instagram libera). */}
           <div style={{ display:"flex", flexDirection:"column", gap:16, marginTop:16 }}>
-            <AlcancePorEnvio period={period} cardStyle={cardStyle} />
-            <PublicoDosReels cardStyle={cardStyle} />
+            <AlcancePorEnvio period={period} />
+            <PublicoDosReels />
           </div>
         </>
       )}

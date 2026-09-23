@@ -61,7 +61,7 @@ function ChaoDaConta({ c }) {
   );
 }
 
-export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
+export default function AlcancePorEnvio({ period = '30d' }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState('');
   const [aberto, setAberto] = useState(null);
@@ -79,7 +79,7 @@ export default function AlcancePorEnvio({ period = '30d', cardStyle }) {
   const maxMedio = Math.max(0, ...envios.map(e => e.reachMedio));
 
   return (
-    <div style={cardStyle}>
+    <div className="mf-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)' }}>
         <TituloDeCartao icone="midia" mod="auto">O que está subindo</TituloDeCartao>
         <span style={mono}>alcance médio por envio · clique para ver os reels</span>

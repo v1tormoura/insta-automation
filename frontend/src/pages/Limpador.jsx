@@ -97,14 +97,6 @@ export default function Limpador() {
   const hasPending   = items.some(it => it.status === 'waiting' || it.status === 'error');
   const hasDone      = items.some(it => it.status === 'done' || it.status === 'error');
 
-  const cardStyle = {
-    background: 'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)',
-    border: '1px solid var(--mf-border)',
-    borderRadius: 'var(--mf-r-lg)',
-    overflow: 'hidden',
-    backdropFilter: 'blur(12px)',
-  };
-
   const pageIcon = (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -130,7 +122,7 @@ export default function Limpador() {
           style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
           {/* Drop zone */}
-          <div style={cardStyle}>
+          <div className="mf-card">
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
               <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>
                 Arquivos de entrada
@@ -180,7 +172,7 @@ export default function Limpador() {
 
           {/* Lista de arquivos na fila */}
           {items.length > 0 && (
-            <div style={cardStyle}>
+            <div className="mf-card">
               <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <TituloDeCartao icone="fila" mod="auto">Fila de processamento</TituloDeCartao>
                 <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)' }}>
@@ -203,7 +195,7 @@ export default function Limpador() {
           )}
 
           {/* Tips */}
-          <div style={{ ...cardStyle, padding:16 }}>
+          <div className="mf-card" style={{ padding:16 }}>
             <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Por que limpar?</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {TIPS.map((tip, i) => (
@@ -221,7 +213,7 @@ export default function Limpador() {
           style={{ display:'flex', flexDirection:'column', gap:12 }}>
 
           {/* Mode selector */}
-          <div style={cardStyle}>
+          <div className="mf-card">
             <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
               <TituloDeCartao icone="processo" mod="auto">Modo de limpeza</TituloDeCartao>
             </div>

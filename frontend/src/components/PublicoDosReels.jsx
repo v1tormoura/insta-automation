@@ -108,7 +108,7 @@ function Bloco({ dados }) {
   );
 }
 
-export default function PublicoDosReels({ cardStyle }) {
+export default function PublicoDosReels() {
   const [timeframe, setTimeframe] = useState('last_30_days');
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState('');
@@ -126,7 +126,7 @@ export default function PublicoDosReels({ cardStyle }) {
   const minimo = dados?.minimoSeguidores || 100;
 
   return (
-    <div style={cardStyle}>
+    <div className="mf-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--mf-border)', gap: 10, flexWrap: 'wrap' }}>
         <TituloDeCartao icone="contas" mod="auto">Quem viu seus reels</TituloDeCartao>
         <div style={{ display: 'flex', gap: 4 }}>

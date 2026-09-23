@@ -17,12 +17,15 @@ import TituloDeCartao from './TituloDeCartao';
  */
 export default function CartaoRecolhivel({
   icone, titulo, resumo, children, aberto: abertoInicial = false, estilo,
+  /* `estilo` continua aceito para ajustes pontuais (margem, sticky), mas o
+     CARTÃO agora é sempre o canônico: antes cada página passava o seu e os
+     três recolhíveis do Postar podiam divergir entre si. */
 }) {
   const [aberto, setAberto] = useState(abertoInicial);
   const idCorpo = `recolhivel-${titulo.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
-    <div style={estilo}>
+    <div className="mf-card" style={estilo}>
       <button type="button"
         onClick={() => setAberto(a => !a)}
         aria-expanded={aberto}

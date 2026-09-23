@@ -92,8 +92,6 @@ export default function Ranking() {
     </div>
   );
 
-  const cardStyle = { background:'color-mix(in oklch, var(--mf-surface-1) 85%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-lg)', overflow:'hidden', backdropFilter:'blur(12px)' };
-
   return (
     <>
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -105,7 +103,7 @@ export default function Ranking() {
         actions={pageActions}
       >
         {/* Metric filter */}
-        <div style={{ ...cardStyle, marginBottom:14, padding:'8px 12px' }}>
+        <div className="mf-card" style={{ marginBottom:14, padding:'8px 12px' }}>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
             <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', marginRight:4 }}>Métrica:</span>
             {METRICS.map(m => (
@@ -121,7 +119,7 @@ export default function Ranking() {
         </div>
 
         {/* Ranking list */}
-        <div style={cardStyle}>
+        <div className="mf-card">
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', borderBottom:'1px solid var(--mf-border)' }}>
             <h3 style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)', margin:0 }}>Top Posts — {metricLabel}</h3>
             <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontFamily:'var(--mf-mono)', background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-full)', padding:'2px 8px' }}>{posts.length} posts</span>
