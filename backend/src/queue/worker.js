@@ -1021,7 +1021,26 @@ async function processJobRound(jobId) {
 
     // Pause e cancel emitidos durante a rodada param a sequência: sem esta
     // checagem o job continuaria publicando por mais dezenas de minutos.
-    const statusAtual = (await Job.findById(jobDoc._id).select('status').lean())?.status;
+    /* Lê o status E dá o sinal de vida, numa ida só ao banco.
+
+       ── O defeito que isto conserta
+
+       `recoverStuckJobs` roda a cada 5 min e trata como travado o envio cujo
+       `updatedAt` tem mais de 15 minutos. Uma rodada de 10 contas com o
+       intervalo humanizado (2 a 5 min por conta) leva de 20 a 50 minutos — e
+       NADA tocava no envio durante ela. Resultado: toda rodada longa era
+       re-enfileirada enquanto ainda publicava, criava um segundo Post da
+       mesma mídia e mandava tudo de novo. Medido em produção em 23/09/2026:
+       três Posts da mesma mídia na rodada 6, dois na rodada 5.
+
+       Não era o restart do worker: era um laço que se alimentava sozinho a
+       cada cinco minutos. Com o sinal de vida a cada publicação, "travado"
+       volta a significar travado. */
+    const statusAtual = (await Job.findOneAndUpdate(
+      { _id: jobDoc._id },
+      { $currentDate: { updatedAt: true } },
+      { new: true, projection: { status: 1 } },
+    ).lean())?.status;
     if (['paused', 'cancelled'].includes(statusAtual)) {
       console.log(`[Job] "${jobDoc.name}" foi ${statusAtual} — sequência interrompida em ${indice}/${sequencia.length}`);
       break;

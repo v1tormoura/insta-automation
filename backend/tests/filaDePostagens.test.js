@@ -322,3 +322,38 @@ describe('a ligação com o resto do sistema', () => {
     expect(dash).toContain('<FilaDePostagens />');
   });
 });
+
+/* ── O sinal de vida da rodada ─────────────────────────────────────────────
+   Medido em producao (23/09/2026): tres Posts da MESMA midia na rodada 6 do
+   mesmo envio. `recoverStuckJobs` roda a cada 5 min e trata como travado o
+   envio parado ha 15; uma rodada de 10 contas com intervalo humanizado leva
+   de 20 a 50 min, e nada tocava no envio durante ela. A rodada longa era
+   re-enfileirada enquanto ainda publicava. */
+describe('a rodada avisa que esta viva', () => {
+  const ler = p => require('fs').readFileSync(require('path').join(__dirname, p), 'utf8');
+
+  test('o laco de publicacao toca em updatedAt a cada volta', () => {
+    const w = ler('../src/queue/worker.js');
+    expect(w).toContain('$currentDate: { updatedAt: true }');
+  });
+
+  test('o sinal de vida vem da MESMA consulta que le o status — nao e uma ida extra ao banco', () => {
+    const w = ler('../src/queue/worker.js');
+    const i = w.indexOf('const statusAtual = ');
+    expect(i).toBeGreaterThan(-1);
+    const trecho = w.slice(i, i + 400);
+    expect(trecho).toContain('findOneAndUpdate');
+    expect(trecho).toContain('$currentDate');
+    expect(trecho).toContain('projection');
+  });
+
+  test('o limite de "travado" continua maior que o intervalo entre dois sinais', () => {
+    /* O sinal sai a cada publicacao, e o intervalo humanizado e de 2 a 5 min.
+       O limite de travado (15 min) tem de ser folgado sobre o maior deles,
+       senao o defeito volta pela porta dos fundos. */
+    const w = ler('../src/queue/worker.js');
+    expect(w).toContain('15 * 60 * 1000');
+    const maiorIntervaloMs = 180000 + 120000;   // Math.random()*180000 + 120000
+    expect(15 * 60 * 1000).toBeGreaterThan(maiorIntervaloMs * 2);
+  });
+});
