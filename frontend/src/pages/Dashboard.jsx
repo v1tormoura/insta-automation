@@ -373,9 +373,6 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
 function QueuePanel({ d, accountStats }) {
   const naFila      = (d.pendingPosts || 0) + (d.scheduledPosts || 0);
   const processando = d.processingPosts  || 0;
-  /* A soma das três filas, nomeada: ela aparecia inteira dentro do JSX do
-     cartão, e o mesmo número era recalculado para decidir o rodapé. */
-  const filaTotal = (d.pendingPosts || 0) + (d.processingPosts || 0) + (d.scheduledPosts || 0);
   const cutoff24h   = Date.now() + 24 * 60 * 60 * 1000;
   const proximas24h = (d.upcomingPosts || []).filter(p =>
     !p.scheduledAt || new Date(p.scheduledAt) <= cutoff24h
@@ -1175,6 +1172,9 @@ export default function Dashboard() {
   };
 
   const d = data || {};
+  /* A soma das três filas, nomeada: ela aparecia inteira dentro do JSX do
+     cartão, e o mesmo número era recalculado para decidir o rodapé. */
+  const filaTotal = (d.pendingPosts || 0) + (d.processingPosts || 0) + (d.scheduledPosts || 0);
 
   const sparkDaily   = useMemo(() => (d.dailyPosts||[]).slice(-period).map(x => x.posts||0), [d.dailyPosts, period]);
   const sparkErrors  = useMemo(() => (d.dailyErrors7d||[]).map(x => x.errors||0), [d.dailyErrors7d]);
