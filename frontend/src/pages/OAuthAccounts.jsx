@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import api from '../services/api';
 import { EsqueletoLista } from '../components/Estados';
 import Metrica, { FileiraDeMetricas } from '../components/Metrica';
+import PageShell from '../components/PageShell';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -271,20 +272,18 @@ export default function OAuthAccounts() {
     }
   }
 
-  return (
-    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 'var(--mf-r-md)', background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--mf-t-h1)' }}>🔗</div>
-            <div>
-              <h1 style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-text)', margin: 0 }}>Conexões OAuth</h1>
-              <p style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', margin: 0 }}>Gerencie tokens da Instagram Graph API por conta</p>
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+  /* Ícone em traço, como o resto do painel — o emoji 🔗 muda de desenho a cada
+     sistema operacional e não acompanha a cor do módulo. */
+  const pageIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+    </svg>
+  );
+
+  const pageActions = (
+    <>
           {metaApps.length > 1 && (
             <select value={selApp} onChange={e => setSelApp(e.target.value)}
               style={{ padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-xs)', cursor: 'pointer' }}>
@@ -294,12 +293,16 @@ export default function OAuthAccounts() {
           <button onClick={load} style={{ padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', cursor: 'pointer', fontSize: 'var(--mf-t-xs)' }}>
             ↻ Atualizar
           </button>
-          <button onClick={connectNew}
-            style={{ padding: '8px 16px', borderRadius: 'var(--mf-r-sm)', border: 'none', background: 'var(--mf-mod, var(--mf-accent-500))', color: 'var(--mf-bg)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--mf-t-xs)' }}>
-            + Conectar nova conta
-          </button>
-        </div>
-      </div>
+      <button onClick={connectNew}
+        style={{ padding: '8px 16px', borderRadius: 'var(--mf-r-sm)', border: 'none', background: 'var(--mf-mod, var(--mf-accent-500))', color: 'var(--mf-bg)', fontWeight: 700, cursor: 'pointer', fontSize: 'var(--mf-t-xs)' }}>
+        + Conectar nova conta
+      </button>
+    </>
+  );
+
+  return (
+    <PageShell icon={pageIcon} title="Conexões OAuth"
+      subtitle="Tokens da Instagram Graph API, conta por conta." accent="cyan" actions={pageActions}>
 
       {/* Números do topo — o mesmo bloco do resto do painel (Metrica.jsx).
           `carregando` em vez de "—": travessão quer dizer "não sei", e aqui
@@ -356,6 +359,6 @@ export default function OAuthAccounts() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
