@@ -17,7 +17,6 @@ const { writeAccountLog } = require('../utils/accountLogger');
 const { broadcast }       = require('../events/broadcaster');
 const { classifyError }   = require('../jobs/healthCheck');
 const traduzirErro        = require('../utils/traduzirErro');
-const { runPromoAfterPost } = require('../jobs/promoJob');
 // Ordenação humanizada — as mesmas regras da campanha, para Postar e Loop não
 // terem uma segunda implementação que divirja com o tempo.
 const { criarRandom, embaralhar, espacarPorConta } = require('../services/publicationPlanner');
@@ -520,9 +519,6 @@ async function publishOneAccount(acc, post, preProcessedVideoUrl) {
     await registerSuccess(account);
     await Account.findByIdAndUpdate(account._id, { isBusy: false, busySince: null, busyReason: '' });
     broadcast('accounts', { action: 'synced' });
-
-    runPromoAfterPost(account._id).catch(e => console.log('[Promo] erro:', e.message));
-
     /* Sem `await`: a notificação é um extra, e uma lentidão dela não pode
        atrasar o retorno de uma publicação que já saiu com sucesso. */
     require('../services/smartActivity/eventosDePublicacao')

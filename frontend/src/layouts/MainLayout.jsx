@@ -10,7 +10,6 @@ import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
 import FundoCiber from '../components/FundoCiber';
-import LimpadorFlutuante from '../components/LimpadorFlutuante';
 import AvisoDeVersao from '../components/AvisoDeVersao';
 import { lidas as lerPreferencias, salvar as salvarPreferencias } from '../services/preferencias';
 
@@ -146,10 +145,7 @@ const ICONS = {
   media:     ic(<><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>),
   scheduler: ic(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),
   stories:   ic(<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>),
-  warmup:    ic(<><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></>),
-  sessions:  ic(<><rect x="5" y="11" width="14" height="11" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></>),
   health:    ic(<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>),
-  proxies:   ic(<><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></>),
   legends:   ic(<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>),
   loop:      ic(<><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
   jobs:      ic(<><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-4a2 2 0 00-2 2v2h8V5a2 2 0 00-2-2z"/><path d="M12 12v4M10 14h4"/></>),
@@ -160,21 +156,9 @@ const ICONS = {
   search:    ic(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>, 15),
   chevron:   ic(<><path d="m15 18-6-6 6-6"/></>),
   logout:    ic(<><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>),
-  besttimes: ic(<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>),
-  audio:     ic(<><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></>),
-  abtest:    ic(<><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></>),
-  repost:    ic(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>),
-  hunter:    ic(<><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>),
-  promo:      ic(<><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></>),
-  downloader:  ic(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>),
   bell:        ic(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>),
   ranking:     ic(<><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></>),
-  faturamento: ic(<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>),
-  limpador:    ic(<><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/><path d="M10 11v6M14 11v6"/></>),
   performance: ic(<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>),
-  videotpl:    ic(<><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.9L15 14"/><rect x="1" y="8" width="14" height="13" rx="2"/></>),
-  videobatch:  ic(<><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></>),
-  videoeditor: ic(<><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 10l2-2 2 2"/><path d="M12 8v5"/></>),
   apimeta:     ic(<><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></>),
   lua:         ic(<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>, 15),
   sol:         ic(<><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>, 15),
@@ -214,7 +198,6 @@ const NAV_GROUPS = [
       { to: '/campaigns', mod: 'campanhas',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking   },
       { to: '/jobs', mod: 'jobs',              label: 'Execuções',    sub: 'Lotes em andamento',     icon: ICONS.jobs      },
       { to: '/scheduler', mod: 'jobs',         label: 'Agendamentos', sub: 'Calendário de posts',    icon: ICONS.scheduler },
-      { to: '/smart-repost', mod: 'jobs',      label: 'Automações',   sub: 'Regras de repostagem',   icon: ICONS.repost    },
     ],
   },
   {
@@ -223,10 +206,6 @@ const NAV_GROUPS = [
     items: [
       { to: '/biblioteca', mod: 'publicar',      label: 'Biblioteca',     sub: 'Mídias e pastas',     icon: ICONS.media       },
       { to: '/legends', mod: 'publicar',         label: 'Legendas',       sub: 'Textos salvos',       icon: ICONS.legends     },
-      { to: '/video-editor', mod: 'publicar',    label: 'Editor',         sub: 'Editor de vídeos',    icon: ICONS.videoeditor },
-      { to: '/video-templates', mod: 'publicar', label: 'Templates',      sub: 'Modelos de vídeo',    icon: ICONS.videotpl    },
-      { to: '/video-batches', mod: 'publicar',   label: 'Processamentos', sub: 'Lotes e resultados',  icon: ICONS.videobatch  },
-      { to: '/limpador', mod: 'publicar',        label: 'Limpador',       sub: 'Remover metadados',   icon: ICONS.limpador    },
     ],
   },
   {
@@ -237,8 +216,6 @@ const NAV_GROUPS = [
       { to: '/metricas-perfis', mod: 'metricas', label: 'Perfis',            sub: 'Seguidores e curtidas',  icon: ICONS.perfis      },
       { to: '/ranking', mod: 'metricas',         label: 'Ranking',           sub: 'Posts do mês',           icon: ICONS.ranking     },
       { to: '/top-posts', mod: 'metricas',       label: 'Top Posts',         sub: 'Republique os melhores', icon: ICONS.topposts    },
-      { to: '/best-times', mod: 'metricas',      label: 'Melhores Horários', sub: 'Quando postar',          icon: ICONS.besttimes   },
-      { to: '/faturamento', mod: 'metricas',     label: 'Faturamento',       sub: 'Meta de vendas',         icon: ICONS.faturamento },
     ],
   },
   {
@@ -249,8 +226,6 @@ const NAV_GROUPS = [
       { to: '/accounts', mod: 'contas',     label: 'Contas',      sub: 'Gerenciar contas',     icon: ICONS.accounts },
       { to: '/health', mod: 'contas',       label: 'Saúde',       sub: 'Status das contas',    icon: ICONS.health   },
       { to: '/oauth-contas', mod: 'contas', label: 'OAuth',       sub: 'Conexões por conta',   icon: ICONS.oauth    },
-      { to: '/proxies', mod: 'contas',      label: 'Proxies',     sub: 'Por onde cada uma sai', icon: ICONS.proxies },
-      { to: '/warmup', mod: 'contas',       label: 'Engajamento', sub: 'Interações por conta', icon: ICONS.warmup   },
     ],
   },
   {
@@ -259,7 +234,6 @@ const NAV_GROUPS = [
       { to: '/api-meta', mod: 'sistema',              label: 'API Meta',    sub: 'Apps Meta / OAuth',          icon: ICONS.apimeta },
       { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Quando e como avisar',      icon: ICONS.bell    },
       { to: '/minha-conta', mod: 'sistema',           label: 'Minha Conta', sub: 'Perfil, senha e aparência',  icon: ICONS.usuario },
-      { to: '/promo', mod: 'campanhas',               label: 'Divulgação',  sub: 'Captação de clientes',       icon: ICONS.promo   },
       { to: '/logs', mod: 'sistema',                  label: 'Histórico',   sub: 'Logs de atividade',          icon: ICONS.logs    },
     ],
   },
@@ -294,11 +268,6 @@ function buildNotif(data, event) {
   }
   if (event === 'insights' && a === 'sync_done')
     return { type: 'info', msg: `Insights sincronizados${data.count ? ` (${data.count} posts)` : ''}` };
-  if (event === 'warmup') {
-    if (a === 'warmup_started') return { type: 'info',    msg: `Aquecimento iniciado${data.username ? ` — @${data.username}` : ''}` };
-    if (a === 'warmup_stopped') return { type: 'info',    msg: `Aquecimento parado${data.username ? ` — @${data.username}` : ''}` };
-    if (a === 'warmup_action')  return { type: 'success', msg: `Ação de aquecimento: ${data.actionType || ''}${data.username ? ` @${data.username}` : ''}` };
-  }
   return null;
 }
 
@@ -420,7 +389,7 @@ export default function MainLayout({ children }) {
   /* SSE → notificações globais. Lógica preservada integralmente do layout
      anterior: só a apresentação foi trocada nesta migração. */
   useServerEvents(
-    ['posts', 'accounts', 'loop', 'insights', 'warmup'],
+    ['posts', 'accounts', 'loop', 'insights'],
     (data, event) => {
       const n = buildNotif(data, event);
       if (n) pushNotification(n);
@@ -576,8 +545,6 @@ export default function MainLayout({ children }) {
           <main className="mf-container" style={{ flex: 1, minWidth: 0, paddingBottom: 'var(--mf-10)' }}>
             {children}
           </main>
-          {/* A fila do Limpador, visível de qualquer tela enquanto roda. */}
-          <LimpadorFlutuante />
           {/* "Nova versão — Atualizar": o app instalado no celular não recarrega sozinho. */}
           <AvisoDeVersao />
         </div>

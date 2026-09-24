@@ -5,16 +5,11 @@ const connectDB = require('./config/db');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const startAutoSync = require('./jobs/accountAutoSync');
 const startDailyReset = require('./jobs/resetDailyPosts');
-const { startFastSync } = require('./jobs/accountFastSync');
-const { startSessionKeepAlive } = require('./jobs/sessionKeepAlive');
 const { cleanProcessedFiles } = require('./services/videoProcessor');
 const { startHealthCheck } = require('./jobs/healthCheck');
-// loopJob desativado — novos loops usam exclusivamente a arquitetura Job-based (processJobRound)
 const { startInsightAutoSync } = require('./services/insightSyncService');
 const { startStoryInsightAutoSync } = require('./services/storyInsightSync');
 const { startTokenRefreshJob } = require('./jobs/tokenRefreshJob');
-const { startRepostJob }      = require('./jobs/repostJob');
-const { startProxyHealthCheck } = require('./jobs/proxyHealthCheck');
 const { startLimpezaDeArquivos } = require('./jobs/limpezaDeArquivos');
 const auth = require('./middleware/auth');
 const app = express();
@@ -74,11 +69,8 @@ app.use('/oauth', require('./routes/oauthRoutes'));
 app.use('/events',       auth, require('./routes/eventsRoutes'));
 app.use('/dashboard',    auth, dashboardRoutes);
 app.use('/logs',         auth, require('./routes/logRoutes'));
-app.use('/settings',     auth, require('./routes/settingsRoutes'));
-app.use('/sessions',     auth, require('./routes/sessionRoutes'));
 app.use('/health',       auth, require('./routes/healthRoutes'));
 app.use('/accounts',     auth, require('./routes/accountRoutes'));
-app.use('/proxy',        auth, require('./routes/proxyRoutes'));
 app.use('/campaigns',    auth, require('./routes/campaignRoutes'));
 app.use('/posts',        auth, require('./routes/postRoutes'));
 app.use('/legends',      auth, require('./routes/legendRoutes'));
@@ -87,21 +79,11 @@ app.use('/conta',        auth, require('./routes/contaRoutes'));
 app.use('/ai',           auth, require('./routes/aiRoutes'));
 app.use('/media',        auth, require('./routes/mediaRoutes'));
 app.use('/api/stories',  auth, require('./routes/storyRoutes'));
-app.use('/warmup',       auth, require('./routes/warmupRoutes'));
 app.use('/loops',        auth, require('./routes/loopRoutes'));
-app.use('/profile-edit', auth, require('./routes/profileEditRoutes'));
 app.use('/insights',     auth, require('./routes/insightRoutes'));
 app.use('/analytics',    auth, require('./routes/analyticsRoutes'));
-app.use('/abtests',      auth, require('./routes/abtestRoutes'));
-app.use('/repost',       auth, require('./routes/repostRoutes'));
 app.use('/jobs',         auth, require('./routes/jobRoutes'));
-app.use('/viral',        auth, require('./routes/viralRoutes'));
-app.use('/promo',        auth, require('./routes/promoRoutes'));
-app.use('/downloader',   auth, require('./routes/downloaderRoutes'));
-app.use('/api/limpador', auth, require('./routes/limpadorRoutes'));
 app.use('/meta-apps',        auth, require('./routes/metaAppRoutes'));
-app.use('/video-templates', auth, require('./routes/videoTemplateRoutes'));
-app.use('/video-batches',   auth, require('./routes/videoBatchRoutes'));
 app.use('/trilhas',         auth, require('./routes/trilhaRoutes'));
 app.use('/convites',        auth, require('./routes/convitesRoutes'));
 
@@ -140,75 +122,16 @@ app.use((err, req, res, next) => {
   res.status(status).json(corpo);
 });
 
-// Diagnostico do Multilogin -- GET /multilogin/status
-app.get('/multilogin/status', async (req, res) => {
-  const ML6 = 'http://127.0.0.1:63332';
-  const result = {
-    mode:         process.env.MULTILOGIN_MODE || '(nao definido)',
-    hasEmail:     !!process.env.MULTILOGIN_EMAIL,
-    hasPassword:  !!process.env.MULTILOGIN_PASSWORD,
-    ml6Running:   false,
-    ml6Token:     null,
-    profilesRaw:  null,
-    profileCount: 0,
-    error:        null,
-  };
-
-  try {
-    const ping = await fetch(`${ML6}/api/v1/profile?offset=0&count=1`, { signal: AbortSignal.timeout(4000) });
-    result.ml6Running    = true;
-    result.ml6StatusCode = ping.status;
-
-    if (process.env.MULTILOGIN_EMAIL && process.env.MULTILOGIN_PASSWORD) {
-      const crypto  = require('crypto');
-      const pwdHash = crypto.createHash('md5').update(process.env.MULTILOGIN_PASSWORD).digest('hex');
-      const authR   = await fetch(`${ML6}/user/signin`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email: process.env.MULTILOGIN_EMAIL, password: pwdHash }),
-        signal:  AbortSignal.timeout(4000),
-      });
-      const authD = await authR.json();
-      result.ml6Token = authD?.data?.token ? 'OK' : `falhou: ${JSON.stringify(authD).slice(0, 200)}`;
-
-      if (authD?.data?.token) {
-        const headers = { 'Authorization': `Bearer ${authD.data.token}` };
-        const profR   = await fetch(`${ML6}/api/v1/profile?offset=0&count=5`, { headers, signal: AbortSignal.timeout(4000) });
-        const profD   = await profR.json();
-        result.profilesRaw  = JSON.stringify(profD).slice(0, 500);
-        const page = Array.isArray(profD) ? profD
-          : (profD.data || profD.profiles || profD.data?.profiles || []);
-        result.profileCount = page.length;
-      }
-    } else {
-      const profR = await fetch(`${ML6}/api/v1/profile?offset=0&count=5`, { signal: AbortSignal.timeout(4000) });
-      const profD = await profR.json();
-      result.profilesRaw  = JSON.stringify(profD).slice(0, 500);
-      const page = Array.isArray(profD) ? profD
-        : (profD.data || profD.profiles || profD.data?.profiles || []);
-      result.profileCount = page.length;
-    }
-  } catch (e) {
-    result.ml6Running = false;
-    result.error = e.message;
-  }
-
-  res.json(result);
-});
-
 const PORT = process.env.PORT || 3000;
 
 startAutoSync();
 startDailyReset();
-startFastSync();
-startSessionKeepAlive();
 
 /* Vigia do sistema. A cota do proxy acabou e o produto ficou parado quatro
    dias e meio sem que nada avisasse — a descoberta veio pelas contas ficarem
    estranhas, e aí a causa já estava a quatro dias do sintoma. */
 require('./services/vigiaDoSistema').iniciar();
 startHealthCheck();
-// startLoopJob() — desativado; loops antigos foram arquivados, novos usam Job Engine
 startInsightAutoSync();
 /* Resumo do dia na hora marcada (Notificações → Comportamento), não "no
    primeiro ciclo de sincronização depois dela". */
@@ -224,10 +147,7 @@ require('./events/broadcaster').iniciarPonte()
 // audiência some junto com o story e nunca chega ao painel.
 startStoryInsightAutoSync();
 startTokenRefreshJob();
-startRepostJob();
-startProxyHealthCheck();
-/* tmp/ do editor em lote e processed/ das publicacoes nunca eram apagados —
-   ver jobs/limpezaDeArquivos.js. */
+/* processed/ das publicacoes nunca era apagado — ver jobs/limpezaDeArquivos.js. */
 startLimpezaDeArquivos();
 
 // Limpa vídeos processados antigos a cada 6 horas
