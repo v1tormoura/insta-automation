@@ -25,10 +25,21 @@ const DEFAULT_TMPL = {
 };
 
 const QUALITY_OPTS = [
-  { id: '720p',     label: '720p — Rápido',         crf: 26, preset: 'fast'   },
-  { id: '1080p',    label: '1080p — Balanceado',     crf: 20, preset: 'medium' },
-  { id: '1440p',    label: '1440p — Alta qualidade', crf: 16, preset: 'slow'   },
-  { id: 'original', label: 'Original — Máxima',      crf: 18, preset: 'medium' },
+/* Esta seção controla COMPRESSÃO e velocidade do encoder, não resolução.
+   A resolução da saída vem do CANVAS (1080×1920 por padrão) — ver
+   renderEngine/filterBuilder.js, onde o `scale` usa `canvas.width/height`.
+
+   Os rótulos antigos ("720p", "1080p", "1440p") prometiam resolução e
+   entregavam CRF: escolher "1440p" nunca gerou um vídeo 1440p, gerava
+   1080×1920 menos comprimido. E "Original — Máxima" tinha CRF 18, menos
+   qualidade que o "1440p" (CRF 16) logo acima — o rótulo era falso dentro da
+   própria lista.
+
+   Os valores continuam os mesmos: modelo salvo não muda de comportamento. */
+  { id: 'rapido',     label: 'Rápido — arquivo menor',    nota: 'Mais compressão. Bom para testar.',            crf: 26, preset: 'fast'   },
+  { id: 'equilibrado', label: 'Equilibrado (recomendado)', nota: 'O que o Instagram recebe bem, sem exagero.',   crf: 20, preset: 'medium' },
+  { id: 'alta',       label: 'Alta — arquivo maior',      nota: 'Menos compressão, render mais lento.',          crf: 18, preset: 'medium' },
+  { id: 'maxima',     label: 'Máxima — a mais limpa',     nota: 'Menor perda possível aqui. Render bem lento.',  crf: 16, preset: 'slow'   },
 ];
 
 const FIT_OPTS = [
@@ -1132,10 +1143,19 @@ export default function VideoEditorPage() {
           {/* QUALIDADE */}
           <Acc title="Qualidade" id="qualidade" open={sections.qualidade} toggle={toggleSection}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {/* O que esta seção NÃO faz — e a versão anterior sugeria que fazia. */}
+              <p style={{ margin: '0 0 8px', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+                Controla a <strong style={{ color: 'var(--mf-text-2)' }}>compressão</strong>, não a resolução — a saída é sempre o tamanho do Canvas ({tmpl.canvas?.width || 1080}×{tmpl.canvas?.height || 1920}). Menos compressão deixa a imagem mais limpa, mas <strong style={{ color: 'var(--mf-text-2)' }}>não cria detalhe</strong> que não existe no arquivo enviado.
+              </p>
               {QUALITY_OPTS.map(q => (
                 <label key={q.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer', background: tmpl.output?.crf === q.crf ? 'color-mix(in oklch, var(--mf-primary-500) 16%, transparent)' : 'var(--mf-border-subtle)', border: `1px solid ${tmpl.output?.crf === q.crf ? 'color-mix(in oklch, var(--mf-primary-500) 38%, transparent)' : 'var(--mf-border)'}` }}>
                   <input type="radio" name="quality" checked={tmpl.output?.crf === q.crf} onChange={() => { setT('output.crf', q.crf); setT('output.preset', q.preset); }} style={{ accentColor: 'var(--mf-info-500)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>{q.label}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)' }}>{q.label}</span>
+                    {/* A nota diz o que a escolha CUSTA — sem ela, "Máxima"
+                        parece de graça, e ela cobra tempo de render. */}
+                    <span style={{ display: 'block', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>{q.nota}</span>
+                  </span>
                 </label>
               ))}
             </div>
