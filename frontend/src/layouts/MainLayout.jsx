@@ -10,7 +10,6 @@ import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
 import FundoCiber from '../components/FundoCiber';
-import LimpadorFlutuante from '../components/LimpadorFlutuante';
 import AvisoDeVersao from '../components/AvisoDeVersao';
 import { lidas as lerPreferencias, salvar as salvarPreferencias } from '../services/preferencias';
 
@@ -214,7 +213,6 @@ const NAV_GROUPS = [
       { to: '/campaigns', mod: 'campanhas',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking   },
       { to: '/jobs', mod: 'jobs',              label: 'Execuções',    sub: 'Lotes em andamento',     icon: ICONS.jobs      },
       { to: '/scheduler', mod: 'jobs',         label: 'Agendamentos', sub: 'Calendário de posts',    icon: ICONS.scheduler },
-      { to: '/smart-repost', mod: 'jobs',      label: 'Automações',   sub: 'Regras de repostagem',   icon: ICONS.repost    },
     ],
   },
   {
@@ -223,10 +221,6 @@ const NAV_GROUPS = [
     items: [
       { to: '/biblioteca', mod: 'publicar',      label: 'Biblioteca',     sub: 'Mídias e pastas',     icon: ICONS.media       },
       { to: '/legends', mod: 'publicar',         label: 'Legendas',       sub: 'Textos salvos',       icon: ICONS.legends     },
-      { to: '/video-editor', mod: 'publicar',    label: 'Editor',         sub: 'Editor de vídeos',    icon: ICONS.videoeditor },
-      { to: '/video-templates', mod: 'publicar', label: 'Templates',      sub: 'Modelos de vídeo',    icon: ICONS.videotpl    },
-      { to: '/video-batches', mod: 'publicar',   label: 'Processamentos', sub: 'Lotes e resultados',  icon: ICONS.videobatch  },
-      { to: '/limpador', mod: 'publicar',        label: 'Limpador',       sub: 'Remover metadados',   icon: ICONS.limpador    },
     ],
   },
   {
@@ -237,8 +231,6 @@ const NAV_GROUPS = [
       { to: '/metricas-perfis', mod: 'metricas', label: 'Perfis',            sub: 'Seguidores e curtidas',  icon: ICONS.perfis      },
       { to: '/ranking', mod: 'metricas',         label: 'Ranking',           sub: 'Posts do mês',           icon: ICONS.ranking     },
       { to: '/top-posts', mod: 'metricas',       label: 'Top Posts',         sub: 'Republique os melhores', icon: ICONS.topposts    },
-      { to: '/best-times', mod: 'metricas',      label: 'Melhores Horários', sub: 'Quando postar',          icon: ICONS.besttimes   },
-      { to: '/faturamento', mod: 'metricas',     label: 'Faturamento',       sub: 'Meta de vendas',         icon: ICONS.faturamento },
     ],
   },
   {
@@ -250,7 +242,6 @@ const NAV_GROUPS = [
       { to: '/health', mod: 'contas',       label: 'Saúde',       sub: 'Status das contas',    icon: ICONS.health   },
       { to: '/oauth-contas', mod: 'contas', label: 'OAuth',       sub: 'Conexões por conta',   icon: ICONS.oauth    },
       { to: '/proxies', mod: 'contas',      label: 'Proxies',     sub: 'Por onde cada uma sai', icon: ICONS.proxies },
-      { to: '/warmup', mod: 'contas',       label: 'Engajamento', sub: 'Interações por conta', icon: ICONS.warmup   },
     ],
   },
   {
@@ -259,7 +250,6 @@ const NAV_GROUPS = [
       { to: '/api-meta', mod: 'sistema',              label: 'API Meta',    sub: 'Apps Meta / OAuth',          icon: ICONS.apimeta },
       { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Quando e como avisar',      icon: ICONS.bell    },
       { to: '/minha-conta', mod: 'sistema',           label: 'Minha Conta', sub: 'Perfil, senha e aparência',  icon: ICONS.usuario },
-      { to: '/promo', mod: 'campanhas',               label: 'Divulgação',  sub: 'Captação de clientes',       icon: ICONS.promo   },
       { to: '/logs', mod: 'sistema',                  label: 'Histórico',   sub: 'Logs de atividade',          icon: ICONS.logs    },
     ],
   },
@@ -577,7 +567,6 @@ export default function MainLayout({ children }) {
             {children}
           </main>
           {/* A fila do Limpador, visível de qualquer tela enquanto roda. */}
-          <LimpadorFlutuante />
           {/* "Nova versão — Atualizar": o app instalado no celular não recarrega sozinho. */}
           <AvisoDeVersao />
         </div>

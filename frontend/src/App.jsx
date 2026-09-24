@@ -24,7 +24,6 @@ const Sessions            = lazy(() => import('./pages/Sessions'));
 const Health              = lazy(() => import('./pages/Health'));
 const Proxies             = lazy(() => import('./pages/Proxies'));
 const Stories             = lazy(() => import('./pages/Stories'));
-const Warmup              = lazy(() => import('./pages/Warmup'));
 const Loop                = lazy(() => import('./pages/Loop'));
 const JobManager          = lazy(() => import('./pages/JobManager'));
 const Campaigns           = lazy(() => import('./pages/Campaigns'));
@@ -34,22 +33,13 @@ const CampaignDetail      = lazy(() => import('./pages/CampaignDetail'));
 import OAuthCallback from './pages/OAuthCallback';
 const ConectarGuiado      = lazy(() => import('./pages/ConectarGuiado'));
 const TopPosts            = lazy(() => import('./pages/TopPosts'));
-const BestTimes           = lazy(() => import('./pages/BestTimes'));
-const SmartRepost         = lazy(() => import('./pages/SmartRepost'));
-const Promo               = lazy(() => import('./pages/Promo'));
 const Ranking             = lazy(() => import('./pages/Ranking'));
-const Faturamento         = lazy(() => import('./pages/Faturamento'));
 const Performance         = lazy(() => import('./pages/Performance'));
 const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
 const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
-const Limpador            = lazy(() => import('./pages/Limpador'));
 const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
 const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
-const VideoTemplates      = lazy(() => import('./pages/VideoTemplates'));
-const VideoTemplateEditor = lazy(() => import('./pages/VideoTemplateEditor'));
-const VideoBatches        = lazy(() => import('./pages/VideoBatches'));
 const VideoBatchDetail    = lazy(() => import('./pages/VideoBatchDetail'));
-const VideoEditorPage     = lazy(() => import('./pages/VideoEditorPage'));
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
@@ -136,7 +126,6 @@ export default function App() {
               <Route path="/health"       element={<Health />} />
               <Route path="/proxies"      element={<Proxies />} />
               <Route path="/stories"      element={<Stories />} />
-              <Route path="/warmup"       element={<Warmup />} />
               <Route path="/loop"         element={<Loop />} />
               <Route path="/jobs"         element={<JobManager />} />
               {/* /campaigns/nova antes de /campaigns/:id — senão "nova" seria lido como id */}
@@ -151,23 +140,13 @@ export default function App() {
               <Route path="/settings/notificacoes" element={<ConfigNotificacoes />} />
               <Route path="/campaigns/:id"  element={<CampaignDetail />} />
               <Route path="/top-posts"      element={<TopPosts />} />
-              <Route path="/best-times"     element={<BestTimes />} />
-              <Route path="/smart-repost"   element={<SmartRepost />} />
-              <Route path="/promo"          element={<Promo />} />
               <Route path="/ranking"        element={<Ranking />} />
-              <Route path="/faturamento"    element={<Faturamento />} />
               <Route path="/performance"    element={<Performance />} />
               <Route path="/metricas-perfis" element={<MetricasDosPerfis />} />
               <Route path="/minha-conta"    element={<MinhaConta />} />
-              <Route path="/limpador"       element={<Limpador />} />
               <Route path="/api-meta"       element={<ApiMeta />} />
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"          element={<MediaLibrary />} />
-              <Route path="/video-editor"            element={<VideoEditorPage />} />
-              <Route path="/video-templates"         element={<VideoTemplates />} />
-              <Route path="/video-templates/new"     element={<VideoTemplateEditor />} />
-              <Route path="/video-templates/:id/edit" element={<VideoTemplateEditor />} />
-              <Route path="/video-batches"           element={<VideoBatches />} />
               <Route path="/video-batches/:id"       element={<VideoBatchDetail />} />
             </Routes>
             </Suspense>
