@@ -60,6 +60,22 @@ exports.uploadMedia = async (req, res) => {
     const files = req.files || [];
     const folder = req.body.folder || 'default';
     const created = [];
+
+    /* A miniatura, que este caminho nunca gerava.
+
+       A grade de seleção do Postar pede `<arquivo>.thumb.jpg`; sem ele a
+       imagem dá 404, o `onError` a esconde e sobra um cartão preto com o
+       botão de remover. Medido no servidor: 1.796 vídeos, 290 miniaturas —
+       cinco de cada seis cartões vinham vazios, e escolher mídia é o que se
+       faz nessa tela.
+
+       Em paralelo e sem `await` no laço: são até 200 arquivos por envio, e
+       um ffmpeg de cada vez faria o upload voltar minutos depois. A resposta
+       não espera — quem chega antes da miniatura vê o cartão sem imagem por
+       alguns segundos, não para sempre. */
+    const { garantirMiniatura } = require('../services/miniaturaDeVideo');
+    const pastaUploads = require('path').resolve(__dirname, '../../uploads');
+
     for (const file of files) {
       const media = await Media.create({
         filename: file.filename,
@@ -72,6 +88,8 @@ exports.uploadMedia = async (req, res) => {
         folder,
       });
       created.push(media);
+      garantirMiniatura(pastaUploads, file.filename)
+        .catch(e => console.log('[Miniatura] falhou:', file.filename, e.message));
     }
     // `files` é alias de `media`: as duas telas que consomem esta rota leem
     // chaves diferentes, e devolver as duas evita quebrar qualquer uma.

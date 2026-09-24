@@ -904,7 +904,20 @@ export default function Posts() {
                             const src = isVideo ? `${API_URL}/uploads/${(m.filename||'').replace(/\.[^.]+$/,'')}.thumb.jpg` : `${API_URL}${m.url || `/uploads/${m.filename}`}`;
                             return (
                               <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'var(--mf-bg)' }}>
-                                <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
+                                {/* Esconder a imagem quebrada deixava o cartão PRETO, com só o
+                                    botão de remover — foi o que apareceu no celular com vinte
+                                    mídias escolhidas, porque a miniatura só era gerada no upload
+                                    do Loop (ver services/miniaturaDeVideo.js). A miniatura agora
+                                    é gerada nos dois caminhos, mas ela leva alguns segundos para
+                                    ficar pronta e os vídeos antigos podem não ter: sem imagem, o
+                                    cartão mostra o ÍCONE e o nome, que é o que identifica. */}
+                                <img src={src} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                  onError={e => { e.target.style.visibility = 'hidden'; e.target.parentElement?.setAttribute('data-sem-capa', 'sim'); }} />
+                                <span aria-hidden="true" className="sem-capa-ico" style={{ position: 'absolute', inset: 0, display: 'none', alignItems: 'center', justifyContent: 'center', color: 'var(--mf-text-3)' }}>
+                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/>
+                                  </svg>
+                                </span>
                                 <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
                                    style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)', cursor: 'pointer', fontSize: 'var(--mf-t-nano)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 2px' }}>

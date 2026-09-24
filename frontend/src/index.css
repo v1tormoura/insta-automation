@@ -1313,3 +1313,9 @@ table { table-layout: auto; }
 @media (max-width: 640px) {
   .col-mob-hide { display: none !important; }
 }
+
+
+/* Miniatura ausente: o cartão mostra o ícone de vídeo em vez de ficar preto.
+   Ver o comentário em Posts.jsx — a miniatura é gerada no upload, mas leva
+   alguns segundos, e os vídeos enviados antes da correção não têm nenhuma. */
+[data-sem-capa='sim'] .sem-capa-ico { display: flex !important; }

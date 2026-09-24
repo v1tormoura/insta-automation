@@ -2,7 +2,6 @@
 
 const path    = require('path');
 const fs      = require('fs');
-const { execFile } = require('child_process');
 const Loop    = require('../models/Loop');
 const Job     = require('../models/Job');
 const Account = require('../models/Account');
@@ -40,24 +39,13 @@ function jobToLoop(job) {
   };
 }
 
-/* ── Gera thumbnail 270×480 via ffmpeg (não bloqueia em erro) ── */
-async function generateThumb(inputPath, thumbPath) {
-  return new Promise(resolve => {
-    const args = (seek) => [
-      ...(seek ? ['-ss', '00:00:01'] : []),
-      '-i', inputPath,
-      '-vf', 'scale=270:480:force_original_aspect_ratio=increase,crop=270:480',
-      '-frames:v', '1', '-q:v', '3', '-y', thumbPath,
-    ];
-    execFile('ffmpeg', args(true), { timeout: 30000 }, err => {
-      if (err) {
-        execFile('ffmpeg', args(false), { timeout: 30000 }, () => resolve());
-      } else {
-        resolve();
-      }
-    });
-  });
-}
+/* A geração mora em services/miniaturaDeVideo.js.
+
+   Ela nasceu aqui dentro, e foi por isso que só o upload do Loop tinha
+   miniatura: a Biblioteca e o Postar usam outra rota, que não enxergava esta
+   função. Código compartilhado dentro de um controller é uma função que só
+   existe para quem passa por aquela porta. */
+const { gerarMiniatura: generateThumb } = require('../services/miniaturaDeVideo');
 
 /* ── Upload de mídias para loop (sem salvar na biblioteca) ── */
 exports.uploadMedia = async (req, res) => {
