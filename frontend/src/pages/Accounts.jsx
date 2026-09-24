@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
-import { criarPedido, decidirEmenda } from './emendaMobile';
 import { lerAviso, deveAnunciar, chaveDoArroba } from './janelaDeAutorizacao';
 import PassosDeConexao from '../components/PassosDeConexao';
 import { montarLinkGuiado } from '../services/conexaoGuiada';
@@ -27,17 +26,14 @@ const IcoTrend   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="n
 const IcoGrid    = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>;
 const IcoEye     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
 const IcoPerson  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-const IcoSignal  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
 const IcoCheck   = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const IcoTrash   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>;
 const IcoSync    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
 const IcoLink    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>;
 const IcoWave    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 const IcoWifi    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M10.28 16.17a6 6 0 0 1 3.44 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
-const IcoPhone   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>;
 const IcoCopy    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
 const IcoConvite = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>;
-const IcoGlobe   = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
 
 export default function Accounts() {
   const ACCOUNTS_CACHE_KEY = 'instaflow_accounts_cache';
@@ -70,28 +66,11 @@ export default function Accounts() {
   const [precisaApp,     setPrecisaApp]     = useState(false);
   const navigate = useNavigate();
   const [connecting,     setConnecting]     = useState({});
-  const [proxyModal,     setProxyModal]     = useState(null);
   const [syncing,        setSyncing]        = useState(false);
-  const [proxyUrl,       setProxyUrl]       = useState('');
-  // Estado do proxy global — `ok` e `ip` vêm do monitoramento contínuo do servidor.
-  const [proxyStatus,    setProxyStatus]    = useState({
-    ativo: false, ok: false, ip: null, erro: null, lastCheck: null, testando: false, salvando: false,
-  });
-  const [ipDireto,       setIpDireto]       = useState(null);
-  // Teste do proxy dentro do modal de uma conta específica.
-  const [proxyTest,      setProxyTest]      = useState({ testando: false, ip: null, erro: null });
   const oauthModalRef   = useRef(null);
   const oauthWaitingRef = useRef(false);
   oauthModalRef.current   = oauthModal;
   oauthWaitingRef.current = oauthWaiting;
-  const [perfilModal,    setPerfilModal]    = useState(null);
-  const [perfilForm,     setPerfilForm]     = useState({ fullName:'', biography:'', externalUrl:'', gender:'', foto:null });
-  const [perfilSalvando, setPerfilSalvando] = useState(false);
-  const [perfilErro,     setPerfilErro]     = useState('');
-  const [perfilPreview,  setPerfilPreview]  = useState(null); // objectURL da foto escolhida
-  const [perfilRisco,    setPerfilRisco]    = useState(null); // motivos do alto risco, quando bloqueado
-  const [proxyValue,     setProxyValue]     = useState('');
-  const [savingProxy,    setSavingProxy]    = useState(false);
   /* Como abrir a autorização da API oficial: nesta aba ou colando o link no
      navegador onde a conta já está logada. A escolha vem antes do fluxo em duas
      etapas — abrir aqui não precisa da segunda etapa, colar precisa. */
@@ -114,15 +93,6 @@ export default function Accounts() {
   const [selectMode,     setSelectMode]     = useState(false);
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
   const [bulkDeleting,   setBulkDeleting]   = useState(false);
-  const [instaModal,     setInstaModal]     = useState(null);
-
-  /* Conferência de ambiente. Separa "o ambiente não está pronto" de "o
-     Instagram recusou esta conta" — dois problemas com donos diferentes que
-     produziam a mesma tela de erro, e por isso mandavam trocar senha quando a
-     causa era a cota do proxy. */
-  const [preflight, setPreflight] = useState(null);
-  const [rateLimitExpiry, setRateLimitExpiry] = useState(null);
-  const [cooldownSecs,    setCooldownSecs]    = useState(0);
 
   function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
 
@@ -167,163 +137,10 @@ export default function Accounts() {
 
   function goToPage(p) { setPage(p); loadAccounts(p); }
 
-  /* ── Proxy global ─────────────────────────────────────────────────────
-     O status vem do servidor, que testa o proxy continuamente em background
-     (job proxyHealthCheck). A página só espelha o resultado — assim o card
-     mostra o mesmo estado em qualquer navegador, mesmo com a aba fechada. */
-
-  async function carregarStatusProxy({ silencioso = true } = {}) {
-    try {
-      const { data } = await api.get('/proxy/status');
-      setProxyStatus(s => ({
-        ...s,
-        ativo:      !!data.ativo,
-        ok:         !!data.ok,
-        ip:         data.ip || null,
-        erro:       data.error || null,
-        lastCheck:  data.lastCheck || null,
-        isolamento: data.isolamento || null,
-        molde:      data.molde || '',
-      }));
-      if (data.proxy_url) setProxyUrl(prev => (prev.trim() ? prev : data.proxy_url));
-    } catch (err) {
-      if (!silencioso) showToast('error', 'Erro', 'Não foi possível ler o status do proxy');
-    }
-  }
-
-  const testarProxyGlobal = async () => {
-    if (!proxyUrl.trim()) return showToast('error', 'Erro', 'URL de proxy obrigatória');
-    setProxyStatus(s => ({ ...s, testando: true, erro: null }));
-    try {
-      const { data } = await api.post('/proxy/test', { proxy_url: proxyUrl.trim() });
-      setProxyStatus(s => ({
-        ...s,
-        ip: data.ip, ok: true, erro: null, rotating: !!data.rotating, ip2: data.ip2 || null,
-        isolamento: data.isolamento || null,
-        lastCheck: new Date().toISOString(),
-      }));
-      if (data.isolamento?.ativo) {
-        showToast('success', 'Isolamento por conta ativo',
-          `Cada conta sai por um IP próprio (ex.: ${data.isolamento.ipAmostra} e ${data.isolamento.ipAmostra2}). O gateway ${data.ip} não é usado pelas contas.`);
-      } else if (data.rotating) {
-        showToast('warning', 'Proxy rotativa', `IP mudou entre duas medições: ${data.ip} → ${data.ip2}`);
-      } else {
-        showToast('success', 'Proxy OK', `IP de saída: ${data.ip} (${data.latencyMs} ms)`);
-      }
-    } catch (err) {
-      const msg = err.response?.data?.error || err.message;
-      setProxyStatus(s => ({ ...s, ok: false, erro: msg }));
-      showToast('error', 'Proxy falhou', msg);
-    } finally {
-      setProxyStatus(s => ({ ...s, testando: false }));
-    }
-  };
-
-  const detectarMolde = async () => {
-    setProxyStatus(s => ({ ...s, detectando: true }));
-    try {
-      const { data } = await api.post('/proxy/detectar-molde', {});
-      if (data.detectado) {
-        setProxyStatus(s => ({ ...s, molde: data.molde, detectando: false }));
-        showToast('success', 'Formato de sessão detectado',
-          `${data.molde} — cada conta sai por um IP próprio (ex.: ${data.ipAmostra}, ${data.ipAmostra2}). Salvo e já valendo.`);
-        carregarStatusProxy();
-      } else {
-        setProxyStatus(s => ({ ...s, detectando: false }));
-        showToast('warning', 'Este proxy não isola por conta', data.mensagem);
-      }
-    } catch (err) {
-      setProxyStatus(s => ({ ...s, detectando: false }));
-      showToast('error', 'Falha ao detectar', err.response?.data?.error || err.message);
-    }
-  };
-
-  const salvarMolde = async (molde) => {
-    try {
-      await api.put('/proxy/molde', { molde });
-      setProxyStatus(s => ({ ...s, molde }));
-      showToast('success', molde ? 'Formato salvo' : 'Formato limpo',
-        molde ? `Cada conta usará ${molde}` : 'Sem isolamento por sessão — as contas dividem o IP do proxy.');
-      carregarStatusProxy();
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || err.message);
-    }
-  };
-
-  const ativarProxyGlobal = async () => {
-    if (!proxyUrl.trim()) return showToast('error', 'Erro', 'URL obrigatória');
-    setProxyStatus(s => ({ ...s, salvando: true }));
-    try {
-      const { data } = await api.post('/proxy/configure', { proxy_url: proxyUrl.trim() });
-      setProxyStatus(s => ({ ...s, ativo: true, ok: true, ip: data.ip, erro: null, lastCheck: new Date().toISOString() }));
-      showToast('success', 'Proxy ativado', `Toda a automação sai por ${data.ip}`);
-    } catch (err) {
-      const msg = err.response?.data?.error || err.message;
-      setProxyStatus(s => ({ ...s, erro: msg }));
-      showToast('error', 'Não foi possível ativar', msg);
-    } finally {
-      setProxyStatus(s => ({ ...s, salvando: false }));
-    }
-  };
-
-  const desativarProxyGlobal = async () => {
-    setProxyStatus(s => ({ ...s, salvando: true }));
-    try {
-      await api.post('/proxy/configure', { action: 'desativar' });
-      setProxyStatus(s => ({ ...s, ativo: false, ok: false, ip: null, erro: null }));
-      setProxyUrl('');
-      showToast('success', 'Proxy desativado', 'A automação voltou a sair pelo IP do servidor');
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || err.message);
-    } finally {
-      setProxyStatus(s => ({ ...s, salvando: false }));
-    }
-  };
-
-  /* ── Proxy por conta ──────────────────────────────────────────────── */
-
-  async function testarProxyConta() {
-    if (!proxyModal) return;
-    const url = proxyValue.trim();
-    if (!url) return setProxyTest({ testando: false, ip: null, erro: 'Informe a URL do proxy' });
-
-    setProxyTest({ testando: true, ip: null, erro: null });
-    try {
-      // Salva antes de testar para que o teste rode contra o proxy que a conta
-      // vai realmente usar — e o resultado já fique gravado no card.
-      await api.patch(`/accounts/${proxyModal._id}/proxy`, { proxy: url });
-      const { data } = await api.post(`/accounts/${proxyModal._id}/proxy/test`);
-      if (data.ok) {
-        setProxyTest({ testando: false, ip: data.ip, erro: null });
-        setProxyModal(m => (m ? { ...m, proxy: url } : m));
-        showToast('success', 'Proxy OK', `@${proxyModal.username} sai por ${data.ip}`);
-      } else {
-        setProxyTest({ testando: false, ip: null, erro: data.error || 'Proxy não respondeu' });
-      }
-      loadAccounts();
-    } catch (err) {
-      setProxyTest({ testando: false, ip: null, erro: err.response?.data?.error || err.message });
-    }
-  }
-
   const loadRef = useRef(null);
   loadRef.current = loadAccounts;
 
-  useServerEvents(['accounts', 'posts', 'profile_edit'], (data, evento) => {
-    // A edição de perfil roda em segundo plano e o backend transmite o desfecho.
-    // Sem escutar isto, o usuário salvava e nunca sabia se deu certo.
-    if (evento === 'profile_edit') {
-      if (data?.status === 'done') {
-        const campos = Array.isArray(data.changed) && data.changed.length
-          ? data.changed.join(', ')
-          : 'perfil';
-        showToast('success', 'Perfil atualizado', `@${data.username || ''} — ${campos}`);
-      } else if (data?.status === 'error') {
-        showToast('error', 'Falha ao editar perfil', data.error || 'Erro desconhecido');
-      }
-      loadRef.current?.();
-      return;
-    }
+  useServerEvents(['accounts', 'posts'], (data) => {
 
     loadRef.current?.();
     if (data?.action === 'oauth_connected' && oauthWaitingRef.current) {
@@ -371,13 +188,7 @@ export default function Accounts() {
         const uname = aviso.username;
         const novo = anunciarRef.current?.(uname);
         /* A janela some e esta tela fica: a lista do que já entrou é o que
-           permite conectar a próxima sem perder a conta de onde parou.
-
-           Aqui o login mobile NÃO é oferecido de imediato, ao contrário do
-           caminho na própria aba. Quem abriu a janela está conectando várias
-           contas seguidas, e um modal por conta interromperia justamente o que
-           a janela existe para permitir. O botão Mobile continua na linha da
-           conta, para quando a fila terminar. */
+           permite conectar a próxima sem perder a conta de onde parou. */
         if (novo) setJanelaOAuth(j => (j ? { ...j, conectadas: [...j.conectadas, uname] } : j));
       } else {
         setOauthWaiting(false);
@@ -395,88 +206,6 @@ export default function Accounts() {
     return () => clearInterval(t);
   }, []);
 
-  // Status do proxy global ao vivo — espelha o monitoramento do servidor.
-  useEffect(() => {
-    carregarStatusProxy();
-    api.get('/proxy/ip-direto').then(({ data }) => setIpDireto(data.ip || null)).catch(() => {});
-    const t = setInterval(carregarStatusProxy, 15_000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Countdown tick for rate-limit cooldown
-  useEffect(() => {
-    if (!rateLimitExpiry) return;
-    const tick = () => {
-      const rem = Math.ceil((rateLimitExpiry - Date.now()) / 1000);
-      if (rem <= 0) {
-        setCooldownSecs(0);
-        setRateLimitExpiry(null);
-      } else {
-        setCooldownSecs(rem);
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [rateLimitExpiry]);
-
-  // Restore cooldown from localStorage when username changes in modal
-  /* Ao abrir o modal, confere o ambiente uma vez. Não bloqueia: um bloqueio
-     transformaria diagnóstico em portão, e diagnóstico errado vira portão
-     errado — uma instabilidade de dez segundos impediria quem quer tentar
-     assim mesmo. */
-  /* Uma chave, não duas expressões no array. `!!instaModal` ali dentro é
-     expressão complexa: o compilador não consegue conferir a lista, e a regra
-     de dependências deixa de valer justamente onde ela protege. */
-  const chavePreflight = instaModal ? (instaModal.accountId || 'nova') : '';
-  useEffect(() => {
-    if (!chavePreflight) { setPreflight(null); return undefined; }
-    let vivo = true;
-    setPreflight({ carregando: true });
-    const params = chavePreflight === 'nova' ? {} : { accountId: chavePreflight };
-    api.get('/accounts/preflight', { params })
-      .then(({ data }) => { if (vivo) setPreflight(data); })
-      .catch(() => { if (vivo) setPreflight(null); });
-    return () => { vivo = false; };
-  }, [chavePreflight]);
-
-  useEffect(() => {
-    const uname = instaModal?.username?.trim().replace(/^@/, '') || '';
-    if (!uname) { setCooldownSecs(0); setRateLimitExpiry(null); return; }
-    try {
-      const exp = Number(localStorage.getItem(`ig_rl_${uname}`) || '0');
-      if (exp > Date.now()) setRateLimitExpiry(exp);
-      else { setRateLimitExpiry(null); setCooldownSecs(0); }
-    } catch { /* localStorage unavailable */ }
-  }, [instaModal?.username]);
-
-  const [emendaMobile, setEmendaMobile] = useState(null);
-
-  /**
-   * Pede a API Mobile logo depois da conexão oficial.
-   *
-   * Chamada pelos TRÊS caminhos que completam a conexão oficial — o
-   * redirecionamento da Meta, colar a URL de retorno, e conectar por token.
-   * Eu tinha ligado só no primeiro, e quem usou os outros dois não via nada
-   * acontecer: a conta conectava e o fluxo simplesmente acabava ali.
-   *
-   * É por isso que a decisão mora numa função e não repetida em cada `then`:
-   * três cópias divergem, e a que ficar para trás falha em silêncio, que é
-   * exatamente o que aconteceu.
-   */
-  /* Referência sempre atual para `entrarNoMobile`.
-
-     A função é recriada a cada render, então citá-la nas dependências do efeito
-     o faria rodar a cada render; deixá-la de fora silencia o aviso e guarda um
-     fechamento velho para o dia em que ela passar a ler estado que muda. A ref
-     resolve os dois: o efeito depende só do que importa, e a chamada é sempre
-     a versão desta renderização. */
-  const entrarNoMobileRef = useRef(null);
-
-  const pedirMobileDepois = useCallback((username) => {
-    setEmendaMobile(criarPedido(username));
-  }, []);
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const oauth = params.get('oauth');
@@ -486,52 +215,10 @@ export default function Accounts() {
       showToast('success', 'Conta conectada!', `@${uname} adicionada via Meta API`);
       loadAccounts();
 
-      /* ── A emenda ──────────────────────────────────────────────────────
-         Antes, conectar pela API oficial e depois pela mobile eram duas
-         viagens: você voltava da Meta, via "conectada", e tinha de procurar o
-         botão Mobile no card para começar tudo de novo.
-
-         Não dá para dispensar a senha — o token que a Meta devolve não contém
-         credencial nenhuma, e a sessão mobile é a de um APARELHO logado no
-         aplicativo, que o Instagram só emite para quem apresenta senha ou
-         sessionid. O que dá para dispensar é a SEGUNDA VIAGEM: a senha é
-         pedida aqui, no mesmo instante, com a conta já identificada.
-
-         Continua sendo uma escolha — o botão Cancelar fecha e a conta segue
-         perfeitamente conectada pela via oficial. */
-      pedirMobileDepois(uname);
     }
     else if (oauth === 'error') { showToast('error', 'Erro na conexão', params.get('msg') || 'Falha no OAuth'); }
     window.history.replaceState({}, '', '/accounts');
   }, []);
-
-  /* Guarda o @ da conta que acabou de conectar pela via oficial, para abrir o
-     login mobile assim que ela aparecer na lista. Não dá para abrir de imediato:
-     `loadAccounts` é assíncrono, e o modal precisa do `_id` para saber em qual
-     conta gravar a sessão — sem ele, o login criaria uma conta duplicada. */
-
-
-  /* A regra mora em `emendaMobile.js`, testada sozinha. Aqui só o efeito
-     colateral — o que a página FAZ com a decisão. Repetir a regra aqui criaria
-     duas versões dela, e a que não tem teste é a que erra. */
-  useEffect(() => {
-    const { acao, conta } = decidirEmenda(emendaMobile, accounts);
-    if (acao === 'nada' || acao === 'esperar') return;
-
-    setEmendaMobile(null);
-    if (acao !== 'abrir') return;             // desistir, ou já tem sessão
-
-    /* `entrarNoMobile`, e não o modal direto.
-
-       Abrir o modal de cara pedia a senha mesmo quando o sistema já tinha como
-       entrar sozinho — sessão anterior ainda válida, ou senha guardada de uma
-       conexão passada. Pedir o que já se tem é a pior forma de pedir: sugere
-       que nada do que foi feito antes valeu.
-
-       Ele tenta reativar a sessão, depois a senha guardada, e só abre o modal
-       quando não resta nenhum dos dois. */
-    entrarNoMobileRef.current?.(conta, { emenda: true });
-  }, [emendaMobile, accounts]);
 
   async function openOAuthConnect(account) {
     /* Sem App Meta cadastrado o servidor recusa o /oauth/url, e antes disso o
@@ -560,64 +247,6 @@ export default function Accounts() {
     finally { setConnecting(p => ({ ...p, [key]: false })); }
   }
 
-  /* ── Link em story (Graph via Facebook Login) ─────────────────────────────
-     Segunda conexão, feita DEPOIS da conta já existir. Ela não substitui a
-     primeira: story sem link continua saindo pelo token de sempre. O que ela
-     acrescenta é a única coisa que o outro token não faz — a figurinha de link,
-     que a Meta só libera para token emitido para uma Página. */
-
-  /* ── Entrar na API mobile em um clique ────────────────────────────────────
-
-     O token da API oficial NÃO vira sessão mobile — são dois sistemas de
-     autenticação diferentes. O oficial é emitido pela Meta por OAuth e só vale
-     nos endereços públicos da Graph; a sessão mobile é a de um aparelho logado
-     no aplicativo, e o Instagram só a emite para quem apresenta a senha ou um
-     sessionid. Não existe conversão entre as duas.
-
-     O que dá para eliminar é a digitação repetida: o servidor tenta primeiro
-     reativar a sessão que já existe e, se não houver, entra com a senha
-     guardada. Só sobra um caso pedindo teclado — conta sem senha guardada e sem
-     sessão — e aí é uma vez só. */
-
-  /**
-   * @param {object} account
-   * @param {{emenda?: boolean}} [ctx] — veio logo depois da conexão oficial?
-   *   Só muda o texto do modal quando ele precisa aparecer.
-   */
-  async function entrarNoMobile(account, ctx = {}) {
-    const key = `mobile:${account._id}`;
-    setConnecting(p => ({ ...p, [key]: true }));
-    try {
-      const { data } = await api.post(`/accounts/${account._id}/mobile-1clique`);
-      if (data?.status === 'TWO_FACTOR_REQUIRED') {
-        showToast('warning', 'Falta o código', 'Esta conta usa verificação em duas etapas.');
-        openInstaModal(account);
-        return;
-      }
-      showToast('success', 'API Mobile ativa',
-        data?.via === 'sessao'
-          ? `@${account.username} — sessão reativada, sem precisar da senha`
-          : `@${account.username} entrou com a senha guardada`);
-      loadAccounts();
-    } catch (err) {
-      const d = err.response?.data || {};
-      if (d.code === 'SEM_SENHA') {
-        /* Uma vez só. O modal já existe e trata 2FA e desafio — abrir aqui
-           evita construir um segundo caminho de login que teria de aprender as
-           mesmas coisas de novo. */
-        showToast('info', 'Senha necessária uma vez', d.comoResolver || '');
-        openInstaModal(account);
-        if (ctx.emenda) setInstaModal(m => (m ? { ...m, emenda: true } : m));
-        return;
-      }
-      showToast('error', 'Não foi possível entrar', d.error || err.message);
-    } finally {
-      setConnecting(p => ({ ...p, [key]: false }));
-    }
-  }
-
-  entrarNoMobileRef.current = entrarNoMobile;
-
   async function handleManualConnect() {
     if (!callbackUrl.trim()) return;
     setOauthConnecting(true);
@@ -630,7 +259,6 @@ export default function Accounts() {
       setOauthModal(null); setCallbackUrl(''); setOauthWaiting(false);
       showToast('success', 'Conta conectada!', `@${username} conectada via Meta API`);
       loadAccounts();
-      pedirMobileDepois(username);
     } catch (err) {
       setOauthError(err.response?.data?.error || err.message || 'Falha ao conectar');
     } finally {
@@ -651,92 +279,11 @@ export default function Accounts() {
       setOauthModal(null); setTokenValue(''); setCallbackUrl(''); setOauthWaiting(false);
       showToast('success', 'Conta conectada!', `@${username} conectada via token`);
       loadAccounts();
-      pedirMobileDepois(username);
     } catch (err) {
       setTokenError(err.response?.data?.error || err.message || 'Token inválido');
     } finally {
       setTokenConnecting(false);
     }
-  }
-
-  /* ── Editar perfil ────────────────────────────────────────────────────────
-     Contas instagrapi editam nome, bio, link e gênero pela própria sessão —
-     sem senha e sem navegador. O link da bio só é alterável por este caminho. */
-
-  function openPerfilModal(account) {
-    setPerfilModal(account);
-    setPerfilErro('');
-    setPerfilRisco(null);
-    if (perfilPreview) URL.revokeObjectURL(perfilPreview);
-    setPerfilPreview(null);
-    setPerfilForm({
-      fullName:    account.name || '',
-      biography:   account.bio  || '',
-      externalUrl: account.externalLink || '',
-      gender:      '',
-      foto:        null,
-    });
-  }
-
-  function escolherFotoPerfil(file) {
-    if (perfilPreview) URL.revokeObjectURL(perfilPreview);
-    setPerfilPreview(file ? URL.createObjectURL(file) : null);
-    setPerfilForm(f => ({ ...f, foto: file || null }));
-  }
-
-  function fecharPerfilModal() {
-    if (perfilPreview) URL.revokeObjectURL(perfilPreview);
-    setPerfilPreview(null);
-    setPerfilModal(null);
-  }
-
-  async function salvarPerfil(confirmarRisco = false) {
-    if (!perfilModal) return;
-    setPerfilSalvando(true);
-    setPerfilErro('');
-    if (!confirmarRisco) setPerfilRisco(null);
-    try {
-      // multipart porque a foto vai no mesmo envio (campo `photo` na rota)
-      const fd = new FormData();
-      if (perfilForm.fullName    !== '') fd.append('fullName',    perfilForm.fullName);
-      if (perfilForm.biography   !== '') fd.append('biography',   perfilForm.biography);
-      if (perfilForm.externalUrl !== '') fd.append('externalUrl', perfilForm.externalUrl);
-      if (perfilForm.gender      !== '') fd.append('gender',      perfilForm.gender);
-      if (perfilForm.foto)               fd.append('photo',       perfilForm.foto);
-      if (confirmarRisco)                fd.append('confirmarRisco', 'true');
-
-      await api.post(`/profile-edit/${perfilModal._id}`, fd);
-      // O resultado real chega pelo evento SSE 'profile_edit' — aqui só
-      // confirmamos o envio, sem afirmar que o Instagram aceitou.
-      showToast('info', 'Enviado', `@${perfilModal.username} — aplicando no Instagram...`);
-      fecharPerfilModal();
-    } catch (err) {
-      const dados = err.response?.data;
-      if (dados?.code === 'PROFILE_EDIT_RISK') {
-        // Não é falha: é bloqueio proposital, aguardando decisão consciente.
-        setPerfilRisco(dados.motivos || []);
-      } else {
-        setPerfilErro(dados?.error || err.message || 'Falha ao editar o perfil');
-      }
-    } finally {
-      setPerfilSalvando(false);
-    }
-  }
-
-  function openProxyModal(account) {
-    setProxyModal(account);
-    setProxyValue(account.proxy || '');
-    setProxyTest({ testando: false, ip: null, erro: null });
-  }
-
-  async function saveProxy() {
-    setSavingProxy(true);
-    try {
-      await api.patch(`/accounts/${proxyModal._id}/proxy`, { proxy: proxyValue.trim() });
-      showToast('success', 'Proxy salvo', `@${proxyModal.username} — proxy atualizado.`);
-      setProxyModal(null); loadAccounts();
-    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
-    finally { setSavingProxy(false); }
   }
 
   /* ── Convites de testador do app ──────────────────────────────────────────
@@ -890,323 +437,6 @@ export default function Accounts() {
     try { janela.focus(); } catch { /* alguns navegadores recusam o foco; a janela abriu */ }
   }
 
-  // instaModal state shape:
-  // { step: 'credentials'|'two_factor', loginMethod: 'password'|'sessionid',
-  //   accountId, username, password, sessionid, totp, loading, error, status }
-
-  function openInstaModal(account) {
-    setInstaModal({
-      step:        'credentials',
-      loginMethod: 'password',
-      accountId:   account?._id || account?.id || null,
-      username:    account?.username || '',
-      password:    '',
-      sessionid:   '',
-      totp:        '',
-      loading:     false,
-      error:       '',
-      status:      null,
-    });
-  }
-
-  const INSTA_MESSAGES = {
-    RATE_LIMITED:                   'Instagram bloqueou temporariamente este IP. Aguarde antes de tentar novamente.',
-    CHALLENGE_REQUIRED:             'O Instagram requer verificação adicional. Acesse o app oficial e resolva o desafio, depois tente novamente.',
-    ACCOUNT_SUSPENDED:              'Esta conta está SUSPENSA pelo Instagram. Nenhuma automação consegue conectá-la enquanto isso durar — entre no app oficial com ela e siga o processo de recurso.',
-    TWO_FACTOR_REQUIRED:            'Digite o código enviado pelo seu método de autenticação.',
-    BAD_PASSWORD:                   'O Instagram recusou o login. Se a senha está certa, ele está bloqueando a tentativa — veja o detalhe abaixo.',
-    USER_NOT_FOUND:                 'O Instagram não encontrou nenhuma conta com esse @. Confira o nome de usuário exatamente como aparece no perfil — ou tente o e-mail cadastrado.',
-    TWO_FACTOR_NO_SESSION:          'O código foi aceito, mas o Instagram não liberou a sessão. Faça o login novamente — se repetir, aguarde alguns minutos antes de tentar.',
-    NOT_APPROVED_YET:               'O Instagram ainda não registrou a aprovação. Abra o app, aprove a tentativa de login e confirme aqui de novo.',
-    CHALLENGE_CODE_REJECTED:        'Código incorreto. Confira o e-mail/SMS e digite novamente.',
-    NO_PENDING_CHALLENGE:           'O prazo da verificação expirou (10 min). Faça o login novamente.',
-    SESSION_EXPIRED:                'Sessão expirada — faça login novamente.',
-    FEEDBACK_REQUIRED:              'Instagram bloqueou temporariamente esta ação. Tente mais tarde.',
-    INSTAGRAPI_SERVICE_UNAVAILABLE: 'Serviço temporariamente indisponível. Tente em instantes.',
-    SESSION_LOCKED:                 'Já existe uma operação em andamento para esta conta. Aguarde.',
-    NO_PENDING_2FA:                 'Sessão 2FA expirada. Faça o login novamente.',
-    TIMEOUT:                        'Tempo de conexão esgotado. Tente novamente.',
-    PROXY_ERROR:                    'Erro de proxy — verifique se o proxy está ativo e funcionando.',
-    NETWORK_ERROR:                  'Erro de rede entre o servidor e o Instagram. Tente em instantes.',
-    LOGIN_IN_PROGRESS:              'Já existe um login em andamento para esta conta. Aguarde.',
-  };
-
-  /**
-   * Pergunta ao Instagram se um @ existe, usando a sessão de uma conta já
-   * conectada como sonda. Chamado quando o login falha com USER_NOT_FOUND, para
-   * separar "@ digitado errado" de "@ existe e o login está sendo recusado".
-   */
-  async function verificarUsername(uname) {
-    try {
-      const { data } = await api.get(`/accounts/check-username/${encodeURIComponent(uname)}`);
-      if (!data.available) {
-        return 'Não há conta conectada para verificar o @ — confira manualmente em instagram.com/' + uname;
-      }
-      if (data.exists) {
-        return `Verificado: o @ EXISTE no Instagram (${data.full_name || 'sem nome'} · ${data.followers} seguidores). `
-             + 'Então o problema não é o nome de usuário — o Instagram está recusando o login em si.';
-      }
-      return `Verificado: esse @ NÃO existe no Instagram. Confira separadores — a outra conta sua tem underscore no início `
-           + `(ex.: _${uname} ou ${uname.replace(/(\d+)$/, '.$1')}).`;
-    } catch {
-      return '';
-    }
-  }
-
-  function _igMessage(code, fallback) {
-    return INSTA_MESSAGES[code] || fallback || 'Não foi possível autenticar. Verifique suas credenciais.';
-  }
-
-  /**
-   * @param {{ignorarCooldown?: boolean}} [opts] — ignorarCooldown é usado pela
-   *   retomada após aprovação no app, onde esperar faria a aprovação expirar.
-   */
-  async function connectInstagrapi(opts = {}) {
-    const uname = instaModal.username.trim().replace(/^@/, '');
-    // Guardas visíveis: antes retornavam em silêncio, e quando esta função era
-    // chamada por outro fluxo (retomada após aprovação no app) a tela voltava às
-    // credenciais sem explicação nenhuma — parecia que o clique não fez nada.
-    if (!uname) {
-      setInstaModal(m => ({ ...m, loading: false, error: 'Informe o usuário do Instagram.' }));
-      return;
-    }
-    if (!instaModal.password.trim()) {
-      setInstaModal(m => ({
-        ...m, loading: false,
-        error: 'A senha foi apagada do campo. Digite novamente para concluir a conexão.',
-      }));
-      return;
-    }
-    // A espera não se aplica à retomada após aprovação no app: o Instagram acabou
-    // de autorizar a tentativa, e esperar aqui deixaria a aprovação expirar.
-    if (cooldownSecs > 0 && !opts.ignorarCooldown) {
-      const m2 = Math.floor(cooldownSecs / 60), s2 = String(cooldownSecs % 60).padStart(2, '0');
-      setInstaModal(m => ({
-        ...m, loading: false, status: 'RATE_LIMITED',
-        error: `Limite de tentativas ativo neste IP — aguarde ${m2}:${s2} antes de tentar novamente.`,
-      }));
-      return;
-    }
-    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
-    try {
-      const r = await api.post('/accounts/instagrapi-direct', {
-        username:  uname,
-        password:  instaModal.password.trim(),
-        ...(instaModal.accountId ? { accountId: instaModal.accountId } : {}),
-        // 2FA code is collected in step 'two_factor' after Instagram requests it — not here
-      });
-      // 202 — desafio de verificação. Dois tipos: 'approval' (aprovar no app,
-      // sem código) e 'code' (código por e-mail/SMS).
-      if (r.data?.status === 'CHALLENGE_REQUIRED') {
-        setInstaModal(m => ({
-          ...m,
-          loading:       false,
-          step:          'challenge',
-          totp:          '',
-          challengeKind: r.data?.kind === 'approval' ? 'approval' : 'code',
-          channel:       r.data?.channel || null,
-          status:        'CHALLENGE_REQUIRED',
-          // Cair de novo no desafio logo após uma aprovação significa que o
-          // Instagram não registrou o "fui eu". Sem dizer isso, a tela parecia
-          // apenas "voltar sozinha" e o usuário repetia o ciclo às cegas.
-          // opts vem direto da chamada; não depende do tempo de atualização do
-          // estado do React, que poderia ainda não ter aplicado a marcação.
-          error: (opts.aprovacaoTentada || m.aprovacaoTentada)
-            ? 'O Instagram bloqueou o login por falta de 2FA. Para evitar loop e banimento, feche esta janela e conecte via Session ID ou ative o 2FA no seu app.'
-            : '',
-          aprovacaoTentada: false,
-        }));
-        return;
-      }
-      // 202 — 2FA required (axios doesn't throw on 2xx)
-      if (r.status === 202 || r.data?.status === 'TWO_FACTOR_REQUIRED') {
-        setInstaModal(m => ({
-          ...m,
-          loading: false,
-          step:    'two_factor',
-          totp:    '',
-          status:  'TWO_FACTOR_REQUIRED',
-          error:   '',
-        }));
-        return;
-      }
-      showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
-      setInstaModal(null);
-      loadAccounts();
-    } catch (err) {
-      const code = err.response?.data?.code || '';
-      if (code === 'RATE_LIMITED') {
-        const expiry = Date.now() + 5 * 60 * 1000; // 5-minute cooldown
-        setRateLimitExpiry(expiry);
-        try { localStorage.setItem(`ig_rl_${uname}`, String(expiry)); } catch {}
-      }
-      setInstaModal(m => ({
-        ...m,
-        loading: false,
-        status:  code || 'AUTH_FAILED',
-        error:   _igMessage(code, err.response?.data?.error),
-        detail:  err.response?.data?.detail || '',
-      }));
-      // O Instagram diz que o @ não existe — confirmamos com uma sessão já
-      // conectada em vez de deixar a dúvida entre erro de digitação e bloqueio.
-      if (code === 'USER_NOT_FOUND') {
-        const veredito = await verificarUsername(uname);
-        if (veredito) setInstaModal(m => (m ? { ...m, veredito } : m));
-      }
-    }
-  }
-
-  /**
-   * Confirma que o usuário aprovou a tentativa de login no app do Instagram.
-   * O servidor reconhece o checkpoint e então repetimos o login — a senha
-   * continua apenas nesta tela, nunca foi armazenada no servidor.
-   */
-  async function confirmChallengeApproval() {
-    const uname = instaModal.username.trim().replace(/^@/, '');
-    if (!uname) return;
-    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
-    try {
-      await api.post('/accounts/instagrapi-challenge-approved', { username: uname });
-      // Reconhecido — refaz o login, que agora deve passar. A espera local é
-      // ignorada de propósito: a aprovação tem validade curta.
-      setRateLimitExpiry(null);
-      setCooldownSecs(0);
-      try { localStorage.removeItem(`ig_rl_${uname}`); } catch {}
-      // Marca a tentativa para que um novo desafio logo em seguida seja
-      // explicado, em vez de a tela simplesmente voltar sem motivo aparente.
-      setInstaModal(m => ({ ...m, step: 'credentials', error: '', status: null, aprovacaoTentada: true }));
-      await connectInstagrapi({ ignorarCooldown: true, aprovacaoTentada: true });
-    } catch (err) {
-      const errCode = err.response?.data?.code || '';
-      const expirou = errCode === 'NO_PENDING_CHALLENGE' || errCode === 'CHALLENGE_FAILED';
-      setInstaModal(m => ({
-        ...m,
-        loading: false,
-        // NOT_APPROVED_YET mantém o passo: o usuário aprova no app e confirma de novo.
-        step:    expirou ? 'credentials' : 'challenge',
-        status:  errCode || 'AUTH_FAILED',
-        error:   _igMessage(errCode, err.response?.data?.error),
-        detail:  err.response?.data?.detail || '',
-      }));
-    }
-  }
-
-  /**
-   * Envia o código do desafio de verificação (checkpoint por e-mail/SMS).
-   * Código recusado mantém o usuário no mesmo passo — o desafio continua aberto
-   * no serviço Python por 10 min, então não é preciso refazer o login.
-   */
-  async function submitChallengeCode() {
-    const uname = instaModal.username.trim().replace(/^@/, '');
-    const code  = instaModal.totp.trim();
-    if (!uname || !code) return;
-    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
-    try {
-      const r = await api.post('/accounts/instagrapi-challenge-code', { username: uname, code });
-      // Checkpoint resolvido mas sem sessão: refaz o login, que agora passa sem
-      // desafio no caminho. A senha continua nesta tela — nunca foi ao servidor.
-      if (r.data?.status === 'RELOGIN_REQUIRED') {
-        setInstaModal(m => ({ ...m, step: 'credentials', totp: '', error: '', status: null }));
-        await connectInstagrapi();
-        return;
-      }
-      showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
-      setInstaModal(null);
-      loadAccounts();
-    } catch (err) {
-      const errCode = err.response?.data?.code || '';
-      const expirou = errCode === 'NO_PENDING_CHALLENGE' || errCode === 'CHALLENGE_FAILED';
-      setInstaModal(m => ({
-        ...m,
-        loading: false,
-        // Prazo expirado ou fluxo abortado: volta ao início; código errado fica no passo.
-        step:    expirou ? 'credentials' : 'challenge',
-        totp:    '',
-        status:  errCode || 'AUTH_FAILED',
-        error:   _igMessage(errCode, err.response?.data?.error),
-        detail:  err.response?.data?.detail || '',
-      }));
-    }
-  }
-
-  async function verify2fa() {
-    const uname = instaModal.username.trim().replace(/^@/, '');
-    const code  = instaModal.totp.trim();
-    if (!uname || !code) return;
-    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
-    try {
-      await api.post('/accounts/instagrapi-verify-2fa', { username: uname, code });
-      showToast('success', 'Conectada!', `@${uname} conectada via API Mobile`);
-      setInstaModal(null);
-      loadAccounts();
-    } catch (err) {
-      const errCode = err.response?.data?.code || '';
-      setInstaModal(m => ({
-        ...m,
-        loading: false,
-        status:  errCode || 'AUTH_FAILED',
-        error:   _igMessage(errCode, err.response?.data?.error),
-        detail:  err.response?.data?.detail || '',
-      }));
-    }
-  }
-
-  async function connectBySessionId() {
-    const accountId = instaModal.accountId;
-    const sid = instaModal.sessionid.trim();
-    if (!accountId || !sid) return;
-    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
-    try {
-      await api.post(`/accounts/${accountId}/instagrapi-sessionid`, { sessionid: sid });
-      const uname = instaModal.username.trim().replace(/^@/, '');
-      showToast('success', 'Conectada!', `@${uname} conectada via Session ID`);
-      setInstaModal(null);
-      loadAccounts();
-    } catch (err) {
-      const code = err.response?.data?.code || '';
-      setInstaModal(m => ({
-        ...m,
-        loading: false,
-        status:  code || 'AUTH_FAILED',
-        error:   _igMessage(code, err.response?.data?.error),
-        detail:  err.response?.data?.detail || '',
-      }));
-    }
-  }
-
-  async function connectBySessionIdNew() {
-    const username = instaModal.username.trim().replace(/^@/, '');
-    const sid = instaModal.sessionid.trim();
-    if (!username || !sid) return;
-    setInstaModal(m => ({ ...m, loading: true, error: '', status: 'CONNECTING' }));
-    try {
-      await api.post('/accounts/instagrapi-sessionid-new', { username, sessionid: sid });
-      showToast('success', 'Conectada!', `@${username} conectada via Session ID`);
-      setInstaModal(null);
-      loadAccounts();
-    } catch (err) {
-      const code = err.response?.data?.code || '';
-      setInstaModal(m => ({
-        ...m,
-        loading: false,
-        status:  code || 'AUTH_FAILED',
-        error:   _igMessage(code, err.response?.data?.error),
-        detail:  err.response?.data?.detail || '',
-      }));
-    }
-  }
-
-  async function disconnectInstagrapi(account) {
-    try {
-      await api.post(`/accounts/${account._id}/instagrapi-disconnect`);
-      showToast('success', 'Desconectada', `@${account.username} voltou ao modo oficial`);
-      setInstaModal(null);
-      loadAccounts();
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || err.message);
-    }
-  }
-
   function deleteAccount(id) { setAccountToDelete(id); setDeleteModal(true); }
   async function confirmDelete() {
     try { await api.delete(`/accounts/${accountToDelete}`); await loadAccounts(); showToast('success', 'Conta removida', 'A conta foi excluída com sucesso.'); }
@@ -1254,20 +484,6 @@ export default function Accounts() {
     { key: 'offline',     label: 'Desconectadas',   count: countBy('desconectada') },
   ];
 
-  /* Quantas contas fizeram login pelo MESMO IP. É o número que responde "por
-     que estas contas estão caindo juntas": o Instagram lê várias contas num
-     mesmo endereço — sobretudo de datacenter — como uma mão só, e quando
-     sinaliza uma, sinaliza as vizinhas. Contado sobre todas as contas, não só
-     as filtradas: a conta que compartilha o IP pode estar fora do filtro. */
-  const contasPorIp = useMemo(() => {
-    const m = new Map();
-    for (const a of (Array.isArray(accounts) ? accounts : [])) {
-      if (!a.loginIp) continue;
-      m.set(a.loginIp, (m.get(a.loginIp) || 0) + 1);
-    }
-    return m;
-  }, [accounts]);
-
   const filteredAccounts = safeAccounts.filter(acc => {
     const q = search.toLowerCase();
     const match = acc.username?.toLowerCase().includes(q) || acc.name?.toLowerCase().includes(q);
@@ -1305,31 +521,6 @@ export default function Accounts() {
     if (s === 'desconectada')    return 'var(--mf-text-3)';
     return 'var(--mf-success-500)';
   }
-  function sessionStatusLabel(s) {
-    const MAP = {
-      VALID:            'Sessão ativa',
-      EXPIRING:         'Expirando',
-      INVALID:          'Inválida',
-      RECOVERING:       'Recuperando',
-      AUTH_REQUIRED:    'Login necessário',
-      REAUTH_REQUIRED:  'Re-login necessário',
-      CHALLENGE_REQUIRED: 'Desafio pendente',
-      FAILED:           'Falha',
-      DISABLED:         'Desativada',
-      RATE_LIMITED:     'Rate limited',
-      NETWORK_ERROR:    'Erro de rede',
-      UNKNOWN:          'Desconhecida',
-    };
-    return MAP[s] || s || 'Desconhecida';
-  }
-  function sessionStatusColor(s) {
-    if (s === 'VALID')                         return 'var(--mf-success-500)';
-    if (s === 'EXPIRING' || s === 'RECOVERING') return 'var(--mf-warning-500)';
-    if (s === 'RATE_LIMITED')                  return 'var(--mf-warning-500)';
-    if (s === 'NETWORK_ERROR')                 return 'var(--mf-text-3)';
-    if (s === 'UNKNOWN')                       return 'var(--mf-text-3)';
-    return 'var(--mf-danger-500)';
-  }
 
   /* ── stat cards config ────────────────────────────────────────────── */
   const STATS = [
@@ -1341,12 +532,12 @@ export default function Accounts() {
   ];
 
   /**
-   * Conta realmente conectada: tem token da Meta API ou sessão mobile salva.
+   * Conta realmente conectada: tem token da Meta API.
    * `healthStatus` NÃO serve para isso — ele nasce saudável numa conta nova, e
    * usá-lo fazia o card anunciar "API conectada" para conta que nunca conectou.
-   * Os flags vêm do backend, que nunca expõe token nem sessão em si.
+   * O flag vem do backend, que nunca expõe o token em si.
    */
-  const isLinked = a => !!(a?.hasApiToken || a?.hasInstagrapiSession || a?.hasIgSession);
+  const isLinked = a => !!a?.hasApiToken;
 
   /* ── health helpers ── */
   /* Saúde da conta no vocabulário do sistema. Antes cada estado carregava o
@@ -1407,26 +598,12 @@ export default function Accounts() {
         accent="cyan"
         actions={
           <>
-            {/* Aplicar proxy a muitas contas de uma vez saiu daqui e vive na
-                página de Proxies, que faz o mesmo e mais: testa cada proxy
-                antes de gravar, sabe substituir o proxy de quem já tem um e
-                relata quem ficou sem. Duas portas para a mesma função só
-                dividiam a atenção — nenhuma capacidade se perdeu. */}
             <button onClick={syncAll} disabled={syncing} className="btn-ghost">
               {syncing ? <span className="mf-spin" /> : <IcoSync />} {syncing ? 'Sincronizando…' : 'Sincronizar'}
             </button>
 
-            {/* As três formas de trazer uma conta, na ordem em que se tentam:
-                senha (direto), API oficial (autorização), e o convite de
-                testador — o caminho de quem não conseguiu pelos outros dois. */}
-            {/* `tom-modulo` e não `borderColor` inline: `.btn-ghost` traz
-                `border: … !important`, que ganha até de estilo inline — a borda
-                tingida aqui nunca chegou a aparecer. */}
-            <button onClick={() => openInstaModal(null)} className="btn-ghost tom-modulo"
-              style={{ '--tom':'var(--mf-mod-publicar)', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)' }}>
-              <IcoPhone /> Login Manual
-            </button>
-
+            {/* As formas de trazer uma conta: a autorização da API oficial e,
+                para quem não conseguiu por ela, o convite de testador. */}
             <button onClick={() => openOAuthConnect(null)} disabled={!!connecting['new']} className="btn-primary">
               {connecting['new'] ? <span className="mf-spin" /> : <IcoLink />} {connecting['new'] ? 'Aguarde…' : 'Conectar Contas (OAuth)'}
             </button>
@@ -1534,205 +711,6 @@ export default function Accounts() {
           ))}
         </div>
 
-        {/* ── Card de Proxy Global ── */}
-        {(() => {
-          const online  = proxyStatus.ativo && proxyStatus.ok;
-          const caiu    = proxyStatus.ativo && !proxyStatus.ok;
-          const accent  = online ? 'var(--mf-success-500)' : caiu ? 'var(--mf-danger-500)' : 'var(--mf-mod, var(--mf-accent-500))';
-          const accentBg = online ? '16,185,129' : caiu ? '244,63,94' : '0,212,255';
-
-          return (
-        <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} style={{
-          background: `linear-gradient(135deg, rgba(${accentBg},.07) 0%, color-mix(in oklch, var(--mf-surface-1) 60%, transparent) 100%)`,
-          border: `1px solid rgba(${accentBg},${proxyStatus.ativo ? '.35' : '.18'})`,
-          borderLeft: `3px solid ${accent}`,
-          borderRadius: 'var(--mf-r-lg)', padding: 16, marginBottom: 20,
-          boxShadow: online ? `0 0 24px rgba(${accentBg},.10)` : 'none',
-          transition: 'border-color .3s, box-shadow .3s',
-        }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, flexWrap:'wrap', marginBottom:12 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:11 }}>
-              <div style={{ width:36, height:36, borderRadius: 'var(--mf-r-md)', flexShrink:0, display:'grid', placeItems:'center',
-                background:`rgba(${accentBg},.12)`, border:`1px solid rgba(${accentBg},.28)`, color:accent }}>
-                <IcoGlobe />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight:700, color:'var(--mf-text)' }}>Proxy Global</div>
-                <div style={{ fontSize: 'var(--mf-t-micro)', marginTop:3, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontWeight:700, color:accent }}>
-                    <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:accent, boxShadow:`0 0 6px ${accent}`,
-                      animation: online ? 'pulseGlow 1.8s ease-in-out infinite' : 'none' }} />
-                    {online ? 'Ativo e funcionando' : caiu ? 'Ativo — proxy fora do ar' : 'Inativo'}
-                  </span>
-                  <span style={{ color:'var(--mf-text-3)' }}>
-                    {!proxyStatus.ativo
-                      ? `automação saindo pelo IP do servidor${ipDireto ? ` (${ipDireto})` : ''}`
-                      : proxyStatus.isolamento?.ativo
-                        ? 'cada conta sai por um IP próprio (isolamento ativo)'
-                        : 'toda a automação sai por este IP'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {proxyStatus.ativo && (
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {/* Com isolamento, o gateway cru NÃO é o que as contas usam —
-                    ele fica riscado como referência, e o destaque vai para o
-                    IP por conta. Sem isolamento, o IP de saída é o gateway
-                    mesmo, e é ele que importa. */}
-                {proxyStatus.isolamento?.ativo ? (
-                  <>
-                    <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:'var(--mf-text-3)', letterSpacing:'.08em' }}>GATEWAY (NÃO USADO)</div>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{proxyStatus.ip || '—'}</div>
-                    </div>
-                    <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP POR CONTA (AMOSTRA)</div>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:accent, marginTop:2 }}>
-                        {proxyStatus.isolamento.ipAmostra} · {proxyStatus.isolamento.ipAmostra2}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {ipDireto && (
-                      <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:'var(--mf-border-subtle)', border:'1px solid var(--mf-border)' }}>
-                        <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:'var(--mf-text-3)', letterSpacing:'.08em' }}>IP DO SERVIDOR</div>
-                        <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', textDecoration:'line-through', marginTop:2 }}>{ipDireto}</div>
-                      </div>
-                    )}
-                    <div style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-md)', background:`rgba(${accentBg},.1)`, border:`1px solid rgba(${accentBg},.3)` }}>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize:8.5, color:accent, opacity:.8, letterSpacing:'.08em' }}>IP EM USO AGORA</div>
-                      <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-sm)', fontWeight:700, color:accent, marginTop:2 }}>
-                        {proxyStatus.ip || '—'}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <input
-              type="text"
-              placeholder="http://usuario:senha@host:porta"
-              value={proxyUrl}
-              onChange={e => setProxyUrl(e.target.value)}
-              disabled={proxyStatus.ativo}
-              onKeyDown={e => { if (e.key === 'Enter' && !proxyStatus.ativo) testarProxyGlobal(); }}
-              style={{
-                flex: 1, minWidth: 240, padding: '8px 12px', borderRadius: 'var(--mf-r-md)', fontFamily:'var(--mf-mono)',
-                border: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 75%, transparent)',
-                color: 'var(--mf-text)', fontSize: 'var(--mf-t-xs)', opacity: proxyStatus.ativo ? 0.55 : 1,
-              }}
-            />
-            <button
-              onClick={testarProxyGlobal}
-              disabled={!proxyUrl.trim() || proxyStatus.testando}
-              style={{
-                padding: '8px 16px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', fontWeight: 700, whiteSpace:'nowrap',
-                background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)',
-                cursor: proxyStatus.testando ? 'wait' : 'pointer', opacity: !proxyUrl.trim() || proxyStatus.testando ? 0.5 : 1,
-              }}
-            >
-              {proxyStatus.testando ? 'Testando…' : 'Testar'}
-            </button>
-            {!proxyStatus.ativo ? (
-              <button
-                onClick={ativarProxyGlobal}
-                disabled={!proxyUrl.trim() || proxyStatus.salvando}
-                title="Testa e ativa o proxy para toda a automação"
-                style={{
-                  padding: '8px 16px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', fontWeight: 700, whiteSpace:'nowrap',
-                  background: 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)', color: 'var(--mf-success-500)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)',
-                  cursor: !proxyUrl.trim() || proxyStatus.salvando ? 'not-allowed' : 'pointer',
-                  opacity: !proxyUrl.trim() || proxyStatus.salvando ? 0.5 : 1,
-                }}
-              >
-                {proxyStatus.salvando ? 'Ativando…' : 'Ativar'}
-              </button>
-            ) : (
-              <button
-                onClick={desativarProxyGlobal}
-                disabled={proxyStatus.salvando}
-                style={{
-                  padding: '8px 16px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-xs)', fontWeight: 700, whiteSpace:'nowrap',
-                  background: 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color: 'var(--mf-danger-500)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 28%, transparent)',
-                  cursor: 'pointer', opacity: proxyStatus.salvando ? 0.5 : 1,
-                }}
-              >
-                {proxyStatus.salvando ? 'Desativando…' : 'Desativar'}
-              </button>
-            )}
-          </div>
-
-          {proxyStatus.rotating && (
-            <div style={{ marginTop:10, padding:'8px 12px', borderRadius: 'var(--mf-r-md)', fontSize: 'var(--mf-t-micro)', lineHeight:1.6,
-              background:'color-mix(in oklch, var(--mf-warning-500) 9%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 30%, transparent)', color:'var(--mf-warning-500)' }}>
-              <strong>Proxy rotativa detectada</strong> — o IP mudou entre duas medições
-              {proxyStatus.ip2 ? <> (<span style={{fontFamily:'var(--mf-mono)'}}>{proxyStatus.ip} → {proxyStatus.ip2}</span>)</> : null}.
-              O login do Instagram são 4 requisições em sequência; se cada uma sai de um IP
-              diferente, ele recusa mesmo com a senha certa. Peça ao seu provedor uma
-              <strong> sticky session</strong> (IP fixo por 10–30 min) para conectar contas.
-            </div>
-          )}
-
-          {/* ── Formato de sessão (isolamento por conta) ──────────────────────
-              O sufixo que faz o fornecedor dar um IP por conta. "Detectar" mede
-              qual formato ele aceita e salva — sem SSH, sem .env, sem reiniciar. */}
-          {proxyStatus.ativo && (
-            <div style={{ marginTop:12, padding:'10px 12px', borderRadius:'var(--mf-r-md)',
-              background:'color-mix(in oklch, var(--mf-bg) 60%, transparent)', border:'1px solid var(--mf-border)' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                <span style={{ fontSize:'var(--mf-t-xs)', fontWeight:700, color:'var(--mf-text-2)' }}>Formato de sessão</span>
-                {proxyStatus.molde ? (
-                  <span style={{ fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)', padding:'2px 8px', borderRadius:'var(--mf-r-full)',
-                    background:'var(--mf-success-bg)', color:'var(--mf-success-500)' }}>{proxyStatus.molde}</span>
-                ) : (
-                  <span style={{ fontSize:'var(--mf-t-nano)', padding:'2px 8px', borderRadius:'var(--mf-r-full)',
-                    background:'var(--mf-border-subtle)', color:'var(--mf-text-3)' }}>nenhum — contas dividem o IP</span>
-                )}
-                <span style={{ flex:1 }} />
-                <button onClick={detectarMolde} disabled={proxyStatus.detectando}
-                  style={{ padding:'6px 12px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-nano)', fontWeight:700, whiteSpace:'nowrap',
-                    background:'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))',
-                    border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 28%, transparent)',
-                    cursor: proxyStatus.detectando ? 'wait' : 'pointer', opacity: proxyStatus.detectando ? 0.6 : 1 }}>
-                  {proxyStatus.detectando ? 'Detectando…' : 'Detectar automaticamente'}
-                </button>
-                {proxyStatus.molde && (
-                  <button onClick={() => salvarMolde('')}
-                    style={{ padding:'6px 10px', borderRadius:'var(--mf-r-sm)', fontSize:'var(--mf-t-nano)', fontWeight:700,
-                      background:'transparent', color:'var(--mf-text-3)', border:'1px solid var(--mf-border)', cursor:'pointer' }}>
-                    Limpar
-                  </button>
-                )}
-              </div>
-              <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:6, lineHeight:1.55 }}>
-                {proxyStatus.molde
-                  ? 'Cada conta recebe um identificador próprio e sai por um IP diferente. Ao trocar de fornecedor, clique em Detectar de novo.'
-                  : 'Sem um formato, todas as contas saem pelo mesmo IP do proxy. Clique em Detectar para o sistema descobrir o formato do seu fornecedor.'}
-              </div>
-            </div>
-          )}
-
-          {(proxyStatus.ativo || proxyStatus.erro) && (
-            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:10,
-              fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
-              {proxyStatus.ativo && (
-                <span>Verificado a cada 90s pelo servidor{proxyStatus.lastCheck ? ` — último: ${fmtDateCompact(proxyStatus.lastCheck)}` : ''}</span>
-              )}
-              {proxyStatus.erro && (
-                <span style={{ color:'var(--mf-danger-500)' }}>· {proxyStatus.erro}</span>
-              )}
-            </div>
-          )}
-        </motion.div>
-          );
-        })()}
-
         {/* ── Filters + search ── */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
@@ -1800,20 +778,6 @@ export default function Accounts() {
             const isSel       = selectedIds.has(account._id);
             const linked      = isLinked(account);
 
-            /* Proxy desta conta: o próprio tem prioridade; sem ele vale o global.
-               Status e IP vêm do monitoramento contínuo do servidor. */
-            const temProxyProprio = !!account.proxy?.trim();
-            const usaGlobal       = !temProxyProprio && proxyStatus.ativo;
-            const pxOnline        = temProxyProprio ? account.proxyStatus === 'online'  : (usaGlobal && proxyStatus.ok);
-            const pxDown          = temProxyProprio ? account.proxyStatus === 'offline' : (usaGlobal && !proxyStatus.ok);
-            const pxColor         = pxOnline ? 'var(--mf-success-500)' : pxDown ? 'var(--mf-danger-500)' : 'var(--mf-text-3)';
-            const pxIp            = temProxyProprio ? (pxOnline ? account.proxyIp : '') : (pxOnline ? proxyStatus.ip : '');
-            const pxLabel         = temProxyProprio
-              ? (pxOnline ? 'Proxy próprio ativo' : pxDown ? 'Proxy próprio fora do ar' : 'Proxy não testado')
-              : usaGlobal
-                ? (pxOnline ? 'Proxy global' : 'Proxy global fora do ar')
-                : 'Sem proxy — IP do servidor';
-
             return (
               <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
                 onClick={() => selectMode && toggleSelect(account._id)}
@@ -1875,11 +839,6 @@ export default function Accounts() {
                         </span>
                         <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'var(--mf-border-subtle)', color:'var(--mf-text-3)', letterSpacing:'.5px' }}>{accType}</span>
                         {cotas[String(account._id)] && <ChipDeCota cota={cotas[String(account._id)]} />}
-                        {account.provider === 'instagrapi' && (
-                          <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)', letterSpacing:'.4px' }}>
-                            API Mobile
-                          </span>
-                        )}
                         <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                           style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', textDecoration:'none', whiteSpace:'nowrap', letterSpacing:'.3px' }}>
                           Ver Perfil ↗
@@ -1912,15 +871,6 @@ export default function Accounts() {
                     <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5, color:'var(--mf-danger-500)' }}>
                       <IcoWifi /> Não conectada
                     </span>
-                  ) : account.provider === 'instagrapi' && account.sessionStatus ? (
-                    <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5,
-                      color: sessionStatusColor(account.sessionStatus) }}>
-                      <IcoPhone />
-                      {sessionStatusLabel(account.sessionStatus)}
-                      {account.consecutiveFailures > 0 && (
-                        <span style={{ fontSize: 'var(--mf-t-nano)', opacity:.7 }}>({account.consecutiveFailures} falhas)</span>
-                      )}
-                    </span>
                   ) : (
                     <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:isHealthy?'var(--mf-success-500)':account.healthStatus==='restrita'?'var(--mf-warning-500)':'var(--mf-danger-500)', display:'flex', alignItems:'center', gap:5 }}>
                       <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Em verificação no Instagram' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
@@ -1949,74 +899,6 @@ export default function Accounts() {
                   </div>
                 )}
 
-                {/* proxy row — por onde esta conta está saindo, ao vivo */}
-                <div style={{ height:1, background:'var(--mf-border)' }} />
-                <div style={{ padding:'4px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
-                  background: pxOnline ? 'color-mix(in oklch, var(--mf-success-500) 5%, transparent)' : pxDown ? 'color-mix(in oklch, var(--mf-danger-500) 5%, transparent)' : 'transparent' }}>
-                  <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5, color:pxColor, minWidth:0 }}>
-                    <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', flexShrink:0, background:pxColor,
-                      boxShadow: pxOnline ? `0 0 6px ${pxColor}` : 'none',
-                      animation: pxOnline ? 'pulseGlow 1.8s ease-in-out infinite' : 'none' }} />
-                    <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pxLabel}</span>
-                  </span>
-                  {pxIp && (
-                    <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:pxColor, flexShrink:0 }}>
-                      {pxIp}
-                    </span>
-                  )}
-                </div>
-
-                {/* IP do LOGIN — medido, não configurado.
-
-                    A linha acima diz por onde a conta DEVERIA sair, segundo a
-                    configuração. Esta diz de qual endereço o Instagram viu o
-                    último login, medido pelo serviço na hora, pela mesma sessão.
-                    As duas divergem em silêncio: proxy que aceita a conexão e
-                    sai pelo IP do servidor, proxy que não foi aplicado.
-
-                    E o número que mais importa aqui é o de contas no MESMO IP.
-                    Várias contas num endereço de datacenter são lidas como uma
-                    mão só — quando uma cai, as vizinhas caem junto. É a
-                    resposta para "estou logando e está sendo banida". */}
-                {account.loginIp && (() => {
-                  const compartilham = (contasPorIp.get(account.loginIp) || 1) - 1;
-                  const direto = account.loginIpVia !== 'proxy';
-                  const alerta = compartilham > 0 && direto;
-                  const cor = alerta ? 'var(--mf-warning-500)' : 'var(--mf-text-3)';
-                  /* A última publicação saiu de OUTRO IP? Sessão fixa de
-                     fornecedor expira, e o mesmo identificador passa a
-                     receber outro endereço. Login num IP e publicação em
-                     outro é o padrão de conta invadida — o cartão diz antes
-                     do Instagram dizer. */
-                  const derivou = !!account.publishIp && account.publishIp !== account.loginIp;
-                  return (
-                    <>
-                      <div style={{ padding:'3px 12px 5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
-                        fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)', color: cor,
-                        background: alerta ? 'color-mix(in oklch, var(--mf-warning-500) 5%, transparent)' : 'transparent' }}>
-                        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}
-                          title={account.loginIpEm ? `Medido no login de ${new Date(account.loginIpEm).toLocaleString('pt-BR')}` : ''}>
-                          IP no login · {direto ? 'servidor' : 'proxy'}
-                          {compartilham > 0 && ` · ${alerta ? '⚠ ' : ''}mesmo IP de ${compartilham} outra${compartilham > 1 ? 's' : ''}`}
-                        </span>
-                        <span style={{ fontWeight:700, flexShrink:0 }}>{account.loginIp}</span>
-                      </div>
-                      {account.publishIp && (
-                        <div style={{ padding:'0 12px 5px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6,
-                          fontFamily:'var(--mf-mono)', fontSize:'var(--mf-t-nano)',
-                          color: derivou ? 'var(--mf-danger-500)' : 'var(--mf-text-3)',
-                          background: derivou ? 'color-mix(in oklch, var(--mf-danger-500) 5%, transparent)' : 'transparent' }}>
-                          <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}
-                            title={account.publishIpEm ? `Medido na publicação de ${new Date(account.publishIpEm).toLocaleString('pt-BR')}` : ''}>
-                            {derivou ? '⚠ última publicação saiu de OUTRO IP' : 'última publicação · mesmo IP'}
-                          </span>
-                          <span style={{ fontWeight:700, flexShrink:0 }}>{account.publishIp}</span>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
                 {/* actions */}
                 <div style={{ height:1, background:'var(--mf-border)' }} />
                 {/* As sete ações. `align-items: stretch` (e não center) para que
@@ -2030,37 +912,13 @@ export default function Accounts() {
                     onMouseLeave={e => { e.currentTarget.style.color='var(--mf-text-3)'; e.currentTarget.style.borderColor='var(--mf-border)'; }}
                   ><IcoEye /> Ver</a>
 
-                  {account.provider === 'instagrapi' ? (
-                    <button onClick={() => openInstaModal(account)} title="Reconectar via API Mobile"
-                      style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)',
-                        background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)'}
-                      onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)'}
-                    ><IcoPhone /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>Sessão</span></button>
-                  ) : (
                     <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                       style={{ flexGrow:1, minWidth:0, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)',
                         background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', transition:'all .15s' }}
                       onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 16%, transparent)'}
                       onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)'}
                     ><IcoPerson /> <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{isConnecting ? '...' : 'Editar'}</span></button>
-                  )}
 
-                  <button onClick={() => openProxyModal(account)} title={account.proxy ? `Proxy: ${account.proxy}` : 'Configurar proxy exclusivo desta conta'}
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
-                      background: temProxyProprio ? (pxOnline ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : pxDown ? 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)') : 'var(--mf-border-subtle)',
-                      color:      temProxyProprio ? (pxOnline ? 'var(--mf-success-500)' : pxDown ? 'var(--mf-danger-500)' : 'var(--mf-mod-publicar)') : 'var(--mf-text-3)',
-                      border:     temProxyProprio ? `1px solid ${pxOnline ? 'color-mix(in oklch, var(--mf-success-500) 30%, transparent)' : pxDown ? 'color-mix(in oklch, var(--mf-danger-500) 28%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 28%, transparent)'}` : '1px solid var(--mf-border)',
-                    }}
-                  ><IcoSignal /> Proxy</button>
-
-                  {/* Editar perfil — nome, bio, link e gênero pela sessão salva */}
-                  <button onClick={() => openPerfilModal(account)} title="Editar nome, bio, link da bio e foto"
-                    style={{ display:'flex', alignItems:'center', gap:5, fontSize: 'var(--mf-t-xs)', fontWeight:600, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
-                      background:'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color:'var(--mf-mod-publicar)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 25%, transparent)' }}
-                    onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)'}
-                    onMouseLeave={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)'}
-                  ><IcoPerson /> Perfil</button>
 
                   <button onClick={() => openOAuthConnect(account)} disabled={isConnecting}
                     title={needsRecon ? 'Reconectar' : 'API ok'}
@@ -2071,26 +929,6 @@ export default function Accounts() {
                     }}
                   ><IcoCheck /> API</button>
 
-                  {/* API Mobile em um clique. É ela que destrava o aquecimento
-                      de verdade (Explorar, hashtags, stories de outros perfis) e
-                      o story com link sem depender de Página do Facebook. */}
-                  <button
-                    onClick={() => account.hasInstagrapiSession
-                      ? openInstaModal(account)
-                      : entrarNoMobile(account)}
-                    disabled={!!connecting[`mobile:${account._id}`]}
-                    title={account.hasInstagrapiSession
-                      ? 'API Mobile ativa — clique para gerenciar a sessão'
-                      : 'Entrar na API Mobile. Destrava o aquecimento completo e o story com link.'}
-                    style={{ display:'flex', alignItems:'center', gap:4, fontSize: 'var(--mf-t-xs)', fontWeight:700, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, transition:'all .15s',
-                      background: account.hasInstagrapiSession ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : 'var(--mf-border-subtle)',
-                      color:      account.hasInstagrapiSession ? 'var(--mf-success-500)' : 'var(--mf-text-3)',
-                      border:     account.hasInstagrapiSession ? '1px solid color-mix(in oklch, var(--mf-success-500) 28%, transparent)' : '1px solid var(--mf-border)',
-                    }}
-                  >
-                    {connecting[`mobile:${account._id}`] ? <span className="mf-spin" /> : <IcoPhone />}
-                    <span>{account.hasInstagrapiSession ? 'Mobile on' : 'Mobile'}</span>
-                  </button>
 
                   {/* A única ação irreversível do cartão. Empurrada para a ponta
                       direita e afastada das demais: encostada nelas, ela
@@ -2384,616 +1222,6 @@ export default function Accounts() {
           </div>
         </div>
       )}
-
-      {/* ── Editar Perfil Modal ──────────────────────────────────── */}
-      {perfilModal && (() => {
-        const viaInstagrapi = perfilModal.provider === 'instagrapi' || !!perfilModal.hasInstagrapiSession;
-        const lbl = t => <label style={{ display:'block', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:5, letterSpacing:'.04em' }}>{t}</label>;
-        return (
-          <div className="modal-overlay">
-            <div className="modal" style={{ width: 'min(480px,100%)' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                <div>
-                  <h3 style={{ margin:0 }}>Editar perfil</h3>
-                  <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:3 }}>@{perfilModal.username}</div>
-                </div>
-                <button onClick={fecharPerfilModal} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor:'pointer' }}>×</button>
-              </div>
-
-              <div style={{ fontSize: 'var(--mf-t-micro)', lineHeight:1.6, marginBottom:12, padding:'8px 12px', borderRadius: 'var(--mf-r-sm)',
-                background: viaInstagrapi ? 'color-mix(in oklch, var(--mf-mod-publicar) 7%, transparent)' : 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
-                border: `1px solid ${viaInstagrapi ? 'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)' : 'color-mix(in oklch, var(--mf-warning-500) 25%, transparent)'}`,
-                color: viaInstagrapi ? 'var(--mf-text-3)' : 'var(--mf-warning-500)' }}>
-                {viaInstagrapi
-                  ? <>Editado pela <strong>sessão API Mobile</strong> — sem senha e sem navegador. O Instagram exige e-mail ou telefone confirmado na conta para aceitar a alteração.</>
-                  : <>Esta conta não usa API Mobile: a edição vai pelo caminho antigo (senha ou navegador), e o <strong>link da bio não é alterável</strong> por ali.</>}
-              </div>
-
-              <div style={{ marginBottom:12 }}>
-                {lbl('NOME')}
-                <input className="input" style={{ width:'100%' }} placeholder="Nome exibido no perfil"
-                  value={perfilForm.fullName}
-                  onChange={e => setPerfilForm(f => ({ ...f, fullName: e.target.value }))}
-                  disabled={perfilSalvando} />
-              </div>
-
-              <div style={{ marginBottom:12 }}>
-                {lbl('BIO')}
-                <textarea className="input" rows={3} style={{ width:'100%', resize:'vertical' }} maxLength={150}
-                  placeholder="Descrição do perfil"
-                  value={perfilForm.biography}
-                  onChange={e => setPerfilForm(f => ({ ...f, biography: e.target.value }))}
-                  disabled={perfilSalvando} />
-                <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', textAlign:'right', marginTop:3 }}>
-                  {perfilForm.biography.length}/150
-                </div>
-              </div>
-
-              <div style={{ marginBottom:12 }}>
-                {lbl('LINK DA BIO')}
-                <input className="input" type="url" style={{ width:'100%' }} placeholder="https://seusite.com"
-                  value={perfilForm.externalUrl}
-                  onChange={e => setPerfilForm(f => ({ ...f, externalUrl: e.target.value }))}
-                  disabled={perfilSalvando || !viaInstagrapi} />
-              </div>
-
-              <div style={{ marginBottom:12 }}>
-                {lbl('GÊNERO')}
-                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                  {[['', 'Não alterar'], ['1', 'Masculino'], ['2', 'Feminino'], ['3', 'Personalizado']].map(([valor, texto]) => {
-                    const ativo = perfilForm.gender === valor;
-                    return (
-                      <button key={valor || 'nada'} onClick={() => setPerfilForm(f => ({ ...f, gender: valor }))}
-                        disabled={perfilSalvando}
-                        style={{ padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:600, cursor:'pointer',
-                          background: ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 16%, transparent)' : 'var(--mf-border-subtle)',
-                          color:      ativo ? 'var(--mf-mod-publicar)'              : 'var(--mf-text-3)',
-                          border:     ativo ? '1px solid color-mix(in oklch, var(--mf-mod-publicar) 35%, transparent)' : '1px solid var(--mf-border)' }}>
-                        {texto}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div style={{ marginBottom:14 }}>
-                {lbl('FOTO DE PERFIL')}
-                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ width:54, height:54, borderRadius: 'var(--mf-r-full)', overflow:'hidden', flexShrink:0,
-                    border:'1px solid var(--mf-border-strong)', background:'var(--mf-bg)', display:'grid', placeItems:'center' }}>
-                    {perfilPreview
-                      ? <img src={perfilPreview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                      : perfilModal.avatar
-                        ? <img src={avatarUrl(perfilModal.avatar)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                        : <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color:'var(--mf-text-3)' }}>
-                            {perfilModal.username?.charAt(0)?.toUpperCase() || 'I'}
-                          </span>}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <label style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 12px', borderRadius: 'var(--mf-r-sm)',
-                      cursor: perfilSalvando ? 'not-allowed' : 'pointer', fontSize: 'var(--mf-t-micro)', fontWeight:700,
-                      background:'var(--mf-border-subtle)', color:'var(--mf-text-2)', border:'1px solid var(--mf-border)',
-                      opacity: perfilSalvando ? 0.5 : 1 }}>
-                      {perfilForm.foto ? 'Trocar imagem' : 'Escolher imagem'}
-                      <input type="file" accept="image/*" disabled={perfilSalvando} style={{ display:'none' }}
-                        onChange={e => escolherFotoPerfil(e.target.files?.[0] || null)} />
-                    </label>
-                    <div style={{ fontSize: 'var(--mf-t-nano)', color: perfilForm.foto ? 'var(--mf-success-500)' : 'var(--mf-text-3)', marginTop:6,
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {perfilForm.foto ? perfilForm.foto.name : 'JPG ou PNG — imagem quadrada fica melhor'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {perfilErro && (
-                <div style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:10 }}>
-                  {perfilErro}
-                </div>
-              )}
-
-              {/* Bloqueio consciente: link externo em conta nova é o padrão que
-                  o Instagram mais pune, e o dano (banimento) é irreversível. */}
-              {perfilRisco && (
-                <div style={{ fontSize: 'var(--mf-t-micro)', lineHeight:1.6, marginBottom:10, padding:'12px 12px', borderRadius: 'var(--mf-r-md)',
-                  background:'color-mix(in oklch, var(--mf-warning-500) 9%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-warning-500) 35%, transparent)', color:'var(--mf-warning-500)' }}>
-                  <strong style={{ display:'block', fontSize: 'var(--mf-t-xs)', marginBottom:5 }}>Alto risco de banimento</strong>
-                  <div style={{ marginBottom:6 }}>
-                    {perfilRisco.map((m, i) => <div key={i}>· {m}</div>)}
-                  </div>
-                  <div style={{ opacity:.9 }}>
-                    Link externo em conta nova e sem publicações é o padrão que o Instagram
-                    mais pune — normalmente com banimento, não com recusa da edição.
-                    O recomendado é publicar conteúdo e deixar a conta amadurecer alguns dias antes.
-                  </div>
-                  <button onClick={() => salvarPerfil(true)} disabled={perfilSalvando}
-                    style={{ marginTop:9, padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
-                      background:'color-mix(in oklch, var(--mf-danger-500) 14%, transparent)', color:'var(--mf-danger-500)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 35%, transparent)' }}>
-                    Entendo o risco — aplicar mesmo assim
-                  </button>
-                </div>
-              )}
-
-              <div className="modal-actions">
-                <button className="btn btn-ghost" onClick={fecharPerfilModal} disabled={perfilSalvando}>Cancelar</button>
-                <button className="btn btn-primary" onClick={() => salvarPerfil(false)} disabled={perfilSalvando}
-                  style={{ background:'color-mix(in oklch, var(--mf-mod-publicar) 85%, transparent)', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }}>
-                  {perfilSalvando ? 'Enviando...' : 'Salvar alterações'}
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Proxy Modal ──────────────────────────────────────────── */}
-      {proxyModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ width: 'min(460px,100%)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div>
-                <h3 style={{ margin: 0 }}>🌐 Proxy da conta</h3>
-                <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 3 }}>@{proxyModal.username}</div>
-              </div>
-              <button onClick={() => setProxyModal(null)} style={{ background: 'none', border: 'none', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor: 'pointer' }}>×</button>
-            </div>
-            <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginBottom: 10 }}>
-              As chamadas desta conta sairão por este proxy — IP exclusivo, independente do proxy global.
-            </div>
-            <input className="input" style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--mf-t-sm)' }} placeholder="http://usuario:senha@host:porta" value={proxyValue} onChange={e => { setProxyValue(e.target.value); setProxyTest({ testando:false, ip:null, erro:null }); }} onKeyDown={e => e.key === 'Enter' && testarProxyConta()} autoFocus />
-
-            {/* Estado atual gravado + resultado do teste feito agora */}
-            <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:10 }}>
-              {proxyModal.proxy && !proxyTest.ip && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)',
-                  color: proxyModal.proxyStatus === 'online' ? 'var(--mf-success-500)' : proxyModal.proxyStatus === 'offline' ? 'var(--mf-danger-500)' : 'var(--mf-text-3)' }}>
-                  <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'currentColor' }} />
-                  {proxyModal.proxyStatus === 'online'
-                    ? `Online — saindo por ${proxyModal.proxyIp || '—'}`
-                    : proxyModal.proxyStatus === 'offline' ? 'Offline no último teste do servidor' : 'Ainda não testado'}
-                  {proxyModal.proxyLastCheck && <span style={{ color:'var(--mf-text-3)' }}>· {fmtDateCompact(proxyModal.proxyLastCheck)}</span>}
-                </div>
-              )}
-              {proxyTest.ip && (
-                <div style={{ padding:'8px 12px', borderRadius: 'var(--mf-r-md)', background:'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)' }}>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-success-500)', opacity:.8, letterSpacing:'.08em' }}>PROXY OK — IP DE SAÍDA</div>
-                  <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-success-500)', marginTop:2 }}>{proxyTest.ip}</div>
-                </div>
-              )}
-              {proxyTest.erro && (
-                <div style={{ padding:'8px 12px', borderRadius: 'var(--mf-r-md)', background:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 25%, transparent)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-danger-500)' }}>
-                  {proxyTest.erro}
-                </div>
-              )}
-              {!proxyModal.proxy && !proxyTest.ip && !proxyTest.erro && (
-                <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>
-                  {proxyStatus.ativo
-                    ? `Sem proxy próprio — hoje esta conta usa o proxy global${proxyStatus.ip ? ` (${proxyStatus.ip})` : ''}.`
-                    : 'Sem proxy próprio — esta conta sai pelo IP do servidor.'}
-                </div>
-              )}
-            </div>
-
-            <div className="modal-actions" style={{ marginTop: 14 }}>
-              {proxyModal.proxy && (
-                <button className="btn btn-ghost" onClick={() => { setProxyValue(''); setProxyTest({ testando:false, ip:null, erro:null }); saveProxy(); }} disabled={savingProxy}>Remover</button>
-              )}
-              <button className="btn btn-ghost" onClick={() => setProxyModal(null)}>Cancelar</button>
-              <button className="btn btn-ghost" onClick={testarProxyConta} disabled={!proxyValue.trim() || proxyTest.testando}>
-                {proxyTest.testando ? 'Testando…' : 'Salvar e testar'}
-              </button>
-              <button className="btn btn-primary" onClick={saveProxy} disabled={savingProxy}>{savingProxy ? 'Salvando...' : 'Salvar'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Instagrapi (API Mobile) Modal ───────────────────────── */}
-      {instaModal && (() => {
-        const uname       = instaModal.username.trim().replace(/^@/, '');
-        const selAcc      = safeAccounts.find(a => a.username === uname) || null;
-        const isConnected = selAcc?.provider === 'instagrapi';
-        const is2FA       = instaModal.step === 'two_factor';
-        // Desafio de verificação (checkpoint por e-mail/SMS) — passo próprio,
-        // mecanismo diferente do 2FA, mas com a mesma forma de tela: pede código.
-        const isChallenge = instaModal.step === 'challenge';
-        const isCodeStep  = is2FA || isChallenge;
-        // Bloks redirect: aprovação no app, sem código. É o caso das contas sem 2FA.
-        const isApprovalChallenge = isChallenge && instaModal.challengeKind === 'approval';
-        // blocked = true only while an active countdown is running.
-        // status === 'RATE_LIMITED' with cooldownSecs === 0 means the cooldown just
-        // expired and the user should be able to retry immediately.
-        const blocked = cooldownSecs > 0;
-        const cdMin = Math.floor(cooldownSecs / 60);
-        const cdSec = String(cooldownSecs % 60).padStart(2, '0');
-
-        // Errors that allow immediate retry (no cooldown required)
-        const RETRY_IMMEDIATELY = new Set([
-          'INSTAGRAPI_SERVICE_UNAVAILABLE', 'TIMEOUT', 'NETWORK_ERROR',
-          'PROXY_ERROR', 'LOGIN_IN_PROGRESS', 'UNKNOWN_ERROR',
-        ]);
-        const canRetryNow = !!instaModal.status && RETRY_IMMEDIATELY.has(instaModal.status);
-
-        const isSidMode = instaModal.loginMethod === 'sessionid';
-
-        const lbl = (text) => (
-          <label style={{ display:'block', fontSize: 'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-2)', marginBottom:5, letterSpacing:'.04em' }}>{text}</label>
-        );
-        const field = (content) => <div style={{ marginBottom:12 }}>{content}</div>;
-
-        return (
-          <div className="modal-overlay">
-            <div className="modal" style={{ width: 'min(480px,100%)' }}>
-
-              {/* Header */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                <div>
-                  <h3 style={{ margin:0 }}>📱 {is2FA ? 'Verificação em 2 etapas' : isChallenge ? 'Verificação do Instagram' : instaModal.emenda ? 'Falta só a API Mobile' : 'Login Manual'}</h3>
-                  <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', marginTop:3 }}>
-                    {isCodeStep ? `@${uname} — código necessário`
-                      : instaModal.emenda ? `@${uname} já está conectada pela API oficial`
-                      : 'API Mobile — sessão duradoura'}
-                  </div>
-                </div>
-                <button onClick={() => setInstaModal(null)} style={{ background:'none', border:'none', color:'var(--mf-text-2)', fontSize: 'var(--mf-t-h1)', cursor:'pointer' }}>×</button>
-              </div>
-
-              {/* Method toggle (only on credentials step, not connected) */}
-              {!isCodeStep && !isConnected && (
-                <div style={{ display:'flex', gap:6, marginBottom:14, background:'rgba(0,0,0,.12)', borderRadius: 'var(--mf-r-sm)', padding:4 }}>
-                  {[['password','🔑 Senha'],['sessionid','🍪 Session ID']].map(([method, label]) => (
-                    <button key={method} onClick={() => setInstaModal(m => ({ ...m, loginMethod: method, error:'', status:null }))}
-                      style={{ flex:1, padding:'8px 0', fontSize: 'var(--mf-t-xs)', fontWeight:600, borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
-                        background: instaModal.loginMethod === method ? 'color-mix(in oklch, var(--mf-mod-publicar) 80%, transparent)' : 'transparent',
-                        /* Branco fixo na aba ativa. O token `--mf-text` podia ser
-                           reinterpretado por folha externa e a legenda saía quase
-                           preta sobre o ciano — ilegível. Branco literal não
-                           depende de token nenhum. */
-                        color: instaModal.loginMethod === method ? '#fff' : 'var(--mf-text-2)' }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Step: credentials */}
-              {!isCodeStep && (
-                <>
-                  {!isSidMode && field(<>
-                    {lbl('USUÁRIO DO INSTAGRAM')}
-                    <input className="input" type="text" style={{ width:'100%' }} placeholder="@usuario"
-                      value={instaModal.username}
-                      onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error: '', status: null }))}
-                      disabled={instaModal.loading} autoFocus />
-                  </>)}
-
-                  {isConnected && (
-                    <div style={{ background:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-success-500)' }}>
-                      ✓ <strong>@{uname}</strong> já usa API Mobile. Clique em "Desconectar" para voltar ao modo oficial.
-                    </div>
-                  )}
-
-                  {/* O custo da aba de senha, dito antes de ela ser gasta.
-
-                      O limite é do `accounts/login/` e é contado por IP pelo
-                      próprio Instagram — conectar três ou quatro contas em
-                      sequência do mesmo servidor esgota. Não é defeito daqui, e
-                      não tem como o sistema contornar: quem conta é o outro lado. */}
-                  {!isConnected && !isSidMode && (
-                    <div style={{ fontSize: 'var(--mf-t-xs)', marginBottom:10, lineHeight:1.6,
-                      background:'color-mix(in oklch, var(--mf-warning-500) 7%, transparent)',
-                      border:'1px solid color-mix(in oklch, var(--mf-warning-500) 22%, transparent)',
-                      borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', color:'var(--mf-text-2)' }}>
-                      O Instagram limita tentativas de login por IP. Conectando
-                      várias contas seguidas, ele passa a pedir espera de alguns
-                      minutos — e isso vem dele, não daqui. O Session ID não
-                      passa por esse limite.
-                    </div>
-                  )}
-
-                  {!isConnected && !isSidMode && (<>
-                    {field(<>
-                      {lbl('SENHA')}
-                      <input className="input" type="password" style={{ width:'100%' }} placeholder="••••••••"
-                        value={instaModal.password}
-                        onChange={e => setInstaModal(m => ({ ...m, password: e.target.value }))}
-                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && !blocked && connectInstagrapi()}
-                        disabled={instaModal.loading || blocked} />
-                    </>)}
-                    {preflight && !preflight.carregando && !preflight.pronto && (
-                      <div style={{ fontSize:'var(--mf-t-xs)', lineHeight:1.6, marginBottom:12,
-                        background:'var(--mf-warning-bg)',
-                        border:'1px solid color-mix(in oklch, var(--mf-warning-500) 28%, transparent)',
-                        borderRadius:'var(--mf-r-sm)', padding:'8px 12px' }}>
-                        <strong style={{ color:'var(--mf-warning-500)' }}>Antes de tentar: </strong>
-                        <span style={{ color:'var(--mf-text-2)' }}>{preflight.veredito}</span>
-                        {Object.entries(preflight.itens || {})
-                          .filter(([, v]) => !v.ok && v.conserto)
-                          .map(([k, v]) => (
-                            <div key={k} className="mf-mono" style={{ marginTop:6, fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
-                              {v.detalhe} · {v.conserto}
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                    {preflight?.pronto && preflight.itens?.proxy?.ip && (
-                      <div className="mf-mono" style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginBottom:12 }}>
-                        Ambiente pronto · saída {preflight.itens.proxy.ip} ({preflight.itens.proxy.origem})
-                      </div>
-                    )}
-                    <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:12, lineHeight:1.6, background:'color-mix(in oklch, var(--mf-mod-publicar) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-mod-publicar) 18%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }}>
-                      A senha é usada apenas para login e <strong>nunca é salva</strong>. Se a conta tiver 2FA, o código será pedido na próxima etapa.
-                    </div>
-                  </>)}
-
-                  {!isConnected && isSidMode && (<>
-                    {!instaModal.accountId && (() => {
-                      const validAccounts = safeAccounts.filter(a => a.username);
-                      return (
-                        validAccounts.length > 0
-                          ? field(<>
-                              {lbl('CONTA')}
-                              <select className="input" style={{ width:'100%' }}
-                                defaultValue=""
-                                onChange={e => {
-                                  const acc = validAccounts.find(a => String(a._id || a.id) === e.target.value);
-                                  if (acc) setInstaModal(m => ({ ...m, accountId: acc._id || acc.id, username: acc.username }));
-                                }}
-                                disabled={instaModal.loading}>
-                                <option value="" disabled>— selecione a conta —</option>
-                                {validAccounts.map(a => {
-                                  const id = String(a._id || a.id || '');
-                                  return <option key={id} value={id}>@{a.username}</option>;
-                                })}
-                              </select>
-                            </>)
-                          : field(<>
-                              {lbl('USUÁRIO DO INSTAGRAM')}
-                              <input className="input" type="text" style={{ width:'100%' }} placeholder="@seuusuario"
-                                value={instaModal.username}
-                                onChange={e => setInstaModal(m => ({ ...m, username: e.target.value, error:'', status:null }))}
-                                disabled={instaModal.loading} autoFocus />
-                            </>)
-                      );
-                    })()}
-                    {/* Por que este caminho lidera.
-
-                        Sem esta explicação, a aba do Session ID parece a
-                        alternativa complicada — e a pessoa escolhe senha, bate
-                        no limite do IP, e só então volta para cá. Dizer a
-                        vantagem antes da escolha é o que evita a viagem. */}
-                    <div style={{ fontSize: 'var(--mf-t-xs)', marginBottom:10, lineHeight:1.6,
-                      background:'color-mix(in oklch, var(--mf-success-500) 7%, transparent)',
-                      border:'1px solid color-mix(in oklch, var(--mf-success-500) 22%, transparent)',
-                      borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', color:'var(--mf-text-2)' }}>
-                      <strong style={{ color:'var(--mf-success-500)' }}>Caminho recomendado.</strong>{' '}
-                      Não passa pelo limite de tentativas por IP — dá para conectar
-                      várias contas seguidas sem esperar. E a senha não chega ao
-                      servidor.
-                    </div>
-                    <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginBottom:10, lineHeight:1.7, background:'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }}>
-                      <strong style={{ color:'var(--text1)' }}>Como obter o Session ID:</strong><br/>
-                      1. Abra <strong>instagram.com</strong> no navegador (Chrome/Edge)<br/>
-                      2. Pressione <strong>F12</strong> → aba <strong>Application</strong><br/>
-                      3. Cookies → <code style={{ fontSize: 'var(--mf-t-micro)' }}>https://www.instagram.com</code><br/>
-                      4. Copie o valor do cookie <strong>sessionid</strong>
-                    </div>
-                    {field(<>
-                      {lbl('SESSION ID')}
-                      <input className="input" type="text" style={{ width:'100%' }} placeholder="Cole o valor do cookie sessionid aqui"
-                        value={instaModal.sessionid}
-                        onChange={e => {
-                          let val = e.target.value.trim();
-                          try { val = decodeURIComponent(val); } catch {}
-                          setInstaModal(m => ({ ...m, sessionid: val, error:'', status:null }));
-                        }}
-                        onKeyDown={e => e.key === 'Enter' && !instaModal.loading && connectBySessionId()}
-                        disabled={instaModal.loading} autoFocus />
-                    </>)}
-                  </>)}
-                </>
-              )}
-
-              {/* Step: two_factor */}
-              {is2FA && (
-                <>
-                  <div style={{ background:'rgba(234,179,8,.07)', border:'1px solid rgba(234,179,8,.25)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-warning-500)', lineHeight:1.6 }}>
-                    O Instagram enviou um código pelo seu método de autenticação. Digite-o abaixo.
-                  </div>
-                  {field(<>
-                    {lbl('CÓDIGO DE VERIFICAÇÃO')}
-                    <input className="input" type="text" style={{ width:'100%' }} placeholder="000000"
-                      value={instaModal.totp}
-                      onChange={e => setInstaModal(m => ({ ...m, totp: e.target.value.replace(/\D/g, '') }))}
-                      onKeyDown={e => e.key === 'Enter' && !instaModal.loading && verify2fa()}
-                      disabled={instaModal.loading} maxLength={8} autoFocus />
-                  </>)}
-                </>
-              )}
-
-              {/* Step: challenge — aprovação no app OU código por e-mail/SMS */}
-              {isChallenge && (isApprovalChallenge ? (
-                <div style={{ background:'color-mix(in oklch, var(--mf-info-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 25%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'12px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-info-500)', lineHeight:1.7 }}>
-                  <strong style={{ color:'var(--text1)' }}>Aprove no app do Instagram</strong>
-                  <div style={{ marginTop:6 }}>
-                    Esta conta não usa código — o Instagram mostra um aviso de
-                    <strong> "tentativa de login" </strong>no app.
-                  </div>
-                  <div style={{ marginTop:8 }}>
-                    1. Abra o app do Instagram (no celular já logado)<br/>
-                    2. Toque no aviso e confirme que <strong>foi você</strong><br/>
-                    3. Volte aqui e clique em <strong>Já aprovei</strong>
-                  </div>
-                  <div style={{ marginTop:8, fontSize: 'var(--mf-t-micro)', opacity:.8 }}>
-                    Se já aprovou e ainda assim não passar, aprove de novo e repita — o
-                    Instagram às vezes leva alguns segundos para registrar.
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ background:'color-mix(in oklch, var(--mf-info-500) 7%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 25%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:12, fontSize: 'var(--mf-t-xs)', color:'var(--mf-info-500)', lineHeight:1.6 }}>
-                    O Instagram pediu confirmação de identidade e enviou um código
-                    {instaModal.channel ? <> por <strong>{instaModal.channel}</strong></> : null}.
-                    Digite-o abaixo para concluir a conexão.
-                    <div style={{ marginTop:6, fontSize: 'var(--mf-t-micro)', opacity:.8 }}>
-                      Você tem 10 minutos. Se errar o código, pode digitar outro sem refazer o login.
-                    </div>
-                  </div>
-                  {field(<>
-                    {lbl('CÓDIGO DE VERIFICAÇÃO')}
-                    <input className="input" type="text" style={{ width:'100%' }} placeholder="000000"
-                      value={instaModal.totp}
-                      onChange={e => setInstaModal(m => ({ ...m, totp: e.target.value.replace(/\D/g, ''), error:'' }))}
-                      onKeyDown={e => e.key === 'Enter' && !instaModal.loading && submitChallengeCode()}
-                      disabled={instaModal.loading} maxLength={8} autoFocus />
-                  </>)}
-                  {/* Escape: se o Instagram pediu aprovação no app em vez de código,
-                      esta conta não vai receber código nenhum. */}
-                  <button onClick={confirmChallengeApproval} disabled={instaModal.loading}
-                    style={{ background:'none', border:'none', padding:0, marginBottom:10, fontSize: 'var(--mf-t-micro)',
-                      color:'var(--mf-mod, var(--mf-accent-500))', textDecoration:'underline', cursor:'pointer' }}>
-                    Não chegou código? O Instagram pediu aprovação no app — clique aqui
-                  </button>
-                </>
-              ))}
-
-              {/* Rate limited — active countdown */}
-              {blocked && (
-                <div style={{ fontSize: 'var(--mf-t-xs)', background:'rgba(234,179,8,.09)', border:'1px solid rgba(234,179,8,.3)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:10 }}>
-                  <div style={{ fontWeight:700, color:'var(--mf-warning-500)', marginBottom:4 }}>
-                    Instagram confirmou limite de tentativas neste IP
-                  </div>
-                  <div style={{ color:'var(--mf-warning-500)', opacity:.9 }}>
-                    Aguarde <strong style={{ fontFamily:'monospace' }}>{cdMin}:{cdSec}</strong> antes de tentar novamente.
-                    Tentar antes piora o bloqueio.
-                  </div>
-                  {/* O limite é do endpoint accounts/login/. O Session ID não passa
-                      por ele, então funciona mesmo com o IP limitado — é a única
-                      saída enquanto o bloqueio durar. */}
-                  {!isSidMode && (
-                    <button onClick={() => setInstaModal(m => ({ ...m, loginMethod:'sessionid', error:'', detail:'', status:null }))}
-                      style={{ marginTop:8, padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
-                        background:'color-mix(in oklch, var(--mf-info-500) 15%, transparent)', color:'var(--mf-info-500)', border:'1px solid color-mix(in oklch, var(--mf-info-500) 35%, transparent)' }}>
-                      Conectar por Session ID — não passa por este limite
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Error (shown only when no active countdown) */}
-              {instaModal.error && !blocked && (
-                <div style={{ fontSize: 'var(--mf-t-xs)', color: canRetryNow ? 'var(--mf-text-3)' : 'var(--mf-danger-500)', background: canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 8%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: `1px solid ${canRetryNow ? 'color-mix(in oklch, var(--mf-text-3) 25%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 20%, transparent)'}`, borderRadius: 'var(--mf-r-sm)', padding:'8px 12px', marginBottom:10 }}>
-                  {instaModal.error}
-
-                  {/* Saída pelo Session ID.
-
-                      O desafio aparece na etapa do código, onde as abas estão
-                      escondidas — e aí a única opção visível é cancelar e começar
-                      tudo de novo, de volta ao mesmo desafio. Entrando pelo
-                      navegador a pessoa resolve o aviso lá, onde o Instagram
-                      confia no aparelho, e volta com o sessionid pronto.
-
-                      É o único caminho que contorna esta etapa sem depender do
-                      Instagram mudar de ideia. */}
-                  {instaModal.status === 'CHALLENGE_REQUIRED' && (
-                    <button
-                      onClick={() => setInstaModal(m => ({
-                        ...m, step: 'credentials', loginMethod: 'sessionid',
-                        error: '', detail: '', status: null, totp: '',
-                      }))}
-                      style={{ marginTop: 8, display:'flex', alignItems:'center', gap:6,
-                        fontSize: 'var(--mf-t-xs)', fontWeight:700, cursor:'pointer',
-                        padding:'6px 10px', borderRadius:'var(--mf-r-sm)',
-                        background:'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)',
-                        color:'var(--mf-primary-500)',
-                        border:'1px solid color-mix(in oklch, var(--mf-primary-500) 30%, transparent)' }}>
-                      → Entrar com Session ID
-                    </button>
-                  )}
-
-                  {/* Resposta técnica do Instagram. Fica visível de propósito: a
-                      mensagem curada acima às vezes contradiz o motivo real. */}
-                  {instaModal.detail && (
-                    <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid var(--mf-border)',
-                      fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', wordBreak:'break-word' }}>
-                      {instaModal.detail}
-                    </div>
-                  )}
-                  {/* Veredito da sonda: consulta o Instagram com uma sessão já
-                      conectada para dizer se o @ existe de fato. */}
-                  {instaModal.veredito && (
-                    <div style={{ marginTop:6, paddingTop:6, borderTop:'1px solid var(--mf-border)',
-                      fontSize: 'var(--mf-t-micro)', color:'var(--mf-mod, var(--mf-accent-500))', lineHeight:1.5 }}>
-                      {instaModal.veredito}
-                    </div>
-                  )}
-                  {canRetryNow && <span style={{ display:'block', marginTop:4, fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)' }}>Você pode tentar novamente.</span>}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="modal-actions" style={{ marginTop:4 }}>
-                {isCodeStep
-                  ? <button className="btn btn-ghost" onClick={() => setInstaModal(m => ({ ...m, step:'credentials', totp:'', error:'', status:null }))} disabled={instaModal.loading}>Voltar</button>
-                  : <button className="btn btn-ghost" onClick={() => setInstaModal(null)} disabled={instaModal.loading}>Cancelar</button>
-                }
-
-                {isChallenge && (isApprovalChallenge ? (
-                  <button className="btn btn-primary" onClick={confirmChallengeApproval}
-                    disabled={instaModal.loading}
-                    style={{ background:'color-mix(in oklch, var(--mf-info-500) 85%, transparent)', borderColor:'color-mix(in oklch, var(--mf-info-500) 50%, transparent)' }}>
-                    {instaModal.loading ? 'Verificando...' : 'Já aprovei no app'}
-                  </button>
-                ) : (
-                  <button className="btn btn-primary" onClick={submitChallengeCode}
-                    disabled={instaModal.loading || !instaModal.totp.trim()}
-                    style={{ background:'color-mix(in oklch, var(--mf-mod-publicar) 85%, transparent)', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }}>
-                    {instaModal.loading ? 'Verificando...' : 'Confirmar código'}
-                  </button>
-                ))}
-
-                {!isCodeStep && isConnected && (
-                  <button className="btn" onClick={() => disconnectInstagrapi(selAcc)} disabled={instaModal.loading}
-                    style={{ background:'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)', color:'var(--mf-danger-500)', borderColor:'color-mix(in oklch, var(--mf-danger-500) 30%, transparent)' }}>
-                    Desconectar
-                  </button>
-                )}
-
-                {!isCodeStep && !isConnected && !isSidMode && (
-                  <button className="btn btn-primary" onClick={connectInstagrapi}
-                    disabled={instaModal.loading || !uname || !instaModal.password.trim() || blocked}
-                    style={{ background: blocked ? 'color-mix(in oklch, var(--mf-text-3) 40%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 85%, transparent)', borderColor: blocked ? 'color-mix(in oklch, var(--mf-text-3) 30%, transparent)' : 'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)', cursor: blocked ? 'not-allowed' : 'pointer' }}>
-                    {instaModal.loading ? 'Conectando...' : blocked ? `Aguarde ${cdMin}:${cdSec}` : 'Conectar'}
-                  </button>
-                )}
-
-                {!isCodeStep && !isConnected && isSidMode && (() => {
-                  const hasAccount = !!instaModal.accountId;
-                  const hasSid     = !!instaModal.sessionid.trim();
-                  const hasUser    = !!instaModal.username.trim();
-                  const sidOk      = hasSid && (hasAccount || hasUser);
-                  return (
-                    <button className="btn btn-primary"
-                      onClick={hasAccount ? connectBySessionId : connectBySessionIdNew}
-                      disabled={instaModal.loading || !sidOk}
-                      style={{ background:'color-mix(in oklch, var(--mf-info-500) 85%, transparent)', borderColor:'color-mix(in oklch, var(--mf-info-500) 50%, transparent)' }}>
-                      {instaModal.loading ? 'Conectando...' : 'Conectar via Session ID'}
-                    </button>
-                  );
-                })()}
-
-                {is2FA && (
-                  <button className="btn btn-primary" onClick={verify2fa}
-                    disabled={instaModal.loading || !instaModal.totp.trim()}
-                    style={{ background:'color-mix(in oklch, var(--mf-mod-publicar) 85%, transparent)', borderColor:'color-mix(in oklch, var(--mf-mod-publicar) 50%, transparent)' }}>
-                    {instaModal.loading ? 'Verificando...' : 'Verificar'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ── Como abrir a autorização ─────────────────────────────────────────
           Duas maneiras de autorizar, e a diferença entre elas não é de gosto:
