@@ -808,9 +808,11 @@ describe('PARTE 7 — interleaved_random', () => {
     });
 
     for (const p of db.publications) {
-      const h = new Date(p.scheduledAt).getHours();
+      const dt = new Date(p.scheduledAt);
+      const minutosDoDia = dt.getHours() * 60 + dt.getMinutes();
+      const h = dt.getHours();
       expect(h).toBeGreaterThanOrEqual(18);
-      expect(h).toBeLessThan(23);
+      expect(minutosDoDia).toBeLessThanOrEqual(23 * 60);   // 23:00 em ponto e valido; 23:01 nao
     }
   });
 });
@@ -1164,7 +1166,7 @@ describe('PARTE 18 — timezone', () => {
       const d = new Date(p.scheduledAt);
       const hora = d.getHours();
       expect(hora).toBeGreaterThanOrEqual(18);
-      expect(hora).toBeLessThan(23);
+      expect(d.getHours() * 60 + d.getMinutes()).toBeLessThanOrEqual(23 * 60);
 
       // E o instante gravado é UTC — a leitura local é que aplica o fuso.
       const utc = d.getUTCHours();
@@ -1444,7 +1446,7 @@ describe('FASE 11 — campanha controlada 2×2', () => {
     // Nenhuma publicação fora da janela, em nenhum dos dias.
     for (const d of t) {
       expect(d.getHours()).toBeGreaterThanOrEqual(18);
-      expect(d.getHours()).toBeLessThan(23);
+      expect(d.getHours() * 60 + d.getMinutes()).toBeLessThanOrEqual(23 * 60);
     }
 
     let viradas = 0;
@@ -1475,7 +1477,7 @@ describe('FASE 11 — campanha controlada 2×2', () => {
     }
     for (const d of t) {
       expect(d.getHours()).toBeGreaterThanOrEqual(18);
-      expect(d.getHours()).toBeLessThan(23);
+      expect(d.getHours() * 60 + d.getMinutes()).toBeLessThanOrEqual(23 * 60);
     }
   });
 
