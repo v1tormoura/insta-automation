@@ -19,6 +19,8 @@
  */
 
 const CHAVE = 'smartActivity';
+/** A configuração de cada usuário mora em `settings`, na chave dele. */
+const chaveDo = usuarioId => `${CHAVE}:${usuarioId}`;
 
 /**
  * Padrões. Escolhidos para a curva ser densa onde o crescimento é lento e
@@ -119,9 +121,9 @@ function valorDaMetrica(insight, metricType) {
  * dia o padrão passar a esconder, este `catch` vira um vazamento silencioso, e
  * a proteção certa aí seria falhar escondendo.
  */
-async function _privacidade() {
+async function _privacidade(usuarioId) {
   try {
-    const u = await require('../../repos/usuario').carregar();
+    const u = await require('../../repos/usuario').porId(usuarioId);
     return {
       mostrarNome:  u?.notificacoes?.mostrarNome  !== false,
       mostrarValor: u?.notificacoes?.mostrarValor !== false,
@@ -131,14 +133,15 @@ async function _privacidade() {
   }
 }
 
-async function carregar() {
+async function carregar(usuarioId) {
+  if (!usuarioId) throw new Error('thresholds.carregar: usuário obrigatório');
   try {
     /* A privacidade mora no usuário, não em `settings`: é preferência pessoal e
        é onde a tela de Minha Conta a mostra. Buscada em paralelo para não
        somar uma ida ao banco no caminho da detecção. */
     const [v, privacidade] = await Promise.all([
-      require('../../repos/settings').ler(CHAVE),
-      _privacidade(),
+      require('../../repos/settings').ler(chaveDo(usuarioId)),
+      _privacidade(usuarioId),
     ]);
     if (!v || typeof v !== 'object') return { ...PADRAO, privacidade };
 
@@ -269,7 +272,7 @@ function minutosDe(hora) {
 
 
 module.exports = {
-  CHAVE, PADRAO, CAMPO_DA_METRICA, LIMITE_LISTA,
+  CHAVE, chaveDo, PADRAO, CAMPO_DA_METRICA, LIMITE_LISTA,
   carregar, marcosCruzados, valorDaMetrica,
   normalizarRegra, regraDe, pisoDe, normalizarHora, minutosDe,
 };

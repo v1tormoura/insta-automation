@@ -40,8 +40,8 @@ function nivel(score, c) {
   return 'risco';
 }
 
-router.get('/', async (_req, res) => {
-  const lista = await accounts.findMany({}, { orderBy: 'updated_at desc' });
+router.get('/', async (req, res) => {
+  const lista = await accounts.de(req.user.id).findMany({}, { orderBy: 'updated_at desc' });
   const linhas = lista.map(c => {
     const score = nota(c);
     const sync = horasDesde(c.lastSync);
@@ -81,8 +81,8 @@ router.get('/', async (_req, res) => {
 });
 
 /** "Verificar agora": sincroniza todas em segundo plano. */
-router.post('/check-now', (_req, res) => {
-  contas.sincronizarTodas().catch(e => console.log('[Saúde] verificação falhou:', e.message));
+router.post('/check-now', (req, res) => {
+  contas.sincronizarTodas(req.user.id).catch(e => console.log('[Saúde] verificação falhou:', e.message));
   res.json({ success: true, message: 'Verificação iniciada em segundo plano.' });
 });
 

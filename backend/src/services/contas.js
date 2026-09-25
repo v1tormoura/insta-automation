@@ -137,30 +137,36 @@ async function sincronizar(conta) {
       require('./smartActivity/eventosDePublicacao').notificarTokenExpirando({ conta: salva, dias })
         .catch(e => console.log('[Aviso] token expirando falhou:', e.message));
     }
-    broadcast('accounts', { action: 'health_update', accountId: salva.id, username: salva.username, healthStatus: salva.healthStatus });
+    broadcast('accounts', { action: 'health_update', accountId: salva.id, username: salva.username, healthStatus: salva.healthStatus }, salva.usuarioId);
   }
   return salva;
 }
 
 let _rodando = false;
 
-/** Sincroniza todas as contas conectadas, uma de cada vez. */
-async function sincronizarTodas() {
-  if (_rodando) return;
-  _rodando = true;
+/**
+ * Sincroniza as contas conectadas, uma de cada vez — todas (o ciclo do
+ * servidor) ou só as de um usuário (o botão "Sincronizar todas").
+ */
+async function sincronizarTodas(usuarioId = null) {
+  if (_rodando && !usuarioId) return;
+  if (!usuarioId) _rodando = true;
   try {
     const lista = await sql`
-      select id from accounts
+      select id, usuario_id from accounts
       where access_token <> '' and ig_user_id <> '' and status <> 'banida' and is_busy = false
+        ${usuarioId ? sql`and usuario_id = ${usuarioId}` : sql``}
       order by last_sync nulls first`;
     for (const { id } of lista) {
       const conta = await accounts.findById(id);
       if (conta && !conta.isBusy) await sincronizar(conta).catch(e => console.log(`⚠️ [Contas] ${e.message}`));
       await delay(1500);
     }
-    if (lista.length) broadcast('accounts', { action: 'synced', count: lista.length });
+    for (const dono of new Set(lista.map(c => c.usuarioId))) {
+      broadcast('accounts', { action: 'synced', count: lista.filter(c => c.usuarioId === dono).length }, dono);
+    }
   } finally {
-    _rodando = false;
+    if (!usuarioId) _rodando = false;
   }
 }
 

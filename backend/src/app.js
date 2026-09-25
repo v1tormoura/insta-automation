@@ -82,6 +82,7 @@ app.use('/jobs',          auth, require('./routes/jobRoutes'));
 app.use('/meta-apps',     auth, require('./routes/metaAppRoutes'));
 app.use('/trilhas',       auth, require('./routes/trilhaRoutes'));
 app.use('/convites',      auth, require('./routes/convitesRoutes'));
+app.use('/usuarios',      auth, auth.soAdmin, require('./routes/usuariosRoutes'));
 
 app.use((req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 

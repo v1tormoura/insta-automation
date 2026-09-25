@@ -4,10 +4,12 @@
  * Conexão das contas pela API oficial.
  *
  * Públicas (o navegador que autoriza pode não estar logado no painel):
- *   GET  /url               — URL de autorização (link guiado e janela)
+ *   GET  /url               — URL de autorização: com login, ou com `dono`
+ *                             assinado (link guiado)
  *   POST /connect/:state    — conclui com a URL de retorno (state assinado)
  *   GET  /callback          — retorno direto do Instagram, se configurado para cá
  * Com login:
+ *   GET    /dono            — o `dono` assinado que vai no link guiado
  *   POST   /connect-by-token
  *   DELETE /disconnect/:accountId
  */
@@ -39,10 +41,23 @@ function avisoDoRedirect(redirect, frontend) {
     + `Troque para ${String(frontend).replace(/\/$/, '')}/oauth-callback no .env E cadastre o mesmo endereço no painel da Meta.`;
 }
 
+/** Com login, o dono é quem está logado; no link guiado, o `dono` assinado. */
+async function donoDaUrl(req) {
+  if (req.query.dono) return conexao.lerDono(String(req.query.dono));
+  return (await auth.lerUsuario(req)).usuario?.id || null;
+}
+
+router.get('/dono', auth, (req, res) => {
+  res.json({ dono: conexao.assinarDono(req.user.id) });
+});
+
 router.get('/url', async (req, res) => {
+  const usuarioId = await donoDaUrl(req);
+  if (!usuarioId) return res.status(401).json({ error: 'Link de conexão inválido — gere um novo no painel.' });
   const r = await conexao.urlDeAutorizacao({
     accountId: req.query.accountId || 'new',
     metaAppId: req.query.metaAppId || null,
+    usuarioId,
   });
   if (!r) return res.status(400).json({ error: 'Nenhum App Meta cadastrado. Cadastre um app na página API Meta antes de conectar.' });
   const aviso = avisoDoRedirect(config.oauthRedirectUri, config.frontendUrl);
@@ -87,7 +102,7 @@ router.post('/connect-by-token', auth, async (req, res) => {
   const token = String(req.body?.token || '').trim();
   if (!token) return res.status(400).json({ error: 'Token obrigatório' });
   try {
-    const conta = await conexao.conectarPorToken(token, req.body?.accountId || 'new');
+    const conta = await conexao.conectarPorToken(token, req.body?.accountId || 'new', req.user.id);
     res.json({ success: true, username: conta.username, message: `@${conta.username} conectada via token!` });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Token inválido ou sem permissão' });
@@ -95,7 +110,7 @@ router.post('/connect-by-token', auth, async (req, res) => {
 });
 
 router.delete('/disconnect/:accountId', auth, async (req, res) => {
-  const conta = await accounts.update(req.params.accountId, {
+  const conta = await accounts.de(req.user.id).update(req.params.accountId, {
     accessToken: '', tokenExpiresAt: null, healthStatus: 'token_invalido', lastError: 'Desconectada no painel — reconecte para voltar a publicar',
   });
   if (!conta) return res.status(404).json({ error: 'Conta não encontrada' });

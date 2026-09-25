@@ -41,7 +41,7 @@ function _idsValidos(lista, campo) {
  * nasce condenado a falhar. Os demais estados (restrita, sessão expirada) passam
  * — podem se resolver antes do horário agendado, e a execução revalida.
  */
-async function validarContas(accountIds) {
+async function validarContas(usuarioId, accountIds) {
   if (!Array.isArray(accountIds) || accountIds.length === 0) {
     throw new CampaignError('NO_ACCOUNTS', 'Selecione ao menos uma conta.');
   }
@@ -50,7 +50,7 @@ async function validarContas(accountIds) {
   const unicos = [...new Set(accountIds.map(String))];
   const contas = await sql`
     select id, username, name, health_status, posts_today, daily_post_limit
-    from accounts where id = any(${unicos}::uuid[])`;
+    from accounts where id = any(${unicos}::uuid[]) and usuario_id = ${usuarioId}`;
 
   if (contas.length !== unicos.length) {
     const encontrados = new Set(contas.map(c => String(c.id)));
@@ -75,7 +75,7 @@ async function validarContas(accountIds) {
 }
 
 /** Confere que todas as mídias existem — campanha parcial nunca é criada. */
-async function validarConteudos(contentIds) {
+async function validarConteudos(usuarioId, contentIds) {
   if (!Array.isArray(contentIds) || contentIds.length === 0) {
     throw new CampaignError('NO_CONTENTS', 'Selecione ao menos um conteúdo.');
   }
@@ -84,7 +84,7 @@ async function validarConteudos(contentIds) {
   const unicos = [...new Set(contentIds.map(String))];
   const midias = await sql`
     select id, filename, original_name, url, type, folder
-    from media where id = any(${unicos}::uuid[])`;
+    from media where id = any(${unicos}::uuid[]) and usuario_id = ${usuarioId}`;
 
   if (midias.length !== unicos.length) {
     const encontrados = new Set(midias.map(m => String(m.id)));
@@ -201,7 +201,8 @@ function _filtrarCapasPorConta(covers = {}, accountIds = []) {
   return saida;
 }
 
-async function montarPlano(dados, agora = new Date()) {
+async function montarPlano(usuarioId, dados, agora = new Date()) {
+  if (!usuarioId) throw new Error('montarPlano: usuário obrigatório');
   const {
     name,
     accountIds = [], contentIds = [],
@@ -211,8 +212,8 @@ async function montarPlano(dados, agora = new Date()) {
   } = dados;
 
   validarConfiguracao({ name, strategy, schedule, captionMode, commentMode });
-  const contas = await validarContas(accountIds);
-  const midias = await validarConteudos(contentIds);
+  const contas = await validarContas(usuarioId, accountIds);
+  const midias = await validarConteudos(usuarioId, contentIds);
 
   // Seed fixa desde a criação: sem ela o plano deixaria de ser reproduzível
   // entre uma pré-visualização e a criação definitiva.
@@ -256,7 +257,7 @@ async function montarPlano(dados, agora = new Date()) {
  * Cria a campanha e materializa o plano numa transação só: ou a campanha
  * nasce com todas as publicações, ou não nasce.
  */
-async function criarCampanha(dados, agora = new Date()) {
+async function criarCampanha(usuarioId, dados, agora = new Date()) {
   const {
     name, description = '',
     accountIds = [], contentIds = [],
@@ -265,13 +266,13 @@ async function criarCampanha(dados, agora = new Date()) {
     captionMode = 'global', commentMode = 'disabled',
   } = dados;
 
-  const { plano, seed, contas, midias } = await montarPlano(dados, agora);
+  const { plano, seed, contas, midias } = await montarPlano(usuarioId, dados, agora);
   const porConta = new Map(contas.map(c => [String(c.id), c]));
   const porMidia = new Map(midias.map(m => [String(m.id), m]));
 
   try {
     return await sql.begin(async tx => {
-      const campanha = await campaigns.insert({
+      const campanha = await campaigns.de(usuarioId).insert({
         name: String(name).trim(),
         description,
         status: 'scheduled',
@@ -429,8 +430,8 @@ const LIMITE_TEXTO = 2200;
  * A resolução aqui é só para exibição; o que fica gravado na publicação continua
  * sendo o template bruto.
  */
-async function preverCampanha(dados, agora = new Date()) {
-  const { contas, midias, plano } = await montarPlano(dados, agora);
+async function preverCampanha(usuarioId, dados, agora = new Date()) {
+  const { contas, midias, plano } = await montarPlano(usuarioId, dados, agora);
 
   const porConta   = new Map(contas.map(c => [String(c.id), c]));
   const porMidia   = new Map(midias.map(m => [String(m.id), m]));
@@ -441,7 +442,7 @@ async function preverCampanha(dados, agora = new Date()) {
   const capasPorConta    = _filtrarCapasPorConta(dados.covers, dados.accountIds || []);
   const idsDasCapas = [...new Set([...Object.values(capasPorConteudo), ...Object.values(capasPorConta)])];
   const capas = idsDasCapas.length
-    ? new Map((await sql`select id, filename, url from media where id = any(${idsDasCapas}::uuid[])`)
+    ? new Map((await sql`select id, filename, url from media where id = any(${idsDasCapas}::uuid[]) and usuario_id = ${usuarioId}`)
         .map(m => [String(m.id), m]))
     : new Map();
 

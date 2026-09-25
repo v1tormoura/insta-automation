@@ -43,11 +43,12 @@ function _payload(n) {
   });
 }
 
+/** Entrega aos aparelhos do dono da notificação (`notificacao.usuarioId`). */
 async function enviar(notificacao) {
   const wp = _carregar();
-  if (!wp || !notificacao) return { enviados: 0, removidos: 0 };
+  if (!wp || !notificacao?.usuarioId) return { enviados: 0, removidos: 0 };
 
-  const inscricoes = await sql`select * from push_subscriptions where falhas < 8`;
+  const inscricoes = await sql`select * from push_subscriptions where falhas < 8 and usuario_id = ${notificacao.usuarioId}`;
   if (!inscricoes.length) return { enviados: 0, removidos: 0 };
 
   const corpo = _payload(notificacao);
@@ -70,27 +71,29 @@ async function enviar(notificacao) {
   return { enviados, removidos };
 }
 
-async function inscrever({ endpoint, keys, aparelho }) {
+/** O aparelho passa a ser de quem está logado nele (troca de usuário no mesmo navegador). */
+async function inscrever({ endpoint, keys, aparelho }, usuarioId) {
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     throw Object.assign(new Error('Inscrição incompleta.'), { code: 'INSCRICAO_INVALIDA' });
   }
   await sql`
-    insert into push_subscriptions (endpoint, keys, aparelho, falhas)
-    values (${endpoint}, ${sql.json(keys)}, ${String(aparelho || '').slice(0, 120)}, 0)
-    on conflict (endpoint) do update set keys = excluded.keys, aparelho = excluded.aparelho, falhas = 0`;
+    insert into push_subscriptions (endpoint, keys, aparelho, falhas, usuario_id)
+    values (${endpoint}, ${sql.json(keys)}, ${String(aparelho || '').slice(0, 120)}, 0, ${usuarioId})
+    on conflict (endpoint) do update set keys = excluded.keys, aparelho = excluded.aparelho, falhas = 0,
+      usuario_id = excluded.usuario_id`;
   return { ok: true };
 }
 
-async function cancelar(endpoint) {
+async function cancelar(endpoint, usuarioId) {
   if (!endpoint) return { removidos: 0 };
-  const r = await sql`delete from push_subscriptions where endpoint = ${endpoint}`;
+  const r = await sql`delete from push_subscriptions where endpoint = ${endpoint} and usuario_id = ${usuarioId}`;
   return { removidos: r.count };
 }
 
-async function estado(endpoint) {
+async function estado(endpoint, usuarioId) {
   const [[ins], [{ total }]] = await Promise.all([
-    sql`select falhas, ultimo_envio, created_at from push_subscriptions where endpoint = ${endpoint}`,
-    sql`select count(*) as total from push_subscriptions`,
+    sql`select falhas, ultimo_envio, created_at from push_subscriptions where endpoint = ${endpoint} and usuario_id = ${usuarioId}`,
+    sql`select count(*) as total from push_subscriptions where usuario_id = ${usuarioId}`,
   ]);
   return {
     inscrito: !!ins,

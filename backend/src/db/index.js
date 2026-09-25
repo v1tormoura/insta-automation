@@ -50,6 +50,52 @@ function tabela(nome) {
   };
 
   return {
+    /**
+     * O mesmo CRUD preso a um dono: toda leitura, alteração e remoção filtra
+     * por `usuario_id`, e toda inserção o grava. É o que as rotas usam — um
+     * id de outro usuário se comporta como id inexistente.
+     */
+    de(usuarioId) {
+      if (!ehUuid(usuarioId)) throw new Error(`${nome}.de(): usuário inválido`);
+      const dono = () => sql`usuario_id = ${usuarioId}`;
+      return {
+        async findById(id, db = sql) {
+          if (!ehUuid(id)) return null;
+          const [row] = await db`select * from ${t} where id = ${id} and ${dono()}`;
+          return row || null;
+        },
+        async findOne(where, db = sql) {
+          const [row] = await db`select * from ${t} where ${filtro(where)} and ${dono()} limit 1`;
+          return row || null;
+        },
+        async findMany(where = {}, { orderBy = 'created_at desc', limit = null, offset = 0 } = {}, db = sql) {
+          return db`
+            select * from ${t} where ${filtro(where)} and ${dono()}
+            order by ${sql.unsafe(orderBy)}
+            ${limit ? sql`limit ${limit}` : sql``} offset ${offset}`;
+        },
+        async count(where = {}, db = sql) {
+          const [{ n }] = await db`select count(*) as n from ${t} where ${filtro(where)} and ${dono()}`;
+          return n;
+        },
+        async insert(obj, db = sql) {
+          const [row] = await db`insert into ${t} ${sql({ ...limpar(obj), usuarioId })} returning *`;
+          return row;
+        },
+        async update(id, patch, db = sql) {
+          if (!ehUuid(id)) return null;
+          const { usuarioId: _ignorado, ...resto } = limpar(patch);
+          if (!Object.keys(resto).length) return this.findById(id, db);
+          const [row] = await db`update ${t} set ${sql(resto)} where id = ${id} and ${dono()} returning *`;
+          return row || null;
+        },
+        async remove(id, db = sql) {
+          if (!ehUuid(id)) return null;
+          const [row] = await db`delete from ${t} where id = ${id} and ${dono()} returning *`;
+          return row || null;
+        },
+      };
+    },
     async findById(id, db = sql) {
       if (!ehUuid(id)) return null;
       const [row] = await db`select * from ${t} where id = ${id}`;

@@ -17,20 +17,21 @@ exports.getAlcancePorEnvio = async (req, res) => {
   const dias = Math.min(365, Math.max(1, parseInt(req.query.dias, 10) || 30));
   const desde = new Date(Date.now() - dias * 86_400_000);
   const insights = await sql`
-    select * from insights where posted_at >= ${desde} and media_type in ('VIDEO', 'REELS', 'REEL')`;
+    select * from insights
+    where usuario_id = ${req.user.id} and posted_at >= ${desde} and media_type in ('VIDEO', 'REELS', 'REEL')`;
   const ids = insights.map(i => i.igMediaId).filter(Boolean);
   const posts = ids.length
     ? await sql`
         select ig_media_id, midias_publicadas, job_id, job_name from posts
-        where ig_media_id = any(${ids})
-           or exists (select 1 from jsonb_array_elements(midias_publicadas) m where m->>'igMediaId' = any(${ids}))`
+        where usuario_id = ${req.user.id} and (ig_media_id = any(${ids})
+           or exists (select 1 from jsonb_array_elements(midias_publicadas) m where m->>'igMediaId' = any(${ids})))`
     : [];
   res.json({ dias, ...agruparPorEnvio(insights, posts) });
 };
 
 /** GET /analytics/publico?timeframe=last_30_days — gênero, país e idade de quem os reels alcançaram. */
 exports.getPublico = async (req, res) => {
-  const contas = (await accounts.findMany()).filter(c => c.accessToken && c.igUserId);
+  const contas = (await accounts.de(req.user.id).findMany()).filter(c => c.accessToken && c.igUserId);
   const lista = await Promise.all(contas.map(c => publicoDaConta.buscarPublico(c, req.query.timeframe)));
   res.json({
     timeframe: lista[0]?.timeframe || 'last_30_days',
@@ -48,7 +49,7 @@ exports.getMetricasDosPerfis = async (req, res) => {
   const p = periodo.resolver(req.query);
   const contas = await sql`
     select id, username, avatar, followers, last_sync from accounts
-    where health_status <> all(${RUINS})`;
+    where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`;
 
   const vazio = {
     periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
@@ -101,7 +102,8 @@ exports.getMetricasDosPerfis = async (req, res) => {
   });
 };
 
-let _cache = { data: null, expiresAt: 0, key: '' };
+/* Cache de 60s por usuário e período. */
+const _cache = new Map();
 
 function melhorPost(p, conta) {
   return {
@@ -125,7 +127,9 @@ function melhorPost(p, conta) {
 /** GET /analytics/global-metrics?period=30d&force=true (cache de 60s). */
 exports.getGlobalMetrics = async (req, res) => {
   const { period = '30d', force = false } = req.query;
-  if (!force && _cache.data && _cache.key === period && Date.now() < _cache.expiresAt) return res.json(_cache.data);
+  const chave = `${req.user.id}:${period}`;
+  const guardado = _cache.get(chave);
+  if (!force && guardado && Date.now() < guardado.expiresAt) return res.json(guardado.data);
 
   const days = { '7d': 7, '30d': 30, '90d': 90, '1a': 365 }[period] || 30;
   const since = new Date(Date.now() - days * 86_400_000);
@@ -133,7 +137,7 @@ exports.getGlobalMetrics = async (req, res) => {
 
   const contas = await sql`
     select id, username, name, avatar, followers, health_status, account_type, posts_today
-    from accounts where health_status <> all(${RUINS})`;
+    from accounts where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`;
   if (!contas.length) {
     return res.json({
       connectedAccountsCount: 0, totalFollowers: 0, totalReach: 0, totalStoryViews: 0, totalViews: 0,
@@ -185,6 +189,7 @@ exports.getGlobalMetrics = async (req, res) => {
     updatedAt: new Date(),
   };
 
-  _cache = { data: result, expiresAt: Date.now() + 60_000, key: period };
+  if (_cache.size > 1000) _cache.clear();
+  _cache.set(chave, { data: result, expiresAt: Date.now() + 60_000 });
   res.json(result);
 };

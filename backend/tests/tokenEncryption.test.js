@@ -73,21 +73,21 @@ describe('token da conta', () => {
   beforeEach(() => banco.limpar());
 
   test('gravado cifrado, lido em claro pelo repositório', async () => {
-    const conta = await accounts.insert({ username: 'loja', accessToken: SAMPLE_TOKEN, igUserId: '1' });
+    const conta = await accounts.de(banco.DONO_ID).insert({ username: 'loja', accessToken: SAMPLE_TOKEN, igUserId: '1' });
     const [linha] = await banco.sql`select access_token from accounts where id = ${conta.id}`;
     expect(linha.accessToken).toMatch(/^enc1:/);
     expect((await accounts.findById(conta.id)).accessToken).toBe(SAMPLE_TOKEN);
   });
 
   test('atualizar também cifra', async () => {
-    const conta = await accounts.insert({ username: 'loja' });
+    const conta = await accounts.de(banco.DONO_ID).insert({ username: 'loja' });
     await accounts.update(conta.id, { accessToken: SAMPLE_TOKEN });
     const [linha] = await banco.sql`select access_token from accounts where id = ${conta.id}`;
     expect(linha.accessToken).toMatch(/^enc1:/);
   });
 
   test('a versão para a API não leva o token, só se ele existe', async () => {
-    const conta = await accounts.insert({ username: 'loja', accessToken: SAMPLE_TOKEN, igUserId: '1' });
+    const conta = await accounts.de(banco.DONO_ID).insert({ username: 'loja', accessToken: SAMPLE_TOKEN, igUserId: '1' });
     const publica = accounts.paraApi(await accounts.findById(conta.id));
     expect(publica.accessToken).toBeUndefined();
     expect(publica.hasApiToken).toBe(true);

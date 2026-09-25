@@ -25,7 +25,7 @@ router.get('/publico',           getPublico);
  */
 router.post('/story-insights/sync', async (req, res) => {
   try {
-    const r = await syncAllStoryInsights();
+    const r = await syncAllStoryInsights(req.user.id);
     res.json({ success: true, ...r });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -77,21 +77,14 @@ const metaApps = require('../src/repos/metaApps');
 const rotas = require('../src/routes/convitesRoutes');
 const { painelDaMeta, jaConectados } = rotas;
 
-/** Chama o handler de uma rota do router, com req/res de mentira. */
-async function chamar(metodo, caminho, req = {}) {
-  const camada = rotas.stack.find(l => l.route?.path === caminho && l.route?.methods?.[metodo]);
-  if (!camada) throw new Error('rota inexistente: ' + metodo + ' ' + caminho);
-  const resposta = { code: 200, corpo: null };
-  const res = {
-    status(c) { resposta.code = c; return this; },
-    json(c)   { resposta.corpo = c; return this; },
-  };
-  await camada.route.stack[0].handle({ query: {}, params: {}, body: {}, ...req }, res, () => {});
-  return resposta;
-}
+const { chamarRota } = require('./helpers/rota');
+let ADMIN;
+/** Chama a rota como o admin, com req/res de mentira. */
+const chamar = (metodo, caminho, req = {}) =>
+  chamarRota(rotas, metodo, caminho, { user: { id: ADMIN.id, papel: 'admin' }, ...req });
 const convitesGravados = () => banco.sql`select * from convites_de_acesso order by created_at`;
 
-beforeEach(() => banco.limpar());
+beforeEach(async () => { await banco.limpar(); ADMIN = await banco.dono(); });
 
 describe('o link do painel da Meta', () => {
   test('sai do App padrão', async () => {

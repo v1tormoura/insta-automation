@@ -6,6 +6,7 @@ const settings = require('../repos/settings');
 const thresholds = require('../services/smartActivity/thresholds');
 const templates = require('../services/smartActivity/templates');
 const detector = require('../services/smartActivity/detector');
+const { soAdmin } = require('../middleware/auth');
 
 /**
  * Central de Notificações — leitura, marcação e configuração.
@@ -21,9 +22,9 @@ router.get('/', async (req, res) => {
   const limite = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
   const apenasNaoLidas = req.query.naoLidas === '1';
   const [itens, [{ naoLidas }]] = await Promise.all([
-    sql`select * from notificacoes ${apenasNaoLidas ? sql`where lida_em is null` : sql``}
+    sql`select * from notificacoes where usuario_id = ${req.user.id} ${apenasNaoLidas ? sql`and lida_em is null` : sql``}
         order by criada_em desc limit ${limite}`,
-    sql`select count(*) as nao_lidas from notificacoes where lida_em is null`,
+    sql`select count(*) as nao_lidas from notificacoes where usuario_id = ${req.user.id} and lida_em is null`,
   ]);
   res.json({ itens, naoLidas });
 });
@@ -32,26 +33,27 @@ router.get('/', async (req, res) => {
 router.patch('/:id/lida', async (req, res) => {
   const { ehUuid } = require('../db');
   if (!ehUuid(req.params.id)) return res.json({ ok: true, alterou: false });
-  const r = await sql`update notificacoes set lida_em = now() where id = ${req.params.id} and lida_em is null`;
+  const r = await sql`update notificacoes set lida_em = now()
+                      where id = ${req.params.id} and usuario_id = ${req.user.id} and lida_em is null`;
   res.json({ ok: true, alterou: r.count > 0 });
 });
 
 /** Marca todas. */
-router.post('/lidas', async (_req, res) => {
-  const r = await sql`update notificacoes set lida_em = now() where lida_em is null`;
+router.post('/lidas', async (req, res) => {
+  const r = await sql`update notificacoes set lida_em = now() where usuario_id = ${req.user.id} and lida_em is null`;
   res.json({ ok: true, marcadas: r.count });
 });
 
 /** Apaga só as JÁ LIDAS: o que ainda não foi visto não pode sumir por um clique de limpeza. */
-router.delete('/lidas', async (_req, res) => {
-  const r = await sql`delete from notificacoes where lida_em is not null`;
+router.delete('/lidas', async (req, res) => {
+  const r = await sql`delete from notificacoes where usuario_id = ${req.user.id} and lida_em is not null`;
   res.json({ ok: true, apagadas: r.count });
 });
 
 /** Configuração efetiva + as variáveis que o editor pode oferecer. */
-router.get('/config', async (_req, res) => {
+router.get('/config', async (req, res) => {
   try {
-    const cfg = await thresholds.carregar();
+    const cfg = await thresholds.carregar(req.user.id);
     res.json({
       ...cfg,
       variaveis: templates.VARIAVEIS,
@@ -128,7 +130,7 @@ router.put('/config', async (req, res) => {
       if (regra?.modo === 'continuo') marcosLimpos[k] = { modo: 'continuo', aPartirDe: regra.aPartirDe, passo: regra.passo };
     }
 
-    const atual = (await settings.ler(thresholds.CHAVE)) || {};
+    const atual = (await settings.ler(thresholds.chaveDo(req.user.id))) || {};
     const valor = {
       ...atual,
       ...(Object.keys(marcosLimpos).length ? { thresholds: marcosLimpos } : {}),
@@ -138,8 +140,8 @@ router.put('/config', async (req, res) => {
       ...(horaDoResumo ? { resumo: { ...(atual.resumo || {}), hora: horaDoResumo } } : {}),
     };
 
-    await settings.gravar(thresholds.CHAVE, valor);
-    res.json({ ok: true, config: await thresholds.carregar() });
+    await settings.gravar(thresholds.chaveDo(req.user.id), valor);
+    res.json({ ok: true, config: await thresholds.carregar(req.user.id) });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'CONFIG_ERRO' });
   }
@@ -198,7 +200,7 @@ router.post('/preview', (req, res) => {
  * forma deliberada — e ligar o módulo numa base com histórico sem semear
  * despejaria centenas de avisos sobre coisas de semanas atrás.
  */
-router.post('/semear', async (_req, res) => {
+router.post('/semear', soAdmin, async (_req, res) => {
   try {
     res.json(await detector.semear());
   } catch (err) {
@@ -217,7 +219,7 @@ router.get('/push/chave-publica', (_req, res) => {
 router.post('/push/inscrever', async (req, res) => {
   try {
     const webPush = require('../services/smartActivity/webPush');
-    res.json(await webPush.inscrever(req.body || {}));
+    res.json(await webPush.inscrever(req.body || {}, req.user.id));
   } catch (err) {
     const codigo = err.code === 'INSCRICAO_INVALIDA' ? 400 : 500;
     res.status(codigo).json({ error: err.message, code: err.code || 'PUSH_ERRO' });
@@ -276,7 +278,7 @@ router.post('/push/testar', async (req, res) => {
       ? pedida
       : 'storyViews';
 
-    const cfg = await thresholds.carregar();
+    const cfg = await thresholds.carregar(req.user.id);
     /* `modeloDe` e não `mensagens[metrica] || PADRAO[metrica]`: quem salvou só
        o título tem `mensagem` vazia no gravado, e o `||` escolheria o objeto
        inteiro do painel — o teste sairia sem mensagem. `modeloDe` completa
@@ -296,6 +298,7 @@ router.post('/push/testar', async (req, res) => {
        pergunta de quem acabou de mexer no editor. */
     const r = await webPush.enviar({
       id:       'teste',
+      usuarioId: req.user.id,
       titulo:   templates.render(modelo.titulo, vars),
       mensagem: templates.render(modelo.mensagem, vars),
       tema:     modelo.tema || 'story',
@@ -336,13 +339,13 @@ router.post('/push/testar', async (req, res) => {
 router.get('/push/estado', async (req, res) => {
   const endpoint = String(req.query.endpoint || '');
   if (!endpoint) return res.status(400).json({ error: 'endpoint obrigatório', code: 'SEM_ENDPOINT' });
-  res.json(await require('../services/smartActivity/webPush').estado(endpoint));
+  res.json(await require('../services/smartActivity/webPush').estado(endpoint, req.user.id));
 });
 
 router.post('/push/cancelar', async (req, res) => {
   try {
     const webPush = require('../services/smartActivity/webPush');
-    res.json(await webPush.cancelar(req.body?.endpoint));
+    res.json(await webPush.cancelar(req.body?.endpoint, req.user.id));
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'PUSH_ERRO' });
   }

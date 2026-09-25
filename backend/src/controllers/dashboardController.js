@@ -31,16 +31,16 @@ function serieDiaria(linhas, dias, campo) {
   return serie;
 }
 
-function porDia(status, desde) {
+function porDia(uid, status, desde) {
   return sql`
     select to_char((updated_at at time zone ${FUSO})::date, 'YYYY-MM-DD') as dia, count(*) as n
-    from posts where status = any(${status}) and updated_at >= ${desde}
+    from posts where usuario_id = ${uid} and status = any(${status}) and updated_at >= ${desde}
     group by 1`;
 }
 
 /** Envios ativos cujas contas não estão todas banidas ou apagadas. */
-async function enviosAtivos() {
-  const lista = await sql`select * from jobs where status = any(${ATIVOS})`;
+async function enviosAtivos(uid) {
+  const lista = await sql`select * from jobs where usuario_id = ${uid} and status = any(${ATIVOS})`;
   await comContas(lista, ['id', 'username', 'avatar', 'healthStatus']);
   return lista.filter(j => j.accounts.some(a => a.healthStatus !== 'banida'));
 }
@@ -93,6 +93,7 @@ async function bancoResponde() {
 }
 
 exports.getDashboard = async (req, res) => {
+  const uid = req.user.id;
   const hoje = inicioDoDia();
   const seteDias = diasAtras(7);
   const trintaDias = diasAtras(30);
@@ -101,7 +102,8 @@ exports.getDashboard = async (req, res) => {
     contas, [contagem], campanhaPorStatus, [{ n: pubsHoje }], ativos,
     avulsosProximos, diarios, errosDiarios, engajamento,
   ] = await Promise.all([
-    sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, created_at, updated_at from accounts`,
+    sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, created_at, updated_at
+        from accounts where usuario_id = ${uid}`,
     sql`
       select count(*) as total,
         count(*) filter (where status = 'concluido') as concluidos,
@@ -112,21 +114,22 @@ exports.getDashboard = async (req, res) => {
         count(*) filter (where status = 'pendente' and job_id is null) as pendentes,
         count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${hoje}) as hoje,
         count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as erros_hoje
-      from posts`,
+      from posts where usuario_id = ${uid}`,
     sql`select status, count(*) as n from campaign_publications
-        where status in ('pending', 'scheduled', 'processing') group by status`,
-    sql`select count(*) as n from campaign_publications where status = 'published' and published_at >= ${hoje}`,
-    enviosAtivos(),
-    sql`select * from posts where status in ('agendado', 'pendente', 'processando') and job_id is null
+        where usuario_id = ${uid} and status in ('pending', 'scheduled', 'processing') group by status`,
+    sql`select count(*) as n from campaign_publications
+        where usuario_id = ${uid} and status = 'published' and published_at >= ${hoje}`,
+    enviosAtivos(uid),
+    sql`select * from posts where usuario_id = ${uid} and status in ('agendado', 'pendente', 'processando') and job_id is null
         order by scheduled_at asc nulls last limit 200`,
-    porDia(['concluido', 'parcial'], diasAtras(90)),
-    porDia(['erro'], seteDias),
+    porDia(uid, ['concluido', 'parcial'], diasAtras(90)),
+    porDia(uid, ['erro'], seteDias),
     sql`
       select i.account_id, max(a.username) as username, max(a.avatar) as avatar,
         avg(i.video_views) as avg_views, avg(i.like_count) as avg_likes, avg(i.comments_count) as avg_comments,
         sum(i.video_views) as total_views, sum(i.like_count) as total_likes, count(*) as total_posts
       from insights i join accounts a on a.id = i.account_id
-      where i.posted_at >= ${trintaDias} and a.health_status <> 'banida'
+      where i.usuario_id = ${uid} and i.posted_at >= ${trintaDias} and a.health_status <> 'banida'
       group by i.account_id order by total_views desc limit 10`,
   ]);
 
@@ -191,13 +194,14 @@ exports.getDashboard = async (req, res) => {
 };
 
 exports.getAccountStats = async (req, res) => {
+  const uid = req.user.id;
   const hoje = inicioDoDia();
   const seteDias = diasAtras(7);
   const trintaDias = diasAtras(30);
 
   const [contas, publicacoes, crescimento] = await Promise.all([
     sql`select id, username, avatar, followers, following, posts_count, health_status, access_token,
-          token_expires_at, ig_user_id, last_sync, last_post_at from accounts`,
+          token_expires_at, ig_user_id, last_sync, last_post_at from accounts where usuario_id = ${uid}`,
     sql`
       select conta as account_id,
         count(*) filter (where status in ('concluido', 'parcial')) as posts30d,
@@ -207,13 +211,13 @@ exports.getAccountStats = async (req, res) => {
         count(*) filter (where status = 'erro' and updated_at >= ${seteDias}) as failures7d,
         count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as failures_today
       from posts, unnest(account_ids) as conta
-      where updated_at >= ${trintaDias}
+      where usuario_id = ${uid} and updated_at >= ${trintaDias}
       group by conta`,
     sql`
       select distinct on (account_id) account_id,
         seguidores - first_value(seguidores) over (partition by account_id order by dia) as ganho
       from seguidores_do_dia
-      where dia >= ${trintaDias.toLocaleDateString('en-CA')}
+      where usuario_id = ${uid} and dia >= ${trintaDias.toLocaleDateString('en-CA')}
       order by account_id, dia desc`,
   ]);
 
@@ -248,15 +252,19 @@ exports.getAccountStats = async (req, res) => {
 };
 
 exports.getLivePosts = async (req, res) => {
+  const uid = req.user.id;
   const umaHora = new Date(Date.now() - 3_600_000);
   const campos = ['id', 'username', 'avatar'];
 
   const [processando, naFila, erros, concluidos, ativos] = await Promise.all([
-    sql`select * from posts where status = 'processando' order by updated_at desc limit 10`,
-    sql`select * from posts where status in ('pendente', 'agendado') order by scheduled_at asc nulls last, created_at asc limit 30`,
-    sql`select * from posts where status = 'erro' and updated_at >= ${umaHora} order by updated_at desc limit 15`,
-    sql`select * from posts where status in ('concluido', 'parcial') and updated_at >= ${umaHora} order by updated_at desc limit 15`,
-    enviosAtivos(),
+    sql`select * from posts where usuario_id = ${uid} and status = 'processando' order by updated_at desc limit 10`,
+    sql`select * from posts where usuario_id = ${uid} and status in ('pendente', 'agendado')
+        order by scheduled_at asc nulls last, created_at asc limit 30`,
+    sql`select * from posts where usuario_id = ${uid} and status = 'erro' and updated_at >= ${umaHora}
+        order by updated_at desc limit 15`,
+    sql`select * from posts where usuario_id = ${uid} and status in ('concluido', 'parcial') and updated_at >= ${umaHora}
+        order by updated_at desc limit 15`,
+    enviosAtivos(uid),
   ]);
   await comContas([...processando, ...naFila, ...erros, ...concluidos], campos);
 

@@ -100,7 +100,7 @@ async function publicarNaConta(contaAlvo, post, { respeitarRitmo = true } = {}) 
   if (atual.healthStatus === 'banida') throw erroComCodigo(`Conta @${atual.username} está banida — publicação cancelada`, 'ACCOUNT_UNAVAILABLE');
 
   let conta = await travarConta(atual.id, atual.username);
-  broadcast('accounts', { action: 'busy', accountId: conta.id });
+  broadcast('accounts', { action: 'busy', accountId: conta.id }, conta.usuarioId);
 
   if (!mesmoDia(conta.lastPostDate)) {
     conta = await accounts.update(conta.id, { postsToday: 0, lastPostDate: new Date() });
@@ -129,7 +129,7 @@ async function publicarNaConta(contaAlvo, post, { respeitarRitmo = true } = {}) 
         where id = ${post.id}`;
     }
     console.log(`✅ [Publicar] @${conta.username} — publicado (${mediaId})`);
-    broadcast('accounts', { action: 'synced' });
+    broadcast('accounts', { action: 'synced' }, conta.usuarioId);
     avisos.notificarPublicado({ conta, contentType: tipo }).catch(e => console.log('[Aviso]', e.message));
     await agendarComentarioFixado(conta, post, mediaId);
     return { ok: true, mediaId };
@@ -153,7 +153,7 @@ async function publicarNaConta(contaAlvo, post, { respeitarRitmo = true } = {}) 
       contas.cancelarTrabalho(conta.id, `Conta @${conta.username} suspensa pelo Instagram`).catch(() => {});
     }
     await accounts.update(conta.id, update);
-    broadcast('accounts', { action: 'health_update', accountId: conta.id, username: conta.username, healthStatus: update.healthStatus || conta.healthStatus });
+    broadcast('accounts', { action: 'health_update', accountId: conta.id, username: conta.username, healthStatus: update.healthStatus || conta.healthStatus }, conta.usuarioId);
     avisos.notificarErro({ conta, contentType: tipo, erro: update.lastError }).catch(e => console.log('[Aviso]', e.message));
     throw err;
   }
@@ -173,7 +173,7 @@ async function postDaRodada(job, media, rodada, legenda) {
   if (postType === 'reel' && !video) postType = 'post';
   const [novo] = await sql`
     insert into posts ${sql({
-      media, jobId: job.id, jobRound: rodada, jobName: job.name || '',
+      media, jobId: job.id, jobRound: rodada, jobName: job.name || '', usuarioId: job.usuarioId,
       mediaType: video ? 'video' : 'image', postType,
       cover: job.cover || '', caption: legenda ?? (job.caption || ''), ctaComment: job.ctaComment || '',
       processMode: job.processMode || 'limpeza_leve',
@@ -199,12 +199,12 @@ async function processarRodada({ jobId }) {
   if (rodada * job.simultaneousLimit >= total) {
     if (job.type !== 'loop') {
       await jobs.update(job.id, { status: 'completed', completedAt: new Date() });
-      broadcast('jobs', { action: 'job_updated', jobId: job.id });
+      broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
       return;
     }
     rodada = 0;
     await jobs.update(job.id, { currentRound: 0, roundsCompleted: 0 });
-    broadcast('posts', { action: 'loop_cycled', jobId: job.id });
+    broadcast('posts', { action: 'loop_cycled', jobId: job.id }, job.usuarioId);
   }
 
   const [ativado] = await sql`
@@ -212,9 +212,10 @@ async function processarRodada({ jobId }) {
     where id = ${job.id} and status not in ('paused', 'cancelled', 'completed')
     returning *`;
   if (!ativado) return;
-  broadcast('jobs', { action: 'job_updated', jobId: job.id });
+  broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
 
-  const contasDoJob = (await accounts.porIds(job.accountIds)).filter(c => c.status !== 'banida');
+  // Só contas do dono do envio — o painel já garante, e o worker confere de novo.
+  const contasDoJob = (await accounts.porIds(job.accountIds)).filter(c => c.status !== 'banida' && c.usuarioId === job.usuarioId);
   const { midiasDaRodada } = require('./services/rodizioDeMidias');
   const plano = midiasDaRodada({
     midias: job.mediaFiles, contas: contasDoJob, rodada, porRodada: job.simultaneousLimit, rodizio: !!job.rodizioDeMidias,
@@ -239,7 +240,7 @@ async function processarRodada({ jobId }) {
     console.log(`[Envio] "${job.name}" — nenhuma conta disponível agora: ${vereditos.map(v => `${v.conta.username}: ${v.ritmo.motivo}`).join(' | ')}`);
     await jobs.update(job.id, { status: 'waiting_interval', nextRoundAt: new Date(Date.now() + espera) });
     await agendarRodada(job.id, espera);
-    broadcast('jobs', { action: 'job_updated', jobId: job.id });
+    broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
     return;
   }
 
@@ -294,11 +295,11 @@ async function processarRodada({ jobId }) {
     update jobs set posts_published = posts_published + ${sucessos}, posts_errors = posts_errors + ${erros},
       rounds_completed = rounds_completed + 1, current_round = ${proxima}
     where id = ${job.id}`;
-  broadcast('posts', { action: 'created' });
+  broadcast('posts', { action: 'created' }, job.usuarioId);
 
   if (!temMais) {
     await jobs.update(job.id, { status: 'completed', completedAt: new Date() });
-    broadcast('jobs', { action: 'job_updated', jobId: job.id });
+    broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
     return;
   }
 
@@ -312,7 +313,7 @@ async function processarRodada({ jobId }) {
     ...(cicloDoLoop ? { currentRound: 0, roundsCompleted: 0 } : {}),
   });
   await agendarRodada(job.id, espera);
-  broadcast('jobs', { action: 'job_updated', jobId: job.id });
+  broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
   console.log(`[Envio] "${job.name}" — rodada ${rodada + 1} (✓${sucessos} ✗${erros}). Próxima em ${(espera / 60000).toFixed(1)} min`);
 }
 
@@ -324,7 +325,7 @@ async function processarPost({ postId }) {
 
   // Retentar um post parcial não pode publicar de novo onde ele já saiu.
   const jaSaiu = new Set((post.midiasPublicadas || []).map(m => m.accountId));
-  const pendentes = (await accounts.porIds(post.accountIds)).filter(c => !jaSaiu.has(c.id));
+  const pendentes = (await accounts.porIds(post.accountIds)).filter(c => !jaSaiu.has(c.id) && c.usuarioId === post.usuarioId);
   const lista = embaralhar(pendentes, criarRandom(`post:${post.id}`));
   let ok = jaSaiu.size;
   const erros = [];
@@ -335,7 +336,7 @@ async function processarPost({ postId }) {
   }
   const status = ok && !erros.length ? 'concluido' : ok ? 'parcial' : 'erro';
   await posts.update(post.id, { status, error: erros.join(' | ') });
-  broadcast('posts', { action: 'created' });
+  broadcast('posts', { action: 'created' }, post.usuarioId);
 }
 
 async function processarComentarioFixado({ accountId, mediaId, texto }) {

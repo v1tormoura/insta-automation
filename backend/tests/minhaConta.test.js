@@ -83,81 +83,8 @@ describe('senhaDoPainel', () => {
   });
 });
 
-/* ── O login com as duas senhas ────────────────────────────────────────────
-   O repositório do usuário é dublado: o que está sob teste é a ORDEM das
-   tentativas — e ela não precisa de banco para ser verificada. */
-
-process.env.AUTH_PASSWORD = 'senha-do-ambiente';
-const mockUsuario = { valor: null, erro: null };
-
-jest.mock('../src/repos/usuario', () => ({
-  carregar: async () => {
-    if (mockUsuario.erro) throw mockUsuario.erro;
-    return mockUsuario.valor || { senhaHash: '' };
-  },
-}));
-
-const { senhaConfere } = require('../src/routes/authRoutes');
-
-describe('login: qual senha entra', () => {
-  const AMBIENTE = 'senha-do-ambiente';
-
-  beforeEach(() => {
-    mockUsuario.valor = null;
-    mockUsuario.erro = null;
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-  });
-  afterEach(() => jest.restoreAllMocks());
-
-  test('sem senha própria, entra com a do ambiente', async () => {
-    expect((await senhaConfere(AMBIENTE)).ok).toBe(true);
-    expect((await senhaConfere('chute')).ok).toBe(false);
-  });
-
-  test('com senha própria, ela entra', async () => {
-    mockUsuario.valor = { senhaHash: senhas.gerar('a-minha-senha-1') };
-    const r = await senhaConfere('a-minha-senha-1');
-    expect(r.ok).toBe(true);
-    expect(r.via).toBe('hash');
-  });
-
-  test('com senha própria, a do ambiente CONTINUA entrando', async () => {
-    /* De propósito, e dito na tela com essas palavras. Se o hash fosse a única
-       porta, um banco fora do ar trancaria a pessoa fora do painel. */
-    mockUsuario.valor = { senhaHash: senhas.gerar('a-minha-senha-1') };
-    const r = await senhaConfere(AMBIENTE);
-    expect(r.ok).toBe(true);
-    expect(r.via).toBe('ambiente');
-  });
-
-  test('uma terceira senha não entra por nenhum caminho', async () => {
-    mockUsuario.valor = { senhaHash: senhas.gerar('a-minha-senha-1') };
-    expect((await senhaConfere('nem-uma-nem-outra')).ok).toBe(false);
-  });
-
-  test('banco fora do ar: a do ambiente entra, e o login não vira erro', async () => {
-    /* É justamente quando o banco caiu que alguém precisa entrar para ver o
-       que aconteceu. */
-    mockUsuario.erro = new Error('connect ECONNREFUSED');
-    const r = await senhaConfere(AMBIENTE);
-    expect(r.ok).toBe(true);
-    expect(r.via).toBe('ambiente-sem-banco');
-    expect((await senhaConfere('chute')).ok).toBe(false);
-  });
-
-  test('entrada pelo caminho alternativo é registrada', async () => {
-    /* Uma porta de recuperação que ninguém consegue auditar depois é uma porta
-       que não se sabe se foi usada. */
-    mockUsuario.valor = { senhaHash: senhas.gerar('a-minha-senha-1') };
-    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
-
-    await senhaConfere('a-minha-senha-1');
-    const depoisDoHash = log.mock.calls.length;
-
-    await senhaConfere(AMBIENTE);
-    expect(log.mock.calls.length).toBeGreaterThan(depoisDoHash);
-  });
-});
+/* O login (admin, usuários, as duas senhas do admin) é testado contra o banco
+   em tests/usuarios.test.js. */
 
 describe('a rota não vaza o hash', () => {
   const fonte = require('fs').readFileSync(
@@ -191,7 +118,7 @@ describe('a rota não vaza o hash', () => {
     /* Sem `?v=`, o nome do arquivo é fixo, o React vê o mesmo `src` e não
        repinta: a foto troca no disco e a tela segue com a antiga. Já aconteceu
        com o avatar das contas — ver avatarLocal.js. */
-    expect(fonte).toMatch(/usuario\$\{ext\}\?v=\$\{Date\.now\(\)\}/);
+    expect(fonte).toMatch(/\$\{nome\}\$\{ext\}\?v=\$\{Date\.now\(\)\}/);
   });
 });
 

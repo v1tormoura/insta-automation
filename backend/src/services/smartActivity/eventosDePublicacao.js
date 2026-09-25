@@ -16,8 +16,16 @@ async function _gravar(doc) {
   const nova = await notificacoes.insert(doc);
   const webPush = require('./webPush');
   if (webPush.disponivel()) webPush.enviar(nova).catch(err => console.warn('[WebPush] envio falhou:', err.message));
-  require('../../events/broadcaster').broadcast('notificacoes', { novas: 1 });
+  require('../../events/broadcaster').broadcast('notificacoes', { novas: 1 }, nova.usuarioId);
   return nova;
+}
+
+/** O dono da conta — as linhas do banco já trazem; objeto montado à mão, não. */
+async function _donoDa(conta) {
+  if (conta.usuarioId) return conta.usuarioId;
+  if (!conta.id) return null;
+  const [c] = await sql`select usuario_id from accounts where id = ${conta.id}`.catch(() => []);
+  return c?.usuarioId || null;
 }
 
 function _tipoDeConteudo(tipo) {
@@ -43,7 +51,9 @@ async function _repetidoRecentemente(eventType, accountId, horas) {
  */
 async function _avisar(eventType, conta, { vars = {}, prioridade = 'normal', metadados = {}, janelaHoras = 0 } = {}) {
   if (!conta) return null;
-  const cfg = await thresholds.carregar().catch(() => null);
+  const usuarioId = await _donoDa(conta);
+  if (!usuarioId) return null;
+  const cfg = await thresholds.carregar(usuarioId).catch(() => null);
   if (!cfg || cfg.ativos[eventType] === false) return null;
   if (janelaHoras && await _repetidoRecentemente(eventType, conta.id, janelaHoras)) return null;
 
@@ -55,6 +65,7 @@ async function _avisar(eventType, conta, { vars = {}, prioridade = 'normal', met
   const modelo = templates.modeloDe(eventType, cfg.mensagens);
 
   return _gravar({
+    usuarioId,
     accountId: conta.id || null,
     username: conta.username || '',
     avatar: conta.avatar || '',

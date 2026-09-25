@@ -352,14 +352,14 @@ describe('resumo do dia', () => {
        — e travar o dia. O pedido é o total no FINAL do dia. */
     comConfig(true);
     await publicacoes([['c1', 'ana', 50]]);
-    expect(await detector.resumoDoDia({ agora: MANHA })).toBeNull();
+    expect(await detector._resumoDoUsuario(banco.DONO_ID, { agora: MANHA })).toBeNull();
     expect(await notifs()).toHaveLength(0);
   });
 
   test('a partir das 22h sai, e "hoje" é o dia dessa hora', async () => {
     comConfig(true);
     for (let i = 0; i < 40; i++) await publicacoes([[i % 2 ? 'c1' : 'c2', 'x', 225]]);
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n).toBeTruthy();
     expect(n.mensagem).toContain('40 publicações');
   });
@@ -367,7 +367,7 @@ describe('resumo do dia', () => {
   test('13. desligado por padrão: não cria nada', async () => {
     comConfig(false);
     await publicacoes([['c1', 'ana', 587853]]);
-    expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
+    expect(await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE })).toBeNull();
     expect(await notifs()).toHaveLength(0);
   });
 
@@ -380,7 +380,7 @@ describe('resumo do dia', () => {
              case when g = 1 then 587853 else 0 end, ${NO_DIA}
       from generate_series(1, 1687) g`;
 
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n).toBeTruthy();
     expect(n.titulo).toBe('Resumo do dia');
     // Formatado em português, como aparece na tela.
@@ -393,23 +393,23 @@ describe('resumo do dia', () => {
     comConfig(true);
     await publicacoes([['c1', 'ana', 100]]);
 
-    expect(await detector.resumoDoDia({ agora: NOITE })).toBeTruthy();
+    expect(await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE })).toBeTruthy();
     // O anti-repetição aqui é a DATA, não o teto: o registro no banco é quem
     // diz se o resumo de hoje já saiu — e sobrevive ao processo reiniciar.
-    expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
+    expect(await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE })).toBeNull();
     expect((await notifs()).filter(x => x.eventType === 'resumo')).toHaveLength(1);
   });
 
   test('sem publicação no dia, não inventa resumo', async () => {
     comConfig(true);
-    expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
+    expect(await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE })).toBeNull();
   });
 
   test('stories somam separado de posts — a mesma separação do dashboard', async () => {
     comConfig(true);
     await publicacoes([['c1', 'ana', 1000]], { stories: 250 });
 
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n.mensagem).toContain('1.000 visualizações');
     expect(n.mensagem).toContain('250 em stories');
     expect(n.metadados.viewsStories).toBe(250);
@@ -421,7 +421,7 @@ describe('resumo do dia', () => {
     comConfig(true);
     await publicacoes([['c1', 'ana', 1000]]);
 
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n.metadados.viewsStories).toBe(0);
     expect(n.mensagem).toContain('0 em stories');
   });
@@ -430,7 +430,7 @@ describe('resumo do dia', () => {
     comConfig(true);
     await publicacoes([['c1', 'oliviapaganini', 600], ['c2', 'lauramendes', 300]]);
 
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n.mensagem).toContain('@oliviapaganini: 600');
     expect(n.mensagem).toContain('@lauramendes: 300');
     expect(n.metadados.porConta).toEqual([
@@ -447,7 +447,7 @@ describe('resumo do dia', () => {
       privacidade: { mostrarNome: false, mostrarValor: true },
     });
 
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n.mensagem).not.toContain('oliviapaganini');
     expect(n.mensagem).toContain('Conta 1: 500');
   });
@@ -460,7 +460,7 @@ describe('resumo do dia', () => {
       privacidade: { mostrarNome: true, mostrarValor: false },
     });
 
-    const n = await detector.resumoDoDia({ agora: NOITE });
+    const n = await detector._resumoDoUsuario(banco.DONO_ID, { agora: NOITE });
     expect(n.mensagem).not.toContain('500');
     expect(n.mensagem).not.toContain('80');
     expect(n.mensagem).toContain('@oliviapaganini: •••');
@@ -558,8 +558,8 @@ describe('resumo do dia — hora configurável', () => {
     const antes = thresholds.carregar;
     thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: true }, resumo: { hora: '20:30' } });
     await insight({ accountId: ids.c1, mediaType: 'VIDEO', videoViews: 500, postedAt: new Date(2026, 8, 10, 8, 0) });
-    expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 20, 29) })).toBeNull();
-    const n = await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 20, 31) });
+    expect(await detectorLocal._resumoDoUsuario(banco.DONO_ID, { agora: new Date(2026, 8, 10, 20, 29) })).toBeNull();
+    const n = await detectorLocal._resumoDoUsuario(banco.DONO_ID, { agora: new Date(2026, 8, 10, 20, 31) });
     expect(n).toBeTruthy();
     thresholds.carregar = antes;
   });
@@ -569,8 +569,8 @@ describe('resumo do dia — hora configurável', () => {
     const antes = thresholds.carregar;
     thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: true } });
     await insight({ accountId: ids.c1, mediaType: 'VIDEO', videoViews: 500, postedAt: new Date(2026, 8, 10, 8, 0) });
-    expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 21, 59) })).toBeNull();
-    expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 22, 0) })).toBeTruthy();
+    expect(await detectorLocal._resumoDoUsuario(banco.DONO_ID, { agora: new Date(2026, 8, 10, 21, 59) })).toBeNull();
+    expect(await detectorLocal._resumoDoUsuario(banco.DONO_ID, { agora: new Date(2026, 8, 10, 22, 0) })).toBeTruthy();
     thresholds.carregar = antes;
   });
 });

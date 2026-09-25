@@ -20,7 +20,7 @@ function tipoDe(mime = '') {
 
 // GET /media?folder=&search=&type=&limit=&skip= — sem parâmetros, a biblioteca inteira.
 exports.getMedia = async (req, res) => {
-  const partes = [];
+  const partes = [sql`usuario_id = ${req.user.id}`];
   if (req.query.folder) partes.push(sql`folder = ${String(req.query.folder)}`);
   if (['image', 'video', 'other'].includes(req.query.type)) partes.push(sql`type = ${req.query.type}`);
   const busca = String(req.query.search || '').trim();
@@ -28,14 +28,14 @@ exports.getMedia = async (req, res) => {
     const padrao = `%${busca.replace(/[\\%_]/g, c => '\\' + c)}%`;
     partes.push(sql`(original_name ilike ${padrao} or filename ilike ${padrao})`);
   }
-  const onde = partes.length ? partes.reduce((a, b) => sql`${a} and ${b}`) : sql`true`;
+  const onde = partes.reduce((a, b) => sql`${a} and ${b}`);
   const limite = Math.min(500, Math.max(0, Number(req.query.limit) || 0));
   const pular = Math.max(0, Number(req.query.skip) || 0);
 
   const [files, [{ total }], pastas] = await Promise.all([
     sql`select * from media where ${onde} order by created_at desc ${limite ? sql`limit ${limite}` : sql``} offset ${pular}`,
     sql`select count(*) as total from media where ${onde}`,
-    sql`select distinct folder from media order by folder`,
+    sql`select distinct folder from media where usuario_id = ${req.user.id} order by folder`,
   ]);
   res.json({ files, folders: pastas.map(p => p.folder || 'default'), total });
 };
@@ -45,7 +45,7 @@ exports.uploadMedia = async (req, res) => {
   const folder = req.body.folder || 'default';
   const criados = [];
   for (const file of req.files || []) {
-    criados.push(await tabela.insert({
+    criados.push(await tabela.de(req.user.id).insert({
       filename: file.filename,
       originalName: file.originalname,
       path: file.filename,
@@ -63,7 +63,7 @@ exports.uploadMedia = async (req, res) => {
 };
 
 exports.deleteMedia = async (req, res) => {
-  const item = await tabela.remove(req.params.id);
+  const item = await tabela.de(req.user.id).remove(req.params.id);
   if (!item) return res.status(404).json({ error: 'Mídia não encontrada' });
   if (item.filename && !item.filename.startsWith('__folder_')) {
     for (const nome of [item.filename, nomeDaMiniatura(item.filename)]) {
@@ -77,7 +77,7 @@ exports.deleteMedia = async (req, res) => {
 exports.moveMedia = async (req, res) => {
   const { folder } = req.body;
   if (!folder) return res.status(400).json({ error: 'folder obrigatório' });
-  const item = await tabela.update(req.params.id, { folder });
+  const item = await tabela.de(req.user.id).update(req.params.id, { folder });
   if (!item) return res.status(404).json({ error: 'Mídia não encontrada' });
   res.json(item);
 };
@@ -85,9 +85,9 @@ exports.moveMedia = async (req, res) => {
 exports.createFolder = async (req, res) => {
   const nome = String(req.body.name || '').trim().toLowerCase().replace(/[^a-z0-9_\-\s]/g, '').trim();
   if (!nome) return res.status(400).json({ error: req.body.name ? 'Nome inválido' : 'Nome obrigatório' });
-  const [existe] = await sql`select 1 from media where folder = ${nome} limit 1`;
+  const [existe] = await sql`select 1 from media where folder = ${nome} and usuario_id = ${req.user.id} limit 1`;
   if (!existe) {
-    await tabela.insert({ filename: marcador(nome), originalName: marcador(nome), type: 'other', folder: nome });
+    await tabela.de(req.user.id).insert({ filename: marcador(nome), originalName: marcador(nome), type: 'other', folder: nome });
   }
   res.json({ success: true, folder: nome });
 };
@@ -96,7 +96,7 @@ exports.createFolder = async (req, res) => {
 exports.deleteFolder = async (req, res) => {
   const nome = req.params.name;
   if (nome === 'default') return res.status(400).json({ error: 'Pasta default não pode ser excluída' });
-  await sql`delete from media where folder = ${nome} and filename = ${marcador(nome)}`;
-  await sql`update media set folder = 'default' where folder = ${nome}`;
+  await sql`delete from media where folder = ${nome} and filename = ${marcador(nome)} and usuario_id = ${req.user.id}`;
+  await sql`update media set folder = 'default' where folder = ${nome} and usuario_id = ${req.user.id}`;
   res.json({ success: true });
 };

@@ -53,11 +53,14 @@ const upload = multer({
 
 const PASTA = path.resolve(__dirname, '../../uploads/perfil');
 
-const carregar = () => usuario.carregar();
+const carregar = req => usuario.porId(req.user.id);
+const ehAdmin = u => u?.papel === 'admin';
 
 /** O que pode sair na resposta. O hash nunca — nem quando é pedido de propósito. */
 function publico(u) {
   return {
+    id:    u?.id,
+    papel: u?.papel || 'usuario',
     nome:  u?.nome || '',
     email: u?.email || '',
     avatar: u?.avatar || '',
@@ -78,13 +81,13 @@ function publico(u) {
     /* Dito na tela porque é surpreendente: trocar a senha aqui não desliga a
        do ambiente. Esconder isso seria deixar a pessoa achar que a antiga
        parou de funcionar. */
-    senhaDoAmbienteAtiva: true,
+    senhaDoAmbienteAtiva: ehAdmin(u),
   };
 }
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
-    res.json(publico(await carregar()));
+    res.json(publico(await carregar(req)));
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'CONTA_ERRO' });
   }
@@ -101,10 +104,15 @@ router.put('/', async (req, res) => {
 
     if (typeof req.body?.email === 'string') {
       const email = req.body.email.trim().toLowerCase().slice(0, 160);
-      /* Vazio é permitido: o campo é opcional, e obrigar um e-mail para poder
-         salvar o NOME seria cobrar por uma coisa para entregar outra. */
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      /* Vazio só para o admin, que entra pelo AUTH_USERNAME. Para os demais o
+         e-mail é o login — apagá-lo trancaria a pessoa fora. */
+      const vazioPermitido = !email && ehAdmin(req.user);
+      if (!vazioPermitido && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
         return res.status(400).json({ error: 'E-mail inválido.', code: 'EMAIL_INVALIDO' });
+      }
+      const dono = email ? await usuario.porEmail(email) : null;
+      if (dono && dono.id !== req.user.id) {
+        return res.status(409).json({ error: 'Este e-mail já está em uso.', code: 'EMAIL_EM_USO' });
       }
       alteracoes.email = email;
     }
@@ -113,7 +121,7 @@ router.put('/', async (req, res) => {
       return res.status(400).json({ error: 'Nada para alterar.', code: 'SEM_ALTERACAO' });
     }
 
-    res.json(publico(await usuario.atualizar(alteracoes)));
+    res.json(publico(await usuario.atualizar(req.user.id, alteracoes)));
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'CONTA_ERRO' });
   }
@@ -144,14 +152,14 @@ router.put('/senha', async (req, res) => {
       return res.status(400).json({ error: 'A nova senha é igual à atual.', code: 'SENHA_IGUAL' });
     }
 
-    const guardado = (await carregar()).senhaHash || '';
+    const eu = await carregar(req);
+    const guardado = eu.senhaHash || '';
 
-    /* Confere contra o hash quando existe; contra o ambiente quando é a
-       primeira troca. Sem o segundo caso, ninguém conseguiria trocar a senha
-       nunca: não haveria "atual" que a rota aceitasse. */
+    /* Confere contra o hash quando existe. O admin sem hash (primeira troca)
+       confere contra o ambiente — sem isso ele nunca teria "atual" aceita. */
     const conferiu = guardado
       ? senhas.conferir(atual, guardado)
-      : atual === config.authPassword;
+      : ehAdmin(eu) && atual === config.authPassword;
 
     if (!conferiu) {
       return res.status(401).json({ error: 'A senha atual está incorreta.', code: 'SENHA_ATUAL_ERRADA' });
@@ -164,14 +172,16 @@ router.put('/senha', async (req, res) => {
       return res.status(400).json({ error: err.message, code: err.code || 'SENHA_INVALIDA' });
     }
 
-    const atualizado = await usuario.atualizar({ senhaHash: hash, senhaTrocadaEm: new Date() });
-    console.log('🔑 [Conta] Senha do painel trocada.');
+    const atualizado = await usuario.atualizar(req.user.id, { senhaHash: hash, senhaTrocadaEm: new Date() });
+    console.log(`🔑 [Conta] Senha trocada (${eu.email || 'admin'}).`);
     res.json({
       ok: true,
       /* Repetido na resposta e não só na tela: quem usa a API direto também
          precisa saber que a senha do ambiente continua entrando. */
-      aviso: 'A senha de AUTH_PASSWORD continua valendo como recuperação. '
-           + 'Troque-a no servidor se quiser desativá-la.',
+      ...(ehAdmin(eu) ? {
+        aviso: 'A senha de AUTH_PASSWORD continua valendo como recuperação. '
+             + 'Troque-a no servidor se quiser desativá-la.',
+      } : {}),
       ...publico(atualizado),
     });
   } catch (err) {
@@ -196,8 +206,8 @@ router.put('/preferencias', async (req, res) => {
       return res.status(400).json({ error: 'Nada para alterar.', code: 'SEM_ALTERACAO' });
     }
 
-    await usuario.mesclar('preferencias', pref);
-    res.json(publico(await usuario.mesclar('notificacoes', notif)));
+    await usuario.mesclar(req.user.id, 'preferencias', pref);
+    res.json(publico(await usuario.mesclar(req.user.id, 'notificacoes', notif)));
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'PREFERENCIA_ERRO' });
   }
@@ -231,15 +241,16 @@ router.post('/foto', upload.single('foto'), async (req, res) => {
     /* Apaga as outras extensões do mesmo nome. Sem isto, trocar um PNG por um
        JPG deixa os dois no disco para sempre — e é o tipo de lixo que só
        aparece quando o disco enche. */
+    const nome = `usuario-${req.user.id}`;
     for (const outra of Object.values(TIPOS)) {
       if (outra === ext) continue;
-      try { fs.unlinkSync(path.join(PASTA, `usuario${outra}`)); } catch { /* não existia */ }
+      try { fs.unlinkSync(path.join(PASTA, `${nome}${outra}`)); } catch { /* não existia */ }
     }
 
-    fs.writeFileSync(path.join(PASTA, `usuario${ext}`), req.file.buffer);
-    const caminho = `/uploads/perfil/usuario${ext}?v=${Date.now()}`;
+    fs.writeFileSync(path.join(PASTA, `${nome}${ext}`), req.file.buffer);
+    const caminho = `/uploads/perfil/${nome}${ext}?v=${Date.now()}`;
 
-    await usuario.atualizar({ avatar: caminho });
+    await usuario.atualizar(req.user.id, { avatar: caminho });
     res.json({ ok: true, avatar: caminho });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'FOTO_ERRO' });
@@ -247,12 +258,12 @@ router.post('/foto', upload.single('foto'), async (req, res) => {
 });
 
 /** Remove a foto. O arquivo sai do disco junto — guardar o que não é mais exibido é acúmulo. */
-router.delete('/foto', async (_req, res) => {
+router.delete('/foto', async (req, res) => {
   try {
     for (const ext of Object.values(TIPOS)) {
-      try { fs.unlinkSync(path.join(PASTA, `usuario${ext}`)); } catch { /* não existia */ }
+      try { fs.unlinkSync(path.join(PASTA, `usuario-${req.user.id}${ext}`)); } catch { /* não existia */ }
     }
-    await usuario.atualizar({ avatar: '' });
+    await usuario.atualizar(req.user.id, { avatar: '' });
     res.json({ ok: true, avatar: '' });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'FOTO_ERRO' });

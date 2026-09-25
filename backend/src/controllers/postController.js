@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { sql, ehUuid } = require('../db');
-const { jobs, posts, comContas } = require('../repos');
+const { jobs, posts, comContas, accounts } = require('../repos');
 const fila = require('../queue');
 const filaDePostagens = require('../services/filaDePostagens');
 const { agendarRodada } = require('../worker');
@@ -29,6 +29,7 @@ function lerJson(valor, padrao) {
 }
 
 exports.createPost = async (req, res) => {
+  const uid = req.user.id;
   const arquivos = req.files || [];
   const enviados = arquivos.filter(f => f.fieldname === 'media');
   const capa = arquivos.find(f => f.fieldname === 'cover') || null;
@@ -37,15 +38,19 @@ exports.createPost = async (req, res) => {
   const mediaIds = lerJson(req.body.mediaIds, []).map(String).filter(ehUuid);
   let daBiblioteca = [];
   if (mediaIds.length) {
-    const docs = await sql`select id, filename, created_at from media where id = any(${mediaIds}::uuid[])`;
+    const docs = await sql`select id, filename, created_at from media where id = any(${mediaIds}::uuid[]) and usuario_id = ${uid}`;
     daBiblioteca = naOrdemDosIds(docs, mediaIds).map(d => ({ filename: d.filename, quando: d.createdAt }));
   }
 
   const midias = [...enviados, ...daBiblioteca];
   if (!midias.length) return res.status(400).json({ error: 'Nenhuma mídia enviada' });
 
-  const accountIds = lerJson(req.body.accounts, []).map(String).filter(ehUuid);
-  if (!accountIds.length) return res.status(400).json({ error: 'Nenhuma conta selecionada' });
+  const pedidas = [...new Set(lerJson(req.body.accounts, []).map(String).filter(ehUuid))];
+  if (!pedidas.length) return res.status(400).json({ error: 'Nenhuma conta selecionada' });
+  // Só contas do usuário: um id de outra pessoa é tratado como inexistente.
+  const minhas = new Set((await accounts.de(uid).porIds(pedidas)).map(c => c.id));
+  const accountIds = pedidas.filter(id => minhas.has(id));
+  if (accountIds.length !== pedidas.length) return res.status(400).json({ error: 'Conta não encontrada' });
 
   // Piso de 1 minuto: com 0 as rodadas emendariam uma na outra.
   const intervalMinutes = Number(req.body.intervalMinutes || 0);
@@ -71,7 +76,7 @@ exports.createPost = async (req, res) => {
   // Grava o teto em cada conta antes da primeira rodada consultar.
   const tetoAplicado = await aplicarTetoDiario(accountIds, req.body.postsPor24h);
 
-  const job = await jobs.insert({
+  const job = await jobs.de(uid).insert({
     name: req.body.name || `Post ${new Date().toLocaleString('pt-BR')}`,
     type: loopInfinito ? 'loop' : 'post',
     status: 'queued',
@@ -101,16 +106,17 @@ exports.createPost = async (req, res) => {
   const atraso = req.body.scheduledAt ? Math.max(new Date(req.body.scheduledAt).getTime() - Date.now(), 0) : 0;
   await agendarRodada(job.id, atraso || 0);
 
-  broadcast('posts', { action: 'created' });
+  broadcast('posts', { action: 'created' }, uid);
   res.json({ success: true, job: await comContas(job), tetoAplicado });
 };
 
 exports.getPosts = async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+  const meus = posts.de(req.user.id);
   const [lista, total] = await Promise.all([
-    posts.findMany({}, { orderBy: 'updated_at desc', limit, offset: (page - 1) * limit }),
-    posts.count(),
+    meus.findMany({}, { orderBy: 'updated_at desc', limit, offset: (page - 1) * limit }),
+    meus.count(),
   ]);
   res.json({
     posts: await comContas(lista),
@@ -120,7 +126,7 @@ exports.getPosts = async (req, res) => {
 
 /** A fila de postagens, com filtros e paginação. */
 exports.filaDePostagens = async (req, res) => {
-  const onde = filaDePostagens.ondeSql(sql, filaDePostagens.montarConsulta(req.query));
+  const onde = sql`usuario_id = ${req.user.id} and ${filaDePostagens.ondeSql(sql, filaDePostagens.montarConsulta(req.query))}`;
   const { pagina, porPagina, pular } = filaDePostagens.montarPaginacao(req.query);
 
   const [lista, [{ total }], envios] = await Promise.all([
@@ -129,7 +135,7 @@ exports.filaDePostagens = async (req, res) => {
         limit ${porPagina} offset ${pular}`,
     sql`select count(*) as total from posts where ${onde}`,
     sql`select job_id as id, max(job_name) as nome, max(created_at) as quando
-        from posts where job_id is not null
+        from posts where job_id is not null and usuario_id = ${req.user.id}
         group by job_id order by quando desc limit 50`,
   ]);
   await comContas(lista, ['id', 'username', 'avatar']);
@@ -151,18 +157,19 @@ exports.filaDePostagens = async (req, res) => {
 
 /** Apaga erros e cancelados. `parcial` fica: apagá-lo perderia o registro do que saiu. */
 exports.limparFila = async (req, res) => {
-  const r = await sql`delete from posts where status = any(${filaDePostagens.LIMPAVEIS})`;
+  const r = await sql`delete from posts where usuario_id = ${req.user.id} and status = any(${filaDePostagens.LIMPAVEIS})`;
   console.log(`🧹 [Fila] ${r.count} publicação(ões) interrompida(s)/cancelada(s) removida(s)`);
   res.json({ ok: true, removidas: r.count });
 };
 
 exports.deletePost = async (req, res) => {
-  const post = await posts.findById(req.params.id);
+  const post = await posts.de(req.user.id).findById(req.params.id);
   if (!post) return res.status(404).json({ error: 'Post não encontrado' });
 
   const [emUso] = await sql`
     select name from jobs
     where ${post.media} = any(media_files) and status in ('queued', 'running', 'waiting_interval')
+      and usuario_id = ${req.user.id}
     limit 1`;
   if (emUso) {
     return res.status(400).json({ error: `Mídia em uso pelo envio "${emUso.name}" — cancele o envio antes de apagar` });
@@ -177,12 +184,12 @@ exports.deletePost = async (req, res) => {
   }
 
   await posts.remove(post.id);
-  broadcast('posts', { action: 'deleted' });
+  broadcast('posts', { action: 'deleted' }, req.user.id);
   res.json({ success: true });
 };
 
 exports.cancelPost = async (req, res) => {
-  const post = await posts.update(req.params.id, { status: 'cancelado' });
+  const post = await posts.de(req.user.id).update(req.params.id, { status: 'cancelado' });
   if (!post) return res.status(404).json({ error: 'Post não encontrado' });
   await fila.cancelarPorDados('post', 'postId', post.id);
   res.json(post);
@@ -194,7 +201,7 @@ async function reenfileirar(post) {
 }
 
 exports.retryPost = async (req, res) => {
-  const post = await posts.findById(req.params.id);
+  const post = await posts.de(req.user.id).findById(req.params.id);
   if (!post) return res.status(404).json({ error: 'Post não encontrado' });
   if (!['erro', 'parcial', 'cancelado'].includes(post.status)) {
     return res.status(400).json({ error: 'Só é possível reprocessar posts com erro, parcial ou cancelado' });
@@ -204,7 +211,7 @@ exports.retryPost = async (req, res) => {
 };
 
 exports.retryAllErrors = async (req, res) => {
-  const lista = await sql`select * from posts where status in ('erro', 'parcial')`;
+  const lista = await sql`select * from posts where usuario_id = ${req.user.id} and status in ('erro', 'parcial')`;
   if (!lista.length) return res.json({ success: true, total: 0, message: 'Nenhum post com erro encontrado' });
   for (const post of lista) await reenfileirar(post);
   res.json({ success: true, total: lista.length });

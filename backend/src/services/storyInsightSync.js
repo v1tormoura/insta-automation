@@ -93,11 +93,11 @@ async function syncAccountStoryInsights(conta) {
   }
 }
 
-async function syncAllStoryInsights() {
-  if (_rodando) return { skipped: 'already_running' };
-  _rodando = true;
+async function syncAllStoryInsights(usuarioId = null) {
+  if (_rodando && !usuarioId) return { skipped: 'already_running' };
+  if (!usuarioId) _rodando = true;
   try {
-    const contas = (await accounts.findMany()).filter(c => c.accessToken && c.igUserId);
+    const contas = (await accounts.findMany(usuarioId ? { usuarioId } : {})).filter(c => c.accessToken && c.igUserId);
     let gravados = 0, viewers = 0, ativos = 0, erros = 0;
     for (const conta of contas) {
       const r = await syncAccountStoryInsights(conta);
@@ -110,9 +110,7 @@ async function syncAllStoryInsights() {
     // Marcos de story: a audiência vive 24h e sobe rápido.
     try {
       const detector = require('./smartActivity/detector');
-      const { broadcast } = require('../events/broadcaster');
-      const novas = await detector.varrer(contas, { apenasStories: true });
-      if (novas.length) broadcast('notificacoes', { novas: novas.length });
+      await detector.varrer(contas, { apenasStories: true });
     } catch (err) {
       console.warn('[SmartActivity] detecção de story falhou:', err.message);
     }
@@ -120,7 +118,7 @@ async function syncAllStoryInsights() {
     console.log(`[StoryInsights] ciclo — ${contas.length} conta(s), ${ativos} story(s) ativo(s), ${gravados} com audiência, ${viewers} visualizações${erros ? `, ${erros} com erro` : ''}`);
     return { contas: contas.length, ativos, stories: gravados, viewers, erros };
   } finally {
-    _rodando = false;
+    if (!usuarioId) _rodando = false;
   }
 }
 

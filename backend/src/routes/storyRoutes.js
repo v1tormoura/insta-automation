@@ -30,7 +30,7 @@ router.post('/upload', upload.single('image'), (req, res) => {
   res.json({ url: `${config.publicUrl}/uploads/stories/${req.file.filename}`, filename: req.file.filename, mimetype: req.file.mimetype });
 });
 
-router.get('/status', (req, res) => res.json(stories.status()));
+router.get('/status', (req, res) => res.json(stories.status(req.user.id)));
 
 /**
  * POST /api/stories
@@ -49,11 +49,12 @@ router.post('/', async (req, res) => {
   if (!midias.length) return res.status(400).json({ error: 'URL da imagem é obrigatória' });
 
   if (accountIds.length === 1 && midias.length === 1) {
-    const r = await stories.publicarAgora(accountIds[0], midias[0], textoLivre);
+    const r = await stories.publicarAgora(req.user.id, accountIds[0], midias[0], textoLivre);
     return res.json({ success: true, results: [r], successCount: 1, total: 1 });
   }
 
-  const lote = await stories.iniciarLote(accountIds, midias, textoLivre, intervalMinutes);
+  const lote = await stories.iniciarLote(req.user.id, accountIds, midias, textoLivre, intervalMinutes);
+  if (!lote.total) return res.status(400).json({ error: 'Nenhuma das contas escolhidas foi encontrada' });
   res.json({
     success: true,
     inBackground: true,

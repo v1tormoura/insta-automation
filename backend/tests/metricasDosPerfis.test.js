@@ -14,6 +14,7 @@
 
 const periodo = require('../src/services/periodoDeMetricas');
 const banco = require('./helpers/banco');
+const USER = { id: require('./helpers/banco').DONO_ID, papel: 'admin' };
 
 describe('periodoDeMetricas — as duas formas', () => {
   /* Uma quinta-feira às 22h em Brasília: já é o dia SEGUINTE em UTC. É o
@@ -164,7 +165,7 @@ describe('getMetricasDosPerfis', () => {
   const responder = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
   const pedir = async query => {
     const res = responder();
-    await getMetricasDosPerfis({ query }, res);
+    await getMetricasDosPerfis({ user: USER,  query }, res);
     return res.json.mock.calls[0][0];
   };
   const insight = campos => banco.sql`insert into insights ${banco.sql({ igMediaId: `m${Math.random()}`, postedAt: new Date(), ...campos })}`;

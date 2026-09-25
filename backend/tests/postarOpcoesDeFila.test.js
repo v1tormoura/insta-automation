@@ -41,7 +41,7 @@ async function postar(body, files = []) {
     status(c) { resposta.code = c; return this; },
     json(c)   { resposta.corpo = c; return this; },
   };
-  await createPost({ body, files }, res);
+  await createPost({ body, files, user: { id: banco.DONO_ID, papel: 'admin' } }, res);
   const id = resposta.corpo?.job?.id;
   const job = id ? (await banco.sql`select * from jobs where id = ${id}`)[0] : null;
   return { ...resposta, job };
@@ -66,7 +66,7 @@ beforeEach(async () => {
     ['m3', 'recente.mp4', '2026-09-01T00:00:00Z'],
     ['m1', 'antigo.mp4', '2026-01-01T00:00:00Z'],
   ]) {
-    const [m] = await banco.sql`insert into media (filename, type, created_at) values (${filename}, 'video', ${new Date(quando)}) returning id`;
+    const [m] = await banco.sql`insert into media (usuario_id, filename, type, created_at) values (${banco.DONO_ID}, ${filename}, 'video', ${new Date(quando)}) returning id`;
     IDS[chave] = m.id;
   }
 });

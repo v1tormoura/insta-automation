@@ -167,31 +167,33 @@ async function syncAccountInsights(conta) {
   }
 }
 
-async function syncAllInsights() {
-  if (_running) return { skipped: true };
-  _running = true;
+/** Todas as contas (o ciclo do servidor) ou só as de um usuário (o botão "Sincronizar"). */
+async function syncAllInsights(usuarioId = null) {
+  if (_running && !usuarioId) return { skipped: true };
+  if (!usuarioId) _running = true;
   const results = [];
   try {
-    const contas = (await accounts.findMany()).filter(c => c.accessToken && c.igUserId);
+    const contas = (await accounts.findMany(usuarioId ? { usuarioId } : {})).filter(c => c.accessToken && c.igUserId);
     for (const conta of contas) {
       results.push({ username: conta.username, ...(await syncAccountInsights(conta)) });
     }
-    broadcast('insights', { action: 'synced', count: results.length });
+    for (const dono of new Set(contas.map(c => c.usuarioId))) {
+      broadcast('insights', { action: 'synced', count: contas.filter(c => c.usuarioId === dono).length }, dono);
+    }
 
     // Marcos: lê o que este ciclo acabou de gravar. Falha aqui não mancha o sync.
+    // Cada aviso gravado já avisa o navegador do dono (ver detector._gravar).
     try {
       const detector = require('./smartActivity/detector');
-      const novas = await detector.varrer(contas, { apenasStories: false });
-      const resumo = await detector.resumoDoDia();
-      const total = novas.length + (resumo ? 1 : 0);
-      if (total) broadcast('notificacoes', { novas: total });
+      await detector.varrer(contas, { apenasStories: false });
+      await detector.resumoDoDia();
     } catch (err) {
       console.warn('[SmartActivity] detecção falhou:', err.message);
     }
   } catch (err) {
     console.error('[InsightSync] fatal:', err.message);
   } finally {
-    _running = false;
+    if (!usuarioId) _running = false;
   }
   return results;
 }

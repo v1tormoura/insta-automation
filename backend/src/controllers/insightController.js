@@ -13,6 +13,12 @@ const { broadcast } = require('../events/broadcaster');
 const { syncAllInsights, syncAccountInsights } = require('../services/insightSyncService');
 
 const UPLOADS = path.resolve(__dirname, '../../uploads');
+/* A republicação baixa a mídia de uma URL que vem do navegador. Só as CDNs da
+   Meta: qualquer outro endereço faria o servidor buscar o que pedissem. */
+const CDN_DA_META = /(^|\.)(cdninstagram\.com|fbcdn\.net)$/i;
+function urlDaMeta(url) {
+  try { const u = new URL(url); return u.protocol === 'https:' && CDN_DA_META.test(u.hostname); } catch { return false; }
+}
 
 // Métrica principal zerada (antes do primeiro sync) cai para as seguintes.
 const ORDENS = {
@@ -28,11 +34,11 @@ const TIPOS = { reel: 'VIDEO', foto: 'IMAGE', carrossel: 'CAROUSEL_ALBUM' };
 
 exports.syncInsights = (req, res) => {
   res.json({ status: 'running', message: 'Sincronizando insights em background...' });
-  syncAllInsights().catch(console.error);
+  syncAllInsights(req.user.id).catch(console.error);
 };
 
 exports.syncAccount = async (req, res) => {
-  const conta = await accounts.findById(req.params.accountId);
+  const conta = await accounts.de(req.user.id).findById(req.params.accountId);
   if (!conta) return res.status(404).json({ error: 'Conta não encontrada' });
   res.json({ status: 'running' });
   syncAccountInsights(conta).catch(console.error);
@@ -48,11 +54,11 @@ exports.getInsights = async (req, res) => {
   const porConta = ids.length
     ? sql`and account_id = any(${ids.filter(ehUuid)}::uuid[])`
     // Sem filtro explícito, contas banidas ficam de fora.
-    : sql`and account_id not in (select id from accounts where health_status = 'banida')`;
+    : sql`and account_id not in (select id from accounts where health_status = 'banida' and usuario_id = ${req.user.id})`;
   const porTipo = TIPOS[mediaType] ? sql`and media_type = ${TIPOS[mediaType]}` : sql``;
 
   const insights = await sql`
-    select * from insights where posted_at >= ${since} ${porConta} ${porTipo}
+    select * from insights where usuario_id = ${req.user.id} and posted_at >= ${since} ${porConta} ${porTipo}
     order by ${sql.unsafe(ORDENS[metric] || ORDENS.engagementScore)}
     limit ${Math.min(200, Math.max(1, Number(limit) || 50))}`;
 
@@ -74,8 +80,10 @@ exports.getInsights = async (req, res) => {
  */
 exports.republishPost = async (req, res) => {
   const { igMediaId, mediaUrl, thumbnailUrl, mediaType, caption, postType, processMode, intervalMinutes, scheduledAt } = req.body;
-  const accountIds = (req.body.accounts || []).map(String).filter(ehUuid);
-  if (!accountIds.length) return res.status(400).json({ error: 'Selecione ao menos uma conta' });
+  const pedidas = [...new Set((req.body.accounts || []).map(String).filter(ehUuid))];
+  const accountIds = (await accounts.de(req.user.id).porIds(pedidas)).map(c => c.id);
+  if (!pedidas.length) return res.status(400).json({ error: 'Selecione ao menos uma conta' });
+  if (accountIds.length !== pedidas.length) return res.status(400).json({ error: 'Conta não encontrada' });
 
   const video = postType === 'reel' || mediaType === 'VIDEO';
   let url = mediaUrl || thumbnailUrl;
@@ -83,13 +91,15 @@ exports.republishPost = async (req, res) => {
 
   // A URL da CDN expira; com o id da mídia, pede uma nova à API.
   if (igMediaId) {
-    const [dona] = await sql`select account_id from insights where ig_media_id = ${igMediaId}`;
+    const [dona] = await sql`select account_id from insights where ig_media_id = ${String(igMediaId)} and usuario_id = ${req.user.id}`;
     const conta = dona && await accounts.findById(dona.accountId);
     if (conta?.accessToken) {
       const d = await graph.get(`/${igMediaId}`, { fields: video ? 'media_url,thumbnail_url' : 'media_url' }, conta.accessToken).catch(() => null);
       url = d?.media_url || d?.thumbnail_url || url;
     }
   }
+
+  if (!urlDaMeta(url)) return res.status(400).json({ error: 'A mídia precisa vir do Instagram — sincronize e tente novamente.' });
 
   const filename = `republish_${String(igMediaId || Date.now()).slice(-10)}_${crypto.randomBytes(4).toString('hex')}${video ? '.mp4' : '.jpg'}`;
   fs.mkdirSync(UPLOADS, { recursive: true });
@@ -113,13 +123,13 @@ exports.republishPost = async (req, res) => {
   for (const [i, ids] of grupos.entries()) {
     const quando = inicio + (i === 0 ? 0 : i * intervalo * (1 + (Math.random() * 0.24 - 0.12)));
     const atraso = Math.max(quando - Date.now(), 0);
-    const post = await posts.insert({
+    const post = await posts.de(req.user.id).insert({
       ...base, accountIds: ids, scheduledAt: new Date(quando), status: atraso > 0 ? 'agendado' : 'pendente',
     });
     await fila.enfileirar('post', { postId: post.id }, { atrasoMs: atraso, chave: `post:${post.id}` });
     criados.push(post);
   }
 
-  broadcast('posts', { action: 'created' });
+  broadcast('posts', { action: 'created' }, req.user.id);
   res.json({ success: true, total: criados.length, post: criados[0] });
 };

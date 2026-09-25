@@ -88,7 +88,33 @@ async function destravarVencidas() {
   return r.count;
 }
 
+/**
+ * As contas de um usuário. Leitura, alteração e remoção só enxergam as dele;
+ * a inserção grava o dono. A alteração passa pelo `update` de cima (aviso de
+ * saúde, cifra do token) depois de confirmar que a conta é dele.
+ */
+function de(usuarioId) {
+  const dono = base.de(usuarioId);
+  return {
+    async findById(id, db) { return ler(await dono.findById(id, db)); },
+    async findOne(where, db) { return ler(await dono.findOne(where, db)); },
+    async findMany(where, opts, db) { return (await dono.findMany(where, opts, db)).map(ler); },
+    async count(where, db) { return dono.count(where, db); },
+    async porIds(ids, db = sql) {
+      const lista = [...new Set((ids || []).map(String))].filter(Boolean);
+      if (!lista.length) return [];
+      return (await db`select * from accounts where id = any(${lista}::uuid[]) and usuario_id = ${usuarioId}`).map(ler);
+    },
+    async insert(campos, db) { return ler(await dono.insert(paraGravar(campos), db)); },
+    async update(id, campos, db) {
+      if (!(await dono.findById(id, db))) return null;
+      return update(id, campos, db);
+    },
+    async remove(id, db) { return dono.remove(id, db); },
+  };
+}
+
 module.exports = {
   findById, findOne, findMany, porIds, insert, update, remove, count,
-  travar, destravar, destravarVencidas, paraApi,
+  travar, destravar, destravarVencidas, paraApi, de,
 };

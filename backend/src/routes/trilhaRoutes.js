@@ -32,8 +32,8 @@ const upload = multer({
 
 const resumo = t => ({ id: t.id, nome: t.nome, tamanho: t.tamanho, createdAt: t.createdAt });
 
-router.get('/', async (_req, res) => {
-  res.json((await trilhas.findMany()).map(resumo));
+router.get('/', async (req, res) => {
+  res.json((await trilhas.de(req.user.id).findMany()).map(resumo));
 });
 
 router.post('/', (req, res, next) => upload.single('file')(req, res, async err => {
@@ -41,7 +41,7 @@ router.post('/', (req, res, next) => upload.single('file')(req, res, async err =
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
   try {
     const nome = String(req.body?.nome || '').trim() || path.basename(req.file.originalname, path.extname(req.file.originalname));
-    const trilha = await trilhas.insert({ nome, arquivo: `${PASTA}/${req.file.filename}`, tamanho: req.file.size || 0 });
+    const trilha = await trilhas.de(req.user.id).insert({ nome, arquivo: `${PASTA}/${req.file.filename}`, tamanho: req.file.size || 0 });
     res.status(201).json(resumo(trilha));
   } catch (e) {
     next(e);
@@ -49,7 +49,7 @@ router.post('/', (req, res, next) => upload.single('file')(req, res, async err =
 }));
 
 router.delete('/:id', async (req, res) => {
-  const trilha = await trilhas.remove(req.params.id);
+  const trilha = await trilhas.de(req.user.id).remove(req.params.id);
   if (!trilha) return res.status(404).json({ error: 'Trilha não encontrada' });
   // O arquivo vai junto; falhar ao apagá-lo não desfaz a remoção do registro.
   fs.rm(path.join(RAIZ_UPLOADS, trilha.arquivo), { force: true }, () => {});

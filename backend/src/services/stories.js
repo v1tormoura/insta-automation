@@ -11,6 +11,8 @@
  *
  * Só o que a API oficial publica: imagem ou vídeo, com o texto da tela
  * queimado na mídia. Figurinha de link não existe na API de conteúdo.
+ *
+ * O progresso é por usuário: o lote de um não aparece na tela do outro.
  */
 
 const crypto = require('crypto');
@@ -22,10 +24,16 @@ const { criarRandom, embaralhar } = require('./publicationPlanner');
 const esperar = ms => new Promise(r => setTimeout(r, ms));
 const ENTRE_CONTAS_MS = () => 5_000 + Math.floor(Math.random() * 15_000);
 
-let _lote = { id: null, running: false, total: 0, completed: 0, errors: 0, results: [], startedAt: null };
+const VAZIO = Object.freeze({ id: null, running: false, total: 0, completed: 0, errors: 0, results: [], startedAt: null });
+const _lotes = new Map(); // usuarioId → lote atual
 
-function status() {
-  return _lote;
+function status(usuarioId) {
+  return _lotes.get(String(usuarioId)) || VAZIO;
+}
+
+/** A conta, se for do usuário. */
+async function contaDo(usuarioId, accountId) {
+  return accounts.de(usuarioId).findById(accountId);
 }
 
 async function publicarNaConta(conta, media, textoLivre) {
@@ -34,55 +42,60 @@ async function publicarNaConta(conta, media, textoLivre) {
 }
 
 /** Uma conta e uma mídia: publica na hora e devolve o resultado. */
-async function publicarAgora(accountId, media, textoLivre) {
-  const conta = await accounts.findById(accountId);
+async function publicarAgora(usuarioId, accountId, media, textoLivre) {
+  const conta = await contaDo(usuarioId, accountId);
   if (!conta) throw Object.assign(new Error('Conta não encontrada'), { status: 404 });
   await publicarNaConta(conta, media, textoLivre);
-  broadcast('posts', { action: 'created' });
+  broadcast('posts', { action: 'created' }, usuarioId);
   return { accountId: conta.id, username: conta.username, status: 'success', method: 'graph' };
 }
 
 /** Enfileira o lote (um trabalho por mídia) e devolve na hora. */
-async function iniciarLote(accountIds, midias, textoLivre, intervalMinutes) {
+async function iniciarLote(usuarioId, accountIds, midias, textoLivre, intervalMinutes) {
+  // Só as contas do usuário entram no lote.
+  accountIds = (await accounts.de(usuarioId).porIds(accountIds)).map(c => c.id);
   const id = crypto.randomUUID();
   const intervaloMs = Math.max(0, Number(intervalMinutes) || 0) * 60_000;
   const total = midias.length * accountIds.length;
+  if (!total) return { id, total };
 
-  _lote = { id, running: true, total, completed: 0, errors: 0, results: [], startedAt: new Date() };
-  broadcast('stories', { action: 'started', total });
+  _lotes.set(String(usuarioId), { id, running: true, total, completed: 0, errors: 0, results: [], startedAt: new Date() });
+  broadcast('stories', { action: 'started', total }, usuarioId);
 
   let atraso = 0;
   for (const [i, media] of midias.entries()) {
     if (i > 0) atraso += Math.round(intervaloMs * (0.9 + Math.random() * 0.2));
     // Ordem sorteada por mídia: a mesma sequência de contas todo dia seria um padrão.
     const ordem = embaralhar(accountIds, criarRandom(`stories:${id}:${i}`));
-    await fila.enfileirar('story', { lote: id, accountIds: ordem, media, textoLivre }, { atrasoMs: atraso });
+    await fila.enfileirar('story', { lote: id, usuarioId, accountIds: ordem, media, textoLivre }, { atrasoMs: atraso });
   }
   return { id, total };
 }
 
 /** Handler da fila: publica uma mídia do lote em cada conta. */
-async function processar({ lote, accountIds = [], media, textoLivre }) {
-  const doLote = _lote.id === lote;
+async function processar({ lote, usuarioId, accountIds = [], media, textoLivre }) {
+  if (!usuarioId) return; // trabalho de antes do multiusuário: sem dono, não publica
+  const atual = _lotes.get(String(usuarioId));
+  const doLote = atual?.id === lote;
   const registrar = r => {
     if (!doLote) return;
-    _lote.results.push(r);
-    if (r.status === 'success') _lote.completed++; else _lote.errors++;
+    atual.results.push(r);
+    if (r.status === 'success') atual.completed++; else atual.errors++;
     if (r.status === 'success') {
-      broadcast('stories', { action: 'progress', completed: _lote.completed, total: _lote.total, username: r.username });
+      broadcast('stories', { action: 'progress', completed: atual.completed, total: atual.total, username: r.username }, usuarioId);
     } else {
-      broadcast('stories', { action: 'error', username: r.username, error: r.error });
+      broadcast('stories', { action: 'error', username: r.username, error: r.error }, usuarioId);
     }
-    if (_lote.completed + _lote.errors >= _lote.total) {
-      _lote.running = false;
-      broadcast('stories', { action: 'completed', results: _lote.results });
-      broadcast('posts', { action: 'created' });
+    if (atual.completed + atual.errors >= atual.total) {
+      atual.running = false;
+      broadcast('stories', { action: 'completed', results: atual.results }, usuarioId);
+      broadcast('posts', { action: 'created' }, usuarioId);
     }
   };
 
   for (const [i, accountId] of accountIds.entries()) {
     if (i > 0) await esperar(ENTRE_CONTAS_MS());
-    const conta = await accounts.findById(accountId);
+    const conta = await contaDo(usuarioId, accountId);
     if (!conta) { registrar({ accountId, status: 'error', error: 'Conta não encontrada' }); continue; }
     try {
       await publicarNaConta(conta, media, textoLivre);

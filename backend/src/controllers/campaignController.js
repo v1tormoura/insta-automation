@@ -43,8 +43,9 @@ const rota = fn => async (req, res) => {
   try { await fn(req, res); } catch (err) { responderErro(res, err); }
 };
 
-async function buscarCampanha(id) {
-  const campanha = await campaigns.findById(id);
+/** A campanha, se for do usuário — a de outra pessoa se comporta como inexistente. */
+async function buscarCampanha(req) {
+  const campanha = await campaigns.de(req.user.id).findById(req.params.id);
   if (!campanha) throw new CampaignError('CAMPAIGN_NOT_FOUND', 'Campanha não encontrada.');
   return campanha;
 }
@@ -68,7 +69,7 @@ async function buscarPublicacao(campaignId, publicationId) {
  */
 exports.create = rota(async (req, res) => {
   const chave = req.get('Idempotency-Key');
-  const chaveSetting = chave ? `idem:campaign:${chave}` : null;
+  const chaveSetting = chave ? `idem:campaign:${req.user.id}:${chave}` : null;
 
   if (chaveSetting) {
     const [reservada] = await sql`
@@ -76,7 +77,7 @@ exports.create = rota(async (req, res) => {
       on conflict (key) do nothing returning key`;
     if (!reservada) {
       const [existente] = await sql`select value from settings where key = ${chaveSetting}`;
-      const campanha = existente?.value?.campaignId ? await campaigns.findById(existente.value.campaignId) : null;
+      const campanha = existente?.value?.campaignId ? await campaigns.de(req.user.id).findById(existente.value.campaignId) : null;
       if (campanha) return res.status(200).json({ campaign: campanhaSegura(campanha), idempotent: true });
       return res.status(409).json({ code: 'IDEMPOTENCY_IN_PROGRESS', message: 'Uma requisição com esta Idempotency-Key ainda está em processamento.' });
     }
@@ -84,7 +85,7 @@ exports.create = rota(async (req, res) => {
 
   let campanha;
   try {
-    campanha = await svc.criarCampanha(req.body || {});
+    campanha = await svc.criarCampanha(req.user.id, req.body || {});
   } catch (err) {
     if (chaveSetting) await sql`delete from settings where key = ${chaveSetting}`.catch(() => {});
     throw err;
@@ -97,7 +98,7 @@ exports.create = rota(async (req, res) => {
 
 /** POST /campaigns/preview — o plano com os textos já resolvidos, sem gravar nada. */
 exports.preview = rota(async (req, res) => {
-  res.json(await svc.preverCampanha(req.body || {}));
+  res.json(await svc.preverCampanha(req.user.id, req.body || {}));
 });
 
 /** GET /campaigns/variables — as marcações que o templateResolver de fato resolve. */
@@ -113,7 +114,7 @@ exports.list = rota(async (req, res) => {
   const busca = req.query.search ? `%${String(req.query.search).replace(/[\\%_]/g, '\\$&')}%` : null;
 
   const where = sql`
-    where true
+    where usuario_id = ${req.user.id}
     ${status ? sql`and status = ${status}` : sql``}
     ${busca ? sql`and name ilike ${busca}` : sql``}`;
   const [lista, [{ total }]] = await Promise.all([
@@ -151,7 +152,7 @@ exports.list = rota(async (req, res) => {
 
 /** GET /campaigns/:id */
 exports.get = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const [stats, comentarios, proxima] = await Promise.all([
     svc.estatisticas(campanha.id),
     svc.estatisticasComentario(campanha.id),
@@ -171,7 +172,7 @@ exports.get = rota(async (req, res) => {
 
 /** PATCH /campaigns/:id — só nome e descrição; o plano não é regerado. */
 exports.update = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   if (['completed', 'cancelled'].includes(campanha.status)) {
     throw new CampaignError('INVALID_CAMPAIGN_STATE', `Campanha em "${campanha.status}" não pode ser editada.`);
   }
@@ -186,7 +187,7 @@ exports.update = rota(async (req, res) => {
 
 /** DELETE /campaigns/:id — publicações e eventos saem junto (on delete cascade). */
 exports.remove = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   await executor.cancelarCampanha(campanha.id);
   await campaigns.remove(campanha.id);
   res.json({ success: true });
@@ -194,7 +195,7 @@ exports.remove = rota(async (req, res) => {
 
 /** GET /campaigns/:id/eventos — a linha do tempo e o resumo por código de erro. */
 exports.eventos = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const limite = Math.min(300, Math.max(1, Number(req.query.limit) || 100));
   const pub = req.query.publicationId ? String(req.query.publicationId) : null;
   const [itens, erros] = await Promise.all([
@@ -210,7 +211,7 @@ exports.eventos = rota(async (req, res) => {
 
 /** POST /campaigns/:id/start — enfileira. Idempotente pela chave de cada publicação. */
 exports.start = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const stats = await svc.estatisticas(campanha.id);
   if (stats.total === 0) throw new CampaignError('EMPTY_PLAN', 'A campanha não possui publicações planejadas.');
   const executaveis = stats.pending + stats.scheduled;
@@ -224,7 +225,7 @@ exports.start = rota(async (req, res) => {
 
 /** POST /campaigns/:id/pause — tira da fila o que não rodou; o que está publicando termina. */
 exports.pause = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const atualizada = await transicionar(campanha, 'paused');
   const r = await executor.pausarCampanha(campanha.id);
   res.json({ campaign: campanhaSegura(atualizada), dequeued: r.removidos });
@@ -232,7 +233,7 @@ exports.pause = rota(async (req, res) => {
 
 /** POST /campaigns/:id/resume — reenfileira só o que ficou pendente. */
 exports.resume = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   if (campanha.status !== 'paused') {
     throw new CampaignError('INVALID_CAMPAIGN_STATE', `Só é possível retomar uma campanha pausada — esta está em "${campanha.status}".`);
   }
@@ -243,7 +244,7 @@ exports.resume = rota(async (req, res) => {
 
 /** POST /campaigns/:id/cancel — publicadas e falhadas ficam como estão. */
 exports.cancel = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const atualizada = await transicionar(campanha, 'cancelled', { completedAt: new Date() });
   const r = await executor.cancelarCampanha(campanha.id);
   res.json({ campaign: campanhaSegura(atualizada), cancelled: r.canceladas });
@@ -251,7 +252,7 @@ exports.cancel = rota(async (req, res) => {
 
 /** POST /campaigns/:id/retry-failed — as falhas voltam para a fila, na mesma linha. */
 exports.retryFailed = rota(async (req, res) => {
-  let campanha = await buscarCampanha(req.params.id);
+  let campanha = await buscarCampanha(req);
   if (campanha.status === 'cancelled') throw new CampaignError('INVALID_CAMPAIGN_STATE', 'Campanha cancelada não pode reexecutar falhas.');
 
   const falhadas = await sql`select id from campaign_publications where campaign_id = ${campanha.id} and status = 'failed'`;
@@ -268,7 +269,7 @@ exports.retryFailed = rota(async (req, res) => {
 
 /** GET /campaigns/:id/publications?page&limit&status&accountId&contentId */
 exports.listPublications = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
   const where = sql`
@@ -288,14 +289,14 @@ exports.listPublications = rota(async (req, res) => {
 
 /** GET /campaigns/:id/publications/:publicationId */
 exports.getPublication = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const pub = await buscarPublicacao(campanha.id, req.params.publicationId);
   res.json({ publication: publicacaoSegura(pub), campaign: campanhaSegura(campanha) });
 });
 
 /** POST .../publications/:publicationId/retry — a mesma linha volta para a fila. */
 exports.retryPublication = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   if (campanha.status === 'cancelled') throw new CampaignError('INVALID_CAMPAIGN_STATE', 'Campanha cancelada não permite reexecução.');
   const pub = await buscarPublicacao(campanha.id, req.params.publicationId);
   if (!['failed', 'cancelled'].includes(pub.status)) {
@@ -309,7 +310,7 @@ exports.retryPublication = rota(async (req, res) => {
 
 /** POST .../publications/:publicationId/retry-comment — só o comentário; o post já está no ar. */
 exports.retryComment = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   if (campanha.status === 'cancelled') throw new CampaignError('INVALID_CAMPAIGN_STATE', 'Campanha cancelada não permite reexecução.');
   const pub = await buscarPublicacao(campanha.id, req.params.publicationId);
   await executor.reprocessarComentario(pub.id);
@@ -318,7 +319,7 @@ exports.retryComment = rota(async (req, res) => {
 
 /** POST .../publications/:publicationId/cancel — só esta publicação. */
 exports.cancelPublication = rota(async (req, res) => {
-  const campanha = await buscarCampanha(req.params.id);
+  const campanha = await buscarCampanha(req);
   const pub = await buscarPublicacao(campanha.id, req.params.publicationId);
   if (['published', 'cancelled'].includes(pub.status)) {
     throw new CampaignError('INVALID_PUBLICATION_STATE', `Publicação em "${pub.status}" não pode ser cancelada.`);

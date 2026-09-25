@@ -147,7 +147,8 @@ describe('a ligação com a tela e com o Postar', () => {
   test('o Postar aplica o teto antes de criar o job', () => {
     /* Depois de criar, a primeira rodada poderia consultar o teto antigo. */
     const c = ler('../src/controllers/postController.js');
-    expect(c.indexOf('await aplicarTetoDiario')).toBeLessThan(c.indexOf('await jobs.insert'));
+    expect(c.indexOf('await aplicarTetoDiario')).toBeLessThan(c.indexOf('await jobs.de(uid).insert'));
+    expect(c.indexOf('await jobs.de(uid).insert')).toBeGreaterThan(-1);
   });
 
   /* ── O campo saiu da tela, e é assim que tem de ser ─────────────────────

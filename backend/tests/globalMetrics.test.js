@@ -10,7 +10,7 @@ const { getGlobalMetrics } = require('../src/controllers/analyticsController');
 
 async function pedir() {
   const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
-  await getGlobalMetrics({ query: { period: '30d', force: 'true' } }, res);
+  await getGlobalMetrics(await banco.req({ query: { period: '30d', force: 'true' } }), res);
   return res.json.mock.calls[0][0];
 }
 const insight = campos => banco.sql`insert into insights ${banco.sql({ igMediaId: `m${Math.random()}`, postedAt: new Date(), ...campos })}`;

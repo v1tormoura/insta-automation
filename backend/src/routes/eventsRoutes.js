@@ -12,7 +12,7 @@ router.get('/', (req, res) => {
   res.flushHeaders();
   res.write('event: connected\ndata: {}\n\n');
 
-  addClient(res);
+  addClient(res, req.user.id);
   req.on('close', () => removeClient(res));
 });
 

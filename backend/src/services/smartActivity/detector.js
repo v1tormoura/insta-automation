@@ -67,6 +67,7 @@ async function _gravar(doc, { push = true } = {}) {
     if (err?.code === '23505') return null;   // outro ciclo chegou primeiro
     throw err;
   }
+  try { require('../../events/broadcaster').broadcast('notificacoes', { novas: 1 }, nova.usuarioId); } catch { /* sem SSE */ }
   if (!push) return nova;   // quem chamou entrega um push só por todos (ver _entregarUmPush)
 
   /* Push depois de GRAVAR, e sem esperar.
@@ -234,7 +235,7 @@ async function semearConta(conta, cfg) {
  * atingido às 17:15 aparece às 17:39. Isso é limite da API de métricas do
  * Instagram, não deste código.
  */
-async function _entregarUmPush(criadas, cfg, { enviar } = {}) {
+async function _entregarUmPush(criadas, cfg, { enviar, usuarioId = criadas[0]?.usuarioId } = {}) {
   if (!criadas.length) return;
   if (!enviar) {
     try {
@@ -270,6 +271,7 @@ async function _entregarUmPush(criadas, cfg, { enviar } = {}) {
     /* Id próprio: no service worker o `tag` vem daqui, e um id fixo faria o
        resumo desta varredura SUBSTITUIR o da anterior sem avisar. */
     id: `varredura-${Date.now()}`,
+    usuarioId,
     titulo: `${vars.quantidade} marcos nas suas contas 🚀`,
     mensagem: `O maior: ${vars.account} com ${vars.maior}. Abra a Central para ver todos.`,
     tema: 'viral',
@@ -354,7 +356,30 @@ async function _gravarCoalescido(candidatos, cfg) {
 async function varrer(contas = [], { apenasStories = false } = {}) {
   if (!contas.length) return [];
 
-  const cfg = await thresholds.carregar();
+  /* Por dono: cada usuário tem a própria configuração de marcos, e o limite
+     de avisos por varredura vale para cada um — a conta de um não gasta a
+     cota de avisos do outro. */
+  const semDono = contas.filter(c => !c.usuarioId).map(c => c.id);
+  const donos = semDono.length
+    ? new Map((await sql`select id, usuario_id from accounts where id = any(${semDono}::uuid[])`).map(r => [r.id, r.usuarioId]))
+    : new Map();
+  const porDono = new Map();
+  for (const conta of contas) {
+    const dono = conta.usuarioId || donos.get(conta.id);
+    if (!dono) continue;
+    if (!porDono.has(dono)) porDono.set(dono, []);
+    porDono.get(dono).push(conta);
+  }
+
+  const criadas = [];
+  for (const [usuarioId, doDono] of porDono) {
+    criadas.push(...await _varrerDoDono(usuarioId, doDono, { apenasStories }));
+  }
+  return criadas;
+}
+
+async function _varrerDoDono(usuarioId, contas, { apenasStories }) {
+  const cfg = await thresholds.carregar(usuarioId);
   const criadas = [];
   const candidatos = [];
 
@@ -406,11 +431,13 @@ async function semear() {
   const ja = await settings.ler(CHAVE_SEMEADO);
   if (ja?.feito) return { semeado: false, motivo: 'já feito' };
 
-  const cfg = await thresholds.carregar();
-  const insights = await sql`select account_id, ig_media_id, media_type, impressions, reach, video_views from insights`;
+  const insights = await sql`select account_id, usuario_id, ig_media_id, media_type, impressions, reach, video_views from insights`;
+  const cfgs = new Map();
 
   let tetos = 0;
   for (const ins of insights) {
+    if (!cfgs.has(ins.usuarioId)) cfgs.set(ins.usuarioId, await thresholds.carregar(ins.usuarioId));
+    const cfg = cfgs.get(ins.usuarioId);
     const ehStory = ins.mediaType === 'STORY';
     for (const metricType of (ehStory ? ['storyViews'] : ['contentViews', 'reach'])) {
       const regra = thresholds.regraDe(cfg, metricType);
@@ -454,8 +481,22 @@ async function semear() {
 const HORA_DO_RESUMO = 22;                 // legado — o padrão de PADRAO.resumo.hora
 const HORA_PADRAO_DO_RESUMO = '22:00';
 
+/** Um resumo por usuário ativo que tenha publicado no dia. */
 async function resumoDoDia({ agora = new Date() } = {}) {
-  const cfg = await thresholds.carregar();
+  const usuarios = await sql`select id from usuarios where status = 'ativo'`;
+  const criados = [];
+  for (const { id } of usuarios) {
+    const n = await _resumoDoUsuario(id, { agora }).catch(err => {
+      console.warn(`[SmartActivity] resumo de ${id}: ${err.message}`);
+      return null;
+    });
+    if (n) criados.push(n);
+  }
+  return criados;
+}
+
+async function _resumoDoUsuario(usuarioId, { agora }) {
+  const cfg = await thresholds.carregar(usuarioId);
   if (!cfg.ativos.global) return null;
 
   /* A hora agora é configuração (Notificações → Comportamento), não a
@@ -469,7 +510,8 @@ async function resumoDoDia({ agora = new Date() } = {}) {
   /* Um por dia. A checagem é no banco e não em memória: o processo reinicia,
      a memória some, e o resumo sairia de novo. */
   const [jaSaiu] = await sql`
-    select 1 from notificacoes where event_type = 'resumo' and criada_em >= ${inicioDoDia} limit 1`;
+    select 1 from notificacoes
+    where event_type = 'resumo' and usuario_id = ${usuarioId} and criada_em >= ${inicioDoDia} limit 1`;
   if (jaSaiu) return null;
 
   /* STORY fora do total de posts — mesma separação de analyticsController.js:
@@ -477,12 +519,12 @@ async function resumoDoDia({ agora = new Date() } = {}) {
   const [[agregado], [storyAgregado], porContaAgregado] = await Promise.all([
     sql`select count(*) as publicacoes, count(distinct account_id) as contas,
           coalesce(sum(video_views), 0) as views
-        from insights where posted_at >= ${inicioDoDia} and media_type <> 'STORY'`,
+        from insights where usuario_id = ${usuarioId} and posted_at >= ${inicioDoDia} and media_type <> 'STORY'`,
     sql`select coalesce(sum(impressions), 0) as views
-        from insights where posted_at >= ${inicioDoDia} and media_type = 'STORY'`,
+        from insights where usuario_id = ${usuarioId} and posted_at >= ${inicioDoDia} and media_type = 'STORY'`,
     sql`select account_id, max(username) as username,
           coalesce(sum(video_views), 0) as views
-        from insights where posted_at >= ${inicioDoDia} and media_type <> 'STORY'
+        from insights where usuario_id = ${usuarioId} and posted_at >= ${inicioDoDia} and media_type <> 'STORY'
         group by account_id order by views desc limit 12`,
   ]);
 
@@ -517,6 +559,7 @@ async function resumoDoDia({ agora = new Date() } = {}) {
   }, cfg.privacidade || {});
 
   return _gravar({
+    usuarioId,
     accountId: null,
     eventType: 'resumo',
     tema: modelo.tema,
@@ -534,7 +577,7 @@ async function resumoDoDia({ agora = new Date() } = {}) {
 }
 
 module.exports = {
-  semearConta, _gravarCoalescido, _entregarUmPush, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, CHAVE_SEMEADO, HORA_DO_RESUMO,
+  semearConta, _gravarCoalescido, _entregarUmPush, LIMITE_POR_VARREDURA, processarInsight, varrer, semear, resumoDoDia, _resumoDoUsuario, CHAVE_SEMEADO, HORA_DO_RESUMO,
   HORA_PADRAO_DO_RESUMO, iniciarRelogioDoResumo };
 
 /**
@@ -550,10 +593,7 @@ module.exports = {
 function iniciarRelogioDoResumo({ intervaloMs = 60_000 } = {}) {
   const tique = async () => {
     try {
-      const n = await resumoDoDia();
-      if (n) {
-        try { require('../../events/broadcaster').broadcast('notificacoes', { novas: 1 }); } catch { /* sem SSE */ }
-      }
+      await resumoDoDia();
     } catch (err) {
       console.warn('[SmartActivity] resumo do dia falhou:', err.message);
     }

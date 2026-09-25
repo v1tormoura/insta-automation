@@ -25,13 +25,16 @@ const ESCOPOS = [
 ].join(',');
 
 const SEPARADOR_APP = '__mapp_';
+const SEPARADOR_DONO = '__dono_';
 
 /**
  * A URL de autorização do Instagram.
- * O `state` leva a conta a reconectar (ou 'new') e o app usado, assinado com
- * HMAC para ninguém forjar um retorno.
+ * O `state` leva a conta a reconectar (ou 'new'), o app usado e o usuário
+ * dono, assinado com HMAC para ninguém forjar um retorno — nem prender uma
+ * conta no painel de outra pessoa.
  */
-async function urlDeAutorizacao({ accountId = 'new', metaAppId = null } = {}) {
+async function urlDeAutorizacao({ accountId = 'new', metaAppId = null, usuarioId } = {}) {
+  if (!usuarioId) throw new Error('urlDeAutorizacao: usuário obrigatório');
   const app = await metaApps.credenciais(metaAppId);
   if (!app) return null;
 
@@ -40,7 +43,7 @@ async function urlDeAutorizacao({ accountId = 'new', metaAppId = null } = {}) {
     redirect_uri: config.oauthRedirectUri,
     scope: ESCOPOS,
     response_type: 'code',
-    state: signState(`${accountId || 'new'}${SEPARADOR_APP}${app.id}`),
+    state: signState(`${accountId || 'new'}${SEPARADOR_APP}${app.id}${SEPARADOR_DONO}${usuarioId}`),
   });
   /* Faz o Instagram pedir login a cada autorização: sem isto, a segunda conta
      no mesmo navegador reaproveita a sessão e autoriza a MESMA conta de novo.
@@ -55,15 +58,30 @@ async function urlDeAutorizacao({ accountId = 'new', metaAppId = null } = {}) {
 function lerState(state) {
   const r = verifyAndStripState(state);
   if (!r.valid) return null;
-  const [alvo, metaAppId] = String(r.state || 'new').split(SEPARADOR_APP);
-  return { alvo: alvo || 'new', metaAppId: metaAppId || null };
+  const [resto, usuarioId] = String(r.state || '').split(SEPARADOR_DONO);
+  if (!usuarioId) return null; // state de antes do multiusuário: sem dono, não conecta
+  const [alvo, metaAppId] = String(resto || 'new').split(SEPARADOR_APP);
+  return { alvo: alvo || 'new', metaAppId: metaAppId || null, usuarioId };
+}
+
+/**
+ * Quem é o dono de um link guiado. O link é aberto num navegador sem login no
+ * painel, então leva o usuário assinado — sem a assinatura, qualquer um
+ * poderia montar um link que conecta contas no painel de outra pessoa.
+ */
+function assinarDono(usuarioId) { return signState(`dono:${usuarioId}`); }
+function lerDono(assinado) {
+  const r = verifyAndStripState(assinado);
+  if (!r.valid || !String(r.state).startsWith('dono:')) return null;
+  return String(r.state).slice(5) || null;
 }
 
 /**
  * Grava a conexão: atualiza a conta pedida, ou acha/cria pela conta do
  * Instagram (id) para nunca duplicar. Depois dispara a primeira sincronização.
  */
-async function gravar({ token, expiraEm, igUserId, alvo, metaAppId }) {
+async function gravar({ token, expiraEm, igUserId, alvo, metaAppId, usuarioId }) {
+  if (!usuarioId) throw new Error('gravar: usuário obrigatório');
   const p = await graph.perfil(token);
   const id = igUserId || p.igUserId;
   if (!id) throw new Error('A Meta não informou qual conta autorizou');
@@ -86,12 +104,16 @@ async function gravar({ token, expiraEm, igUserId, alvo, metaAppId }) {
       : '',
   };
 
-  const existente = (alvo && alvo !== 'new' ? await accounts.findById(alvo) : null)
-    || await accounts.findOne({ igUserId: id });
-  const conta = existente ? await accounts.update(existente.id, campos) : await accounts.insert(campos);
+  const minhas = accounts.de(usuarioId);
+  const mesmaConta = await accounts.findOne({ igUserId: id });
+  if (mesmaConta && mesmaConta.usuarioId !== usuarioId) {
+    throw new Error(`@${p.username || id} já está conectada por outro usuário da plataforma.`);
+  }
+  const existente = (alvo && alvo !== 'new' ? await minhas.findById(alvo) : null) || mesmaConta;
+  const conta = existente ? await minhas.update(existente.id, campos) : await minhas.insert(campos);
 
   console.log(`✅ [Conexão] @${conta.username} conectada pela API oficial`);
-  broadcast('accounts', { action: 'oauth_connected', username: conta.username, accountId: conta.id });
+  broadcast('accounts', { action: 'oauth_connected', username: conta.username, accountId: conta.id }, usuarioId);
   // Avatar local, métricas e série de seguidores sem esperar o próximo ciclo.
   setImmediate(() => {
     require('./contas').sincronizar(conta).catch(() => {});
@@ -113,11 +135,11 @@ async function conectarPorCodigo(code, stateLido) {
   } catch (err) {
     console.warn(`⚠️ [Conexão] token de 60 dias não saiu, guardando o de 1h: ${err.message}`);
   }
-  return gravar({ token, expiraEm, igUserId: curto.userId, alvo: stateLido.alvo, metaAppId: app.id });
+  return gravar({ token, expiraEm, igUserId: curto.userId, alvo: stateLido.alvo, metaAppId: app.id, usuarioId: stateLido.usuarioId });
 }
 
 /** Token colado direto (gerado no painel da Meta). */
-async function conectarPorToken(tokenColado, alvo = 'new') {
+async function conectarPorToken(tokenColado, alvo = 'new', usuarioId) {
   const app = await metaApps.credenciais(null);
   let token = String(tokenColado || '').trim();
   let expiraEm = new Date(Date.now() + 60 * 60 * 1000);
@@ -126,7 +148,7 @@ async function conectarPorToken(tokenColado, alvo = 'new') {
     ? await graph.tokenDeLongaDuracao(token, app.appSecret).catch(() => graph.renovarToken(token).catch(() => null))
     : await graph.renovarToken(token).catch(() => null);
   if (longo) ({ token, expiraEm } = longo);
-  return gravar({ token, expiraEm, alvo, metaAppId: app?.id || null });
+  return gravar({ token, expiraEm, alvo, metaAppId: app?.id || null, usuarioId });
 }
 
-module.exports = { ESCOPOS, urlDeAutorizacao, lerState, conectarPorCodigo, conectarPorToken };
+module.exports = { ESCOPOS, urlDeAutorizacao, lerState, assinarDono, lerDono, conectarPorCodigo, conectarPorToken };

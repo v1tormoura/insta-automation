@@ -9,7 +9,7 @@ exports.createLegend = async (req, res) => {
   if (!String(req.body.title || '').trim() || !String(req.body.text || '').trim()) {
     return res.status(400).json({ error: 'Título e texto são obrigatórios' });
   }
-  res.json(await legends.insert({
+  res.json(await legends.de(req.user.id).insert({
     title: req.body.title,
     category: req.body.category || 'Geral',
     text: req.body.text,
@@ -19,7 +19,7 @@ exports.createLegend = async (req, res) => {
 
 /* Favoritas primeiro, depois as mais novas. */
 exports.getLegends = async (req, res) => {
-  res.json(await legends.findMany({}, { orderBy: 'favorita desc, created_at desc' }));
+  res.json(await legends.de(req.user.id).findMany({}, { orderBy: 'favorita desc, created_at desc' }));
 };
 
 /** Atualiza só o que veio no corpo: favoritar não pode apagar o texto. */
@@ -32,19 +32,19 @@ exports.updateLegend = async (req, res) => {
   if (typeof req.body.favorita === 'boolean') campos.favorita = req.body.favorita;
   if (!Object.keys(campos).length) return res.status(400).json({ error: 'Nada para atualizar', code: 'CORPO_VAZIO' });
 
-  const legenda = await legends.update(req.params.id, campos);
+  const legenda = await legends.de(req.user.id).update(req.params.id, campos);
   if (!legenda) return res.status(404).json({ error: 'Legenda não encontrada' });
   res.json(legenda);
 };
 
 exports.deleteLegend = async (req, res) => {
-  await legends.remove(req.params.id);
+  await legends.de(req.user.id).remove(req.params.id);
   res.json({ success: true });
 };
 
 exports.getRandomLegend = async (req, res) => {
   const [legenda] = await sql`
-    select * from legends where is_active
+    select * from legends where is_active and usuario_id = ${req.user.id}
     ${req.query.category ? sql`and category = ${String(req.query.category)}` : sql``}
     order by random() limit 1`;
   if (!legenda) return res.status(404).json({ error: 'Nenhuma legenda encontrada' });

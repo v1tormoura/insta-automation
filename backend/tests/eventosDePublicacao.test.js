@@ -55,7 +55,7 @@ describe('notificarPublicado', () => {
     expect(n.titulo).toBe('Publicado ✅');
     expect(n.mensagem).toBe('@oliviapaganini publicou um Reel.');
     expect(mockPush).toHaveBeenCalledTimes(1);
-    expect(mockBroadcast).toHaveBeenCalledWith('notificacoes', { novas: 1 });
+    expect(mockBroadcast).toHaveBeenCalledWith('notificacoes', { novas: 1 }, (await banco.dono()).id);
   });
 
   test('duas contas publicando o mesmo conteúdo geram DOIS avisos', async () => {

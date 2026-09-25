@@ -26,10 +26,11 @@ const executor = require('../src/services/campaignExecutor');
 const recuperacao = require('../src/jobs/campaignRecovery');
 const ctrl = require('../src/controllers/campaignController');
 
-let CONTAS, MIDIAS;
+let CONTAS, MIDIAS, DONO;
 
 async function semear({ contas = 2, midias = 2 } = {}) {
   await banco.limpar();
+  DONO = await banco.dono();
   CONTAS = [];
   for (let i = 1; i <= contas; i++) {
     CONTAS.push(await banco.criarConta({ username: `conta0${i}`, name: `Conta ${i}`, accessToken: 'segredo-do-token', igUserId: `ig${i}` }));
@@ -37,8 +38,8 @@ async function semear({ contas = 2, midias = 2 } = {}) {
   MIDIAS = [];
   for (let i = 1; i <= midias; i++) {
     const [m] = await sql`
-      insert into media (filename, original_name, url, type)
-      values (${`video0${i}.mp4`}, ${`Video ${i}`}, ${`/uploads/video0${i}.mp4`}, 'video') returning *`;
+      insert into media (usuario_id, filename, original_name, url, type)
+      values (${DONO.id}, ${`video0${i}.mp4`}, ${`Video ${i}`}, ${`/uploads/video0${i}.mp4`}, 'video') returning *`;
     MIDIAS.push(m);
   }
 }
@@ -105,13 +106,13 @@ async function chamar(handler, { params = {}, query = {}, body = {}, headers = {
     status(c) { this.statusCode = c; return this; },
     json(o) { this.corpo = o; return this; },
   };
-  await handler({ params, query, body, get: h => headers[h] }, res);
+  await handler({ params, query, body, get: h => headers[h], user: { id: DONO.id, papel: DONO.papel } }, res);
   return { status: res.statusCode, corpo: res.corpo };
 }
 
 /** Cria, agenda e devolve a campanha com as publicações. */
 async function campanhaAgendada(extra = {}) {
-  const c = await svc.criarCampanha(dados(extra));
+  const c = await svc.criarCampanha(DONO.id, dados(extra));
   await executor.agendarCampanha(c.id);
   return { campanha: c, pubs: await publicacoes(c.id) };
 }
@@ -122,7 +123,7 @@ beforeEach(() => semear());
 
 describe('criação', () => {
   test('materializa uma publicação por conta × conteúdo, com o texto já resolvido', async () => {
-    const c = await svc.criarCampanha(dados());
+    const c = await svc.criarCampanha(DONO.id, dados());
     const pubs = await publicacoes(c.id);
     expect(pubs).toHaveLength(4);
     expect(c.totalPublications).toBe(4);
@@ -136,7 +137,7 @@ describe('criação', () => {
   });
 
   test('horários seguem o intervalo configurado', async () => {
-    const c = await svc.criarCampanha(dados());
+    const c = await svc.criarCampanha(DONO.id, dados());
     const pubs = await publicacoes(c.id);
     for (let i = 1; i < pubs.length; i++) {
       expect(pubs[i].scheduledAt - pubs[i - 1].scheduledAt).toBe(10 * 60_000);
@@ -146,7 +147,7 @@ describe('criação', () => {
   test('comentário respeita a precedência conta+conteúdo → conta → conteúdo → geral', async () => {
     const [a, b] = CONTAS;
     const [m1, m2] = MIDIAS;
-    const c = await svc.criarCampanha(comComentario({
+    const c = await svc.criarCampanha(DONO.id, comComentario({
       commentMode: 'per_account_content',
       comments: {
         global: 'geral',
@@ -178,25 +179,25 @@ describe('criação', () => {
     ['INVALID_WEEKDAYS', () => dados({ schedule: { weekdays: [1, 9] } })],
     ['INVALID_START_AT', () => dados({ schedule: { startAt: 'amanhã' } })],
   ])('%s: recusada, e nada fica gravado', async (codigo, entrada) => {
-    await expect(svc.criarCampanha(entrada())).rejects.toMatchObject({ code: codigo });
+    await expect(svc.criarCampanha(DONO.id, entrada())).rejects.toMatchObject({ code: codigo });
     expect(await sql`select id from campaigns`).toHaveLength(0);
     expect(await sql`select id from campaign_publications`).toHaveLength(0);
   });
 
   test('conta banida é recusada na criação', async () => {
     await sql`update accounts set health_status = 'banida' where id = ${CONTAS[0].id}`;
-    await expect(svc.criarCampanha(dados())).rejects.toMatchObject({ code: 'ACCOUNT_NOT_ELIGIBLE' });
+    await expect(svc.criarCampanha(DONO.id, dados())).rejects.toMatchObject({ code: 'ACCOUNT_NOT_ELIGIBLE' });
   });
 
   test('plano vazio (todas no teto diário) não cria campanha', async () => {
     await sql`update accounts set daily_post_limit = 1, posts_today = 1`;
-    await expect(svc.criarCampanha(dados({ settings: { postType: 'reel' } }))).rejects.toMatchObject({ code: 'EMPTY_PLAN' });
+    await expect(svc.criarCampanha(DONO.id, dados({ settings: { postType: 'reel' } }))).rejects.toMatchObject({ code: 'EMPTY_PLAN' });
   });
 
   test('só as capas de conteúdos e contas que ficaram na campanha são gravadas', async () => {
-    const [capa] = await sql`insert into media (filename, type) values ('capa.jpg', 'image') returning id`;
+    const [capa] = await sql`insert into media (usuario_id, filename, type) values (${DONO.id}, 'capa.jpg', 'image') returning id`;
     const fora = '00000000-0000-4000-8000-00000000abcd';
-    const c = await svc.criarCampanha(dados({
+    const c = await svc.criarCampanha(DONO.id, dados({
       covers: {
         byContent: { [MIDIAS[0].id]: capa.id, [fora]: capa.id },
         byAccount: { [CONTAS[1].id]: capa.id, [fora]: capa.id },
@@ -211,8 +212,8 @@ describe('criação', () => {
 describe('_arquivoDaCapa', () => {
   let capaConteudo, capaPerfil;
   beforeEach(async () => {
-    [capaConteudo] = await sql`insert into media (filename, type) values ('capa-conteudo.jpg', 'image') returning id`;
-    [capaPerfil] = await sql`insert into media (filename, type) values ('capa-perfil.jpg', 'image') returning id`;
+    [capaConteudo] = await sql`insert into media (usuario_id, filename, type) values (${DONO.id}, 'capa-conteudo.jpg', 'image') returning id`;
+    [capaPerfil] = await sql`insert into media (usuario_id, filename, type) values (${DONO.id}, 'capa-perfil.jpg', 'image') returning id`;
   });
 
   test('a capa do perfil vale acima da do conteúdo', async () => {
@@ -233,7 +234,7 @@ describe('_arquivoDaCapa', () => {
 
 describe('agendamento', () => {
   test('um trabalho por publicação, e agendar de novo não duplica', async () => {
-    const c = await svc.criarCampanha(dados({ schedule: { startAt: new Date(Date.now() + 3_600_000), intervalMinMinutes: 10, intervalMaxMinutes: 10 } }));
+    const c = await svc.criarCampanha(DONO.id, dados({ schedule: { startAt: new Date(Date.now() + 3_600_000), intervalMinMinutes: 10, intervalMaxMinutes: 10 } }));
     const r1 = await executor.agendarCampanha(c.id);
     const r2 = await executor.agendarCampanha(c.id);
     expect(r1.agendadas).toBe(4);
@@ -247,7 +248,7 @@ describe('agendamento', () => {
 
   test('o horário planejado vira o horário do trabalho', async () => {
     const inicio = new Date(Date.now() + 3_600_000);
-    const c = await svc.criarCampanha(dados({ schedule: { startAt: inicio, intervalMinMinutes: 10, intervalMaxMinutes: 10 } }));
+    const c = await svc.criarCampanha(DONO.id, dados({ schedule: { startAt: inicio, intervalMinMinutes: 10, intervalMaxMinutes: 10 } }));
     await executor.agendarCampanha(c.id);
     const [primeira] = await publicacoes(c.id);
     const [job] = await sql`select run_at from queue_jobs where key = ${`campaign-publication:${primeira.id}`}`;
@@ -255,7 +256,7 @@ describe('agendamento', () => {
   });
 
   test('publicações atrasadas são espaçadas em vez de saírem de uma vez', async () => {
-    const c = await svc.criarCampanha(dados({ schedule: { startAt: new Date(Date.now() - 86_400_000), intervalMinMinutes: 1, intervalMaxMinutes: 1 } }));
+    const c = await svc.criarCampanha(DONO.id, dados({ schedule: { startAt: new Date(Date.now() - 86_400_000), intervalMinMinutes: 1, intervalMaxMinutes: 1 } }));
     await executor.agendarCampanha(c.id);
     const horarios = (await trabalhos('campanha_publicacao')).map(j => j.runAt.getTime()).sort((a, b) => a - b);
     // 4 atrasadas: 0–4, 5–9, 10–14 e 15–19 min a partir de agora.
@@ -263,7 +264,7 @@ describe('agendamento', () => {
   });
 
   test('campanha pausada ou cancelada não agenda', async () => {
-    const c = await svc.criarCampanha(dados());
+    const c = await svc.criarCampanha(DONO.id, dados());
     await sql`update campaigns set status = 'paused' where id = ${c.id}`;
     await expect(executor.agendarCampanha(c.id)).rejects.toMatchObject({ code: 'INVALID_CAMPAIGN_STATE' });
   });
@@ -393,7 +394,7 @@ describe('execução da publicação', () => {
 
 describe('comentário', () => {
   async function publicadas() {
-    const c = await svc.criarCampanha(comComentario());
+    const c = await svc.criarCampanha(DONO.id, comComentario());
     await executor.agendarCampanha(c.id);
     const publicar = publicador();
     for (const p of await publicacoes(c.id)) await executor.processarPublicacao(p.id, { publicarNaConta: publicar });
@@ -499,7 +500,7 @@ describe('controle da campanha', () => {
   });
 
   test('cancelar cancela o que falta e o comentário pendente; o publicado fica', async () => {
-    const c = await svc.criarCampanha(comComentario());
+    const c = await svc.criarCampanha(DONO.id, comComentario());
     await executor.agendarCampanha(c.id);
     const [primeira] = await publicacoes(c.id);
     await rodar(primeira.id, publicador());
@@ -558,7 +559,7 @@ describe('controle da campanha', () => {
 
   test('publicação de outra campanha é 404', async () => {
     const { campanha } = await campanhaAgendada();
-    const outra = await svc.criarCampanha(dados({ name: 'Outra' }));
+    const outra = await svc.criarCampanha(DONO.id, dados({ name: 'Outra' }));
     const [dela] = await publicacoes(outra.id);
     const r = await chamar(ctrl.getPublication, { params: { id: campanha.id, publicationId: dela.id } });
     expect(r.status).toBe(404);
@@ -611,7 +612,7 @@ describe('API', () => {
   test('a prévia com a mesma semente é exatamente o que será criado', async () => {
     const entrada = dados({ strategy: { mode: 'interleaved_random', seed: 'igual' }, schedule: { startAt: '2030-01-01T12:00:00Z', intervalMinMinutes: 5, intervalMaxMinutes: 30 } });
     const previa = (await chamar(ctrl.preview, { body: entrada })).corpo.publications;
-    const c = await svc.criarCampanha(entrada);
+    const c = await svc.criarCampanha(DONO.id, entrada);
     const criadas = await publicacoes(c.id);
     expect(criadas.map(p => [p.accountId, p.contentId, p.scheduledAt.toISOString()]))
       .toEqual(previa.map(p => [p.account.id, p.content.id, new Date(p.scheduledAt).toISOString()]));
@@ -625,8 +626,8 @@ describe('API', () => {
   });
 
   test('a prévia mostra a capa só em vídeo, com a do perfil acima da do conteúdo', async () => {
-    const [capaC] = await sql`insert into media (filename, url, type) values ('cc.jpg', '/uploads/cc.jpg', 'image') returning id`;
-    const [capaP] = await sql`insert into media (filename, url, type) values ('cp.jpg', '/uploads/cp.jpg', 'image') returning id`;
+    const [capaC] = await sql`insert into media (usuario_id, filename, url, type) values (${DONO.id}, 'cc.jpg', '/uploads/cc.jpg', 'image') returning id`;
+    const [capaP] = await sql`insert into media (usuario_id, filename, url, type) values (${DONO.id}, 'cp.jpg', '/uploads/cp.jpg', 'image') returning id`;
     const r = await chamar(ctrl.preview, { body: dados({ covers: {
       byContent: { [MIDIAS[0].id]: capaC.id },
       byAccount: { [CONTAS[0].id]: capaP.id },
@@ -665,8 +666,8 @@ describe('API', () => {
   });
 
   test('busca por nome escapa curinga', async () => {
-    await svc.criarCampanha(dados({ name: 'Promo 100%' }));
-    await svc.criarCampanha(dados({ name: 'Outra' }));
+    await svc.criarCampanha(DONO.id, dados({ name: 'Promo 100%' }));
+    await svc.criarCampanha(DONO.id, dados({ name: 'Outra' }));
     const r = await chamar(ctrl.list, { query: { search: '100%' } });
     expect(r.corpo.campaigns.map(c => c.name)).toEqual(['Promo 100%']);
     expect((await chamar(ctrl.list, { query: { search: '%' } })).corpo.campaigns).toHaveLength(1);
@@ -724,7 +725,7 @@ describe('recuperação', () => {
   });
 
   test('comentário agendado perdido volta; o já publicado não', async () => {
-    const c = await svc.criarCampanha(comComentario());
+    const c = await svc.criarCampanha(DONO.id, comComentario());
     await executor.agendarCampanha(c.id);
     const pubs = await publicacoes(c.id);
     for (const p of pubs) await executor.processarPublicacao(p.id, { publicarNaConta: publicador() });

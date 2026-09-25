@@ -12,6 +12,7 @@
 
 const banco = require('./helpers/banco');
 const { getMedia, uploadMedia, deleteMedia, createFolder, deleteFolder } = require('../src/controllers/mediaController');
+const USER = { id: require('./helpers/banco').DONO_ID, papel: 'admin' };
 
 function resposta() {
   const r = { statusCode: 200, corpo: null };
@@ -20,14 +21,14 @@ function resposta() {
   return r;
 }
 const arquivo = (nome, mimetype, extra = {}) => ({ fieldname: 'x', filename: nome, originalname: nome, path: `/x/${nome}`, mimetype, size: 1, ...extra });
-const listar = async query => { const res = resposta(); await getMedia({ query }, res); return res.corpo; };
+const listar = async query => { const res = resposta(); await getMedia({ user: USER,  query }, res); return res.corpo; };
 
 beforeEach(() => banco.limpar());
 
 describe('uploadMedia', () => {
   test('aceita arquivo enviado com qualquer nome de campo', async () => {
     const res = resposta();
-    await uploadMedia({ files: [
+    await uploadMedia({ user: USER,  files: [
       arquivo('a.mp4', 'video/mp4', { fieldname: 'files' }),
       arquivo('b.jpg', 'image/jpeg', { fieldname: 'media' }),
       arquivo('c.png', 'image/png', { fieldname: 'outro' }),
@@ -38,14 +39,14 @@ describe('uploadMedia', () => {
 
   test('responde com media E files — as duas telas leem chaves diferentes', async () => {
     const res = resposta();
-    await uploadMedia({ files: [arquivo('a.mp4', 'video/mp4')], body: {} }, res);
+    await uploadMedia({ user: USER,  files: [arquivo('a.mp4', 'video/mp4')], body: {} }, res);
     expect(res.corpo.media).toHaveLength(1);
     expect(res.corpo.files[0].id).toBe(res.corpo.media[0].id);
   });
 
   test('classifica o tipo pelo mimetype', async () => {
     const res = resposta();
-    await uploadMedia({ files: [
+    await uploadMedia({ user: USER,  files: [
       arquivo('a.mp4', 'video/mp4'), arquivo('b.jpg', 'image/jpeg'), arquivo('c.bin', 'application/octet-stream'),
     ], body: {} }, res);
     expect(res.corpo.media.map(m => m.type)).toEqual(['video', 'image', 'other']);
@@ -53,25 +54,25 @@ describe('uploadMedia', () => {
 
   test('pasta informada é respeitada', async () => {
     const res = resposta();
-    await uploadMedia({ files: [arquivo('a.mp4', 'video/mp4')], body: { folder: 'promo' } }, res);
+    await uploadMedia({ user: USER,  files: [arquivo('a.mp4', 'video/mp4')], body: { folder: 'promo' } }, res);
     expect(res.corpo.media[0].folder).toBe('promo');
   });
 
   test('requisição sem arquivo não quebra', async () => {
     const res = resposta();
-    await uploadMedia({ body: {} }, res);
+    await uploadMedia({ user: USER,  body: {} }, res);
     expect(res.corpo.total).toBe(0);
   });
 });
 
 describe('getMedia', () => {
   beforeEach(async () => {
-    await uploadMedia({ files: [
+    await uploadMedia({ user: USER,  files: [
       arquivo('promo-1.mp4', 'video/mp4'),
       arquivo('video(1)*final.mp4', 'video/mp4'),
       arquivo('foto.jpg', 'image/jpeg'),
     ], body: { folder: 'promo' } }, resposta());
-    await uploadMedia({ files: [arquivo('outra.jpg', 'image/jpeg')], body: {} }, resposta());
+    await uploadMedia({ user: USER,  files: [arquivo('outra.jpg', 'image/jpeg')], body: {} }, resposta());
   });
 
   test('sem filtro, a biblioteca inteira, com as pastas', async () => {
@@ -110,14 +111,14 @@ describe('getMedia', () => {
 describe('pastas e remoção', () => {
   test('criar pasta vazia a faz aparecer na lista', async () => {
     const res = resposta();
-    await createFolder({ body: { name: 'Reels Novos' } }, res);
+    await createFolder({ user: USER,  body: { name: 'Reels Novos' } }, res);
     expect(res.corpo.folder).toBe('reels novos');
     expect((await listar({})).folders).toContain('reels novos');
   });
 
   test('apagar a pasta devolve as mídias para default', async () => {
-    await uploadMedia({ files: [arquivo('a.mp4', 'video/mp4')], body: { folder: 'x' } }, resposta());
-    await deleteFolder({ params: { name: 'x' } }, resposta());
+    await uploadMedia({ user: USER,  files: [arquivo('a.mp4', 'video/mp4')], body: { folder: 'x' } }, resposta());
+    await deleteFolder({ user: USER,  params: { name: 'x' } }, resposta());
     const r = await listar({});
     expect(r.folders).toEqual(['default']);
     expect(r.files[0].folder).toBe('default');
@@ -125,7 +126,7 @@ describe('pastas e remoção', () => {
 
   test('apagar mídia que não existe responde 404', async () => {
     const res = resposta();
-    await deleteMedia({ params: { id: '00000000-0000-0000-0000-000000000000' } }, res);
+    await deleteMedia({ user: USER,  params: { id: '00000000-0000-0000-0000-000000000000' } }, res);
     expect(res.statusCode).toBe(404);
   });
 });

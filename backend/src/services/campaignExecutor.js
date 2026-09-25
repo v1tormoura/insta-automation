@@ -107,9 +107,9 @@ function registrarEvento(evento, dados = {}) {
   return linha;
 }
 
-function emitir(broadcast, acao, dados) {
+function emitir(broadcast, acao, dados, usuarioId) {
   if (typeof broadcast !== 'function') return;
-  try { broadcast('campaigns', { action: acao, ...dados }); } catch { /* SSE não derruba a execução */ }
+  try { broadcast('campaigns', { action: acao, ...dados }, usuarioId); } catch { /* SSE não derruba a execução */ }
 }
 
 // ── Contadores ───────────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ async function processarPublicacao(publicationId, deps = {}) {
   registrarEvento('PUBLICATION_STARTED', {
     campaignId: campanha.id, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId, attempt: tomada.attempts,
   });
-  emitir(broadcast, 'publication_started', { campaignId: campanha.id, publicationId: pub.id });
+  emitir(broadcast, 'publication_started', { campaignId: campanha.id, publicationId: pub.id }, campanha.usuarioId);
 
   const falhar = async (codigo, mensagem) => {
     await campaignPublications.update(pub.id, { status: 'failed', error: String(mensagem).slice(0, 500), errorCode: codigo });
@@ -255,7 +255,7 @@ async function processarPublicacao(publicationId, deps = {}) {
       attempt: tomada.attempts, durationMs: Date.now() - inicio, errorCode: codigo, error: mensagem,
     });
     await finalizarSeCompleta(campanha.id, await recalcularContadores(campanha.id));
-    emitir(broadcast, 'publication_failed', { campaignId: campanha.id, publicationId: pub.id, errorCode: codigo });
+    emitir(broadcast, 'publication_failed', { campaignId: campanha.id, publicationId: pub.id, errorCode: codigo }, campanha.usuarioId);
     return { ok: false, errorCode: codigo };
   };
 
@@ -269,12 +269,12 @@ async function processarPublicacao(publicationId, deps = {}) {
       campaignId: campanha.id, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId,
       attempt: tomada.attempts, error: motivo,
     });
-    emitir(broadcast, 'publication_deferred', { campaignId: campanha.id, publicationId: pub.id, ate });
+    emitir(broadcast, 'publication_deferred', { campaignId: campanha.id, publicationId: pub.id, ate }, campanha.usuarioId);
     return { ok: false, deferred: true, ate };
   };
 
   const conta = await accounts.findById(pub.accountId);
-  if (!conta) return falhar('ACCOUNT_UNAVAILABLE', 'A conta desta publicação não existe mais.');
+  if (!conta || conta.usuarioId !== campanha.usuarioId) return falhar('ACCOUNT_UNAVAILABLE', 'A conta desta publicação não existe mais.');
   if (conta.healthStatus === 'banida') return falhar('ACCOUNT_UNAVAILABLE', `Conta @${conta.username} está banida.`);
 
   const midia = await media.findById(pub.contentId);
@@ -292,6 +292,7 @@ async function processarPublicacao(publicationId, deps = {}) {
 
     // Um Post por publicação: a fila de postagens e o histórico por conta seguem valendo.
     const post = await posts.insert({
+      usuarioId: campanha.usuarioId,
       media: midia.filename,
       mediaType: video ? 'video' : 'image',
       postType,
@@ -318,7 +319,7 @@ async function processarPublicacao(publicationId, deps = {}) {
     });
     await agendarComentarioDe(publicada, campanha);
     await finalizarSeCompleta(campanha.id, await recalcularContadores(campanha.id));
-    emitir(broadcast, 'publication_success', { campaignId: campanha.id, publicationId: pub.id });
+    emitir(broadcast, 'publication_success', { campaignId: campanha.id, publicationId: pub.id }, campanha.usuarioId);
     return { ok: true, postId: post.id };
   } catch (err) {
     if (err.code === 'RHYTHM_WAIT' && err.retryAt) return adiar(err.message, err.retryAt);
@@ -369,7 +370,7 @@ async function processarComentario(publicationId, deps = {}) {
       campaignId: pub.campaignId, publicationId: pub.id, accountId: pub.accountId, mediaId: pub.instagramMediaId,
       durationMs: Date.now() - inicio, errorCode: codigo, error: mensagem,
     });
-    emitir(broadcast, 'comment_failed', { campaignId: pub.campaignId, publicationId: pub.id, errorCode: codigo });
+    emitir(broadcast, 'comment_failed', { campaignId: pub.campaignId, publicationId: pub.id, errorCode: codigo }, pub.usuarioId);
     return { ok: false, errorCode: codigo };
   };
 
@@ -397,7 +398,7 @@ async function processarComentario(publicationId, deps = {}) {
     registrarEvento('COMMENT_POSTED', {
       campaignId: pub.campaignId, publicationId: pub.id, accountId: conta.id, mediaId, durationMs: Date.now() - inicio,
     });
-    emitir(broadcast, 'comment_posted', { campaignId: pub.campaignId, publicationId: pub.id });
+    emitir(broadcast, 'comment_posted', { campaignId: pub.campaignId, publicationId: pub.id }, pub.usuarioId);
     return { ok: true, mediaId, commentId: String(r?.commentId || '') };
   } catch (err) {
     return falharComentario(classificarErroComentario(err), err.message || 'Falha ao comentar');

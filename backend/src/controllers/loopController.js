@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { sql, ehUuid } = require('../db');
-const { jobs, comContas } = require('../repos');
+const { jobs, comContas, accounts } = require('../repos');
 const { agendarRodada } = require('../worker');
 const fila = require('../queue');
 const { broadcast } = require('../events/broadcaster');
@@ -68,16 +68,18 @@ exports.uploadMedia = async (req, res) => {
 };
 
 exports.list = async (req, res) => {
-  const lista = await sql`select * from jobs where type = 'loop' order by created_at desc`;
+  const lista = await sql`select * from jobs where type = 'loop' and usuario_id = ${req.user.id} order by created_at desc`;
   await comContas(lista);
   res.json(lista.map(jobToLoop));
 };
 
 exports.create = async (req, res) => {
   const { name, mediaFiles, type, intervalMinutes, caption, coverFile, ctaComment, processMode } = req.body;
-  const accountIds = (req.body.accounts || []).map(String).filter(ehUuid);
+  const pedidas = [...new Set((req.body.accounts || []).map(String).filter(ehUuid))];
+  const accountIds = (await accounts.de(req.user.id).porIds(pedidas)).map(c => c.id);
 
-  if (!accountIds.length) return res.status(400).json({ error: 'Selecione ao menos uma conta' });
+  if (!pedidas.length) return res.status(400).json({ error: 'Selecione ao menos uma conta' });
+  if (accountIds.length !== pedidas.length) return res.status(400).json({ error: 'Conta não encontrada' });
   if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
   if (!intervalMinutes || intervalMinutes < 1) return res.status(400).json({ error: 'Intervalo mínimo: 1 minuto' });
 
@@ -88,7 +90,7 @@ exports.create = async (req, res) => {
     ordem: 'selecao', aleatoria: midiasAleatorias, semente: sementeDaOrdem,
   }).map(x => x.filename);
 
-  const job = await jobs.insert({
+  const job = await jobs.de(req.user.id).insert({
     name: name || `Loop ${new Date().toLocaleString('pt-BR')}`,
     type: 'loop',
     status: 'queued',
@@ -111,12 +113,12 @@ exports.create = async (req, res) => {
   });
 
   await agendarRodada(job.id, 0);
-  broadcast('accounts', { action: 'loop_created' });
+  broadcast('accounts', { action: 'loop_created' }, req.user.id);
   await responderLoop(res, job);
 };
 
 exports.togglePause = async (req, res) => {
-  const job = await jobs.findById(req.params.id);
+  const job = await jobs.de(req.user.id).findById(req.params.id);
   if (!job) return res.status(404).json({ error: 'Loop não encontrado' });
 
   let atualizado;
@@ -127,14 +129,15 @@ exports.togglePause = async (req, res) => {
     atualizado = await jobs.update(job.id, { status: 'paused' });
     await fila.cancelarPorDados('job_round', 'jobId', job.id);
   }
-  broadcast('accounts', { action: 'loop_updated' });
+  broadcast('accounts', { action: 'loop_updated' }, req.user.id);
   await responderLoop(res, atualizado);
 };
 
 exports.remove = async (req, res) => {
+  if (!(await jobs.de(req.user.id).findById(req.params.id))) return res.status(404).json({ error: 'Loop não encontrado' });
   await fila.cancelarPorDados('job_round', 'jobId', req.params.id);
   await jobs.remove(req.params.id);
-  broadcast('accounts', { action: 'loop_deleted' });
+  broadcast('accounts', { action: 'loop_deleted' }, req.user.id);
   res.json({ success: true });
 };
 
@@ -149,9 +152,9 @@ exports.update = async (req, res) => {
     patch.mediaFiles = mediaFiles;
     patch.totalRounds = mediaFiles.length;
   }
-  const job = await jobs.update(req.params.id, patch);
+  const job = await jobs.de(req.user.id).update(req.params.id, patch);
   if (!job) return res.status(404).json({ error: 'Loop não encontrado' });
-  broadcast('accounts', { action: 'loop_updated' });
+  broadcast('accounts', { action: 'loop_updated' }, req.user.id);
   await responderLoop(res, job);
 };
 
@@ -173,6 +176,8 @@ exports.generateAllThumbs = async (req, res) => {
 /** Últimas publicações do loop. */
 exports.history = async (req, res) => {
   if (!ehUuid(req.params.id)) return res.status(404).json({ error: 'Loop não encontrado' });
-  const lista = await sql`select * from posts where job_id = ${req.params.id} order by created_at desc limit 50`;
+  const lista = await sql`
+    select * from posts where job_id = ${req.params.id} and usuario_id = ${req.user.id}
+    order by created_at desc limit 50`;
   res.json(await comContas(lista, ['id', 'username']));
 };

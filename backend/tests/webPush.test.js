@@ -38,12 +38,13 @@ const banco = require('./helpers/banco');
 
 /** Grava uma inscrição direto na tabela. */
 async function inscricao(endpoint, falhas = 0) {
-  await banco.sql`insert into push_subscriptions (endpoint, keys, falhas)
-                  values (${endpoint}, ${banco.sql.json({ p256dh: 'p', auth: 'a' })}, ${falhas})`;
+  await banco.sql`insert into push_subscriptions (endpoint, keys, falhas, usuario_id)
+                  values (${endpoint}, ${banco.sql.json({ p256dh: 'p', auth: 'a' })}, ${falhas}, ${banco.DONO_ID})`;
 }
 const inscricoes = () => banco.sql`select endpoint, falhas from push_subscriptions order by endpoint`;
 
 const notificacao = {
+  usuarioId: '00000000-0000-4000-8000-00000000a0a0',
   id: 'n1', titulo: 'Seu Story está bombando 🚀',
   mensagem: '@oliviapaganini chegou a 1.024 visualizações.',
   tema: 'story', username: 'oliviapaganini',
@@ -151,7 +152,7 @@ describe('inscrição', () => {
       endpoint: 'https://push/novo',
       keys: { p256dh: 'p', auth: 'a' },
       aparelho: 'Chrome Android',
-    });
+    }, banco.DONO_ID);
     expect((await inscricoes()).map(i => i.endpoint)).toEqual(['https://push/novo']);
   });
 
@@ -159,8 +160,8 @@ describe('inscrição', () => {
     // O navegador devolve o MESMO endpoint ao reativar; sem upsert a pessoa
     // receberia a mesma notificação duas vezes.
     const dados = { endpoint: 'https://push/mesmo', keys: { p256dh: 'p', auth: 'a' } };
-    await webPush.inscrever(dados);
-    await webPush.inscrever(dados);
+    await webPush.inscrever(dados, banco.DONO_ID);
+    await webPush.inscrever(dados, banco.DONO_ID);
     expect(await inscricoes()).toHaveLength(1);
   });
 
@@ -171,7 +172,7 @@ describe('inscrição', () => {
 
   test('cancelar remove o aparelho', async () => {
     await inscricao('https://push/sai');
-    const r = await webPush.cancelar('https://push/sai');
+    const r = await webPush.cancelar('https://push/sai', banco.DONO_ID);
     expect(r.removidos).toBe(1);
     expect(await inscricoes()).toHaveLength(0);
   });
@@ -192,6 +193,7 @@ describe('aviso de teste', () => {
     await inscricao('https://push/aparelho');
 
     const r = await webPush.enviar({
+      usuarioId: banco.DONO_ID,
       id: 'teste', titulo: 'Seu Story está bombando 🚀',
       mensagem: '@sua_conta chegou a 1.024 visualizações.',
       tema: 'story', username: 'sua_conta', teste: true,
@@ -205,7 +207,7 @@ describe('aviso de teste', () => {
   test('sem aparelho inscrito, não finge que enviou', async () => {
     // A tela precisa dizer "ligue o aviso no aparelho antes de testar" — um
     // "enviado!" sem destinatário faria a pessoa procurar o defeito no celular.
-    const r = await webPush.enviar({ id: 'teste', titulo: 'x', mensagem: 'y' });
+    const r = await webPush.enviar({ usuarioId: banco.DONO_ID, id: 'teste', titulo: 'x', mensagem: 'y' });
     expect(r.enviados).toBe(0);
   });
 

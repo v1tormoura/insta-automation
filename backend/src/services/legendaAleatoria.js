@@ -129,7 +129,8 @@ async function sortearParaRodada(job, quantidade, { aleatorio } = {}) {
   const { sql } = require('../db');
   const docs = await sql`
     select id, title, text from legends
-    where is_active ${cfg.categoria ? sql`and category = ${cfg.categoria}` : sql``}`;
+    where is_active and usuario_id = ${job.usuarioId}
+      ${cfg.categoria ? sql`and category = ${cfg.categoria}` : sql``}`;
   if (!docs.length) return { vazia: true, legendas: [] };
 
   const escolhidas = sortear(docs, quantidade, { evitar: cfg.ultimas, aleatorio });

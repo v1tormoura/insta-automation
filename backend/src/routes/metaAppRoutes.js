@@ -1,13 +1,23 @@
 'use strict';
 
+/**
+ * Apps da Meta: um cadastro da plataforma, feito pelo admin. Os usuários só
+ * escolhem por qual app conectar as contas — veem nome e id, nada mais.
+ */
+
 const router = require('express').Router();
 const metaApps = require('../repos/metaApps');
+const { soAdmin } = require('../middleware/auth');
 
 const aparado = v => String(v ?? '').trim();
 
-router.get('/', async (_req, res) => {
-  res.json(await metaApps.listar());
+router.get('/', async (req, res) => {
+  const lista = await metaApps.listar();
+  if (req.user.papel === 'admin') return res.json(lista);
+  res.json(lista.map(a => ({ id: a.id, name: a.name, appId: a.appId, isDefault: a.isDefault })));
 });
+
+router.use(soAdmin);
 
 router.post('/', async (req, res) => {
   const { name, appId, appSecret, loginConfigId, instagramAppId, instagramAppSecret } = req.body || {};
