@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setToken, setUsuario } from '../services/auth';
@@ -72,47 +72,77 @@ const MailIcon = () => (
   </svg>
 );
 
-const TEXTOS = {
-  entrar:   { selo: 'Acesso restrito', titulo: 'Bem-vindo de volta', sub: 'Entre com seu e-mail e senha.' },
-  cadastro: { selo: 'Criar conta',     titulo: 'Peça seu acesso',    sub: 'Depois do cadastro, o administrador aprova o seu acesso.' },
+/* Cada modo da tela: o selo, o título, o texto, os campos e o botão. Os
+   terminados em "Ok" são as telas de confirmação, só com o botão de voltar. */
+const MODOS = {
+  entrar:     { selo: 'Acesso restrito', titulo: 'Bem-vindo de volta', sub: 'Entre com seu e-mail e senha.',
+                botao: 'Entrar', indo: 'Entrando...' },
+  cadastro:   { selo: 'Criar conta', titulo: 'Peça seu acesso', sub: 'Depois do cadastro, o administrador aprova o seu acesso.',
+                botao: 'Pedir acesso', indo: 'Enviando...' },
+  esqueci:    { selo: 'Recuperar senha', titulo: 'Esqueceu a senha?', sub: 'Informe o e-mail do cadastro e enviaremos um link para criar uma senha nova.',
+                botao: 'Enviar link', indo: 'Enviando...' },
+  redefinir:  { selo: 'Recuperar senha', titulo: 'Crie uma senha nova', sub: 'Escolha a senha que vai usar para entrar.',
+                botao: 'Salvar senha', indo: 'Salvando...' },
+  cadastroOk: { selo: 'Criar conta', titulo: 'Cadastro enviado',
+                sub: 'Recebemos o seu pedido. Assim que o administrador aprovar, é só entrar com o e-mail e a senha que você escolheu.' },
+  esqueciOk:  { selo: 'Recuperar senha', titulo: 'Confira seu e-mail',
+                sub: 'Se este e-mail tiver cadastro, enviamos um link para criar uma senha nova. Ele vale por 1 hora — confira também o spam.' },
+  redefinirOk: { selo: 'Recuperar senha', titulo: 'Senha alterada', sub: 'Pronto! Entre com a senha nova.' },
 };
+
+const modoDaRota = caminho => (caminho === '/cadastro' ? 'cadastro' : caminho === '/redefinir-senha' ? 'redefinir' : 'entrar');
 
 export default function Login() {
   const location = useLocation();
-  /* 'entrar' | 'cadastro' | 'enviado' — `/cadastro` abre direto no cadastro. */
-  const [modo, setModo] = useState(location.pathname === '/cadastro' ? 'cadastro' : 'entrar');
+  const [modo, setModo] = useState(() => modoDaRota(location.pathname));
   const [nome,     setNome]     = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirma, setConfirma] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [showConfirma, setShowConfirma] = useState(false);
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [recuperacao, setRecuperacao] = useState(false);
   const navigate = useNavigate();
+  const codigo = new URLSearchParams(location.search).get('codigo') || '';
+
+  /* "Esqueci minha senha" só aparece se o servidor consegue mandar e-mail. */
+  useEffect(() => {
+    fetch(`${API}/auth/opcoes`).then(r => r.json()).then(d => setRecuperacao(!!d.recuperacaoPorEmail)).catch(() => {});
+  }, []);
 
   function trocar(para) {
     setModo(para);
     setError('');
     setPassword('');
     setConfirma('');
-    navigate(para === 'cadastro' ? '/cadastro' : '/login', { replace: true });
+    const rota = para === 'cadastro' ? '/cadastro' : '/login';
+    if (location.pathname !== rota) navigate(rota, { replace: true });
   }
+
+  const comConfirmacao = modo === 'cadastro' || modo === 'redefinir';
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (modo === 'cadastro' && password !== confirma) { setError('As senhas não conferem.'); return; }
+    if (comConfirmacao && password !== confirma) { setError('As senhas não conferem.'); return; }
+    const pedido = {
+      entrar:    ['login',     { username, password }],
+      cadastro:  ['cadastro',  { nome, email: username, senha: password }],
+      esqueci:   ['esqueci',   { email: username }],
+      redefinir: ['redefinir', { codigo, senha: password }],
+    }[modo];
     setLoading(true);
     try {
-      const cadastro = modo === 'cadastro';
-      const res  = await fetch(`${API}/auth/${cadastro ? 'cadastro' : 'login'}`, {
+      const res  = await fetch(`${API}/auth/${pedido[0]}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(cadastro ? { nome, email: username, senha: password } : { username, password }),
+        body:    JSON.stringify(pedido[1]),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || (cadastro ? 'Erro ao cadastrar' : 'Erro ao entrar')); return; }
-      if (cadastro) { setModo('enviado'); return; }
+      if (!res.ok) { setError(data.error || 'Não foi possível concluir'); return; }
+      if (modo !== 'entrar') { setModo(`${modo}Ok`); return; }
       setToken(data.token);
       setUsuario(data.usuario);
       navigate('/');
@@ -123,13 +153,14 @@ export default function Login() {
     }
   }
 
-  const texto = TEXTOS[modo] || TEXTOS.cadastro;
-  const olho = (
-    <button type="button" onClick={() => setShowPass(v => !v)} style={{
+  const texto = MODOS[modo] || MODOS.entrar;
+  const confirmacao = modo.endsWith('Ok');
+  const olho = (aberto, alternar) => (
+    <button type="button" onClick={alternar} aria-label={aberto ? 'Esconder senha' : 'Mostrar senha'} style={{
       position:'absolute', right:10, top:'50%', transform:'translateY(-50%)',
       background:'none', border:'none', cursor:'pointer', color:'var(--mf-text-3)', display:'flex', padding:4,
     }}>
-      <EyeIcon open={showPass} />
+      <EyeIcon open={aberto} />
     </button>
   );
   const link = { background:'none', border:'none', padding:0, cursor:'pointer', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600, fontSize:'inherit', fontFamily:'var(--font)' };
@@ -240,17 +271,15 @@ export default function Login() {
                   <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)', fontWeight:600 }}>{texto.selo}</span>
                 </div>
                 <h2 style={{ color:'var(--mf-text)', fontSize:23, fontWeight:800, margin:'0 0 6px', letterSpacing:'-.4px' }}>
-                  {modo === 'enviado' ? 'Cadastro enviado' : texto.titulo}
+                  {texto.titulo}
                 </h2>
                 <p style={{ color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', margin:0, lineHeight:1.6 }}>
-                  {modo === 'enviado'
-                    ? 'Recebemos o seu pedido. Assim que o administrador aprovar, é só entrar com o e-mail e a senha que você escolheu.'
-                    : texto.sub}
+                  {modo === 'redefinir' && !codigo ? 'Este link está incompleto. Peça um novo em "Esqueci minha senha".' : texto.sub}
                 </p>
               </div>
             </BlurFade>
 
-            {modo === 'enviado' ? (
+            {confirmacao ? (
               <motion.button
                 type="button" onClick={() => trocar('entrar')}
                 whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
@@ -271,25 +300,40 @@ export default function Login() {
                   <Campo rotulo="NOME" icone={<UserIcon />} type="text" value={nome}
                     onChange={e => setNome(e.target.value)} placeholder="Seu nome" autoComplete="name" required />
                 )}
-                <Campo
-                  rotulo={modo === 'cadastro' ? 'E-MAIL' : 'E-MAIL OU USUÁRIO'}
-                  icone={modo === 'cadastro' ? <MailIcon /> : <UserIcon />}
-                  type={modo === 'cadastro' ? 'email' : 'text'} value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder={modo === 'cadastro' ? 'voce@email.com' : 'voce@email.com'}
-                  autoComplete={modo === 'cadastro' ? 'email' : 'username'} autoFocus required
-                />
-                <Campo
-                  rotulo="SENHA" icone={<LockIcon />} direita={olho}
-                  type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder={modo === 'cadastro' ? 'Mínimo de 8 caracteres' : '••••••••'}
-                  autoComplete={modo === 'cadastro' ? 'new-password' : 'current-password'}
-                  minLength={modo === 'cadastro' ? 8 : undefined} required
-                />
-                {modo === 'cadastro' && (
+                {modo !== 'redefinir' && (
+                  <Campo
+                    rotulo={modo === 'entrar' ? 'E-MAIL OU USUÁRIO' : 'E-MAIL'}
+                    icone={modo === 'entrar' ? <UserIcon /> : <MailIcon />}
+                    type={modo === 'entrar' ? 'text' : 'email'} value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="voce@email.com"
+                    autoComplete={modo === 'entrar' ? 'username' : 'email'} autoFocus required
+                  />
+                )}
+                {modo !== 'esqueci' && (
+                  <div>
+                    <Campo
+                      rotulo={modo === 'redefinir' ? 'SENHA NOVA' : 'SENHA'} icone={<LockIcon />}
+                      direita={olho(showPass, () => setShowPass(v => !v))}
+                      type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder={comConfirmacao ? 'Mínimo de 8 caracteres' : '••••••••'}
+                      autoComplete={comConfirmacao ? 'new-password' : 'current-password'}
+                      minLength={comConfirmacao ? 8 : undefined} autoFocus={modo === 'redefinir'} required
+                    />
+                    {modo === 'entrar' && recuperacao && (
+                      <div style={{ textAlign:'right', marginTop:6 }}>
+                        <button type="button" style={{ ...link, fontSize:'var(--mf-t-xs)', fontWeight:500 }} onClick={() => trocar('esqueci')}>
+                          Esqueci minha senha
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {comConfirmacao && (
                   <Campo
                     rotulo="CONFIRMAR SENHA" icone={<LockIcon />}
-                    type={showPass ? 'text' : 'password'} value={confirma} onChange={e => setConfirma(e.target.value)}
+                    direita={olho(showConfirma, () => setShowConfirma(v => !v))}
+                    type={showConfirma ? 'text' : 'password'} value={confirma} onChange={e => setConfirma(e.target.value)}
                     placeholder="Repita a senha" autoComplete="new-password" required
                   />
                 )}
@@ -311,7 +355,7 @@ export default function Login() {
 
                 <motion.button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || (modo === 'redefinir' && !codigo)}
                   whileHover={loading ? {} : { scale: 1.01, boxShadow: '0 0 28px color-mix(in oklch, var(--mf-mod-contas) 45%, transparent)' }}
                   whileTap={loading ? {} : { scale: 0.98 }}
                   style={{
@@ -329,20 +373,22 @@ export default function Login() {
                   {loading ? (
                     <>
                       <svg style={{ animation:'spin .8s linear infinite' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 11-9-9"/></svg>
-                      {modo === 'cadastro' ? 'Enviando...' : 'Entrando...'}
+                      {texto.indo}
                     </>
                   ) : (
                     <>
-                      {modo === 'cadastro' ? 'Pedir acesso' : 'Entrar'}
+                      {texto.botao}
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </>
                   )}
                 </motion.button>
 
                 <div style={{ textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)', marginTop:2 }}>
-                  {modo === 'cadastro'
-                    ? <>Já tem acesso? <button type="button" style={link} onClick={() => trocar('entrar')}>Entrar</button></>
-                    : <>Ainda não tem acesso? <button type="button" style={link} onClick={() => trocar('cadastro')}>Criar conta</button></>}
+                  {modo === 'entrar'
+                    ? <>Ainda não tem acesso? <button type="button" style={link} onClick={() => trocar('cadastro')}>Criar conta</button></>
+                    : modo === 'cadastro'
+                      ? <>Já tem acesso? <button type="button" style={link} onClick={() => trocar('entrar')}>Entrar</button></>
+                      : <button type="button" style={link} onClick={() => trocar('entrar')}>Voltar para o login</button>}
                 </div>
               </form>
             </BlurFade>

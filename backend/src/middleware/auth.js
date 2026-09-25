@@ -24,8 +24,13 @@ async function lerUsuario(req) {
   // Token da versão de usuário único (sem `sub`): entra de novo.
   if (!payload?.sub) return { erro: 'Sessão antiga — entre de novo' };
 
-  const [u] = await sql`select id, papel, status, nome, email, avatar from usuarios where id = ${payload.sub}`;
+  const [u] = await sql`select id, papel, status, nome, email, avatar, sessoes_desde from usuarios where id = ${payload.sub}`;
   if (!u || u.status !== 'ativo') return { erro: 'Acesso não autorizado', code: 'ACESSO_REVOGADO' };
+  // Senha redefinida pelo link: o que foi emitido antes deixa de valer.
+  if (u.sessoesDesde && payload.iat * 1000 < new Date(u.sessoesDesde).getTime() - 1000) {
+    return { erro: 'Sua senha foi redefinida — entre de novo', code: 'SESSAO_ENCERRADA' };
+  }
+  delete u.sessoesDesde;
   return { usuario: u };
 }
 

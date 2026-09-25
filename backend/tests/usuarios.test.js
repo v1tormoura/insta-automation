@@ -361,3 +361,84 @@ describe('tempo real', () => {
     removeClient(daBia);
   });
 });
+
+// ── Recuperação de senha ────────────────────────────────────────────────────
+
+describe('recuperação de senha por e-mail', () => {
+  const email = require('../src/services/email');
+  let enviados;
+  beforeEach(() => {
+    enviados = [];
+    jest.spyOn(email, 'configurado').mockReturnValue(true);
+    jest.spyOn(email, 'enviar').mockImplementation(async m => { enviados.push(m); });
+  });
+  const codigoDo = m => new URL(m.texto.match(/https?:\/\/\S+/)[0]).searchParams.get('codigo');
+
+  test('sem SMTP, a tela sabe que não há recuperação', async () => {
+    email.configurado.mockReturnValue(false);
+    expect((await api('GET', '/auth/opcoes')).dados.recuperacaoPorEmail).toBe(false);
+    expect((await api('POST', '/auth/esqueci', { corpo: { email: 'a@b.com' } })).dados.code).toBe('EMAIL_NAO_CONFIGURADO');
+  });
+
+  test('mesma resposta exista o e-mail ou não; só quem existe recebe', async () => {
+    const bia = await usuarioAtivo('bia');
+    const existe = await api('POST', '/auth/esqueci', { corpo: { email: 'BIA@teste.com' } });
+    const naoExiste = await api('POST', '/auth/esqueci', { corpo: { email: 'ninguem@teste.com' } });
+    expect(existe).toEqual(naoExiste);
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0].para).toBe(bia.email);
+    expect(enviados[0].texto).toContain('http://localhost:5173/redefinir-senha?codigo=');
+  });
+
+  test('o banco guarda só o hash do código', async () => {
+    await usuarioAtivo('bia');
+    await api('POST', '/auth/esqueci', { corpo: { email: 'bia@teste.com' } });
+    const [p] = await sql`select token_hash from recuperacoes_de_senha`;
+    expect(p.tokenHash).not.toBe(codigoDo(enviados[0]));
+    expect(p.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test('o link troca a senha uma vez, e derruba as sessões antigas', async () => {
+    const bia = await usuarioAtivo('bia');
+    await api('POST', '/auth/esqueci', { corpo: { email: 'bia@teste.com' } });
+    const codigo = codigoDo(enviados[0]);
+
+    await new Promise(r => setTimeout(r, 1100)); // o token antigo fica claramente anterior
+    const r = await api('POST', '/auth/redefinir', { corpo: { codigo, senha: 'senha-nova-456' } });
+    expect(r.dados.ok).toBe(true);
+
+    expect((await entrar('bia@teste.com', 'senha-boa-123')).status).toBe(401);
+    expect((await entrar('bia@teste.com', 'senha-nova-456')).status).toBe(200);
+    expect((await api('GET', '/accounts', { token: bia.token })).status).toBe(401);
+
+    const deNovo = await api('POST', '/auth/redefinir', { corpo: { codigo, senha: 'outra-senha-789' } });
+    expect(deNovo.dados.code).toBe('LINK_INVALIDO');
+  });
+
+  test('link vencido, inventado ou com senha curta não troca nada', async () => {
+    await usuarioAtivo('bia');
+    await api('POST', '/auth/esqueci', { corpo: { email: 'bia@teste.com' } });
+    const codigo = codigoDo(enviados[0]);
+
+    expect((await api('POST', '/auth/redefinir', { corpo: { codigo, senha: 'curta' } })).dados.code).toBe('SENHA_CURTA');
+    expect((await api('POST', '/auth/redefinir', { corpo: { codigo: 'inventado', senha: 'senha-nova-456' } })).dados.code).toBe('LINK_INVALIDO');
+    await sql`update recuperacoes_de_senha set expira_em = now() - interval '1 minute'`;
+    expect((await api('POST', '/auth/redefinir', { corpo: { codigo, senha: 'senha-nova-456' } })).dados.code).toBe('LINK_INVALIDO');
+    expect((await entrar('bia@teste.com', 'senha-boa-123')).status).toBe(200);
+  });
+
+  test('pedir de novo invalida o link anterior', async () => {
+    await usuarioAtivo('bia');
+    await api('POST', '/auth/esqueci', { corpo: { email: 'bia@teste.com' } });
+    await api('POST', '/auth/esqueci', { corpo: { email: 'bia@teste.com' } });
+    const r = await api('POST', '/auth/redefinir', { corpo: { codigo: codigoDo(enviados[0]), senha: 'senha-nova-456' } });
+    expect(r.dados.code).toBe('LINK_INVALIDO');
+    expect((await api('POST', '/auth/redefinir', { corpo: { codigo: codigoDo(enviados[1]), senha: 'senha-nova-456' } })).dados.ok).toBe(true);
+  });
+
+  test('bloqueado não recebe link', async () => {
+    await banco.criarUsuario({ email: 'bloq@teste.com', status: 'bloqueado', senhaHash: senhas.gerar('senha-boa-123') });
+    await api('POST', '/auth/esqueci', { corpo: { email: 'bloq@teste.com' } });
+    expect(enviados).toHaveLength(0);
+  });
+});

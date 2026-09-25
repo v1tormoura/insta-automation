@@ -80,6 +80,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/cadastro" element={<Login />} />
+      <Route path="/redefinir-senha" element={<Login />} />
       <Route path="/termos" element={<Termos />} />
       <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />

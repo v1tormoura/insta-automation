@@ -101,6 +101,27 @@ precisam ser profissionais (Empresa ou Criador).
   Convites** para a conta dele virar testadora; você vê o pedido e convida no
   painel da Meta.
 
+## E-mail (recuperar senha)
+
+Para o "Esqueci minha senha" funcionar, o servidor precisa mandar e-mail. Com o
+**Resend** (grátis até 3.000 e-mails/mês):
+
+1. Crie a conta em [resend.com](https://resend.com) → **Domains → Add Domain** →
+   `instaflow.pro`. Ele mostra alguns registros DNS (TXT/MX): crie cada um no DNS
+   do domínio (Hostinger → Domínios → DNS) e clique em **Verify**.
+2. **API Keys → Create API Key** → copie a chave (`re_...`).
+3. No `.env` do servidor:
+   ```
+   SMTP_HOST=smtp.resend.com
+   SMTP_PORT=465
+   SMTP_USER=resend
+   SMTP_PASS=re_sua_chave
+   SMTP_FROM=Nexora <nao-responda@instaflow.pro>
+   ```
+4. `docker compose up -d` — o link "Esqueci minha senha" passa a aparecer no login.
+
+O link vale 1 hora e uma vez; ao trocar a senha por ele, a pessoa sai dos outros aparelhos.
+
 ## Atualizar
 
 ```bash

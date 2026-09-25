@@ -272,7 +272,7 @@ export default function MinhaConta() {
             <Nota>
               {conta?.papel === 'admin'
                 ? 'O endereço é guardado para registro — você entra pelo usuário do servidor. O painel não envia e-mail.'
-                : 'É com este e-mail que você entra. O painel não envia e-mail: se esquecer a senha, peça ao administrador.'}
+                : 'É com este e-mail que você entra — e é para ele que vai o link de "Esqueci minha senha" na tela de login.'}
             </Nota>
 
             <button className="btn-primary" onClick={salvarPerfil} disabled={salvando === 'perfil'}
