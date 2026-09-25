@@ -24,7 +24,7 @@
  * Só o que pode virar `state` de OAuth com segurança.
  *
  * O valor vai numa requisição e volta assinado pelo servidor. Recusar o que não
- * é 'new' nem um ObjectId evita levar texto de fora até lá; e um id inventado
+ * é 'new' nem um UUID evita levar texto de fora até lá; e um id inventado
  * falharia no callback de um jeito que ninguém ligaria ao endereço colado.
  *
  * Cai em 'new' em vez de lançar: uma conta nova é o caso mais comum e o mais
@@ -34,7 +34,7 @@
 export function contaValida(valor) {
   const v = String(valor ?? '').trim();
   if (v === 'new' || v === '') return 'new';
-  return /^[0-9a-f]{24}$/i.test(v) ? v : 'new';
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : 'new';
 }
 
 /**

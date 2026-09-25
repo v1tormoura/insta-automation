@@ -273,7 +273,7 @@ export default function CampaignWizard() {
         setContas(lista);
 
         /* O rascunho guarda IDs de conta e sobrevive a tudo — inclusive à conta
-           ser removida e reconectada, o que gera um _id novo. Os IDs mortos
+           ser removida e reconectada, o que gera um id novo. Os IDs mortos
            ficavam selecionados e INVISÍVEIS: o seletor só desenha conta que
            existe, então a tela dizia "5 conta(s) selecionada(s)" com uma conta
            marcada, e a prévia só falhava lá na revisão com ACCOUNT_NOT_FOUND.
@@ -284,7 +284,7 @@ export default function CampaignWizard() {
         const total = Number(data?.pagination?.total ?? lista.length);
         if (lista.length < total) return;
 
-        const vivos = new Set(lista.map(c => String(c._id)));
+        const vivos = new Set(lista.map(c => String(c.id)));
         setForm(f => {
           const mantidos = f.accountIds.filter(id => vivos.has(String(id)));
           if (mantidos.length === f.accountIds.length) return f;
@@ -309,8 +309,8 @@ export default function CampaignWizard() {
      useCallback porque a função é dependência de efeito lá dentro. */
   const registrarMidias = useCallback((lista) => {
     setMidias(prev => {
-      const mapa = new Map(prev.map(m => [String(m._id), m]));
-      for (const m of lista) mapa.set(String(m._id), m);
+      const mapa = new Map(prev.map(m => [String(m.id), m]));
+      for (const m of lista) mapa.set(String(m.id), m);
       return [...mapa.values()];
     });
   }, []);
@@ -325,8 +325,7 @@ export default function CampaignWizard() {
     const termo = buscaConta.trim().toLowerCase();
     return contas.filter(c => {
       if (termo && !String(c.username || '').toLowerCase().includes(termo)) return false;
-      if (filtroConta === 'mobile')   return c.provider === 'instagrapi';
-      if (filtroConta === 'oficial')  return c.provider !== 'instagrapi';
+      if (filtroConta === 'oficial')  return !!c.hasApiToken;
       if (filtroConta === 'saudavel') return !c.healthStatus || c.healthStatus === 'ativa';
       return true;
     });
@@ -336,12 +335,12 @@ export default function CampaignWizard() {
 
   // Rótulos legíveis das seleções — usados pelos editores de legenda e comentário.
   const rotulosContas = useMemo(() => form.accountIds.map(id => {
-    const c = contas.find(x => x._id === id);
+    const c = contas.find(x => x.id === id);
     return { id, label: c ? `@${c.username}` : id };
   }), [form.accountIds, contas]);
 
   const rotulosConteudos = useMemo(() => form.contentIds.map(id => {
-    const m = midias.find(x => x._id === id);
+    const m = midias.find(x => x.id === id);
     return { id, label: m ? (m.originalName || m.filename) : id };
   }), [form.contentIds, midias]);
 
@@ -511,14 +510,14 @@ export default function CampaignWizard() {
         : [...f.accountIds, id],
     }));
 
-    const visiveis = contasFiltradas.map(c => c._id);
+    const visiveis = contasFiltradas.map(c => c.id);
     const todasMarcadas = visiveis.length > 0 && visiveis.every(id => form.accountIds.includes(id));
 
     return painel(null, <>
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginBottom:12 }}>
         <input className="input" style={{ flex:1, minWidth:180 }} placeholder="Buscar @conta..."
           value={buscaConta} onChange={e => setBuscaConta(e.target.value)} />
-        {[['todas','Todas'], ['mobile','API Mobile'], ['oficial','Oficial'], ['saudavel','Saudáveis']].map(([id, r]) => (
+        {[['todas','Todas'], ['oficial','Conectadas'], ['saudavel','Saudáveis']].map(([id, r]) => (
           <button key={id} onClick={() => setFiltroConta(id)} style={{
             padding:'8px 12px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:'pointer',
             background: filtroConta === id ? 'color-mix(in oklch, var(--mf-mod-contas) 12%, transparent)' : 'var(--mf-border-subtle)',
@@ -546,10 +545,10 @@ export default function CampaignWizard() {
           <div style={{ gridColumn: '1 / -1' }}><EsqueletoLista itens={4} /></div>
         )}
         {contasFiltradas.map(c => {
-          const marcada = form.accountIds.includes(c._id);
+          const marcada = form.accountIds.includes(c.id);
           const saudavel = !c.healthStatus || c.healthStatus === 'ativa';
           return (
-            <button key={c._id} onClick={() => alternar(c._id)} style={{
+            <button key={c.id} onClick={() => alternar(c.id)} style={{
               display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius: 'var(--mf-r-md)',
               textAlign:'left', cursor:'pointer', transition:'all .15s cubic-bezier(.4,0,.2,1)',
               background: marcada ? 'color-mix(in oklch, var(--mf-mod-contas) 10%, var(--mf-surface-2))' : 'var(--mf-surface-2)',
@@ -569,7 +568,7 @@ export default function CampaignWizard() {
                 <div style={{ display:'flex', gap:5, marginTop:3, flexWrap:'wrap' }}>
                   <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xl)',
                     background:'color-mix(in oklch, var(--mf-mod-publicar) 12%, transparent)', color:'var(--mf-mod-publicar)' }}>
-                    {c.provider === 'instagrapi' ? 'API Mobile' : 'Oficial'}
+                    {c.hasApiToken ? 'Oficial' : 'Sem token'}
                   </span>
                   <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 4px', borderRadius: 'var(--mf-r-xl)',
                     background: saudavel ? 'color-mix(in oklch, var(--mf-success-500) 12%, transparent)' : 'color-mix(in oklch, var(--mf-danger-500) 12%, transparent)',
@@ -607,9 +606,9 @@ export default function CampaignWizard() {
           {(mostrarCapasPorPerfil || Object.keys(form.covers?.byAccount || {}).length > 0) && (
             <div style={{ marginTop: 8 }}>
               <CapasPorPerfil
-                contas={contas.filter(c => form.accountIds.includes(c._id))}
+                contas={contas.filter(c => form.accountIds.includes(c.id))}
                 capas={Object.fromEntries(Object.entries(form.covers?.byAccount || {}).map(([accountId, mediaId]) => {
-                  const m = midias.find(x => String(x._id) === String(mediaId));
+                  const m = midias.find(x => String(x.id) === String(mediaId));
                   return [accountId, { url: m?.url || '', rotulo: m?.originalName || m?.filename || 'capa da biblioteca' }];
                 }))}
                 onBiblioteca={id => setCapaDePerfilPara(id)}
@@ -625,10 +624,10 @@ export default function CampaignWizard() {
           accept="image"
           onClose={() => setCapaDePerfilPara(null)}
           onConfirm={items => {
-            const m = items.find(i => i?._id);
+            const m = items.find(i => i?.id);
             if (m) {
               registrarMidias([m]);
-              setForm(f => ({ ...f, covers: { ...f.covers, byAccount: { ...(f.covers?.byAccount || {}), [capaDePerfilPara]: String(m._id) } } }));
+              setForm(f => ({ ...f, covers: { ...f.covers, byAccount: { ...(f.covers?.byAccount || {}), [capaDePerfilPara]: String(m.id) } } }));
             }
             setCapaDePerfilPara(null);
           }}
@@ -1036,7 +1035,7 @@ export default function CampaignWizard() {
         aberto={marcaModal}
         valor={form.settings.marcaDagua}
         contas={form.accountIds?.length || 0}
-        arroba={contas.find(a => form.accountIds?.includes(a._id))?.username || ''}
+        arroba={contas.find(a => form.accountIds?.includes(a.id))?.username || ''}
         mod="campanhas"
         onCancelar={() => setMarcaModal(false)}
         onAplicar={c => { mudarEm('settings', 'marcaDagua', c); setMarcaModal(false); }}

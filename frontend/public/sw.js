@@ -27,7 +27,7 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', evento => evento.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', evento => {
-  let dados = {};
+  let dados;
   try {
     dados = evento.data ? evento.data.json() : {};
   } catch {

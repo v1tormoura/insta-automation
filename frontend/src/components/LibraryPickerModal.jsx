@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import api from '../services/api';
+import { enviarMidias, avisoDeRecusados } from '../services/enviarMidias';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -89,7 +91,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
   const [files,     setFiles]     = useState([]);
   const [folders,   setFolders]   = useState([]);
   const [activeFolder, setActive] = useState(null);
-  const [selected,  setSelected]  = useState(new Map()); // _id → file
+  const [selected,  setSelected]  = useState(new Map()); // id → file
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver,  setDragOver]  = useState(false);
@@ -109,24 +111,22 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
     if (!rawFiles?.length) return;
     setUploading(true);
     try {
-      const form = new FormData();
-      Array.from(rawFiles).forEach(f => form.append('media', f));
-      form.append('folder', activeFolder || 'default');
-      await api.post('/media/upload', form);
+      const { recusados } = await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
+      if (recusados.length) toast.warning('Arquivo grande demais', { description: avisoDeRecusados(recusados) });
       const r = await api.get('/media');
       const data = r.data;
       setFiles(data.files || []);
       setFolders(data.folders || []);
-    } catch {} finally { setUploading(false); }
+    } catch { /* segue sem este dado */ } finally { setUploading(false); }
   }
 
   function toggle(file) {
     setSelected(prev => {
       const m = new Map(prev);
-      if (m.has(file._id)) m.delete(file._id);
+      if (m.has(file.id)) m.delete(file.id);
       else {
         if (mode === 'single') m.clear();
-        m.set(file._id, file);
+        m.set(file.id, file);
       }
       return m;
     });
@@ -146,14 +146,14 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
 
   const allFoldersForSidebar = folders.filter(f => f !== 'default');
 
-  const shownSelected = shown.filter(f => selected.has(f._id)).length;
+  const shownSelected = shown.filter(f => selected.has(f.id)).length;
   const allShownSel   = shown.length > 0 && shownSelected === shown.length;
 
   function toggleSelectAll() {
     if (allShownSel) {
-      setSelected(prev => { const m = new Map(prev); shown.forEach(f => m.delete(f._id)); return m; });
+      setSelected(prev => { const m = new Map(prev); shown.forEach(f => m.delete(f.id)); return m; });
     } else {
-      setSelected(prev => { const m = new Map(prev); shown.forEach(f => m.set(f._id, f)); return m; });
+      setSelected(prev => { const m = new Map(prev); shown.forEach(f => m.set(f.id, f)); return m; });
     }
   }
 
@@ -251,7 +251,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(80px,1fr))', gap: 6 }}>
                   {shown.map(file => (
-                    <FileThumb key={file._id} file={file} selected={selected.has(file._id)} onClick={() => toggle(file)} />
+                    <FileThumb key={file.id} file={file} selected={selected.has(file.id)} onClick={() => toggle(file)} />
                   ))}
                 </div>
               </div>

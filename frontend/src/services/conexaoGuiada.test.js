@@ -24,8 +24,8 @@ import { contaValida, montarLinkGuiado } from './conexaoGuiada.js';
  */
 
 describe('o que pode virar state de OAuth', () => {
-  test('ObjectId passa como veio', () => {
-    const id = '64b000000000000000000001';
+  test('UUID passa como veio', () => {
+    const id = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
     expect(contaValida(id)).toBe(id);
     expect(contaValida(id.toUpperCase())).toBe(id.toUpperCase());
   });
@@ -38,12 +38,12 @@ describe('o que pode virar state de OAuth', () => {
     expect(contaValida(undefined)).toBe('new');
   });
 
-  test('o que não é ObjectId cai em new, não passa adiante', () => {
+  test('o que não é UUID cai em new, não passa adiante', () => {
     /* Cai em vez de lançar: no pior caso a pessoa conecta uma conta a mais, em
        vez de a tela não abrir. */
     for (const v of [
-      'admin', '../../etc/passwd', '<script>', '64b00000000000000000000',   // 23 dígitos
-      '64b0000000000000000000012', 'zzzzzzzzzzzzzzzzzzzzzzzz', 42, {}, [],
+      'admin', '../../etc/passwd', '<script>', '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6',   // curto
+      '64b000000000000000000001', 'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz', 42, {}, [],
     ]) {
       expect(contaValida(v)).toBe('new');
     }
@@ -63,7 +63,7 @@ describe('o endereço da página guiada', () => {
   });
 
   test('carrega a conta a reconectar', () => {
-    const id = '64b000000000000000000001';
+    const id = '3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b';
     expect(montarLinkGuiado(ORIGEM, id)).toContain(`conta=${id}`);
   });
 

@@ -11,8 +11,8 @@ import {
  *
  * Duas razões, e a segunda é a que obriga.
  *
- * A primeira é a mesma do `emendaMobile.test.js`: lógica dentro de um
- * `useEffect` de uma página de 2.700 linhas vai para produção sem nunca ter
+ * A primeira: lógica dentro de um
+ * `useEffect` de uma página de 1.400 linhas vai para produção sem nunca ter
  * sido executada.
  *
  * A segunda é que o caminho da janela NÃO É EXECUTÁVEL no navegador de teste —

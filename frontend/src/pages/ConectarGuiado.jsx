@@ -22,7 +22,7 @@ import { contaValida } from '../services/conexaoGuiada';
  * ── O que ela carrega na URL
  *
  * Só qual conta reconectar (ou `new`) e qual App da Meta usar. `contaValida`
- * recusa o que não é 'new' nem um ObjectId: um id inventado falharia lá no
+ * recusa o que não é 'new' nem um UUID: um id inventado falharia lá no
  * callback, de um jeito que ninguém ligaria ao endereço colado.
  */
 export default function ConectarGuiado() {

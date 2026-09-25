@@ -1,38 +1,22 @@
 /**
- * A moldura de composição do story.
- *
- * ── Por que num arquivo próprio
- *
- * Ela nasceu dentro do bloco `{linkOn && …}` da tela de stories, porque na
- * época a única coisa que se posicionava era a figurinha de link. Com o texto
- * livre isso deixou de valer: quem só quer escrever na mídia não liga o link,
- * e a moldura sumia junto — a pessoa digitava um texto e não via onde ele ia
- * cair.
- *
- * Tirar daqui também é o que permite promovê-la a coluna principal, que é como
- * ela deveria ter nascido: é a única parte da tela que mostra o resultado.
- *
- * ── O que este arquivo NÃO decide
- *
- * Nada. Ele recebe posições e handlers e desenha. A geometria da figurinha e o
- * corte do rótulo continuam em Stories.jsx, espelhando o renderizador do
- * backend — dois espelhos do mesmo cálculo já são um a mais do que o ideal, e
- * um terceiro aqui seria onde eles começariam a divergir.
+ * A moldura de composição do story: a mídia no enquadramento 9:16 e o texto
+ * livre na posição e no tamanho em que o servidor vai queimá-lo. Recebe
+ * posições e handlers e desenha — não decide nada.
  */
 
 /* Constantes do módulo, não exportadas: um arquivo que exporta um componente
    E constantes perde o fast refresh do Vite — o componente remonta a cada
-   salvamento em vez de preservar o estado, e arrastar a figurinha para
+   salvamento em vez de preservar o estado, e arrastar o texto para
    ajustar o CSS vira um exercício de recomeçar. Quem precisar do número
    recebe por prop. */
 const PREVIEW_LARGURA = 300;
 
-/* Espelha TAMANHOS_TEXTO em backend/src/services/storyStickerRenderer.js.
+/* Espelha TAMANHOS_TEXTO em backend/src/services/textoNoStory.js.
    Fração da largura do story, não pixels — é o que faz o preview continuar
    fiel se a resolução mudar. Ao mexer em um, mexa no outro. */
 const TAMANHOS_TEXTO = { pequeno: 0.045, medio: 0.065, grande: 0.095 };
 
-/* As mesmas de storyStickerRenderer.js: respiro até a borda e a resolução do
+/* As mesmas de textoNoStory.js: respiro até a borda e a resolução do
    story. É em cima delas que a conta do limite é feita dos dois lados. */
 const MARGEM = 28;
 const STORY_W = 1080;
@@ -56,13 +40,12 @@ const FONTE_STORY =
   'Roboto, "Noto Sans", Helvetica, Arial, sans-serif';
 
 export default function StoryMoldura({
-  media, figurinha, linkOn,
+  media,
   textoOn, texto, textoPos, textoTam, textoCor,
   arrastando, refMoldura,
-  onClicar, onIniciarLink, onIniciarTexto, onMover, onSoltar,
+  onClicar, onIniciarTexto, onMover, onSoltar,
   largura = PREVIEW_LARGURA,
 }) {
-  const altura = Math.round(largura * 16 / 9);
   const linhas = String(texto || '').split('\n').filter(Boolean).slice(0, 6);
 
   return (
@@ -78,7 +61,7 @@ export default function StoryMoldura({
         position: 'relative', width: largura, maxWidth: '100%',
         flexShrink: 0, aspectRatio: '9 / 16', touchAction: 'none',
         borderRadius: 'var(--mf-r-lg)', overflow: 'hidden',
-        cursor: arrastando ? 'grabbing' : (linkOn || textoOn ? 'crosshair' : 'default'),
+        cursor: arrastando ? 'grabbing' : (textoOn ? 'crosshair' : 'default'),
         border: '1px solid var(--mf-border-strong)',
         boxShadow: 'var(--mf-shadow-2)',
         background: 'linear-gradient(160deg, var(--mf-surface-2), var(--mf-bg))',
@@ -108,7 +91,7 @@ export default function StoryMoldura({
 
       {/* Grade de terços — ajuda a mirar. Só aparece quando há o que
           posicionar: sobre a mídia sozinha ela é sujeira visual. */}
-      {(linkOn || textoOn) && (
+      {textoOn && (
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.5,
           background:
@@ -186,47 +169,6 @@ export default function StoryMoldura({
         );
       })()}
 
-      {/* ── A figurinha de link, no tamanho REAL ──────────────────────────────
-          A caixa vem calculada de fora, espelhando computeStickerBox() do
-          backend, para o preview mostrar a pílula que será de fato queimada. */}
-      {linkOn && figurinha && (() => {
-        const { caixa: cx, visivel: rotulo } = figurinha;
-        return (
-          <div
-            onPointerDown={onIniciarLink}
-            title="Arraste a figurinha para onde quiser"
-            style={{
-              position: 'absolute',
-              left: `${cx.x * 100}%`, top: `${cx.y * 100}%`,
-              width: `${cx.width * 100}%`, height: `${cx.height * 100}%`,
-              transform: 'translate(-50%, -50%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: 3, padding: '0 4px', cursor: 'grab',
-              background: 'var(--mf-text)', color: 'var(--mf-surface-2)',
-              borderRadius: 'var(--mf-r-full)', boxShadow: 'var(--mf-shadow-2)',
-              outline: arrastando === 'link'
-                ? '2px dashed var(--mf-primary-500)' : 'none',
-              outlineOffset: 4,
-            }}>
-            {/* A fonte acompanha a pílula (34% da altura), como no
-                renderizador — é isso que faz esta caixa ser uma miniatura fiel
-                em vez de uma aproximação. Sem `ellipsis`: com a fonte certa o
-                texto cabe por construção, e se um dia não couber, transbordar
-                é o aviso correto de que as duas contas divergiram. */}
-            <span style={{
-              flex: 1, minWidth: 0,
-              /* 600 e não 800: a figurinha do Instagram usa peso semibold, e
-                 o renderizador já desenha em 600. O preview estava mais gordo
-                 que a pílula queimada. */
-              fontFamily: FONTE_STORY, fontWeight: 600,
-              fontSize: `${Math.max(4, cx.height * altura * 0.34)}px`,
-              letterSpacing: '.005em', whiteSpace: 'nowrap',
-              textAlign: 'center', lineHeight: 1,
-            }}>{rotulo}</span>
-            <span style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', flexShrink: 0 }}>›</span>
-          </div>
-        );
-      })()}
     </div>
   );
 }

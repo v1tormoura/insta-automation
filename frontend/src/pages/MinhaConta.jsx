@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  User, Camera, Lock, Mail, Bell, Palette, Save, Trash2, Check, Info,
+  User, Camera, Lock, Bell, Palette, Save, Trash2, Check, Info,
 } from 'lucide-react';
 import api from '../services/api';
 import PageShell from '../components/PageShell';

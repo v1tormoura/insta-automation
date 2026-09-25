@@ -5,10 +5,6 @@ import { Globe, Users, Flame, Eye, RefreshCw, ChevronDown, ChevronUp, ExternalLi
 import api from '../services/api';
 
 const fmt = v => Number(v || 0).toLocaleString('pt-BR');
-const fmtK = v => {
-  const n = Number(v || 0);
-  return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n);
-};
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const proxyImg = url => {

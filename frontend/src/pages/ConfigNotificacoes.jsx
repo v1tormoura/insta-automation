@@ -60,14 +60,11 @@ const fmtN = n => Number(n || 0).toLocaleString('pt-BR');
  * Estes eram os únicos com texto embutido no código — não por decisão, e sim
  * porque foram escritos depois do editor. Agora usam o mesmo modelo dos marcos.
  *
- * Não têm marcos nem interruptor: um proxy morto não tem "marco de 1.000", e
+ * Não têm marcos nem interruptor: uma fila presa não tem "marco de 1.000", e
  * um botão para desligar o aviso de que a automação parou seria um botão para
  * desligar a única coisa que avisa que a automação parou.
  */
 const SISTEMA = [
-  { id: 'cota',        rotulo: 'Cota do proxy',      desc: 'Antes de a cota acabar' },
-  { id: 'proxy',       rotulo: 'Proxy fora do ar',   desc: 'O proxy parou de responder' },
-  { id: 'pool',        rotulo: 'Pool esgotado',      desc: 'Não há proxy livre para a próxima conta' },
   { id: 'sessoes',     rotulo: 'Contas sem conectar', desc: 'Quando é a maioria de uma vez' },
   { id: 'fila',        rotulo: 'Fila presa',         desc: 'Publicação em processamento há mais de 1h' },
   { id: 'erros',       rotulo: 'Erros do dia',       desc: 'Muitos erros de publicação no mesmo dia' },
@@ -86,8 +83,8 @@ const PUBLICACAO = [
   { id: 'postPublicado',  rotulo: 'Publicado',        desc: 'Quando uma publicação sai com sucesso' },
   { id: 'erroPublicacao', rotulo: 'Falha ao publicar', desc: 'Quando uma publicação falha' },
   { id: 'cotaApi',        rotulo: 'Cota da API cheia', desc: 'O Instagram aceita 50 publicações por conta em 24h pela API; avisa quando enche e quando libera' },
-  { id: 'contaCaiu',      rotulo: 'Conta parou',       desc: 'Verificação pedida pelo Instagram, sessão expirada, token inválido ou banimento — de qualquer origem' },
-  { id: 'contaVoltou',    rotulo: 'Conta voltou',      desc: 'Quando uma conta que estava parada volta a ativa (verificação concluída, sessão refeita)' },
+  { id: 'contaCaiu',      rotulo: 'Conta parou',       desc: 'Verificação pedida pelo Instagram, token inválido ou banimento — de qualquer origem' },
+  { id: 'contaVoltou',    rotulo: 'Conta voltou',      desc: 'Quando uma conta que estava parada volta a ativa (verificação concluída, conta reconectada)' },
   { id: 'tokenExpirando', rotulo: 'Token vencendo',    desc: 'Avisa 7 dias antes, para dar tempo de reconectar' },
 ];
 
@@ -110,10 +107,7 @@ const ehDePublicacao = id => PUBLICACAO.some(a => a.id === id);
  * por isso que a frase cita o número em vez de dizer "quando trava".
  */
 const GATILHO = {
-  cota:    'Quando a cota passa de 85% do total, ou quando a projeção mostra 5 dias ou menos até acabar.',
-  proxy:   'Quando um teste de conexão ao proxy configurado falha.',
-  pool:    'Quando nenhum proxy do pool está livre para a próxima conta.',
-  sessoes: 'Quando metade ou mais das contas está sem conseguir conectar.',
+  sessoes: 'Quando metade ou mais das contas está com o token inválido.',
   fila:    'Quando uma publicação fica em processamento por mais de 1 hora.',
   erros:   'Quando o dia acumula 20 erros de publicação ou mais.',
   normalizado: 'Quando qualquer um dos avisos acima deixa de valer — o problema passou.',
@@ -267,7 +261,7 @@ export default function ConfigNotificacoes() {
     const render = t => String(t || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
       (inteiro, nome) => (nome in vars ? vars[nome] : inteiro));
     return {
-      _id: 'preview',
+      id: 'preview',
       titulo: render(modelo.titulo) || 'Sem título',
       mensagem: render(modelo.mensagem),
       tema: modelo.tema || 'milestone',
@@ -521,7 +515,7 @@ export default function ConfigNotificacoes() {
                   <Cartao notificacao={exemplo} onFechar={() => {}} />
                 </>)}
 
-                {/* Marcos existem para métricas que SOBEM. "Proxy fora do ar"
+                {/* Marcos existem para métricas que SOBEM. "Fila presa"
                     não tem marco de 1.000, e um campo vazio ali seria um
                     convite a preencher algo que nada leria. O painel some, e
                     no lugar entra o que decide o disparo de verdade. */}

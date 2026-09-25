@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import { enviarMidias, avisoDeRecusados, LIMITE_POR_ENVIO } from '../services/enviarMidias';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
@@ -33,7 +34,7 @@ function LegendDropdown({ legends, value, onChange }) {
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
 
-  const selected = legends.find(l => l._id === value);
+  const selected = legends.find(l => l.id === value);
 
   return (
     <div ref={ref} style={{ position: 'relative', marginBottom: 10 }}>
@@ -67,21 +68,21 @@ function LegendDropdown({ legends, value, onChange }) {
           boxShadow: '0 16px 40px oklch(0 0 0 / 0.55)', maxHeight: 220, overflowY: 'auto',
           backdropFilter: 'blur(16px)',
         }}>
-          {[{ _id: '', title: 'Selecione uma legenda salva...' }, ...legends].map((l, i) => (
+          {[{ id: '', title: 'Selecione uma legenda salva...' }, ...legends].map((l, i) => (
             <div
-              key={l._id || 'empty'}
-              onClick={() => { onChange(l._id); setOpen(false); }}
+              key={l.id || 'empty'}
+              onClick={() => { onChange(l.id); setOpen(false); }}
               style={{
                 padding: '8px 12px', fontSize: 'var(--mf-t-sm)', cursor: 'pointer',
-                color: l._id === '' ? 'var(--mf-text-3)' : l._id === value ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)',
-                background: l._id !== '' && l._id === value ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'transparent',
+                color: l.id === '' ? 'var(--mf-text-3)' : l.id === value ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-text)',
+                background: l.id !== '' && l.id === value ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'transparent',
                 borderBottom: i < legends.length ? '1px solid var(--mf-border-subtle)' : 'none',
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 transition: 'background .1s',
-                fontStyle: l._id === '' ? 'italic' : 'normal',
+                fontStyle: l.id === '' ? 'italic' : 'normal',
               }}
-              onMouseEnter={e => { if (l._id !== value) e.currentTarget.style.background = 'var(--mf-border-subtle)'; }}
-              onMouseLeave={e => { if (l._id !== value) e.currentTarget.style.background = l._id === value ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'transparent'; }}
+              onMouseEnter={e => { if (l.id !== value) e.currentTarget.style.background = 'var(--mf-border-subtle)'; }}
+              onMouseLeave={e => { if (l.id !== value) e.currentTarget.style.background = l.id === value ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : 'transparent'; }}
             >
               {l.title}
             </div>
@@ -320,7 +321,6 @@ export default function Posts() {
      rodada, sem repetir em sequência). A caixa continua existindo como
      reserva: só entra se a biblioteca ficar vazia. */
   const [legendaAleatoria, setLegendaAleatoria] = useState({ ativa: false, categoria: '' });
-  const [location, setLocation] = useState('');
   const [ctaSuffix, setCtaSuffixState] = useState(() => getCTASuffix());
 
   function updateCtaSuffix(patch) {
@@ -369,7 +369,7 @@ export default function Posts() {
   const trilhaUploadRef = useRef();
 
   async function carregarTrilhas() {
-    try { const r = await api.get('/trilhas'); setTrilhas(Array.isArray(r.data) ? r.data : []); } catch {}
+    try { const r = await api.get('/trilhas'); setTrilhas(Array.isArray(r.data) ? r.data : []); } catch { /* segue sem este dado */ }
   }
   async function enviarTrilha(e) {
     const file = e.target.files?.[0];
@@ -382,7 +382,7 @@ export default function Posts() {
       const r = await api.post('/trilhas', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setTrilhas(prev => [r.data, ...prev]);
       // Quem acabou de subir uma trilha quer usá-la: já entra marcada.
-      setTrilha(cfg => ({ ...cfg, ids: [...cfg.ids, r.data._id] }));
+      setTrilha(cfg => ({ ...cfg, ids: [...cfg.ids, r.data.id] }));
       showToast('success', 'Trilha', `"${r.data.nome}" adicionada à biblioteca.`);
     } catch (err) {
       showToast('error', 'Erro', err?.response?.data?.error || 'Falha ao enviar a trilha.');
@@ -392,9 +392,9 @@ export default function Posts() {
     if (!tr) return;
     setTrilhaParaRemover(null);
     try {
-      await api.delete(`/trilhas/${tr._id}`);
-      setTrilhas(prev => prev.filter(x => x._id !== tr._id));
-      setTrilha(cfg => ({ ...cfg, ids: cfg.ids.filter(id => id !== tr._id) }));
+      await api.delete(`/trilhas/${tr.id}`);
+      setTrilhas(prev => prev.filter(x => x.id !== tr.id));
+      setTrilha(cfg => ({ ...cfg, ids: cfg.ids.filter(id => id !== tr.id) }));
     } catch (err) {
       showToast('error', 'Erro', err?.response?.data?.error || 'Falha ao remover a trilha.');
     }
@@ -429,7 +429,7 @@ export default function Posts() {
       return (salvo && salvo !== CTA_EXEMPLO_ANTIGO) ? salvo : CTA_PADRAO_SISTEMA;
     } catch { return CTA_PADRAO_SISTEMA; }
   };
-  const lembrarCta = v => { if (String(v).trim()) { try { localStorage.setItem(CTA_PADRAO_KEY, v); } catch {} } };
+  const lembrarCta = v => { if (String(v).trim()) { try { localStorage.setItem(CTA_PADRAO_KEY, v); } catch { /* segue sem este dado */ } } };
 
   /* ── Restaura rascunho de posts salvo ────────────────────────────────────── */
   useEffect(() => {
@@ -442,7 +442,6 @@ export default function Posts() {
         if (d.intervalMins !== undefined) setIntervalMins(d.intervalMins);
         if (d.simultaneousLimit !== undefined) setSimultaneousLimit(d.simultaneousLimit);
         if (d.processMode) setProcessMode(d.processMode);
-        if (d.location !== undefined) setLocation(d.location);
         if (d.ctaComment !== undefined) setCtaComment(d.ctaComment);
         if (Array.isArray(d.selectedAccounts) && d.selectedAccounts.length) setSelectedAccounts(d.selectedAccounts);
         if (d.mediaSource) setMediaSource(d.mediaSource);
@@ -454,7 +453,7 @@ export default function Posts() {
         if (d.nomeDoEnvio !== undefined) setNomeDoEnvio(d.nomeDoEnvio);
         if (d.postsPor24h !== undefined) setPostsPor24h(d.postsPor24h);
         if (d.aquecimento !== undefined) setAquecimento(!!d.aquecimento);
-        if (d.trilha && typeof d.trilha === 'object') setTrilha({ modo: 'nenhuma', ids: [], volume: 1, ...d.trilha, ids: Array.isArray(d.trilha.ids) ? d.trilha.ids : [] });
+        if (d.trilha && typeof d.trilha === 'object') setTrilha({ modo: 'nenhuma', volume: 1, ...d.trilha, ids: Array.isArray(d.trilha.ids) ? d.trilha.ids : [] });
         if (d.legendaAleatoria && typeof d.legendaAleatoria === 'object') setLegendaAleatoria({ ativa: !!d.legendaAleatoria.ativa, categoria: String(d.legendaAleatoria.categoria || '') });
         if (d.capaPorPerfil !== undefined) setCapaPorPerfil(!!d.capaPorPerfil);
         if (d.capasPorConta && typeof d.capasPorConta === 'object') {
@@ -463,7 +462,7 @@ export default function Posts() {
           setCapasPorConta(so);
         }
       }
-    } catch {}
+    } catch { /* segue sem este dado */ }
   }, []);
 
   /* ── Salva rascunho de posts automaticamente ────────────────────────────── */
@@ -471,15 +470,15 @@ export default function Posts() {
     try {
       localStorage.setItem(DRAFT_POSTS_KEY, JSON.stringify({
         caption, postType, intervalMins, simultaneousLimit, processMode,
-        location, ctaComment, selectedAccounts, mediaSource,
+        ctaComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua,
         nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil,
         /* Só o que veio da biblioteca: um File escolhido do computador não
            sobrevive ao refresh, e guardar só o nome enganaria. */
         capasPorConta: Object.fromEntries(Object.entries(capasPorConta).filter(([, c]) => c?.arquivo).map(([id, c]) => [id, { arquivo: c.arquivo, url: c.url, rotulo: c.rotulo }])),
       }));
-    } catch {}
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, location, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil, capasPorConta]);
+    } catch { /* segue sem este dado */ }
+  }, [caption, postType, intervalMins, simultaneousLimit, processMode, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil, capasPorConta]);
 
   /* A biblioteca, do jeito que o sorteio a vê: só ativas, agrupadas por
      categoria. É o que o bloco "sortear a cada post" mostra — o mesmo filtro
@@ -543,6 +542,7 @@ export default function Posts() {
     if (legendsR.status === 'fulfilled') {
       setLegends(Array.isArray(legendsR.value.data) ? legendsR.value.data : []);
     }
+    setPrimeiraCarga(false);
   }
 
   function goToPostPage(p) { setPostPage(p); load(p); }
@@ -582,10 +582,16 @@ export default function Posts() {
     const hasMedia = mediaSource === 'library' ? libraryMedia.length > 0 : media.length > 0;
     if (!hasMedia) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
     if (!selectedAccounts.length) return showToast('warning', 'Atenção', 'Selecione uma conta');
+    /* A Cloudflare recusa requisição acima de 100 MB. Passando disso, as mídias
+       sobem antes para a biblioteca, em lotes, e o envio segue pelos ids. */
+    const passaDoLimite = mediaSource !== 'library'
+      && media.reduce((s, f) => s + f.size, 0) + (cover?.size || 0) > LIMITE_POR_ENVIO;
+    const grandes = passaDoLimite ? media.filter(f => f.size > LIMITE_POR_ENVIO) : [];
+    if (grandes.length) return showToast('warning', 'Arquivo grande demais', avisoDeRecusados(grandes));
     const form = new FormData();
     if (mediaSource === 'library') {
-      form.append('mediaIds', JSON.stringify(libraryMedia.map(m => m._id)));
-    } else {
+      form.append('mediaIds', JSON.stringify(libraryMedia.map(m => m.id)));
+    } else if (!passaDoLimite) {
       media.forEach(file => form.append('media', file));
     }
     if (cover) form.append('cover', cover);
@@ -613,7 +619,6 @@ export default function Posts() {
         sufixo: ctaSuffix.enabled && ctaSuffix.text.trim() ? ctaSuffix.text : '',
       }));
     }
-    if (location) form.append('location', location);
     form.append('postType', postType);
     form.append('accounts', JSON.stringify(selectedAccounts));
     form.append('intervalMinutes', intervalMins);
@@ -637,9 +642,13 @@ export default function Posts() {
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     setPosting(true);
     try {
+      if (passaDoLimite) {
+        const { media: subidas } = await enviarMidias(media);
+        form.append('mediaIds', JSON.stringify(subidas.map(m => m.id)));
+      }
       await api.post('/posts', form);
       setCaption(''); setMedia([]); setCover(null); setCapasPorConta({});
-      setLocation(''); setSelectedAccounts([]); setScheduledAt('');
+      setSelectedAccounts([]); setScheduledAt('');
       setIntervalMins(0); setSelectedLegend('');
       setLibraryMedia([]);
       showToast(
@@ -715,7 +724,6 @@ export default function Posts() {
     borderBottom: '1px solid var(--mf-border)',
     flexWrap: 'wrap', rowGap: 'var(--mf-2)',
   };
-  const cardH3Style = { fontSize: 'var(--mf-t-h2)', fontWeight: 650, color: 'var(--mf-text)', margin: 0 };
   const cardBodyStyle = { padding: 'var(--mf-4)' };
   const rotuloForm = {
     display: 'block', marginBottom: 7,
@@ -759,8 +767,8 @@ export default function Posts() {
               <LibraryPickerModal
                 onClose={() => setShowLibPicker(false)}
                 onConfirm={items => setLibraryMedia(prev => {
-                  const existing = new Map(prev.map(m => [m._id, m]));
-                  items.forEach(m => existing.set(m._id, m));
+                  const existing = new Map(prev.map(m => [m.id, m]));
+                  items.forEach(m => existing.set(m.id, m));
                   return Array.from(existing.values());
                 })}
               />
@@ -903,7 +911,7 @@ export default function Posts() {
                             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
                             const src = isVideo ? `${API_URL}/uploads/${(m.filename||'').replace(/\.[^.]+$/,'')}.thumb.jpg` : `${API_URL}${m.url || `/uploads/${m.filename}`}`;
                             return (
-                              <div key={m._id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'var(--mf-bg)' }}>
+                              <div key={m.id} style={{ position: 'relative', aspectRatio: '9/16', borderRadius: 'var(--mf-r-sm)', overflow: 'hidden', border: '1px solid var(--mf-border)', background: 'var(--mf-bg)' }}>
                                 {/* Esconder a imagem quebrada deixava o cartão PRETO, com só o
                                     botão de remover — foi o que apareceu no celular com vinte
                                     mídias escolhidas, porque a miniatura só era gerada no upload
@@ -918,7 +926,7 @@ export default function Posts() {
                                     <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/>
                                   </svg>
                                 </span>
-                                <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x._id !== m._id))}
+                                <button type="button" onClick={() => setLibraryMedia(prev => prev.filter(x => x.id !== m.id))}
                                    style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 'var(--mf-r-xs)', background: 'color-mix(in oklch, var(--mf-danger-500) 85%, transparent)', border: 'none', color: 'var(--mf-text)', cursor: 'pointer', fontSize: 'var(--mf-t-nano)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,oklch(0 0 0 / .7))', padding: '12px 4px 2px' }}>
                                   <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text)', fontFamily: 'var(--mf-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>#{i+1} {m.originalName || m.filename}</div>
@@ -1040,7 +1048,7 @@ export default function Posts() {
                   {capaPorPerfil && (
                     <div style={{ marginTop: 8 }}>
                       <CapasPorPerfil
-                        contas={accounts.filter(a => selectedAccounts.includes(a._id))}
+                        contas={accounts.filter(a => selectedAccounts.includes(a.id))}
                         capas={capasPorConta}
                         capaGeralUrl={cover ? URL.createObjectURL(cover) : (coverLibFile ? urlDaCapa : '')}
                         onBiblioteca={id => setPickerCapaDe(id)}
@@ -1069,7 +1077,7 @@ export default function Posts() {
                     value={selectedLegend}
                     onChange={id => {
                       setSelectedLegend(id);
-                      const l = legends.find(l => l._id === id);
+                      const l = legends.find(l => l.id === id);
                       if (l) setCaption(l.text);
                       else if (!id) setCaption('');
                     }}
@@ -1140,8 +1148,8 @@ export default function Posts() {
                       <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: .5, textTransform: 'uppercase', color: 'var(--mf-text-3)', padding: '7px 10px', background: 'var(--mf-surface-2)', borderBottom: '1px solid var(--mf-border)' }}>
                         Prévia por conta
                       </div>
-                      {accounts.filter(a => selectedAccounts.includes(a._id)).slice(0, 3).map(a => (
-                        <div key={a._id} style={{ padding: '8px 10px', borderBottom: '1px solid var(--mf-border-subtle)' }}>
+                      {accounts.filter(a => selectedAccounts.includes(a.id)).slice(0, 3).map(a => (
+                        <div key={a.id} style={{ padding: '8px 10px', borderBottom: '1px solid var(--mf-border-subtle)' }}>
                           <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-mod-publicar)', fontFamily: 'var(--mf-mono)' }}>@{a.username}</div>
                           <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', lineHeight: 1.5, marginTop: 2, whiteSpace: 'pre-wrap' }}>
                             {_previewLegenda(applyCTASuffix(caption, ctaSuffix), a.username)}
@@ -1174,18 +1182,6 @@ export default function Posts() {
                   )}
                 </div>
 
-                <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
-                  <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    Localização (opcional)
-                  </div>
-                  <input className="inp" type="text" placeholder="Belo Horizonte, Brasil" value={location} onChange={e => setLocation(e.target.value)} list="brazil-cities" />
-                  <datalist id="brazil-cities">
-                    {['São Paulo','Rio de Janeiro','Belo Horizonte','Brasília','Salvador','Fortaleza','Curitiba','Manaus','Recife','Porto Alegre'].map(c => (
-                      <option key={c} value={`${c}, Brasil`} />
-                    ))}
-                  </datalist>
-                </div>
               </div>
             </div>
 
@@ -1209,7 +1205,7 @@ export default function Posts() {
                     value={ctaComment}
                     onChange={e => { setCtaComment(e.target.value); lembrarCta(e.target.value); }} />
                   <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 4 }}>
-                    Postado ~2 min após publicar · Use {'{link}'} {'{username}'} {'{nome}'} · {'{username}'} vira o @ da conta que publicou · o que você deixar aqui fica como padrão
+                    Postado ~2 min após publicar · Use {'{username}'} {'{nome}'} · {'{username}'} vira o @ da conta que publicou · o que você deixar aqui fica como padrão
                   </div>
                 </div>
               )}
@@ -1338,11 +1334,11 @@ export default function Posts() {
                   ) : (
                     <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:180, overflowY:'auto' }}>
                       {trilhas.map(t => {
-                        const marcada = trilha.ids.includes(t._id);
+                        const marcada = trilha.ids.includes(t.id);
                         return (
-                          <div key={t._id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:'var(--mf-r-xs)', background: marcada ? 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)' : 'var(--mf-surface-2)' }}>
+                          <div key={t.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:'var(--mf-r-xs)', background: marcada ? 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)' : 'var(--mf-surface-2)' }}>
                             <input type="checkbox" checked={marcada}
-                              onChange={e => setTrilha(cfg => ({ ...cfg, ids: e.target.checked ? [...cfg.ids, t._id] : cfg.ids.filter(id => id !== t._id) }))} />
+                              onChange={e => setTrilha(cfg => ({ ...cfg, ids: e.target.checked ? [...cfg.ids, t.id] : cfg.ids.filter(id => id !== t.id) }))} />
                             <span style={{ flex:1, minWidth:0, fontSize:'var(--mf-t-xs)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={t.nome}>{t.nome}</span>
                             <span style={{ fontSize:'var(--mf-t-nano)', fontFamily:'var(--mf-mono)', color:'var(--mf-text-3)' }}>{t.tamanho ? `${(t.tamanho/1024/1024).toFixed(1)} MB` : ''}</span>
                             <button type="button" className="btn-ghost" title="Remover da biblioteca" onClick={() => setTrilhaParaRemover(t)} style={{ padding:'2px 7px', fontSize:'var(--mf-t-micro)', color:'var(--mf-danger-500)', borderRadius:'var(--mf-r-xs)' }}>✕</button>
@@ -1653,7 +1649,7 @@ export default function Posts() {
           /* O @ da primeira conta escolhida, para a prévia mostrar um handle
              real em vez de um exemplo — o comprimento do @ muda como a marca
              ocupa a largura. */
-          arroba={accounts.find(a => selectedAccounts.includes(a._id))?.username || ''}
+          arroba={accounts.find(a => selectedAccounts.includes(a.id))?.username || ''}
           mod="publicar"
           onCancelar={() => setMarcaModal(false)}
           onAplicar={c => { setMarcaDagua(c); setMarcaModal(false); }}
@@ -1669,7 +1665,7 @@ export default function Posts() {
             <div className="queue-list">
               {primeiraCarga && !posts.length && <EsqueletoLista itens={5} />}
               {posts.map(post => (
-                <div className="queue-row" key={post._id}>
+                <div className="queue-row" key={post.id}>
                   <div className="queue-icon" style={{ background: post.postType === 'reel' ? 'var(--indigo-dim)' : 'var(--cyan-dim)' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       {post.postType === 'reel'
@@ -1690,8 +1686,8 @@ export default function Posts() {
                     </span>
                   </div>
                   {['erro', 'parcial', 'cancelado'].includes(post.status) && (
-                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => retryPost(post._id)} disabled={retryingId === post._id}>
-                      {retryingId === post._id ? '...' : '↺ Retry'}
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => retryPost(post.id)} disabled={retryingId === post.id}>
+                      {retryingId === post.id ? '...' : '↺ Retry'}
                     </button>
                   )}
                 </div>

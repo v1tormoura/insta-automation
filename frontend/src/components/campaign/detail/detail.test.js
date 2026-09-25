@@ -19,8 +19,8 @@ import {
 
 /* ── Fábricas ──────────────────────────────────────────────────────────────── */
 
-const conta = (id, username) => ({ _id: id, username, name: `Conta ${username}` });
-const conteudo = (id, nome) => ({ _id: id, originalName: nome, filename: `${nome}.mp4`, type: 'video' });
+const conta = (id, username) => ({ id: id, username, name: `Conta ${username}` });
+const conteudo = (id, nome) => ({ id: id, originalName: nome, filename: `${nome}.mp4`, type: 'video' });
 
 // Base + offset em minutos: montar a string "18:MM" estouraria em "18:60" a
 // partir do 12º item e geraria data inválida.
@@ -30,7 +30,7 @@ let seq = 0;
 function pub(over = {}) {
   seq += 1;
   return {
-    _id: `p${seq}`,
+    id: `p${seq}`,
     order: seq,
     scheduledAt: new Date(BASE + seq * 5 * 60_000).toISOString(),
     status: 'scheduled',
@@ -353,9 +353,9 @@ describe('filtros da lista de publicações', () => {
 
   test('a ordenação não altera a lista original', () => {
     const original = dados();
-    const antes = original.map(p => p._id);
+    const antes = original.map(p => p.id);
     filtrarPublicacoes(original, { ordem: 'conta' });
-    expect(original.map(p => p._id)).toEqual(antes);
+    expect(original.map(p => p.id)).toEqual(antes);
   });
 });
 
@@ -389,7 +389,7 @@ describe('matriz de distribuição', () => {
   const indexar = publicacoes => {
     const m = new Map();
     for (const p of publicacoes) {
-      m.set(`${p.account._id}__${p.content._id}`, p);
+      m.set(`${p.account.id}__${p.content.id}`, p);
     }
     return m;
   };

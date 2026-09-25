@@ -3,8 +3,8 @@
  *
  * ── Por que isto é um módulo, e não código dentro do componente
  *
- * A mesma razão do `emendaMobile.js`: o que mora dentro de um `useEffect` de
- * uma página de 2.700 linhas não tem como ser verificado sem montar a página e
+ * O que mora dentro de um `useEffect` de
+ * uma página de 1.400 linhas não tem como ser verificado sem montar a página e
  * autenticar. E aqui há um detalhe que nenhum clique na tela alcança — a janela
  * de autorização é bloqueada em ambiente de teste, então o caminho do popup só
  * é executável se a decisão estiver separada da janela.

@@ -19,8 +19,8 @@ import { nomeConta, contaSumiu } from './shared';
  */
 
 const pub = (i, extra = {}) => ({
-  _id: `p${i}`, order: i, status: 'published',
-  content: { _id: `c${i}`, filename: `v${i}.mp4` },
+  id: `p${i}`, order: i, status: 'published',
+  content: { id: `c${i}`, filename: `v${i}.mp4` },
   scheduledAt: new Date(2026, 7, 31, 20 + i).toISOString(),
   ...extra,
 });
@@ -38,7 +38,7 @@ describe('publicação órfã não some do painel', () => {
   });
 
   test('conta existente não é marcada como removida', () => {
-    const conta = { _id: 'a1', username: 'goligi1257' };
+    const conta = { id: 'a1', username: 'goligi1257' };
     const [g] = agruparPorConta([pub(1, { account: conta })]);
     expect(g.removida).toBe(false);
     expect(g.conta.username).toBe('goligi1257');
@@ -46,9 +46,9 @@ describe('publicação órfã não some do painel', () => {
 
   test('órfãs e existentes convivem sem se misturar', () => {
     const grupos = agruparPorConta([
-      pub(1, { account: { _id: 'a1', username: 'um' } }),
+      pub(1, { account: { id: 'a1', username: 'um' } }),
       pub(2, { account: null }),
-      pub(3, { account: { _id: 'a1', username: 'um' } }),
+      pub(3, { account: { id: 'a1', username: 'um' } }),
     ]);
     expect(grupos).toHaveLength(2);
     expect(grupos.find(g => g.removida).total).toBe(1);
@@ -69,7 +69,7 @@ describe('publicação órfã não some do painel', () => {
 
   test('publicação sem conta E sem conteúdo ainda conta', () => {
     // Órfã dos dois lados continua sendo uma publicação que aconteceu.
-    const grupos = agruparPorConta([{ _id: 'x', order: 1, status: 'failed', account: null, content: null }]);
+    const grupos = agruparPorConta([{ id: 'x', order: 1, status: 'failed', account: null, content: null }]);
     expect(grupos).toHaveLength(1);
   });
 });
@@ -87,7 +87,7 @@ describe('o nome diz o que houve', () => {
 
   test('contaSumiu separa os dois casos', () => {
     expect(contaSumiu(null)).toBe(true);
-    expect(contaSumiu({ _id: 'a' })).toBe(true);        // populado mas sem username
+    expect(contaSumiu({ id: 'a' })).toBe(true);        // populado mas sem username
     expect(contaSumiu({ username: 'x' })).toBe(false);
   });
 });

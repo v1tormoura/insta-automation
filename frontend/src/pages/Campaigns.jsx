@@ -80,7 +80,7 @@ export default function Campaigns() {
        `const` com o mesmo nome a sombreia — a chamada logo abaixo tentaria
        invocar uma string. O build não vê isso; só o clique veria. */
     try {
-      await api.delete(`/campaigns/${c._id}`);
+      await api.delete(`/campaigns/${c.id}`);
       aviso('success', 'Campanha excluída', c.name);
       carregar();
     } catch (e) {
@@ -106,7 +106,7 @@ export default function Campaigns() {
     }
   }
 
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [pagina, status]);
+  useEffect(() => { carregar(); }, [pagina, status]);
 
   /* Tempo real. Uma campanha rodando muda de estado sozinha — publica, falha,
      agenda a próxima — e sem isto a tela ficava congelada no instante em que
@@ -209,7 +209,7 @@ export default function Campaigns() {
             const pct        = total ? Math.round((publicadas / total) * 100) : 0;
 
             return (
-              <motion.div key={c._id}
+              <motion.div key={c.id}
                 initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
                 transition={{ delay: i * .03, duration:.24 }}
                 /* A faixa colorida à esquerda repete a cor do selo de estado.
@@ -230,7 +230,7 @@ export default function Campaigns() {
                           para leitor de tela, que não têm como saber que
                           aquilo abre alguma coisa. Como <button> entra na
                           ordem de tabulação e responde a Enter. */}
-                      <button type="button" onClick={() => navigate(`/campaigns/${c._id}`)}
+                      <button type="button" onClick={() => navigate(`/campaigns/${c.id}`)}
                         title="Abrir a campanha"
                         style={{ display:'block', width:'100%', textAlign:'left', padding:0,
                           background:'none', border:'none', cursor:'pointer', color:'var(--mf-text)',
@@ -318,27 +318,27 @@ export default function Campaigns() {
                       botão — sem sublinhado, sem ícone, sem nada que diga "clique".
                       Quem não sabia que dava, não descobria; e é lá que estão o
                       plano, os eventos e as estatísticas em tempo real. */}
-                  <button onClick={() => navigate(`/campaigns/${c._id}`)}
+                  <button onClick={() => navigate(`/campaigns/${c.id}`)}
                     style={{ ...botao('var(--mf-primary-500)'), fontWeight:700 }}>
                     Abrir
                   </button>
                   {['scheduled', 'running'].includes(c.status) && (
-                    <button onClick={() => acao(c._id, 'pause', 'Pausada')} style={botao('var(--mf-warning-500)')}>
+                    <button onClick={() => acao(c.id, 'pause', 'Pausada')} style={botao('var(--mf-warning-500)')}>
                       Pausar
                     </button>
                   )}
                   {c.status === 'paused' && (
-                    <button onClick={() => acao(c._id, 'resume', 'Retomada')} style={botao('var(--mf-success-500)')}>
+                    <button onClick={() => acao(c.id, 'resume', 'Retomada')} style={botao('var(--mf-success-500)')}>
                       Retomar
                     </button>
                   )}
                   {!['cancelled', 'completed'].includes(c.status) && (
-                    <button onClick={() => acao(c._id, 'cancel', 'Cancelada')} style={botao('var(--mf-danger-500)')}>
+                    <button onClick={() => acao(c.id, 'cancel', 'Cancelada')} style={botao('var(--mf-danger-500)')}>
                       Cancelar
                     </button>
                   )}
                   {(c.failedPublications > 0) && (
-                    <button onClick={() => acao(c._id, 'retry-failed', 'Falhas reprogramadas')} style={botao('var(--mf-mod-publicar)')}>
+                    <button onClick={() => acao(c.id, 'retry-failed', 'Falhas reprogramadas')} style={botao('var(--mf-mod-publicar)')}>
                       Reexecutar falhas
                     </button>
                   )}

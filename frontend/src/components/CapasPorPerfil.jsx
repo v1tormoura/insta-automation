@@ -45,7 +45,7 @@ export default function CapasPorPerfil({ contas = [], capas = {}, onBiblioteca, 
     );
   }
 
-  const comCapa = contas.filter(c => capas[String(c._id)]).length;
+  const comCapa = contas.filter(c => capas[String(c.id)]).length;
 
   return (
     <div>
@@ -68,7 +68,7 @@ export default function CapasPorPerfil({ contas = [], capas = {}, onBiblioteca, 
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {contas.map(c => {
-          const id   = String(c._id);
+          const id   = String(c.id);
           const capa = capas[id];
           const src  = capa?.url || (capaGeralUrl || null);
           const propria = !!capa;

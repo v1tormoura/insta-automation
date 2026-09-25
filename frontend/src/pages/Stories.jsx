@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import StoryMoldura from './StoryMoldura';
 import Segmentado from '../components/Segmentado';
 
-/* Os mesmos tetos do backend (src/routes/textoDoStory.js). Repetidos e não
+/* Os mesmos tetos do backend (src/services/textoNoStory.js). Repetidos e não
    importados porque são processos separados — mas com o nome igual dos dois
    lados, para uma busca por MAX_LINHAS encontrar as duas pontas. */
 const MAX_LINHAS = 6;
@@ -36,18 +36,11 @@ export default function Stories() {
   const [uploading, setUploading]     = useState(false);
   const [dragOver, setDragOver]       = useState(false);
   const [gridMode, setGridMode]       = useState(true);
-  const [linkOn, setLinkOn]           = useState(false);
-  const [linkUrl, setLinkUrl]         = useState('');
-  const [linkLabel, setLinkLabel]     = useState('');
-  /* Posição do link sticker em coordenadas normalizadas (0..1) do story, onde
-     x/y é o CENTRO do sticker. Padrão 0.5/0.8 = rodapé, como o app faz. */
-  const [linkPos, setLinkPos]         = useState({ x: 0.5, y: 0.8 });
 
   /* ── Texto livre ──────────────────────────────────────────────────
 
-     Queimado na mídia pelo mesmo ffmpeg que desenha a figurinha, na mesma
-     passada. Padrão em y=0.35: acima do meio, onde não disputa espaço com a
-     pílula de link, que mora em 0.8. */
+     Queimado na mídia pelo ffmpeg antes de publicar — a API oficial não tem
+     figurinhas, então o texto vai nos próprios pixels. Padrão em y=0.35. */
   const [texto, setTexto]             = useState('');
   const [textoPos, setTextoPos]       = useState({ x: 0.5, y: 0.35 });
   const [textoTam, setTextoTam]       = useState('medio');
@@ -71,7 +64,7 @@ export default function Stories() {
     };
   }
 
-  /* ── Arrastar a figurinha ─────────────────────────────────────────────────
+  /* ── Arrastar o texto ─────────────────────────────────────────────────────
 
      Clicar já posicionava, e clicar é bom para um salto grande. Mas ajustar
      dois por cento é uma sequência de cliques às cegas — você não vê o
@@ -80,18 +73,9 @@ export default function Stories() {
 
      `setPointerCapture` é o que faz o gesto sobreviver a sair da caixa: sem
      ele, arrastar um pouco além da borda entrega o evento a outro elemento e o
-     movimento morre no meio, deixando a figurinha onde não se queria. */
-  /* `arrastando` guarda O QUE está sendo arrastado, não se há arrasto: com
-     dois elementos móveis sobre a mesma caixa, um booleano faria o gesto
-     iniciado na pílula mover também o texto. Os valores são 'link', 'texto'
-     ou null. */
+     movimento morre no meio, deixando o texto onde não se queria. */
   const [arrastando, setArrastando] = useState(null);
 
-  /* A caixa é uma só e os elementos moram dentro dela, então o preview inteiro
-     escuta o ponteiro e cada elemento apenas declara quem é — assim o arrasto
-     continua funcionando quando o dedo passa por cima do outro elemento, que
-     é exatamente quando um listener por elemento entregaria o gesto ao vizinho
-     e o texto trocaria de dono no meio do movimento. */
   function iniciarArrasto(alvo) {
     return (e) => {
       e.stopPropagation();
@@ -104,13 +88,13 @@ export default function Stories() {
     if (!arrastando) return;
     e.preventDefault();
     /* `caixaPreview` e não `e.currentTarget`: com a captura de ponteiro, o
-       currentTarget é o elemento que capturou (a pílula, de 40px), e medir a
+       currentTarget é o elemento que capturou (o texto), e medir a
        fração contra ele daria uma posição que salta. A referência é sempre a
        moldura do story. */
     const caixa = caixaPreview.current;
     if (!caixa) return;
     const pos = coordenadasDoEvento(caixa, e.clientX, e.clientY);
-    (arrastando === 'texto' ? setTextoPos : setLinkPos)(pos);
+    setTextoPos(pos);
   }
 
   function soltarArrasto(e) {
@@ -120,43 +104,12 @@ export default function Stories() {
 
   const caixaPreview = useRef(null);
 
-  /* Clicar na moldura vazia posiciona o que estiver ligado. Com os dois
-     ligados, o clique não decide sozinho qual mover — então não move nenhum,
-     e sobra o arrasto, que é sem ambiguidade. */
+  /* Clicar na moldura vazia posiciona o texto. */
   function clicarNaMoldura(e) {
     if (arrastando) return;
     const pos = coordenadasDoEvento(e.currentTarget, e.clientX, e.clientY);
-    if (linkOn && !textoOn) setLinkPos(pos);
-    else if (textoOn && !linkOn) setTextoPos(pos);
+    if (textoOn) setTextoPos(pos);
   }
-
-  /**
-   * O corte que o renderizador aplica quando o texto não cabe na pílula.
-   *
-   * Espelha `gerarPngFfmpeg`: `maxChars = (largura - altura*1.1) / (fonte*0.58)`,
-   * com a fonte em 34% da altura. É corte seco, sem reticência — e por isso o
-   * preview precisa mostrá-lo: com reticência a pessoa entende "tem mais
-   * texto"; com corte seco ela precisa ver que o fim sumiu, para encurtar.
-   *
-   * Ao mexer em um dos dois lados, mexa no outro.
-   */
-  function cortarComoOBackend(texto, larguraPx, alturaPx) {
-    const tamanho = Math.round(alturaPx * 0.34);
-    const maxChars = Math.max(6, Math.floor((larguraPx - alturaPx * 1.1) / (tamanho * 0.58)));
-    const g = [...String(texto)];
-    return g.length <= maxChars ? String(texto) : g.slice(0, maxChars).join('');
-  }
-
-  /* A figurinha resolvida: rótulo, caixa e o corte que o renderizador aplicaria.
-     Num lugar só — a pílula do preview e o aviso de corte precisam do MESMO
-     resultado, e recalcular em cada um abriria a porta para eles discordarem. */
-  const figurinha = useMemo(() => {
-    const cheio = rotuloSticker(linkUrl, linkLabel);
-    const caixa = caixaSticker(cheio, linkPos.x, linkPos.y);
-    const visivel = cortarComoOBackend(cheio, caixa.width * 1080, 96);
-    return { cheio, caixa, visivel, cortado: visivel.length < cheio.length };
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [linkUrl, linkLabel, linkPos.x, linkPos.y]);
 
   /**
    * O que o backend vai descartar do texto, dito antes de publicar.
@@ -194,57 +147,12 @@ export default function Stories() {
      toca no "Aa" e escreve, não existe um interruptor de texto. */
   const textoOn = texto.trim().length > 0;
 
-  const PRESETS_STICKER = [
-    { rotulo: 'Topo',   x: 0.5, y: 0.15 },
-    { rotulo: 'Centro', x: 0.5, y: 0.5  },
-    { rotulo: 'Rodapé', x: 0.5, y: 0.8  },
-  ];
-
-  /* Geometria da figurinha — espelha computeStickerBox() em
-     backend/src/services/storyStickerRenderer.js. Mesma conta dos dois lados
-     para o preview mostrar exatamente a pílula que será queimada na mídia.
-     Ao mexer em uma, mexa na outra. */
-  function caixaSticker(label, x, y) {
-    const STORY_W = 1080, STORY_H = 1920, ALTURA = 96, MARGEM = 28;
-    const texto = String(label || 'ACESSAR LINK');
-    /* Largura do texto medida no Chromium com a fonte da pílula: maiúsculas
-       ~23px, minúsculas ~18px, espaço ~12px. Mais o cromo fixo (ícone,
-       chevron, paddings) = 165. */
-    const larguraTexto = [...texto].reduce((acc, c) => {
-      if (c === ' ') return acc + 12;
-      const minuscula = c === c.toLowerCase() && c !== c.toUpperCase();
-      return acc + (minuscula ? 18 : 23);
-    }, 0);
-    const larg  = Math.min(900, Math.max(360, Math.round(larguraTexto + 165)));
-    const cx = Math.min(STORY_W - larg / 2 - MARGEM, Math.max(larg / 2 + MARGEM, x * STORY_W));
-    const cy = Math.min(STORY_H - ALTURA / 2 - MARGEM, Math.max(ALTURA / 2 + MARGEM, y * STORY_H));
-    return {
-      x: cx / STORY_W, y: cy / STORY_H,
-      width: larg / STORY_W, height: ALTURA / STORY_H,
-    };
-  }
-
-  /* Mesmo rótulo que o backend usa quando o texto não é preenchido. */
-  function rotuloSticker(url, texto) {
-    if (texto && texto.trim()) return texto.trim().slice(0, 35);
-    try {
-      const u = new URL(String(url).startsWith('http') ? url : `https://${url}`);
-      const host = u.hostname.replace(/^www\./i, '');
-      const rota = u.pathname.replace(/\/$/, '');
-      return (rota && rota.length <= 18 ? `${host}${rota}` : host).toUpperCase();
-    } catch { return 'ACESSAR LINK'; }
-  }
-
   /* ── Recupera rascunho salvo ao abrir ou voltar para a página ────────────── */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
         const d = JSON.parse(saved);
-        if (d.linkUrl !== undefined) setLinkUrl(d.linkUrl);
-        if (d.linkLabel !== undefined) setLinkLabel(d.linkLabel);
-        if (d.linkOn !== undefined) setLinkOn(d.linkOn);
-        if (d.linkPos) setLinkPos(d.linkPos);
         if (d.texto)    setTexto(d.texto);
         if (d.textoPos) setTextoPos(d.textoPos);
         if (d.textoTam) setTextoTam(d.textoTam);
@@ -253,7 +161,7 @@ export default function Stories() {
         if (Array.isArray(d.medias) && d.medias.length) setMedias(d.medias);
         if (Array.isArray(d.selected) && d.selected.length) setSelected(d.selected);
       }
-    } catch {}
+    } catch { /* segue sem este dado */ }
 
     // Verifica status de envio em segundo plano
     api.get('/api/stories/status').then(r => {
@@ -269,11 +177,11 @@ export default function Stories() {
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected,
+        interval, medias, selected,
         texto, textoPos, textoTam, textoCor
       }));
-    } catch {}
-  }, [linkUrl, linkLabel, linkOn, linkPos, interval, medias, selected,
+    } catch { /* segue sem este dado */ }
+  }, [interval, medias, selected,
       texto, textoPos, textoTam, textoCor]);
 
   useEffect(() => {
@@ -364,17 +272,12 @@ export default function Stories() {
     } else if (!selectedMedia.length) {
       p.push({ o: 'Nenhuma mídia marcada', como: 'Clique nas mídias que devem virar story.' });
     }
-    /* O link ligado sem URL é pendência: publicar assim sai sem figurinha
-       nenhuma, silenciosamente, e a pessoa só descobre olhando o story. */
-    if (linkOn && !linkUrl.trim()) {
-      p.push({ o: 'Link ligado sem endereço', como: 'Escreva a URL, ou desligue a figurinha.' });
-    }
     if (textoOn && !texto.trim()) {
       p.push({ o: 'Texto ligado e vazio', como: 'Escreva o texto, ou desligue.' });
     }
     return p;
   }, [contasCarregando, accounts.length, selected.length, medias.length,
-      selectedMedia.length, linkOn, linkUrl, textoOn, texto]);
+      selectedMedia.length, textoOn, texto]);
 
 
   async function publish() {
@@ -385,9 +288,6 @@ export default function Stories() {
       const { data } = await api.post('/api/stories', {
         accountIds: selected,
         imageUrl: selectedMedia[0].url,
-        linkUrl: linkOn && linkUrl.trim() ? linkUrl.trim() : null,
-        linkText: linkOn && linkLabel.trim() ? linkLabel.trim() : null,
-        ...(linkOn ? { linkX: linkPos.x, linkY: linkPos.y } : {}),
         /* `null` quando desligado, e não o objeto com string vazia: é a
            ausência que faz o backend pular a repassagem de ffmpeg. */
         textoLivre: textoOn && texto.trim()
@@ -405,9 +305,6 @@ export default function Stories() {
         showToast('success', 'Publicado!', `${data.successCount || 0} de ${data.total || selected.length} publicados.`);
       }
       setMedias([]);
-      setLinkUrl('');
-      setLinkLabel('');
-      setLinkOn(false);
       setTexto('');
       setIntervalMin(1);
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
@@ -506,7 +403,6 @@ export default function Stories() {
               {selected.length} {selected.length === 1 ? 'conta' : 'contas'}
               {selectedMedia.length > 1 && `, um a cada ${interval} min`}
               {totalMin > 0 && ` — ${totalMin < 60 ? `${totalMin} min` : `${(totalMin / 60).toFixed(1)}h`} no total`}
-              {linkOn && linkUrl.trim() ? ', com figurinha de link' : ''}
               {textoOn && texto.trim() ? ', com texto na mídia' : ''}
             </span>
           </div>
@@ -518,10 +414,7 @@ export default function Stories() {
           {/* ── Esquerda: composição e mídias ────────────────────────────
 
               A moldura vem primeiro porque é a única parte da tela que mostra
-              o RESULTADO. Antes ela morava escondida na coluna da direita,
-              dentro do bloco do link, com 186px de largura — e o que se via
-              primeiro era uma grade de arquivos, que é material, não
-              resultado. */}
+              o RESULTADO; a grade de arquivos é material, não resultado. */}
           <motion.div
             style={{ display: 'flex', flexDirection: 'column', gap: 11 }}
             initial={{ opacity: 0, y: 10 }}
@@ -533,10 +426,10 @@ export default function Stories() {
                 <div style={{ minWidth: 0 }}>
                   <TituloDeCartao icone="previa" mod="stories">Como vai sair</TituloDeCartao>
                   <p style={{ margin: '3px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
-                    Enquadramento, figurinha e texto no tamanho real do story
+                    Enquadramento e texto no tamanho real do story
                   </p>
                 </div>
-                {(linkOn || textoOn) && (
+                {textoOn && (
                   <span className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', flexShrink: 0 }}>
                     arraste para posicionar
                   </span>
@@ -546,8 +439,6 @@ export default function Stories() {
               <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <StoryMoldura
                   media={selectedMedia[0]}
-                  figurinha={figurinha}
-                  linkOn={linkOn}
                   textoOn={textoOn}
                   texto={texto}
                   textoPos={textoPos}
@@ -556,7 +447,6 @@ export default function Stories() {
                   arrastando={arrastando}
                   refMoldura={caixaPreview}
                   onClicar={clicarNaMoldura}
-                  onIniciarLink={iniciarArrasto('link')}
                   onIniciarTexto={iniciarArrasto('texto')}
                   onMover={moverArrasto}
                   onSoltar={soltarArrasto}
@@ -594,7 +484,7 @@ export default function Stories() {
                           fontFamily: 'inherit',
                         }} />
 
-                      {/* O aviso do corte, igual ao da figurinha: o backend
+                      {/* O aviso do corte: o backend
                           corta em 6 linhas de 80 caracteres, e sem dizer isso a
                           pessoa escreve sete e só descobre depois de publicar. */}
                       {avisoTexto && (
@@ -631,34 +521,10 @@ export default function Stories() {
                       </>}
                   </>
 
-                  {/* Posição da figurinha — só quando há figurinha. */}
-                  {linkOn && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6,
-                      borderTop: '1px solid var(--mf-border)', paddingTop: 10, marginTop: 2 }}>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Posição da figurinha</div>
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {PRESETS_STICKER.map(pr => {
-                          const ativo = Math.abs(linkPos.x - pr.x) < 0.02 && Math.abs(linkPos.y - pr.y) < 0.02;
-                          return (
-                            <button key={pr.rotulo} onClick={() => setLinkPos({ x: pr.x, y: pr.y })} style={{
-                              padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
-                              background: ativo ? 'color-mix(in oklch, var(--mf-primary-500) 14%, transparent)' : 'var(--mf-border-subtle)',
-                              color:      ativo ? 'var(--mf-primary-500)' : 'var(--mf-text-3)',
-                              border:     ativo ? '1px solid color-mix(in oklch, var(--mf-primary-500) 35%, transparent)' : '1px solid var(--mf-border)',
-                            }}>{pr.rotulo}</button>
-                          );
-                        })}
-                      </div>
-                      <div className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
-                        link x {linkPos.x.toFixed(2)} · y {linkPos.y.toFixed(2)}
-                      </div>
-                    </div>
-                  )}
-
-                  {!linkOn && !textoOn && (
+                  {!textoOn && (
                     <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
-                      O story sai como a mídia está. Escreva acima, ou ligue a
-                      figurinha de link ao lado, para compor por cima dela.
+                      O story sai como a mídia está. Escreva acima para compor
+                      um texto por cima dela.
                     </div>
                   )}
                 </div>
@@ -788,7 +654,7 @@ export default function Stories() {
                       <span style={{ width: 8, height: 8, borderRadius: 'var(--mf-r-full)', background: r.status === 'success' ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', flexShrink: 0, display: 'inline-block' }} />
                       <strong>@{r.username}</strong>
                       <span style={{ color: r.status === 'success' ? 'var(--mf-success-500)' : 'var(--mf-danger-500)', flex: 1 }}>
-                        {r.status === 'success' ? (r.method === 'graph' ? 'Graph API' : 'API Privada') + (r.withLink ? ' + link' : '') : r.error}
+                        {r.status === 'success' ? 'Publicado pela API oficial' : r.error}
                       </span>
                     </div>
                   ))}
@@ -849,65 +715,12 @@ export default function Stories() {
 
             <CardMetadados tipo="ambos" style={{ marginBottom: 14 }} />
 
-            {/* Link sticker + Publicar */}
+            {/* Publicar */}
             <div style={{ ...PANEL, padding: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <TituloDeCartao icone="link" mod="stories">Link sticker no story</TituloDeCartao>
-                  <p style={{ margin: '3px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Figurinha clicável — contas API Mobile e OAuth</p>
-                </div>
-                <button onClick={() => setLinkOn(p => !p)} style={{
-                  width: 31, height: 19, borderRadius: 'var(--mf-r-full)', padding: 2,
-                  background: linkOn ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-bg)', border: '1px solid var(--mf-border)', cursor: 'pointer',
-                  display: 'flex', justifyContent: linkOn ? 'flex-end' : 'flex-start', transition: 'all var(--mf-normal) var(--mf-ease-out)', flexShrink: 0,
-                }}>
-                  <span style={{ width: 13, height: 13, borderRadius: 'var(--mf-r-full)', background: linkOn ? 'var(--mf-bg)' : 'var(--mf-text-3)', transition: 'all var(--mf-normal) var(--mf-ease-out)', display: 'block' }} />
-                </button>
+              <div>
+                <TituloDeCartao icone="envio" mod="stories">Publicar</TituloDeCartao>
+                <p style={{ margin: '3px 0 0', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>Pela API oficial do Instagram — imagem ou vídeo, com o texto na mídia</p>
               </div>
-
-              {linkOn && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', background: 'var(--mf-bg)', border: '1px solid color-mix(in oklch, var(--mf-primary-500) 25%, transparent)', borderRadius: 'var(--mf-r-sm)' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-mod, var(--mf-accent-500))" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                    <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://meusite.com/oferta"
-                      style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' }} />
-                  </div>
-                  <div style={{ height: 35, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', borderRadius: 'var(--mf-r-sm)' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mf-text-3)" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    <input type="text" value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Texto do sticker (ex: Ver oferta, Clique aqui)"
-                      maxLength={35}
-                      style={{ flex: 1, minWidth: 0, outline: 'none', border: 'none', background: 'transparent', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' }} />
-                    <span style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', flexShrink: 0, fontFamily: 'var(--mf-mono)' }}>{linkLabel.length}/35</span>
-                  </div>
-
-                  {/* O aviso do corte.
-
-                      O renderizador corta seco, sem reticência. Sem este aviso
-                      a pessoa vê o texto completo no campo, um texto menor na
-                      moldura, e não tem como saber que o segundo é o que vai
-                      para o Instagram.
-
-                      A moldura em si mudou de lugar: virou a coluna da
-                      esquerda, porque é a única parte da tela que mostra o
-                      resultado — e vivendo aqui dentro ela só existia com o
-                      link ligado, deixando quem só queria escrever um texto sem
-                      ver onde o texto ia cair. */}
-                  {figurinha.cortado && (
-                    <div style={{ marginTop: 4, fontSize: 'var(--mf-t-nano)', lineHeight: 1.5,
-                      color: 'var(--mf-warning-500)',
-                      background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)',
-                      border: '1px solid color-mix(in oklch, var(--mf-warning-500) 24%, transparent)',
-                      borderRadius: 'var(--mf-r-sm)', padding: '6px 9px' }}>
-                      O texto não cabe na figurinha e vai sair cortado em
-                      “{figurinha.visivel}”. Encurte para caber inteiro.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <p style={{ margin: linkOn ? '7px 0 0' : '14px 0 0', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)' }}>
-                {linkOn ? 'A figurinha de link será adicionada automaticamente a cada story publicado.' : 'Ative para adicionar uma figurinha de link clicável em cada story.'}
-              </p>
 
               <button onClick={publish} disabled={loading || !selected.length || !selectedMedia.length} style={{
                 marginTop: 16, width: '100%', height: 48, borderRadius: 'var(--mf-r-md)', border: 'none',
@@ -969,7 +782,6 @@ const PANEL_HEAD = {
   padding: 'var(--mf-3) var(--mf-4)', minWidth: 0,
   borderBottom: '1px solid var(--mf-border)',
 };
-const PANEL_TITLE = { margin: 0, fontSize: 'var(--mf-t-sm)', fontWeight: 700, letterSpacing: '-.2px', color: 'var(--mf-text)' };
 const DARK_BTN = {
   height: 30, borderRadius: 'var(--mf-r-sm)', padding: '0 8px', display: 'flex', alignItems: 'center', gap: 6,
   background: 'var(--mf-bg)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-micro)', fontWeight: 650, cursor: 'pointer',

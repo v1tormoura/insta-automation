@@ -8,8 +8,7 @@ const STATUS_COLOR = {
   restrita:        'var(--mf-warning-500)',
   banida:          'var(--mf-danger-500)',
   banido:          'var(--mf-danger-500)',
-  sessao_expirada: 'var(--mf-warning-500)',
-  erro_login:      'var(--mf-warning-500)',
+  conta_pessoal:   'var(--mf-warning-500)',
   token_invalido:  'var(--mf-danger-500)',
 };
 
@@ -22,7 +21,7 @@ function avatarUrl(acc) {
 const TABS = [
   { key: 'all',     label: 'Todas'      },
   { key: 'ativa',   label: 'Ativas'     },
-  { key: 'session', label: 'Com sessão' },
+  { key: 'session', label: 'Conectadas' },
 ];
 
 /**
@@ -45,12 +44,12 @@ export default function AccountPicker({ accounts = [], selected = [], onChange, 
   const filtered = useMemo(() => accounts.filter(acc => {
     if (search && !acc.username?.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusTab === 'ativa'   && acc.healthStatus !== 'ativa') return false;
-    if (statusTab === 'session' && !acc.accessToken && !acc.igSession) return false;
+    if (statusTab === 'session' && !acc.hasApiToken) return false;
     return true;
   }), [accounts, search, statusTab]);
 
   const selSet = useMemo(() => new Set(selected.map(String)), [selected]);
-  const allSel = filtered.length > 0 && filtered.every(a => selSet.has(String(a._id)));
+  const allSel = filtered.length > 0 && filtered.every(a => selSet.has(String(a.id)));
 
   function toggleOne(id) {
     const sid = String(id);
@@ -60,7 +59,7 @@ export default function AccountPicker({ accounts = [], selected = [], onChange, 
   }
 
   function toggleFiltered() {
-    const fids = filtered.map(a => String(a._id));
+    const fids = filtered.map(a => String(a.id));
     if (allSel) {
       const fset = new Set(fids);
       onChange(selected.filter(x => !fset.has(String(x))));
@@ -155,24 +154,24 @@ export default function AccountPicker({ accounts = [], selected = [], onChange, 
               : search
                 ? 'Nenhuma conta com esse @.'
                 : statusTab === 'ativa'
-                  ? `Nenhuma conta ativa (${accounts.length} cadastrada${accounts.length > 1 ? 's' : ''}, mas sem sessão válida). Reconecte em Contas.`
+                  ? `Nenhuma conta ativa (${accounts.length} cadastrada${accounts.length > 1 ? 's' : ''}, mas sem conexão válida). Reconecte em Contas.`
                   : statusTab === 'session'
-                    ? `Nenhuma conta com sessão (${accounts.length} cadastrada${accounts.length > 1 ? 's' : ''}). Reconecte em Contas.`
+                    ? `Nenhuma conta conectada (${accounts.length} cadastrada${accounts.length > 1 ? 's' : ''}). Reconecte em Contas.`
                     : 'Nenhuma conta disponível.'}
           </div>
         )}
 
         {filtered.map(acc => {
-          const isSel  = selSet.has(String(acc._id));
+          const isSel  = selSet.has(String(acc.id));
           const dotClr = STATUS_COLOR[acc.healthStatus] || 'var(--mf-text-3)';
           const init   = (acc.username || '?').slice(0, 2).toUpperCase();
           const src    = avatarUrl(acc);
 
           return (
             <button
-              key={acc._id}
+              key={acc.id}
               type="button"
-              onClick={() => toggleOne(acc._id)}
+              onClick={() => toggleOne(acc.id)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 gap: 5, padding: '8px 4px 8px', borderRadius: 'var(--mf-r-md)', position: 'relative',
@@ -228,8 +227,8 @@ export default function AccountPicker({ accounts = [], selected = [], onChange, 
                 color: isSel ? 'var(--mf-primary-300)' : 'var(--mf-text)',
                 width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>@{acc.username}</div>
-              {cotas[String(acc._id)] && (
-                <ChipDeCota cota={cotas[String(acc._id)]} compacto />
+              {cotas[String(acc.id)] && (
+                <ChipDeCota cota={cotas[String(acc.id)]} compacto />
               )}
             </button>
           );

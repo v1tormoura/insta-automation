@@ -35,8 +35,8 @@ export default function DistributionMatrix({ publicacoes = [], onAbrir }) {
          Antes o par era descartado — e com TODAS as contas excluídas a matriz
          renderizava só o cabeçalho "CONTA" e uma faixa vazia, ocupando espaço
          para não dizer nada. As órfãs vão para uma linha rótulada. */
-      const a = p.account?._id ?? p.account ?? '__removida__';
-      const c = p.content?._id ?? p.content;
+      const a = p.account?.id ?? p.account ?? '__removida__';
+      const c = p.content?.id ?? p.content;
       // Sem conteúdo não há coluna onde por a célula; isso continua fora.
       if (!c) continue;
 

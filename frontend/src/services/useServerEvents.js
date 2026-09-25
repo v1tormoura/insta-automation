@@ -133,7 +133,7 @@ function registrarNome(es, nome) {
   jaTem.add(nome);
 
   es.addEventListener(nome, (e) => {
-    let dados = {};
+    let dados;
     try { dados = e.data ? JSON.parse(e.data) : {}; } catch { dados = {}; }
     entregar(nome, dados);
   });

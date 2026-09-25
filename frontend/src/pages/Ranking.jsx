@@ -43,7 +43,6 @@ export default function Ranking() {
   const [metric, setMetric]   = useState('views');
   const [period, setPeriod]   = useState('30d');
   const [posts, setPosts]     = useState([]);
-  const [totals, setTotals]   = useState({});
   const [loading, setLoading] = useState(true);
   const [toast, setToast]     = useState(null);
 
@@ -52,20 +51,19 @@ export default function Ranking() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  useEffect(() => { load(); }, [metric, period]);
-
   async function load() {
     setLoading(true);
     try {
       const { data } = await api.get(`/insights?metric=${metric}&period=${period}&limit=30`);
       setPosts(data.insights || []);
-      setTotals(data.totals || {});
     } catch {
       showToast('error', 'Erro', 'Não foi possível carregar o ranking.');
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => { load(); }, [metric, period]);
 
   const maxVal = posts.length ? metricVal(posts[0], metric) || 1 : 1;
   const metricLabel = METRICS.find(m => m.key === metric)?.label || '';
@@ -141,7 +139,7 @@ export default function Ranking() {
             const isTop = i < 3;
             return (
               <motion.div
-                key={post._id}
+                key={post.id}
                 className="ranking-row"
                 initial={{ opacity:0, y:6 }}
                 animate={{ opacity:1, y:0 }}

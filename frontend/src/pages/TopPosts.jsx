@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { RefreshCw, Send, X, ChevronDown, Flame, ExternalLink, CheckSquare, Square, Layers3, ImagePlus } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
@@ -34,9 +33,6 @@ function metricKey(m) {
 function insightViews(ins) {
   return ins.videoViews || ins.impressions || 0;
 }
-function insightVal(ins, m) {
-  return { Views: insightViews(ins), Alcance: ins.reach, Likes: ins.likeCount, Coments: ins.commentsCount, Saves: ins.savedCount, Shares: ins.shareCount }[m] || 0;
-}
 function mediaLabel(type) {
   if (!type) return 'POST';
   if (type === 'VIDEO') return 'REEL';
@@ -66,7 +62,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
   ];
 
   const handleClick = () => {
-    if (selectMode) onToggle(ins._id);
+    if (selectMode) onToggle(ins.id);
   };
 
   return (
@@ -182,7 +178,7 @@ function RepublishModal({ ins, onClose, accounts }) {
   }, []);
 
   const toggle    = id => setSelectedAccounts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const selectAll = () => setSelectedAccounts(accounts.map(a => a._id));
+  const selectAll = () => setSelectedAccounts(accounts.map(a => a.id));
   const clearAll  = () => setSelectedAccounts([]);
 
   const onCoverChange = e => {
@@ -199,7 +195,7 @@ function RepublishModal({ ins, onClose, accounts }) {
       const effectiveCaption = captionMode === 'custom'
         ? customCaption
         : captionMode === 'saved'
-          ? (legends.find(l => l._id === savedLegendId)?.text || '')
+          ? (legends.find(l => l.id === savedLegendId)?.text || '')
           : (ins.caption || '');
 
       let coverUrl = ins.thumbnailUrl;
@@ -288,7 +284,7 @@ function RepublishModal({ ins, onClose, accounts }) {
                   <select value={savedLegendId} onChange={e => setSavedLegendId(e.target.value)}
                     style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: savedLegendId ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', padding:'8px 24px 8px 8px', outline:'none', appearance:'none', cursor:'pointer' }}>
                     <option value="">Selecione uma legenda salva...</option>
-                    {legends.map(l => <option key={l._id} value={l._id}>{l.name || l.text?.slice(0,50)}</option>)}
+                    {legends.map(l => <option key={l.id} value={l.id}>{l.name || l.text?.slice(0,50)}</option>)}
                   </select>
                   <ChevronDown size={12} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none' }} />
                 </div>
@@ -334,6 +330,26 @@ function RepublishModal({ ins, onClose, accounts }) {
 }
 
 /* ── BulkRepublishModal (multi-post) ── */
+/* Miniatura de um post escolhido para republicar. Componente próprio porque
+   guarda estado (a imagem que falhou) — hook dentro de `map` quebraria ao
+   mudar a quantidade de posts. */
+function MiniaturaSelecionada({ ins, i }) {
+  const [imgErr, setImgErr] = useState(false);
+  const src = !imgErr ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : null;
+  const color = RANK_COLORS[i % RANK_COLORS.length];
+  return (
+    <div style={{ position:'relative', aspectRatio:'9/16', borderRadius: 'var(--mf-r-sm)', overflow:'hidden', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)' }}>
+      {src
+        ? <img src={src} alt="" onError={() => setImgErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+        : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#1e3a5f' }}><Flame size={20} /></div>
+      }
+      <div style={{ position:'absolute', top:4, right:4, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:18, height:18, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        {i+1}
+      </div>
+    </div>
+  );
+}
+
 function BulkRepublishModal({ insArray, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [postType, setPostType]   = useState('reel');
@@ -360,7 +376,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
   }, []);
 
   const toggle    = id => setSelectedAccounts(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const selectAll = () => setSelectedAccounts(accounts.map(a => a._id));
+  const selectAll = () => setSelectedAccounts(accounts.map(a => a.id));
   const clearAll  = () => setSelectedAccounts([]);
 
   const onCoverChange = e => {
@@ -379,7 +395,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
     const effectiveCaption = captionMode === 'custom'
       ? customCaption
       : captionMode === 'saved'
-        ? (legends.find(l => l._id === savedLegendId)?.text || '')
+        ? (legends.find(l => l.id === savedLegendId)?.text || '')
         : null;
 
     // upload cover once, reuse URL for all posts
@@ -441,22 +457,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           <div style={{ padding:'16px 16px', borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', maxHeight:520, overflowY:'auto' }}>
             <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight:600, color:'var(--mf-text-3)', marginBottom:10, letterSpacing:'.06em' }}>POSTS SELECIONADOS ({insArray.length})</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(90px,100%), 1fr))', gap:8 }}>
-              {insArray.map((ins, i) => {
-                const [imgErr, setImgErr] = useState(false);
-                const src = !imgErr ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : null;
-                const color = RANK_COLORS[i % RANK_COLORS.length];
-                return (
-                  <div key={ins._id} style={{ position:'relative', aspectRatio:'9/16', borderRadius: 'var(--mf-r-sm)', overflow:'hidden', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)' }}>
-                    {src
-                      ? <img src={src} alt="" onError={() => setImgErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                      : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#1e3a5f' }}><Flame size={20} /></div>
-                    }
-                    <div style={{ position:'absolute', top:4, right:4, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:18, height:18, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      {i+1}
-                    </div>
-                  </div>
-                );
-              })}
+              {insArray.map((ins, i) => <MiniaturaSelecionada key={ins.id} ins={ins} i={i} />)}
             </div>
           </div>
 
@@ -490,7 +491,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
                   <select value={savedLegendId} onChange={e => setSavedLegendId(e.target.value)}
                     style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color: savedLegendId ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', padding:'8px 24px 8px 8px', outline:'none', appearance:'none', cursor:'pointer', boxSizing:'border-box' }}>
                     <option value="">— Escolha uma legenda —</option>
-                    {legends.map(l => <option key={l._id} value={l._id}>{l.title}{l.category ? ` (${l.category})` : ''}</option>)}
+                    {legends.map(l => <option key={l.id} value={l.id}>{l.title}{l.category ? ` (${l.category})` : ''}</option>)}
                   </select>
                   <ChevronDown size={12} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none' }} />
                 </div>
@@ -573,11 +574,11 @@ function AccountSelector({ accounts, selectedAccounts, onToggle, onSelectAll, on
       </div>
       <div style={{ maxHeight:140, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
         {accounts.map(acc => {
-          const isCreator = acc._id === sourceId || acc.igUserId === sourceId;
-          const checked   = selectedAccounts.includes(acc._id);
+          const isCreator = acc.id === sourceId || acc.igUserId === sourceId;
+          const checked   = selectedAccounts.includes(acc.id);
           return (
-            <label key={acc._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', background: checked?'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)':'transparent', border:`1px solid ${checked?'color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)':'transparent'}` }}>
-              <input type="checkbox" checked={checked} onChange={() => onToggle(acc._id)} style={{ accentColor:'var(--mf-mod, var(--mf-accent-500))', width:15, height:15, cursor:'pointer' }} />
+            <label key={acc.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', cursor:'pointer', background: checked?'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)':'transparent', border:`1px solid ${checked?'color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)':'transparent'}` }}>
+              <input type="checkbox" checked={checked} onChange={() => onToggle(acc.id)} style={{ accentColor:'var(--mf-mod, var(--mf-accent-500))', width:15, height:15, cursor:'pointer' }} />
               {acc.avatar
                 ? <img src={proxyImg(acc.avatar)} alt="" style={{ width:26, height:26, borderRadius: 'var(--mf-r-full)', objectFit:'cover', flexShrink:0 }} />
                 : <span style={{ width:26, height:26, borderRadius: 'var(--mf-r-full)', background:'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-nano)', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{acc.username?.slice(0,2).toUpperCase()}</span>
@@ -592,16 +593,6 @@ function AccountSelector({ accounts, selectedAccounts, onToggle, onSelectAll, on
   );
 }
 
-function CaptionField({ caption, setCaption }) {
-  return (
-    <div>
-      <label style={{ fontSize: 'var(--mf-t-xs)', fontWeight:600, color:'var(--mf-text-2)', display:'block', marginBottom:6 }}>Legenda</label>
-      <textarea value={caption} onChange={e => setCaption(e.target.value)} maxLength={2200} rows={4}
-        style={{ width:'100%', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 50%, transparent)', borderRadius: 'var(--mf-r-sm)', color:'var(--mf-text)', fontSize: 'var(--mf-t-xs)', padding:'8px 12px', resize:'vertical', outline:'none', lineHeight:1.5, boxSizing:'border-box' }} />
-      <div style={{ textAlign:'right', fontSize: 'var(--mf-t-nano)', color:'var(--mf-border-strong)', marginTop:2 }}>{caption.length}/2200</div>
-    </div>
-  );
-}
 
 function PostSettings({ postType, setPostType, cleanMode, setCleanMode, interval, setInterval }) {
   return (
@@ -705,19 +696,19 @@ export default function TopPosts() {
     ]).then(([accRes, loopRes]) => {
       const allAccounts = accRes.data.accounts || [];
       const loops = Array.isArray(loopRes.data) ? loopRes.data : (loopRes.data.loops || []);
-      const activeIds = new Set(loops.flatMap(l => (l.accounts || []).map(a => String(a._id || a))));
+      const activeIds = new Set(loops.flatMap(l => (l.accounts || []).map(a => String(a.id || a))));
       const activeAccounts = allAccounts.filter(a =>
-        activeIds.has(String(a._id)) && a.healthStatus !== 'banida'
+        activeIds.has(String(a.id)) && a.healthStatus !== 'banida'
       );
-      const activeNonBannedIds = activeAccounts.map(a => String(a._id));
-      const allNonBannedIds = allAccounts.filter(a => a.healthStatus !== 'banida').map(a => String(a._id));
+      const activeNonBannedIds = activeAccounts.map(a => String(a.id));
+      const allNonBannedIds = allAccounts.filter(a => a.healthStatus !== 'banida').map(a => String(a.id));
       setAccounts(activeAccounts.length ? activeAccounts : allAccounts.filter(a => a.healthStatus !== 'banida'));
       setLoopAccountIds(activeNonBannedIds.length ? activeNonBannedIds : allNonBannedIds);
     }).catch(() => {
       api.get('/accounts?limit=200').then(r => {
         const all = r.data.accounts || [];
         setAccounts(all.filter(a => a.healthStatus !== 'banida'));
-        setLoopAccountIds(all.filter(a => a.healthStatus !== 'banida').map(a => String(a._id)));
+        setLoopAccountIds(all.filter(a => a.healthStatus !== 'banida').map(a => String(a.id)));
       }).catch(() => {});
     });
   }, []);
@@ -754,7 +745,7 @@ export default function TopPosts() {
 
   const handleSync = async () => {
     setSyncing(true);
-    try { await api.post('/insights/sync'); } catch {}
+    try { await api.post('/insights/sync'); } catch { /* segue sem este dado */ }
     await new Promise(r => setTimeout(r, 1500));
     await load();
     setSyncing(false);
@@ -772,7 +763,7 @@ export default function TopPosts() {
   });
 
   const selectedInsights = useMemo(
-    () => insights.filter(ins => selectedIds.has(ins._id)),
+    () => insights.filter(ins => selectedIds.has(ins.id)),
     [insights, selectedIds]
   );
 
@@ -857,7 +848,7 @@ export default function TopPosts() {
           <select value={accountId} onChange={e => setAccountId(e.target.value)}
             style={{ background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', color: accountId?'var(--mf-text)':'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'8px 24px 8px 12px', outline:'none', appearance:'none', cursor:'pointer', minWidth:140 }}>
             <option value="">Todas as contas</option>
-            {accounts.map(a => <option key={a._id} value={a._id}>@{a.username}</option>)}
+            {accounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}
           </select>
           <ChevronDown size={11} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none' }} />
         </div>
@@ -889,12 +880,12 @@ export default function TopPosts() {
         <div className="tp-hpad" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
           {insights.map((ins, i) => (
             <PostCard
-              key={ins._id}
+              key={ins.id}
               ins={ins}
               rank={i+1}
               onRepublish={setRepublishIns}
               selectMode={selectMode}
-              isSelected={selectedIds.has(ins._id)}
+              isSelected={selectedIds.has(ins.id)}
               onToggle={toggleId}
             />
           ))}

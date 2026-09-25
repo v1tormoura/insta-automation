@@ -105,41 +105,6 @@ function Countdown({ nextRoundAt }) {
   );
 }
 
-function AvatarStack({ accounts = [] }) {
-  const visible = accounts.slice(0, 5);
-  const rest    = accounts.length - visible.length;
-  const API     = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
-      {visible.map((a, i) => {
-        const src = a.avatar?.startsWith('/uploads') ? `${API}${a.avatar}` : a.avatar || null;
-        return (
-          <div key={a._id} title={`@${a.username}`} style={{
-            width: 22, height: 22, borderRadius: 'var(--mf-r-full)',
-            border: '1.5px solid var(--bg2)',
-            marginLeft: i > 0 ? -6 : 0, zIndex: visible.length - i,
-            background: 'var(--bg3)',
-            overflow: 'hidden', flexShrink: 0,
-          }}>
-            {src
-              ? <img src={src} alt={a.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display='none'; }} />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text-2)' }}>
-                  {a.username?.[0]?.toUpperCase() || '?'}
-                </div>
-            }
-          </div>
-        );
-      })}
-      {rest > 0 && (
-        <div style={{ width: 22, height: 22, borderRadius: 'var(--mf-r-full)', background: 'var(--bg3)', border: '1.5px solid var(--border)', marginLeft: -6, fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          +{rest}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Formata número compacto ────────────────────────────────────────────────
 function fmtN(n) {
   if (!n) return '—';
@@ -307,30 +272,30 @@ function JobCard({ job, onAction, selecionado = false, aoSelecionar }) {
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
         {(isActive || isPaused) && !isPaused && (
-          <button onClick={() => onAction(job._id, 'pause')}
+          <button onClick={() => onAction(job.id, 'pause')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color: 'var(--mf-mod-publicar)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.pause} Pausar
           </button>
         )}
         {isPaused && (
-          <button onClick={() => onAction(job._id, 'resume')}
+          <button onClick={() => onAction(job.id, 'resume')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', color: 'var(--mf-success-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.play} Retomar
           </button>
         )}
         {isActive && (
-          <button onClick={() => onAction(job._id, 'cancel')}
+          <button onClick={() => onAction(job.id, 'cancel')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color: 'var(--mf-danger-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.stop} Cancelar
           </button>
         )}
         {(isCompleted || isCancelled) && (
-          <button onClick={() => onAction(job._id, 'rerun')}
+          <button onClick={() => onAction(job.id, 'rerun')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)', color: 'var(--mf-info-500)', cursor: 'pointer', fontWeight: 600 }}>
             {ICONS.refresh} Reexecutar
           </button>
         )}
-        <button onClick={() => onAction(job._id, 'delete')}
+        <button onClick={() => onAction(job.id, 'delete')}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-3)', cursor: 'pointer', marginLeft: 'auto' }}>
           {ICONS.trash}
         </button>
@@ -415,7 +380,7 @@ export default function JobManager() {
   /* Quantos dos selecionados ainda estão publicando — é a diferença que muda
      a decisão, então ela é calculada uma vez e mostrada na caixa. */
   const ativosSelecionados = jobs.filter(j =>
-    selecionados.has(j._id) && ['queued', 'running', 'waiting_interval'].includes(j.status)).length;
+    selecionados.has(j.id) && ['queued', 'running', 'waiting_interval'].includes(j.status)).length;
 
   async function apagarSelecionados() {
     const ids = [...selecionados];
@@ -527,11 +492,11 @@ export default function JobManager() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none',
             fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
             <input type="checkbox"
-              checked={filtered.length > 0 && filtered.every(j => selecionados.has(j._id))}
+              checked={filtered.length > 0 && filtered.every(j => selecionados.has(j.id))}
               /* Traço, e não vazio, quando parte está marcada: sem isto a
                  caixa mente — mostra "nada marcado" com dez selecionados. */
-              ref={el => { if (el) el.indeterminate = selecionados.size > 0 && !filtered.every(j => selecionados.has(j._id)); }}
-              onChange={e => setSelecionados(e.target.checked ? new Set(filtered.map(j => j._id)) : new Set())}
+              ref={el => { if (el) el.indeterminate = selecionados.size > 0 && !filtered.every(j => selecionados.has(j.id)); }}
+              onChange={e => setSelecionados(e.target.checked ? new Set(filtered.map(j => j.id)) : new Set())}
               style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--mf-mod, var(--mf-accent-500))' }} />
             Selecionar todos <span style={{ color: 'var(--mf-text-3)' }}>({filtered.length} à vista)</span>
           </label>
@@ -619,10 +584,10 @@ export default function JobManager() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(360px,100%), 1fr))', gap: 'var(--mf-4)' }}>
           {filtered.map(job => (
             <JobCard
-              key={job._id}
+              key={job.id}
               job={job}
-              selecionado={selecionados.has(job._id)}
-              aoSelecionar={() => alternarSelecao(job._id)}
+              selecionado={selecionados.has(job.id)}
+              aoSelecionar={() => alternarSelecao(job.id)}
               onAction={(id, action) => {
                 if (confirming?.id === id) handleAction(id, action);
                 else handleAction(id, action);

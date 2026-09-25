@@ -57,7 +57,7 @@ export default function Performance() {
 
       const insights = d.insights || [];
 
-      const BAD = ['banida','banido','restrita','token_invalido','sessao_expirada','desconectada'];
+      const BAD = ['banida','restrita','token_invalido'];
       const byAccount = {};
       insights.forEach(p => {
         const key = p.username || String(p.accountId);
@@ -67,7 +67,7 @@ export default function Performance() {
           username: key,
           views: 0, likes: 0, saves: 0, posts: 0,
           avatar: acct?.avatar || null,
-          _id: acct?._id || null,
+          id: acct?.id || null,
         };
         byAccount[key].views += p.videoViews  || 0;
         byAccount[key].likes += p.likeCount   || 0;

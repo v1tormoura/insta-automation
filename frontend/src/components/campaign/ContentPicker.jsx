@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
+import { enviarMidias, avisoDeRecusados } from '../../services/enviarMidias';
 
 /**
  * Seleção de conteúdos da campanha.
@@ -100,7 +101,7 @@ export default function ContentPicker({
   const registrar = useCallback((lista) => {
     setConhecidos(prev => {
       const proximo = { ...prev };
-      for (const m of lista) proximo[String(m._id)] = m;
+      for (const m of lista) proximo[String(m.id)] = m;
       return proximo;
     });
   }, []);
@@ -175,7 +176,7 @@ export default function ContentPicker({
   };
 
   const selecionarVisiveis = () => {
-    const ids = itens.map(m => String(m._id));
+    const ids = itens.map(m => String(m.id));
     const faltando = ids.filter(id => !selecionados.includes(id));
     onSelecionar(faltando.length ? [...selecionados, ...faltando] : selecionados.filter(id => !ids.includes(id)));
   };
@@ -185,21 +186,15 @@ export default function ContentPicker({
     if (!lista.length) return;
 
     setEnviando(true);
-    const forma = new FormData();
-    // Campo 'media' é o nome canônico da rota. (O backend hoje aceita qualquer
-    // nome; usar o canônico evita depender dessa tolerância.)
-    lista.forEach(f => forma.append('media', f));
-    if (pasta) forma.append('folder', pasta);
-
     try {
-      const { data } = await api.post('/media/upload', forma);
-      const criadas = data?.media || data?.files || [];
+      const { media: criadas, recusados } = await enviarMidias(lista, { folder: pasta || undefined });
+      if (recusados.length) avisoRef.current?.('warning', 'Arquivo grande demais', avisoDeRecusados(recusados));
       if (!criadas.length) throw new Error('nenhum arquivo aceito');
 
       registrar(criadas);
 
       if (comoCapaDe) {
-        const id = String(criadas[0]._id);
+        const id = String(criadas[0].id);
         if (comoCapaDe === TODOS) {
           onCapaTodos?.(id, idsAlvo);
           avisoRef.current?.('success', 'Capa definida',
@@ -210,7 +205,7 @@ export default function ContentPicker({
         }
         setModalCapa(null);
       } else {
-        onSelecionar([...selecionados, ...criadas.map(m => String(m._id))
+        onSelecionar([...selecionados, ...criadas.map(m => String(m.id))
           .filter(id => !selecionados.includes(id))]);
         avisoRef.current?.('success', 'Upload concluído', `${criadas.length} arquivo(s) enviado(s) e selecionado(s).`);
       }
@@ -244,14 +239,14 @@ export default function ContentPicker({
      tem dezenas de itens e não centenas, e o resultado não entra em nenhuma
      lista de dependências — só em manipuladores e no JSX. Memoizar aqui fazia
      o compilador do React desistir de otimizar o componente inteiro. */
-  const idsDeVideo = escolhidos.filter(ehVideo).map(m => String(m._id));
+  const idsDeVideo = escolhidos.filter(ehVideo).map(m => String(m.id));
   const totalVideos = idsDeVideo.length;
 
   /* Vídeo sem capa não é erro — o Instagram escolhe um quadro. Mas é uma
      escolha que passa despercebida, então a bandeja diz quantos estão assim. */
-  const videosSemCapa = escolhidos.filter(m => ehVideo(m) && !capas[String(m._id)]).length;
+  const videosSemCapa = escolhidos.filter(m => ehVideo(m) && !capas[String(m.id)]).length;
 
-  const todosVisiveisMarcados = itens.length > 0 && itens.every(m => selecionados.includes(String(m._id)));
+  const todosVisiveisMarcados = itens.length > 0 && itens.every(m => selecionados.includes(String(m.id)));
 
   /* ── Estilos ─────────────────────────────────────────────────────────────── */
 
@@ -387,7 +382,7 @@ export default function ContentPicker({
         ) : (
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'thin' }}>
             {escolhidos.map((m, i) => {
-              const id    = String(m._id);
+              const id    = String(m.id);
               const video = ehVideo(m);
               const capa  = capas[id] ? conhecidos[capas[id]] : null;
               return (
@@ -504,7 +499,7 @@ export default function ContentPicker({
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(min(124px,100%),1fr))', gap: 10 }}>
           {itens.map(m => {
-            const id      = String(m._id);
+            const id      = String(m.id);
             const marcado = selecionados.includes(id);
             const ordem   = selecionados.indexOf(id) + 1;
             const video   = ehVideo(m);
@@ -661,10 +656,10 @@ export default function ContentPicker({
               {imagensDisponiveis.length ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(88px,1fr))', gap: 9 }}>
                   {imagensDisponiveis.map(img => {
-                    const escolhida = modalCapa !== TODOS && capas[modalCapa] === String(img._id);
+                    const escolhida = modalCapa !== TODOS && capas[modalCapa] === String(img.id);
                     return (
-                      <button key={img._id}
-                        onClick={() => aplicarCapa(String(img._id))}
+                      <button key={img.id}
+                        onClick={() => aplicarCapa(String(img.id))}
                         title={nomeDe(img)}
                         style={{
                           position: 'relative', aspectRatio: '3/4', padding: 0, borderRadius: 'var(--mf-r-md)',

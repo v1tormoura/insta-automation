@@ -6,12 +6,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle, ChevronDown, ChevronRight, Users2,
   Clock3, Flame, FolderOpen, HeartPulse, Layers3,
-  MoreHorizontal, Plus, RefreshCw, Send,
+  Plus, RefreshCw, Send,
   ShieldCheck, TrendingUp, Zap,
-  Play, Pause, Repeat2, ListVideo, Eye, Timer,
+  Play, Repeat2, ListVideo, Eye, Timer,
 } from 'lucide-react';
 import {
-  Area, AreaChart, Line, LineChart as RechartLineChart,
+  Area, AreaChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
@@ -49,12 +49,6 @@ const card = {
   position: 'relative',
   overflow: 'hidden',
   containerType: 'inline-size',
-};
-const topLine = {
-  content: '""',
-  position: 'absolute',
-  top: 0, left: 20, right: 20, height: 1,
-  background: 'linear-gradient(90deg,transparent,color-mix(in oklch, var(--mf-mod-contas) 32%, transparent),transparent)',
 };
 
 /* ── InsightThumb ── */
@@ -495,7 +489,7 @@ function QueuePanel({ d, accountStats }) {
             {queueItems.map((item, i) => {
               const acc = (item.accounts||[]).find(a => a && typeof a === 'object' && a.username);
               return (
-              <motion.div key={item._id || i} initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*.04 }}
+              <motion.div key={item.id || i} initial={{ opacity:0, x:-6 }} animate={{ opacity:1, x:0 }} transition={{ delay:i*.04 }}
                 style={{ display:'flex', alignItems:'center', gap:'var(--mf-2)', padding:'8px 4px', minWidth:0, borderRadius:'var(--mf-r-sm)', borderBottom:'1px solid var(--mf-border-subtle)', transition:'background var(--mf-fast) var(--mf-ease-out)' }}
                 onMouseEnter={e => e.currentTarget.style.background='var(--mf-surface-2)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
@@ -542,7 +536,7 @@ function LoopsPanel({ loops }) {
     const map = {};
     for (const loop of activeLoops) {
       for (const acc of (loop.accounts || [])) {
-        const k = acc._id || acc;
+        const k = acc.id || acc;
         if (!map[k]) map[k] = { account: acc, loops: [] };
         map[k].loops.push(loop);
       }
@@ -627,7 +621,7 @@ function LoopsPanel({ loops }) {
             const isDone    = remaining === 0;
 
             return (
-              <motion.div key={account._id || gi} initial={{ opacity:0, x:6 }} animate={{ opacity:1, x:0 }} transition={{ delay:gi*.04 }}
+              <motion.div key={account.id || gi} initial={{ opacity:0, x:6 }} animate={{ opacity:1, x:0 }} transition={{ delay:gi*.04 }}
                 style={{ padding:'8px 16px', borderBottom:'1px solid var(--mf-border-subtle)', transition:'background .15s' }}
                 onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-publicar) 3%, transparent)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
@@ -825,7 +819,7 @@ function PostagensTable({ stats }) {
             {sorted.length === 0 ? (
               <tr><td colSpan={4} style={{ padding:'16px 12px', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>Nenhuma postagem no período.</td></tr>
             ) : sorted.map((acc, i) => (
-              <motion.tr key={acc._id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:i*.03 }}
+              <motion.tr key={acc.id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:i*.03 }}
                 style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
                 onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
                 onMouseLeave={e => e.currentTarget.style.background='transparent'}
@@ -890,7 +884,7 @@ function PerformanceTable({ stats }) {
             ) : stats.map((acc,idx) => {
               const growth = acc.growth30d||0;
               return (
-                <motion.tr key={acc._id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:idx*.025 }}
+                <motion.tr key={acc.id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:idx*.025 }}
                   style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
                   onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
                   onMouseLeave={e => e.currentTarget.style.background='transparent'}
@@ -947,7 +941,7 @@ function SmartInsights({ accountStats, data: d }) {
   const totalAccounts  = accountStats.length;
   const healthy        = accountStats.filter(a => a.healthStatus==='ativa'||a.status==='connected').length;
   const banned         = accountStats.filter(a => a.healthStatus==='banida').length;
-  const tokenFailed    = accountStats.filter(a => ['token_invalido','sessao_expirada'].includes(a.healthStatus)).length;
+  const tokenFailed    = accountStats.filter(a => a.healthStatus === 'token_invalido').length;
   const successRate    = totalAccounts > 0 ? Math.round(healthy/totalAccounts*100) : 0;
   const totalFollowers = accountStats.reduce((s,a) => s+(a.followers||0), 0);
   const growth30d      = accountStats.reduce((s,a) => s+(a.growth30d||0), 0);
@@ -1008,7 +1002,7 @@ const LIVE_STATUS_LABEL = {
   concluido:'CONCLUÍDO',     parcial:'PARCIAL',  erro:'ERRO',
 };
 
-function LivePostRow({ post, API_BASE }) {
+function LivePostRow({ post }) {
   const acc     = (post.accounts||[])[0];
   const caption = (post.caption||'').slice(0, 55) + ((post.caption||'').length > 55 ? '…' : '');
   const sc      = LIVE_STATUS_COLOR[post.status] || '#888';
@@ -1051,7 +1045,7 @@ function LivePostsPanel() {
   const [data, setData] = useState({ processing:[], queue:[], errors:[], completed:[] });
 
   const load = useCallback(async () => {
-    try { const r = await api.get('/dashboard/live-posts'); setData(r.data || {}); } catch {}
+    try { const r = await api.get('/dashboard/live-posts'); setData(r.data || {}); } catch { /* segue sem este dado */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -1113,7 +1107,7 @@ function LivePostsPanel() {
           </div>
         ) : (
           <AnimatePresence initial={false}>
-            {rows.map(p => <LivePostRow key={p._id} post={p} API_BASE={API_BASE} />)}
+            {rows.map(p => <LivePostRow key={p.id} post={p} />)}
           </AnimatePresence>
         )}
       </div>
@@ -1147,9 +1141,9 @@ export default function Dashboard() {
        trocar as métricas por blocos cinzas a cada ciclo faria a tela
        piscar sem ninguém ter pedido. */
     finally { setPrimeiraCarga(false); } }, []);
-  const loadStats   = useCallback(async () => { try { const r = await api.get('/dashboard/account-stats');                                 setAccountStats(r.data||[]); } catch {} }, []);
-  const loadInsights= useCallback(async () => { try { const r = await api.get('/insights', { params:{ period:'30d', limit:6 } });          setTopInsights(r.data?.insights||[]); } catch {} }, []);
-  const loadLoops   = useCallback(async () => { try { const r = await api.get('/loops');                                                    setLoops(r.data||[]); }  catch {} }, []);
+  const loadStats   = useCallback(async () => { try { const r = await api.get('/dashboard/account-stats');                                 setAccountStats(r.data||[]); } catch { /* segue sem este dado */ } }, []);
+  const loadInsights= useCallback(async () => { try { const r = await api.get('/insights', { params:{ period:'30d', limit:6 } });          setTopInsights(r.data?.insights||[]); } catch { /* segue sem este dado */ } }, []);
+  const loadLoops   = useCallback(async () => { try { const r = await api.get('/loops');                                                    setLoops(r.data||[]); }  catch { /* segue sem este dado */ } }, []);
 
   loadRef.current = load;
 
@@ -1223,7 +1217,7 @@ export default function Dashboard() {
   ];
 
   const sysLoaded    = data !== null;
-  const sysOk        = sysLoaded && d.system?.backend && d.system?.mongo;
+  const sysOk        = sysLoaded && d.system?.backend && d.system?.banco;
   const sysDotColor  = !sysLoaded ? 'var(--mf-text-3)' : sysOk ? 'var(--mf-success-500)' : 'var(--mf-danger-500)';
 
   const accountsAddedValue = accountsPeriod==='hoje'?(d.accountsAddedToday||0):accountsPeriod==='7d'?(d.accountsAdded7d||0):(d.accountsAdded30d||0);
@@ -1456,7 +1450,7 @@ export default function Dashboard() {
               <div style={{ display:'flex', gap:8 }}>
                 <motion.button whileHover={{ scale:1.02 }} whileTap={{ scale:.97 }}
                   disabled={syncingIns}
-                  onClick={async () => { setSyncingIns(true); try { await api.post('/insights/sync'); await new Promise(r => setTimeout(r,1200)); await loadInsights(); } catch {} finally { setSyncingIns(false); } }}
+                  onClick={async () => { setSyncingIns(true); try { await api.post('/insights/sync'); await new Promise(r => setTimeout(r,1200)); await loadInsights(); } catch { /* segue sem este dado */ } finally { setSyncingIns(false); } }}
                   style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 25%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)', fontWeight:700, cursor:syncingIns?'not-allowed':'pointer', opacity:syncingIns?.6:1 }}>
                   <RefreshCw size={12} style={{ animation:syncingIns?'dash-spin .8s linear infinite':'none' }} />SYNC
                 </motion.button>
@@ -1471,7 +1465,7 @@ export default function Dashboard() {
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(130px,100%),1fr))', gap:10 }}>
                   {topInsights.slice(0,6).map((ins,i) => (
-                    <Link key={ins._id} to="/top-posts" style={{ textDecoration:'none' }}>
+                    <Link key={ins.id} to="/top-posts" style={{ textDecoration:'none' }}>
                       <InsightThumb ins={ins} rank={i} />
                     </Link>
                   ))}
@@ -1499,8 +1493,7 @@ export default function Dashboard() {
         <footer className="system-footer">
           <span><ShieldCheck size={13} />{!sysLoaded?'Carregando...':sysOk?'Sistema operacional':'Verificar sistemas'}</span>
           <span><i style={{ background:sysDotColor, boxShadow:`0 0 8px ${sysDotColor}` }} />{!sysLoaded?'–':sysOk?'Online':'Offline'}</span>
-          <span>MongoDB <b style={{ color:d.system?.mongo?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.mongo?'OK':'Erro'}</b></span>
-          <span>Redis <b style={{ color:d.system?.redis?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.redis?'OK':'Erro'}</b></span>
+          <span>Banco <b style={{ color:d.system?.banco?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.banco?'OK':'Erro'}</b></span>
           <span>Worker <b style={{ color:d.system?.worker?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>
           <span>Contas <b>{fmt(d.totalAccounts)}</b></span>
           <span>Posts <b>{fmt(d.totalPosts)}</b></span>

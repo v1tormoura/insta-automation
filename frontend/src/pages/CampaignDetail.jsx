@@ -222,7 +222,7 @@ export default function CampaignDetail() {
   const contagemAba = {
     timeline:    pubs.length,
     contas:      contas.total,
-    conteudos:   new Set(pubs.map(p => String(p.content?._id ?? p.content))).size,
+    conteudos:   new Set(pubs.map(p => String(p.content?.id ?? p.content))).size,
     publicacoes: pubs.length,
     comentarios: contagemComentarios,
     problemas:   contagemProblemas,

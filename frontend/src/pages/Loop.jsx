@@ -103,14 +103,13 @@ function formatNum(n) {
   return n.toString();
 }
 function healthLabel(s) {
-  const m = { ativa:'Saudável', restrita:'Restrita', erro_login:'Erro login',
-    sessao_expirada:'Sessão exp.', banida:'Banida',
+  const m = { ativa:'Saudável', restrita:'Restrita', banida:'Banida',
     token_invalido:'Token inv.', conta_pessoal:'Pessoal' };
   return m[s] || 'Saudável';
 }
 function healthCls(s) {
   if (!s || s === 'ativa') return 'ok';
-  if (s === 'restrita' || s === 'sessao_expirada') return 'warn';
+  if (s === 'restrita') return 'warn';
   if (s === 'conta_pessoal') return 'muted';
   return 'err';
 }
@@ -156,7 +155,7 @@ function LoopCard({ loop, onToggle, onDelete, onHistory }) {
 
       <div className="lc-body">
         <div className="lc-top">
-          <span className="lc-name">{loop.name || `Loop #${loop._id?.slice(-4)}`}</span>
+          <span className="lc-name">{loop.name || `Loop #${loop.id?.slice(-4)}`}</span>
           <div className="lc-btns">
             <button onClick={() => onHistory(loop)}><History size={12} /></button>
             <button onClick={() => onToggle(loop)} className={running ? 'warn' : 'ok'}>
@@ -669,7 +668,7 @@ function LoopModal({ onClose, onCreated }) {
               {capaPorPerfil && (
                 <div style={{ marginTop: 8 }}>
                   <CapasPorPerfil
-                    contas={accounts.filter(a => form.accounts.includes(a._id))}
+                    contas={accounts.filter(a => form.accounts.includes(a.id))}
                     capas={Object.fromEntries((form.capasPorConta || []).map(c => [String(c.accountId), { url: `${API_URL}/uploads/${c.arquivo}`, rotulo: c.arquivo }]))}
                     capaGeralUrl={form.coverFile ? `${API_URL}/uploads/${form.coverFile}` : ''}
                     ocupado={!!enviandoCapaDe}
@@ -704,7 +703,7 @@ function LoopModal({ onClose, onCreated }) {
                     const txt = leg.text || leg.content || '';
                     const sel = form.caption === txt;
                     return (
-                      <div key={leg._id || txt} className={`lm-legend-opt ${sel ? 'sel' : ''}`}
+                      <div key={leg.id || txt} className={`lm-legend-opt ${sel ? 'sel' : ''}`}
                         onClick={() => { setForm(f => ({ ...f, caption: txt })); setLegendOpen(false); }}>
                         <span className="lm-leg-dot" />
                         <span className="lm-legend-opt-text">{leg.title || txt.slice(0, 60)}</span>
@@ -749,7 +748,7 @@ function LoopModal({ onClose, onCreated }) {
               <label className="lm-cta-toggle">
                 <input type="checkbox"
                   checked={!!form.ctaComment}
-                  onChange={e => setForm(f => ({ ...f, ctaComment: e.target.checked ? '👇 Acesse meu bot no Telegram!\n🤖 {link}' : '' }))}
+                  onChange={e => setForm(f => ({ ...f, ctaComment: e.target.checked ? 'Completo nos destaques! 🔥➡️ @{username}' : '' }))}
                 />
                 <span className="lm-cta-knob" />
               </label>
@@ -759,7 +758,7 @@ function LoopModal({ onClose, onCreated }) {
                 <textarea className="lm-input" rows={2}
                   value={form.ctaComment}
                   onChange={e => setForm(f => ({ ...f, ctaComment: e.target.value }))} />
-                <div className="lm-cta-hint">Postado ~2 min após publicar · Use <code>{'{link}'}</code> <code>{'{username}'}</code></div>
+                <div className="lm-cta-hint">Postado ~2 min após publicar · Use <code>{'{username}'}</code> <code>{'{nome}'}</code></div>
               </>
             )}
           </div>
@@ -878,7 +877,7 @@ function LoopModal({ onClose, onCreated }) {
           aberto={marcaModal}
           valor={form.marcaDagua}
           contas={form.accounts.length}
-          arroba={(accounts || []).find(a => form.accounts.includes(a._id))?.username || ''}
+          arroba={(accounts || []).find(a => form.accounts.includes(a.id))?.username || ''}
           mod="publicar"
           onCancelar={() => setMarcaModal(false)}
           onAplicar={c => { setForm(f => ({ ...f, marcaDagua: c })); setMarcaModal(false); }}
@@ -924,7 +923,7 @@ export default function LoopPage() {
   const [deleteModal, setDeleteModal] = useState(null);
 
   const load = useCallback(async () => {
-    try { const r = await api.get('/loops'); setLoops(r.data || []); } catch {}
+    try { const r = await api.get('/loops'); setLoops(r.data || []); } catch { /* segue sem este dado */ }
     setLoading(false);
   }, []);
 
@@ -947,8 +946,8 @@ export default function LoopPage() {
 
   async function handleToggle(loop) {
     try {
-      const r = await api.post(`/loops/${loop._id}/toggle`);
-      setLoops(ls => ls.map(l => l._id === loop._id ? r.data : l));
+      const r = await api.post(`/loops/${loop.id}/toggle`);
+      setLoops(ls => ls.map(l => l.id === loop.id ? r.data : l));
     } catch (e) { alert(e.response?.data?.error || e.message); }
   }
   function handleDelete(loop) {
@@ -957,19 +956,19 @@ export default function LoopPage() {
   async function confirmDelete() {
     const loop = deleteModal;
     setDeleteModal(null);
-    try { await api.delete(`/loops/${loop._id}`); setLoops(ls => ls.filter(l => l._id !== loop._id)); }
+    try { await api.delete(`/loops/${loop.id}`); setLoops(ls => ls.filter(l => l.id !== loop.id)); }
     catch (e) { alert(e.response?.data?.error || e.message); }
   }
   async function handleHistory(loop) {
     setHistLoop(loop);
-    try { const r = await api.get(`/loops/${loop._id}/history`); setHistPosts(r.data || []); }
+    try { const r = await api.get(`/loops/${loop.id}/history`); setHistPosts(r.data || []); }
     catch { setHistPosts([]); }
   }
 
   const byAccount = {};
   for (const loop of loops) {
     for (const acc of (loop.accounts || [])) {
-      const k = acc._id || acc;
+      const k = acc.id || acc;
       if (!byAccount[k]) byAccount[k] = { account: acc, loops: [] };
       byAccount[k].loops.push(loop);
     }
@@ -1040,7 +1039,7 @@ export default function LoopPage() {
             transition={{ duration: 0.25 }}
           >
             {Object.values(byAccount).map(({ account, loops: al }) => (
-              <div key={account._id || account} className="lp-group">
+              <div key={account.id || account} className="lp-group">
                 <div className="lp-group-hd">
                   <div className="lp-av">
                     {account.avatar
@@ -1070,7 +1069,7 @@ export default function LoopPage() {
                       {formatNum(account.postsCount) && (
                         <span><b>{formatNum(account.postsCount)}</b> pub</span>
                       )}
-                      {(account.accessToken || account.igSession) && (
+                      {account.hasApiToken && (
                         <span className="lp-api-chip">📶 API</span>
                       )}
                     </div>
@@ -1085,7 +1084,7 @@ export default function LoopPage() {
                 <div className="lp-loop-list">
                   <AnimatePresence>
                     {al.map(loop => (
-                      <LoopCard key={loop._id} loop={loop}
+                      <LoopCard key={loop.id} loop={loop}
                         onToggle={handleToggle} onDelete={handleDelete} onHistory={handleHistory} />
                     ))}
                   </AnimatePresence>
@@ -1130,7 +1129,7 @@ export default function LoopPage() {
                 {histPosts.length === 0
                   ? <p className="lm-hist-empty">Nenhum post registrado ainda.</p>
                   : histPosts.map(p => (
-                    <div key={p._id} className="lm-hist-row">
+                    <div key={p.id} className="lm-hist-row">
                       <span className={`lm-hist-tag ${p.status}`}>{p.status}</span>
                       <span className="lm-hist-f">{p.media}</span>
                       <span className="lm-hist-d">{new Date(p.createdAt).toLocaleString('pt-BR')}</span>

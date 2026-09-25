@@ -27,7 +27,7 @@ function jobsToSchedulerItems(jobs) {
       const isCurrentRound = round === startRound;
       const status = (isCurrentRound && ['queued','running'].includes(job.status)) ? 'pendente' : 'agendado';
       items.push({
-        _id:      `job-${job._id}-r${round}`,
+        id:      `job-${job.id}-r${round}`,
         postType: job.postType || 'reel',
         caption:  job.caption  || job.name || '',
         accounts: job.accounts || [],
@@ -177,7 +177,7 @@ export default function Scheduler() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {filteredPosts.map((post, i) => (
                     <motion.div
-                      key={post._id}
+                      key={post.id}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }}

@@ -167,11 +167,6 @@ function AccountCard({ account }) {
 
   const recentError = account.lastError && account.lastError.length > 0;
 
-  // True se a conta usa API Mobile (instagrapi) — detectado por provider, sessionStatus ou sessão armazenada
-  const isMobileAccount = account.provider === 'instagrapi'
-    || account.sessionStatus === 'VALID'
-    || account.hasMobileSession;
-
   return (
     <div style={{
       background: 'var(--mf-surface-1)',
@@ -224,7 +219,7 @@ function AccountCard({ account }) {
       {(() => {
         const tokenExpired = account.tokenDaysLeft !== null && account.tokenDaysLeft <= 0;
         const tokenInvalid = account.healthStatus === 'token_invalido' || tokenExpired;
-        const apiOk = (account.hasApiToken && !tokenInvalid) || isMobileAccount;
+        const apiOk = account.hasApiToken && !tokenInvalid;
         return (
           <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
             {apiOk ? (
@@ -232,12 +227,10 @@ function AccountCard({ account }) {
                 <span style={{ width: 8, height: 8, borderRadius: 'var(--mf-r-full)', background: 'var(--mf-success-500)', boxShadow: '0 0 6px var(--mf-success-500)', flexShrink: 0, display: 'inline-block' }} />
                 <div>
                   <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-success-500)' }}>
-                    {isMobileAccount ? 'API Mobile Ativa' : 'API Conectada'}
+                    API Conectada
                   </div>
                   <div style={{ fontSize: 'var(--mf-t-nano)', color: '#475569', marginTop: 1 }}>
-                    {isMobileAccount
-                      ? 'Sessão instagrapi ativa'
-                      : account.tokenDaysLeft !== null ? `Token válido · ${account.tokenDaysLeft} dias restantes` : 'Meta API ativa'}
+                    {account.tokenDaysLeft !== null ? `Token válido · ${account.tokenDaysLeft} dias restantes` : 'Meta API ativa'}
                   </div>
                 </div>
               </div>
@@ -296,15 +289,13 @@ function AccountCard({ account }) {
         {/* Última sincronização / último login */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 'var(--mf-t-xs)', color: '#475569' }}>
-            {isMobileAccount ? 'Último login' : 'Última sincronização'}
+            Última sincronização
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
             </svg>
-            {timeAgo(isMobileAccount
-              ? (account.lastLoginAt || account.lastValidatedAt)
-              : account.lastSync)}
+            {timeAgo(account.lastSync)}
           </span>
         </div>
 
@@ -369,7 +360,7 @@ export default function Health() {
     try {
       await api.post('/health/check-now');
       setTimeout(load, 2000); // recarrega após 2s para pegar primeiros resultados
-    } catch {}
+    } catch { /* segue sem este dado */ }
     finally { setChecking(false); }
   }
 
@@ -495,7 +486,7 @@ export default function Health() {
       {/* Cards grid */}
       {filtered.length > 0 ? (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(440px,100%),1fr))', gap:14 }}>
-          {filtered.map(acc => <AccountCard key={acc._id} account={acc} />)}
+          {filtered.map(acc => <AccountCard key={acc.id} account={acc} />)}
         </div>
       ) : (
         <div style={{ textAlign:'center', padding:'48px 16px', color:'var(--mf-text-3)', background:'color-mix(in oklch, var(--mf-surface-1) 50%, transparent)', borderRadius: 'var(--mf-r-lg)', border:'1px dashed var(--mf-border)' }}>

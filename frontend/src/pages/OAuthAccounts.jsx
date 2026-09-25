@@ -9,7 +9,7 @@ import PageShell from '../components/PageShell';
 
 function tokenStatus(acc) {
   if (!acc.igUserId && !acc.hasApiToken) return 'none';
-  if (acc.healthStatus === 'sessao_expirada' || acc.healthStatus === 'token_invalido') return 'expired';
+  if (acc.healthStatus === 'token_invalido') return 'expired';
   if (!acc.hasApiToken) return 'missing';
   if (acc.tokenExpiresAt) {
     const daysLeft = (new Date(acc.tokenExpiresAt) - Date.now()) / 86_400_000;
@@ -45,7 +45,9 @@ function fmtFollowers(n) {
 function Avatar({ account }) {
   const [failed, setFailed] = useState(false);
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  const src = account.avatar ? `${API}/proxy-avatar?url=${encodeURIComponent(account.avatar)}` : null;
+  const src = account.avatar
+    ? (account.avatar.startsWith('http') ? `${API}/image-proxy?url=${encodeURIComponent(account.avatar)}` : `${API}${account.avatar}`)
+    : null;
   const initials = (account.username || '?')[0].toUpperCase();
 
   if (!src || failed) {
@@ -75,10 +77,10 @@ function AccountCard({ account, metaAppId, onAction }) {
   const expiry = daysLeft(account.tokenExpiresAt);
   const [busy, setBusy] = useState(false);
 
-  async function handleConnect(reconnect = false) {
+  async function handleConnect() {
     setBusy(true);
     try {
-      const params = new URLSearchParams({ accountId: account._id });
+      const params = new URLSearchParams({ accountId: account.id });
       if (metaAppId) params.set('metaAppId', metaAppId);
       const r = await api.get(`/oauth/url?${params}`);
       const oauthWin = window.open(r.data.url, '_blank', 'noopener,noreferrer');
@@ -96,7 +98,7 @@ function AccountCard({ account, metaAppId, onAction }) {
     if (!confirm(`Desconectar @${account.username} da API Instagram?`)) return;
     setBusy(true);
     try {
-      await api.delete(`/oauth/disconnect/${account._id}`);
+      await api.delete(`/oauth/disconnect/${account.id}`);
       toast.success(`@${account.username} desconectada`);
       onAction();
     } catch (e) {
@@ -169,22 +171,22 @@ function AccountCard({ account, metaAppId, onAction }) {
       {/* Row 3: action buttons */}
       <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
         {status === 'none' || status === 'missing' ? (
-          <button onClick={() => handleConnect(false)} disabled={busy}
+          <button onClick={() => handleConnect()} disabled={busy}
             style={{ flex: 1, padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-mod, var(--mf-accent-500))', background: 'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', cursor: busy ? 'wait' : 'pointer', fontSize: 'var(--mf-t-xs)', fontWeight: 600, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
             {busy ? 'Aguarde…' : '🔗 Conectar'}
           </button>
         ) : status === 'expired' ? (
-          <button onClick={() => handleConnect(true)} disabled={busy}
+          <button onClick={() => handleConnect()} disabled={busy}
             style={{ flex: 1, padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 40%, transparent)', background: 'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', color: 'var(--mf-danger-500)', cursor: busy ? 'wait' : 'pointer', fontSize: 'var(--mf-t-xs)', fontWeight: 600, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
             {busy ? 'Aguarde…' : '🔄 Reconectar'}
           </button>
         ) : status === 'expiring' ? (
-          <button onClick={() => handleConnect(true)} disabled={busy}
+          <button onClick={() => handleConnect()} disabled={busy}
             style={{ flex: 1, padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-warning-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)', color: 'var(--mf-warning-500)', cursor: busy ? 'wait' : 'pointer', fontSize: 'var(--mf-t-xs)', fontWeight: 600, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
             {busy ? 'Aguarde…' : '🔄 Renovar'}
           </button>
         ) : (
-          <button onClick={() => handleConnect(true)} disabled={busy}
+          <button onClick={() => handleConnect()} disabled={busy}
             style={{ flex: 1, padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', cursor: busy ? 'wait' : 'pointer', fontSize: 'var(--mf-t-xs)', fontWeight: 600, transition: 'all var(--mf-fast) var(--mf-ease-out)' }}>
             {busy ? 'Aguarde…' : '🔄 Reconectar'}
           </button>
@@ -231,9 +233,9 @@ export default function OAuthAccounts() {
       setMetaApps(apps);
       if (!selApp && apps.length > 0) {
         const def = apps.find(a => a.isDefault) || apps[0];
-        setSelApp(def._id);
+        setSelApp(def.id);
       }
-    } catch (e) {
+    } catch {
       toast.error('Erro ao carregar contas');
     } finally { setLoading(false); }
   }, []); // eslint-disable-line
@@ -287,7 +289,7 @@ export default function OAuthAccounts() {
           {metaApps.length > 1 && (
             <select value={selApp} onChange={e => setSelApp(e.target.value)}
               style={{ padding: '8px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-xs)', cursor: 'pointer' }}>
-              {metaApps.map(a => <option key={a._id} value={a._id}>{a.name || a.appId || a._id}</option>)}
+              {metaApps.map(a => <option key={a.id} value={a.id}>{a.name || a.appId || a.id}</option>)}
             </select>
           )}
           <button onClick={load} style={{ padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-2)', cursor: 'pointer', fontSize: 'var(--mf-t-xs)' }}>
@@ -355,7 +357,7 @@ export default function OAuthAccounts() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {loading && !filtered.length && <EsqueletoLista itens={5} />}
           {filtered.map(acc => (
-            <AccountCard key={acc._id} account={acc} metaAppId={selApp} onAction={load} />
+            <AccountCard key={acc.id} account={acc} metaAppId={selApp} onAction={load} />
           ))}
         </div>
       )}

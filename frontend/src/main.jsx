@@ -1,4 +1,3 @@
-import React from 'react';
 /* Inter, só os pesos que a moldura do story usa.
 
    É a fonte que o servidor queima na mídia (`fonts-inter` no Dockerfile). Sem

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import { enviarMidias, avisoDeRecusados } from '../services/enviarMidias';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import { EsqueletoGrade } from '../components/Estados';
@@ -69,18 +70,16 @@ export default function MediaLibrary() {
     if (!rawFiles.length) return;
     setUploading(true);
     try {
-      const form = new FormData();
-      Array.from(rawFiles).forEach(f => form.append('media', f));
-      form.append('folder', activeFolder || 'default');
-      await api.post('/media/upload', form);
+      const { media, recusados } = await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
       await load();
-      toast_('success', 'Upload concluído', `${rawFiles.length} arquivo(s) adicionado(s)${activeFolder ? ` à pasta "${activeFolder}"` : ''}.`);
+      if (recusados.length) toast_('warning', `${media.length} enviado(s), ${recusados.length} recusado(s)`, avisoDeRecusados(recusados));
+      else toast_('success', 'Upload concluído', `${media.length} arquivo(s) adicionado(s)${activeFolder ? ` à pasta "${activeFolder}"` : ''}.`);
     } catch { toast_('error', 'Erro', 'Falha no upload.'); }
     finally { setUploading(false); }
   }
 
   async function deleteFile(id) {
-    const item = files.find(f => f._id === id);
+    const item = files.find(f => f.id === id);
     setConfirmModal({ type: 'file', id, name: item?.originalName || 'esta mídia' });
   }
 
@@ -108,7 +107,7 @@ export default function MediaLibrary() {
   async function moveFile() {
     if (!moveItem || !moveTarget) return;
     try {
-      await api.patch(`/media/${moveItem._id}/folder`, { folder: moveTarget });
+      await api.patch(`/media/${moveItem.id}/folder`, { folder: moveTarget });
       await load();
       setMoveItem(null);
       toast_('success', 'Movida', `Mídia movida para "${moveTarget}".`);
@@ -233,7 +232,7 @@ export default function MediaLibrary() {
             ) : shown.length > 0 ? (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(148px,1fr))', gap:10 }}>
                 {shown.map((item, i) => (
-                  <motion.div key={item._id} initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.02 }}
+                  <motion.div key={item.id} initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.02 }}
                     style={{ background:'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)', border:'1px solid var(--mf-border)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = 'color-mix(in oklch, var(--mf-primary-500) 40%, transparent)'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--mf-border)'}
@@ -269,7 +268,7 @@ export default function MediaLibrary() {
                         style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'4px 0', borderRadius: 'var(--mf-r-sm)', border:'1px solid var(--mf-border)', background:'color-mix(in oklch, var(--mf-bg) 50%, transparent)', color:'var(--mf-text-2)', cursor:'pointer' }}>
                         Mover
                       </button>
-                      <button onClick={() => deleteFile(item._id)}
+                      <button onClick={() => deleteFile(item.id)}
                         style={{ flex:1, fontSize: 'var(--mf-t-micro)', padding:'4px 0', borderRadius: 'var(--mf-r-sm)', border:'1px solid oklch(0.38 0.12 15 / 0.3)', background:'color-mix(in oklch, var(--mf-danger-500) 4%, transparent)', color:'var(--mf-danger-500)', cursor:'pointer' }}>
                         Excluir
                       </button>

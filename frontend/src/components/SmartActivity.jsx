@@ -292,11 +292,11 @@ export function SmartActivityProvider({ children }) {
         // Primeira carga: nada vira aviso. Abrir o app não é o momento de
         // receber vinte pop-ups sobre o que aconteceu enquanto ele estava
         // fechado — isso é assunto da Central.
-        lista.forEach(n => vistasRef.current.add(n._id));
+        lista.forEach(n => vistasRef.current.add(n.id));
         return;
       }
-      const novas = lista.filter(n => !vistasRef.current.has(n._id) && !n.lidaEm);
-      novas.forEach(n => vistasRef.current.add(n._id));
+      const novas = lista.filter(n => !vistasRef.current.has(n.id) && !n.lidaEm);
+      novas.forEach(n => vistasRef.current.add(n.id));
       if (novas.length) {
         /* Cartões internos: todos, na fila (a fila já limita quantos ficam na
            tela ao mesmo tempo). Aviso do sistema: no máximo 3 — os mais
@@ -309,7 +309,7 @@ export function SmartActivityProvider({ children }) {
         if (novas.length > MAX_AVISOS_DO_SISTEMA) {
           const resto = novas.length - MAX_AVISOS_DO_SISTEMA;
           notificacaoDoNavegador.mostrar({
-            _id: 'lote-' + Date.now(),
+            id: 'lote-' + Date.now(),
             titulo: `+${resto} aviso${resto === 1 ? '' : 's'} na Central`,
             mensagem: 'Abra o painel para ver todos.',
           });
@@ -332,11 +332,11 @@ export function SmartActivityProvider({ children }) {
   }, [fila, visiveis.length]);
 
   const dispensar = useCallback(id => {
-    setVisiveis(v => v.filter(n => n._id !== id));
+    setVisiveis(v => v.filter(n => n.id !== id));
   }, []);
 
   const marcarLida = useCallback(async id => {
-    setPersistidas(l => l.map(n => n._id === id ? { ...n, lidaEm: new Date().toISOString() } : n));
+    setPersistidas(l => l.map(n => n.id === id ? { ...n, lidaEm: new Date().toISOString() } : n));
     setNaoLidasPersistidas(n => Math.max(0, n - 1));
     try { await api.patch(`/notificacoes/${id}/lida`); } catch { /* volta no próximo carregar */ }
   }, []);
@@ -370,7 +370,7 @@ export function SmartActivityProvider({ children }) {
      Central desenha os dois com o mesmo componente, sem um "se for do tipo X". */
   const itens = useMemo(() => {
     const convertidas = (efemeras || []).map(e => ({
-      _id: `ef-${e.id}`,
+      id: `ef-${e.id}`,
       titulo: e.msg,
       mensagem: '',
       tema: e.type === 'error' ? 'warning' : e.type === 'success' ? 'success' : 'info',
@@ -440,7 +440,7 @@ export function PilhaDeAvisos() {
         pointerEvents: 'none',
       }}>
       {visiveis.map(n => (
-        <Aviso key={n._id} notificacao={n} onFechar={() => dispensar(n._id)} />
+        <Aviso key={n.id} notificacao={n} onFechar={() => dispensar(n.id)} />
       ))}
 
       {aguardando > 0 && (
@@ -622,8 +622,8 @@ export function SinoDeNotificacoes() {
                   color: 'var(--mf-text-3)', padding: '0 var(--mf-2)',
                 }}>{rotulo.toUpperCase()}</div>
                 {lista.map(n => (
-                  <Cartao key={n._id} notificacao={n} compacto
-                    onAbrir={() => !n.lidaEm && !n.efemera && marcarLida(n._id)} />
+                  <Cartao key={n.id} notificacao={n} compacto
+                    onAbrir={() => !n.lidaEm && !n.efemera && marcarLida(n.id)} />
                 ))}
               </div>
             ))}

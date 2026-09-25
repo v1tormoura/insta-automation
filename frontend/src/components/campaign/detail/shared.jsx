@@ -48,14 +48,14 @@ export const STATUS_CAMPANHA = {
 
 /** Códigos de campaignExecutor.classificarErro (publicação). */
 export const ERROS_PUB = {
-  SESSION_EXPIRED:      'Sessão expirada',
+  SESSION_EXPIRED:      'Token inválido — reconecte a conta',
   ACCOUNT_CHALLENGE:    'Conta pediu verificação',
   ACCOUNT_RESTRICTED:   'Conta restrita',
   ACCOUNT_UNAVAILABLE:  'Conta indisponível',
   ACCOUNT_BUSY:         'Conta ocupada',
   RATE_LIMITED:         'Limite de requisições',
   DAILY_LIMIT:          'Limite diário da conta',
-  NETWORK_ERROR:        'Erro de rede ou proxy',
+  NETWORK_ERROR:        'Erro de rede',
   CONTENT_NOT_FOUND:    'Conteúdo não existe mais',
   PROVIDER_UNAVAILABLE: 'Serviço de publicação fora do ar',
   UNSUPPORTED_TYPE:     'Tipo não suportado',
@@ -68,9 +68,9 @@ export const ERROS_COMENTARIO = {
   COMMENT_NOT_SUPPORTED:   'Conta sem via de comentário',
   COMMENT_MEDIA_NOT_FOUND: 'Mídia não encontrada',
   COMMENT_FAILED:          'Falha ao comentar',
-  SESSION_EXPIRED:         'Sessão expirada',
+  SESSION_EXPIRED:         'Token inválido — reconecte a conta',
   RATE_LIMITED:            'Limite de requisições',
-  NETWORK_ERROR:           'Erro de rede ou proxy',
+  NETWORK_ERROR:           'Erro de rede',
   TIMEOUT:                 'Tempo esgotado',
   ACCOUNT_CHALLENGE:       'Conta pediu verificação',
   ACCOUNT_UNAVAILABLE:     'Conta indisponível',

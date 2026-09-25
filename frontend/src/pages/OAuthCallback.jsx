@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import { isAuthenticated } from '../services/auth';
 import { ehJanela, TIPO_DE_AVISO } from './janelaDeAutorizacao';
 import TelaDeCarregamento from '../components/TelaDeCarregamento';
 
@@ -52,6 +53,14 @@ export default function OAuthCallback() {
     /** Um único lugar decide o que fazer com o desfecho. */
     const desfecho = (params, carga) => {
       if (naJanela) { setStatus(carga.ok ? 'Conta conectada. Fechando…' : 'Falhou. Fechando…'); avisarEFechar(carga); return; }
+      /* Link guiado: o navegador do perfil não está logado no painel, e
+         /accounts mandaria para o login. O resultado aparece na própria
+         página guiada; o erro fica visível aqui mesmo. */
+      if (!isAuthenticated()) {
+        if (carga.ok) navigate(`/conectar?ok=${encodeURIComponent(carga.username || '')}`);
+        else setError(carga.erro || 'Falha na autenticação');
+        return;
+      }
       navigate(`/accounts?${params}`);
     };
 
@@ -82,7 +91,7 @@ export default function OAuthCallback() {
   }, []);
 
   return error ? (
-    <TelaDeCarregamento erro titulo={`${error} — redirecionando...`} />
+    <TelaDeCarregamento erro titulo={isAuthenticated() || ehJanela() ? `${error} — redirecionando...` : error} />
   ) : (
     <TelaDeCarregamento titulo={status} subtitulo="Aguarde, conectando sua conta Instagram..." />
   );

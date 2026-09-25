@@ -39,7 +39,7 @@ export function agruparPorConta(publicacoes) {
 
        Agora as órfãs vão para um balde próprio, rótulado. A publicação
        aconteceu — sumir com ela do painel não desfaz isso, só esconde. */
-    const id = String(p.account?._id ?? p.account ?? '') || '__removida__';
+    const id = String(p.account?.id ?? p.account ?? '') || '__removida__';
 
     if (!mapa.has(id)) {
       mapa.set(id, {
@@ -72,7 +72,7 @@ export function agruparPorConteudo(publicacoes) {
   const mapa = new Map();
 
   for (const p of publicacoes) {
-    const id = String(p.content?._id ?? p.content ?? '');
+    const id = String(p.content?.id ?? p.content ?? '');
     if (!id) continue;
 
     if (!mapa.has(id)) {
@@ -303,7 +303,7 @@ export function TimelineView({ publicacoes, onAbrir }) {
               onde onze bastam. */}
           <div className="divide-y divide-[var(--border)] p-1">
             {doDia.map(p => (
-              <LinhaPublicacao key={p._id} pub={p} onAbrir={onAbrir} />
+              <LinhaPublicacao key={p.id} pub={p} onAbrir={onAbrir} />
             ))}
           </div>
         </section>
@@ -372,7 +372,7 @@ export function ByAccountView({ publicacoes, onAbrir }) {
             {expandida && (
               <div className="mt-3 flex flex-col gap-1.5 border-t border-[var(--border)] pt-3">
                 {g.itens.map(p => (
-                  <LinhaPublicacao key={p._id} pub={p} onAbrir={onAbrir} compacta />
+                  <LinhaPublicacao key={p.id} pub={p} onAbrir={onAbrir} compacta />
                 ))}
               </div>
             )}
@@ -435,7 +435,7 @@ export function ByContentView({ publicacoes, onAbrir }) {
               <div className="mt-3 flex flex-col gap-1.5 border-t border-[var(--border)] pt-3">
                 {g.itens.map(p => (
                   <button
-                    key={p._id}
+                    key={p.id}
                     type="button"
                     onClick={() => onAbrir?.(p)}
                     className="flex items-center gap-2 rounded-[var(--mf-r-sm)] p-1.5 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
@@ -585,7 +585,7 @@ export function PublicationsView({ publicacoes, onAbrir, contagem }) {
       {visiveis.length ? (
         <div className="flex flex-col gap-1.5">
           {visiveis.map(p => (
-            <LinhaPublicacao key={p._id} pub={p} onAbrir={onAbrir} mostrarData />
+            <LinhaPublicacao key={p.id} pub={p} onAbrir={onAbrir} mostrarData />
           ))}
         </div>
       ) : (
@@ -630,7 +630,7 @@ export function CommentsView({ publicacoes, comentarios, onAbrir, onReprocessar,
           const falhou = p.commentStatus === 'failed';
           return (
             <div
-              key={p._id}
+              key={p.id}
               className={cn(
                 'rounded-[var(--mf-r-md)] border p-3',
                 falhou
@@ -672,7 +672,7 @@ export function CommentsView({ publicacoes, comentarios, onAbrir, onReprocessar,
                 <span className="ml-auto flex shrink-0 gap-1.5">
                   <Button size="sm" variant="ghost" onClick={() => onAbrir?.(p)}>Detalhes</Button>
                   {falhou && p.hasMediaLink && (
-                    <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessar(p._id)}>
+                    <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessar(p.id)}>
                       <MessageSquare size={12} />
                       Reprocessar
                     </Button>
@@ -713,7 +713,7 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
 
         return (
           <div
-            key={p._id}
+            key={p.id}
             className="rounded-[var(--mf-r-md)] border border-[color-mix(in_oklch,_var(--mf-danger-500)_26%,_transparent)] bg-[color-mix(in_oklch,_var(--mf-danger-500)_4%,_transparent)] p-3"
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -740,7 +740,7 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
                 </span>
                 <span className="ml-auto flex gap-1.5">
                   <Button size="sm" variant="ghost" onClick={() => onAbrir?.(p)}>Detalhes</Button>
-                  <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessar(p._id)}>
+                  <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessar(p.id)}>
                     <RotateCcw size={12} />
                     Reprocessar
                   </Button>
@@ -759,7 +759,7 @@ export function ProblemsView({ publicacoes, onAbrir, onReprocessar, onReprocessa
                 )}
                 <span className="ml-auto flex gap-1.5">
                   {p.hasMediaLink ? (
-                    <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessarComentario(p._id)}>
+                    <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessarComentario(p.id)}>
                       <MessageSquare size={12} />
                       Reprocessar comentário
                     </Button>
@@ -796,7 +796,7 @@ export function PlanoCompleto({ publicacoes, onAbrir }) {
       </p>
       {ordenadas.map(p => (
         <button
-          key={p._id}
+          key={p.id}
           type="button"
           onClick={() => onAbrir?.(p)}
           className="flex items-center gap-2.5 rounded-[var(--mf-r-sm)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--mf-border-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--mf-mod,_var(--mf-accent-500))]"
@@ -870,7 +870,7 @@ export function EventosView({ dados }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)' }}>
 
       {/* O resumo por código vem primeiro porque é ele que aponta a causa:
-          quinze eventos com PROXY_ERROR são UMA frase; quinze linhas para ler
+          quinze eventos com RATE_LIMITED são UMA frase; quinze linhas para ler
           uma a uma, não. */}
       {dados.erros?.length > 0 && (
         <div style={{
@@ -901,7 +901,7 @@ export function EventosView({ dados }) {
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {dados.itens.map(ev => (
-          <div key={ev._id} style={{
+          <div key={ev.id} style={{
             display: 'grid', gridTemplateColumns: '8px minmax(0,1fr) auto',
             gap: 'var(--mf-4)', alignItems: 'start',
             padding: 'var(--mf-3) 0',

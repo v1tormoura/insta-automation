@@ -288,13 +288,13 @@ export default function PublicationDrawer({ pub, aberto, onFechar, onReprocessar
         {(podeReprocessar || comentarioFalhou) && (
           <SheetFooter className="flex flex-wrap gap-2">
             {podeReprocessar && (
-              <Button size="sm" disabled={agindo} onClick={() => onReprocessar(pub._id)}>
+              <Button size="sm" disabled={agindo} onClick={() => onReprocessar(pub.id)}>
                 <RotateCcw size={13} />
                 Reprocessar publicação
               </Button>
             )}
             {comentarioFalhou && pub.hasMediaLink && (
-              <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessarComentario(pub._id)}>
+              <Button size="sm" variant="outline" disabled={agindo} onClick={() => onReprocessarComentario(pub.id)}>
                 <MessageSquare size={13} />
                 Reprocessar comentário
               </Button>

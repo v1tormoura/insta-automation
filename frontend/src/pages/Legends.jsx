@@ -152,7 +152,7 @@ export default function Legends() {
   }
 
   function editar(l) {
-    setEditando(l._id); setTitulo(l.title || ''); setCategoria(l.category || 'Geral'); setTexto(l.text || '');
+    setEditando(l.id); setTitulo(l.title || ''); setCategoria(l.category || 'Geral'); setTexto(l.text || '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -168,8 +168,8 @@ export default function Legends() {
     /* Otimista: a estrela responde ao toque e o servidor confirma depois. Se
        falhar, a lista é recarregada e ela volta — é uma preferência, não um
        dado que se perde. */
-    setLegendas(ls => ls.map(x => x._id === l._id ? { ...x, favorita: !x.favorita } : x));
-    try { await api.patch(`/legends/${l._id}`, { favorita: !l.favorita }); }
+    setLegendas(ls => ls.map(x => x.id === l.id ? { ...x, favorita: !x.favorita } : x));
+    try { await api.patch(`/legends/${l.id}`, { favorita: !l.favorita }); }
     catch { aviso('error', 'Erro', 'Não deu para favoritar.'); carregar(); }
   }
 
@@ -183,9 +183,9 @@ export default function Legends() {
   async function excluir(l) {
     setParaExcluir(null);
     try {
-      await api.delete(`/legends/${l._id}`);
+      await api.delete(`/legends/${l.id}`);
       aviso('success', 'Excluída', l.title);
-      if (editando === l._id) limparForm();
+      if (editando === l.id) limparForm();
       carregar();
     } catch { aviso('error', 'Erro', 'Não foi possível excluir.'); }
   }
@@ -311,7 +311,7 @@ export default function Legends() {
                     const cat = (l.category || 'Geral').trim() || 'Geral';
                     const cor = corDaCategoria(cat);
                     return (
-                      <article key={l._id} className="lg-cartao" style={{ '--cat': cor }}>
+                      <article key={l.id} className="lg-cartao" style={{ '--cat': cor }}>
                         <header className="lg-cartao__topo">
                           <span className="lg-chip">{cat}</span>
                           <button type="button" className="lg-estrela" data-ativa={l.favorita ? 'sim' : undefined}

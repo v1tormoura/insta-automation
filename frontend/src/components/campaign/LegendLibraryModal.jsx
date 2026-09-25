@@ -114,7 +114,7 @@ export default function LegendLibraryModal({
           )}
 
           {!carregando && filtradas.map(lg => (
-            <button key={lg._id} onClick={() => { onAplicar?.(lg.text || ''); onFechar?.(); }}
+            <button key={lg.id} onClick={() => { onAplicar?.(lg.text || ''); onFechar?.(); }}
               style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--mf-r-md)', cursor: 'pointer',
                 background: 'var(--mf-border-subtle)', border: '1px solid var(--mf-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>

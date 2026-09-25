@@ -261,8 +261,8 @@ export const notificacaoDoNavegador = {
         icon: '/nexora-icon.png?v=3',
         // Silhueta monocromática para a barra de status — ver sw.js.
         badge: '/nexora-badge.png?v=3',
-        tag: n._id || 'nexora',
-        data: { url: '/', id: n._id || '' },
+        tag: n.id || 'nexora',
+        data: { url: '/', id: n.id || '' },
       });
     } catch { /* o push do servidor cobre o caso do app fechado */ }
   },

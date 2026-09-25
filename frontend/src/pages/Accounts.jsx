@@ -35,6 +35,13 @@ const IcoWifi    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="n
 const IcoCopy    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
 const IcoConvite = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>;
 
+const PAGE_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+);
+
 export default function Accounts() {
   const ACCOUNTS_CACHE_KEY = 'instaflow_accounts_cache';
 
@@ -122,7 +129,7 @@ export default function Accounts() {
       const res = await api.get('/meta-apps');
       setMetaApps(res.data || []);
       const def = res.data?.find(a => a.isDefault);
-      if (def) setSelectedAppId(def._id);
+      if (def) setSelectedAppId(def.id);
     } catch { /* silencioso — apps opcionais */ }
   }
 
@@ -145,7 +152,7 @@ export default function Accounts() {
     loadRef.current?.();
     if (data?.action === 'oauth_connected' && oauthWaitingRef.current) {
       const modal = oauthModalRef.current;
-      const isMatch = !modal?.account || modal?.account?._id === data.accountId;
+      const isMatch = !modal?.account || modal?.account?.id === data.accountId;
       if (isMatch) {
         setOauthModal(null);
         anunciarConexao(data.username || '');
@@ -225,10 +232,10 @@ export default function Accounts() {
        clique virava só um toast vermelho — parecia que o botão não fazia nada.
        Aqui a falta de app deixa de ser erro e vira o primeiro passo. */
     if (!metaApps.length) { setPrecisaApp(true); return; }
-    const key = account?._id || 'new';
+    const key = account?.id || 'new';
     setConnecting(p => ({ ...p, [key]: true }));
     try {
-      const params = { ...(account?._id ? { accountId: account._id } : {}), ...(selectedAppId ? { metaAppId: selectedAppId } : {}) };
+      const params = { ...(account?.id ? { accountId: account.id } : {}), ...(selectedAppId ? { metaAppId: selectedAppId } : {}) };
       const res = await api.get('/oauth/url', { params });
       const url = res.data?.url;
       if (!url) throw new Error('URL não retornada');
@@ -273,7 +280,7 @@ export default function Accounts() {
     try {
       const res = await api.post('/oauth/connect-by-token', {
         token: tokenValue.trim(),
-        accountId: oauthModal?.account?._id || 'new',
+        accountId: oauthModal?.account?.id || 'new',
       });
       const username = res.data?.username || '';
       setOauthModal(null); setTokenValue(''); setCallbackUrl(''); setOauthWaiting(false);
@@ -471,7 +478,7 @@ export default function Accounts() {
   const totalFollowers  = safeAccounts.reduce((s, a) => s + Number(a.followers  || 0), 0);
   const totalPosts      = safeAccounts.reduce((s, a) => s + Number(a.postsCount || 0), 0);
   const activeAccounts  = safeAccounts.filter(a => !a.healthStatus || a.healthStatus === 'ativa').length;
-  const errorAccounts   = safeAccounts.filter(a => ['restrita','banida','token_invalido','sessao_expirada','erro_login'].includes(a.healthStatus)).length;
+  const errorAccounts   = safeAccounts.filter(a => ['restrita','banida','token_invalido','conta_pessoal'].includes(a.healthStatus)).length;
 
   const countBy = s => safeAccounts.filter(a => a.healthStatus === s).length;
   const FILTERS = [
@@ -480,8 +487,8 @@ export default function Accounts() {
     { key: 'restricted',  label: 'Em verificação',  count: countBy('restrita') },
     { key: 'token',       label: 'Token inválido',  count: countBy('token_invalido') },
     { key: 'banned',      label: 'Banidas',         count: countBy('banida') },
-    { key: 'error',       label: 'Com erro',        count: safeAccounts.filter(a => a.healthStatus === 'erro_login' || a.healthStatus === 'sessao_expirada').length },
-    { key: 'offline',     label: 'Desconectadas',   count: countBy('desconectada') },
+    { key: 'personal',    label: 'Conta pessoal',   count: countBy('conta_pessoal') },
+    { key: 'offline',     label: 'Desconectadas',   count: safeAccounts.filter(a => !a.hasApiToken).length },
   ];
 
   const filteredAccounts = safeAccounts.filter(acc => {
@@ -492,8 +499,8 @@ export default function Accounts() {
     if (filter === 'restricted') return acc.healthStatus === 'restrita';
     if (filter === 'token')      return acc.healthStatus === 'token_invalido';
     if (filter === 'banned')     return acc.healthStatus === 'banida';
-    if (filter === 'error')      return acc.healthStatus === 'erro_login' || acc.healthStatus === 'sessao_expirada';
-    if (filter === 'offline')    return acc.healthStatus === 'desconectada';
+    if (filter === 'personal')   return acc.healthStatus === 'conta_pessoal';
+    if (filter === 'offline')    return !acc.hasApiToken;
     return true;
   });
 
@@ -507,29 +514,18 @@ export default function Accounts() {
     if (s === 'restrita')        return 'Em verificação';
     if (s === 'banida')          return 'Banida';
     if (s === 'token_invalido')  return 'Token inválido';
-    if (s === 'sessao_expirada') return 'Sessão expirada';
-    if (s === 'erro_login')      return 'Erro de login';
-    if (s === 'desconectada')    return 'Desconectada';
+    if (s === 'conta_pessoal')   return 'Conta pessoal';
     return 'Saudável';
   }
   function healthColor(s) {
     if (s === 'restrita')        return 'var(--mf-warning-500)';
     if (s === 'banida')          return 'var(--mf-danger-500)';
     if (s === 'token_invalido')  return 'var(--mf-danger-500)';
-    if (s === 'sessao_expirada') return 'var(--mf-warning-500)';
-    if (s === 'erro_login')      return 'var(--mf-danger-500)';
-    if (s === 'desconectada')    return 'var(--mf-text-3)';
+    if (s === 'conta_pessoal')   return 'var(--mf-warning-500)';
     return 'var(--mf-success-500)';
   }
 
-  /* ── stat cards config ────────────────────────────────────────────── */
-  const STATS = [
-    { label: 'CONECTADAS',  value: fmt(safeAccounts.length), color: 'var(--mf-primary-500)', Icon: IcoUsers,  numColor: 'var(--mf-text)' },
-    { label: 'SAUDÁVEIS',   value: fmt(activeAccounts),      color: 'var(--mf-mod-contas)', Icon: IcoShield, numColor: 'var(--mf-text)' },
-    { label: 'COM ERRO',    value: fmt(errorAccounts),       color: 'var(--mf-danger-500)', Icon: IcoWarn,   numColor: 'var(--mf-text)' },
-    { label: 'SEGUIDORES',  value: fmt(totalFollowers),      color: 'var(--mf-warning-500)', Icon: IcoTrend,  numColor: 'var(--mf-warning-500)' },
-    { label: 'PUBLICAÇÕES', value: fmt(totalPosts),          color: 'var(--mf-warning-500)', Icon: IcoGrid,   numColor: 'var(--mf-warning-500)' },
-  ];
+
 
   /**
    * Conta realmente conectada: tem token da Meta API.
@@ -538,20 +534,6 @@ export default function Accounts() {
    * O flag vem do backend, que nunca expõe o token em si.
    */
   const isLinked = a => !!a?.hasApiToken;
-
-  /* ── health helpers ── */
-  /* Saúde da conta no vocabulário do sistema. Antes cada estado carregava o
-     próprio rgba de fundo e de borda — sete estados x duas cores, mantidos
-     em sincronia na mão. Agora cada estado declara só a intenção, e fundo e
-     borda saem dela por color-mix. */
-  const hTom = s => ({
-    ativa: 'var(--mf-success-500)', restrita: 'var(--mf-warning-500)',
-    banida: 'var(--mf-danger-500)', token_invalido: 'var(--mf-danger-500)',
-    sessao_expirada: 'var(--mf-warning-500)', erro_login: 'var(--mf-danger-500)',
-    desconectada: 'var(--mf-text-3)',
-  }[s] || 'var(--mf-success-500)');
-  const hBg     = s => `color-mix(in oklch, ${hTom(s)} 10%, transparent)`;
-  const hBorder = s => `color-mix(in oklch, ${hTom(s)} 26%, transparent)`;
 
   /* Rótulos em caixa alta viraram caixa normal: "PUBLICAÇÕES" em versalete
      lê-se letra a letra, "Publicações" lê-se de uma vez. A distinção de
@@ -566,12 +548,6 @@ export default function Accounts() {
     { label:'Publicações', value:fmt(totalPosts),      cor:'var(--mf-mod-contas)',  Icon:IcoGrid   },
   ];
 
-  const PageIcon = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  );
 
   return (
     <>
@@ -592,7 +568,7 @@ export default function Accounts() {
       />
 
       <PageShell
-        icon={<PageIcon />}
+        icon={PAGE_ICON}
         title="Contas Instagram"
         subtitle="Monitore perfis, sessões, saúde e automações em tempo real"
         accent="cyan"
@@ -768,19 +744,17 @@ export default function Accounts() {
           {filteredAccounts.map((account, idx) => {
             const hc          = healthColor(account.healthStatus);
             const hl          = healthLabel(account.healthStatus || 'ativa');
-            const isConnecting = !!connecting[account._id];
-            const needsRecon  = account.healthStatus === 'token_invalido' || account.healthStatus === 'sessao_expirada';
+            const isConnecting = !!connecting[account.id];
+            const needsRecon  = account.healthStatus === 'token_invalido';
             const isHealthy   = !account.healthStatus || account.healthStatus === 'ativa';
             const compact     = fmtDateCompact(account.lastSync);
             const accType     = account.accountType?.toUpperCase() || 'CREATOR';
-            const cardBg      = hBg(account.healthStatus);
-            const cardBorder  = hBorder(account.healthStatus);
-            const isSel       = selectedIds.has(account._id);
+            const isSel       = selectedIds.has(account.id);
             const linked      = isLinked(account);
 
             return (
-              <motion.div key={account._id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
-                onClick={() => selectMode && toggleSelect(account._id)}
+              <motion.div key={account.id} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:idx*.03, duration:.25 }}
+                onClick={() => selectMode && toggleSelect(account.id)}
                 style={{
                   background: isSel ? 'color-mix(in oklch, var(--mf-mod-publicar) 12%, var(--mf-surface-1))' : `color-mix(in oklch, var(--mf-surface-1) 92%, transparent)`,
                   border:     isSel ? '1px solid color-mix(in oklch, var(--mf-primary-500) 45%, transparent)' : `1px solid var(--mf-border)`,
@@ -838,7 +812,7 @@ export default function Accounts() {
                           {hl}
                         </span>
                         <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'var(--mf-border-subtle)', color:'var(--mf-text-3)', letterSpacing:'.5px' }}>{accType}</span>
-                        {cotas[String(account._id)] && <ChipDeCota cota={cotas[String(account._id)]} />}
+                        {cotas[String(account.id)] && <ChipDeCota cota={cotas[String(account.id)]} />}
                         <a href={`https://instagram.com/${account.username}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                           style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, padding:'2px 8px', borderRadius: 'var(--mf-r-xl)', background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)', textDecoration:'none', whiteSpace:'nowrap', letterSpacing:'.3px' }}>
                           Ver Perfil ↗
@@ -866,14 +840,14 @@ export default function Accounts() {
                 <div style={{ height:1, background:'var(--mf-border)' }} />
                 <div style={{ padding:'4px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:6 }}>
                   {!linked ? (
-                    // Sem token e sem sessão: a conta existe no painel mas não está
+                    // Sem token: a conta existe no painel mas não está
                     // conectada a nada. Antes isso aparecia como "API conectada".
                     <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', display:'flex', alignItems:'center', gap:5, color:'var(--mf-danger-500)' }}>
                       <IcoWifi /> Não conectada
                     </span>
                   ) : (
                     <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:isHealthy?'var(--mf-success-500)':account.healthStatus==='restrita'?'var(--mf-warning-500)':'var(--mf-danger-500)', display:'flex', alignItems:'center', gap:5 }}>
-                      <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Em verificação no Instagram' : account.healthStatus === 'sessao_expirada' ? 'Sessão expirada' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'erro_login' ? 'Erro de login' : 'API desconectada'}
+                      <IcoWifi /> {isHealthy ? 'API conectada' : account.healthStatus === 'restrita' ? 'Em verificação no Instagram' : account.healthStatus === 'token_invalido' ? 'Token inválido' : account.healthStatus === 'banida' ? 'Conta banida' : account.healthStatus === 'conta_pessoal' ? 'Conta pessoal — mude para profissional' : 'API desconectada'}
                     </span>
                   )}
                   <span style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
@@ -934,7 +908,7 @@ export default function Accounts() {
                       direita e afastada das demais: encostada nelas, ela
                       tinha a mesma presença de "Ver" — e é a distância que
                       separa "abrir" de "apagar". */}
-                  <button onClick={() => deleteAccount(account._id)} title="Excluir conta"
+                  <button onClick={() => deleteAccount(account.id)} title="Excluir conta"
                     style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'4px 8px', borderRadius: 'var(--mf-r-sm)', flexShrink:0,
                       marginLeft:'auto',
                       background:'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color:'var(--mf-danger-500)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', cursor:'pointer', transition:'all .15s' }}
@@ -1081,7 +1055,7 @@ export default function Accounts() {
                 >
                   <option value="">— Padrão do servidor (env vars) —</option>
                   {metaApps.map(a => (
-                    <option key={a._id} value={a._id}>{a.name}{a.isDefault ? ' ★' : ''} — {a.appId}</option>
+                    <option key={a.id} value={a.id}>{a.name}{a.isDefault ? ' ★' : ''} — {a.appId}</option>
                   ))}
                 </select>
               </div>
@@ -1267,7 +1241,7 @@ export default function Accounts() {
                 é de quem chama, por isso `onAutorizar`. */}
             <div style={{ marginTop:18 }}>
               <PassosDeConexao
-                conta={escolhaOAuth.account?._id || 'new'}
+                conta={escolhaOAuth.account?.id || 'new'}
                 metaAppId={selectedAppId}
                 url={escolhaOAuth.url}
                 mod="contas"
@@ -1287,7 +1261,7 @@ export default function Accounts() {
                 '--tom':'var(--mf-mod-contas)',
                 color:'var(--mf-mod, var(--mf-accent-500))',
                 background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' }}
-              onClick={() => { copiarLinkGuiado(escolhaOAuth.account?._id || 'new'); setEscolhaOAuth(null); }}>
+              onClick={() => { copiarLinkGuiado(escolhaOAuth.account?.id || 'new'); setEscolhaOAuth(null); }}>
               <IcoCopy /> Copiar link guiado (para Multilogin)
             </button>
 
@@ -1394,7 +1368,7 @@ export default function Accounts() {
                       : c.estado === 'enviado' ? 'Convite enviado'
                       : 'Pendente';
                     return (
-                      <div key={c._id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px',
+                      <div key={c.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px',
                         borderTop: i ? '1px solid var(--border)' : 'none', minWidth:0 }}>
                         <span style={{ width:7, height:7, borderRadius:'var(--mf-r-full)', background:tom, flexShrink:0 }} />
                         <span className="mf-trunc" style={{ flex:1, minWidth:0, fontSize:'var(--mf-t-sm)', fontWeight:600, color:'var(--mf-text)' }}>
@@ -1410,7 +1384,7 @@ export default function Accounts() {
                               Painel
                             </button>
                             {c.estado !== 'enviado' && (
-                              <button onClick={() => marcarConviteEnviado(c._id)}
+                              <button onClick={() => marcarConviteEnviado(c.id)}
                                 title="Marcar que o convite já foi enviado no painel"
                                 className="btn-ghost" style={{ padding:'3px 8px', fontSize:'var(--mf-t-nano)' }}>
                                 Enviei
@@ -1418,7 +1392,7 @@ export default function Accounts() {
                             )}
                           </>
                         )}
-                        <button onClick={() => removerConvite(c._id)} aria-label={`Remover convite de @${c.username}`}
+                        <button onClick={() => removerConvite(c.id)} aria-label={`Remover convite de @${c.username}`}
                           className="btn-ghost" style={{ padding:'3px 7px', color:'var(--mf-danger-500)' }}>
                           <IcoTrash />
                         </button>
