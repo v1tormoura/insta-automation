@@ -1,58 +1,26 @@
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
-# Chromium para Puppeteer (sem baixar o bundled do Puppeteer)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# ffmpeg: humanização, marca d'água, capa, story 9:16 e texto queimado.
+# fonts-inter: a fonte do texto do story (DejaVu fica de reserva).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg fonts-inter fonts-dejavu-core tzdata ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y \
-    chromium \
-    ca-certificates \
-    tzdata \
-    curl \
-    ffmpeg \
-    python3 \
-    fonts-noto \
-    fonts-liberation \
-    # Inter: a fonte do texto do story e da figurinha de link.
-    #
-    # O pedido foi "fonte do iPhone". SF Pro existe sob licença da Apple, que
-    # cobre interfaces de apps das plataformas dela — não um container que
-    # queima texto em imagem para o Instagram. Então ela não entra aqui.
-    #
-    # Inter foi desenhada como equivalente aberta (SIL OFL) e é a substituta
-    # padrão: mesma classe de grotesca neutra, altura-x alta, terminais retos.
-    # Sem este pacote o drawtext cai em DejaVu ou Liberation, que são de outra
-    # época e deixam o texto com cara de documento, não de story.
-    fonts-inter \
-    # Emoji colorido: sem esta fonte o Chromium desenha uma caixa vazia no lugar
-    # de cada emoji do texto da figurinha de link.
-    fonts-noto-color-emoji \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcairo2 \
-    libcups2 \
-    libgbm1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnss3 \
-    libnspr4 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libxss1 \
-    --no-install-recommends \
-    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp \
-    && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production \
+    TZ=America/Sao_Paulo \
+    # Em VPS com IPv6 quebrado, o fetch do Node tenta IPv6 primeiro e a Graph
+    # API devolve respostas sem sentido. IPv4 primeiro, sempre.
+    NODE_OPTIONS=--dns-result-order=ipv4first \
+    PORT=3000
 
 WORKDIR /app
-
-COPY package*.json ./
-RUN npm install --omit=dev
-
-COPY . .
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY src ./src
+RUN mkdir -p uploads && chown -R node:node /app
+USER node
 
 EXPOSE 3000
-CMD ["node", "src/app.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
+  CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT + '/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+CMD ["node", "src/server.js"]

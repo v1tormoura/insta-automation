@@ -1,43 +1,17 @@
-#!/bin/bash
-# Deploy rápido — só reconstrói o que mudou
-set -e
-cd /root/insta-automation
+#!/usr/bin/env bash
+# Atualiza o servidor com o que está no GitHub.
+#   ./deploy.sh            → branch atual
+#   ./deploy.sh main       → troca para a branch e atualiza
+set -euo pipefail
+cd "$(dirname "$0")"
 
-echo "📥 Baixando alterações..."
-git pull origin main
+if [ -n "${1:-}" ]; then git checkout "$1"; fi
+git pull --ff-only
 
-# Detecta o que mudou desde o commit anterior
-CHANGED=$(git diff HEAD~1 --name-only 2>/dev/null || echo "all")
+docker compose up -d --build
+docker image prune -f >/dev/null
 
-BACKEND_CHANGED=false
-FRONTEND_CHANGED=false
-PKG_CHANGED=false
-
-echo "$CHANGED" | grep -q "^backend/src/\|^instagrapi-service/"      && BACKEND_CHANGED=true
-echo "$CHANGED" | grep -q "^frontend/src/"     && FRONTEND_CHANGED=true
-echo "$CHANGED" | grep -q "package.*\.json"    && PKG_CHANGED=true
-echo "$CHANGED" | grep -q "^backend/Dockerfile\|^docker-compose" && PKG_CHANGED=true
-
-if [ "$PKG_CHANGED" = true ]; then
-  echo "📦 Dependências ou Dockerfile mudaram — rebuild completo..."
-  docker compose up --build -d
-elif [ "$BACKEND_CHANGED" = true ] && [ "$FRONTEND_CHANGED" = true ]; then
-  echo "?? Backend + Frontend mudaram"
-  docker compose restart backend worker instagrapi-svc
-  docker compose up --build -d frontend
-elif [ "$BACKEND_CHANGED" = true ]; then
-  echo "?? S� backend mudou � reiniciando (sem rebuild)..."
-  docker compose restart backend worker instagrapi-svc
-elif [ "$FRONTEND_CHANGED" = true ]; then
-  echo "🎨 Só frontend mudou — rebuild frontend..."
-  docker compose up --build -d frontend
-else
-  echo "⚡ Sem mudanças de código — reiniciando backend..."
-  docker compose restart backend worker
-fi
-
-echo ""
-echo "✅ Deploy concluído!"
+echo
 docker compose ps
-
-
+echo
+echo "Saúde: $(curl -fsS http://127.0.0.1:3000/healthz || echo 'API ainda subindo — veja: docker compose logs -f app')"

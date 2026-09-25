@@ -1,255 +1,36 @@
-# Limite de log por container. Sem isto o json-file do Docker cresce sem fim:
-# o worker ja tinha 14 MB num dia. 20 MB x 5 arquivos = 100 MB por servico, no
-# maximo, com rotacao automatica. Aplica-se quando o container e recriado.
+# Servidor: a API (com o worker no mesmo processo) e o túnel da Cloudflare.
+# Banco no Supabase, painel no Cloudflare Pages — nada disso roda aqui.
+#
+#   cp .env.example .env   # e preencha
+#   docker compose up -d --build
+
 x-log: &log
   logging:
     driver: json-file
     options: { max-size: "20m", max-file: "5" }
 
 services:
-  mongo:
-    <<: *log
-    image: mongo:7
-    restart: unless-stopped
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - instaflow
-
-  redis:
-    <<: *log
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - instaflow
-
-  backend:
+  app:
     <<: *log
     build: ./backend
     restart: unless-stopped
     env_file: .env
-    environment:
-      # ── IPv4 antes de IPv6 ───────────────────────────────────────────────
-      # `fetch()` do Node, em host dual-stack (IPv4+IPv6 — o padrao em VPS
-      # modernos, inclusive o da OVH), tenta IPv6 primeiro. Descoberto na
-      # migracao de setembro/2026: a rota IPv6 até graph.instagram.com estava
-      # quebrada, e em vez de um erro limpo de conexao, o Meta devolvia uma
-      # resposta sem sentido ("Unsupported request - method type: get") para
-      # toda chamada GET — troca de token, refresh, /me. `curl` sem flag
-      # funcionava normal (prefere IPv4 na pratica); so o `fetch()` do Node
-      # sofria. Esta flag forca a resolucao de DNS a preferir IPv4 sempre,
-      # sem depender de a rota IPv6 do host estar saudavel.
-      NODE_OPTIONS: --dns-result-order=ipv4first
-      # Fuso do agendamento: janela, weekdays e proximo horario sao
-      # calculados em horario local. Sem isto o container roda em UTC e a
-      # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
-      TZ: America/Sao_Paulo
-      MONGO_URI: mongodb://mongo:27017/insta-automation
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      HEADLESS: "true"
-      INSTAGRAPI_SERVICE_URL: http://instagrapi-svc:8000
-      # ── Autorização do OAuth ────────────────────────────────────────────
-      # `force_reauth=true` faz o Instagram pedir login a cada autorização em
-      # vez de aproveitar a sessão do navegador. É o que permite conectar uma
-      # conta atrás da outra: sem ele, a segunda autorização no MESMO navegador
-      # reaproveita quem já está logado e autoriza a mesma conta de novo, em
-      # silêncio — a lista repete um @ em vez de crescer.
-      #
-      # Vem da URL que o próprio painel da Meta gera na etapa 4 do login da
-      # empresa, não da referência pública. Se um dia o Instagram recusar o
-      # parâmetro, ponha `false` aqui e recrie o backend.
-      #
-      # Fica NESTE serviço porque é o app.js que lê a variável — as rotas de
-      # OAuth não rodam no worker. Declarada no instagrapi-svc, ela não faria
-      # nada e o arquivo mentiria sobre onde a configuração vive.
-      # Vazio ou ausente = ligado.
-      OAUTH_FORCE_REAUTH: ${OAUTH_FORCE_REAUTH:-}
-    depends_on:
-      - mongo
-      - redis
-      - instagrapi-svc
     volumes:
+      # Biblioteca de mídia e arquivos processados. A Meta baixa daqui.
       - uploads:/app/uploads
-      - sessions:/app/sessions
-      - data:/app/data
-      - ./backend/src:/app/src   # código-fonte montado: restart basta, sem rebuild
+    # Só no localhost do servidor: o acesso público entra pelo túnel.
     ports:
-      - "3000:3000"
-    command: node src/app.js
-    networks:
-      - instaflow
+      - "127.0.0.1:3000:3000"
 
-  worker:
+  tunnel:
     <<: *log
-    build: ./backend
+    image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    env_file: .env
+    command: tunnel --no-autoupdate run
     environment:
-      # ── IPv4 antes de IPv6 ───────────────────────────────────────────────
-      # `fetch()` do Node, em host dual-stack (IPv4+IPv6 — o padrao em VPS
-      # modernos, inclusive o da OVH), tenta IPv6 primeiro. Descoberto na
-      # migracao de setembro/2026: a rota IPv6 até graph.instagram.com estava
-      # quebrada, e em vez de um erro limpo de conexao, o Meta devolvia uma
-      # resposta sem sentido ("Unsupported request - method type: get") para
-      # toda chamada GET — troca de token, refresh, /me. `curl` sem flag
-      # funcionava normal (prefere IPv4 na pratica); so o `fetch()` do Node
-      # sofria. Esta flag forca a resolucao de DNS a preferir IPv4 sempre,
-      # sem depender de a rota IPv6 do host estar saudavel.
-      NODE_OPTIONS: --dns-result-order=ipv4first
-      # Fuso do agendamento: janela, weekdays e proximo horario sao
-      # calculados em horario local. Sem isto o container roda em UTC e a
-      # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
-      TZ: America/Sao_Paulo
-      MONGO_URI: mongodb://mongo:27017/insta-automation
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      HEADLESS: "true"
-      INSTAGRAPI_SERVICE_URL: http://instagrapi-svc:8000
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?defina TUNNEL_TOKEN no .env}
     depends_on:
-      - mongo
-      - redis
-      - instagrapi-svc
-    volumes:
-      - uploads:/app/uploads
-      - sessions:/app/sessions
-      - data:/app/data
-      - ./backend/src:/app/src   # código-fonte montado: restart basta, sem rebuild
-    command: node src/queue/worker.js
-    networks:
-      - instaflow
-
-  video-render-worker:
-    <<: *log
-    build: ./backend
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      # ── IPv4 antes de IPv6 ───────────────────────────────────────────────
-      # `fetch()` do Node, em host dual-stack (IPv4+IPv6 — o padrao em VPS
-      # modernos, inclusive o da OVH), tenta IPv6 primeiro. Descoberto na
-      # migracao de setembro/2026: a rota IPv6 até graph.instagram.com estava
-      # quebrada, e em vez de um erro limpo de conexao, o Meta devolvia uma
-      # resposta sem sentido ("Unsupported request - method type: get") para
-      # toda chamada GET — troca de token, refresh, /me. `curl` sem flag
-      # funcionava normal (prefere IPv4 na pratica); so o `fetch()` do Node
-      # sofria. Esta flag forca a resolucao de DNS a preferir IPv4 sempre,
-      # sem depender de a rota IPv6 do host estar saudavel.
-      NODE_OPTIONS: --dns-result-order=ipv4first
-      MONGO_URI: mongodb://mongo:27017/insta-automation
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      HEADLESS: "true"
-    depends_on:
-      - mongo
-      - redis
-    volumes:
-      - uploads:/app/uploads
-      - sessions:/app/sessions
-      - data:/app/data
-      - ./backend/src:/app/src
-    command: node src/queue/videoRenderWorker.js
-    networks:
-      - instaflow
-
-  instagrapi-svc:
-    <<: *log
-    build: ./instagrapi-service
-    restart: unless-stopped
-    environment:
-      # Fuso do agendamento: janela, weekdays e proximo horario sao
-      # calculados em horario local. Sem isto o container roda em UTC e a
-      # janela 18:00-23:00 viraria 15:00-20:00 no horario de Brasilia.
-      TZ: America/Sao_Paulo
-      PYTHONUNBUFFERED: "1"
-      # Build do app Instagram usada no payload de login. Vazio = padrão da
-      # biblioteca. Aceita apenas valores de config.APP_SETTINGS — hoje
-      # 428.0.0.47.67 (padrão), 385.0.0.47.74 e 364.0.0.35.86. Trocar aqui é o
-      # caminho quando o Instagram recusa o login com credencial válida
-      # (error_type=bad_password no site funcionando).
-      INSTAGRAPI_APP_VERSION: ${INSTAGRAPI_APP_VERSION:-}
-      # Builds a DISTRIBUIR entre as contas, separadas por vírgula. Vazio =
-      # todas as contas usam a build única acima, que é o comportamento de
-      # sempre.
-      #
-      # Por que existe: usuário real não está na mesma build que os outros —
-      # cada um atualiza quando quer. Toda conta anunciando a mesma versão é um
-      # sinal de grupo, do mesmo jeito que era todas anunciarem o mesmo
-      # aparelho. A escolha é estável por conta (trocar de versão entre dois
-      # logins também é sinal).
-      #
-      # Por que é opt-in: build descontinuada faz o Instagram recusar o login
-      # com `bad_password`, e a conta parece estar com a senha errada. Liste
-      # aqui só as builds que você JÁ viu entrarem — verifique uma por uma
-      # em INSTAGRAPI_APP_VERSION antes de somar à lista.
-      #
-      # Ex.: INSTAGRAPI_APP_VERSIONS=428.0.0.47.67,385.0.0.47.74
-      INSTAGRAPI_APP_VERSIONS: ${INSTAGRAPI_APP_VERSIONS:-}
-      # Contexto regional do cliente. O padrao da biblioteca e dos EUA
-      # (US/1/en_US/UTC-4); rodando daqui isso contradizia o IP e o idioma
-      # das contas, e a contradicao e sinal de automacao para o Instagram.
-      #
-      # COUNTRY_CODE merece atencao: ele entra no payload do login como
-      # `country_codes` e participa de como o Instagram interpreta o
-      # identificador. Se o login passar a responder `invalid_user` para
-      # conta que existe, teste com 1 antes de procurar em outro lugar.
-      INSTAGRAPI_COUNTRY: ${INSTAGRAPI_COUNTRY:-BR}
-      INSTAGRAPI_COUNTRY_CODE: ${INSTAGRAPI_COUNTRY_CODE:-55}
-      INSTAGRAPI_LOCALE: ${INSTAGRAPI_LOCALE:-pt_BR}
-      INSTAGRAPI_TZ_OFFSET_HOURS: ${INSTAGRAPI_TZ_OFFSET_HOURS:--3}
-      INSTAGRAPI_TZ_NAME: ${INSTAGRAPI_TZ_NAME:-America/Sao_Paulo}
-      GLOBAL_PROXY: ${GLOBAL_PROXY:-}
-      # Sessao fixa no proxy rotativo: um identificador por conta faz o
-      # fornecedor devolver sempre o MESMO IP para aquela conta. Sem isto o
-      # IP muda a cada conexao, e para o Instagram a mesma conta saltando de
-      # endereco e padrao de conta invadida.
-      #
-      # A sintaxe muda por fornecedor. `{sessao}` e substituido pelo
-      # identificador da conta:
-      #   axtron / geo por parametro   ;session.{sessao}      (padrao)
-      #   Bright Data, Smartproxy      -session-{sessao}
-      #   Oxylabs                      -sessid-{sessao}
-      #   IPRoyal                      _session-{sessao}_lifetime-30m
-      # Vazio desliga a fixacao (use com IP dedicado, que nao rotaciona).
-      # Vazio = sem fixação de IP por conta. Opt-in de propósito: fornecedor
-      # que não reconhece o sufixo recusa a credencial inteira com 407, e aí
-      # nenhuma conta loga. Ponha a sintaxe do SEU fornecedor aqui só depois
-      # de confirmar com scripts/sondar-proxy.sh (ex.: ";session.{sessao}").
-      PROXY_SESSAO_MOLDE: ${PROXY_SESSAO_MOLDE-}
-    volumes:
-      - uploads:/app/uploads
-    # No ports: — internal Docker network only; never exposed to the host
-    networks:
-      - instaflow
-
-  frontend:
-    <<: *log
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL}
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "3001:3001"
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - backend
-    networks:
-      - instaflow
+      - app
 
 volumes:
-  mongo_data:
-  redis_data:
   uploads:
-  sessions:
-  data:
-
-networks:
-  instaflow:
-    driver: bridge

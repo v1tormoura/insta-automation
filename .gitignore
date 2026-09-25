@@ -18,9 +18,6 @@ logs/
 *.log
 npm-debug.log*
 
-# Browser session data
-backend/sessions/
-
 # Editor
 .vscode/
 .idea/
@@ -28,7 +25,3 @@ backend/sessions/
 
 # Uploads
 uploads/
-
-# Python bytecode
-__pycache__/
-*.pyc
