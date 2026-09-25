@@ -5,12 +5,8 @@
  *
  * ── O problema que este módulo resolve
  *
- * O caminho da API Mobile mandava `post.media` direto para o `clip_upload`: o
- * arquivo que a pessoa subiu, sem tocar. Todo o pipeline de vídeo — escala para
- * 1080×1920, H.264 High, `faststart`, remoção de metadados, remoção dos NAL
- * units SEI, humanização — existia só no ramo do Graph API.
- *
- * Três consequências, medidas e não supostas:
+ * Mandar o arquivo que a pessoa subiu, sem tocar, para todas as contas tem três
+ * consequências, medidas e não supostas:
  *
  *  1. O MESMO arquivo subia para todas as contas. Byte a byte. Detecção de
  *     duplicata não precisa de hash perceptual para isso — comparação direta

@@ -24,6 +24,13 @@ const upload = multer({
   },
 });
 
+/** A mídia é um arquivo de /uploads deste servidor? */
+function daqui(url) {
+  const m = /^(.*?)\/uploads\/([^?#]+)/.exec(url);
+  if (!m || m[2].split('/').includes('..')) return false;
+  return m[1] === '' || m[1] === config.publicUrl;
+}
+
 // POST /api/stories/upload — guarda a mídia e devolve a URL pública
 router.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
@@ -40,8 +47,12 @@ router.get('/status', (req, res) => res.json(stories.status(req.user.id)));
  */
 router.post('/', async (req, res) => {
   const accountIds = (Array.isArray(req.body.accountIds) ? req.body.accountIds : []).map(String).filter(ehUuid);
-  const midias = (Array.isArray(req.body.mediaUrls) && req.body.mediaUrls.length ? req.body.mediaUrls : [req.body.imageUrl])
+  const pedidas = (Array.isArray(req.body.mediaUrls) && req.body.mediaUrls.length ? req.body.mediaUrls : [req.body.imageUrl])
     .map(m => String(m || '').trim()).filter(Boolean);
+  /* Só arquivos deste servidor (o upload acima). Um endereço qualquer faria o
+     servidor baixar o que pedissem — de dentro da própria rede, inclusive. */
+  const midias = pedidas.filter(daqui);
+  if (midias.length !== pedidas.length) return res.status(400).json({ error: 'Envie a mídia pelo upload do painel' });
   const textoLivre = limparTextoLivre(req.body.textoLivre);
   const intervalMinutes = Math.max(0, Number(req.body.intervalMinutes) || 0);
 

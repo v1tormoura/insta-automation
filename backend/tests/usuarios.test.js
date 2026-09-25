@@ -442,3 +442,14 @@ describe('recuperação de senha por e-mail', () => {
     expect(enviados).toHaveLength(0);
   });
 });
+
+describe('stories: só mídia deste servidor', () => {
+  test('endereço de fora (ou da rede interna) é recusado antes de publicar', async () => {
+    const bia = await usuarioAtivo('bia');
+    const conta = await banco.criarConta({ usuarioId: bia.id, username: 'loja' });
+    for (const url of ['http://169.254.169.254/latest', 'https://outro.site/uploads/x.jpg', 'http://localhost:3000/uploads/../../etc/passwd']) {
+      const r = await api('POST', '/api/stories', { token: bia.token, corpo: { accountIds: [conta.id], imageUrl: url } });
+      expect(r.status).toBe(400);
+    }
+  });
+});
