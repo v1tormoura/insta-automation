@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
 import api from '../services/api';
-import { enviarMidias, avisoDeRecusados } from '../services/enviarMidias';
+import { enviarMidias } from '../services/enviarMidias';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -111,8 +110,7 @@ export default function LibraryPickerModal({ onClose, onConfirm, mode = 'multi',
     if (!rawFiles?.length) return;
     setUploading(true);
     try {
-      const { recusados } = await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
-      if (recusados.length) toast.warning('Arquivo grande demais', { description: avisoDeRecusados(recusados) });
+      await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
       const r = await api.get('/media');
       const data = r.data;
       setFiles(data.files || []);

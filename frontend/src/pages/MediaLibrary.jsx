@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import api from '../services/api';
-import { enviarMidias, avisoDeRecusados } from '../services/enviarMidias';
+import { enviarMidias } from '../services/enviarMidias';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import { EsqueletoGrade } from '../components/Estados';
@@ -70,10 +70,9 @@ export default function MediaLibrary() {
     if (!rawFiles.length) return;
     setUploading(true);
     try {
-      const { media, recusados } = await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
+      const media = await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
       await load();
-      if (recusados.length) toast_('warning', `${media.length} enviado(s), ${recusados.length} recusado(s)`, avisoDeRecusados(recusados));
-      else toast_('success', 'Upload concluído', `${media.length} arquivo(s) adicionado(s)${activeFolder ? ` à pasta "${activeFolder}"` : ''}.`);
+      toast_('success', 'Upload concluído', `${media.length} arquivo(s) adicionado(s)${activeFolder ? ` à pasta "${activeFolder}"` : ''}.`);
     } catch { toast_('error', 'Erro', 'Falha no upload.'); }
     finally { setUploading(false); }
   }

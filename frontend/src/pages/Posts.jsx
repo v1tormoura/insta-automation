@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
-import { enviarMidias, avisoDeRecusados, LIMITE_POR_ENVIO } from '../services/enviarMidias';
+import { enviarMidias, LIMITE_POR_ENVIO } from '../services/enviarMidias';
 import { useServerEvents } from '../services/useServerEvents';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
@@ -582,12 +582,11 @@ export default function Posts() {
     const hasMedia = mediaSource === 'library' ? libraryMedia.length > 0 : media.length > 0;
     if (!hasMedia) return showToast('warning', 'Atenção', 'Selecione pelo menos uma mídia');
     if (!selectedAccounts.length) return showToast('warning', 'Atenção', 'Selecione uma conta');
-    /* A Cloudflare recusa requisição acima de 100 MB. Passando disso, as mídias
-       sobem antes para a biblioteca, em lotes, e o envio segue pelos ids. */
+    /* Envio grande: as mídias sobem antes para a biblioteca, em lotes, e o
+       envio segue pelos ids — uma requisição só com tudo leva minutos e, se
+       cair, perde tudo. */
     const passaDoLimite = mediaSource !== 'library'
       && media.reduce((s, f) => s + f.size, 0) + (cover?.size || 0) > LIMITE_POR_ENVIO;
-    const grandes = passaDoLimite ? media.filter(f => f.size > LIMITE_POR_ENVIO) : [];
-    if (grandes.length) return showToast('warning', 'Arquivo grande demais', avisoDeRecusados(grandes));
     const form = new FormData();
     if (mediaSource === 'library') {
       form.append('mediaIds', JSON.stringify(libraryMedia.map(m => m.id)));
@@ -643,7 +642,7 @@ export default function Posts() {
     setPosting(true);
     try {
       if (passaDoLimite) {
-        const { media: subidas } = await enviarMidias(media);
+        const subidas = await enviarMidias(media);
         form.append('mediaIds', JSON.stringify(subidas.map(m => m.id)));
       }
       await api.post('/posts', form);

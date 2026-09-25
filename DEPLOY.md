@@ -1,220 +1,139 @@
-# Deploy — Supabase + Cloudflare
+# Deploy — VPS + Supabase
 
 ```
-painel.seudominio.com ──► Cloudflare Pages      (o painel: frontend/)
-api.seudominio.com    ──► Cloudflare Tunnel ──► seu servidor (Docker: backend/)
-                                                   │
-                                                   └──► Supabase (Postgres)
+https://instaflow.pro        ──► VPS: Caddy (HTTPS automático) ──► painel (React)
+https://instaflow.pro/api/*  ──► VPS: Caddy ──► API + fila (Node)
+                                                      │
+                                                      └──► Supabase (Postgres)
 ```
 
-- **Painel** (React): no Cloudflare Pages, de graça, com deploy automático a cada push.
-- **API + fila** (Node, um processo só): num servidor Linux com Docker. Ela
-  precisa de disco (a biblioteca de mídia, de onde a Meta baixa os vídeos), de
-  ffmpeg e de rodar 24h (a fila de publicações) — nada disso cabe num Worker. O
-  túnel da Cloudflare dá HTTPS e domínio sem abrir porta nenhuma no servidor.
-- **Banco**: Supabase. As tabelas são criadas sozinhas na primeira subida.
+Tudo roda na VPS com Docker: a API (que também processa a fila de
+publicações com ffmpeg) e o Caddy, que serve o painel e emite o certificado
+HTTPS sozinho. O banco é o Supabase; as tabelas são criadas na primeira subida.
 
-Você vai precisar de: um domínio na Cloudflare, uma VPS (1 vCPU e 2 GB de RAM
-bastam, Ubuntu 22.04/24.04), uma conta no Supabase, o app na Meta e este
-repositório no GitHub.
-
-> Nos exemplos: `painel.seudominio.com` é o painel e `api.seudominio.com` é a API.
-> Troque pelo seu domínio em todos os lugares.
+Você precisa de: uma VPS Ubuntu com Docker, um domínio com registro **A**
+apontando para o IP dela, uma conta no Supabase e o app na Meta.
 
 ---
 
-## 1. Supabase (banco)
+## 1. Supabase
 
-1. Em [supabase.com](https://supabase.com) → **New project**. Região: **South America (São Paulo)**.
-   Anote a senha do banco que você definir.
-2. No projeto, clique em **Connect** (topo da página) → **Connection string** →
-   em **Method** escolha **Session pooler**. Copie a URI:
-   ```
-   postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
-   ```
-   Troque `[YOUR-PASSWORD]` pela senha do passo 1. Se a senha tiver símbolos
-   (`@ # / ? %`…), use a versão codificada — o Supabase mostra a URI com a senha
-   já preenchida se você clicar no ícone de copiar com a senha visível; ou
-   redefina a senha só com letras e números em **Database → Settings**.
+1. [supabase.com](https://supabase.com) → **New project** (região São Paulo). Anote a senha do banco.
+2. No projeto → **Connect** → aba **Direct** → **Method: Session pooler** → copie a URI
+   (termina em `pooler.supabase.com:5432/postgres`) e troque `[YOUR-PASSWORD]` pela senha.
+   Use senha só com letras e números para evitar problema com símbolos na URI.
 
-   > Use o **Session pooler**, não a "Direct connection": a conexão direta é só
-   > IPv6 e a maioria das VPS não sai por IPv6.
+## 2. DNS
 
-Não crie tabela nenhuma: a API faz isso sozinha ao subir.
+No painel do domínio (ex.: Hostinger → Domínios → DNS), confira que existem:
 
-## 2. Servidor (VPS)
+| Tipo | Nome | Valor |
+|---|---|---|
+| A | `@` | IP da VPS |
+| CNAME | `www` | o domínio (ou A com o mesmo IP) |
 
-Entre no servidor por SSH e rode:
+## 3. Primeira instalação na VPS
 
 ```bash
-# Docker
-curl -fsSL https://get.docker.com | sh
+ssh ubuntu@IP_DA_VPS
+sudo -i
+curl -fsSL https://get.docker.com | sh          # se o Docker ainda não estiver instalado
 
-# O código
-git clone https://github.com/v1tormoura/insta-automation.git
-cd insta-automation
-git checkout claude/nifty-dijkstra-ebzsp9   # ou main, depois do merge
-```
-
-## 3. Cloudflare Tunnel (HTTPS da API)
-
-1. No painel da Cloudflare → **Zero Trust** → **Networks** → **Tunnels** →
-   **Create a tunnel** → **Cloudflared** → dê um nome (ex.: `insta-api`) → **Save tunnel**.
-2. Na tela "Install and run a connector", escolha **Docker**. O comando mostrado
-   termina em `--token eyJhIjoi...`. **Copie só o token** (o texto longo depois
-   de `--token`). Não precisa rodar o comando — o `docker compose` faz isso.
-3. **Next** → aba **Public Hostname** (ou "Route traffic"):
-   - **Subdomain**: `api` · **Domain**: `seudominio.com`
-   - **Service**: Type `HTTP` · URL `app:3000`
-   - **Save**.
-
-## 4. Configuração (`.env`)
-
-No servidor, dentro de `insta-automation/`:
-
-```bash
+cd /root
+git clone https://github.com/v1tormoura/insta-automation.git insta-nova
+cd insta-nova
+git checkout claude/nifty-dijkstra-ebzsp9       # ou main, depois do merge
 cp .env.example .env
-openssl rand -hex 32   # rode duas vezes: uma para JWT_SECRET, outra para ENCRYPTION_KEY
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|; s|^ENCRYPTION_KEY=.*|ENCRYPTION_KEY=$(openssl rand -hex 32)|" .env
 nano .env
 ```
 
-Preencha:
+No `.env`, preencha `DATABASE_URL`, `DOMAIN` e `AUTH_PASSWORD` (e `AUTH_USERNAME`,
+se quiser outro login). Salve com `Ctrl+O`, `Enter`, `Ctrl+X`.
 
-| Variável | Valor |
-|---|---|
-| `DATABASE_URL` | a URI do Supabase (passo 1) |
-| `PUBLIC_URL` | `https://api.seudominio.com` |
-| `FRONTEND_URL` | `https://painel.seudominio.com` |
-| `AUTH_USERNAME` / `AUTH_PASSWORD` | o login do painel |
-| `JWT_SECRET` | um dos `openssl rand -hex 32` |
-| `ENCRYPTION_KEY` | o outro `openssl rand -hex 32` — **guarde**: trocar depois invalida os tokens das contas conectadas |
-| `TUNNEL_TOKEN` | o token do passo 3 |
+> **Guarde o `.env`.** Se a `ENCRYPTION_KEY` for perdida ou trocada, as contas
+> conectadas precisam ser reconectadas.
 
-As opcionais (push, IA de legendas, ritmo de publicação) estão explicadas no
-próprio `.env.example`.
+## 4. Subir
 
-## 5. Subir a API
+As portas **80 e 443** precisam estar livres (nada de outro nginx/site nelas).
 
 ```bash
 docker compose up -d --build
 docker compose logs -f app
 ```
 
-No log deve aparecer:
+No log (`Ctrl+C` sai; continua rodando):
 
 ```
 🗄️  [DB] migração aplicada: 001_inicial.sql
 🎬 [ffmpeg] /usr/bin/ffmpeg
-🚀 API na porta 3000 — https://api.seudominio.com
-[Fila] processando (até 5 trabalhos ao mesmo tempo)
+🚀 API na porta 3000 — https://instaflow.pro/api
 ```
 
-(`Ctrl+C` sai do log; a API continua rodando.) Teste de fora:
+Abra `https://instaflow.pro` e entre com o login do `.env`. O certificado HTTPS
+sai no primeiro acesso (pode levar alguns segundos).
+
+## 5. App da Meta
+
+1. [developers.facebook.com](https://developers.facebook.com/apps) → seu app → **Instagram** →
+   **Configuração da API com login do Instagram** → **URIs de redirecionamento do OAuth**:
+   `https://instaflow.pro/oauth-callback` (o painel mostra esse endereço em **API Meta**).
+2. No painel → **API Meta** → cadastre o App ID e o App Secret.
+3. **Contas → Conectar conta**.
+
+Com o app em modo de desenvolvimento, só contas testadoras autorizam. As contas
+precisam ser profissionais (Empresa ou Criador).
+
+## Atualizar
 
 ```bash
-curl https://api.seudominio.com/healthz     # → {"ok":true}
+cd /root/insta-nova && ./deploy.sh
 ```
 
-## 6. Cloudflare Pages (o painel)
-
-1. Cloudflare → **Workers & Pages** → **Create** → aba **Pages** →
-   **Import an existing Git repository** → autorize o GitHub → escolha
-   `insta-automation`.
-2. Configuração do build:
-   - **Production branch**: `claude/nifty-dijkstra-ebzsp9` (ou `main`, depois do merge)
-   - **Framework preset**: `React (Vite)`
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-   - **Root directory (advanced)**: `frontend`
-   - **Environment variables**: `VITE_API_URL` = `https://api.seudominio.com`
-3. **Save and Deploy**.
-4. No projeto do Pages → **Custom domains** → **Set up a custom domain** →
-   `painel.seudominio.com`.
-
-> `VITE_API_URL` entra no build. Se mudar, faça **Retry deployment** no Pages.
->
-> Vai usar também o endereço `*.pages.dev`? Coloque os dois no `FRONTEND_URL`
-> do servidor, separados por vírgula, e rode `docker compose up -d`.
-
-Abra `https://painel.seudominio.com` e entre com o login do `.env`.
-
-## 7. App da Meta (conectar as contas)
-
-O painel usa a **API do Instagram com login do Instagram** (a oficial).
-
-1. Em [developers.facebook.com](https://developers.facebook.com/apps) → **Criar app** →
-   caso de uso **Gerenciar mensagens e conteúdo no Instagram**.
-2. No app → **Instagram** → **Configuração da API com login do Instagram**:
-   - Em **Configurar o login da empresa do Instagram** → **URIs de redirecionamento do OAuth**:
-     `https://painel.seudominio.com/oauth-callback`
-     (é o endereço que o painel mostra em **API Meta** como "Redirect URI principal").
-   - Anote o **ID do app do Instagram** e a **Chave secreta do app do Instagram**.
-3. Permissões usadas: `instagram_business_basic`,
-   `instagram_business_content_publish`, `instagram_business_manage_comments`,
-   `instagram_business_manage_insights`.
-4. No painel → **API Meta** → cadastre o app com o **App ID** e o **App Secret**
-   (e o ID/chave do app do Instagram, se forem diferentes).
-5. Com o app em **modo de desenvolvimento**, só contas adicionadas como
-   **testadoras do Instagram** conseguem autorizar (Funções do app → Funções →
-   Testadores do Instagram; a pessoa aceita o convite em Instagram → Configurações →
-   Apps e sites). Para qualquer conta, o app precisa passar pela análise da Meta e
-   ir para o modo **Ao vivo**.
-6. As contas precisam ser **profissionais** (Empresa ou Criador de conteúdo).
-   Conta pessoal aparece como "Conta pessoal" e não publica.
-
-Conecte em **Contas → Conectar conta**.
-
-## 8. Atualizar
-
-- **Painel**: automático — todo push na branch de produção dispara um build no Pages.
-- **API**: no servidor, `./deploy.sh` (baixa o código, reconstrói e reinicia).
-
-## 9. Manutenção
+## Manutenção
 
 ```bash
-docker compose ps                 # estado (app deve estar "healthy")
-docker compose logs -f app        # log da API e da fila
-docker compose restart app        # reiniciar
+docker compose ps                  # app deve estar "healthy"
+docker compose logs -f app         # log da API e da fila
+docker compose logs -f web         # log do HTTPS/Caddy
+docker compose restart app
 ```
 
-**Backup**: o banco está no Supabase (backups em **Database → Backups**, conforme
-o plano). A biblioteca de mídia fica no volume Docker `insta-automation_uploads`:
+Push no celular (opcional): gere as chaves e cole no `.env` como `VAPID_PUBLIC_KEY`
+e `VAPID_PRIVATE_KEY`, depois `docker compose up -d`:
 
 ```bash
-docker run --rm -v insta-automation_uploads:/dados -v "$PWD":/backup alpine \
+docker compose run --rm app npx web-push generate-vapid-keys
+```
+
+**Backup**: o banco está no Supabase. A biblioteca de mídia fica no volume
+`insta-nova_uploads`:
+
+```bash
+docker run --rm -v insta-nova_uploads:/dados -v "$PWD":/backup alpine \
   tar czf /backup/uploads-$(date +%F).tgz -C /dados .
 ```
-
-## Limites que valem saber
-
-- **100 MB por arquivo.** A Cloudflare recusa requisição acima de 100 MB (planos
-  Free e Pro). O painel já envia vários arquivos em lotes abaixo disso; um vídeo
-  sozinho acima de 95 MB é recusado com aviso — comprima antes de enviar.
-- **A Meta baixa a mídia da sua API.** Por isso `PUBLIC_URL` precisa ser o
-  endereço público `https://api...`. Se o servidor cair, a publicação em
-  andamento falha e volta para a fila.
 
 ## Problemas comuns
 
 | Sintoma | Causa e correção |
 |---|---|
-| Log: `Variáveis de ambiente obrigatórias não definidas: …` | Falta a variável citada no `.env`. Preencha e `docker compose up -d`. |
-| Log: erro de conexão com o banco / `password authentication failed` | URI errada. Use a do **Session pooler** (porta 5432) e confira a senha (símbolos precisam estar codificados). |
-| Painel: login não responde / erro de CORS no console | `FRONTEND_URL` não bate exatamente com o endereço do painel (sem `/` no fim). Ajuste e `docker compose up -d`. |
-| Painel chama `localhost:3000` | `VITE_API_URL` não foi definido no Pages. Defina e faça **Retry deployment**. |
-| Meta: "redirect_uri inválido" ao conectar | A URI cadastrada no app da Meta tem que ser idêntica a `https://painel.seudominio.com/oauth-callback`. |
-| Publicação falha com erro de mídia / download | `PUBLIC_URL` errado ou túnel fora. Teste `curl -I https://api.seudominio.com/healthz`. |
-| Log: `[ffmpeg] … NÃO ENCONTRADO` | Imagem antiga. `docker compose build --no-cache app && docker compose up -d`. |
-| Upload: "Arquivo grande demais" | Arquivo acima de 95 MB (limite da Cloudflare). Comprima o vídeo. |
+| `Variáveis de ambiente obrigatórias não definidas` | Falta a variável citada no `.env`. |
+| `password authentication failed` / erro de conexão | URI do Supabase errada: use a do **Session pooler** e confira a senha. |
+| `bind: address already in use` na porta 80/443 | Outro serviço usa a porta. `docker ps` mostra qual; pare-o. |
+| Navegador: erro de certificado | O DNS ainda não aponta para a VPS, ou a porta 80 está bloqueada no firewall. |
+| Meta: "redirect_uri inválido" | A URI no app da Meta tem que ser `https://DOMAIN/oauth-callback`, idêntica. |
+| Log: `[ffmpeg] … NÃO ENCONTRADO` | `docker compose build --no-cache app && docker compose up -d`. |
 
 ## Desenvolvimento local
 
-Precisa de Node 22 e de um Postgres (local ou o próprio Supabase).
+Node 22 e um Postgres (local ou o Supabase).
 
 ```bash
-cp .env.example backend/.env    # DATABASE_URL, e PUBLIC_URL=http://localhost:3000, FRONTEND_URL=http://localhost:5173
+cp .env.example backend/.env    # DATABASE_URL, PUBLIC_URL=http://localhost:3000, FRONTEND_URL=http://localhost:5173
 cd backend && npm ci && npm run dev
-cd frontend && npm ci && npm run dev   # em outro terminal → http://localhost:5173
+cd frontend && npm ci && npm run dev   # outro terminal → http://localhost:5173
 ```
 
 Testes:
@@ -223,7 +142,3 @@ Testes:
 cd backend && TEST_DATABASE_URL=postgres://postgres@localhost:5432/insta_test npm test   # apaga e recria o banco de teste
 cd frontend && npm test
 ```
-
-> Em local, a Meta não consegue baixar mídia de `localhost`: para publicar de
-> verdade a partir da sua máquina, use um túnel (`cloudflared tunnel --url http://localhost:3000`)
-> e ponha o endereço dele em `PUBLIC_URL`.

@@ -1,8 +1,10 @@
-# Servidor: a API (com o worker no mesmo processo) e o túnel da Cloudflare.
-# Banco no Supabase, painel no Cloudflare Pages — nada disso roda aqui.
+# Tudo na VPS: a API (com a fila) e o painel com HTTPS automático (Caddy).
+# O banco fica no Supabase.
 #
 #   cp .env.example .env   # e preencha
 #   docker compose up -d --build
+#
+# Painel em https://DOMAIN e API em https://DOMAIN/api.
 
 x-log: &log
   logging:
@@ -15,23 +17,37 @@ services:
     build: ./backend
     restart: unless-stopped
     env_file: .env
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?defina DOMAIN no .env}/api
+      FRONTEND_URL: https://${DOMAIN}
     volumes:
       # Biblioteca de mídia e arquivos processados. A Meta baixa daqui.
       - uploads:/app/uploads
-    # Só no localhost do servidor: o acesso público entra pelo túnel.
+    # Só no localhost do servidor, para diagnóstico (curl). O público entra pelo web.
     # APP_PORT muda a porta local quando a 3000 já está em uso.
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
 
-  tunnel:
+  web:
     <<: *log
-    image: cloudflare/cloudflared:latest
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: https://${DOMAIN}/api
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?defina TUNNEL_TOKEN no .env}
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados HTTPS — sem isto, cada rebuild pediria um novo.
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - app
 
 volumes:
   uploads:
+  caddy_data:
+  caddy_config:

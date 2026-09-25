@@ -21,7 +21,7 @@ backend/    API Node (Express) + fila de publicação, num processo só
   src/queue/      fila de trabalhos no próprio Postgres
   src/worker.js   execução das publicações
 frontend/   painel React (Vite)
-DEPLOY.md   passo a passo: Supabase + Cloudflare Pages + Cloudflare Tunnel
+DEPLOY.md   passo a passo: Supabase + VPS (Docker, HTTPS automático)
 ```
 
 Banco: Postgres (Supabase). Sem Redis, sem Mongo: a fila é uma tabela.

@@ -1,0 +1,25 @@
+# {$DOMAIN} vem do .env (ex.: instaflow.pro). O certificado HTTPS é emitido e
+# renovado sozinho — as portas 80 e 443 precisam estar livres na VPS.
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# A API: /api/accounts → app:3000/accounts. Sem limite de tamanho de upload
+	# e sem buffer, para o tempo real (SSE) chegar na hora.
+	handle_path /api/* {
+		reverse_proxy app:3000 {
+			flush_interval -1
+		}
+	}
+
+	# O painel (React): qualquer rota desconhecida cai no index.html.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

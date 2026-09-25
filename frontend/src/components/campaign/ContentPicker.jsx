@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
-import { enviarMidias, avisoDeRecusados } from '../../services/enviarMidias';
+import { enviarMidias } from '../../services/enviarMidias';
 
 /**
  * Seleção de conteúdos da campanha.
@@ -187,8 +187,7 @@ export default function ContentPicker({
 
     setEnviando(true);
     try {
-      const { media: criadas, recusados } = await enviarMidias(lista, { folder: pasta || undefined });
-      if (recusados.length) avisoRef.current?.('warning', 'Arquivo grande demais', avisoDeRecusados(recusados));
+      const criadas = await enviarMidias(lista, { folder: pasta || undefined });
       if (!criadas.length) throw new Error('nenhum arquivo aceito');
 
       registrar(criadas);
