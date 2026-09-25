@@ -25,9 +25,8 @@
  * semear fica registrado para não repetir.
  */
 
-const Insight = require('../../models/Insight');
-const Milestone = require('../../models/Milestone');
-const Notificacao = require('../../models/Notificacao');
+const { sql } = require('../../db');
+const settings = require('../../repos/settings');
 const thresholds = require('./thresholds');
 const templates = require('./templates');
 
@@ -50,7 +49,7 @@ const CHAVE_SEMEADO = 'smartActivitySemeado';
 
    3. Conta conectada DEPOIS da semeadura global nascia com teto zero e, na
       primeira sincronização, disparava todo o histórico dela. Agora uma conta
-      sem nenhum Milestone é semeada na hora, sem avisar — só o que crescer a
+      sem nenhum marco gravado é semeada na hora, sem avisar — só o que crescer a
       partir dali dispara. */
 const LIMITE_POR_VARREDURA = 3;
 
@@ -62,9 +61,10 @@ const LIMITE_POR_VARREDURA = 3;
 async function _gravar(doc, { push = true } = {}) {
   let nova;
   try {
-    nova = await Notificacao.create(doc);
+    const { notificacoes } = require('../../repos');
+    nova = await notificacoes.insert(doc);
   } catch (err) {
-    if (err?.code === 11000) return null;   // outro ciclo chegou primeiro
+    if (err?.code === '23505') return null;   // outro ciclo chegou primeiro
     throw err;
   }
   if (!push) return nova;   // quem chamou entrega um push só por todos (ver _entregarUmPush)
@@ -89,6 +89,16 @@ async function _gravar(doc, { push = true } = {}) {
   return nova;
 }
 
+/** Grava o último valor lido; com `teto`, sobe o maior marco disparado (nunca desce). */
+async function _marco(accountId, contentId, metricType, valor, teto = 0) {
+  await sql`
+    insert into milestones (account_id, content_id, metric_type, maior_disparado, ultimo_valor)
+    values (${accountId}, ${contentId}, ${metricType}, ${teto}, ${valor})
+    on conflict (account_id, content_id, metric_type) do update set
+      maior_disparado = greatest(milestones.maior_disparado, excluded.maior_disparado),
+      ultimo_valor = excluded.ultimo_valor`;
+}
+
 /** Açúcar para deixar claro, no ponto de uso, que o push vem depois e é só um. */
 const _gravarSemPush = doc => _gravar(doc, { push: false });
 
@@ -96,7 +106,7 @@ const _gravarSemPush = doc => _gravar(doc, { push: false });
  * Processa UM insight e devolve as notificações criadas.
  *
  * @param {object} insight  documento de Insight (lean)
- * @param {object} conta    { _id, username, avatar }
+ * @param {object} conta    { id, username, avatar }
  * @param {object} cfg      configuração já carregada
  */
 async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
@@ -115,9 +125,9 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
     if (!valor) continue;
 
     const contentId = String(insight.igMediaId);
-    const chave = { accountId: conta._id, contentId, metricType };
-
-    const marco = await Milestone.findOne(chave).lean();
+    const [marco] = await sql`
+      select maior_disparado from milestones
+      where account_id = ${conta.id} and content_id = ${contentId} and metric_type = ${metricType}`;
     const teto = marco?.maiorDisparado || 0;
 
     const cruzados = thresholds.marcosCruzados(teto, valor, regra);
@@ -126,7 +136,7 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
        e cria o documento na primeira passagem, o que evita `findOne` inútil
        nas próximas. */
     if (!cruzados.length) {
-      await Milestone.updateOne(chave, { $set: { ultimoValor: valor } }, { upsert: true });
+      await _marco(conta.id, contentId, metricType, valor);
       continue;
     }
 
@@ -137,11 +147,7 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
        novo no ciclo seguinte — e de novo, e de novo. Entre perder uma
        notificação e repetir a mesma para sempre, perder é o erro menor. */
     const maior = cruzados[cruzados.length - 1];
-    await Milestone.updateOne(
-      chave,
-      { $max: { maiorDisparado: maior }, $set: { ultimoValor: valor } },
-      { upsert: true }
-    );
+    await _marco(conta.id, contentId, metricType, valor, maior);
 
     const modelo = templates.modeloDe(metricType, cfg.mensagens);
 
@@ -154,7 +160,7 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
          vale para a Central e para o push com um caminho so. */
       privacidade: cfg.privacidade });
     const doc = {
-      accountId: conta._id,
+      accountId: conta.id,
       username: conta.username || '',
       avatar: conta.avatar || '',
       contentId,
@@ -186,9 +192,8 @@ async function processarInsight(insight, conta, cfg, { gravar = true } = {}) {
  * ultrapassado, sem notificar (regra 3). Devolve quantos tetos gravou.
  */
 async function semearConta(conta, cfg) {
-  const insights = await Insight.find({ accountId: conta._id })
-    .select('igMediaId mediaType impressions reach videoViews')
-    .lean();
+  const insights = await sql`
+    select ig_media_id, media_type, impressions, reach, video_views from insights where account_id = ${conta.id}`;
   let tetos = 0;
   for (const ins of insights) {
     const ehStory = ins.mediaType === 'STORY';
@@ -196,12 +201,7 @@ async function semearConta(conta, cfg) {
       const regra = thresholds.regraDe(cfg, metricType);
       const valor = thresholds.valorDaMetrica(ins, metricType);
       if (!valor || !regra) continue;
-      const piso = thresholds.pisoDe(valor, regra);
-      await Milestone.updateOne(
-        { accountId: conta._id, contentId: String(ins.igMediaId), metricType },
-        { $max: { maiorDisparado: piso }, $set: { ultimoValor: valor } },
-        { upsert: true }
-      );
+      await _marco(conta.id, String(ins.igMediaId), metricType, valor, thresholds.pisoDe(valor, regra));
       tetos++;
     }
   }
@@ -269,7 +269,7 @@ async function _entregarUmPush(criadas, cfg, { enviar } = {}) {
   Promise.resolve(enviar({
     /* Id próprio: no service worker o `tag` vem daqui, e um id fixo faria o
        resumo desta varredura SUBSTITUIR o da anterior sem avisar. */
-    _id: `varredura-${Date.now()}`,
+    id: `varredura-${Date.now()}`,
     titulo: `${vars.quantidade} marcos nas suas contas 🚀`,
     mensagem: `O maior: ${vars.account} com ${vars.maior}. Abra a Central para ver todos.`,
     tema: 'viral',
@@ -348,12 +348,11 @@ async function _gravarCoalescido(candidatos, cfg) {
  * Chamado no FIM de um ciclo de sincronização, com as contas que aquele ciclo
  * tocou. Passar a lista evita varrer a base inteira a cada ciclo.
  *
- * @param {Array} contas  [{ _id, username, avatar }]
+ * @param {Array} contas  [{ id, username, avatar }]
  * @param {object} opcoes { apenasStories }
  */
 async function varrer(contas = [], { apenasStories = false } = {}) {
   if (!contas.length) return [];
-  if (!thresholds.bancoConectado()) return [];
 
   const cfg = await thresholds.carregar();
   const criadas = [];
@@ -362,26 +361,21 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
   for (const conta of contas) {
     /* Conta que nunca passou por aqui (regra 3): semeia e segue — nada a
        avisar sobre o que já aconteceu antes de ela existir no painel. */
-    const jaConhecida = await Milestone.exists({ accountId: conta._id });
+    const [jaConhecida] = await sql`select 1 from milestones where account_id = ${conta.id} limit 1`;
     if (!jaConhecida) {
       const tetos = await semearConta(conta, cfg);
-      if (tetos) console.log(`[SmartActivity] @${conta.username || conta._id}: conta nova, ${tetos} teto(s) semeado(s) sem avisar`);
+      if (tetos) console.log(`[SmartActivity] @${conta.username || conta.id}: conta nova, ${tetos} teto(s) semeado(s) sem avisar`);
       continue;
     }
-
-    const filtro = { accountId: conta._id };
-    if (apenasStories) filtro.mediaType = 'STORY';
-    else filtro.mediaType = { $ne: 'STORY' };
 
     /* Só o que foi sincronizado há pouco. Sem este corte, cada ciclo releria
        todo o histórico da conta para concluir que nada mudou. */
     const desde = new Date(Date.now() - 6 * 60 * 60 * 1000);
-    filtro.syncedAt = { $gte: desde };
-
-    const insights = await Insight.find(filtro)
-      .select('igMediaId mediaType impressions reach videoViews likeCount commentsCount shareCount permalink thumbnailUrl postedAt')
-      .limit(200)
-      .lean();
+    const insights = await sql`
+      select * from insights
+      where account_id = ${conta.id} and synced_at >= ${desde}
+        and ${apenasStories ? sql`media_type = 'STORY'` : sql`media_type <> 'STORY'`}
+      limit 200`;
 
     for (const insight of insights) {
       try {
@@ -409,43 +403,26 @@ async function varrer(contas = [], { apenasStories = false } = {}) {
  * coisas que aconteceram semanas atrás.
  */
 async function semear() {
-  if (!thresholds.bancoConectado()) return { semeado: false, motivo: 'sem banco' };
-
-  const Setting = require('../../models/Setting');
-  const ja = await Setting.findOne({ key: CHAVE_SEMEADO }).lean();
-  if (ja?.value?.feito) return { semeado: false, motivo: 'já feito' };
+  const ja = await settings.ler(CHAVE_SEMEADO);
+  if (ja?.feito) return { semeado: false, motivo: 'já feito' };
 
   const cfg = await thresholds.carregar();
-  const insights = await Insight.find({})
-    .select('accountId igMediaId mediaType impressions reach videoViews')
-    .lean();
+  const insights = await sql`select account_id, ig_media_id, media_type, impressions, reach, video_views from insights`;
 
   let tetos = 0;
   for (const ins of insights) {
-    if (!ins.accountId) continue;
     const ehStory = ins.mediaType === 'STORY';
     for (const metricType of (ehStory ? ['storyViews'] : ['contentViews', 'reach'])) {
-      const marcos = cfg.thresholds[metricType] || [];
+      const regra = thresholds.regraDe(cfg, metricType);
       const valor = thresholds.valorDaMetrica(ins, metricType);
-      if (!valor || !marcos.length) continue;
-
+      if (!valor || !regra) continue;
       // O maior marco que este valor já ultrapassou vira o piso.
-      const piso = marcos.filter(m => m <= valor).pop() || 0;
-      await Milestone.updateOne(
-        { accountId: ins.accountId, contentId: String(ins.igMediaId), metricType },
-        { $max: { maiorDisparado: piso }, $set: { ultimoValor: valor } },
-        { upsert: true }
-      );
+      await _marco(ins.accountId, String(ins.igMediaId), metricType, valor, thresholds.pisoDe(valor, regra));
       tetos++;
     }
   }
 
-  await Setting.updateOne(
-    { key: CHAVE_SEMEADO },
-    { $set: { value: { feito: true, em: new Date(), tetos } } },
-    { upsert: true }
-  );
-
+  await settings.gravar(CHAVE_SEMEADO, { feito: true, em: new Date(), tetos });
   return { semeado: true, tetos };
 }
 
@@ -478,8 +455,6 @@ const HORA_DO_RESUMO = 22;                 // legado — o padrão de PADRAO.res
 const HORA_PADRAO_DO_RESUMO = '22:00';
 
 async function resumoDoDia({ agora = new Date() } = {}) {
-  if (!thresholds.bancoConectado()) return null;
-
   const cfg = await thresholds.carregar();
   if (!cfg.ativos.global) return null;
 
@@ -493,43 +468,22 @@ async function resumoDoDia({ agora = new Date() } = {}) {
 
   /* Um por dia. A checagem é no banco e não em memória: o processo reinicia,
      a memória some, e o resumo sairia de novo. */
-  const jaSaiu = await Notificacao.findOne({
-    eventType: 'resumo',
-    criadaEm: { $gte: inicioDoDia },
-  }).lean();
+  const [jaSaiu] = await sql`
+    select 1 from notificacoes where event_type = 'resumo' and criada_em >= ${inicioDoDia} limit 1`;
   if (jaSaiu) return null;
 
-  /* STORY fora do total de posts — mesma separação de analyticsController.js
-     (getGlobalMetrics): somar os dois faria "publicações do dia" incluir
-     visualização de story, que não é uma publicação nova, e faria uma story
-     com muita audiência inflar "visualizações" ao lado de reels de verdade. */
+  /* STORY fora do total de posts — mesma separação de analyticsController.js:
+     visualização de story não é uma publicação nova. */
   const [[agregado], [storyAgregado], porContaAgregado] = await Promise.all([
-    Insight.aggregate([
-      { $match: { postedAt: { $gte: inicioDoDia }, mediaType: { $ne: 'STORY' } } },
-      { $group: {
-        _id: null,
-        publicacoes: { $sum: 1 },
-        contas:      { $addToSet: '$accountId' },
-        views:       { $sum: { $ifNull: ['$videoViews', '$impressions'] } },
-      } },
-    ]),
-    Insight.aggregate([
-      { $match: { postedAt: { $gte: inicioDoDia }, mediaType: 'STORY' } },
-      { $group: { _id: null, views: { $sum: '$impressions' } } },
-    ]),
-    /* Por conta, maior primeiro. `username` já mora no próprio Insight —
-       gravado na sincronização — então não precisa de um segundo lookup em
-       Account só para montar esta linha. */
-    Insight.aggregate([
-      { $match: { postedAt: { $gte: inicioDoDia }, mediaType: { $ne: 'STORY' } } },
-      { $group: {
-        _id:      '$accountId',
-        username: { $first: '$username' },
-        views:    { $sum: { $ifNull: ['$videoViews', '$impressions'] } },
-      } },
-      { $sort: { views: -1 } },
-      { $limit: 12 },
-    ]),
+    sql`select count(*) as publicacoes, count(distinct account_id) as contas,
+          coalesce(sum(video_views), 0) as views
+        from insights where posted_at >= ${inicioDoDia} and media_type <> 'STORY'`,
+    sql`select coalesce(sum(impressions), 0) as views
+        from insights where posted_at >= ${inicioDoDia} and media_type = 'STORY'`,
+    sql`select account_id, max(username) as username,
+          coalesce(sum(video_views), 0) as views
+        from insights where posted_at >= ${inicioDoDia} and media_type <> 'STORY'
+        group by account_id order by views desc limit 12`,
   ]);
 
   if (!agregado || !agregado.publicacoes) return null;
@@ -556,7 +510,7 @@ async function resumoDoDia({ agora = new Date() } = {}) {
      esconder o numero nos marcos e mostra-lo no resumo esconde pela metade. */
   const vars = templates.discretas({
     publicacoes:  templates.formatarNumero(agregado.publicacoes),
-    contas:       templates.formatarNumero((agregado.contas || []).length),
+    contas:       templates.formatarNumero(agregado.contas || 0),
     views:        templates.formatarNumero(agregado.views || 0),
     viewsStories: templates.formatarNumero(viewsStories),
     porConta,
@@ -571,10 +525,10 @@ async function resumoDoDia({ agora = new Date() } = {}) {
     mensagem: templates.render(modelo.mensagem, vars),
     metadados: {
       publicacoes: agregado.publicacoes,
-      contas: (agregado.contas || []).length,
+      contas: agregado.contas || 0,
       views: agregado.views || 0,
       viewsStories,
-      porConta: porContaAgregado.map(c => ({ accountId: c._id, username: c.username, views: c.views })),
+      porConta: porContaAgregado.map(c => ({ accountId: c.accountId, username: c.username, views: c.views })),
     },
   });
 }
@@ -589,7 +543,7 @@ module.exports = {
  * Antes ele só era tentado no fim de cada ciclo de sincronização, a cada 30
  * min: "às 22h" queria dizer "entre 22:00 e 22:30, depende". Com a hora
  * escolhida pela pessoa, atrasar meia hora é errar o pedido. Um tique por
- * minuto; a checagem barata (`carregar` + um `findOne`) e o "um por dia" no
+ * minuto; a checagem barata (`carregar` + uma consulta) e o "um por dia" no
  * banco seguram a repetição. A chamada no fim da sincronização continua — é
  * inofensiva e cobre o minuto em que este relógio estiver reiniciando.
  */

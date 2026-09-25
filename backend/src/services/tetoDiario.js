@@ -27,7 +27,7 @@
  * que está sendo trocado.
  */
 
-const Account = require('../models/Account');
+const { sql } = require('../db');
 
 /* O teto que `ritmoDaConta` considera seguro. Repetido aqui e não importado
    porque são decisões diferentes: lá é o que o sistema faz por padrão, aqui é a
@@ -80,8 +80,8 @@ async function aplicarNasContas(accountIds, teto) {
   if (!ids.length) return 0;
 
   try {
-    const r = await Account.updateMany({ _id: { $in: ids } }, { $set: { dailyPostLimit: n } });
-    const quantas = r?.modifiedCount ?? r?.nModified ?? 0;
+    const r = await sql`update accounts set daily_post_limit = ${n} where id = any(${ids.map(String)}::uuid[])`;
+    const quantas = r.count;
     console.log(`📊 [TetoDiario] ${quantas} conta(s) → ${n} publicações/24h`);
     return quantas;
   } catch (err) {

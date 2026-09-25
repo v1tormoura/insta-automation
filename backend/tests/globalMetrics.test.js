@@ -1,109 +1,48 @@
-﻿'use strict';
+'use strict';
 
-const mongoose = require('mongoose');
+/**
+ * Métricas globais — só as contas em serviço entram, e STORY fica fora do
+ * "melhor post" e do alcance do feed (tem total próprio).
+ */
+
+const banco = require('./helpers/banco');
 const { getGlobalMetrics } = require('../src/controllers/analyticsController');
-const Account = require('../src/models/Account');
-const Insight = require('../src/models/Insight');
 
-describe('Métricas Globais — Contas Atualmente Logadas', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+async function pedir() {
+  const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+  await getGlobalMetrics({ query: { period: '30d', force: 'true' } }, res);
+  return res.json.mock.calls[0][0];
+}
+const insight = campos => banco.sql`insert into insights ${banco.sql({ igMediaId: `m${Math.random()}`, postedAt: new Date(), ...campos })}`;
 
-  test('Retorna zeros elegantes quando não há contas conectadas', async () => {
-    jest.spyOn(Account, 'find').mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        lean: jest.fn().mockResolvedValue([]),
-      }),
-    });
+beforeEach(() => banco.limpar());
 
-    const req = { query: { period: '30d', force: 'true' } };
-    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+test('zeros quando não há contas', async () => {
+  expect(await pedir()).toEqual(expect.objectContaining({
+    connectedAccountsCount: 0, totalFollowers: 0, totalReach: 0, totalStoryViews: 0,
+    bestPost: null, bestPostByAccount: [],
+  }));
+});
 
-    await getGlobalMetrics(req, res);
+test('soma só as contas em serviço e calcula o período', async () => {
+  const c1 = await banco.criarConta({ username: 'conta1', followers: 50000 });
+  await banco.criarConta({ username: 'conta2', followers: 30000 });
+  const fora = await banco.criarConta({ username: 'banida', followers: 99999, healthStatus: 'banida' });
 
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        connectedAccountsCount: 0,
-        totalFollowers: 0,
-        totalReach: 0,
-        totalStoryViews: 0,
-        bestPost: null,
-        bestPostByAccount: [],
-      })
-    );
-  });
+  await insight({ accountId: c1.id, username: 'conta1', igMediaId: 'media_123', mediaType: 'VIDEO', videoViews: 120000, reach: 90000 });
+  await insight({ accountId: c1.id, mediaType: 'IMAGE', reach: 160000, impressions: 160000 });
+  await insight({ accountId: c1.id, mediaType: 'STORY', impressions: 15000, videoViews: 999999 });
+  await insight({ accountId: fora.id, mediaType: 'VIDEO', videoViews: 5000000 });
+  // Fora do período: não conta.
+  await insight({ accountId: c1.id, mediaType: 'VIDEO', videoViews: 777, postedAt: new Date(Date.now() - 60 * 86_400_000) });
 
-  test('Soma seguidores apenas das contas ativas e calcula métricas do período', async () => {
-    const acc1 = { _id: new mongoose.Types.ObjectId(), username: 'conta1', followers: 50000, healthStatus: 'ativa' };
-    const acc2 = { _id: new mongoose.Types.ObjectId(), username: 'conta2', followers: 30000, healthStatus: 'ativa' };
-
-    jest.spyOn(Account, 'find').mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        lean: jest.fn().mockResolvedValue([acc1, acc2]),
-      }),
-    });
-
-    jest.spyOn(Insight, 'aggregate').mockImplementation((pipeline) => {
-      if (pipeline[0]?.$match?.mediaType === 'STORY') {
-        return Promise.resolve([{ totalViews: 15000 }]);
-      }
-      if (pipeline[1]?.$group?.bestPostId) {
-        return Promise.resolve([
-          {
-            _id: acc1._id,
-            username: 'conta1',
-            videoViews: 120000,
-            reach: 90000,
-            igMediaId: 'media_123',
-            thumbnailUrl: '/thumb1.jpg',
-          },
-        ]);
-      }
-      return Promise.resolve([{
-        totalReach: 250000,
-        totalViews: 300000,
-        totalLikes: 12000,
-        totalComments: 1400,
-      }]);
-    });
-
-    jest.spyOn(Insight, 'find').mockReturnValue({
-      sort: jest.fn().mockReturnValue({
-        limit: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue([
-            {
-              accountId: acc1._id,
-              username: 'conta1',
-              igMediaId: 'media_123',
-              mediaType: 'VIDEO',
-              videoViews: 120000,
-              reach: 90000,
-              thumbnailUrl: '/thumb1.jpg',
-              permalink: 'https://instagram.com/p/123',
-            },
-          ]),
-        }),
-      }),
-    });
-
-    const req = { query: { period: '30d', force: 'true' } };
-    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
-
-    await getGlobalMetrics(req, res);
-
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        connectedAccountsCount: 2,
-        totalFollowers: 80000,
-        totalReach: 250000,
-        totalViews: 300000,
-        totalStoryViews: 15000,
-        bestPost: expect.objectContaining({
-          username: 'conta1',
-          videoViews: 120000,
-        }),
-      })
-    );
-  });
+  const r = await pedir();
+  expect(r.connectedAccountsCount).toBe(2);
+  expect(r.totalFollowers).toBe(80000);
+  expect(r.totalReach).toBe(250000);
+  expect(r.totalViews).toBe(120000);
+  expect(r.totalStoryViews).toBe(15000);
+  // O story com muita audiência não vira o "melhor post".
+  expect(r.bestPost).toEqual(expect.objectContaining({ username: 'conta1', igMediaId: 'media_123', videoViews: 120000 }));
+  expect(r.bestPostByAccount.find(b => b.username === 'conta2').hasPost).toBe(false);
 });

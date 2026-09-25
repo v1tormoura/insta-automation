@@ -1,145 +1,48 @@
 'use strict';
 
 /**
- * Quantas publicações estão na fila, e quantas saíram hoje.
+ * Quantas publicações estão na fila e quantas saíram hoje.
  *
- * ── O que estava faltando
- *
- * O painel somava duas origens: publicação avulsa (`Post`) e lote (`Job`). Uma
- * campanha planeja dezenas de publicações e só cria o `Post` no instante em
- * que cada uma executa — até lá elas vivem em `CampaignPublication`, e o
- * painel não olhava para lá.
- *
- * O Loop é a QUARTA origem e faltava pelo mesmo motivo, um nível acima: um
- * loop com 44 reels cria um `Post` de cada vez, quando chega a hora. As outras
- * 43 existem só como `mediaFiles` no documento do loop, e a fila do painel
- * mostrava 1 — a que está saindo agora — enquanto a tela de Loop mostrava 44.
- *
- * O efeito: subir uma campanha com trinta publicações não mudava nada na fila.
- * Quem acabou de subi-la via os mesmos zeros de antes, do lado de uma tela de
- * Campanhas que mostrava as trinta. Dois números do mesmo produto discordando
- * é pior que um número ausente — um deles está mentindo e não dá para saber
- * qual.
- *
- * ── Por que é um módulo
- *
- * A função do painel faz quinze consultas antes de chegar nesta soma. Testar a
- * aritmética por lá exigiria dublar as quinze — e foi assim que a origem que
- * faltava passou despercebida: ninguém consegue revisar uma soma que só existe
- * no meio de um `Promise.all` de quinze linhas.
+ * Três origens: publicação avulsa (posts sem envio), envio (jobs — Postar e
+ * Loop) e campanha (campaign_publications). A fila do painel precisa somar as
+ * três, ou contradiz a tela de Campanhas logo ao lado. A unidade é PUBLICAÇÃO:
+ * cada mídia de um envio vale uma publicação por conta.
  */
 
-/**
- * A fila, somando as três origens.
- *
- * @param {{agendados, processando, pendentes}} posts       — coleção `Post`
- * @param {{esperando, rodando, enfileirados}} jobs         — coleção `Job`
- * @param {Object<string, number>} campanhas                — por status
- * @param {{pendentes}} loops                               — mídias que faltam
- */
-function somarFilas(posts, jobs, campanhas, loops) {
-  /* `= {}` no parâmetro não cobre `null` — ele só vale para ausente. E `null`
-     é justamente o que uma consulta que falhou entrega. O painel inteiro
-     lançaria por causa de uma origem que não respondeu. */
-  const p = posts || {}, j = jobs || {}, c = campanhas || {}, l = loops || {};
+/** Soma a fila das três origens. Origem que falhou (null) conta como zero. */
+function somarFilas(posts, jobs, campanhas) {
+  const p = posts || {}, j = jobs || {}, c = campanhas || {};
   const n = v => (Number.isFinite(v) && v > 0 ? v : 0);
   return {
-    agendados:   n(p.agendados)   + n(j.esperando)    + n(c.scheduled),
+    agendados:   n(p.agendados)   + n(c.scheduled),
     processando: n(p.processando) + n(j.rodando)      + n(c.processing),
-    /* O loop entra em "pendentes" e não em "agendados": as mídias dele não têm
-       horário marcado, elas saem quando o ciclo chegar nelas. Chamá-las de
-       agendadas prometeria um horário que não existe. */
-    pendentes:   n(p.pendentes)   + n(j.enfileirados) + n(c.pending) + n(l.pendentes),
+    pendentes:   n(p.pendentes)   + n(j.enfileirados) + n(c.pending),
   };
 }
 
 /**
- * Quantas mídias um loop ativo ainda vai publicar no ciclo atual.
- *
- * `mediaFiles.length - currentIndex`, e não `mediaFiles.length`: o loop é
- * contínuo, então contar a lista inteira daria um número que nunca desce e
- * que, num loop rodando há uma semana, não descreve nada.
- *
- * Loop pausado não conta. Ele não vai publicar enquanto ninguém retomar, e uma
- * fila que inclui o que está parado é uma fila que não se esvazia — a pessoa
- * olha, vê 44, espera, e continua vendo 44.
- */
-function pendentesDoLoop(loops) {
-  if (!Array.isArray(loops)) return 0;
-  return loops.reduce((soma, loop) => {
-    if (!loop || loop.status !== 'ativo') return soma;
-    const total = Array.isArray(loop.mediaFiles) ? loop.mediaFiles.length : 0;
-    const feitas = Number(loop.currentIndex) || 0;
-    /* Por conta, pela mesma razão de `midiasDoJob`: a fila é medida em
-       publicações, e o loop publica cada mídia em todas as contas dele. */
-    const contas = Math.max(1, Array.isArray(loop.accounts) ? loop.accounts.length : 1);
-    return soma + Math.max(0, total - feitas) * contas;
-  }, 0);
-}
-
-/**
- * Quantas publicações saíram hoje.
- *
- * ── Por que o maior, e não a soma
- *
- * As duas fontes se sobrepõem. A campanha cria um `Post` por conta ao publicar
- * — então uma publicação para três contas já aparece como três `Post`, e
- * somar `CampaignPublication` por cima contaria a mesma coisa duas vezes.
- *
- * O maior cobre as duas direções sem inflar: quando as fontes concordam, o
- * número é o mesmo; quando o `Post` não foi criado (falha ao criar, ou
- * publicação anterior a este código), a contagem da campanha sustenta o
- * número; e quando a campanha não registrou, o `Post` sustenta.
- *
- * Não é exato. Somar seria exato e errado; o maior é aproximado e nunca conta
- * duas vezes — e num painel, um número que nunca infla vale mais que um
- * preciso que às vezes dobra.
+ * Publicações de hoje: o maior entre posts e publicações de campanha. A
+ * campanha também grava posts, então somar contaria duas vezes; o maior nunca
+ * infla e cobre o caso em que uma das fontes não registrou.
  */
 function postagensDeHoje(dePosts, dePublicacoes) {
   const n = v => (Number.isFinite(v) && v > 0 ? v : 0);
   return Math.max(n(dePosts), n(dePublicacoes));
 }
 
-/** Agrupamento `[{_id: status, n}]` → `{status: n}`. */
+/** `[{status, n}]` → `{status: n}`. */
 function porStatus(linhas) {
   return Object.fromEntries(
     (Array.isArray(linhas) ? linhas : [])
-      .filter(r => r && r._id)
-      .map(r => [r._id, Number(r.n) || 0])
+      .filter(r => r && r.status)
+      .map(r => [r.status, Number(r.n) || 0])
   );
 }
 
 /**
- * Quantas mídias de um Job (Postar/Loop) estão saindo AGORA e quantas ainda
- * ESPERAM.
- *
- * ── O que estava errado
- *
- * O painel somava `mediaFiles.length` inteiro para todo job ativo: um envio
- * de 30 mídias na rodada 0 aparecia como "Processando 30, Na fila 0" — e
- * continuava 30 na rodada 29, com uma mídia faltando. O número não descia
- * nunca, e "Processando" nunca foi 30 coisas ao mesmo tempo.
- *
- * ── A conta
- *
- * O worker avança `currentRound` ao fechar cada rodada (é o índice da PRÓXIMA,
- * 0-based); cada rodada leva `simultaneousLimit` mídias. Então:
- *   - running:          a rodada `currentRound` está no ar → essas mídias
- *                       são "processando"; as das rodadas seguintes esperam.
- *   - waiting_interval: a rodada anterior fechou; a `currentRound` ainda
- *                       não começou → tudo o que resta espera.
- *   - queued:           nada começou → tudo espera.
- * Loop entra igual, para o ciclo atual (`pendentesDoLoop` cobre o modelo
- * antigo de Loop; o Job de tipo 'loop' passa por aqui).
- *
- * ── A unidade: PUBLICAÇÕES, não mídias
- *
- * Um envio de 20 mídias para 10 contas produz 200 publicações — é o que o
- * próprio Job grava em `postsTotal` (totalRounds × contas) e é o que a fila
- * de verdade tem pela frente. O painel contava as 20 mídias e mostrava "21"
- * enquanto 200 publicações esperavam. Medido em produção com um envio real.
- *
- * Cada mídia vale, então, uma publicação POR CONTA do envio.
+ * Publicações de um envio saindo AGORA e as que ainda esperam.
+ * `currentRound` é o índice da próxima rodada; cada rodada leva
+ * `simultaneousLimit` mídias, e cada mídia sai em todas as contas do envio.
  */
 function midiasDoJob(job) {
   if (!job) return { processando: 0, naFila: 0 };
@@ -147,9 +50,8 @@ function midiasDoJob(job) {
   const limite = Math.max(1, Number(job.simultaneousLimit) || 1);
   const rodada = Math.max(0, Number(job.currentRound) || 0);
   const inicio = Math.min(total, rodada * limite);
-  /* Sem contas declaradas, uma publicação por mídia — é o mínimo verdadeiro,
-     e evita zerar a fila por causa de um campo ausente. */
-  const contas = Math.max(1, Array.isArray(job.accounts) ? job.accounts.length : 1);
+  const ids    = job.accountIds || job.accounts;
+  const contas = Math.max(1, Array.isArray(ids) ? ids.length : 1);
   const porConta = n => Math.max(0, n) * contas;
 
   if (job.status === 'running') {
@@ -159,10 +61,9 @@ function midiasDoJob(job) {
   if (job.status === 'waiting_interval' || job.status === 'queued') {
     return { processando: 0, naFila: porConta(total - inicio) };
   }
-  return { processando: 0, naFila: 0 };   // paused/cancelled/completed: fora da fila
+  return { processando: 0, naFila: 0 };
 }
 
-/** Soma de `midiasDoJob` para a lista de jobs ativos. */
 function contarJobs(jobs) {
   const soma = { rodando: 0, enfileirados: 0 };
   for (const j of Array.isArray(jobs) ? jobs : []) {
@@ -173,4 +74,4 @@ function contarJobs(jobs) {
   return soma;
 }
 
-module.exports = { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus, midiasDoJob, contarJobs };
+module.exports = { somarFilas, postagensDeHoje, porStatus, midiasDoJob, contarJobs };

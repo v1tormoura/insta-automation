@@ -112,139 +112,21 @@ describe('gravar o buffer que já está em memória', () => {
   });
 });
 
-describe('o campo avatar do modelo aceita a versão', () => {
-  test('o schema tem avatarOrigem', () => {
-    /* Sem este campo a comparação não tem com o que comparar e `fotoMudou`
-       responde "mudou" sempre. */
-    const Account = require('../src/models/Account');
-    expect(Account.schema.paths).toHaveProperty('avatarOrigem');
-    expect(Account.schema.paths).toHaveProperty('avatar');
-  });
-});
+describe('a sincronização oficial usa a versão da foto', () => {
+  const banco = require('./helpers/banco');
 
-describe('o sync da conta mobile pede os campos que usa', () => {
-  test('o select do FastSync traz provider e instagrapiSession', () => {
-    /* O ramo instagrapi do FastSync testa `acc.provider` e
-       `acc.instagrapiSession`. Num documento vindo de `.select()`, campo não
-       pedido volta `undefined` — o teste dava falso para toda conta e o ramo
-       nunca rodava. Conta mobile ficava com 0 seguidores e 0 posts para
-       sempre, e o comentário acima do ramo descrevia o problema que continuava
-       acontecendo.
-
-       Ler o arquivo é grosseiro, mas é o que pega a regressão: o defeito é
-       exatamente uma string de select fora de sincronia com o código abaixo
-       dela, e nenhum teste de unidade da função enxerga isso. */
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '../src/jobs/accountFastSync.js'), 'utf8'
-    );
-    const select = fonte.match(/\.select\(([\s\S]*?)\);/);
-    expect(select).not.toBeNull();
-
-    for (const campo of ['provider', 'instagrapiSession', 'avatarOrigem', 'avatar']) {
-      expect(select[1]).toContain(campo);
-    }
+  test('a tabela de contas guarda a origem da foto', async () => {
+    /* Sem avatar_origem a comparação não tem com o que comparar e
+       `fotoMudou` responde "mudou" sempre — a foto seria baixada a cada ciclo. */
+    const colunas = await banco.sql`
+      select column_name from information_schema.columns where table_name = 'accounts'`;
+    const nomes = colunas.map(c => c.columnName);
+    expect(nomes).toEqual(expect.arrayContaining(['avatar', 'avatar_origem']));
   });
 
-  test('syncInstagrapiAccount lê profile_pic_url', () => {
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '../src/services/syncInstagrapiAccount.js'), 'utf8'
-    );
-    expect(fonte).toContain('profile_pic_url');
-    expect(fonte).toContain('baixarAvatar');
-  });
-
-  test('a edição de perfil pelo mobile grava o avatar', () => {
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '../src/services/profileEditService.js'), 'utf8'
-    );
-    // Dentro de _aplicarEdicaoInstagrapi, não só no caminho web.
-    const trecho = fonte.slice(fonte.indexOf('_aplicarEdicaoInstagrapi'));
-    expect(trecho).toContain('gravarAvatar');
-    expect(trecho).toContain('dbUpdate.avatar');
-  });
-});
-
-describe('não sobra temporário', () => {
-  test('a edição apaga o arquivo que mandou para o Instagram', () => {
-    /* Cada troca de foto escrevia um `avatar_<id>_<ts>.jpg` em uploads/tmp e
-       nunca apagava. Num loop de edições isso enche o disco do servidor. */
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '../src/services/profileEditService.js'), 'utf8'
-    );
-    const trecho = fonte.slice(fonte.indexOf('_aplicarEdicaoInstagrapi'));
-    expect(trecho).toContain('unlinkSync(tmpPath)');
-  });
-});
-
-describe('o select do FastSync entrega o que o laço lê', () => {
-  /* ── A prova, no nível do mongoose ───────────────────────────────────────
-
-     O teste anterior procurava as palavras no arquivo. Isso pega a regressão
-     óbvia (alguém tira `provider` do select), mas não demonstra a CAUSA — e a
-     causa é o que faz o defeito ser difícil de ver: num documento vindo de um
-     `.select()`, um caminho não projetado responde `undefined` mesmo existindo
-     no banco e no schema.
-
-     `hydrate(obj, projection)` reproduz exatamente isso: é o caminho que o
-     mongoose usa para transformar o que o driver devolveu num documento. */
-  const mongoose = require('mongoose');
-  const Account = require('../src/models/Account');
-
-  /** O select que está rodando, lido do arquivo — não transcrito aqui. */
-  function selectEmProducao() {
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '../src/jobs/accountFastSync.js'), 'utf8'
-    );
-    /* Tolera outros elos da cadeia entre o `})` e o `.select(` — `.sort()`
-       entrou ali quando as varreduras passaram a processar uma fatia por vez.
-
-       A âncora anterior era `}).select(` colado, e quebrou com uma mudança que
-       não tinha nada a ver com o que este teste protege: ele confere QUAIS
-       campos o select pede, não como a cadeia foi formatada. `(?:\s*\.\w+\([^)]*\))*`
-       aceita os elos intermediários sem virar `[\s\S]*?`, que atravessaria o
-       fim da instrução e casaria com um `select` de outro trecho. */
-    const m = fonte.match(/\}\)(?:\s*\.\w+\([^)]*\))*\s*\.select\(([\s\S]*?)\);/);
-    /* `throw` e não `expect(m, 'msg')`: a mensagem no segundo argumento é do
-       Vitest, que este projeto usa no FRONTEND. O Jest aceita um argumento só
-       e recusa com "Expect takes at most one argument" — que é um erro sobre a
-       asserção, não sobre o que ela deveria proteger. */
-    if (!m) throw new Error('não achei o .select() do FastSync — a cadeia da consulta mudou?');
-    return m[1].replace(/[\n\r]/g, ' ').replace(/'\s*\+\s*'/g, '').replace(/'/g, '').trim();
-  }
-
-  /** A linha que decide se a conta mobile sincroniza. */
-  const ramoInstagrapi = doc => doc.provider === 'instagrapi' || !!doc.instagrapiSession;
-
-  const conta = () => ({
-    _id: new mongoose.Types.ObjectId(),
-    username: 'goligi1257',
-    provider: 'instagrapi',
-    healthStatus: 'ativa',
-  });
-
-  test('o select antigo fazia o ramo dar falso — a causa do defeito', () => {
-    const ANTIGO = 'username _id igSession rawWebSessionid avatar name bio '
-                 + 'followers following postsCount proxy healthStatus';
-    const doc = Account.hydrate(conta(), ANTIGO);
-
-    expect(doc.username).toBe('goligi1257');   // projetado: chega
-    expect(doc.provider).toBeUndefined();      // não projetado: some
-    expect(ramoInstagrapi(doc)).toBe(false);   // e a conta nunca sincronizava
-  });
-
-  test('o select atual faz o ramo dar verdadeiro', () => {
-    const doc = Account.hydrate(conta(), selectEmProducao());
-    expect(doc.provider).toBe('instagrapi');
-    expect(ramoInstagrapi(doc)).toBe(true);
-  });
-
-  test('avatarOrigem chega, senão a foto seria rebaixada a cada ciclo', () => {
-    /* `fotoMudou` compara a URL do CDN com esta origem. Com o campo fora do
-       select ele responde `undefined`, a comparação diz "mudou" sempre, e o
-       sync rebaixaria todas as fotos de 5 em 5 minutos. */
-    const doc = Account.hydrate(
-      { ...conta(), avatarOrigem: '/v/t51/111_n.jpg' }, selectEmProducao()
-    );
-    expect(doc.avatarOrigem).toBe('/v/t51/111_n.jpg');
+  test('o sync só baixa quando a foto mudou, e grava a origem junto', () => {
+    const fonte = fs.readFileSync(path.resolve(__dirname, '../src/services/contas.js'), 'utf8');
+    expect(fonte).toContain('avatarLocal.fotoMudou(p.avatarUrl, conta.avatarOrigem, conta.avatar)');
+    expect(fonte).toContain('avatarOrigem: avatarLocal.origemDaFoto(p.avatarUrl)');
   });
 });

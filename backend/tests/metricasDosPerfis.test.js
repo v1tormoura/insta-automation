@@ -12,8 +12,8 @@
  *  3. Seguidores é um ESTOQUE: não muda com o filtro de período.
  */
 
-const mongoose = require('mongoose');
 const periodo = require('../src/services/periodoDeMetricas');
+const banco = require('./helpers/banco');
 
 describe('periodoDeMetricas — as duas formas', () => {
   /* Uma quinta-feira às 22h em Brasília: já é o dia SEGUINTE em UTC. É o
@@ -53,15 +53,14 @@ describe('periodoDeMetricas — as duas formas', () => {
     expect(trinta.diaDe).toBe('2026-08-12');
   });
 
-  test('total não tem limite nenhum — e o filtro sai VAZIO', () => {
+  test('total não tem limite nenhum', () => {
+    /* Sem `desde`/`ate` o controller não aplica filtro de data — um filtro
+       vazio mal montado mostraria zeros no período que deveria mostrar tudo
+       (coberto por "o período filtra pela data da publicação", abaixo). */
     const p = periodo.resolver({ periodo: 'total' }, noite);
     expect(p.diaDe).toBeNull();
     expect(p.desde).toBeNull();
-
-    /* Este é o detalhe que quebraria a tela em silêncio: `{ postedAt: {} }`
-       o Mongo entende como "nenhum documento casa", e o painel mostraria
-       zeros no período que deveria mostrar tudo. */
-    expect(periodo.filtroDeInstante(p)).toEqual({});
+    expect(p.ate).toBeNull();
   });
 
   test('período desconhecido cai no padrão em vez de estourar', () => {
@@ -87,204 +86,143 @@ describe('periodoDeMetricas — as duas formas', () => {
     expect(periodo.resolver({ de: '01/09/2026', ate: '03/09/2026' }, noite).periodo).toBe('hoje');
   });
 
-  test('filtroDeInstante usa $gte/$lt — nunca $lte no fim exclusivo', () => {
-    const p = periodo.resolver({ periodo: 'hoje' }, noite);
-    const f = periodo.filtroDeInstante(p);
-    expect(f.postedAt.$gte).toEqual(p.desde);
-    expect(f.postedAt.$lt).toEqual(p.ate);
-    expect(f.postedAt.$lte).toBeUndefined();
-  });
 });
 
 describe('serieDeSeguidores — dia sem medição não é dia com zero', () => {
-  const SeguidoresDoDia = require('../src/models/SeguidoresDoDia');
   const serie = require('../src/services/serieDeSeguidores');
+  let contaA, contaB;
+  const linha = (conta, dia, novos) =>
+    banco.sql`insert into seguidores_do_dia ${banco.sql({ accountId: conta.id, dia, novos })}`;
 
-  const contaA = new mongoose.Types.ObjectId();
-  const contaB = new mongoose.Types.ObjectId();
-
-  const mockLinhas = linhas => jest.spyOn(SeguidoresDoDia, 'find').mockReturnValue({
-    select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(linhas) }),
+  beforeEach(async () => {
+    await banco.limpar();
+    contaA = await banco.criarConta({ username: 'a' });
+    contaB = await banco.criarConta({ username: 'b' });
   });
 
-  afterEach(() => jest.restoreAllMocks());
-
   test('soma só os dias com `novos` numérico', async () => {
-    mockLinhas([
-      { accountId: contaA, novos: 12 },
-      { accountId: contaA, novos: null },   // primeiro registro da conta
-      { accountId: contaB, novos: 5 },
-    ]);
-
-    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA, contaB]);
+    await linha(contaA, '2026-09-02', 12);
+    await linha(contaA, '2026-09-01', null);   // primeiro registro da conta
+    await linha(contaB, '2026-09-03', 5);
+    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA.id, contaB.id]);
     expect(r.novos).toBe(17);
     expect(r.comHistorico).toBe(true);
   });
 
   test('perda de seguidores entra como número negativo', async () => {
-    mockLinhas([{ accountId: contaA, novos: 30 }, { accountId: contaA, novos: -8 }]);
-    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA]);
-    expect(r.novos).toBe(22);
+    await linha(contaA, '2026-09-02', 30);
+    await linha(contaA, '2026-09-03', -8);
+    expect((await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA.id])).novos).toBe(22);
   });
 
   test('só dias `null`: comHistorico é false — a tela mostra "—", não "+0"', async () => {
-    mockLinhas([{ accountId: contaA, novos: null }]);
-    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA]);
+    await linha(contaA, '2026-09-02', null);
+    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA.id]);
     expect(r.novos).toBe(0);
     expect(r.comHistorico).toBe(false);
   });
 
   test('conta sem nenhuma linha é contada como sem histórico', async () => {
-    mockLinhas([{ accountId: contaA, novos: 3 }]);
-    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA, contaB]);
+    await linha(contaA, '2026-09-02', 3);
+    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA.id, contaB.id]);
     expect(r.contasSemHistorico).toBe(1);
   });
 
-  test('sem contas não vai ao banco', async () => {
-    const find = mockLinhas([]);
-    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', []);
-    expect(find).not.toHaveBeenCalled();
-    expect(r).toEqual({ novos: 0, comHistorico: false, contasSemHistorico: 0 });
+  test('fora da faixa de dias não conta', async () => {
+    await linha(contaA, '2026-08-30', 100);
+    await linha(contaA, '2026-09-05', 1);
+    expect((await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA.id])).novos).toBe(1);
   });
 
-  test('erro no banco não derruba a tela', async () => {
-    jest.spyOn(SeguidoresDoDia, 'find').mockImplementation(() => { throw new Error('desconectado'); });
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    const r = await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [contaA]);
-    expect(r.comHistorico).toBe(false);
-    expect(r.contasSemHistorico).toBe(1);
+  test('sem contas: zero, sem histórico', async () => {
+    expect(await serie.novosNoPeriodo('2026-09-01', '2026-09-10', [])).toEqual({ novos: 0, comHistorico: false, contasSemHistorico: 0 });
   });
 
-  test('registrar é um efeito colateral: falha em silêncio, não lança', async () => {
-    jest.spyOn(SeguidoresDoDia, 'findOne').mockImplementation(() => { throw new Error('sem banco'); });
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    /* Importa porque isto roda dentro do accountFastSync: uma exceção aqui
-       derrubaria a sincronização de métricas para gravar um histórico. */
-    await expect(serie.registrar({ _id: contaA, username: 'x', followers: 10 })).resolves.toBeNull();
+  test('registrar grava o dia e calcula quantos entraram desde o último registro', async () => {
+    const ontem = new Date(Date.now() - 86_400_000);
+    await serie.registrar({ ...contaA, followers: 100 }, ontem);
+    const hoje = await serie.registrar({ ...contaA, followers: 130 });
+    expect(hoje.novos).toBe(30);
+    // Idempotente no mesmo dia: atualiza a mesma linha.
+    await serie.registrar({ ...contaA, followers: 140 });
+    const linhas = await banco.sql`select dia, seguidores, novos from seguidores_do_dia where account_id = ${contaA.id} order by dia`;
+    expect(linhas).toHaveLength(2);
+    expect(linhas[1]).toMatchObject({ seguidores: 140, novos: 40 });
   });
 
-  test('registrar sem conta devolve null sem tocar no banco', async () => {
-    const findOne = jest.spyOn(SeguidoresDoDia, 'findOne');
+  test('primeiro registro da conta: novos é null, não 0', async () => {
+    expect((await serie.registrar({ ...contaA, followers: 50 })).novos).toBeNull();
+  });
+
+  test('registrar sem conta devolve null', async () => {
     await expect(serie.registrar(null)).resolves.toBeNull();
-    expect(findOne).not.toHaveBeenCalled();
   });
 });
 
 describe('getMetricasDosPerfis', () => {
-  const Account = require('../src/models/Account');
-  const Insight = require('../src/models/Insight');
-  const SeguidoresDoDia = require('../src/models/SeguidoresDoDia');
   const { getMetricasDosPerfis } = require('../src/controllers/analyticsController');
-
-  const a = new mongoose.Types.ObjectId();
-  const b = new mongoose.Types.ObjectId();
-
   const responder = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
+  const pedir = async query => {
+    const res = responder();
+    await getMetricasDosPerfis({ query }, res);
+    return res.json.mock.calls[0][0];
+  };
+  const insight = campos => banco.sql`insert into insights ${banco.sql({ igMediaId: `m${Math.random()}`, postedAt: new Date(), ...campos })}`;
 
-  const mockContas = contas => jest.spyOn(Account, 'find').mockReturnValue({
-    select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(contas) }),
-  });
-
-  beforeEach(() => {
-    jest.spyOn(SeguidoresDoDia, 'find').mockReturnValue({
-      select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
-    });
-  });
-  afterEach(() => jest.restoreAllMocks());
+  beforeEach(() => banco.limpar());
 
   test('sem contas devolve zeros e não afirma crescimento', async () => {
-    mockContas([]);
-    const res = responder();
-    await getMetricasDosPerfis({ query: {} }, res);
-
-    const corpo = res.json.mock.calls[0][0];
+    const corpo = await pedir({});
     expect(corpo.seguidores).toBe(0);
     expect(corpo.contas).toEqual([]);
     expect(corpo.novosSeguidoresMedido).toBe(false);
   });
 
-  test('exclui contas banidas ou com sessão morta da soma', async () => {
-    const find = mockContas([]);
-    await getMetricasDosPerfis({ query: {} }, responder());
-
-    const filtro = find.mock.calls[0][0];
-    expect(filtro.healthStatus.$nin).toEqual(expect.arrayContaining(['banida', 'sessao_expirada']));
+  test('exclui contas banidas ou com token inválido da soma', async () => {
+    await banco.criarConta({ username: 'ok', followers: 100 });
+    await banco.criarConta({ username: 'ban', followers: 5000, healthStatus: 'banida' });
+    await banco.criarConta({ username: 'tok', followers: 7000, healthStatus: 'token_invalido' });
+    const corpo = await pedir({});
+    expect(corpo.seguidores).toBe(100);
+    expect(corpo.contas.map(c => c.username)).toEqual(['ok']);
   });
 
   test('seguidores é estoque: o mesmo total em "hoje" e em "total"', async () => {
-    mockContas([
-      { _id: a, username: 'um',  followers: 1200 },
-      { _id: b, username: 'dois', followers: 800 },
-    ]);
-    jest.spyOn(Insight, 'aggregate').mockResolvedValue([]);
-
-    for (const p of ['hoje', 'total']) {
-      const res = responder();
-      await getMetricasDosPerfis({ query: { periodo: p } }, res);
-      expect(res.json.mock.calls[0][0].seguidores).toBe(2000);
-    }
+    await banco.criarConta({ username: 'um', followers: 1200 });
+    await banco.criarConta({ username: 'dois', followers: 800 });
+    for (const p of ['hoje', 'total']) expect((await pedir({ periodo: p })).seguidores).toBe(2000);
   });
 
   test('story fica fora das views dos posts e ganha total próprio', async () => {
-    mockContas([{ _id: a, username: 'um', followers: 10 }]);
-    jest.spyOn(Insight, 'aggregate').mockImplementation(pipeline => {
-      /* A primeira consulta é a dos totais e traz `$ne: STORY` no $match;
-         a segunda separa os dois com `$cond` e agrupa por conta. */
-      const agrupaPorConta = pipeline.some(e => e.$group && e.$group._id === '$accountId');
-      return Promise.resolve(agrupaPorConta
-        ? [{ _id: a, curtidas: 40, viewsPosts: 900, viewsStories: 250, sincronizado: new Date('2026-09-08T10:00:00Z') }]
-        : [{ _id: null, curtidas: 40, views: 900 }]);
-    });
-
-    const res = responder();
-    await getMetricasDosPerfis({ query: { periodo: '7d' } }, res);
-    const corpo = res.json.mock.calls[0][0];
-
+    const a = await banco.criarConta({ username: 'um', followers: 10 });
+    await insight({ accountId: a.id, mediaType: 'VIDEO', videoViews: 900, likeCount: 40 });
+    await insight({ accountId: a.id, mediaType: 'STORY', videoViews: 250 });
+    const corpo = await pedir({ periodo: '7d' });
     expect(corpo.viewsPosts).toBe(900);
     expect(corpo.viewsStories).toBe(250);
     /* Somar os dois daria 1150 — foi o erro que este teste existe para pegar. */
-    expect(corpo.viewsPosts).not.toBe(1150);
+    expect(corpo.curtidas).toBe(40);
     expect(corpo.contas[0].viewsStories).toBe(250);
   });
 
-  test('a consulta dos totais exclui STORY no $match', async () => {
-    mockContas([{ _id: a, username: 'um', followers: 10 }]);
-    const agg = jest.spyOn(Insight, 'aggregate').mockResolvedValue([]);
-    await getMetricasDosPerfis({ query: {} }, responder());
-
-    const totais = agg.mock.calls[0][0];
-    expect(totais[0].$match.mediaType).toEqual({ $ne: 'STORY' });
+  test('o período filtra pela data da publicação', async () => {
+    const a = await banco.criarConta({ username: 'um', followers: 10 });
+    await insight({ accountId: a.id, mediaType: 'VIDEO', videoViews: 5, postedAt: new Date() });
+    await insight({ accountId: a.id, mediaType: 'VIDEO', videoViews: 700, postedAt: new Date(Date.now() - 40 * 86_400_000) });
+    expect((await pedir({ periodo: 'hoje' })).viewsPosts).toBe(5);
+    expect((await pedir({ periodo: 'total' })).viewsPosts).toBe(705);
   });
 
   test('contas vêm ordenadas por seguidores, da maior para a menor', async () => {
-    mockContas([
-      { _id: a, username: 'menor', followers: 100 },
-      { _id: b, username: 'maior', followers: 9000 },
-    ]);
-    jest.spyOn(Insight, 'aggregate').mockResolvedValue([]);
-
-    const res = responder();
-    await getMetricasDosPerfis({ query: {} }, res);
-    expect(res.json.mock.calls[0][0].contas.map(c => c.username)).toEqual(['maior', 'menor']);
+    await banco.criarConta({ username: 'menor', followers: 100 });
+    await banco.criarConta({ username: 'maior', followers: 9000 });
+    expect((await pedir({})).contas.map(c => c.username)).toEqual(['maior', 'menor']);
   });
 
   test('conta sem métrica no período cai no lastSync, não em "nunca"', async () => {
     const sync = new Date('2026-09-08T09:00:00Z');
-    mockContas([{ _id: a, username: 'um', followers: 10, lastSync: sync }]);
-    jest.spyOn(Insight, 'aggregate').mockResolvedValue([]);
-
-    const res = responder();
-    await getMetricasDosPerfis({ query: {} }, res);
-    expect(res.json.mock.calls[0][0].contas[0].sincronizadoEm).toEqual(sync);
-  });
-
-  test('erro no banco devolve 500 em vez de pendurar a requisição', async () => {
-    mockContas([{ _id: a, username: 'um', followers: 10 }]);
-    jest.spyOn(Insight, 'aggregate').mockRejectedValue(new Error('timeout'));
-
-    const res = responder();
-    await getMetricasDosPerfis({ query: {} }, res);
-    expect(res.status).toHaveBeenCalledWith(500);
+    await banco.criarConta({ username: 'um', followers: 10, lastSync: sync });
+    expect((await pedir({})).contas[0].sincronizadoEm).toEqual(sync);
   });
 });
 

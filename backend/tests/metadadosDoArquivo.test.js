@@ -42,11 +42,12 @@ const {
   ATRASO_MIN_MS, ATRASO_MAX_MS, HANDLER_VIDEO, HANDLER_AUDIO,
 } = require('../src/services/metadadosDoArquivo');
 
-/** Um post com ObjectId de verdade, para o instante sair dele. */
-const postCom = hex => ({ _id: { toString: () => hex, getTimestamp: () => new Date(parseInt(hex.slice(0, 8), 16) * 1000) } });
-const HEX_POST = '68bd4a800000000000000001';   // ~ setembro de 2026
-const CONTA_A = { _id: '64b000000000000000000001', username: 'conta_a' };
-const CONTA_B = { _id: '64b000000000000000000002', username: 'conta_b' };
+/** Um post como vem do banco: id e a hora de criação, que não muda. */
+const CRIADO = new Date('2026-09-07T12:00:00Z');
+const postCom = id => ({ id, createdAt: CRIADO });
+const HEX_POST = '00000000-68bd-4a80-0000-000000000001';
+const CONTA_A = { id: '00000000-64b0-0000-0000-000000000001', username: 'conta_a' };
+const CONTA_B = { id: '00000000-64b0-0000-0000-000000000002', username: 'conta_b' };
 
 /** O valor de uma chave nos argumentos gerados. */
 function valorDe(args, chave) {
@@ -57,23 +58,14 @@ function valorDe(args, chave) {
 }
 
 describe('a hora não vem do relógio', () => {
-  test('sai do instante do post, que o ObjectId carrega', () => {
-    /* O documento não muda, então o valor é o mesmo em toda reexecução — é o
+  test('sai do createdAt do post', () => {
+    /* O registro não muda, então o valor é o mesmo em toda reexecução — é o
        que mantém a promessa de "mesmo post, mesmo arquivo". */
-    const esperado = parseInt(HEX_POST.slice(0, 8), 16) * 1000;
-    expect(instanteDoPost(postCom(HEX_POST))).toBe(esperado);
+    expect(instanteDoPost(postCom(HEX_POST))).toBe(CRIADO.getTime());
   });
 
-  test('ObjectId como string crua também funciona', () => {
-    /* Depois de `.lean()` ou de um JSON, o `_id` chega como string de 24 hex e
-       não tem mais `getTimestamp`. */
-    const esperado = parseInt(HEX_POST.slice(0, 8), 16) * 1000;
-    expect(instanteDoPost({ _id: HEX_POST })).toBe(esperado);
-  });
-
-  test('sem ObjectId, usa createdAt', () => {
-    const quando = new Date('2026-03-03T10:00:00Z');
-    expect(instanteDoPost({ createdAt: quando })).toBe(quando.getTime());
+  test('createdAt em texto (vindo de JSON) também funciona', () => {
+    expect(instanteDoPost({ id: HEX_POST, createdAt: CRIADO.toISOString() })).toBe(CRIADO.getTime());
   });
 
   test('sem nada, cai no relógio em vez de falhar', () => {
@@ -102,7 +94,7 @@ describe('cada publicação tem a sua', () => {
   });
 
   test('posts diferentes recebem horas diferentes', () => {
-    const outro = '68bd4a810000000000000009';
+    const outro = '00000000-68bd-4a81-0000-000000000009';
     const a = valorDe(argumentosDeMetadado(postCom(HEX_POST), CONTA_A), 'creation_time');
     const b = valorDe(argumentosDeMetadado(postCom(outro), CONTA_A), 'creation_time');
     expect(a).not.toBe(b);
@@ -111,7 +103,7 @@ describe('cada publicação tem a sua', () => {
   test('trinta pares dão trinta horas distintas', () => {
     const vistas = new Set();
     for (let i = 0; i < 30; i++) {
-      const conta = { _id: `64b0000000000000000000${String(i).padStart(2, '0')}` };
+      const conta = { id: `64b0000000000000000000${String(i).padStart(2, '0')}` };
       vistas.add(valorDe(argumentosDeMetadado(postCom(HEX_POST), conta), 'creation_time'));
     }
     expect(vistas.size).toBe(30);
@@ -122,7 +114,7 @@ describe('cada publicação tem a sua', () => {
        gravar. E a hora nunca pode ser DEPOIS do post. */
     const doPost = instanteDoPost(postCom(HEX_POST));
     for (let i = 0; i < 50; i++) {
-      const conta = { _id: `c${i}` };
+      const conta = { id: `c${i}` };
       const t = Date.parse(valorDe(argumentosDeMetadado(postCom(HEX_POST), conta), 'creation_time'));
       const atraso = doPost - t;
       expect(atraso).toBeGreaterThanOrEqual(ATRASO_MIN_MS);
@@ -201,12 +193,12 @@ describe('a ligação com o pipeline', () => {
   });
 
   test('os três caminhos de publicação passam por aqui', () => {
-    /* Postar, Loop e campanha convergem em `publishViaInstagrapi`, que chama
-       `prepararParaConta`. A campanha chega por injeção
-       (`publicarNaConta: (account, post) => publishOneAccount(...)`). */
-    const w = ler('../src/queue/worker.js');
-    expect(w).toContain('prepararParaConta(post, account)');
-    expect(w).toMatch(/publicarNaConta:\s*\(account, post\) => publishOneAccount/);
+    /* Postar, Loop e campanha convergem em `publicarNaConta` → `publicar`,
+       que prepara o vídeo por conta. A campanha chega por injeção. */
+    const w = ler('../src/worker.js');
+    expect(w).toMatch(/publicarNaConta:\s*\(conta, post\) => publicarNaConta\(conta, post\)/);
+    const p = ler('../src/services/publicar.js');
+    expect(p).toContain('midiaPorConta.prepararParaConta(post, conta)');
   });
 });
 
@@ -215,7 +207,10 @@ describe('a ligação com o pipeline', () => {
    string e ignorado pelo ffmpeg — o arquivo sai sem a tag e ninguém percebe.
    Aqui o vídeo é gerado e lido de volta. */
 describe('o arquivo gerado', () => {
-  const ffmpeg = (() => { try { return require('ffmpeg-static'); } catch { return null; } })();
+  const ffmpeg = (() => {
+    const { FFMPEG_BIN } = require('../src/services/ffmpegBin');
+    try { require('child_process').execFileSync(FFMPEG_BIN, ['-version'], { stdio: 'ignore' }); return FFMPEG_BIN; } catch { return null; }
+  })();
   const talvez = ffmpeg ? test : test.skip;
 
   const roda = args => new Promise(r => execFile(ffmpeg, args, { timeout: 120_000 }, (e, o, s) => r({ e, s: String(s || '') })));

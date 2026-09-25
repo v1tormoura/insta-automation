@@ -22,21 +22,10 @@ describe('O texto padrão não mudou', () => {
   /* Copiado do vigia ANTES da mudança. Se alguém reescrever uma frase por
      acidente, é aqui que aparece — e não num celular às três da manhã. */
   const ANTES = {
-    proxy: {
-      titulo: 'O proxy parou de responder',
-      mensagem: 'A automação não consegue sair para o Instagram.',
-      vars: { erro: 'A automação não consegue sair para o Instagram.' },
-    },
-    pool: {
-      titulo: 'O pool de proxies acabou',
-      mensagem: 'Os 8 proxies estão reservados. A próxima conta vai sair pelo IP global, '
-              + 'dividindo endereço com as outras — o padrão que o Instagram lê como automação.',
-      vars: { proxies: 8 },
-    },
     sessoes: {
       titulo: '5 de 9 contas sem conseguir conectar',
       mensagem: 'Quando é a maioria de uma vez, a causa costuma ser comum a todas — '
-              + 'proxy, rede ou serviço — e não cada conta individualmente.',
+              + 'o app da Meta ou o token — e não cada conta individualmente.',
       vars: { contasRuins: 5, contasTotal: 9 },
     },
     fila: {
@@ -50,13 +39,6 @@ describe('O texto padrão não mudou', () => {
       mensagem: 'Muitos erros no mesmo dia raramente são coincidência. '
               + 'Vale olhar se todos têm o mesmo motivo.',
       vars: { errosHoje: 23 },
-    },
-    cota: {
-      titulo: 'Cota do proxy em 87%',
-      mensagem: '12 GB de 100 GB restantes. No ritmo atual, acaba em cerca de 4 dia(s). '
-              + 'Renove antes de acabar — quando acaba, tudo para de uma vez.',
-      vars: { percentual: 87, restanteGb: 12, totalGb: 100, diasRestantes: 4,
-              previsao: 'No ritmo atual, acaba em cerca de 4 dia(s).' },
     },
   };
 
@@ -153,8 +135,8 @@ describe('modeloDe completa campo por campo', () => {
   });
 
   test('sem nada salvo, é o padrão', () => {
-    expect(t.modeloDe('pool', {})).toEqual(t.PADRAO.pool);
-    expect(t.modeloDe('pool')).toEqual(t.PADRAO.pool);
+    expect(t.modeloDe('fila', {})).toEqual(t.PADRAO.fila);
+    expect(t.modeloDe('fila')).toEqual(t.PADRAO.fila);
   });
 });
 
@@ -164,12 +146,12 @@ const mockEstado = { valor: {} };
 const mockNotificacoes = [];
 const mockMensagens = { valor: {} };
 
-jest.mock('../src/models/Setting', () => ({
-  findOne: () => ({ lean: async () => ({ value: mockEstado.valor }) }),
-  updateOne: async (_f, up) => { mockEstado.valor = up.$set.value; return { ok: 1 }; },
+jest.mock('../src/repos/settings', () => ({
+  ler: async () => mockEstado.valor,
+  gravar: async (_chave, valor) => { mockEstado.valor = valor; },
 }));
-jest.mock('../src/models/Notificacao', () => ({
-  async create(doc) { mockNotificacoes.push(doc); return { _id: 'n', ...doc }; },
+jest.mock('../src/repos', () => ({
+  notificacoes: { async insert(doc) { mockNotificacoes.push(doc); return { id: 'n', ...doc }; } },
 }));
 jest.mock('../src/services/smartActivity/webPush', () => ({ enviar: async () => ({ enviados: 0 }) }));
 jest.mock('../src/events/broadcaster', () => ({ broadcast: jest.fn() }));
@@ -178,9 +160,9 @@ jest.mock('../src/services/smartActivity/thresholds', () => ({
   carregar: async () => ({
     mensagens: mockMensagens.valor,
     // O gate por `ativos[chave]` (vigiaDoSistema.js) é assunto de outro
-    // arquivo de teste — aqui as seis verificações continuam ligadas, para
-    // não confundir "está editável" com "está desligada".
-    ativos: { cota: true, proxy: true, pool: true, sessoes: true, fila: true, erros: true },
+    // arquivo de teste — aqui as verificações continuam ligadas, para não
+    // confundir "está editável" com "está desligada".
+    ativos: { sessoes: true, fila: true, erros: true },
   }),
 }));
 
@@ -196,7 +178,6 @@ describe('vigiaDoSistema usa o modelo editável', () => {
     mockEstado.valor = {};
     mockNotificacoes.length = 0;
     mockMensagens.valor = {};
-    vigia.bancoConectado = () => true;
   });
 
   test('sem nada editado, sai o texto padrão renderizado', async () => {
@@ -215,13 +196,13 @@ describe('vigiaDoSistema usa o modelo editável', () => {
   test('o tema só muda quando alguém escolheu um', async () => {
     /* Sem escolha: continua derivado da prioridade, como antes. Ligar a edição
        não pode repintar o aviso de quem nunca editou nada. */
-    await vigia.verificar({ verificacoes: so('proxy', { vars: { erro: 'x' }, prioridade: 'alta' }) });
+    await vigia.verificar({ verificacoes: so('sessoes', { vars: { contasRuins: 5, contasTotal: 9 }, prioridade: 'alta' }) });
     expect(mockNotificacoes[0].tema).toBe('warning');
 
     mockEstado.valor = {};
     mockNotificacoes.length = 0;
-    mockMensagens.valor = { proxy: { tema: 'achievement' } };
-    await vigia.verificar({ verificacoes: so('proxy', { vars: { erro: 'x' }, prioridade: 'alta' }) });
+    mockMensagens.valor = { sessoes: { tema: 'achievement' } };
+    await vigia.verificar({ verificacoes: so('sessoes', { vars: { contasRuins: 5, contasTotal: 9 }, prioridade: 'alta' }) });
     expect(mockNotificacoes[0].tema).toBe('achievement');
   });
 
@@ -242,7 +223,7 @@ describe('vigiaDoSistema usa o modelo editável', () => {
     const n = mockNotificacoes[0];
     /* Saía "Normalizado: sessoes" — a chave interna, sem acento, no meio de
        uma frase em português. */
-    expect(n.titulo).toBe('Normalizado: sessões das contas');
+    expect(n.titulo).toBe('Normalizado: contas sem conectar');
     expect(n.titulo).not.toContain('sessoes');
     expect(n.mensagem).toMatch(/5 h/);
     expect(n.tema).toBe('success');
@@ -250,9 +231,9 @@ describe('vigiaDoSistema usa o modelo editável', () => {
 
   test('a recuperação também é editável', async () => {
     mockMensagens.valor = { normalizado: { titulo: '✅ {{aviso}} voltou', mensagem: '{{horas}}h fora.' } };
-    mockEstado.valor = { proxy: { desde: Date.now() - 2 * 3.6e6, ultimoAviso: Date.now() - 2 * 3.6e6 } };
-    await vigia.verificar({ verificacoes: so('proxy', null) });
-    expect(mockNotificacoes[0].titulo).toBe('✅ proxy voltou');
+    mockEstado.valor = { fila: { desde: Date.now() - 2 * 3.6e6, ultimoAviso: Date.now() - 2 * 3.6e6 } };
+    await vigia.verificar({ verificacoes: so('fila', null) });
+    expect(mockNotificacoes[0].titulo).toBe('✅ fila de publicação voltou');
     expect(mockNotificacoes[0].mensagem).toBe('2h fora.');
   });
 

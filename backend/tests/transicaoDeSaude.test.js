@@ -5,16 +5,15 @@
  *
  * O que estes testes protegem: só a TRANSIÇÃO avisa (ativa → restrita sim;
  * restrita → restrita não; piorar entre estados ruins sim; recuperar não), o
- * motivo sai legível com o detalhe do Instagram, e a leitura do update aceita
- * as duas formas que o Mongoose entrega (campo solto e `$set`). O gancho em
- * Account.js só chama isto — a regra mora aqui, testável sem banco.
+ * motivo sai legível com o detalhe do Instagram. O repositório de contas só
+ * chama isto ao gravar — a regra mora aqui, testável sem banco.
  */
 
 const s = require('../src/services/saudeDaConta');
 
 describe('o que é ruim', () => {
-  test('restrita, banida, sessão expirada, token inválido, erro de login', () => {
-    for (const e of ['restrita', 'banida', 'sessao_expirada', 'token_invalido', 'erro_login']) expect(s.ehRuim(e)).toBe(true);
+  test('restrita, banida, token inválido', () => {
+    for (const e of ['restrita', 'banida', 'token_invalido']) expect(s.ehRuim(e)).toBe(true);
   });
   test('ativa e conta_pessoal não são; lixo não é', () => {
     expect(s.ehRuim('ativa')).toBe(false);
@@ -56,30 +55,21 @@ describe('o motivo', () => {
   });
 });
 
-describe('ler o update do Mongoose', () => {
-  test('campo solto e dentro de $set', () => {
-    expect(s.novoStatusDoUpdate({ healthStatus: 'banida', lastError: 'e' })).toBe('banida');
-    expect(s.novoStatusDoUpdate({ $set: { healthStatus: 'restrita' } })).toBe('restrita');
-    expect(s.lastErrorDoUpdate({ $set: { lastError: 'checkpoint' } })).toBe('checkpoint');
-  });
-  test('update que não toca em saúde devolve null — o gancho nem consulta o banco', () => {
-    expect(s.novoStatusDoUpdate({ $set: { isBusy: true } })).toBeNull();
-    expect(s.novoStatusDoUpdate(null)).toBeNull();
-    expect(s.novoStatusDoUpdate({ healthStatus: 42 })).toBeNull();
-  });
-});
-
 describe('avisarTransicao', () => {
   test('chama o notificador só na transição, com o motivo montado', async () => {
     const chamadas = [];
-    const notificar = async p => { chamadas.push(p); return { _id: 'n1' }; };
-    const conta = { _id: 'c1', username: 'eliane' };
+    const notificar = async p => { chamadas.push(p); return { id: 'n1' }; };
+    const voltas = [];
+    const notificarVolta = async p => { voltas.push(p); return { id: 'n2' }; };
+    const conta = { id: 'c1', username: 'eliane' };
 
-    expect(await s.avisarTransicao({ conta, de: 'ativa', para: 'restrita', lastError: 'checkpoint_required', notificar })).toEqual({ _id: 'n1' });
+    expect(await s.avisarTransicao({ conta, de: 'ativa', para: 'restrita', lastError: 'checkpoint_required', notificar })).toEqual({ id: 'n1' });
     expect(await s.avisarTransicao({ conta, de: 'restrita', para: 'restrita', lastError: 'checkpoint_required', notificar })).toBeNull();
-    expect(await s.avisarTransicao({ conta, de: 'restrita', para: 'ativa', notificar })).toBeNull();
+    expect(await s.avisarTransicao({ conta, de: 'restrita', para: 'ativa', notificar, notificarVolta })).toEqual({ id: 'n2' });
     expect(await s.avisarTransicao({ conta: null, de: 'ativa', para: 'banida', notificar })).toBeNull();
 
+    expect(voltas).toHaveLength(1);
+    expect(voltas[0].motivo).toMatch(/voltou a publicar/);
     expect(chamadas).toHaveLength(1);
     expect(chamadas[0].conta).toBe(conta);
     expect(chamadas[0].motivo).toBe('o Instagram pediu verificação ou restringiu a atividade (checkpoint_required)');

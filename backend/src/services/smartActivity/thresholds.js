@@ -7,7 +7,7 @@
  *
  * Um número de marco escrito dentro do detector é um número que só muda com
  * deploy. Aqui eles são dados: a lista padrão vive neste arquivo, e o painel
- * pode sobrescrevê-la gravando em `Setting`, sem tocar em nada.
+ * pode sobrescrevê-la gravando em `settings`, sem tocar em nada.
  *
  * ── Por que a leitura tolera o banco fora do ar
  *
@@ -48,13 +48,8 @@ const PADRAO = Object.freeze({
     postPublicado: true,
     erroPublicacao: true,
 
-    /* Avisos do vigia do sistema (proxy, pool, sessões, fila, erros do
-       dia) — desligados por padrão. `verificar()`, em vigiaDoSistema.js,
-       roda as seis verificações de qualquer forma; é o `ativos[chave]`
-       aqui que decide se o resultado vira notificação. */
-    cota: false,
-    proxy: false,
-    pool: false,
+    /* Avisos do vigia do sistema (contas sem conectar, fila presa, erros
+       do dia) — desligados por padrão. Desligado, a verificação nem roda. */
     sessoes: false,
     fila: false,
     erros: false,
@@ -126,8 +121,7 @@ function valorDaMetrica(insight, metricType) {
  */
 async function _privacidade() {
   try {
-    const Usuario = require('../../models/Usuario');
-    const u = await Usuario.findOne({ chave: 'principal' }).select('notificacoes').lean();
+    const u = await require('../../repos/usuario').carregar();
     return {
       mostrarNome:  u?.notificacoes?.mostrarNome  !== false,
       mostrarValor: u?.notificacoes?.mostrarValor !== false,
@@ -137,25 +131,15 @@ async function _privacidade() {
   }
 }
 
-/**
- * Configuração efetiva: o padrão com o que o painel tiver sobrescrito por
- * cima. A mesclagem é por seção, não profunda — quem grava `thresholds`
- * substitui a lista inteira, e é isso que se quer: uma lista pela metade
- * seria pior que a original.
- */
 async function carregar() {
-  if (!module.exports.bancoConectado()) return PADRAO;
-
   try {
-    const Setting = require('../../models/Setting');
-    /* A privacidade mora no usuário, não em `Setting`: é preferência pessoal e
+    /* A privacidade mora no usuário, não em `settings`: é preferência pessoal e
        é onde a tela de Minha Conta a mostra. Buscada em paralelo para não
        somar uma ida ao banco no caminho da detecção. */
-    const [doc, privacidade] = await Promise.all([
-      Setting.findOne({ key: CHAVE }).lean(),
+    const [v, privacidade] = await Promise.all([
+      require('../../repos/settings').ler(CHAVE),
       _privacidade(),
     ]);
-    const v = doc?.value;
     if (!v || typeof v !== 'object') return { ...PADRAO, privacidade };
 
     return {
@@ -283,13 +267,9 @@ function minutosDe(hora) {
   return h * 60 + m;
 }
 
-/** Exportado como função para o teste poder substituir. Ver proxyPool.js. */
-function bancoConectado() {
-  return require('mongoose').connection?.readyState === 1;
-}
 
 module.exports = {
   CHAVE, PADRAO, CAMPO_DA_METRICA, LIMITE_LISTA,
-  carregar, marcosCruzados, valorDaMetrica, bancoConectado,
+  carregar, marcosCruzados, valorDaMetrica,
   normalizarRegra, regraDe, pisoDe, normalizarHora, minutosDe,
 };

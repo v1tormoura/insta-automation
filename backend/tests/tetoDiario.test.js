@@ -5,7 +5,7 @@
  *
  * ── Por que este número não ganhou um campo novo
  *
- * Ele já existe: `Account.dailyPostLimit`. Dois lugares testados o obedecem — o
+ * Ele já existe: `accounts.daily_post_limit`. Dois lugares testados o obedecem — o
  * `publicationPlanner`, que nem gera publicação além do teto, e o
  * `checkDailyLimit` na execução. Um segundo número no job daria duas respostas
  * para "quantas esta conta pode hoje", e a divergência apareceria como
@@ -23,15 +23,8 @@
  *                               linha do aviso não, a tela avisa errado
  */
 
-jest.mock('../src/models/Account', () => ({ updateMany: jest.fn() }));
-
-const Account = require('../src/models/Account');
+const banco = require('./helpers/banco');
 const { normalizarTeto, acimaDoSeguro, aplicarNasContas, SEGURO_MAX, MAXIMO } = require('../src/services/tetoDiario');
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  Account.updateMany.mockResolvedValue({ modifiedCount: 2 });
-});
 
 describe('o valor pedido, normalizado', () => {
   test('número utilizável passa', () => {
@@ -97,54 +90,52 @@ describe('o aviso da faixa segura', () => {
 });
 
 describe('gravar nas contas', () => {
-  const IDS = ['64b000000000000000000001', '64b000000000000000000002'];
+  let a, b, fora;
+  const tetos = async () => Object.fromEntries(
+    (await banco.sql`select id, daily_post_limit from accounts`).map(c => [c.id, c.dailyPostLimit]));
 
-  test('grava o teto nas contas pedidas', async () => {
-    const n = await aplicarNasContas(IDS, 24);
-    expect(n).toBe(2);
-    expect(Account.updateMany).toHaveBeenCalledWith(
-      { _id: { $in: IDS } },
-      { $set: { dailyPostLimit: 24 } },
-    );
+  beforeEach(async () => {
+    await banco.limpar();
+    a = await banco.criarConta({ username: 'a' });
+    b = await banco.criarConta({ username: 'b' });
+    fora = await banco.criarConta({ username: 'fora', dailyPostLimit: 7 });
   });
 
-  test('grava no campo que o resto do sistema já obedece', async () => {
-    /* Se este campo mudar de nome aqui, o planejador e a verificação de
-       publicação continuariam lendo o antigo — e o teto viraria enfeite. */
-    await aplicarNasContas(IDS, 10);
-    const patch = Account.updateMany.mock.calls[0][1].$set;
-    expect(Object.keys(patch)).toEqual(['dailyPostLimit']);
+  test('grava o teto só nas contas pedidas', async () => {
+    expect(await aplicarNasContas([a.id, b.id], 24)).toBe(2);
+    const t = await tetos();
+    expect(t[a.id]).toBe(24);
+    expect(t[b.id]).toBe(24);
+    expect(t[fora.id]).toBe(7);
+  });
+
+  test('grava no campo que o ritmo e a cota obedecem (daily_post_limit)', async () => {
+    /* Se o campo mudasse aqui, o ritmo continuaria lendo o antigo — e o teto
+       viraria enfeite. */
+    await aplicarNasContas([a.id], 10);
+    const [linha] = await banco.sql`select daily_post_limit from accounts where id = ${a.id}`;
+    expect(linha.dailyPostLimit).toBe(10);
   });
 
   test('sem teto pedido não toca o banco', async () => {
-    expect(await aplicarNasContas(IDS, undefined)).toBe(0);
-    expect(await aplicarNasContas(IDS, '')).toBe(0);
-    expect(Account.updateMany).not.toHaveBeenCalled();
+    expect(await aplicarNasContas([a.id], undefined)).toBe(0);
+    expect(await aplicarNasContas([a.id], '')).toBe(0);
+    expect((await tetos())[a.id]).toBe(999999);
   });
 
   test('sem contas não toca o banco', async () => {
     expect(await aplicarNasContas([], 24)).toBe(0);
     expect(await aplicarNasContas(null, 24)).toBe(0);
-    expect(Account.updateMany).not.toHaveBeenCalled();
   });
 
   test('ids vazios são descartados antes da consulta', async () => {
-    await aplicarNasContas([IDS[0], null, '', undefined], 12);
-    expect(Account.updateMany.mock.calls[0][0]).toEqual({ _id: { $in: [IDS[0]] } });
+    expect(await aplicarNasContas([a.id, null, '', undefined], 12)).toBe(1);
   });
 
   test('falha do banco não propaga', async () => {
     /* Perder a publicação por causa de um ajuste de ritmo seria troca ruim. O
        teto anterior continua valendo, e é um teto. */
-    Account.updateMany.mockRejectedValue(new Error('sem conexão'));
-    await expect(aplicarNasContas(IDS, 24)).resolves.toBe(0);
-  });
-
-  test('resposta antiga do Mongo também é contada', async () => {
-    /* Driver mais velho devolve `nModified` em vez de `modifiedCount`. Sem os
-       dois, o log diria 0 contas atualizadas depois de atualizar duas. */
-    Account.updateMany.mockResolvedValue({ nModified: 3 });
-    expect(await aplicarNasContas(IDS, 24)).toBe(3);
+    await expect(aplicarNasContas(['id-que-nao-e-uuid'], 24)).resolves.toBe(0);
   });
 });
 
@@ -156,13 +147,13 @@ describe('a ligação com a tela e com o Postar', () => {
   test('o Postar aplica o teto antes de criar o job', () => {
     /* Depois de criar, a primeira rodada poderia consultar o teto antigo. */
     const c = ler('../src/controllers/postController.js');
-    expect(c.indexOf('aplicarTetoDiario')).toBeLessThan(c.indexOf('await Job.create'));
+    expect(c.indexOf('await aplicarTetoDiario')).toBeLessThan(c.indexOf('await jobs.insert'));
   });
 
   /* ── O campo saiu da tela, e é assim que tem de ser ─────────────────────
      Estes dois testes exigiam que o Postar enviasse `postsPor24h`. O campo foi
      REMOVIDO da tela a pedido de quem opera: ele escrevia em
-     `Account.dailyPostLimit`, ou seja, mexia na configuração DAS CONTAS a
+     `accounts.daily_post_limit`, ou seja, mexia na configuração DAS CONTAS a
      partir de um envio — efeito colateral que surpreendia.
 
      Sem o campo, `ritmoDaConta` volta a mandar sozinho: sorteia de 6 a 10 por

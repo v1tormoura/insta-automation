@@ -1,8 +1,8 @@
 'use strict';
 
 const router = require('express').Router();
-const Notificacao = require('../models/Notificacao');
-const Setting = require('../models/Setting');
+const { sql } = require('../db');
+const settings = require('../repos/settings');
 const thresholds = require('../services/smartActivity/thresholds');
 const templates = require('../services/smartActivity/templates');
 const detector = require('../services/smartActivity/detector');
@@ -18,64 +18,34 @@ const detector = require('../services/smartActivity/detector');
 
 /** Lista, mais recentes primeiro. */
 router.get('/', async (req, res) => {
-  try {
-    const limite = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
-    const apenasNaoLidas = req.query.naoLidas === '1';
-
-    const filtro = apenasNaoLidas ? { lidaEm: null } : {};
-    const [itens, naoLidas] = await Promise.all([
-      Notificacao.find(filtro).sort({ criadaEm: -1 }).limit(limite).lean(),
-      Notificacao.countDocuments({ lidaEm: null }),
-    ]);
-
-    res.json({ itens, naoLidas });
-  } catch (err) {
-    res.status(500).json({ error: err.message, code: 'NOTIFICACOES_ERRO' });
-  }
+  const limite = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+  const apenasNaoLidas = req.query.naoLidas === '1';
+  const [itens, [{ naoLidas }]] = await Promise.all([
+    sql`select * from notificacoes ${apenasNaoLidas ? sql`where lida_em is null` : sql``}
+        order by criada_em desc limit ${limite}`,
+    sql`select count(*) as nao_lidas from notificacoes where lida_em is null`,
+  ]);
+  res.json({ itens, naoLidas });
 });
 
 /** Marca uma como lida. */
 router.patch('/:id/lida', async (req, res) => {
-  try {
-    const r = await Notificacao.updateOne(
-      { _id: req.params.id, lidaEm: null },
-      { $set: { lidaEm: new Date() } }
-    );
-    res.json({ ok: true, alterou: r.modifiedCount > 0 });
-  } catch (err) {
-    res.status(500).json({ error: err.message, code: 'NOTIFICACAO_ERRO' });
-  }
+  const { ehUuid } = require('../db');
+  if (!ehUuid(req.params.id)) return res.json({ ok: true, alterou: false });
+  const r = await sql`update notificacoes set lida_em = now() where id = ${req.params.id} and lida_em is null`;
+  res.json({ ok: true, alterou: r.count > 0 });
 });
 
 /** Marca todas. */
 router.post('/lidas', async (_req, res) => {
-  try {
-    const r = await Notificacao.updateMany({ lidaEm: null }, { $set: { lidaEm: new Date() } });
-    res.json({ ok: true, marcadas: r.modifiedCount || 0 });
-  } catch (err) {
-    res.status(500).json({ error: err.message, code: 'NOTIFICACAO_ERRO' });
-  }
+  const r = await sql`update notificacoes set lida_em = now() where lida_em is null`;
+  res.json({ ok: true, marcadas: r.count });
 });
 
-/**
- * Apaga as notificações JÁ LIDAS.
- *
- * Só as lidas, e é isso que torna a ação segura o bastante para não pedir
- * confirmação em modal: o que ainda não foi visto não pode sumir por um clique
- * de limpeza. Uma "apagar tudo" apagaria justamente o aviso que a pessoa ainda
- * não abriu — e avisos aqui são a única memória de coisas que aconteceram
- * enquanto o app estava fechado.
- *
- * Devolve quantas saíram, para a tela poder dizer o que fez em vez de só
- * atualizar a lista em silêncio.
- */
+/** Apaga só as JÁ LIDAS: o que ainda não foi visto não pode sumir por um clique de limpeza. */
 router.delete('/lidas', async (_req, res) => {
-  try {
-    const r = await Notificacao.deleteMany({ lidaEm: { $ne: null } });
-    res.json({ ok: true, apagadas: r.deletedCount || 0 });
-  } catch (err) {
-    res.status(500).json({ error: err.message, code: 'NOTIFICACAO_ERRO' });
-  }
+  const r = await sql`delete from notificacoes where lida_em is not null`;
+  res.json({ ok: true, apagadas: r.count });
 });
 
 /** Configuração efetiva + as variáveis que o editor pode oferecer. */
@@ -158,17 +128,17 @@ router.put('/config', async (req, res) => {
       if (regra?.modo === 'continuo') marcosLimpos[k] = { modo: 'continuo', aPartirDe: regra.aPartirDe, passo: regra.passo };
     }
 
-    const atual = await Setting.findOne({ key: thresholds.CHAVE }).lean();
+    const atual = (await settings.ler(thresholds.CHAVE)) || {};
     const valor = {
-      ...(atual?.value || {}),
+      ...atual,
       ...(Object.keys(marcosLimpos).length ? { thresholds: marcosLimpos } : {}),
       ...(ativos   ? { ativos }   : {}),
       ...(exibicao ? { exibicao } : {}),
       ...(mensagens ? { mensagens } : {}),
-      ...(horaDoResumo ? { resumo: { ...(atual?.value?.resumo || {}), hora: horaDoResumo } } : {}),
+      ...(horaDoResumo ? { resumo: { ...(atual.resumo || {}), hora: horaDoResumo } } : {}),
     };
 
-    await Setting.updateOne({ key: thresholds.CHAVE }, { $set: { value: valor } }, { upsert: true });
+    await settings.gravar(thresholds.CHAVE, valor);
     res.json({ ok: true, config: await thresholds.carregar() });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'CONFIG_ERRO' });
@@ -325,7 +295,7 @@ router.post('/push/testar', async (req, res) => {
        responde "a minha mensagem editada está certa?" — que é a segunda
        pergunta de quem acabou de mexer no editor. */
     const r = await webPush.enviar({
-      _id:      'teste',
+      id:       'teste',
       titulo:   templates.render(modelo.titulo, vars),
       mensagem: templates.render(modelo.mensagem, vars),
       tema:     modelo.tema || 'story',
@@ -338,7 +308,6 @@ router.post('/push/testar', async (req, res) => {
        precisa saber a qual delas o que apareceu no celular corresponde. */
     const NOMES = {
       storyViews: 'Stories', contentViews: 'Conteúdo', reach: 'Alcance', resumo: 'Resumo do dia',
-      cota: 'Cota do proxy', proxy: 'Proxy fora do ar', pool: 'Pool esgotado',
       sessoes: 'Contas sem conectar', fila: 'Fila presa', erros: 'Erros do dia',
       normalizado: 'Voltou ao normal',
     };
@@ -365,25 +334,9 @@ router.post('/push/testar', async (req, res) => {
  * explicados juntos.
  */
 router.get('/push/estado', async (req, res) => {
-  try {
-    const endpoint = String(req.query.endpoint || '');
-    if (!endpoint) return res.status(400).json({ error: 'endpoint obrigatório', code: 'SEM_ENDPOINT' });
-    const PushSubscription = require('../models/PushSubscription');
-    const [doc, total] = await Promise.all([
-      PushSubscription.findOne({ endpoint }).select('falhas ultimoEnvio createdAt').lean(),
-      PushSubscription.countDocuments(),
-    ]);
-    res.json({
-      inscrito:    !!doc,
-      falhas:      doc?.falhas || 0,
-      ultimoEnvio: doc?.ultimoEnvio || null,
-      desde:       doc?.createdAt || null,
-      total,
-      vapid:       require('../services/smartActivity/webPush').disponivel(),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message, code: 'PUSH_ESTADO_ERRO' });
-  }
+  const endpoint = String(req.query.endpoint || '');
+  if (!endpoint) return res.status(400).json({ error: 'endpoint obrigatório', code: 'SEM_ENDPOINT' });
+  res.json(await require('../services/smartActivity/webPush').estado(endpoint));
 });
 
 router.post('/push/cancelar', async (req, res) => {

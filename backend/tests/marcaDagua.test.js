@@ -40,7 +40,7 @@ const {
   filtroDaMarca, normalizar, lerDoCorpo, alturaDe,
   TAMANHOS, POSICOES, PADRAO, OPACIDADE_MIN, ALTURA, MARGEM_TOPO, MARGEM_BASE,
 } = require('../src/services/marcaDagua');
-const { acharFonte } = require('../src/services/storyStickerRenderer');
+const { acharFonte } = require('../src/services/textoNoStory');
 
 const FONTE_FALSA = '/usr/share/fonts/truetype/x/Fake.ttf';
 const LIGADA = { ativa: true, opacidade: 45, posicao: 'centro', tamanho: 'pequena' };
@@ -257,16 +257,14 @@ describe('o texto nunca vem do job', () => {
   const fs2 = require('fs');
   const ler = p => fs2.readFileSync(path.resolve(__dirname, p), 'utf8');
 
-  test('nenhum schema guarda o texto da marca', () => {
-    /* Se um dia alguém acrescentar `texto` a estes schemas, a marca de uma
-       conta passa a poder aparecer no vídeo de outra — e este teste é o que
-       avisa antes de acontecer. */
-    for (const arquivo of ['../src/models/Job.js', '../src/models/Post.js', '../src/models/Campaign.js']) {
-      const fonte = ler(arquivo);
-      const bloco = fonte.slice(fonte.indexOf('marcaDagua'), fonte.indexOf('marcaDagua') + 600);
-      expect(bloco).not.toMatch(/\btexto\s*:/);
-      expect(bloco).not.toMatch(/\busername\s*:/);
-    }
+  test('a configuração gravada não guarda o texto da marca', () => {
+    /* Se a configuração guardasse `texto`, a marca de uma conta passaria a
+       poder aparecer no vídeo de outra. `normalizar` é o que vai para o banco
+       (lerDoCorpo → coluna jsonb), e ele descarta o que não é configuração. */
+    const { normalizar } = require('../src/services/marcaDagua');
+    const cfg = normalizar({ ativa: true, texto: '@outra_conta', username: 'outra_conta' });
+    expect(cfg).not.toHaveProperty('texto');
+    expect(cfg).not.toHaveProperty('username');
   });
 
   test('o filtro é montado onde a conta é conhecida', () => {
@@ -288,7 +286,7 @@ describe('o texto nunca vem do job', () => {
   test('a marca desce do job e da campanha para o post', () => {
     /* Um campo que existe nos dois schemas e nunca é copiado é o defeito mais
        barato de cometer aqui: a tela salva, e nada aparece no vídeo. */
-    expect(ler('../src/queue/worker.js')).toContain('jobDoc.marcaDagua?.ativa');
+    expect(ler('../src/worker.js')).toContain('job.marcaDagua?.ativa');
     expect(ler('../src/services/campaignExecutor.js')).toContain('campanha.settings?.marcaDagua?.ativa');
   });
 });
@@ -299,7 +297,7 @@ describe('o texto nunca vem do job', () => {
 describe('o ffmpeg aceita o filtro', () => {
   const fonte = acharFonte();
   const ffmpeg = (() => {
-    try { return require('ffmpeg-static'); } catch { return null; }
+    return require('../src/services/ffmpegBin').FFMPEG_BIN;
   })();
   const podeRodar = !!fonte && !!ffmpeg;
 

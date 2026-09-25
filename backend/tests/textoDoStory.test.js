@@ -11,7 +11,7 @@
 
 const {
   limparTextoLivre, MAX_LINHAS, MAX_POR_LINHA,
-} = require('../src/routes/textoDoStory');
+} = require('../src/services/textoNoStory');
 
 describe('o que não é texto vira null', () => {
   /* `null` e não um objeto vazio: o serviço usa a ausência para decidir se

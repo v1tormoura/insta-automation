@@ -17,10 +17,9 @@
  * pela capa daquela conta; conta sem capa própria segue com a capa geral (ou
  * sem capa, como sempre). Nada muda para quem não configurou.
  *
- * `arquivo` é o NOME do arquivo em `uploads/`, o mesmo formato de `cover` — o
- * caminho da Graph (`cover_url`), do instagrapi (`cover_path`) e da Private
- * API lêem `post.cover`, então o resto do pipeline não precisa saber que a
- * capa veio de uma escolha por conta.
+ * `arquivo` é o NOME do arquivo em `uploads/`, o mesmo formato de `cover` —
+ * a publicação lê `post.cover` (vira `cover_url` na Graph), então o resto do
+ * pipeline não precisa saber que a capa veio de uma escolha por conta.
  */
 
 const path = require('path');
@@ -35,7 +34,7 @@ function _nomeSeguro(arquivo) {
 }
 
 function _idValido(id) {
-  return /^[a-f\d]{24}$/i.test(String(id || ''));
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ''));
 }
 
 /**
@@ -121,10 +120,10 @@ function _existe(arquivo) {
  */
 function aplicar(post, account, { existe = _existe } = {}) {
   if (!post || !account) return post;
-  const capa = capaDaConta(post.capasPorConta, account._id);
+  const capa = capaDaConta(post.capasPorConta, account.id);
   if (!capa) return post;
   if (!existe(capa)) {
-    console.log(`[Capa] @${account.username || account._id}: capa própria "${capa}" não está mais em uploads/ — usando a capa geral`);
+    console.log(`[Capa] @${account.username || account.id}: capa própria "${capa}" não está mais em uploads/ — usando a capa geral`);
     return post;
   }
   const plano = typeof post.toObject === 'function' ? post.toObject() : { ...post };

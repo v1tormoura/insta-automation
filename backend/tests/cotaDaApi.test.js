@@ -13,10 +13,10 @@
 
 const cota = require('../src/services/cotaDaApi');
 
-const conta = { _id: 'c1', username: 'elisangela', accessToken: 'IGtoken', igUserId: '17841400000000000' };
+const conta = { id: 'c1', username: 'elisangela', accessToken: 'IGtoken', igUserId: '17841400000000000' };
 
-/** Um fetch falso que devolve o JSON da Graph. */
-const fetchCom = corpo => async () => ({ json: async () => corpo });
+/** A resposta de /content_publishing_limit, já desembrulhada de `data[0]`. */
+const limiteCom = dados => async () => dados;
 
 beforeEach(() => cota._cache.clear());
 
@@ -41,7 +41,7 @@ describe('reconhecer a recusa do Meta', () => {
 describe('consultar a cota', () => {
   test('lê quota_usage e compara com 50, não com o quota_total legado', async () => {
     /* O caso real: config diz 100, o Meta recusa em 50. */
-    const r = await cota.consultar(conta, { fetchImpl: fetchCom({ data: [{ quota_usage: 50, config: { quota_total: 100, quota_duration: 86400 } }] }) });
+    const r = await cota.consultar(conta, { limiteImpl: limiteCom({ quota_usage: 50, config: { quota_total: 100, quota_duration: 86400 } }) });
     expect(r.usage).toBe(50);
     expect(r.total).toBe(100);
     expect(r.limite).toBe(50);
@@ -49,33 +49,33 @@ describe('consultar a cota', () => {
   });
 
   test('abaixo do limite, não está cheia', async () => {
-    const r = await cota.consultar(conta, { fetchImpl: fetchCom({ data: [{ quota_usage: 42, config: { quota_total: 100 } }] }) });
+    const r = await cota.consultar(conta, { limiteImpl: limiteCom({ quota_usage: 42, config: { quota_total: 100 } }) });
     expect(r.cheia).toBe(false);
   });
 
   test('cache de 60s: a segunda consulta não bate na Graph', async () => {
     let chamadas = 0;
-    const f = async () => { chamadas++; return { json: async () => ({ data: [{ quota_usage: 10 }] }) }; };
-    await cota.consultar(conta, { fetchImpl: f, agora: 1_000_000 });
-    await cota.consultar(conta, { fetchImpl: f, agora: 1_000_000 + 30_000 });
+    const f = async () => { chamadas++; return { quota_usage: 10 }; };
+    await cota.consultar(conta, { limiteImpl: f, agora: 1_000_000 });
+    await cota.consultar(conta, { limiteImpl: f, agora: 1_000_000 + 30_000 });
     expect(chamadas).toBe(1);
-    await cota.consultar(conta, { fetchImpl: f, agora: 1_000_000 + 61_000 });
+    await cota.consultar(conta, { limiteImpl: f, agora: 1_000_000 + 61_000 });
     expect(chamadas).toBe(2);
   });
 
   test('falha na consulta devolve null — e null NÃO bloqueia', async () => {
     /* Bloquear por soluço de rede pararia a fila inteira. */
-    expect(await cota.consultar(conta, { fetchImpl: async () => { throw new Error('ETIMEDOUT'); } })).toBeNull();
-    expect(await cota.consultar(conta, { fetchImpl: fetchCom({ error: { message: 'Invalid OAuth' } }) })).toBeNull();
+    expect(await cota.consultar(conta, { limiteImpl: async () => { throw new Error('ETIMEDOUT'); } })).toBeNull();
+    expect(await cota.consultar(conta, { limiteImpl: async () => { throw new Error('Invalid OAuth'); } })).toBeNull();
   });
 
-  test('conta sem token (instagrapi) não tem cota da Graph', async () => {
-    expect(await cota.consultar({ _id: 'x', username: 'mobile' })).toBeNull();
+  test('conta sem token não tem cota da Graph', async () => {
+    expect(await cota.consultar({ id: 'x', username: 'sem_token' })).toBeNull();
   });
 
   test('marcarCheia grava no cache e vale para a próxima consulta', async () => {
     cota.marcarCheia(conta, { agora: 5_000_000 });
-    const r = await cota.consultar(conta, { fetchImpl: fetchCom({ data: [{ quota_usage: 3 }] }), agora: 5_000_000 + 1000 });
+    const r = await cota.consultar(conta, { limiteImpl: limiteCom({ quota_usage: 3 }), agora: 5_000_000 + 1000 });
     expect(r.cheia).toBe(true);
     expect(r.usage).toBe(50);
   });
@@ -128,19 +128,19 @@ describe('a mensagem', () => {
 describe('o worker usa a cota', () => {
   const fs = require('fs');
   const path = require('path');
-  const fonte = fs.readFileSync(path.resolve(__dirname, '../src/queue/worker.js'), 'utf8');
+  const fonte = fs.readFileSync(path.resolve(__dirname, '../src/worker.js'), 'utf8');
 
-  test('a rodada consulta a cota antes de criar Post', () => {
+  test('a rodada consulta a cota antes de criar o post', () => {
     expect(fonte).toContain('ritmo: await podePublicarAgora(');
   });
 
   test('a recusa real da Graph marca a cota como cheia', () => {
-    expect(fonte).toContain(".marcarCheia(account)");
+    expect(fonte).toContain('cotaDaApi.marcarCheia(conta)');
   });
 
   test('a rodada adiada espera até a liberação, com teto', () => {
     expect(fonte).toContain('TETO_ESPERA_MS');
-    expect(fonte).toContain('Math.max(intervaloDoJob, ateLiberar)');
+    expect(fonte).toContain('Math.max(intervaloDoJob(), ateLiberar)');
   });
 
   test('cota cheia gera aviso', () => {

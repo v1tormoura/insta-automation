@@ -64,39 +64,33 @@ describe('tokenEncryption', () => {
 });
 
 /**
- * Os campos cifrados do schema, e a assimetria que morde.
- *
- * O valor sai do banco cifrado e só volta legível pelo GETTER do schema. Quem
- * lê com `.lean()` recebe o documento cru, sem getters — e a linha parece
- * idêntica à que funciona. O token cifrado então segue para a Meta como se
- * fosse o token, e a recusa fala de autorização inválida, sem nenhuma pista de
- * que a causa é criptografia.
- *
- * `storyService._conexaoDeLink` busca `fbAccessToken` justamente assim, e por
- * isso NÃO usa `lean`. Este teste guarda o motivo.
+ * O token da conta no banco: cifrado em repouso, em claro para quem publica,
+ * e fora de qualquer resposta da API.
  */
-describe('campos cifrados do Account', () => {
-  const Account = require('../src/models/Account');
+describe('token da conta', () => {
+  const banco = require('./helpers/banco');
+  const accounts = require('../src/repos/accounts');
+  beforeEach(() => banco.limpar());
 
-  const cifrados = ['accessToken', 'instagrapiSession', 'fbAccessToken'];
-
-  test('o getter devolve o token em claro; o documento cru, não', () => {
-    for (const campo of cifrados) {
-      const cru = { _id: '507f1f77bcf86cd799439011', username: 'loja', [campo]: encrypt(SAMPLE_TOKEN) };
-      const doc = Account.hydrate(cru);
-
-      expect(doc[campo]).toBe(SAMPLE_TOKEN);          // com getter
-      expect(cru[campo]).toMatch(/^enc1:/);           // como viria de um lean()
-      expect(cru[campo]).not.toBe(SAMPLE_TOKEN);
-    }
+  test('gravado cifrado, lido em claro pelo repositório', async () => {
+    const conta = await accounts.insert({ username: 'loja', accessToken: SAMPLE_TOKEN, igUserId: '1' });
+    const [linha] = await banco.sql`select access_token from accounts where id = ${conta.id}`;
+    expect(linha.accessToken).toMatch(/^enc1:/);
+    expect((await accounts.findById(conta.id)).accessToken).toBe(SAMPLE_TOKEN);
   });
 
-  test('atribuir cifra antes de guardar', () => {
-    for (const campo of cifrados) {
-      const doc = Account.hydrate({ _id: '507f1f77bcf86cd799439011', username: 'loja' });
-      doc[campo] = SAMPLE_TOKEN;
-      expect(doc.get(campo, null, { getters: false })).toMatch(/^enc1:/);
-      expect(doc[campo]).toBe(SAMPLE_TOKEN);
-    }
+  test('atualizar também cifra', async () => {
+    const conta = await accounts.insert({ username: 'loja' });
+    await accounts.update(conta.id, { accessToken: SAMPLE_TOKEN });
+    const [linha] = await banco.sql`select access_token from accounts where id = ${conta.id}`;
+    expect(linha.accessToken).toMatch(/^enc1:/);
+  });
+
+  test('a versão para a API não leva o token, só se ele existe', async () => {
+    const conta = await accounts.insert({ username: 'loja', accessToken: SAMPLE_TOKEN, igUserId: '1' });
+    const publica = accounts.paraApi(await accounts.findById(conta.id));
+    expect(publica.accessToken).toBeUndefined();
+    expect(publica.hasApiToken).toBe(true);
+    expect(JSON.stringify(publica)).not.toContain(SAMPLE_TOKEN);
   });
 });

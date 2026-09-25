@@ -12,9 +12,9 @@
 
 const { normalizar, lerDoCorpo, capaDaConta, aplicar } = require('../src/services/capaPorConta');
 
-const A = '64a000000000000000000001';
-const B = '64a000000000000000000002';
-const C = '64a000000000000000000003';
+const A = '00000000-64a0-0000-0000-000000000001';
+const B = '00000000-64a0-0000-0000-000000000002';
+const C = '00000000-64a0-0000-0000-000000000003';
 
 describe('normalizar', () => {
   test('lista e objeto viram a mesma forma; conta repetida fica com a última', () => {
@@ -76,9 +76,9 @@ describe('capaDaConta / aplicar', () => {
   });
 
   test('aplicar devolve cópia com a capa da conta — e o post original fica intacto', () => {
-    const post = { _id: 'p1', media: 'v.mp4', cover: 'geral.jpg', caption: 'oi', capasPorConta: capas };
-    const paraA = aplicar(post, { _id: A, username: 'a' }, { existe });
-    const paraB = aplicar(post, { _id: B, username: 'b' }, { existe });
+    const post = { id: 'p1', media: 'v.mp4', cover: 'geral.jpg', caption: 'oi', capasPorConta: capas };
+    const paraA = aplicar(post, { id: A, username: 'a' }, { existe });
+    const paraB = aplicar(post, { id: B, username: 'b' }, { existe });
     expect(paraA.cover).toBe('rosto-a.jpg');
     expect(paraB.cover).toBe('rosto-b.jpg');
     expect(paraA.caption).toBe('oi');          // o resto vem junto
@@ -88,25 +88,25 @@ describe('capaDaConta / aplicar', () => {
   });
 
   test('conta sem capa própria recebe o MESMO objeto (zero mudança de comportamento)', () => {
-    const post = { _id: 'p1', cover: 'geral.jpg', capasPorConta: capas };
-    expect(aplicar(post, { _id: C }, { existe })).toBe(post);
-    const semCampo = { _id: 'p2', cover: 'g.jpg' };
-    expect(aplicar(semCampo, { _id: A }, { existe })).toBe(semCampo);
-    expect(aplicar(null, { _id: A })).toBeNull();
+    const post = { id: 'p1', cover: 'geral.jpg', capasPorConta: capas };
+    expect(aplicar(post, { id: C }, { existe })).toBe(post);
+    const semCampo = { id: 'p2', cover: 'g.jpg' };
+    expect(aplicar(semCampo, { id: A }, { existe })).toBe(semCampo);
+    expect(aplicar(null, { id: A })).toBeNull();
   });
 
   test('doc do Mongoose vira objeto plano via toObject', () => {
-    const doc = { _id: 'p1', cover: 'g.jpg', capasPorConta: capas, toObject() { return { _id: 'p1', cover: 'g.jpg', media: 'v.mp4', capasPorConta: capas }; } };
-    const r = aplicar(doc, { _id: A }, { existe });
+    const doc = { id: 'p1', cover: 'g.jpg', capasPorConta: capas, toObject() { return { id: 'p1', cover: 'g.jpg', media: 'v.mp4', capasPorConta: capas }; } };
+    const r = aplicar(doc, { id: A }, { existe });
     expect(r.cover).toBe('rosto-a.jpg');
     expect(r.media).toBe('v.mp4');
     expect(typeof r.toObject).toBe('undefined');
   });
 
   test('capa que sumiu do disco: cai na geral, sem exceção', () => {
-    const post = { _id: 'p1', cover: 'geral.jpg', capasPorConta: capas };
+    const post = { id: 'p1', cover: 'geral.jpg', capasPorConta: capas };
     const silencio = jest.spyOn(console, 'log').mockImplementation(() => {});
-    expect(aplicar(post, { _id: A, username: 'a' }, { existe: () => false })).toBe(post);
+    expect(aplicar(post, { id: A, username: 'a' }, { existe: () => false })).toBe(post);
     silencio.mockRestore();
   });
 });

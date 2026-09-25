@@ -1,312 +1,178 @@
 'use strict';
 
-const path    = require('path');
-const fs      = require('fs');
-const Loop    = require('../models/Loop');
-const Job     = require('../models/Job');
-const Account = require('../models/Account');
-const postQueue = require('../queue/postQueue');
+/**
+ * Loop: um envio (`jobs.type = 'loop'`) que volta à primeira mídia quando a
+ * lista acaba. A tela de Loop recebe o envio no formato que ela já conhece.
+ */
+
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const { sql, ehUuid } = require('../db');
+const { jobs, comContas } = require('../repos');
+const { agendarRodada } = require('../worker');
+const fila = require('../queue');
 const { broadcast } = require('../events/broadcaster');
 const { ordenar } = require('../services/ordemDasMidias');
 const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
+const { lerDoCorpo: lerCapasPorConta } = require('../services/capaPorConta');
+const { gerarMiniatura } = require('../services/miniaturaDeVideo');
 
-const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
+const UPLOADS = path.resolve(__dirname, '../../uploads');
+const ehVideo = nome => /\.(mp4|mov|webm|avi|mkv)$/i.test(nome || '');
 
-// Mapeia Job → formato Loop (compatibilidade com Loop.jsx)
+const STATUS_DO_LOOP = {
+  queued: 'ativo', running: 'ativo', waiting_interval: 'ativo',
+  paused: 'pausado', completed: 'inativo', cancelled: 'inativo', failed: 'erro',
+};
+
 function jobToLoop(job) {
-  const statusMap = {
-    queued:           'ativo',
-    running:          'ativo',
-    waiting_interval: 'ativo',
-    paused:           'pausado',
-    completed:        'inativo',
-    cancelled:        'inativo',
-    failed:           'erro',
-  };
-  const obj = job.toObject ? job.toObject() : { ...job };
   return {
-    ...obj,
-    type:        obj.postType || 'reel',
-    coverFile:   obj.cover    || '',
-    folder:      obj.folder   || 'default',
-    postsCount:  obj.roundsCompleted || 0,
-    currentIndex: obj.currentRound   || 0,
-    nextRunAt:   obj.nextRoundAt     || null,
-    lastRunAt:   obj.updatedAt       || null,
-    status:      statusMap[obj.status] || 'ativo',
-    _jobStatus:  obj.status,  // status original do Job para o frontend avançado
-    _isJob:      true,        // flag para saber que é um Job
+    ...job,
+    type: job.postType || 'reel',
+    coverFile: job.cover || '',
+    folder: 'default',
+    postsCount: job.roundsCompleted || 0,
+    currentIndex: job.currentRound || 0,
+    nextRunAt: job.nextRoundAt || null,
+    lastRunAt: job.updatedAt || null,
+    status: STATUS_DO_LOOP[job.status] || 'ativo',
+    _jobStatus: job.status,
+    _isJob: true,
   };
 }
 
-/* A geração mora em services/miniaturaDeVideo.js.
+async function responderLoop(res, job) {
+  await comContas(job);
+  res.json(jobToLoop(job));
+}
 
-   Ela nasceu aqui dentro, e foi por isso que só o upload do Loop tinha
-   miniatura: a Biblioteca e o Postar usam outra rota, que não enxergava esta
-   função. Código compartilhado dentro de um controller é uma função que só
-   existe para quem passa por aquela porta. */
-const { gerarMiniatura: generateThumb } = require('../services/miniaturaDeVideo');
-
-/* ── Upload de mídias para loop (sem salvar na biblioteca) ── */
+/** Upload de mídias para o loop (sem entrar na biblioteca), com miniatura dos vídeos. */
 exports.uploadMedia = async (req, res) => {
-  try {
-    console.log('[upload-media] content-type:', req.headers['content-type']);
-    console.log('[upload-media] files recebidos:', req.files?.length ?? 'undefined');
-    if (!req.files?.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-
-    const files = await Promise.all(req.files.map(async f => {
-      const isVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(f.filename);
-      let thumbnail = null;
-      if (isVideo) {
-        const thumbName = f.filename.replace(/\.[^.]+$/, '') + '.thumb.jpg';
-        const thumbPath = path.join(UPLOADS_DIR, thumbName);
-        try {
-          await generateThumb(f.path, thumbPath);
-          if (fs.existsSync(thumbPath)) thumbnail = thumbName;
-        } catch (e) {
-          console.warn('[thumbnail] falhou para', f.filename, e.message);
-        }
+  if (!req.files?.length) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+  const files = await Promise.all(req.files.map(async f => {
+    const video = ehVideo(f.filename);
+    let thumbnail = null;
+    if (video) {
+      const thumbName = f.filename.replace(/\.[^.]+$/, '') + '.thumb.jpg';
+      try {
+        await gerarMiniatura(f.path, path.join(UPLOADS, thumbName));
+        if (fs.existsSync(path.join(UPLOADS, thumbName))) thumbnail = thumbName;
+      } catch (e) {
+        console.warn('[thumbnail] falhou para', f.filename, e.message);
       }
-      return { filename: f.filename, thumbnail, type: isVideo ? 'video' : 'image' };
-    }));
-
-    res.json({ files });
-  } catch (err) {
-    console.error('[upload-media] erro:', err);
-    res.status(500).json({ error: err.message });
-  }
+    }
+    return { filename: f.filename, thumbnail, type: video ? 'video' : 'image' };
+  }));
+  res.json({ files });
 };
 
-/* ── Listar loops — retorna Jobs com type='loop' adaptados + Loops legados ── */
 exports.list = async (req, res) => {
-  try {
-    const [jobs, legacyLoops] = await Promise.all([
-      Job.find({ type: 'loop' })
-        .populate('accounts', 'username avatar name healthStatus accountType followers following postsCount accessToken igSession')
-        .sort({ createdAt: -1 }),
-      Loop.find()
-        .populate('accounts', 'username avatar name healthStatus accountType followers following postsCount accessToken igSession')
-        .sort({ createdAt: -1 }),
-    ]);
-
-    const jobLoops = jobs.map(jobToLoop);
-    res.json([...jobLoops, ...legacyLoops]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const lista = await sql`select * from jobs where type = 'loop' order by created_at desc`;
+  await comContas(lista);
+  res.json(lista.map(jobToLoop));
 };
 
-/* ── Criar loop (Job-based) ── */
 exports.create = async (req, res) => {
-  try {
-    const { name, accounts, mediaFiles, type, intervalMinutes, caption, coverFile, ctaComment, engageComment, processMode } = req.body;
+  const { name, mediaFiles, type, intervalMinutes, caption, coverFile, ctaComment, processMode } = req.body;
+  const accountIds = (req.body.accounts || []).map(String).filter(ehUuid);
 
-    if (!accounts?.length)   return res.status(400).json({ error: 'Selecione ao menos uma conta' });
-    if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
-    if (!intervalMinutes || intervalMinutes < 1) return res.status(400).json({ error: 'Intervalo mínimo: 1 minuto' });
+  if (!accountIds.length) return res.status(400).json({ error: 'Selecione ao menos uma conta' });
+  if (!mediaFiles?.length) return res.status(400).json({ error: 'Selecione ao menos uma mídia' });
+  if (!intervalMinutes || intervalMinutes < 1) return res.status(400).json({ error: 'Intervalo mínimo: 1 minuto' });
 
-    /* ── A ordem da fila ──────────────────────────────────────────────────
+  // O loop recebe nomes de arquivo, sem data: só "ordem escolhida" ou aleatória fazem sentido.
+  const sementeDaOrdem = req.body.sementeDaOrdem || crypto.randomBytes(8).toString('hex');
+  const midiasAleatorias = req.body.midiasAleatorias === true;
+  const filaOrdenada = ordenar(mediaFiles.map(f => ({ filename: f, quando: null })), {
+    ordem: 'selecao', aleatoria: midiasAleatorias, semente: sementeDaOrdem,
+  }).map(x => x.filename);
 
-       O loop recebe nomes de arquivo, não ids da biblioteca, então não há
-       `createdAt` para consultar: o nome é tudo que se tem. Por isso só a
-       ordem aleatória e "a ordem escolhida" fazem sentido aqui — pedir
-       "mais recentes primeiro" sem data seria inventar uma ordem e chamá-la
-       de cronológica.
+  const job = await jobs.insert({
+    name: name || `Loop ${new Date().toLocaleString('pt-BR')}`,
+    type: 'loop',
+    status: 'queued',
+    accountIds,
+    mediaFiles: filaOrdenada,
+    ordemDasMidias: 'selecao',
+    midiasAleatorias,
+    sementeDaOrdem,
+    marcaDagua: lerMarcaDagua(req.body.marcaDagua),
+    capasPorConta: lerCapasPorConta(req.body.capasPorConta),
+    postType: ['post', 'reel', 'story'].includes(type) ? type : 'reel',
+    caption: caption || '',
+    cover: coverFile || '',
+    ctaComment: ctaComment || '',
+    processMode: processMode || 'limpeza_leve',
+    intervalMinutes: Number(intervalMinutes),
+    simultaneousLimit: 1,
+    totalRounds: filaOrdenada.length,
+    postsTotal: 0,
+  });
 
-       A semente fica gravada: sem ela, a ordem sorteada seria irreproduzível
-       e "em que ordem isso foi postado" não teria resposta depois. */
-    const sementeDaOrdem   = req.body.sementeDaOrdem || require('crypto').randomBytes(8).toString('hex');
-    const midiasAleatorias = req.body.midiasAleatorias === true;
-    const filaOrdenada = ordenar(mediaFiles.map(f => ({ filename: f, quando: null })), {
-      ordem: 'selecao',
-      aleatoria: midiasAleatorias,
-      semente: sementeDaOrdem,
-    }).map(x => x.filename);
-
-    const marcaDagua = lerMarcaDagua(req.body.marcaDagua);
-    /* Capa por perfil: no loop os arquivos já estão em uploads/ (biblioteca ou
-       /loops/upload-media), então só vêm nomes — sem upload nesta requisição. */
-    const capasPorConta = require('../services/capaPorConta').lerDoCorpo(req.body.capasPorConta);
-
-    const totalRounds = filaOrdenada.length; // loops sempre postam 1 mídia por rodada
-
-    const job = await Job.create({
-      name:              name || `Loop ${new Date().toLocaleString('pt-BR')}`,
-      type:              'loop',
-      status:            'queued',
-      accounts,
-      mediaFiles:        filaOrdenada,
-      ordemDasMidias:    'selecao',
-      midiasAleatorias:  midiasAleatorias,
-      sementeDaOrdem:    sementeDaOrdem,
-      ...(marcaDagua ? { marcaDagua } : {}),
-      ...(capasPorConta ? { capasPorConta } : {}),
-      postType:          type || 'reel',
-      caption:           caption       || '',
-      cover:             coverFile     || '',
-      ctaComment:        ctaComment    || '',
-      engageComment:     engageComment || '',
-      processMode:       processMode   || 'limpeza_leve',
-      intervalMinutes:   Number(intervalMinutes),
-      simultaneousLimit: 1,
-      currentRound:      0,
-      totalRounds,
-      postsTotal:        0, // indefinido para loops
-    });
-
-    // Primeira rodada imediatamente
-    const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
-    await Job.findByIdAndUpdate(job._id, { bullMqJobId: String(bullJob.id) });
-
-    const populated = await Job.findById(job._id).populate('accounts', 'username avatar healthStatus');
-    broadcast('accounts', { action: 'loop_created' });
-    res.json(jobToLoop(populated));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await agendarRodada(job.id, 0);
+  broadcast('accounts', { action: 'loop_created' });
+  await responderLoop(res, job);
 };
 
-/* ── Pausar / Retomar ── */
 exports.togglePause = async (req, res) => {
-  try {
-    const id = req.params.id;
+  const job = await jobs.findById(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Loop não encontrado' });
 
-    // Tenta como Job primeiro
-    const job = await Job.findById(id);
-    if (job) {
-      if (job.status === 'paused') {
-        const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
-        job.bullMqJobId = String(bullJob.id);
-        job.status      = 'queued';
-        job.nextRoundAt = new Date();
-        job.lastError   = '';
-      } else {
-        job.status = 'paused';
-      }
-      await job.save();
-      broadcast('accounts', { action: 'loop_updated' });
-      return res.json(jobToLoop(job));
-    }
-
-    // Fallback: loop legado
-    const loop = await Loop.findById(id);
-    if (!loop) return res.status(404).json({ error: 'Loop não encontrado' });
-
-    loop.status = loop.status === 'ativo' ? 'pausado' : 'ativo';
-    if (loop.status === 'ativo') {
-      loop.nextRunAt = new Date();
-      loop.lastError = '';
-    }
-    await loop.save();
-    broadcast('accounts', { action: 'loop_updated' });
-    res.json(loop);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  let atualizado;
+  if (job.status === 'paused') {
+    atualizado = await jobs.update(job.id, { status: 'queued', nextRoundAt: new Date(), lastError: '' });
+    await agendarRodada(job.id, 0);
+  } else {
+    atualizado = await jobs.update(job.id, { status: 'paused' });
+    await fila.cancelarPorDados('job_round', 'jobId', job.id);
   }
+  broadcast('accounts', { action: 'loop_updated' });
+  await responderLoop(res, atualizado);
 };
 
-/* ── Deletar ── */
 exports.remove = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const job = await Job.findByIdAndDelete(id);
-    if (!job) await Loop.findByIdAndDelete(id);
-    broadcast('accounts', { action: 'loop_deleted' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await fila.cancelarPorDados('job_round', 'jobId', req.params.id);
+  await jobs.remove(req.params.id);
+  broadcast('accounts', { action: 'loop_deleted' });
+  res.json({ success: true });
 };
 
-/* ── Atualizar ── */
 exports.update = async (req, res) => {
-  try {
-    const { name, intervalMinutes, caption, ctaComment, engageComment, mediaFiles } = req.body;
-    const id = req.params.id;
-
-    // Tenta como Job
-    const job = await Job.findById(id);
-    if (job) {
-      const update = {};
-      if (name            !== undefined) update.name            = name;
-      if (intervalMinutes !== undefined) update.intervalMinutes = Number(intervalMinutes);
-      if (caption         !== undefined) update.caption         = caption;
-      if (ctaComment      !== undefined) update.ctaComment      = ctaComment;
-      if (engageComment   !== undefined) update.engageComment   = engageComment;
-      if (mediaFiles      !== undefined) {
-        update.mediaFiles   = mediaFiles;
-        update.totalRounds  = mediaFiles.length;
-      }
-      const updated = await Job.findByIdAndUpdate(id, update, { new: true })
-        .populate('accounts', 'username avatar healthStatus');
-      broadcast('accounts', { action: 'loop_updated' });
-      return res.json(jobToLoop(updated));
-    }
-
-    // Fallback: loop legado
-    const update = {};
-    if (name            !== undefined) update.name            = name;
-    if (intervalMinutes !== undefined) update.intervalMinutes = Number(intervalMinutes);
-    if (caption         !== undefined) update.caption         = caption;
-    if (ctaComment      !== undefined) update.ctaComment      = ctaComment;
-    if (engageComment   !== undefined) update.engageComment   = engageComment;
-    if (mediaFiles      !== undefined) update.mediaFiles      = mediaFiles;
-
-    const loop = await Loop.findByIdAndUpdate(id, update, { new: true })
-      .populate('accounts', 'username avatar healthStatus');
-    if (!loop) return res.status(404).json({ error: 'Loop não encontrado' });
-    broadcast('accounts', { action: 'loop_updated' });
-    res.json(loop);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const { name, intervalMinutes, caption, ctaComment, mediaFiles } = req.body;
+  const patch = {};
+  if (name !== undefined) patch.name = name;
+  if (intervalMinutes !== undefined) patch.intervalMinutes = Math.max(1, Number(intervalMinutes) || 1);
+  if (caption !== undefined) patch.caption = caption;
+  if (ctaComment !== undefined) patch.ctaComment = ctaComment;
+  if (Array.isArray(mediaFiles)) {
+    patch.mediaFiles = mediaFiles;
+    patch.totalRounds = mediaFiles.length;
   }
+  const job = await jobs.update(req.params.id, patch);
+  if (!job) return res.status(404).json({ error: 'Loop não encontrado' });
+  broadcast('accounts', { action: 'loop_updated' });
+  await responderLoop(res, job);
 };
 
-/* ── Gerar thumbnails retroativos (one-shot, background) ── */
+/** Gera, em segundo plano, a miniatura dos vídeos de uploads/ que ainda não têm. */
 exports.generateAllThumbs = async (req, res) => {
-  try {
-    const files  = fs.readdirSync(UPLOADS_DIR);
-    const videos = files.filter(f => /\.(mp4|mov|webm|avi|mkv)$/i.test(f));
-    res.json({ message: `Processando ${videos.length} vídeos em background...`, total: videos.length });
+  const videos = fs.readdirSync(UPLOADS).filter(ehVideo);
+  res.json({ message: `Processando ${videos.length} vídeos em background...`, total: videos.length });
 
-    let generated = 0, skipped = 0, failed = 0;
-    for (const filename of videos) {
-      const thumbName = filename.replace(/\.[^.]+$/, '') + '.thumb.jpg';
-      const thumbPath = path.join(UPLOADS_DIR, thumbName);
-      if (fs.existsSync(thumbPath)) { skipped++; continue; }
-      await generateThumb(path.join(UPLOADS_DIR, filename), thumbPath);
-      if (fs.existsSync(thumbPath)) generated++; else failed++;
-    }
-    console.log(`[generateAllThumbs] ${generated} gerados, ${skipped} pulados, ${failed} falhas`);
-  } catch (err) {
-    console.error('[generateAllThumbs]', err);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+  let gerados = 0, pulados = 0, falhas = 0;
+  for (const nome of videos) {
+    const thumb = path.join(UPLOADS, nome.replace(/\.[^.]+$/, '') + '.thumb.jpg');
+    if (fs.existsSync(thumb)) { pulados++; continue; }
+    await gerarMiniatura(path.join(UPLOADS, nome), thumb).catch(() => {});
+    if (fs.existsSync(thumb)) gerados++; else falhas++;
   }
+  console.log(`[Miniaturas] ${gerados} gerada(s), ${pulados} pulada(s), ${falhas} falha(s)`);
 };
 
-/* ── Histórico (últimos posts do loop) ── */
+/** Últimas publicações do loop. */
 exports.history = async (req, res) => {
-  try {
-    const id  = req.params.id;
-    const job = await Job.findById(id);
-
-    if (job) {
-      const posts = await require('../models/Post').find({ _id: { $in: job.postIds } })
-        .sort({ createdAt: -1 }).limit(50).populate('accounts', 'username');
-      return res.json(posts);
-    }
-
-    // Fallback: loop legado
-    const loop = await Loop.findById(id);
-    if (!loop) return res.status(404).json({ error: 'Loop não encontrado' });
-
-    const posts = await require('../models/Post').find({
-      accounts: { $in: loop.accounts },
-      media:    { $in: loop.mediaFiles },
-    }).sort({ createdAt: -1 }).limit(50).populate('accounts', 'username');
-
-    res.json(posts);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  if (!ehUuid(req.params.id)) return res.status(404).json({ error: 'Loop não encontrado' });
+  const lista = await sql`select * from posts where job_id = ${req.params.id} order by created_at desc limit 50`;
+  res.json(await comContas(lista, ['id', 'username']));
 };

@@ -64,23 +64,22 @@ describe('resolverLegenda', () => {
   });
 });
 
-describe('o worker aplica a variação por conta', () => {
+describe('a publicação aplica a variação por conta', () => {
   const fs = require('fs');
   const path = require('path');
-  const fonte = fs.readFileSync(path.resolve(__dirname, '../src/queue/worker.js'), 'utf8');
+  const fonte = fs.readFileSync(path.resolve(__dirname, '../src/services/publicar.js'), 'utf8');
 
   test('resolve a legenda com semente post+conta', () => {
-    expect(fonte).toContain("require('../services/variarLegenda')");
-    expect(fonte).toMatch(/resolverLegenda\(post\.caption, `\$\{post\._id\}:\$\{account\._id\}`\)/);
+    expect(fonte).toContain("require('./variarLegenda')");
+    expect(fonte).toMatch(/resolverLegenda\(post\.caption \|\| '', `\$\{post\.id\}:\$\{conta\.id\}`\)/);
   });
 
   test('publica com a legenda resolvida, e antes do publish', () => {
-    expect(fonte).toMatch(/caption:\s*legendaFinal/);
     const iResolve = fonte.indexOf('resolverLegenda(post.caption');
-    const iPublish = fonte.indexOf('provider.publishReel(account, postParaPublicar)');
+    const iPublish = fonte.lastIndexOf('publicarReel(conta, post, legenda)');
     expect(iResolve).toBeGreaterThan(0);
-    expect(iPublish).toBeGreaterThan(0);
-    expect(iResolve).toBeLessThan(iPublish);
+    expect(iPublish).toBeGreaterThan(iResolve);
+    expect(fonte).toContain('caption: legenda');
   });
 });
 

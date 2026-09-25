@@ -8,74 +8,59 @@
  * total que o painel mostra, porque o número original não volta mais.
  */
 
-jest.mock('../src/queue/postQueue', () => ({ add: jest.fn(), getJob: jest.fn(), remove: jest.fn() }));
+const mockGet = jest.fn();
+jest.mock('../src/services/instagramAPI', () => ({ get: (...a) => mockGet(...a) }));
 
-const mockGGet = jest.fn();
-jest.mock('../src/services/insightSyncService', () => ({
-  gGet: (...a) => mockGGet(...a),
-  graphBase: () => 'https://graph.facebook.com/v21.0',
-  syncAllInsights: jest.fn(),
-  syncAccountInsights: jest.fn(),
-  startInsightAutoSync: jest.fn(),
-}));
-
-const Insight = require('../src/models/Insight');
+const banco = require('./helpers/banco');
 const { _gravar, _metricasGraph } = require('../src/services/storyInsightSync');
 
-const conta = { _id: 'conta1', username: 'teste' };
+let conta;
+const gravado = async id => (await banco.sql`select * from insights where ig_media_id = ${id}`)[0];
 
 describe('_gravar — a contagem só sobe', () => {
-  let original;
-  beforeEach(() => {
-    original = Insight.updateOne;
-    Insight.updateOne = jest.fn(async () => ({ acknowledged: true }));
+  beforeEach(async () => {
+    await banco.limpar();
+    conta = await banco.criarConta({ username: 'teste' });
   });
-  afterEach(() => { Insight.updateOne = original; });
 
-  test('usa $max, não $set, para a audiência', async () => {
+  test('uma leitura menor não rebaixa o que já foi contado', async () => {
     await _gravar(conta, { story_id: 's1', viewers: 42, taken_at: 1787000000 });
-
-    const [filtro, update, opcoes] = Insight.updateOne.mock.calls[0];
-    expect(filtro).toEqual({ igMediaId: 's1' });
-    expect(update.$max).toEqual({ impressions: 42, reach: 42 });
-    // $set não pode conter a audiência — senão uma leitura menor rebaixaria.
-    expect(update.$set.impressions).toBeUndefined();
-    expect(update.$set.reach).toBeUndefined();
-    expect(opcoes.upsert).toBe(true);
+    await _gravar(conta, { story_id: 's1', viewers: 10 });
+    await _gravar(conta, { story_id: 's1', viewers: 55 });
+    const s = await gravado('s1');
+    expect(s.impressions).toBe(55);
+    expect(s.reach).toBe(55);
+    await _gravar(conta, { story_id: 's1', viewers: 3 });
+    expect((await gravado('s1')).impressions).toBe(55);
   });
 
   test('grava como STORY, que é o que o painel soma', async () => {
     await _gravar(conta, { story_id: 's1', viewers: 5 });
-    expect(Insight.updateOne.mock.calls[0][1].$set.mediaType).toBe('STORY');
+    expect((await gravado('s1')).mediaType).toBe('STORY');
   });
 
-  test('taken_at em segundos vira Date', async () => {
+  test('taken_at em segundos vira a data da publicação', async () => {
     await _gravar(conta, { story_id: 's1', viewers: 5, taken_at: 1787000000 });
-    const postedAt = Insight.updateOne.mock.calls[0][1].$set.postedAt;
-    expect(postedAt).toBeInstanceOf(Date);
-    expect(postedAt.getTime()).toBe(1787000000 * 1000);
+    expect((await gravado('s1')).postedAt.getTime()).toBe(1787000000 * 1000);
   });
 
   test('sem taken_at, usa agora em vez de data inválida', async () => {
     await _gravar(conta, { story_id: 's1', viewers: 5 });
-    const postedAt = Insight.updateOne.mock.calls[0][1].$set.postedAt;
-    expect(Number.isNaN(postedAt.getTime())).toBe(false);
+    expect(Number.isNaN((await gravado('s1')).postedAt.getTime())).toBe(false);
   });
 
   test('audiência ausente não vira zero gravado', async () => {
-    await expect(_gravar(conta, { story_id: 's1', viewers: null })).resolves.toBe(false);
-    await expect(_gravar(conta, { story_id: 's1' })).resolves.toBe(false);
-    await expect(_gravar(conta, { story_id: 's1', viewers: 'muitas' })).resolves.toBe(false);
+    for (const viewers of [null, undefined, 'muitas', '']) {
+      await expect(_gravar(conta, { story_id: 's1', viewers })).resolves.toBe(false);
+    }
     // Number(null) e Number('') valem 0 — sem checagem explícita, story sem
     // audiência conhecida entraria como zero e rebaixaria o total do painel.
-    await expect(_gravar(conta, { story_id: 's1', viewers: '' })).resolves.toBe(false);
-    await expect(_gravar(conta, { story_id: 's1', viewers: undefined })).resolves.toBe(false);
-    expect(Insight.updateOne).not.toHaveBeenCalled();
+    expect(await gravado('s1')).toBeUndefined();
   });
 
   test('zero legítimo é gravado — story sem visualização existe', async () => {
     await expect(_gravar(conta, { story_id: 's1', viewers: 0 })).resolves.toBe(true);
-    expect(Insight.updateOne.mock.calls[0][1].$max.impressions).toBe(0);
+    expect((await gravado('s1')).impressions).toBe(0);
   });
 
   test('valor negativo é recusado', async () => {
@@ -84,49 +69,49 @@ describe('_gravar — a contagem só sobe', () => {
 });
 
 describe('_metricasGraph — cadeia de fallback', () => {
-  beforeEach(() => mockGGet.mockReset());
+  beforeEach(() => mockGet.mockReset());
 
   test('usa a lista completa quando ela é aceita', async () => {
-    mockGGet.mockResolvedValueOnce({ data: [
+    mockGet.mockResolvedValueOnce({ data: [
       { name: 'impressions', values: [{ value: 120 }] },
       { name: 'reach',       values: [{ value: 100 }] },
     ]});
 
     const m = await _metricasGraph('s1', 'tok');
     expect(m.impressions).toBe(120);
-    expect(mockGGet).toHaveBeenCalledTimes(1);
-    expect(mockGGet.mock.calls[0][1].metric).toContain('impressions');
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet.mock.calls[0][1].metric).toContain('impressions');
   });
 
   test('métrica recusada cai para o conjunto seguinte, não devolve vazio', async () => {
     // `impressions` foi descontinuado para story e derruba a chamada inteira.
-    mockGGet
+    mockGet
       .mockRejectedValueOnce(new Error('(#100) impressions is deprecated'))
       .mockResolvedValueOnce({ data: [{ name: 'views', values: [{ value: 88 }] }] });
 
     const m = await _metricasGraph('s1', 'tok');
     expect(m.views).toBe(88);
-    expect(mockGGet).toHaveBeenCalledTimes(2);
+    expect(mockGet).toHaveBeenCalledTimes(2);
   });
 
   test('cai até `reach` sozinho antes de desistir', async () => {
-    mockGGet
+    mockGet
       .mockRejectedValueOnce(new Error('erro 1'))
       .mockRejectedValueOnce(new Error('erro 2'))
       .mockResolvedValueOnce({ data: [{ name: 'reach', values: [{ value: 30 }] }] });
 
     const m = await _metricasGraph('s1', 'tok');
     expect(m.reach).toBe(30);
-    expect(mockGGet).toHaveBeenCalledTimes(3);
+    expect(mockGet).toHaveBeenCalledTimes(3);
   });
 
   test('todas recusadas devolve objeto vazio, não exceção', async () => {
-    mockGGet.mockRejectedValue(new Error('sem permissão'));
+    mockGet.mockRejectedValue(new Error('sem permissão'));
     await expect(_metricasGraph('s1', 'tok')).resolves.toEqual({});
   });
 
   test('resposta sem métrica nenhuma continua tentando', async () => {
-    mockGGet
+    mockGet
       .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ data: [{ name: 'reach', values: [{ value: 7 }] }] });
 

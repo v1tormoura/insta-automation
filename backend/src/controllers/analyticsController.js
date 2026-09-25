@@ -1,363 +1,190 @@
 'use strict';
-const mongoose = require('mongoose');
-const Insight  = require('../models/Insight');
-const Account  = require('../models/Account');
-const Post     = require('../models/Post');
+
+/** Métricas: alcance por envio, público, métricas dos perfis e métricas globais. */
+
+const { sql } = require('../db');
 const { agrupar: agruparPorEnvio } = require('../services/alcancePorEnvio');
 const publicoDaConta = require('../services/publicoDaConta');
+const periodo = require('../services/periodoDeMetricas');
+const serie = require('../services/serieDeSeguidores');
+const { accounts } = require('../repos');
 
-/**
- * GET /analytics/alcance-por-envio?dias=30
- *
- * Alcance e views por envio (job) e por conta, com os reels de maior alcance
- * de cada envio. Ver services/alcancePorEnvio.js para o porquê de "envio" ser
- * a unidade: cada lote do Postar é, na prática, um tipo de vídeo.
- */
+/* Conta banida ou sem token não soma num painel de desempenho. */
+const RUINS = ['banida', 'token_invalido'];
+
+/** GET /analytics/alcance-por-envio?dias=30 — alcance e views por envio e por conta. */
 exports.getAlcancePorEnvio = async (req, res) => {
-  try {
-    const dias = Math.min(365, Math.max(1, parseInt(req.query.dias, 10) || 30));
-    const desde = new Date(Date.now() - dias * 86_400_000);
-    const insights = await Insight.find({
-      postedAt: { $gte: desde },
-      mediaType: { $in: ['VIDEO', 'REELS', 'REEL'] },
-    }).lean();
-    const ids = insights.map(i => i.igMediaId).filter(Boolean);
-    const posts = ids.length
-      ? await Post.find({ $or: [{ igMediaId: { $in: ids } }, { 'midiasPublicadas.igMediaId': { $in: ids } }] })
-          .select('igMediaId midiasPublicadas jobId jobName').lean()
-      : [];
-    res.json({ dias, ...agruparPorEnvio(insights, posts) });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const dias = Math.min(365, Math.max(1, parseInt(req.query.dias, 10) || 30));
+  const desde = new Date(Date.now() - dias * 86_400_000);
+  const insights = await sql`
+    select * from insights where posted_at >= ${desde} and media_type in ('VIDEO', 'REELS', 'REEL')`;
+  const ids = insights.map(i => i.igMediaId).filter(Boolean);
+  const posts = ids.length
+    ? await sql`
+        select ig_media_id, midias_publicadas, job_id, job_name from posts
+        where ig_media_id = any(${ids})
+           or exists (select 1 from jsonb_array_elements(midias_publicadas) m where m->>'igMediaId' = any(${ids}))`
+    : [];
+  res.json({ dias, ...agruparPorEnvio(insights, posts) });
 };
 
-/**
- * GET /analytics/publico?timeframe=last_30_days
- *
- * Gênero, país e idade de quem os reels alcançaram, por conta oficial, e o
- * agregado das contas que têm dados. Conta pequena volta `disponivel: false`
- * com o motivo — o Meta retém demografia abaixo de ~100 seguidores.
- */
+/** GET /analytics/publico?timeframe=last_30_days — gênero, país e idade de quem os reels alcançaram. */
 exports.getPublico = async (req, res) => {
-  try {
-    const contas = await Account.find({ accessToken: { $exists: true, $ne: '' }, igUserId: { $exists: true, $ne: '' } })
-      .select('username followers accessToken igUserId avatar');
-    const lista = await Promise.all(contas.map(c => publicoDaConta.buscarPublico(c, req.query.timeframe)));
-    res.json({
-      timeframe: lista[0]?.timeframe || 'last_30_days',
-      minimoSeguidores: publicoDaConta.MINIMO_SEGUIDORES,
-      contas: lista.map((p, i) => ({ ...p, avatar: contas[i].avatar || '' })),
-      agregado: publicoDaConta.agregar(lista),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const contas = (await accounts.findMany()).filter(c => c.accessToken && c.igUserId);
+  const lista = await Promise.all(contas.map(c => publicoDaConta.buscarPublico(c, req.query.timeframe)));
+  res.json({
+    timeframe: lista[0]?.timeframe || 'last_30_days',
+    minimoSeguidores: publicoDaConta.MINIMO_SEGUIDORES,
+    contas: lista.map((p, i) => ({ ...p, avatar: contas[i].avatar || '' })),
+    agregado: publicoDaConta.agregar(lista),
+  });
 };
 
 /**
- * Métricas dos perfis — somadas e por conta.
- *
- * ── Rota própria, e não `getGlobalMetrics` alargado
- *
- * Aquela aceita `7d/30d/90d/1a` e tem cache compartilhado com outras telas.
- * Esta precisa de `hoje`, `ontem`, `total` e faixa livre por data. Alargar a
- * outra mexeria numa consulta que três páginas já usam, com um cache que
- * passaria a ter chaves de dois formatos.
- *
- * ── Sobre "novos seguidores"
- *
- * É o único cartão que não sai do Insight. `Account.followers` guarda só o
- * número de agora, sobrescrito a cada sync — o ganho vem da série diária
- * (`SeguidoresDoDia`), construída para isso.
- *
- * A série começa no dia em que entrou em produção, e a resposta diz isso em
- * `novosSeguidoresMedido`: sem essa distinção, a tela mostraria "+0" no
- * primeiro dia e pareceria que ninguém seguiu ninguém.
+ * Métricas dos perfis, somadas e por conta, com hoje/ontem/total e faixa livre.
+ * "Novos seguidores" sai da série diária; a resposta diz se já há histórico.
  */
 exports.getMetricasDosPerfis = async (req, res) => {
-  try {
-    const periodo = require('../services/periodoDeMetricas');
-    const serie   = require('../services/serieDeSeguidores');
+  const p = periodo.resolver(req.query);
+  const contas = await sql`
+    select id, username, avatar, followers, last_sync from accounts
+    where health_status <> all(${RUINS})`;
 
-    const p = periodo.resolver(req.query);
+  const vazio = {
+    periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
+    seguidores: 0, novosSeguidores: 0, novosSeguidoresMedido: false,
+    curtidas: 0, viewsPosts: 0, viewsStories: 0, contas: [], atualizadoEm: new Date(),
+  };
+  if (!contas.length) return res.json(vazio);
 
-    /* As mesmas contas que `getGlobalMetrics` considera: conta banida ou com
-       sessão morta não deve somar seguidores num painel de desempenho. */
-    const RUINS = ['banida', 'banido', 'sessao_expirada', 'token_invalido', 'erro_login'];
-    const contas = await Account.find({ healthStatus: { $nin: RUINS } })
-      .select('_id username name avatar followers provider lastSync')
-      .lean();
+  const ids = contas.map(c => c.id);
+  const noPeriodo = p.desde && p.ate ? sql`and posted_at >= ${p.desde} and posted_at < ${p.ate}` : sql``;
 
-    if (!contas.length) {
-      return res.json({
-        periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
-        seguidores: 0, novosSeguidores: 0, novosSeguidoresMedido: false,
-        curtidas: 0, viewsPosts: 0, viewsStories: 0,
-        contas: [], atualizadoEm: new Date(),
-      });
-    }
+  const [porConta, ganho] = await Promise.all([
+    sql`
+      select account_id,
+        coalesce(sum(like_count) filter (where media_type <> 'STORY'), 0) as curtidas,
+        coalesce(sum(video_views) filter (where media_type <> 'STORY'), 0) as views_posts,
+        coalesce(sum(video_views) filter (where media_type = 'STORY'), 0) as views_stories,
+        max(synced_at) as sincronizado
+      from insights where account_id = any(${ids}::uuid[]) ${noPeriodo}
+      group by account_id`,
+    serie.novosNoPeriodo(p.diaDe || '0000-01-01', p.diaAte || '9999-12-31', ids),
+  ]);
+  const mapa = new Map(porConta.map(r => [r.accountId, r]));
+  const somar = campo => porConta.reduce((t, r) => t + (r[campo] || 0), 0);
 
-    const ids = contas.map(c => c._id);
-    const noPeriodo = periodo.filtroDeInstante(p);
-
-    const [somas, porConta, ganho] = await Promise.all([
-      /* STORY fora do total de posts: a audiência de story é gravada como
-         Insight desde o storyInsightSync, e somá-la aqui mudaria o
-         significado de "views dos posts". Ela tem cartão próprio. */
-      Insight.aggregate([
-        { $match: { accountId: { $in: ids }, mediaType: { $ne: 'STORY' }, ...noPeriodo } },
-        { $group: { _id: null, curtidas: { $sum: '$likeCount' }, views: { $sum: '$videoViews' } } },
-      ]),
-      Insight.aggregate([
-        { $match: { accountId: { $in: ids }, ...noPeriodo } },
-        { $group: {
-          _id: '$accountId',
-          curtidas:     { $sum: { $cond: [{ $ne: ['$mediaType', 'STORY'] }, '$likeCount', 0] } },
-          viewsPosts:   { $sum: { $cond: [{ $ne: ['$mediaType', 'STORY'] }, '$videoViews', 0] } },
-          viewsStories: { $sum: { $cond: [{ $eq: ['$mediaType', 'STORY'] }, '$videoViews', 0] } },
-          sincronizado: { $max: '$syncedAt' },
-        }},
-      ]),
-      /* Sem faixa de dias (período "total") a série inteira conta. */
-      serie.novosNoPeriodo(p.diaDe || '0000-01-01', p.diaAte || '9999-12-31', ids),
-    ]);
-
-    const soma = somas[0] || {};
-    const mapa = new Map(porConta.map(r => [String(r._id), r]));
-
-    /* Stories somados a partir do mesmo agrupamento por conta, em vez de uma
-       terceira consulta: o número é o mesmo e a ida ao banco não. */
-    const viewsStories = porConta.reduce((t, r) => t + (r.viewsStories || 0), 0);
-
-    res.json({
-      periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
-
-      /* Seguidores é um ESTOQUE, não um fluxo: é sempre o número de agora,
-         qualquer que seja o período. Filtrá-lo por data não faria sentido —
-         não existe "seguidores de ontem" no que temos gravado. */
-      seguidores: contas.reduce((t, c) => t + (Number(c.followers) || 0), 0),
-
-      novosSeguidores: ganho.novos,
-      novosSeguidoresMedido: ganho.comHistorico,
-      contasSemHistorico: ganho.contasSemHistorico,
-
-      curtidas:   soma.curtidas || 0,
-      viewsPosts: soma.views || 0,
-      viewsStories,
-
-      contas: contas.map(c => {
-        const r = mapa.get(String(c._id)) || {};
-        return {
-          id: String(c._id),
-          username: c.username || '',
-          avatar: c.avatar || '',
-          rede: 'instagram',
-          seguidores: Number(c.followers) || 0,
-          curtidas: r.curtidas || 0,
-          viewsPosts: r.viewsPosts || 0,
-          viewsStories: r.viewsStories || 0,
-          /* `syncedAt` do Insight quando existe; senão o `lastSync` da conta.
-             Sem o segundo, conta sem nenhuma métrica mostraria "nunca" mesmo
-             tendo sincronizado o perfil hoje. */
-          sincronizadoEm: r.sincronizado || c.lastSync || null,
-        };
-      }).sort((a, b) => b.seguidores - a.seguidores),
-
-      atualizadoEm: new Date(),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Cache simples em memória para aliviar banco sob múltiplos renders
-let _globalMetricsCache = { data: null, expiresAt: 0, key: '' };
-
-// GET /analytics/global-metrics?period=30d&force=true
-exports.getGlobalMetrics = async (req, res) => {
-  try {
-    const { period = '30d', force = false } = req.query;
-    const cacheKey = `${period}`;
-
-    if (!force && _globalMetricsCache.data && _globalMetricsCache.key === cacheKey && Date.now() < _globalMetricsCache.expiresAt) {
-      return res.json(_globalMetricsCache.data);
-    }
-
-    const days = { '7d': 7, '30d': 30, '90d': 90, '1a': 365 }[period] || 30;
-    const since = new Date(Date.now() - days * 86400000);
-
-    // 1. Considerar EXCLUSIVAMENTE contas atualmente conectadas e com sessão válida
-    const BAD_STATUS = ['banida', 'banido', 'sessao_expirada', 'token_invalido', 'erro_login'];
-    const connectedAccounts = await Account.find({
-      healthStatus: { $nin: BAD_STATUS },
-    })
-      .select('_id username name avatar followers healthStatus accountType provider postsToday')
-      .lean();
-
-    if (!connectedAccounts.length) {
-      const emptyResult = {
-        connectedAccountsCount: 0,
-        totalFollowers: 0,
-        totalReach: 0,
-        totalStoryViews: 0,
-        totalViews: 0,
-        bestPost: null,
-        bestPostByAccount: [],
-        accounts: [],
-        period,
-        periodLabel: `Últimos ${days} dias`,
-        updatedAt: new Date(),
-      };
-      return res.json(emptyResult);
-    }
-
-    const connectedIds = connectedAccounts.map(a => a._id);
-
-    // 2. Seguidores Totais (soma real de followers das contas conectadas)
-    const totalFollowers = connectedAccounts.reduce((sum, a) => sum + (Number(a.followers) || 0), 0);
-
-    // 3. Agregação de Alcance e Visualizações do período
-    const [totalsAgg, topPosts, bestPerAccountAgg, storyViewsAgg] = await Promise.all([
-      Insight.aggregate([
-        // STORY fica de fora: agora que a audiência de story é gravada como
-        // Insight, incluí-la aqui mudaria o significado de "alcance do feed" e
-        // poderia eleger um story como "melhor post".
-        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since }, mediaType: { $ne: 'STORY' } } },
-        { $group: {
-          _id: null,
-          totalReach:       { $sum: '$reach' },
-          totalImpressions: { $sum: '$impressions' },
-          totalViews:       { $sum: '$videoViews' },
-          totalLikes:       { $sum: '$likeCount' },
-          totalComments:    { $sum: '$commentsCount' },
-          totalShares:      { $sum: '$shareCount' },
-          totalSaves:       { $sum: '$savedCount' },
-          totalPosts:       { $sum: 1 },
-        }},
-      ]),
-      // Mesmo motivo do pipeline acima: sem o filtro, um story com muita
-      // audiência viraria o "melhor post" do painel.
-      Insight.find({
-        accountId: { $in: connectedIds },
-        postedAt: { $gte: since },
-        mediaType: { $ne: 'STORY' },
-      })
-        .sort({ videoViews: -1, impressions: -1, reach: -1, engagementScore: -1 })
-        .limit(1)
-        .lean(),
-      Insight.aggregate([
-        // STORY fica de fora: agora que a audiência de story é gravada como
-        // Insight, incluí-la aqui mudaria o significado de "alcance do feed" e
-        // poderia eleger um story como "melhor post".
-        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since }, mediaType: { $ne: 'STORY' } } },
-        { $sort: { videoViews: -1, impressions: -1, reach: -1, engagementScore: -1 } },
-        { $group: {
-          _id: '$accountId',
-          bestPostId:      { $first: '$_id' },
-          igMediaId:       { $first: '$igMediaId' },
-          username:        { $first: '$username' },
-          mediaType:       { $first: '$mediaType' },
-          mediaUrl:        { $first: '$mediaUrl' },
-          thumbnailUrl:    { $first: '$thumbnailUrl' },
-          permalink:       { $first: '$permalink' },
-          caption:         { $first: '$caption' },
-          videoViews:      { $first: '$videoViews' },
-          reach:           { $first: '$reach' },
-          impressions:     { $first: '$impressions' },
-          likeCount:       { $first: '$likeCount' },
-          commentsCount:   { $first: '$commentsCount' },
-          postedAt:        { $first: '$postedAt' },
-        }},
-      ]),
-      Insight.aggregate([
-        { $match: { accountId: { $in: connectedIds }, postedAt: { $gte: since }, mediaType: 'STORY' } },
-        { $group: { _id: null, totalViews: { $sum: '$impressions' } } },
-      ]),
-    ]);
-
-    const aggData = totalsAgg[0] || {};
-    const totalReach = aggData.totalReach || aggData.totalImpressions || 0;
-    const totalViews = aggData.totalViews || 0;
-    const totalStoryViews = storyViewsAgg[0]?.totalViews || 0;
-
-    // 4. Melhor Post Global (maior número de visualizações)
-    let bestPost = null;
-    if (topPosts.length > 0) {
-      const p = topPosts[0];
-      const acc = connectedAccounts.find(a => String(a._id) === String(p.accountId));
-      bestPost = {
-        accountId:     p.accountId,
-        username:      p.username || acc?.username || '',
-        avatar:        acc?.avatar || '',
-        igMediaId:     p.igMediaId,
-        mediaType:     p.mediaType || 'VIDEO',
-        mediaUrl:      p.mediaUrl || '',
-        thumbnailUrl:  p.thumbnailUrl || p.mediaUrl || '',
-        permalink:     p.permalink || '',
-        caption:       p.caption || '',
-        videoViews:    p.videoViews || p.impressions || p.reach || 0,
-        reach:         p.reach || p.impressions || 0,
-        likeCount:     p.likeCount || 0,
-        commentsCount: p.commentsCount || 0,
-        postedAt:      p.postedAt || null,
-      };
-    }
-
-    // 5. Melhor Post por Conta Conectada
-    const bestPerAccountMap = {};
-    bestPerAccountAgg.forEach(item => {
-      bestPerAccountMap[String(item._id)] = item;
-    });
-
-    const bestPostByAccount = connectedAccounts.map(acc => {
-      const p = bestPerAccountMap[String(acc._id)];
+  res.json({
+    ...vazio,
+    // Seguidores é estoque: sempre o número de agora, qualquer que seja o período.
+    seguidores: contas.reduce((t, c) => t + (c.followers || 0), 0),
+    novosSeguidores: ganho.novos,
+    novosSeguidoresMedido: ganho.comHistorico,
+    contasSemHistorico: ganho.contasSemHistorico,
+    curtidas: somar('curtidas'),
+    viewsPosts: somar('viewsPosts'),
+    viewsStories: somar('viewsStories'),
+    contas: contas.map(c => {
+      const r = mapa.get(c.id) || {};
       return {
-        accountId:     acc._id,
-        username:      acc.username,
-        name:          acc.name || '',
-        avatar:        acc.avatar || '',
-        followers:     acc.followers || 0,
-        healthStatus:  acc.healthStatus,
-        hasPost:       !!p,
-        igMediaId:     p?.igMediaId || null,
-        mediaType:     p?.mediaType || 'VIDEO',
-        thumbnailUrl:  p?.thumbnailUrl || p?.mediaUrl || null,
-        permalink:     p?.permalink || '',
-        caption:       p?.caption || '',
-        videoViews:    p ? (p.videoViews || p.impressions || p.reach || 0) : 0,
-        reach:         p ? (p.reach || p.impressions || 0) : 0,
-        likeCount:     p?.likeCount || 0,
-        commentsCount: p?.commentsCount || 0,
-        postedAt:      p?.postedAt || null,
+        id: c.id,
+        username: c.username,
+        avatar: c.avatar || '',
+        rede: 'instagram',
+        seguidores: c.followers || 0,
+        curtidas: r.curtidas || 0,
+        viewsPosts: r.viewsPosts || 0,
+        viewsStories: r.viewsStories || 0,
+        sincronizadoEm: r.sincronizado || c.lastSync || null,
       };
-    }).sort((a, b) => b.videoViews - a.videoViews);
-
-    const result = {
-      connectedAccountsCount: connectedAccounts.length,
-      totalFollowers,
-      totalReach,
-      totalViews,
-      totalStoryViews,
-      bestPost,
-      bestPostByAccount,
-      accounts: connectedAccounts,
-      period,
-      periodLabel: `Últimos ${days} dias`,
-      updatedAt: new Date(),
-    };
-
-    // Atualiza cache (60s)
-    _globalMetricsCache = {
-      data: result,
-      expiresAt: Date.now() + 60_000,
-      key: cacheKey,
-    };
-
-    res.json(result);
-  } catch (err) {
-    console.error('[analyticsController.getGlobalMetrics]', err);
-    res.status(500).json({ error: err.message });
-  }
+    }).sort((a, b) => b.seguidores - a.seguidores),
+  });
 };
 
+let _cache = { data: null, expiresAt: 0, key: '' };
+
+function melhorPost(p, conta) {
+  return {
+    accountId: p.accountId,
+    username: p.username || conta?.username || '',
+    avatar: conta?.avatar || '',
+    igMediaId: p.igMediaId,
+    mediaType: p.mediaType || 'VIDEO',
+    mediaUrl: p.mediaUrl || '',
+    thumbnailUrl: p.thumbnailUrl || p.mediaUrl || '',
+    permalink: p.permalink || '',
+    caption: p.caption || '',
+    videoViews: p.videoViews || p.impressions || p.reach || 0,
+    reach: p.reach || p.impressions || 0,
+    likeCount: p.likeCount || 0,
+    commentsCount: p.commentsCount || 0,
+    postedAt: p.postedAt || null,
+  };
+}
+
+/** GET /analytics/global-metrics?period=30d&force=true (cache de 60s). */
+exports.getGlobalMetrics = async (req, res) => {
+  const { period = '30d', force = false } = req.query;
+  if (!force && _cache.data && _cache.key === period && Date.now() < _cache.expiresAt) return res.json(_cache.data);
+
+  const days = { '7d': 7, '30d': 30, '90d': 90, '1a': 365 }[period] || 30;
+  const since = new Date(Date.now() - days * 86_400_000);
+  const periodLabel = `Últimos ${days} dias`;
+
+  const contas = await sql`
+    select id, username, name, avatar, followers, health_status, account_type, posts_today
+    from accounts where health_status <> all(${RUINS})`;
+  if (!contas.length) {
+    return res.json({
+      connectedAccountsCount: 0, totalFollowers: 0, totalReach: 0, totalStoryViews: 0, totalViews: 0,
+      bestPost: null, bestPostByAccount: [], accounts: [], period, periodLabel, updatedAt: new Date(),
+    });
+  }
+  const ids = contas.map(c => c.id);
+  const ORDEM = sql`video_views desc, impressions desc, reach desc, engagement_score desc`;
+
+  // STORY fica fora do feed: senão um story com muita audiência viraria o "melhor post".
+  const [[totais], [melhor], porConta, [stories]] = await Promise.all([
+    sql`select coalesce(sum(reach), 0) as reach, coalesce(sum(impressions), 0) as impressions, coalesce(sum(video_views), 0) as views
+        from insights where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type <> 'STORY'`,
+    sql`select * from insights where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type <> 'STORY'
+        order by ${ORDEM} limit 1`,
+    sql`select distinct on (account_id) * from insights
+        where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type <> 'STORY'
+        order by account_id, ${ORDEM}`,
+    sql`select coalesce(sum(impressions), 0) as views from insights
+        where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type = 'STORY'`,
+  ]);
+
+  const contaPorId = new Map(contas.map(c => [c.id, c]));
+  const melhorPorConta = new Map(porConta.map(p => [p.accountId, p]));
+
+  const result = {
+    connectedAccountsCount: contas.length,
+    totalFollowers: contas.reduce((t, c) => t + (c.followers || 0), 0),
+    totalReach: totais.reach || totais.impressions,
+    totalViews: totais.views,
+    totalStoryViews: stories.views,
+    bestPost: melhor ? melhorPost(melhor, contaPorId.get(melhor.accountId)) : null,
+    bestPostByAccount: contas.map(c => {
+      const p = melhorPorConta.get(c.id);
+      return {
+        ...(p ? melhorPost(p, c) : { igMediaId: null, mediaType: 'VIDEO', thumbnailUrl: null, permalink: '', caption: '', videoViews: 0, reach: 0, likeCount: 0, commentsCount: 0, postedAt: null }),
+        accountId: c.id,
+        username: c.username,
+        name: c.name || '',
+        avatar: c.avatar || '',
+        followers: c.followers || 0,
+        healthStatus: c.healthStatus,
+        hasPost: !!p,
+      };
+    }).sort((a, b) => b.videoViews - a.videoViews),
+    accounts: contas,
+    period,
+    periodLabel,
+    updatedAt: new Date(),
+  };
+
+  _cache = { data: result, expiresAt: Date.now() + 60_000, key: period };
+  res.json(result);
+};

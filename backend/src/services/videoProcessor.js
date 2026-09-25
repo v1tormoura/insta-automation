@@ -461,65 +461,39 @@ function convertToReelFormat(inputPath, options = {}) {
 }
 
 /**
- * Otimiza imagem para feed/stories (máxima qualidade JPEG/PNG).
- * Redimensiona para 1080×1080 (feed) ou 1080×1920 (stories) sem perda visível.
+ * Imagem no formato que a API oficial aceita: JPEG, até 1440 px de largura e
+ * proporção entre 4:5 e 1,91:1 no feed (9:16 no story).
+ *
+ * Imagem já dentro da proporção só é recodificada em JPEG — nada é cortado.
+ * Fora dela, ganha borda preta até caber, em vez de o Instagram recusar.
+ *
+ * @param {'feed'|'story'} tipo
+ * @returns {Promise<string>} caminho do JPEG em uploads/processed
  */
-function convertImageForInstagram(inputPath, type = 'feed') {
+function jpegParaInstagram(inputPath, tipo = 'feed') {
+  const outputDir = path.resolve(__dirname, '../../uploads/processed');
+  ensureDir(outputDir);
+  const base = path.basename(inputPath, path.extname(inputPath));
+  const outputPath = path.join(outputDir, `${base}-ig-${tipo}.jpg`);
+
+  const filtro = tipo === 'story'
+    ? 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black'
+    : "scale='min(1440,iw)':-2,"
+      + "pad=w='max(iw,ceil(ih*0.8/2)*2)':h='max(ih,ceil(iw/1.91/2)*2)':x=(ow-iw)/2:y=(oh-ih)/2:color=black,"
+      + "scale='min(1440,iw)':-2";
+
   return new Promise((resolve, reject) => {
-    if (!isImage(inputPath)) return resolve(inputPath);
-
-    const outputDir = path.resolve(__dirname, '../../uploads/processed');
-    ensureDir(outputDir);
-
-    const filename = path.basename(inputPath, path.extname(inputPath));
-    const outputPath = path.join(outputDir, `${filename}-ig-${type}.jpg`);
-
-    if (fs.existsSync(outputPath)) return resolve(outputPath);
-
-    const dimensions = type === 'story' ? '1080:1920' : '1080:1080';
-    const scaleFilter = `scale=${dimensions}:force_original_aspect_ratio=decrease,pad=${dimensions}:(ow-iw)/2:(oh-ih)/2:black`;
-
     ffmpeg(inputPath)
-      .outputOptions([
-        '-vf', scaleFilter,
-        '-q:v', '1',       // Máxima qualidade JPEG (1=melhor, 31=pior)
-        '-frames:v', '1',  // Apenas 1 frame
-      ])
-      .on('end', () => {
-        console.log(`✅ Imagem processada [${type}]: ${path.basename(outputPath)}`);
-        resolve(outputPath);
-      })
-      .on('error', err => {
-        console.error(`Erro ao processar imagem: ${err.message}`);
-        resolve(inputPath); // Usa original em caso de erro
-      })
+      .outputOptions(['-vf', filtro, '-q:v', '2', '-frames:v', '1'])
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
       .save(outputPath);
   });
 }
 
-/**
- * Limpa arquivos processados mais antigos que maxAgeHours horas.
- */
-function cleanProcessedFiles(maxAgeHours = 24) {
-  const dir = path.resolve(__dirname, '../../uploads/processed');
-  if (!fs.existsSync(dir)) return;
-
-  const cutoff = Date.now() - maxAgeHours * 3600 * 1000;
-  let removed = 0;
-  for (const f of fs.readdirSync(dir)) {
-    try {
-      const fp = path.join(dir, f);
-      const stat = fs.statSync(fp);
-      if (stat.mtimeMs < cutoff) { fs.unlinkSync(fp); removed++; }
-    } catch {}
-  }
-  if (removed) console.log(`🧹 Limpeza: ${removed} arquivo(s) processado(s) removido(s)`);
-}
-
 module.exports = {
   convertToReelFormat,
-  convertImageForInstagram,
-  cleanProcessedFiles,
+  jpegParaInstagram,
   isVideo,
   isImage,
 };

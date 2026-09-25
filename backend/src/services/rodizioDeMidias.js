@@ -64,7 +64,7 @@ function midiasDaRodada({ midias = [], contas = [], rodada = 0, porRodada = 1, r
   const porConta = new Map();
   if (!fila.length || !lista.length) return { distintas: [], porConta };
 
-  const idDe = c => String(c && (c._id || c.id || c));
+  const idDe = c => String(c && (c.id || c));
 
   if (!rodizio) {
     /* O de sempre: a fatia da rodada, igual para todas as contas. Fatia vazia

@@ -11,7 +11,7 @@
  * qualquer expectativa que eu escrevesse, e o ffmpeg parte o filtro em dois no
  * meio da expressão. Só executando dá para saber.
  *
- * Roda com o binário de `ffmpeg-static`, que é o mesmo que o serviço usa.
+ * Roda com o mesmo binário de ffmpeg que o serviço usa (services/ffmpegBin.js).
  * Sobre uma entrada sintética (`color`), sem arquivo nem rede.
  */
 
@@ -22,8 +22,8 @@ const os = require('os');
 const path = require('path');
 
 const execFileAsync = promisify(execFile);
-const ffmpegStatic = require('ffmpeg-static');
-const { filtrosDeTexto, acharFonte } = require('../src/services/storyStickerRenderer');
+const { FFMPEG_BIN: ffmpegStatic } = require('../src/services/ffmpegBin');
+const { filtrosDeTexto, acharFonte } = require('../src/services/textoNoStory');
 
 const fonte = acharFonte();
 

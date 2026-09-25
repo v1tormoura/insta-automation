@@ -22,7 +22,7 @@ const {
   SEM_TETO,
 } = require('../src/services/ritmoDaConta');
 
-const conta = (id, extra = {}) => ({ _id: id, username: id, postsToday: 0, ...extra });
+const conta = (id, extra = {}) => ({ id: id, username: id, postsToday: 0, ...extra });
 
 /** Uma data local no dia 15/06/2026, para os testes não dependerem do relógio. */
 const emHoras = (h, m = 0) => new Date(2026, 5, 15, h, m, 0, 0);
@@ -188,26 +188,19 @@ describe('robustez', () => {
 describe('o worker usa o módulo', () => {
   const fs = require('fs');
   const path = require('path');
-  const fonte = fs.readFileSync(path.resolve(__dirname, '../src/queue/worker.js'), 'utf8');
+  const fonte = fs.readFileSync(path.resolve(__dirname, '../src/worker.js'), 'utf8');
 
-  test('checkDailyLimit consulta o ritmo, não o campo cru', () => {
-    /* Um módulo pode estar perfeito e ninguém chamá-lo. */
-    const trecho = fonte.slice(fonte.indexOf('async function checkDailyLimit'));
-    // Via podePublicarAgora, que soma a cota da API ao ritmo — os dois saem
-    // pelo mesmo veredito.
-    expect(trecho).toContain('podePublicarAgora(account)');
-    expect(fonte).toContain('const ritmo = podePublicar(contaParaRitmo, agora);');
-    expect(trecho.slice(0, 900)).not.toContain('account.postsToday < account.dailyPostLimit');
-  });
-
-  test('a comparação crua não sobrou em lugar nenhum', () => {
-    expect(fonte).not.toContain('postsToday < account.dailyPostLimit');
+  test('antes de publicar, o worker consulta o ritmo, não o campo cru', () => {
+    /* Um módulo pode estar perfeito e ninguém chamá-lo. Ritmo e cota da API
+       saem pelo mesmo veredito, em podePublicarAgora. */
+    expect(fonte).toContain('const ritmo = podePublicar(paraRitmo, agora);');
+    expect(fonte).toContain('ritmo: await podePublicarAgora(conta)');
+    expect(fonte).not.toMatch(/postsToday\s*<\s*\w+\.dailyPostLimit/);
   });
 
   test('a rodada adiada loga o motivo real, não o genérico', () => {
     /* "teto diário ou janela de silêncio" mandava investigar a coisa errada:
-       podePublicar já devolve qual dos dois foi, e o worker descartava. */
+       podePublicar já devolve qual dos dois foi. */
     expect(fonte).toContain('v.ritmo.motivo');
-    expect(fonte).not.toContain('(teto diário ou janela de silêncio)');
   });
 });

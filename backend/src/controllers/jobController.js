@@ -1,262 +1,108 @@
 'use strict';
 
-const Job  = require('../models/Job');
-const Loop = require('../models/Loop');
-const postQueue = require('../queue/postQueue');
+/** Envios (Postar e Loop): listar, pausar, retomar, cancelar, reexecutar, apagar. */
+
+const { sql, ehUuid } = require('../db');
+const { jobs, comContas } = require('../repos');
+const { agendarRodada } = require('../worker');
+const fila = require('../queue');
 const { broadcast } = require('../events/broadcaster');
 
-const POPULATE_FIELDS = 'username avatar name healthStatus accountType followers following postsCount';
+const avisar = id => broadcast('jobs', { action: 'job_updated', jobId: id });
 
-const LOOP_STATUS_MAP = {
-  ativo:   'queued',
-  pausado: 'paused',
-  inativo: 'completed',
-  erro:    'failed',
-};
-
-function legacyLoopToJob(loop) {
-  const obj = loop.toObject ? loop.toObject() : { ...loop };
-  return {
-    ...obj,
-    type:            'loop',
-    status:          LOOP_STATUS_MAP[obj.status] || 'queued',
-    postType:        obj.type || 'reel',
-    mediaFiles:      obj.mediaFiles || [],
-    intervalMinutes: obj.intervalMinutes || 0,
-    postsPublished:  obj.postsCount || 0,
-    postsErrors:     0,
-    totalRounds:     0,
-    roundsCompleted: 0,
-    nextRoundAt:     obj.nextRunAt || null,
-    _isLegacyLoop:   true,
-  };
+async function buscar(req, res) {
+  const job = await jobs.findById(req.params.id);
+  if (!job) res.status(404).json({ error: 'Envio não encontrado' });
+  return job;
 }
 
-/* ── Listar jobs (inclui legacy Loops) ── */
 exports.list = async (req, res) => {
-  try {
-    const { type, status } = req.query;
-    const filter = {};
-    if (type)   filter.type   = type;
-    if (status) filter.status = status;
-
-    const [jobs, legacyLoops] = await Promise.all([
-      Job.find(filter)
-        .populate('accounts', POPULATE_FIELDS)
-        .sort({ createdAt: -1 })
-        .limit(100),
-      type === 'post' ? Promise.resolve([]) :
-        Loop.find()
-          .populate('accounts', POPULATE_FIELDS)
-          .sort({ createdAt: -1 }),
-    ]);
-
-    const adapted = legacyLoops.map(legacyLoopToJob);
-    res.json([...jobs, ...adapted]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const { type, status } = req.query;
+  const lista = await sql`
+    select * from jobs where true
+    ${type ? sql`and type = ${String(type)}` : sql``}
+    ${status ? sql`and status = ${String(status)}` : sql``}
+    order by created_at desc limit 100`;
+  res.json(await comContas(lista));
 };
 
-/* ── Buscar job por ID ── */
 exports.get = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id)
-      .populate('accounts', 'username avatar name healthStatus accountType');
-    if (!job) return res.status(404).json({ error: 'Job não encontrado' });
-    res.json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const job = await buscar(req, res);
+  if (job) res.json(await comContas(job));
 };
 
-/* ── Pausar ── */
 exports.pause = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (job) {
-      if (['completed', 'cancelled', 'paused'].includes(job.status)) {
-        return res.status(400).json({ error: `Não é possível pausar um job com status '${job.status}'` });
-      }
-      job.status = 'paused';
-      await job.save();
-      broadcast('jobs', { action: 'job_updated', jobId: String(job._id) });
-      return res.json(job);
-    }
-    const loop = await Loop.findById(req.params.id);
-    if (!loop) return res.status(404).json({ error: 'Job não encontrado' });
-    loop.status = 'pausado';
-    await loop.save();
-    broadcast('jobs', { action: 'job_updated', jobId: String(loop._id) });
-    return res.json(legacyLoopToJob(loop));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const job = await buscar(req, res);
+  if (!job) return;
+  if (['completed', 'cancelled', 'paused'].includes(job.status)) {
+    return res.status(400).json({ error: `Não é possível pausar um envio com status '${job.status}'` });
   }
+  const atualizado = await jobs.update(job.id, { status: 'paused' });
+  await fila.cancelarPorDados('job_round', 'jobId', job.id);
+  avisar(job.id);
+  res.json(await comContas(atualizado));
 };
 
-/* ── Retomar ── */
 exports.resume = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (job) {
-      if (job.status !== 'paused') {
-        return res.status(400).json({ error: 'Só é possível retomar um job pausado' });
-      }
-      const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
-      job.bullMqJobId = String(bullJob.id);
-      job.status      = 'queued';
-      job.nextRoundAt = new Date();
-      await job.save();
-      broadcast('jobs', { action: 'job_updated', jobId: String(job._id) });
-      return res.json(job);
-    }
-    const loop = await Loop.findById(req.params.id);
-    if (!loop) return res.status(404).json({ error: 'Job não encontrado' });
-    loop.status    = 'ativo';
-    loop.nextRunAt = new Date();
-    loop.lastError = '';
-    await loop.save();
-    broadcast('jobs', { action: 'job_updated', jobId: String(loop._id) });
-    return res.json(legacyLoopToJob(loop));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  const job = await buscar(req, res);
+  if (!job) return;
+  if (job.status !== 'paused') return res.status(400).json({ error: 'Só é possível retomar um envio pausado' });
+  const atualizado = await jobs.update(job.id, { status: 'queued', nextRoundAt: new Date(), lastError: '' });
+  await agendarRodada(job.id, 0);
+  avisar(job.id);
+  res.json(await comContas(atualizado));
 };
 
-/* ── Cancelar ── */
-exports.cancel = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ error: 'Job não encontrado' });
-
-    if (['completed', 'cancelled'].includes(job.status)) {
-      return res.status(400).json({ error: `Job já está ${job.status}` });
-    }
-
-    job.status = 'cancelled';
-    await job.save();
-    broadcast('jobs', { action: 'job_updated', jobId: String(job._id) });
-    res.json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/* ── Reexecutar (cria nova rodada a partir do início) ── */
-exports.rerun = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ error: 'Job não encontrado' });
-
-    if (!['completed', 'cancelled', 'failed'].includes(job.status)) {
-      return res.status(400).json({ error: 'Só é possível reexecutar um job finalizado ou cancelado' });
-    }
-
-    // Remove o delayed job antigo do Redis para evitar disparo duplo
-    if (job.bullMqJobId) {
-      try {
-        const old = await postQueue.getJob(job.bullMqJobId);
-        if (old) await old.remove();
-      } catch {}
-    }
-
-    job.status         = 'queued';
-    job.currentRound   = 0;
-    job.roundsCompleted = 0;
-    job.postsPublished = 0;
-    job.postsErrors    = 0;
-    job.startedAt      = null;
-    job.completedAt    = null;
-    job.nextRoundAt    = null;
-    job.lastError      = '';
-    job.logs           = [];
-
-    const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
-    job.bullMqJobId = String(bullJob.id);
-    await job.save();
-
-    broadcast('jobs', { action: 'job_updated', jobId: String(job._id) });
-    res.json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/* ── Deletar ── */
-exports.remove = async (req, res) => {
-  try {
-    const job = await Job.findByIdAndDelete(req.params.id);
-    if (!job) {
-      const loop = await Loop.findByIdAndDelete(req.params.id);
-      if (!loop) return res.status(404).json({ error: 'Job não encontrado' });
-    }
-    broadcast('jobs', { action: 'job_deleted', jobId: req.params.id });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/**
- * Exclui vários envios de uma vez.
- *
- * ── Por que não é um laço de `DELETE /jobs/:id` no navegador
- *
- * Limpar a tela de Jobs é apagar vinte e poucos itens; vinte e poucas
- * requisições deixam a lista piscando a cada resposta, e uma que falhe no
- * meio deixa o usuário sem saber o que foi e o que ficou. Aqui sai um número
- * só: quantos foram.
- *
- * ── O que ele NÃO faz
- *
- * Não cancela o que está rodando antes de apagar — apagar já para o envio
- * (a rodada seguinte não encontra o documento e desiste), e a rodada em voo
- * termina o que começou. É o mesmo comportamento do `DELETE` de um só, e
- * inventar aqui uma regra diferente faria a mesma ação ter dois significados
- * conforme o botão. Quem precisa parar na hora usa Cancelar.
- */
-exports.removeVarios = async (req, res) => {
-  try {
-    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [];
-    if (!ids.length) return res.status(400).json({ error: 'Nenhum id enviado', code: 'SEM_IDS' });
-    /* Teto: o corpo vem do navegador, e uma lista sem limite é um jeito
-       barato de pedir ao banco uma operação enorme por engano. */
-    if (ids.length > 500) return res.status(400).json({ error: 'Máximo de 500 por vez', code: 'LISTA_LONGA' });
-
-    const validos = ids.filter(id => /^[a-f\d]{24}$/i.test(id));
-    const [jobs, loops] = await Promise.all([
-      Job.deleteMany({ _id: { $in: validos } }),
-      Loop.deleteMany({ _id: { $in: validos } }),
-    ]);
-    const apagados = (jobs.deletedCount || 0) + (loops.deletedCount || 0);
-
-    broadcast('jobs', { action: 'jobs_deleted', quantos: apagados });
-    res.json({ ok: true, apagados, pedidos: ids.length });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-/* ── Alternar pause/resume (compatibilidade com Loop page) ── */
+/** Pausar ↔ retomar (a tela de Loop usa um botão só). */
 exports.togglePause = async (req, res) => {
-  try {
-    const job = await Job.findById(req.params.id);
-    if (!job) return res.status(404).json({ error: 'Job não encontrado' });
+  const job = await jobs.findById(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Envio não encontrado' });
+  return job.status === 'paused' ? exports.resume(req, res) : exports.pause(req, res);
+};
 
-    if (job.status === 'paused') {
-      const bullJob = await postQueue.add('job_round', { jobId: String(job._id) }, { delay: 0 });
-      job.bullMqJobId = String(bullJob.id);
-      job.status      = 'queued';
-      job.nextRoundAt = new Date();
-      job.lastError   = '';
-    } else {
-      job.status = 'paused';
-    }
+exports.cancel = async (req, res) => {
+  const job = await buscar(req, res);
+  if (!job) return;
+  if (['completed', 'cancelled'].includes(job.status)) return res.status(400).json({ error: `Envio já está ${job.status}` });
+  const atualizado = await jobs.update(job.id, { status: 'cancelled' });
+  await fila.cancelarPorDados('job_round', 'jobId', job.id);
+  avisar(job.id);
+  res.json(await comContas(atualizado));
+};
 
-    await job.save();
-    broadcast('jobs', { action: 'job_updated', jobId: String(job._id) });
-    res.json(job);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+/** Reexecuta do início um envio que terminou. */
+exports.rerun = async (req, res) => {
+  const job = await buscar(req, res);
+  if (!job) return;
+  if (!['completed', 'cancelled', 'failed'].includes(job.status)) {
+    return res.status(400).json({ error: 'Só é possível reexecutar um envio finalizado ou cancelado' });
   }
+  const atualizado = await jobs.update(job.id, {
+    status: 'queued', currentRound: 0, roundsCompleted: 0, postsPublished: 0, postsErrors: 0,
+    startedAt: null, completedAt: null, nextRoundAt: null, lastError: '',
+  });
+  await agendarRodada(job.id, 0);
+  avisar(job.id);
+  res.json(await comContas(atualizado));
+};
+
+/** Apagar para o envio: a rodada seguinte não encontra o registro e desiste. */
+exports.remove = async (req, res) => {
+  await fila.cancelarPorDados('job_round', 'jobId', req.params.id);
+  if (!(await jobs.remove(req.params.id))) return res.status(404).json({ error: 'Envio não encontrado' });
+  broadcast('jobs', { action: 'job_deleted', jobId: req.params.id });
+  res.json({ success: true });
+};
+
+exports.removeVarios = async (req, res) => {
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ error: 'Nenhum id enviado', code: 'SEM_IDS' });
+  if (ids.length > 500) return res.status(400).json({ error: 'Máximo de 500 por vez', code: 'LISTA_LONGA' });
+  const validos = ids.filter(ehUuid);
+  if (validos.length) {
+    await sql`delete from queue_jobs where status = 'queued' and name = 'job_round' and data->>'jobId' = any(${validos})`;
+  }
+  const r = validos.length ? await sql`delete from jobs where id = any(${validos}::uuid[])` : { count: 0 };
+  broadcast('jobs', { action: 'jobs_deleted', quantos: r.count });
+  res.json({ ok: true, apagados: r.count, pedidos: ids.length });
 };

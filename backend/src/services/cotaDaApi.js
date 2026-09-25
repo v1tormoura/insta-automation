@@ -37,10 +37,6 @@ const SEM_REGISTRO_MS = 60 * 60 * 1000;
 
 const _cache = new Map(); // igUserId → { em, dados }
 
-function graphBase(token) {
-  return String(token || '').startsWith('IG') ? 'https://graph.instagram.com/v21.0' : 'https://graph.facebook.com/v21.0';
-}
-
 /** A mensagem do Meta, em qualquer idioma que o app estiver. */
 function ehErroDeCota(err) {
   const m = String(err?.message || err || '');
@@ -52,19 +48,13 @@ function ehErroDeCota(err) {
  * o erro real, se vier, é tratado depois. Bloquear por falha de consulta
  * pararia a fila inteira por um soluço de rede.
  */
-async function consultar(account, { agora = Date.now(), fetchImpl = fetch } = {}) {
+async function consultar(account, { agora = Date.now(), limiteImpl = null } = {}) {
   if (!account?.accessToken || !account?.igUserId) return null;
   const chave = String(account.igUserId);
   const c = _cache.get(chave);
   if (c && agora - c.em < CACHE_MS) return c.dados;
   try {
-    const url = new URL(`${graphBase(account.accessToken)}/${account.igUserId}/content_publishing_limit`);
-    url.searchParams.set('fields', 'config,quota_usage');
-    url.searchParams.set('access_token', account.accessToken);
-    const r = await fetchImpl(url.toString(), { signal: AbortSignal.timeout(8_000) });
-    const j = await r.json();
-    if (j.error) throw new Error(j.error.message);
-    const d = j.data?.[0] || {};
+    const d = await (limiteImpl || require('./instagramAPI').limiteDePublicacao)(account);
     const usage = Number(d.quota_usage) || 0;
     const dados = { usage, total: Number(d.config?.quota_total) || null, limite: LIMITE, cheia: usage >= LIMITE };
     _cache.set(chave, { em: agora, dados });
@@ -99,14 +89,13 @@ function liberacaoEstimada(momentos, agora = new Date()) {
 }
 
 async function proximaLiberacao(account, agora = new Date()) {
-  const Post = require('../models/Post');
+  const { sql } = require('../db');
   const desde = new Date(agora.getTime() - JANELA_MS);
-  const posts = await Post.find({ midiasPublicadas: { $elemMatch: { accountId: account._id, em: { $gte: desde } } } })
-    .select('midiasPublicadas').lean();
-  const momentos = posts.flatMap(p => (p.midiasPublicadas || [])
-    .filter(m => String(m.accountId) === String(account._id) && new Date(m.em) >= desde)
-    .map(m => m.em));
-  return liberacaoEstimada(momentos, agora);
+  const linhas = await sql`
+    select (m->>'em')::timestamptz as em
+    from posts, jsonb_array_elements(midias_publicadas) m
+    where m->>'accountId' = ${String(account.id)} and (m->>'em')::timestamptz >= ${desde}`;
+  return liberacaoEstimada(linhas.map(l => l.em), agora);
 }
 
 function motivo(cota, ate) {

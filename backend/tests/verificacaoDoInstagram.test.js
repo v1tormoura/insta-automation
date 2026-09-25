@@ -56,7 +56,7 @@ describe('recuperação', () => {
 
   test('avisarTransicao chama o notificador de VOLTA na recuperação, e só ele', async () => {
     const caiu = [], voltou = [];
-    const conta = { _id: 'c1', username: 'eliane' };
+    const conta = { id: 'c1', username: 'eliane' };
     await s.avisarTransicao({ conta, de: 'restrita', para: 'ativa', notificar: async p => caiu.push(p), notificarVolta: async p => voltou.push(p) });
     await s.avisarTransicao({ conta, de: 'ativa', para: 'ativa', notificar: async p => caiu.push(p), notificarVolta: async p => voltou.push(p) });
     expect(caiu).toHaveLength(0);

@@ -16,13 +16,13 @@ const {
   normalizar, lerDoCorpo, escolher, VOLUME_MIN, VOLUME_MAX, VOLUME_PADRAO,
 } = require('../src/services/trilhaPorConta');
 
-const ID_A = '64a000000000000000000001';
-const ID_B = '64a000000000000000000002';
-const ID_C = '64a000000000000000000003';
+const ID_A = '00000000-64a0-0000-0000-000000000001';
+const ID_B = '00000000-64a0-0000-0000-000000000002';
+const ID_C = '00000000-64a0-0000-0000-000000000003';
 const docs = [
-  { _id: ID_A, nome: 'Lo-fi calmo',  arquivo: 'trilhas/aud_a.mp3' },
-  { _id: ID_B, nome: 'Beat leve',    arquivo: 'trilhas/aud_b.mp3' },
-  { _id: ID_C, nome: 'Piano',        arquivo: 'trilhas/aud_c.mp3' },
+  { id: ID_A, nome: 'Lo-fi calmo',  arquivo: 'trilhas/aud_a.mp3' },
+  { id: ID_B, nome: 'Beat leve',    arquivo: 'trilhas/aud_b.mp3' },
+  { id: ID_C, nome: 'Piano',        arquivo: 'trilhas/aud_c.mp3' },
 ];
 
 /** Gerador determinístico para os testes (mulberry32 — sementes pequenas já
@@ -111,12 +111,12 @@ describe('escolher — qual trilha cada conta recebe', () => {
   });
 
   test('id pedido que não existe mais no banco é ignorado', () => {
-    const t = escolher({ modo: 'misturar', ids: ['64a0000000000000000000ff', ID_A] }, docs, aleatorioDe(3));
+    const t = escolher({ modo: 'misturar', ids: ['00000000-64a0-0000-0000-0000000000ff', ID_A] }, docs, aleatorioDe(3));
     expect(t.arquivo).toBe('trilhas/aud_a.mp3');
   });
 
   test('nenhuma trilha válida: null, e quem chama publica sem trilha', () => {
-    expect(escolher({ modo: 'substituir', ids: ['64a0000000000000000000ff'] }, docs, aleatorioDe(1))).toBeNull();
+    expect(escolher({ modo: 'substituir', ids: ['00000000-64a0-0000-0000-0000000000ff'] }, docs, aleatorioDe(1))).toBeNull();
     expect(escolher({ modo: 'substituir', ids: [ID_A] }, [], aleatorioDe(1))).toBeNull();
     expect(escolher({ modo: 'nenhuma', ids: [ID_A] }, docs, aleatorioDe(1))).toBeNull();
   });

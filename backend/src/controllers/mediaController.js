@@ -1,171 +1,102 @@
+'use strict';
+
+/** Biblioteca de mídia: listar, enviar, apagar, mover e pastas. */
+
 const fs = require('fs');
 const path = require('path');
-const Media = require('../models/Media');
+const { sql } = require('../db');
+const { media: tabela } = require('../repos');
+const { garantirMiniatura, nomeDaMiniatura } = require('../services/miniaturaDeVideo');
 
-function getMediaType(mimeType = '') {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('video/')) return 'video';
+const UPLOADS = path.resolve(__dirname, '../../uploads');
+// Pasta vazia existe como um item marcador, que as telas escondem.
+const marcador = pasta => `__folder_${pasta}__`;
+
+function tipoDe(mime = '') {
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
   return 'other';
 }
 
-// GET /media?folder=X&search=&type=&limit=&skip=
-//
-// Filtro e paginação existem porque a biblioteca cresce indefinidamente: sem
-// eles, toda tela que lista mídia (o wizard de campanha inclusive) baixava o
-// acervo inteiro e o usuário tinha de caçar o arquivo no meio de centenas.
-// Os parâmetros são opcionais — sem nenhum, o comportamento antigo continua.
+// GET /media?folder=&search=&type=&limit=&skip= — sem parâmetros, a biblioteca inteira.
 exports.getMedia = async (req, res) => {
-  try {
-    const query = {};
-    if (req.query.folder) query.folder = req.query.folder;
-
-    // 'video' | 'image' | 'other'
-    if (['image', 'video', 'other'].includes(req.query.type)) query.type = req.query.type;
-
-    const busca = String(req.query.search || '').trim();
-    if (busca) {
-      // Escapa a entrada: um '(' digitado na busca quebraria a regex inteira.
-      const seguro = busca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp(seguro, 'i');
-      query.$or = [{ originalName: re }, { filename: re }];
-    }
-
-    const limite = Math.min(500, Math.max(0, Number(req.query.limit) || 0));
-    const pular  = Math.max(0, Number(req.query.skip) || 0);
-
-    let consulta = Media.find(query).sort({ createdAt: -1 }).skip(pular);
-    if (limite) consulta = consulta.limit(limite);
-
-    const [media, total] = await Promise.all([
-      consulta,
-      limite || pular || busca ? Media.countDocuments(query) : null,
-    ]);
-
-    // derive unique folder list
-    const allMedia = await Media.find({}, 'folder').lean();
-    const folders = [...new Set(allMedia.map(m => m.folder || 'default'))].sort();
-
-    res.json({ files: media, folders, total: total ?? media.length });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const partes = [];
+  if (req.query.folder) partes.push(sql`folder = ${String(req.query.folder)}`);
+  if (['image', 'video', 'other'].includes(req.query.type)) partes.push(sql`type = ${req.query.type}`);
+  const busca = String(req.query.search || '').trim();
+  if (busca) {
+    const padrao = `%${busca.replace(/[\\%_]/g, c => '\\' + c)}%`;
+    partes.push(sql`(original_name ilike ${padrao} or filename ilike ${padrao})`);
   }
+  const onde = partes.length ? partes.reduce((a, b) => sql`${a} and ${b}`) : sql`true`;
+  const limite = Math.min(500, Math.max(0, Number(req.query.limit) || 0));
+  const pular = Math.max(0, Number(req.query.skip) || 0);
+
+  const [files, [{ total }], pastas] = await Promise.all([
+    sql`select * from media where ${onde} order by created_at desc ${limite ? sql`limit ${limite}` : sql``} offset ${pular}`,
+    sql`select count(*) as total from media where ${onde}`,
+    sql`select distinct folder from media order by folder`,
+  ]);
+  res.json({ files, folders: pastas.map(p => p.folder || 'default'), total });
 };
 
-// POST /media/upload  (body: folder)
+// POST /media/upload (body: folder) — aceita qualquer nome de campo.
 exports.uploadMedia = async (req, res) => {
-  try {
-    // Aceita qualquer nome de campo. O filtro antigo só deixava passar 'media',
-    // então quem enviasse com outro nome (o wizard de campanha manda 'files')
-    // recebia 200 com zero mídias criadas — upload que "não funciona" sem erro.
-    const files = req.files || [];
-    const folder = req.body.folder || 'default';
-    const created = [];
-
-    /* A miniatura, que este caminho nunca gerava.
-
-       A grade de seleção do Postar pede `<arquivo>.thumb.jpg`; sem ele a
-       imagem dá 404, o `onError` a esconde e sobra um cartão preto com o
-       botão de remover. Medido no servidor: 1.796 vídeos, 290 miniaturas —
-       cinco de cada seis cartões vinham vazios, e escolher mídia é o que se
-       faz nessa tela.
-
-       Em paralelo e sem `await` no laço: são até 200 arquivos por envio, e
-       um ffmpeg de cada vez faria o upload voltar minutos depois. A resposta
-       não espera — quem chega antes da miniatura vê o cartão sem imagem por
-       alguns segundos, não para sempre. */
-    const { garantirMiniatura } = require('../services/miniaturaDeVideo');
-    const pastaUploads = require('path').resolve(__dirname, '../../uploads');
-
-    for (const file of files) {
-      const media = await Media.create({
-        filename: file.filename,
-        originalName: file.originalname,
-        path: file.path,
-        url: `/uploads/${file.filename}`,
-        mimeType: file.mimetype,
-        size: file.size,
-        type: getMediaType(file.mimetype),
-        folder,
-      });
-      created.push(media);
-      garantirMiniatura(pastaUploads, file.filename)
-        .catch(e => console.log('[Miniatura] falhou:', file.filename, e.message));
-    }
-    // `files` é alias de `media`: as duas telas que consomem esta rota leem
-    // chaves diferentes, e devolver as duas evita quebrar qualquer uma.
-    res.json({ success: true, total: created.length, media: created, files: created });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const folder = req.body.folder || 'default';
+  const criados = [];
+  for (const file of req.files || []) {
+    criados.push(await tabela.insert({
+      filename: file.filename,
+      originalName: file.originalname,
+      path: file.filename,
+      url: `/uploads/${file.filename}`,
+      mimeType: file.mimetype,
+      size: file.size,
+      type: tipoDe(file.mimetype),
+      folder,
+    }));
+    // A miniatura sai em segundo plano: a resposta não espera o ffmpeg.
+    garantirMiniatura(UPLOADS, file.filename).catch(e => console.log('[Miniatura] falhou:', file.filename, e.message));
   }
+  // `files` é alias de `media`: as duas telas que usam a rota leem chaves diferentes.
+  res.json({ success: true, total: criados.length, media: criados, files: criados });
 };
 
-// DELETE /media/:id
 exports.deleteMedia = async (req, res) => {
-  try {
-    const media = await Media.findById(req.params.id);
-    if (!media) return res.status(404).json({ error: 'Mídia não encontrada' });
-    const filePath = path.resolve(media.path);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    await Media.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// PATCH /media/:id/folder
-exports.moveMedia = async (req, res) => {
-  try {
-    const { folder } = req.body;
-    if (!folder) return res.status(400).json({ error: 'folder obrigatório' });
-    const media = await Media.findByIdAndUpdate(req.params.id, { folder }, { new: true });
-    if (!media) return res.status(404).json({ error: 'Mídia não encontrada' });
-    res.json(media);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// POST /media/folder  — cria uma pasta vazia (media fictícia de marcador)
-// Na verdade só retornamos a lista atualizada após garantir existência
-exports.createFolder = async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name || !name.trim()) return res.status(400).json({ error: 'Nome obrigatório' });
-    const folderName = name.trim().toLowerCase().replace(/[^a-z0-9_\-\s]/g, '').trim();
-    if (!folderName) return res.status(400).json({ error: 'Nome inválido' });
-    // Pasta é representada só pelo campo folder nas mídias;
-    // Para pastas vazias, guardamos um marcador invisível
-    const exists = await Media.findOne({ folder: folderName });
-    if (!exists) {
-      // cria placeholder para registrar pasta
-      await Media.create({
-        filename: `__folder_${folderName}__`,
-        originalName: `__folder_${folderName}__`,
-        path: '',
-        url: '',
-        mimeType: '',
-        size: 0,
-        type: 'other',
-        folder: folderName,
-        _isPlaceholder: true,
-      });
+  const item = await tabela.remove(req.params.id);
+  if (!item) return res.status(404).json({ error: 'Mídia não encontrada' });
+  if (item.filename && !item.filename.startsWith('__folder_')) {
+    for (const nome of [item.filename, nomeDaMiniatura(item.filename)]) {
+      const alvo = path.resolve(UPLOADS, nome);
+      if (alvo.startsWith(UPLOADS + path.sep)) fs.rmSync(alvo, { force: true });
     }
-    res.json({ success: true, folder: folderName });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
+  res.json({ success: true });
 };
 
-// DELETE /media/folder/:name
-exports.deleteFolder = async (req, res) => {
-  try {
-    const folderName = req.params.name;
-    if (folderName === 'default') return res.status(400).json({ error: 'Pasta default não pode ser excluída' });
-    // move mídias para default
-    await Media.updateMany({ folder: folderName }, { folder: 'default' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+exports.moveMedia = async (req, res) => {
+  const { folder } = req.body;
+  if (!folder) return res.status(400).json({ error: 'folder obrigatório' });
+  const item = await tabela.update(req.params.id, { folder });
+  if (!item) return res.status(404).json({ error: 'Mídia não encontrada' });
+  res.json(item);
+};
+
+exports.createFolder = async (req, res) => {
+  const nome = String(req.body.name || '').trim().toLowerCase().replace(/[^a-z0-9_\-\s]/g, '').trim();
+  if (!nome) return res.status(400).json({ error: req.body.name ? 'Nome inválido' : 'Nome obrigatório' });
+  const [existe] = await sql`select 1 from media where folder = ${nome} limit 1`;
+  if (!existe) {
+    await tabela.insert({ filename: marcador(nome), originalName: marcador(nome), type: 'other', folder: nome });
   }
+  res.json({ success: true, folder: nome });
+};
+
+// DELETE /media/folder/:name — as mídias voltam para "default".
+exports.deleteFolder = async (req, res) => {
+  const nome = req.params.name;
+  if (nome === 'default') return res.status(400).json({ error: 'Pasta default não pode ser excluída' });
+  await sql`delete from media where folder = ${nome} and filename = ${marcador(nome)}`;
+  await sql`update media set folder = 'default' where folder = ${nome}`;
+  res.json({ success: true });
 };

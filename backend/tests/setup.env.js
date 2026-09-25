@@ -10,3 +10,9 @@
  * CI em UTC.
  */
 process.env.TZ = 'America/Sao_Paulo';
+
+/* O cliente do Postgres só conecta na primeira consulta: os testes de lógica
+   pura carregam os módulos sem banco. Os que consultam usam este banco de
+   teste (TEST_DATABASE_URL para apontar outro). */
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgres://postgres@127.0.0.1:54329/insta_test';
+process.env.JEST = '1';

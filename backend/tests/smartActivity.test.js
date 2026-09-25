@@ -10,93 +10,11 @@
  * perdendo a confiança no recurso e desligando — o que só se descobre depois.
  */
 
-/* Prefixo `mock` obrigatório: o Jest recusa fábrica de `jest.mock()` que
-   referencie variável de fora do escopo, e abre exceção para esse prefixo. */
-const mockMarcos = [];
-const mockNotificacoes = [];
-
-function mockBate(doc, filtro) {
-  return Object.entries(filtro).every(([campo, cond]) => {
-    const v = doc[campo];
-    if (cond && typeof cond === 'object' && !(cond instanceof Date)) {
-      if ('$ne' in cond) return String(v) !== String(cond.$ne);
-      if ('$gte' in cond) return new Date(v) >= new Date(cond.$gte);
-    }
-    return String(v ?? null) === String(cond ?? null);
-  });
-}
-
-jest.mock('../src/models/Milestone', () => ({
-  findOne(filtro) {
-    return { lean: async () => mockMarcos.find(m => mockBate(m, filtro)) || null };
-  },
-  async updateOne(filtro, atualizacao, opcoes = {}) {
-    let alvo = mockMarcos.find(m => mockBate(m, filtro));
-    if (!alvo) {
-      if (!opcoes.upsert) return { matchedCount: 0 };
-      alvo = { ...filtro, maiorDisparado: 0, ultimoValor: 0 };
-      mockMarcos.push(alvo);
-    }
-    if (atualizacao.$set) Object.assign(alvo, atualizacao.$set);
-    if (atualizacao.$max) {
-      for (const [k, v] of Object.entries(atualizacao.$max)) {
-        alvo[k] = Math.max(Number(alvo[k]) || 0, Number(v) || 0);
-      }
-    }
-    return { matchedCount: 1 };
-  },
-}));
-
-jest.mock('../src/models/Notificacao', () => ({
-  findOne(filtro) {
-    return { lean: async () => mockNotificacoes.find(n => mockBate(n, filtro)) || null };
-  },
-  async create(doc) {
-    // O índice único do modelo real, reproduzido: mesmo marco não entra duas vezes.
-    const repetida = mockNotificacoes.some(n =>
-      n.eventType === 'milestone' &&
-      String(n.accountId) === String(doc.accountId) &&
-      n.contentId === doc.contentId &&
-      n.metricType === doc.metricType &&
-      n.threshold === doc.threshold);
-    if (repetida) throw Object.assign(new Error('duplicate key'), { code: 11000 });
-    const nova = { ...doc, _id: `n${mockNotificacoes.length + 1}`, criadaEm: new Date(), lidaEm: null };
-    mockNotificacoes.push(nova);
-    return nova;
-  },
-}));
-
-/* `resumoDoDia` faz TRÊS agregações — geral (sem story), story sozinha, e por
-   conta — em paralelo. Um mock só que devolvesse o mesmo valor para as três
-   já não bastava depois que a segunda e a terceira passaram a existir: a
-   agregação por conta receberia os números da geral, por exemplo. O mock
-   agora lê o PRÓPRIO pipeline para saber qual das três é, do mesmo jeito que
-   o Mongo real distingue pela forma da consulta, não por quem chamou. */
-const mockAgregados = { principal: null, stories: null, porConta: [] };
-
-const mockInsights = [];
-
-jest.mock('../src/models/Insight', () => ({
-  find(filtro = {}) {
-    const lista = () => mockInsights.filter(i => !filtro.accountId || String(i.accountId) === String(filtro.accountId));
-    const q = { select: () => q, limit: () => q, lean: async () => lista() };
-    return q;
-  },
-  async aggregate(pipeline) {
-    const match = pipeline?.[0]?.$match || {};
-    const group = pipeline?.find(s => s.$group)?.$group || {};
-    if (match.mediaType === 'STORY') return mockAgregados.stories ? [mockAgregados.stories] : [];
-    if (group._id === '$accountId') return mockAgregados.porConta || [];
-    return mockAgregados.principal ? [mockAgregados.principal] : [];
-  },
-}));
-
 const detector = require('../src/services/smartActivity/detector');
 const thresholds = require('../src/services/smartActivity/thresholds');
 const templates = require('../src/services/smartActivity/templates');
 
-/* Sem conexão real; `bancoConectado` existe como costura para isto. */
-thresholds.bancoConectado = () => true;
+const banco = require('./helpers/banco');
 
 const CFG = {
   thresholds: {
@@ -108,7 +26,18 @@ const CFG = {
   mensagens: {},
 };
 
-const conta  = (id = 'c1', username = 'oliviapaganini') => ({ _id: id, username, avatar: '' });
+/* Marcos e notificações apontam para a conta: as contas dos testes existem
+   no banco, criadas a cada teste, e `conta('c1')` devolve a de verdade. */
+const ROTULOS = ['c1', 'c2', 'nova', 'conta1', 'conta2', 'conta3', 'conta4', 'conta5', 'conta6'];
+const ids = {};
+const conta = (rotulo = 'c1', username = 'oliviapaganini') => ({ id: ids[rotulo], username, avatar: '' });
+
+const notifs = () => banco.sql`select * from notificacoes order by criada_em, id`;
+
+/** Um insight gravado (para semeadura e resumo). */
+async function insight(campos) {
+  await banco.sql`insert into insights ${banco.sql({ igMediaId: `m${Math.random()}`, ...campos })}`;
+}
 const story  = (id, vistos) => ({ igMediaId: id, mediaType: 'STORY', impressions: vistos });
 const reel   = (id, views)  => ({ igMediaId: id, mediaType: 'VIDEO', videoViews: views });
 
@@ -118,13 +47,9 @@ async function disparados(insight, c = conta(), cfg = CFG) {
   return r.map(n => n.threshold);
 }
 
-beforeEach(() => {
-  mockMarcos.length = 0;
-  mockNotificacoes.length = 0;
-  mockInsights.length = 0;
-  mockAgregados.principal = null;
-  mockAgregados.stories = null;
-  mockAgregados.porConta = [];
+beforeEach(async () => {
+  await banco.limpar();
+  for (const r of ROTULOS) ids[r] = (await banco.criarConta({ username: r })).id;
 });
 
 /* ── 1 a 3: o marco simples ───────────────────────────────────────────────── */
@@ -206,7 +131,7 @@ describe('não repete', () => {
     await disparados(story('s1', 30));
     await disparados(story('s1', 30));
     await disparados(story('s1', 35));
-    const trinta = mockNotificacoes.filter(n => n.threshold === 30);
+    const trinta = (await notifs()).filter(n => n.threshold === 30);
     expect(trinta).toHaveLength(1);
   });
 
@@ -220,11 +145,14 @@ describe('não repete', () => {
   test('o teto sobe ANTES de notificar', async () => {
     // Se a notificação falhar, perde-se um aviso. Na ordem inversa, o marco
     // dispararia de novo a cada ciclo — para sempre.
-    const Notificacao = require('../src/models/Notificacao');
-    const original = Notificacao.create;
-    Notificacao.create = async () => { throw new Error('banco caiu'); };
-    await expect(disparados(story('s1', 100))).rejects.toThrow('banco caiu');
-    Notificacao.create = original;
+    const { notificacoes } = require('../src/repos');
+    const original = notificacoes.insert;
+    notificacoes.insert = async () => { throw new Error('banco caiu'); };
+    try {
+      await expect(disparados(story('s1', 100))).rejects.toThrow('banco caiu');
+    } finally {
+      notificacoes.insert = original;
+    }
 
     // O teto ficou gravado: o marco não volta.
     expect(await disparados(story('s1', 100))).toEqual([]);
@@ -240,7 +168,7 @@ describe('coalescência por varredura', () => {
     const r = await detector.processarInsight(story('s1', 100), conta(), CFG, { gravar: false });
     expect(r).toHaveLength(1);
     expect(r[0].threshold).toBe(100);
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await notifs()).toHaveLength(0);
   });
 
   test(`mais de ${LIMITE_POR_VARREDURA} conteúdos cruzando marcos viram ${LIMITE_POR_VARREDURA} avisos + 1 resumo`, async () => {
@@ -280,7 +208,7 @@ describe('coalescência por varredura', () => {
        rajada de 12–15 a cada 30 min. */
     const candidatos = [];
     for (let k = 1; k <= 6; k++) {
-      const c = { _id: 'conta' + k, username: 'conta' + k };
+      const c = conta('conta' + k, 'conta' + k);
       for (let i = 1; i <= 3; i++) {
         candidatos.push(...await detector.processarInsight(reel(`c${k}r${i}`, k * 1000 + i), c, CFG, { gravar: false }));
       }
@@ -309,11 +237,11 @@ describe('coalescência por varredura', () => {
 
 describe('semeadura por conta', () => {
   test('semearConta grava o teto no maior marco já ultrapassado, sem avisar', async () => {
-    mockInsights.push({ accountId: 'nova', igMediaId: 'x1', mediaType: 'VIDEO', videoViews: 7000 });
-    mockInsights.push({ accountId: 'nova', igMediaId: 'x2', mediaType: 'STORY', impressions: 60 });
+    await insight({ accountId: ids.nova, igMediaId: 'x1', mediaType: 'VIDEO', videoViews: 7000 });
+    await insight({ accountId: ids.nova, igMediaId: 'x2', mediaType: 'STORY', impressions: 60 });
     const tetos = await detector.semearConta(conta('nova', 'nova'), CFG);
     expect(tetos).toBeGreaterThan(0);
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await notifs()).toHaveLength(0);
     // Depois da semeadura, o mesmo valor não dispara; só o que crescer.
     expect(await disparados(reel('x1', 7000), conta('nova', 'nova'))).toEqual([]);
     expect(await disparados(reel('x1', 12000), conta('nova', 'nova'))).toEqual([10000]);
@@ -324,7 +252,7 @@ describe('configuração', () => {
   test('10. métrica desligada não notifica', async () => {
     const cfg = { ...CFG, ativos: { ...CFG.ativos, storyViews: false } };
     expect(await disparados(story('s1', 5000), conta(), cfg)).toEqual([]);
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await notifs()).toHaveLength(0);
   });
 
   test('11. marcos personalizados funcionam', async () => {
@@ -354,7 +282,7 @@ describe('modelos de mensagem', () => {
 
   test('a mensagem renderizada é gravada, não o modelo', async () => {
     await disparados(story('s1', 30), conta('c1', 'ana'));
-    const n = mockNotificacoes[0];
+    const [n] = await notifs();
     expect(n.mensagem).toContain('@ana');
     expect(n.mensagem).not.toContain('{{');
   });
@@ -365,7 +293,7 @@ describe('modelos de mensagem', () => {
       mensagens: { storyViews: { titulo: 'Boom {{threshold}}', mensagem: 'oi' } },
     };
     await disparados(story('s1', 30), conta(), cfg);
-    expect(mockNotificacoes[0].titulo).toBe('Boom 30');
+    expect((await notifs())[0].titulo).toBe('Boom 30');
   });
 
   test('números saem formatados em português', () => {
@@ -408,20 +336,29 @@ describe('resumo do dia', () => {
      falhariam à tarde — ou o contrário. */
   const NOITE = new Date(2026, 8, 10, 22, 15);   // 10/09/2026 22:15
   const MANHA = new Date(2026, 8, 10, 9, 30);    // mesmo dia, 09:30
+  const NO_DIA = new Date(2026, 8, 10, 8, 0);
+
+  /** Publicações do dia: `porConta` = [[rotulo, username, views], ...]. */
+  async function publicacoes(porConta, { stories = 0 } = {}) {
+    for (const [rotulo, username, views] of porConta) {
+      await insight({ accountId: ids[rotulo], username, mediaType: 'VIDEO', videoViews: views, postedAt: NO_DIA });
+    }
+    if (stories) await insight({ accountId: ids.c1, mediaType: 'STORY', impressions: stories, postedAt: NO_DIA });
+  }
 
   test('antes das 22h não sai, mesmo com publicação e ligado', async () => {
     /* Rodar no fim de CADA ciclo de sincronização fazia o resumo sair às 9h,
        no primeiro ciclo depois da primeira publicação, dizendo "1 publicação"
        — e travar o dia. O pedido é o total no FINAL do dia. */
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 1, contas: ['a'], views: 50 };
+    await publicacoes([['c1', 'ana', 50]]);
     expect(await detector.resumoDoDia({ agora: MANHA })).toBeNull();
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await notifs()).toHaveLength(0);
   });
 
   test('a partir das 22h sai, e "hoje" é o dia dessa hora', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 40, contas: ['a', 'b'], views: 9000 };
+    for (let i = 0; i < 40; i++) await publicacoes([[i % 2 ? 'c1' : 'c2', 'x', 225]]);
     const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n).toBeTruthy();
     expect(n.mensagem).toContain('40 publicações');
@@ -429,45 +366,48 @@ describe('resumo do dia', () => {
 
   test('13. desligado por padrão: não cria nada', async () => {
     comConfig(false);
-    mockAgregados.principal = { publicacoes: 1687, contas: ['a', 'b'], views: 587853 };
+    await publicacoes([['c1', 'ana', 587853]]);
     expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await notifs()).toHaveLength(0);
   });
 
   test('14. ligado, cria uma vez com os números agregados', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 1687, contas: new Array(39).fill(0).map((_, i) => `c${i}`), views: 587853 };
+    // 1.687 publicações de 3 contas, 587.853 visualizações no total.
+    await banco.sql`
+      insert into insights (account_id, ig_media_id, media_type, video_views, posted_at)
+      select (array[${ids.c1}, ${ids.c2}, ${ids.nova}]::uuid[])[1 + g % 3], 'lote' || g, 'VIDEO',
+             case when g = 1 then 587853 else 0 end, ${NO_DIA}
+      from generate_series(1, 1687) g`;
 
     const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n).toBeTruthy();
     expect(n.titulo).toBe('Resumo do dia');
     // Formatado em português, como aparece na tela.
     expect(n.mensagem).toContain('1.687 publicações');
-    expect(n.mensagem).toContain('39 conta(s)');
+    expect(n.mensagem).toContain('3 conta(s)');
     expect(n.mensagem).toContain('587.853 visualizações');
   });
 
   test('15. um por dia: a segunda chamada não cria outro', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 10, contas: ['a'], views: 100 };
+    await publicacoes([['c1', 'ana', 100]]);
 
     expect(await detector.resumoDoDia({ agora: NOITE })).toBeTruthy();
     // O anti-repetição aqui é a DATA, não o teto: o registro no banco é quem
     // diz se o resumo de hoje já saiu — e sobrevive ao processo reiniciar.
     expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
-    expect(mockNotificacoes.filter(x => x.eventType === 'resumo')).toHaveLength(1);
+    expect((await notifs()).filter(x => x.eventType === 'resumo')).toHaveLength(1);
   });
 
   test('sem publicação no dia, não inventa resumo', async () => {
     comConfig(true);
-    mockAgregados.principal = null;
     expect(await detector.resumoDoDia({ agora: NOITE })).toBeNull();
   });
 
   test('stories somam separado de posts — a mesma separação do dashboard', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 5, contas: ['a'], views: 1000 };
-    mockAgregados.stories = { views: 250 };
+    await publicacoes([['c1', 'ana', 1000]], { stories: 250 });
 
     const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.mensagem).toContain('1.000 visualizações');
@@ -479,8 +419,7 @@ describe('resumo do dia', () => {
 
   test('sem nenhuma view de story, o resumo ainda sai — 0, não undefined', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 5, contas: ['a'], views: 1000 };
-    mockAgregados.stories = null;
+    await publicacoes([['c1', 'ana', 1000]]);
 
     const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.metadados.viewsStories).toBe(0);
@@ -489,25 +428,20 @@ describe('resumo do dia', () => {
 
   test('lista por conta, maior primeiro, com @ de cada uma', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 3, contas: ['a', 'b'], views: 900 };
-    mockAgregados.porConta = [
-      { _id: 'a', username: 'oliviapaganini', views: 600 },
-      { _id: 'b', username: 'lauramendes',    views: 300 },
-    ];
+    await publicacoes([['c1', 'oliviapaganini', 600], ['c2', 'lauramendes', 300]]);
 
     const n = await detector.resumoDoDia({ agora: NOITE });
     expect(n.mensagem).toContain('@oliviapaganini: 600');
     expect(n.mensagem).toContain('@lauramendes: 300');
     expect(n.metadados.porConta).toEqual([
-      { accountId: 'a', username: 'oliviapaganini', views: 600 },
-      { accountId: 'b', username: 'lauramendes',    views: 300 },
+      { accountId: ids.c1, username: 'oliviapaganini', views: 600 },
+      { accountId: ids.c2, username: 'lauramendes',    views: 300 },
     ]);
   });
 
   test('privacidade de nome troca @ por "Conta N" — a mesma regra dos marcos', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 1, contas: ['a'], views: 500 };
-    mockAgregados.porConta = [{ _id: 'a', username: 'oliviapaganini', views: 500 }];
+    await publicacoes([['c1', 'oliviapaganini', 500]]);
     thresholds.carregar = async () => ({
       ...CFG, ativos: { ...CFG.ativos, global: true },
       privacidade: { mostrarNome: false, mostrarValor: true },
@@ -520,9 +454,7 @@ describe('resumo do dia', () => {
 
   test('privacidade de valor esconde os números, inclusive na lista por conta', async () => {
     comConfig(true);
-    mockAgregados.principal = { publicacoes: 1, contas: ['a'], views: 500 };
-    mockAgregados.stories = { views: 80 };
-    mockAgregados.porConta = [{ _id: 'a', username: 'oliviapaganini', views: 500 }];
+    await publicacoes([['c1', 'oliviapaganini', 500]], { stories: 80 });
     thresholds.carregar = async () => ({
       ...CFG, ativos: { ...CFG.ativos, global: true },
       privacidade: { mostrarNome: true, mostrarValor: false },
@@ -625,8 +557,7 @@ describe('resumo do dia — hora configurável', () => {
     const detectorLocal = require('../src/services/smartActivity/detector');
     const antes = thresholds.carregar;
     thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: true }, resumo: { hora: '20:30' } });
-    mockNotificacoes.length = 0;
-    mockAgregados.principal = { publicacoes: 3, contas: ['a'], views: 500 };
+    await insight({ accountId: ids.c1, mediaType: 'VIDEO', videoViews: 500, postedAt: new Date(2026, 8, 10, 8, 0) });
     expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 20, 29) })).toBeNull();
     const n = await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 20, 31) });
     expect(n).toBeTruthy();
@@ -637,8 +568,7 @@ describe('resumo do dia — hora configurável', () => {
     const detectorLocal = require('../src/services/smartActivity/detector');
     const antes = thresholds.carregar;
     thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, global: true } });
-    mockNotificacoes.length = 0;
-    mockAgregados.principal = { publicacoes: 3, contas: ['a'], views: 500 };
+    await insight({ accountId: ids.c1, mediaType: 'VIDEO', videoViews: 500, postedAt: new Date(2026, 8, 10, 8, 0) });
     expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 21, 59) })).toBeNull();
     expect(await detectorLocal.resumoDoDia({ agora: new Date(2026, 8, 10, 22, 0) })).toBeTruthy();
     thresholds.carregar = antes;
@@ -678,7 +608,7 @@ describe('entrega única por varredura', () => {
     expect(enviados[0].mensagem).toContain('12.000');
     // Id próprio por varredura: no service worker o `tag` vem daqui, e um id
     // fixo faria este resumo substituir o da varredura anterior em silêncio.
-    expect(enviados[0]._id).toMatch(/^varredura-\d+$/);
+    expect(enviados[0].id).toMatch(/^varredura-\d+$/);
   });
 
   test('o resumo do push respeita "não mostrar nome/valor"', async () => {

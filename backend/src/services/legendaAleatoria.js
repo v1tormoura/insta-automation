@@ -86,7 +86,7 @@ function _embaralhar(lista, aleatorio) {
  * cicla: biblioteca de 1 legenda e 5 mídias dá 5 vezes a mesma, que é o
  * único resultado possível.
  *
- * @param {Array<{_id:any}>} docs
+ * @param {Array<{id:any}>} docs
  * @param {number} quantidade
  * @param {{ evitar?: string[], aleatorio?: () => number }} [opcoes]
  * @returns {Array} subconjunto de `docs`, com `quantidade` itens (ou vazio)
@@ -95,11 +95,11 @@ function sortear(docs, quantidade, { evitar = [], aleatorio = Math.random } = {}
   const n = Math.max(0, Math.floor(Number(quantidade) || 0));
   if (!Array.isArray(docs) || !docs.length || !n) return [];
 
-  const porId = new Map(docs.map(d => [String(d._id), d]));
+  const porId = new Map(docs.map(d => [String(d.id), d]));
   const evitados = evitar.map(String).filter(id => porId.has(id));
   const marcados = new Set(evitados);
 
-  const frescos = _embaralhar(docs.filter(d => !marcados.has(String(d._id))), aleatorio);
+  const frescos = _embaralhar(docs.filter(d => !marcados.has(String(d.id))), aleatorio);
   /* Da mais antiga para a mais recente, sem duplicar quem aparece duas vezes
      no histórico (fica a posição mais recente, que é a que conta). */
   const vistos = new Set();
@@ -122,24 +122,25 @@ function sortear(docs, quantidade, { evitar = [], aleatorio = Math.random } = {}
  * @returns {Promise<null | { vazia: true, legendas: [] } | { vazia: false, legendas: Array<{id, titulo, texto}> }>}
  *   `null` quando o job não pediu legenda aleatória.
  */
-async function sortearParaRodada(job, quantidade, { Legend, Job, aleatorio } = {}) {
+async function sortearParaRodada(job, quantidade, { aleatorio } = {}) {
   const cfg = normalizar(job && job.legendaAleatoria);
   if (!cfg.ativa) return null;
 
-  const ModeloLegend = Legend || require('../models/Legend');
-  const ModeloJob    = Job    || require('../models/Job');
-
-  const filtro = { isActive: true, ...(cfg.categoria ? { category: cfg.categoria } : {}) };
-  const docs = await ModeloLegend.find(filtro).select('title text').lean();
-  if (!docs || !docs.length) return { vazia: true, legendas: [] };
+  const { sql } = require('../db');
+  const docs = await sql`
+    select id, title, text from legends
+    where is_active ${cfg.categoria ? sql`and category = ${cfg.categoria}` : sql``}`;
+  if (!docs.length) return { vazia: true, legendas: [] };
 
   const escolhidas = sortear(docs, quantidade, { evitar: cfg.ultimas, aleatorio });
-  const historico = cfg.ultimas.concat(escolhidas.map(d => String(d._id))).slice(-TAMANHO_DO_HISTORICO);
-  await ModeloJob.updateOne({ _id: job._id }, { $set: { 'legendaAleatoria.ultimas': historico } });
+  const historico = cfg.ultimas.concat(escolhidas.map(d => String(d.id))).slice(-TAMANHO_DO_HISTORICO);
+  await sql`
+    update jobs set legenda_aleatoria = jsonb_set(legenda_aleatoria, '{ultimas}', ${sql.json(historico)})
+    where id = ${job.id}`;
 
   return {
     vazia: false,
-    legendas: escolhidas.map(d => ({ id: String(d._id), titulo: d.title || '', texto: montar(d.text, cfg.sufixo) })),
+    legendas: escolhidas.map(d => ({ id: String(d.id), titulo: d.title || '', texto: montar(d.text, cfg.sufixo) })),
   };
 }
 

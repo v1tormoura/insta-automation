@@ -1,355 +1,206 @@
+'use strict';
+
 /**
- * Instagram posting via Meta Graph API (no browser required).
+ * Cliente da API oficial do Instagram (Instagram API com Instagram Login).
  *
- * Flow:
- *  1. exchangeToken()         — short-lived -> long-lived access token (60 days)
- *  2. getIgUserId()           — find the Instagram User ID linked to the token
- *  3. prepareVideo()          — convert video ONCE before publishing to all accounts
- *  4. postReel()              — create container + wait + publish (per account)
+ * Só o que a Meta documenta para contas profissionais:
+ *   OAuth .......... api.instagram.com/oauth/access_token (código → token curto)
+ *   Token longo .... graph.instagram.com/access_token      (ig_exchange_token, 60 dias)
+ *   Renovação ...... graph.instagram.com/refresh_access_token (ig_refresh_token)
+ *   Perfil ......... GET  /me
+ *   Publicação ..... POST /{ig-user-id}/media  →  GET /{container}?fields=status_code
+ *                    →  POST /{ig-user-id}/media_publish
+ *   Comentário ..... POST /{media-id}/comments
+ *   Cota ........... GET  /{ig-user-id}/content_publishing_limit
  *
- * Requirements per account in MongoDB:
- *   account.igUserId    — numeric IG user ID ("17841400000000001")
- *   account.accessToken — long-lived user access token
+ * A Meta BAIXA a mídia de uma URL pública (a nossa PUBLIC_URL/uploads/...);
+ * não existe upload direto de arquivo nesta API.
  *
- * Env vars:
- *   META_APP_ID      — from developers.facebook.com
- *   META_APP_SECRET  — from developers.facebook.com
- *   PUBLIC_URL       — public base URL of this server (for cover images, optional)
- *                      e.g. "http://123.45.67.89:3000"
+ * O que ela NÃO faz (e por isso não existe aqui): login por senha, curtir,
+ * seguir, editar perfil, figurinha de link/enquete em story, localização por
+ * busca de lugar.
  */
 
-const fs   = require('fs');
-const path = require('path');
-const { convertToReelFormat } = require('./videoProcessor');
+const VERSAO = process.env.GRAPH_API_VERSION || 'v21.0';
+const GRAPH = `https://graph.instagram.com/${VERSAO}`;
+const TIMEOUT_MS = 30_000;
 
-const GRAPH_IG = 'https://graph.instagram.com/v21.0';  // Instagram Login tokens
-const GRAPH_FB = 'https://graph.facebook.com/v21.0';   // Facebook Login tokens
-const delay    = ms => new Promise(r => setTimeout(r, ms));
+const delay = ms => new Promise(r => setTimeout(r, ms));
 
-// Transparent decrypt — no-op for plaintext tokens; decrypts enc1: tokens.
-// Lazy-loaded to avoid circular requires at module init time.
-let _decryptFn;
-function decryptToken(raw) {
-  try {
-    if (!_decryptFn) _decryptFn = require('./tokenEncryption').decrypt;
-    return _decryptFn(raw) || raw;
-  } catch { return raw; }
+/** Erro da Graph com o código da Meta preservado (quem classifica precisa dele). */
+class GraphError extends Error {
+  constructor(erro, status) {
+    super(erro?.error_user_msg || erro?.error_user_title || erro?.message || `Graph API respondeu ${status}`);
+    this.name = 'GraphError';
+    this.code = erro?.code;
+    this.subcode = erro?.error_subcode;
+    this.type = erro?.type;
+    this.status = status;
+  }
 }
 
-// Detect which Graph base to use based on token prefix.
-// IG Business Login tokens start with "IGAAL" or "IGQ" -> graph.instagram.com
-// FB Login tokens start with "EAA" -> graph.facebook.com
-function graphBase(token) {
-  if (token && (token.startsWith('IGQ') || token.startsWith('IGAAL') || token.startsWith('IG'))) return GRAPH_IG;
-  return GRAPH_FB;
+async function lerResposta(res) {
+  const texto = await res.text();
+  let dados;
+  try { dados = JSON.parse(texto); } catch { dados = { error: { message: texto.slice(0, 300) || `HTTP ${res.status}` } }; }
+  if (dados?.error) throw new GraphError(dados.error, res.status);
+  if (!res.ok) throw new GraphError({ message: `HTTP ${res.status}` }, res.status);
+  return dados;
 }
 
-// --- Low-level helpers ---------------------------------------------------
-
-async function gGet(endpoint, params = {}, rawToken) {
-  const token = decryptToken(rawToken);
-  const GRAPH = graphBase(token);
-  const url = new URL(GRAPH + endpoint);
+async function get(caminho, params, token) {
+  const url = new URL(caminho.startsWith('http') ? caminho : GRAPH + caminho);
+  for (const [k, v] of Object.entries(params || {})) if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
   url.searchParams.set('access_token', token);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
-
-  const r = await fetch(url.toString());
-  const d = await r.json();
-  if (d.error) throw new Error(d.error.error_user_msg || d.error.error_user_title || `[Graph API] ${d.error.message} (code ${d.error.code})`);
-  return d;
+  return lerResposta(await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) }));
 }
 
-async function gPost(endpoint, params = {}, body = {}, rawToken) {
-  const token = decryptToken(rawToken);
-  const GRAPH = graphBase(token);
-  const url = new URL(GRAPH + endpoint);
-  url.searchParams.set('access_token', token);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+async function post(caminho, params, token) {
+  const corpo = new URLSearchParams();
+  for (const [k, v] of Object.entries(params || {})) if (v !== undefined && v !== null && v !== '') corpo.set(k, String(v));
+  if (token) corpo.set('access_token', token);
+  const url = caminho.startsWith('http') ? caminho : GRAPH + caminho;
+  return lerResposta(await fetch(url, { method: 'POST', body: corpo, signal: AbortSignal.timeout(TIMEOUT_MS) }));
+}
 
-  const r = await fetch(url.toString(), {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+// ── Tokens ───────────────────────────────────────────────────────────────────
+
+/** Código do OAuth → token curto (1h) e o id da conta profissional. */
+async function trocarCodigo(code, { appId, appSecret }, redirectUri) {
+  const dados = await post('https://api.instagram.com/oauth/access_token', {
+    client_id: appId,
+    client_secret: appSecret,
+    grant_type: 'authorization_code',
+    redirect_uri: redirectUri,
+    code,
   });
-  const d = await r.json();
-  if (d.error) throw new Error(d.error.error_user_msg || d.error.error_user_title || `[Graph API] ${d.error.message} (code ${d.error.code})`);
-  return d;
+  // A resposta vem em `data[0]` em algumas versões e solta em outras.
+  const r = Array.isArray(dados?.data) ? dados.data[0] : dados;
+  if (!r?.access_token) throw new Error('A Meta não devolveu token na troca do código');
+  return { token: r.access_token, userId: r.user_id ? String(r.user_id) : '' };
 }
 
-// --- Token management ---------------------------------------------------
-
-/**
- * Exchange a short-lived user token for a long-lived one (valid ~60 days).
- * Returns { accessToken, expiresIn (seconds) }.
- */
-async function exchangeToken(shortToken) {
-  const appId     = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
-
-  if (!appId || !appSecret) throw new Error('META_APP_ID e META_APP_SECRET nao definidos no .env');
-
-  const isIgToken = shortToken?.match(/^(IGAAL|IGQ|IG)/i);
-
-  let url;
-  if (isIgToken) {
-    url = new URL('https://graph.instagram.com/access_token');
-    url.searchParams.set('grant_type',    'ig_exchange_token');
-    url.searchParams.set('client_id',     appId);
-    url.searchParams.set('client_secret', appSecret);
-    url.searchParams.set('access_token',  shortToken);
-  } else {
-    url = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
-    url.searchParams.set('grant_type',        'fb_exchange_token');
-    url.searchParams.set('client_id',         appId);
-    url.searchParams.set('client_secret',     appSecret);
-    url.searchParams.set('fb_exchange_token', shortToken);
-  }
-
-  const r = await fetch(url.toString());
-  const d = await r.json();
-  if (d.error) throw new Error(`Troca de token falhou: ${d.error.message} (code ${d.error.code})`);
-
-  return { accessToken: d.access_token, expiresIn: d.expires_in ?? 5184000 };
+/** Token curto → longo (60 dias). */
+async function tokenDeLongaDuracao(tokenCurto, appSecret) {
+  const d = await get('https://graph.instagram.com/access_token', {
+    grant_type: 'ig_exchange_token',
+    client_secret: appSecret,
+  }, tokenCurto);
+  return { token: d.access_token, expiraEm: new Date(Date.now() + (d.expires_in || 5_184_000) * 1000) };
 }
 
-/**
- * Refresh a long-lived Instagram token (IGAAL / IGQ prefix).
- * Instagram allows refresh any time after 24h; token must NOT be expired.
- * Returns { accessToken, expiresIn }.
- */
-async function refreshToken(currentToken) {
-  if (!currentToken?.match(/^(IGAAL|IGQ|IG)/)) {
-    throw new Error('Apenas tokens Instagram Login (IGAAL/IGQ) suportam refresh automatico');
-  }
-  const url = new URL('https://graph.instagram.com/refresh_access_token');
-  url.searchParams.set('grant_type',   'ig_refresh_token');
-  url.searchParams.set('access_token', currentToken);
-
-  const r = await fetch(url.toString());
-  const d = await r.json();
-  if (d.error) throw new Error(`Refresh do token falhou: ${d.error.message} (code ${d.error.code})`);
-
-  return { accessToken: d.access_token, expiresIn: d.expires_in ?? 5184000 };
+/** Renova um token longo ainda válido por mais 60 dias. */
+async function renovarToken(tokenLongo) {
+  const d = await get('https://graph.instagram.com/refresh_access_token', { grant_type: 'ig_refresh_token' }, tokenLongo);
+  return { token: d.access_token, expiraEm: new Date(Date.now() + (d.expires_in || 5_184_000) * 1000) };
 }
 
-/**
- * Find the Instagram Professional account connected to this token.
- * Returns { igUserId, pageName }.
- */
-async function getIgUserId(token) {
-  const isIgToken = token?.match(/^(IGAAL|IGQ|IG)/i);
+// ── Perfil ───────────────────────────────────────────────────────────────────
 
-  if (isIgToken) {
-    const me = await gGet('/me', { fields: 'id,name,username,account_type' }, token);
-    if (!me.id) throw new Error('Nao foi possivel obter o ID da conta Instagram. Verifique se o token e valido.');
+/* Os campos que a conta profissional expõe com Instagram Login. Um campo que a
+   API não conhece derruba a chamada inteira — por isso só estes. `user_id` é o
+   id da conta profissional (o que publica); a partir da v23 o `id` passa a
+   ser o id do usuário no app, então `user_id` vem primeiro. */
+const CAMPOS_PERFIL = 'id,user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count';
 
-    if (me.account_type === 'PERSONAL') {
-      throw new Error(
-        `A conta @${me.username} e pessoal (PERSONAL). ` +
-        'Converta para Criador de Conteudo ou Comercial no app do Instagram ' +
-        '(Configuracoes -> Conta -> Mudar para conta profissional) e tente novamente.'
-      );
-    }
-    return { igUserId: me.id, pageName: me.name || me.username };
-  }
-
-  // Facebook Login tokens
-  const pages = await gGet('/me/accounts', { fields: 'id,name,instagram_business_account' }, token);
-  for (const page of (pages.data || [])) {
-    if (page.instagram_business_account?.id) {
-      return { igUserId: page.instagram_business_account.id, pageName: page.name };
-    }
-  }
-
-  const me = await gGet('/me', { fields: 'id,name,instagram_pro_account' }, token);
-  if (me.instagram_pro_account?.id) {
-    return { igUserId: me.instagram_pro_account.id, pageName: me.name };
-  }
-
-  throw new Error(
-    'Nenhuma conta Instagram Profissional encontrada. ' +
-    'Certifique-se de que a conta e Business ou Creator e esta vinculada a uma Pagina do Facebook.'
-  );
+/** O perfil da conta dona do token, já no formato das colunas de `accounts`. */
+async function perfil(token) {
+  const me = await get('/me', { fields: CAMPOS_PERFIL }, token);
+  return {
+    igUserId: String(me.user_id || me.id || ''),
+    username: me.username || '',
+    name: me.name || me.username || '',
+    accountType: String(me.account_type || '').toLowerCase(),
+    avatarUrl: me.profile_picture_url || '',
+    followers: me.followers_count ?? null,
+    following: me.follows_count ?? null,
+    postsCount: me.media_count ?? null,
+  };
 }
 
-// --- Location -----------------------------------------------------------
+// ── Publicação ───────────────────────────────────────────────────────────────
 
-const _locationCache = new Map();
-
-async function searchLocationId(token, query) {
-  if (_locationCache.has(query)) return _locationCache.get(query);
-
-  try {
-    const url = new URL('https://graph.facebook.com/v21.0/pages/search');
-    url.searchParams.set('q',            query);
-    url.searchParams.set('fields',       'id,name');
-    url.searchParams.set('access_token', token);
-
-    const r = await fetch(url.toString());
-    const d = await r.json();
-    if (d.error || !d.data?.length) return null;
-
-    const id = d.data[0].id;
-    console.log(`Location encontrado: "${d.data[0].name}" (${id})`);
-    _locationCache.set(query, id);
-    return id;
-  } catch {
-    return null;
-  }
-}
-
-// --- Video container via video_url --------------------------------------
-
-async function createVideoUrlContainer(igUserId, token, videoUrl, { caption, locationId, coverUrl }) {
-  const GRAPH    = graphBase(token);
-  const endpoint = `${GRAPH}/${igUserId}/media`;
-
-  const url = new URL(endpoint);
-  url.searchParams.set('access_token',  token);
-  url.searchParams.set('media_type',    'REELS');
-  url.searchParams.set('video_url',     videoUrl);
-  url.searchParams.set('caption',       caption || '');
-  url.searchParams.set('share_to_feed', 'true');
-  if (locationId) url.searchParams.set('location_id', locationId);
-  if (coverUrl)   url.searchParams.set('cover_url',   coverUrl);
-
-  console.log(`Media API POST ${endpoint}`);
-  console.log(`   video_url: ${videoUrl}`);
-
-  const r    = await fetch(url.toString(), { method: 'POST' });
-  const text = await r.text();
-  console.log(`Media API response (${r.status}):`, text.slice(0, 500));
-  const d = JSON.parse(text);
-  if (d.error) throw new Error(d.error.error_user_msg || d.error.error_user_title || `Criacao de container falhou: ${d.error.message} (code ${d.error.code})`);
-
+async function criarContainer(conta, params) {
+  const d = await post(`/${conta.igUserId}/media`, params, conta.accessToken);
+  if (!d?.id) throw new Error('A Meta não devolveu o id do container');
   return d.id;
 }
 
-// --- Container status & publish -----------------------------------------
-
-async function waitForProcessing(containerId, token, timeoutMs = 300_000) {
-  const start = Date.now();
-  let i = 0;
-  while (Date.now() - start < timeoutMs) {
-    const d = await gGet(`/${containerId}`, { fields: 'status_code,status' }, token);
-    console.log(`[${i++}] Status: ${d.status_code}`);
-
+/** Espera a Meta baixar e processar a mídia. Vídeo leva de segundos a minutos. */
+async function aguardarContainer(containerId, token, { limiteMs = 5 * 60_000, intervaloMs = 5000 } = {}) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < limiteMs) {
+    const d = await get(`/${containerId}`, { fields: 'status_code,status' }, token);
     if (d.status_code === 'FINISHED') return;
-    if (d.status_code === 'ERROR')    throw new Error(`Processamento falhou: ${d.status || 'erro desconhecido'}`);
-    if (d.status_code === 'EXPIRED')  throw new Error('Container expirado');
-
-    await delay(8000);
+    if (d.status_code === 'ERROR') throw new Error(`A Meta não conseguiu processar a mídia: ${d.status || 'erro sem detalhe'}`);
+    if (d.status_code === 'EXPIRED') throw new Error('O container expirou antes de ser publicado');
+    await delay(intervaloMs);
   }
-  throw new Error('Timeout aguardando processamento do video (5 min)');
+  throw new Error(`A Meta não terminou de processar a mídia em ${Math.round(limiteMs / 60_000)} min`);
 }
 
-async function publishContainer(igUserId, token, containerId) {
-  const GRAPH    = graphBase(token);
-  const endpoint = `${GRAPH}/${igUserId}/media_publish`;
-
-  const url = new URL(endpoint);
-  url.searchParams.set('access_token', token);
-  url.searchParams.set('creation_id',  containerId);
-
-  console.log(`Publicando via /${igUserId}/media_publish`);
-  const r    = await fetch(url.toString(), { method: 'POST' });
-  const text = await r.text();
-  console.log(`Publish response (${r.status}):`, text.slice(0, 300));
-  const d = JSON.parse(text);
-  if (d.error) throw new Error(d.error.error_user_msg || d.error.error_user_title || `[Graph API] ${d.error.message} (code ${d.error.code})`);
-  return d.id;
+async function publicarContainer(conta, containerId) {
+  const d = await post(`/${conta.igUserId}/media_publish`, { creation_id: containerId }, conta.accessToken);
+  if (!d?.id) throw new Error('A Meta não devolveu o id da publicação');
+  return String(d.id);
 }
 
-// --- Main functions -----------------------------------------------------
-
-/**
- * Converte o video UMA vez e retorna a URL publica.
- * Chame isso no worker ANTES de publicar em multiplas contas em paralelo,
- * para evitar reconversao simultanea do mesmo arquivo por cada conta.
- */
-async function prepareVideo(post) {
-  const publicUrl = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
-  if (!publicUrl) {
-    throw new Error('PUBLIC_URL nao definido no .env. Adicione PUBLIC_URL=http://SEU_IP:3000 para que o Instagram possa baixar o video.');
+function exigirConexao(conta) {
+  if (!conta?.igUserId || !conta?.accessToken) {
+    throw Object.assign(new Error(`@${conta?.username || '?'} não está conectada pela API oficial — reconecte em Contas`), { code: 'SEM_TOKEN' });
   }
-  const rawPath   = path.resolve(__dirname, '../../uploads', post.media);
-  const videoPath = await convertToReelFormat(rawPath, { processMode: post.processMode || 'sem_limpeza' });
-  console.log('Video convertido:', path.basename(videoPath));
-  return `${publicUrl}/uploads/processed/${path.basename(videoPath)}`;
 }
 
-/**
- * Publica um Reel via Meta Graph API.
- * @param {Object} account                — { igUserId, accessToken }
- * @param {Object} post                   — { media, caption, location, cover, postType }
- * @param {string} [preProcessedVideoUrl] — URL ja processada; se omitido, converte agora
- */
-async function postReel(account, post, preProcessedVideoUrl = null) {
-  const { igUserId, accessToken } = account;
-
-  if (!igUserId || !accessToken) {
-    throw new Error('Conta sem igUserId ou accessToken — conecte a conta via API primeiro.');
-  }
-
-  // 1. URL do video — usa pre-processada se disponivel, caso contrario converte agora
-  const videoUrl = preProcessedVideoUrl || await prepareVideo(post);
-  console.log('Video URL:', videoUrl);
-
-  // 2. Location (opcional)
-  const locationId = post.location
-    ? await searchLocationId(accessToken, post.location)
-    : null;
-
-  // 3. Cover URL (opcional)
-  const publicBase = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
-  const coverUrl   = (post.cover && publicBase)
-    ? `${publicBase}/uploads/${post.cover}`
-    : null;
-
-  // 4. Cria container
-  console.log('Criando container de midia (video_url)...');
-  const containerId = await createVideoUrlContainer(igUserId, accessToken, videoUrl, {
-    caption:    post.caption || '',
-    locationId,
-    coverUrl,
+/** Reel a partir da URL pública do vídeo. Devolve o id da mídia publicada. */
+async function publicarReel(conta, { videoUrl, caption = '', coverUrl = null, compartilharNoFeed = true }) {
+  exigirConexao(conta);
+  const container = await criarContainer(conta, {
+    media_type: 'REELS',
+    video_url: videoUrl,
+    caption,
+    cover_url: coverUrl,
+    share_to_feed: compartilharNoFeed ? 'true' : 'false',
   });
-  console.log('Container criado:', containerId);
-
-  // 5. Aguarda processamento pela Meta
-  console.log('Aguardando processamento pela Meta...');
-  await waitForProcessing(containerId, accessToken);
-  console.log('Video processado');
-
-  // 6. Publica
-  console.log('Publicando Reel...');
-  const publishedId = await publishContainer(igUserId, accessToken, containerId);
-  console.log('REEL PUBLICADO! ID:', publishedId);
-
-  return publishedId;
+  await aguardarContainer(container, conta.accessToken);
+  return publicarContainer(conta, container);
 }
 
-/**
- * Comenta numa mídia ESPECÍFICA pela Graph API.
- *
- * O id vem da publicação que criou a mídia. Não há busca por "última mídia" —
- * numa campanha com várias publicações da mesma conta, a última nem sempre é a
- * pretendida, e o comentário sairia no post errado.
- *
- * @param {Object} account   precisa de accessToken
- * @param {string} mediaId   id devolvido pela publicação
- * @param {string} text      texto já resolvido pelo templateResolver
- * @returns {Promise<string>} id do comentário criado
- */
-async function commentOnMedia(account, mediaId, text) {
-  const d = await gPost(`/${mediaId}/comments`, {}, { message: text }, account.accessToken);
-  return d?.id || '';
+/** Post de imagem (JPEG) no feed. */
+async function publicarImagem(conta, { imageUrl, caption = '' }) {
+  exigirConexao(conta);
+  const container = await criarContainer(conta, { image_url: imageUrl, caption });
+  await aguardarContainer(container, conta.accessToken, { intervaloMs: 2000 });
+  return publicarContainer(conta, container);
+}
+
+/** Story de imagem ou vídeo. Sem figurinhas: a API oficial não as publica. */
+async function publicarStory(conta, { url, video = false }) {
+  exigirConexao(conta);
+  const container = await criarContainer(conta, {
+    media_type: 'STORIES',
+    ...(video ? { video_url: url } : { image_url: url }),
+  });
+  await aguardarContainer(container, conta.accessToken, { intervaloMs: video ? 5000 : 2000 });
+  return publicarContainer(conta, container);
+}
+
+/** Comenta numa mídia específica — a que a própria publicação devolveu. */
+async function comentar(conta, mediaId, texto) {
+  exigirConexao(conta);
+  const d = await post(`/${mediaId}/comments`, { message: texto }, conta.accessToken);
+  return d?.id ? String(d.id) : '';
+}
+
+/** Uso da cota de publicação nas últimas 24h. */
+async function limiteDePublicacao(conta) {
+  exigirConexao(conta);
+  const d = await get(`/${conta.igUserId}/content_publishing_limit`, { fields: 'quota_usage,config' }, conta.accessToken);
+  return Array.isArray(d?.data) ? d.data[0] || {} : d || {};
 }
 
 module.exports = {
-  exchangeToken,
-  refreshToken,
-  getIgUserId,
-  prepareVideo,
-  postReel,
-  commentOnMedia,
+  GRAPH, VERSAO, GraphError, get, post,
+  trocarCodigo, tokenDeLongaDuracao, renovarToken, perfil,
+  publicarReel, publicarImagem, publicarStory, comentar, limiteDePublicacao,
+  aguardarContainer,
 };

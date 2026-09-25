@@ -5,7 +5,7 @@
  *
  * ── O defeito que existia antes de haver opção
  *
- * `Media.find({ _id: { $in: ids } })` não devolve na ordem dos ids. Quem
+ * `Media.find({ id: { $in: ids } })` não devolve na ordem dos ids. Quem
  * escolhia quarenta vídeos numa ordem via a fila sair em outra, e não havia
  * nada na tela que explicasse. Qualquer opção de ordem construída em cima disso
  * seria decorativa.
@@ -33,28 +33,28 @@ const m = (filename, iso) => ({ filename, quando: iso ? new Date(iso) : null });
 describe('a ordem dos ids é restaurada', () => {
   test('devolve na ordem pedida, não na que o Mongo entregou', () => {
     /* O defeito em uma frase: o usuário escolhe c, a, b e a fila sai a, b, c. */
-    const docs = [{ _id: 'a' }, { _id: 'b' }, { _id: 'c' }];
-    expect(naOrdemDosIds(docs, ['c', 'a', 'b']).map(d => d._id)).toEqual(['c', 'a', 'b']);
+    const docs = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    expect(naOrdemDosIds(docs, ['c', 'a', 'b']).map(d => d.id)).toEqual(['c', 'a', 'b']);
   });
 
   test('id sem documento some da fila em vez de virar item quebrado', () => {
     /* Mídia apagada entre a escolha e o envio. Um `undefined` na fila viraria
        um post sem arquivo, que falha lá na frente sem dizer por quê. */
-    const docs = [{ _id: 'a' }];
+    const docs = [{ id: 'a' }];
     expect(naOrdemDosIds(docs, ['a', 'sumiu'])).toHaveLength(1);
   });
 
   test('compara como texto — ObjectId não é igual a string por ===', () => {
-    /* `_id` chega como ObjectId e os ids do corpo chegam como string. Sem o
+    /* `id` chega como ObjectId e os ids do corpo chegam como string. Sem o
        String() dos dois lados, o Map nunca casaria e a fila sairia vazia. */
-    const docs = [{ _id: { toString: () => 'abc123' } }];
+    const docs = [{ id: { toString: () => 'abc123' } }];
     expect(naOrdemDosIds(docs, ['abc123'])).toHaveLength(1);
   });
 
   test('entradas vazias não explodem', () => {
     expect(naOrdemDosIds(null, null)).toEqual([]);
     expect(naOrdemDosIds([], ['a'])).toEqual([]);
-    expect(naOrdemDosIds([{ _id: 'a' }], [])).toEqual([]);
+    expect(naOrdemDosIds([{ id: 'a' }], [])).toEqual([]);
   });
 });
 

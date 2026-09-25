@@ -42,18 +42,8 @@ const PERIODOS = Object.freeze(['this_week', 'last_14_days', 'last_30_days', 'la
 
 const _cache = new Map(); // `${igUserId}:${timeframe}` → { em, dados }
 
-function graphBase(token) {
-  return String(token || '').startsWith('IG') ? 'https://graph.instagram.com/v21.0' : 'https://graph.facebook.com/v21.0';
-}
-
-async function _get(igUserId, token, params) {
-  const url = new URL(`${graphBase(token)}/${igUserId}/insights`);
-  url.searchParams.set('access_token', token);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
-  const r = await fetch(url.toString(), { signal: AbortSignal.timeout(12_000) });
-  const d = await r.json();
-  if (d.error) throw new Error(`[Graph] ${d.error.message} (${d.error.code})`);
-  return d;
+function _get(igUserId, token, params) {
+  return require('./instagramAPI').get(`/${igUserId}/insights`, params, token);
 }
 
 /**
@@ -148,7 +138,7 @@ async function buscarPublico(account, timeframe = 'last_30_days') {
   const c = _cache.get(chave);
   if (c && Date.now() - c.em < CACHE_MS) return { ...base, ...c.dados };
 
-  const token = account.accessToken; // getter do modelo já descriptografa
+  const token = account.accessToken;
   const pede = (metric, breakdown) => _get(account.igUserId, token, {
     metric, period: 'lifetime', timeframe: tf, breakdown, metric_type: 'total_value',
   }).then(interpretar).catch(() => []);

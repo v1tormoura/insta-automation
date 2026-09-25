@@ -3,10 +3,9 @@
  *
  * ── O que ele evita
  *
- * A cota do proxy acabou e o produto ficou parado quatro dias e meio sem que
- * nada avisasse. Quando a descoberta veio — pelas contas ficarem estranhas —
- * a causa já estava a quatro dias de distância do sintoma, e reconstruir esse
- * caminho custou uma semana.
+ * Um problema que para a publicação em silêncio (fila presa, tokens caindo,
+ * erros em massa) é descoberto dias depois, pelas contas ficarem estranhas —
+ * e aí a causa já está longe do sintoma.
  *
  * ── O que estes testes protegem
  *
@@ -27,13 +26,15 @@ const mockNotificacoes = [];
 const mockPush = jest.fn();
 let atuais;
 
-jest.mock('../src/models/Setting', () => ({
-  findOne: () => ({ lean: async () => ({ value: mockEstado.valor }) }),
-  updateOne: async (_f, up) => { mockEstado.valor = up.$set.value; return { ok: 1 }; },
+jest.mock('../src/repos/settings', () => ({
+  ler: async () => mockEstado.valor,
+  gravar: async (_chave, valor) => { mockEstado.valor = valor; },
 }));
 
-jest.mock('../src/models/Notificacao', () => ({
-  async create(doc) { mockNotificacoes.push(doc); return { _id: 'n' + mockNotificacoes.length, ...doc }; },
+jest.mock('../src/repos', () => ({
+  notificacoes: {
+    async insert(doc) { mockNotificacoes.push(doc); return { id: 'n' + mockNotificacoes.length, ...doc }; },
+  },
 }));
 
 jest.mock('../src/services/smartActivity/webPush', () => ({ enviar: (...a) => mockPush(...a) }));
@@ -44,20 +45,15 @@ jest.mock('../src/events/broadcaster', () => ({ broadcast: jest.fn() }));
    destes testes é a mecânica de aviso/repetição/recuperação, não o gate
    novo. O gate ganha sua própria seção, mais abaixo, com o mock trocado por
    teste. */
-const mockAtivos = { valor: {
-  cota: true, proxy: true, pool: true, sessoes: true, fila: true, erros: true,
-} };
+const mockAtivos = { valor: { sessoes: true, fila: true, erros: true } };
 jest.mock('../src/services/smartActivity/thresholds', () => ({
   carregar: async () => ({ ativos: mockAtivos.valor, mensagens: {} }),
 }));
 
 const vigia = require('../src/services/vigiaDoSistema');
 
-/* Dublês passados por PARÂMETRO. A primeira versão tentava sobrescrever o mapa
-   exportado e não funcionava: ele é `Object.freeze`, e a atribuição silenciosa
-   deixava as verificações REAIS rodarem contra modelos sem conexão — que o
-   mongoose enfileira por dez segundos, estourando o tempo de todo teste.
-   Injetar é mais simples e não pede que o módulo abra mão da imutabilidade. */
+/* Dublês passados por PARÂMETRO: o mapa exportado é `Object.freeze`, e
+   injetar não pede que o módulo abra mão da imutabilidade. */
 const dubles = (mapa) => Object.fromEntries(
   Object.keys(vigia.VERIFICACOES).map(k => [k, async () => mapa[k] || null])
 );
@@ -67,11 +63,8 @@ beforeEach(() => {
   mockEstado.valor = {};
   mockNotificacoes.length = 0;
   mockPush.mockReset().mockResolvedValue({ enviados: 1 });
-  vigia.bancoConectado = () => true;
   atuais = dubles({});
-  mockAtivos.valor = {
-    cota: true, proxy: true, pool: true, sessoes: true, fila: true, erros: true,
-  };
+  mockAtivos.valor = { sessoes: true, fila: true, erros: true };
   jest.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
@@ -79,17 +72,17 @@ afterEach(() => jest.restoreAllMocks());
 
 describe('avisar', () => {
   test('problema novo gera aviso e push', async () => {
-    definir({ proxy: { titulo: 'O proxy parou', mensagem: 'sem saída', prioridade: 'alta' } });
+    definir({ sessoes: { titulo: 'Contas sem conectar', mensagem: 'sem saída', prioridade: 'alta' } });
     const r = await vigia.verificar({ verificacoes: atuais });
 
     expect(r.avisos).toBe(1);
-    expect(mockNotificacoes[0].titulo).toBe('O proxy parou');
+    expect(mockNotificacoes[0].titulo).toBe('Contas sem conectar');
     expect(mockNotificacoes[0].eventType).toBe('sistema');
     expect(mockPush).toHaveBeenCalledTimes(1);
   });
 
   test('prioridade alta usa o tema de alerta, não o neutro', async () => {
-    definir({ proxy: { titulo: 'x', mensagem: 'y', prioridade: 'alta' } });
+    definir({ sessoes: { titulo: 'x', mensagem: 'y', prioridade: 'alta' } });
     await vigia.verificar({ verificacoes: atuais });
     expect(mockNotificacoes[0].tema).toBe('warning');
   });
@@ -110,7 +103,7 @@ describe('não vira spam', () => {
     // Três dias de problema não podem virar três dias de avisos: a pessoa
     // desliga as notificações, e aí o próximo alerta — o que importa — também
     // não chega.
-    definir({ proxy: { titulo: 'O proxy parou', mensagem: 'x' } });
+    definir({ sessoes: { titulo: 'Contas sem conectar', mensagem: 'x' } });
 
     expect((await vigia.verificar({ verificacoes: atuais })).avisos).toBe(1);
     expect((await vigia.verificar({ verificacoes: atuais })).avisos).toBe(0);
@@ -119,18 +112,18 @@ describe('não vira spam', () => {
   });
 
   test('depois de seis horas, repete', async () => {
-    definir({ proxy: { titulo: 'O proxy parou', mensagem: 'x' } });
+    definir({ sessoes: { titulo: 'Contas sem conectar', mensagem: 'x' } });
     await vigia.verificar({ verificacoes: atuais });
 
     // Envelhece o último aviso em sete horas.
-    mockEstado.valor.proxy.ultimoAviso = Date.now() - 7 * 3600 * 1000;
+    mockEstado.valor.sessoes.ultimoAviso = Date.now() - 7 * 3600 * 1000;
     expect((await vigia.verificar({ verificacoes: atuais })).avisos).toBe(1);
     expect(mockNotificacoes).toHaveLength(2);
   });
 
   test('problemas diferentes avisam cada um por si', async () => {
     definir({
-      proxy: { titulo: 'proxy', mensagem: 'a' },
+      sessoes: { titulo: 'contas', mensagem: 'a' },
       fila:  { titulo: 'fila',  mensagem: 'b' },
     });
     expect((await vigia.verificar({ verificacoes: atuais })).avisos).toBe(2);
@@ -139,9 +132,9 @@ describe('não vira spam', () => {
 
 describe('recuperação', () => {
   test('avisa quando volta ao normal', async () => {
-    /* Sem isto, quem recebeu "proxy fora do ar" às duas da manhã não tem como
+    /* Sem isto, quem recebeu "fila presa" às duas da manhã não tem como
        saber que voltou às três — e ou fica conferindo, ou aprende a ignorar. */
-    definir({ proxy: { titulo: 'O proxy parou', mensagem: 'x' } });
+    definir({ sessoes: { titulo: 'Contas sem conectar', mensagem: 'x' } });
     await vigia.verificar({ verificacoes: atuais });
     mockNotificacoes.length = 0;
 
@@ -155,9 +148,9 @@ describe('recuperação', () => {
   });
 
   test('a recuperação diz quanto tempo durou', async () => {
-    definir({ proxy: { titulo: 'x', mensagem: 'y' } });
+    definir({ sessoes: { titulo: 'x', mensagem: 'y' } });
     await vigia.verificar({ verificacoes: atuais });
-    mockEstado.valor.proxy.desde = Date.now() - 5 * 3600 * 1000;
+    mockEstado.valor.sessoes.desde = Date.now() - 5 * 3600 * 1000;
     mockNotificacoes.length = 0;
 
     definir({});
@@ -172,13 +165,13 @@ describe('recuperação', () => {
   });
 
   test('depois de recuperar, o problema voltando avisa de novo', async () => {
-    definir({ proxy: { titulo: 'x', mensagem: 'y' } });
+    definir({ sessoes: { titulo: 'x', mensagem: 'y' } });
     await vigia.verificar({ verificacoes: atuais });
     definir({});
     await vigia.verificar({ verificacoes: atuais });
     mockNotificacoes.length = 0;
 
-    definir({ proxy: { titulo: 'x', mensagem: 'y' } });
+    definir({ sessoes: { titulo: 'x', mensagem: 'y' } });
     expect((await vigia.verificar({ verificacoes: atuais })).avisos).toBe(1);
   });
 });
@@ -189,7 +182,7 @@ describe('tolerância', () => {
        quebrada derrubar o ciclo, ele fica cego no único momento que conta. */
     const r = await vigia.verificar({
       verificacoes: {
-        proxy:   async () => { throw new Error('mongo caiu'); },
+        sessoes: async () => { throw new Error('banco caiu'); },
         fila:    async () => ({ titulo: 'fila presa', mensagem: 'z' }),
       },
     });
@@ -197,16 +190,9 @@ describe('tolerância', () => {
     expect(mockNotificacoes[0].titulo).toBe('fila presa');
   });
 
-  test('sem banco, não faz nada em vez de enfileirar consulta', async () => {
-    // Mongoose enfileira sem conexão e só desiste em 10s — um ciclo de vigia
-    // travado por 10s a cada 10min é pior que um ciclo que não roda.
-    vigia.bancoConectado = () => false;
-    expect(await vigia.verificar({ verificacoes: atuais })).toEqual({ avisos: 0, ativos: [], motivo: 'sem banco' });
-  });
-
   test('falha no push não impede o registro na Central', async () => {
     mockPush.mockRejectedValue(new Error('sem inscrição'));
-    definir({ proxy: { titulo: 'x', mensagem: 'y' } });
+    definir({ sessoes: { titulo: 'x', mensagem: 'y' } });
 
     const r = await vigia.verificar({ verificacoes: atuais });
     expect(r.avisos).toBe(1);
@@ -215,14 +201,11 @@ describe('tolerância', () => {
 });
 
 describe('desligado no painel', () => {
-  /* thresholds.js mudou o padrão destes seis avisos para desligado — o
-     usuário pediu para só receber marco de audiência agregado (resumo) e os
-     dois eventos de publicação, nada do vigia. Antes desta seção, o vigia
-     não tinha COMO respeitar essa escolha: `verificar()` rodava as seis
-     verificações incondicionalmente. */
+  /* Os avisos do vigia vêm desligados por padrão (thresholds.js), e ligar ou
+     desligar no painel tem de valer para cada um. */
   test('aviso desligado não dispara, mesmo com problema de verdade', async () => {
-    mockAtivos.valor.proxy = false;
-    definir({ proxy: { titulo: 'O proxy parou', mensagem: 'x' } });
+    mockAtivos.valor.sessoes = false;
+    definir({ sessoes: { titulo: 'Contas sem conectar', mensagem: 'x' } });
 
     const r = await vigia.verificar({ verificacoes: atuais });
 
@@ -231,9 +214,9 @@ describe('desligado no painel', () => {
   });
 
   test('desligar um não impede os outros', async () => {
-    mockAtivos.valor.proxy = false;
+    mockAtivos.valor.sessoes = false;
     definir({
-      proxy: { titulo: 'proxy', mensagem: 'a' },
+      sessoes: { titulo: 'contas', mensagem: 'a' },
       fila:  { titulo: 'fila',  mensagem: 'b' },
     });
 
@@ -244,23 +227,52 @@ describe('desligado no painel', () => {
   });
 
   test('a verificação desligada nem chega a rodar', async () => {
-    mockAtivos.valor.proxy = false;
+    mockAtivos.valor.sessoes = false;
     const chamada = jest.fn(async () => null);
 
-    await vigia.verificar({ verificacoes: { ...atuais, proxy: chamada } });
+    await vigia.verificar({ verificacoes: { ...atuais, sessoes: chamada } });
 
     expect(chamada).not.toHaveBeenCalled();
   });
 
   test('ligar de novo volta a disparar', async () => {
-    mockAtivos.valor.proxy = false;
-    definir({ proxy: { titulo: 'x', mensagem: 'y' } });
+    mockAtivos.valor.sessoes = false;
+    definir({ sessoes: { titulo: 'x', mensagem: 'y' } });
     await vigia.verificar({ verificacoes: atuais });
     expect(mockNotificacoes).toHaveLength(0);
 
-    mockAtivos.valor.proxy = true;
+    mockAtivos.valor.sessoes = true;
     const r = await vigia.verificar({ verificacoes: atuais });
 
     expect(r.avisos).toBe(1);
+  });
+});
+
+/* ── As verificações de verdade, contra o banco ──────────────────────────── */
+describe('as verificações leem o banco', () => {
+  const banco = require('./helpers/banco');
+  beforeEach(() => banco.limpar());
+
+  test('contas sem conectar: só avisa quando é metade ou mais', async () => {
+    await banco.criarConta({ username: 'a' });
+    await banco.criarConta({ username: 'b' });
+    await banco.criarConta({ username: 'c', healthStatus: 'token_invalido' });
+    expect(await vigia.VERIFICACOES.sessoes()).toBeNull();
+    await banco.criarConta({ username: 'd', healthStatus: 'token_invalido' });
+    expect(await vigia.VERIFICACOES.sessoes()).toMatchObject({ vars: { contasRuins: 2, contasTotal: 4 } });
+  });
+
+  test('fila presa: processando há mais de uma hora', async () => {
+    await banco.criarPost({ status: 'processando' });
+    expect(await vigia.VERIFICACOES.fila()).toBeNull();
+    await banco.criarPost({ status: 'processando', updatedAt: new Date(Date.now() - 2 * 3600_000) });
+    expect(await vigia.VERIFICACOES.fila()).toMatchObject({ vars: { presas: 1 } });
+  });
+
+  test('erros do dia: a partir de 20', async () => {
+    for (let i = 0; i < 19; i++) await banco.criarPost({ status: 'erro' });
+    expect(await vigia.VERIFICACOES.erros()).toBeNull();
+    await banco.criarPost({ status: 'erro' });
+    expect(await vigia.VERIFICACOES.erros()).toMatchObject({ vars: { errosHoje: 20 } });
   });
 });

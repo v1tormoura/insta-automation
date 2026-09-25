@@ -7,7 +7,7 @@
  *
  * A senha. Errar aqui tranca a pessoa fora do próprio painel, então a troca é
  * ADITIVA: grava um hash novo e a senha do ambiente continua valendo como
- * recuperação (ver o comentário no modelo Usuario). Nada nesta rota apaga o
+ * recuperação (ver routes/authRoutes.js). Nada nesta rota apaga o
  * caminho de entrada anterior.
  *
  * ── Por que o e-mail é só um campo
@@ -22,10 +22,9 @@ const router = require('express').Router();
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const Usuario = require('../models/Usuario');
+const config = require('../config');
+const usuario = require('../repos/usuario');
 const senhas = require('../services/senhaDoPainel');
-
-const CHAVE = 'principal';
 
 /* 2 MB, como diz a tela. O limite do multer é o que vale: a validação no
    navegador pode ser contornada, e um arquivo de 40 MB chegando até o disco
@@ -54,27 +53,7 @@ const upload = multer({
 
 const PASTA = path.resolve(__dirname, '../../uploads/perfil');
 
-/**
- * O documento único, criado na primeira leitura.
- *
- * `+senhaHash` porque `publico()` precisa saber se EXISTE um hash — sem isto,
- * o campo vem de fora pelo `select: false` do schema e `temSenhaPropria` sai
- * `false` para sempre, inclusive depois de a senha ter sido trocada com
- * sucesso. Encontrado exercitando a rota, não lendo o código: o login com a
- * senha nova funcionava e a tela continuava dizendo que não havia senha
- * própria.
- *
- * O hash fica em memória aqui e não sai daqui: `publico()` é a única coisa que
- * vai para a resposta, e ele lista campo por campo.
- */
-async function carregar() {
-  const doc = await Usuario.findOneAndUpdate(
-    { chave: CHAVE },
-    { $setOnInsert: { chave: CHAVE } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
-  ).select('+senhaHash').lean();
-  return doc;
-}
+const carregar = () => usuario.carregar();
 
 /** O que pode sair na resposta. O hash nunca — nem quando é pedido de propósito. */
 function publico(u) {
@@ -134,8 +113,7 @@ router.put('/', async (req, res) => {
       return res.status(400).json({ error: 'Nada para alterar.', code: 'SEM_ALTERACAO' });
     }
 
-    await Usuario.updateOne({ chave: CHAVE }, { $set: alteracoes }, { upsert: true });
-    res.json(publico(await carregar()));
+    res.json(publico(await usuario.atualizar(alteracoes)));
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'CONTA_ERRO' });
   }
@@ -166,16 +144,14 @@ router.put('/senha', async (req, res) => {
       return res.status(400).json({ error: 'A nova senha é igual à atual.', code: 'SENHA_IGUAL' });
     }
 
-    /* `+senhaHash` porque o campo é `select: false` no schema. */
-    const doc = await Usuario.findOne({ chave: CHAVE }).select('+senhaHash');
-    const guardado = doc?.senhaHash || '';
+    const guardado = (await carregar()).senhaHash || '';
 
     /* Confere contra o hash quando existe; contra o ambiente quando é a
        primeira troca. Sem o segundo caso, ninguém conseguiria trocar a senha
        nunca: não haveria "atual" que a rota aceitasse. */
     const conferiu = guardado
       ? senhas.conferir(atual, guardado)
-      : atual === (process.env.AUTH_PASSWORD || 'admin123');
+      : atual === config.authPassword;
 
     if (!conferiu) {
       return res.status(401).json({ error: 'A senha atual está incorreta.', code: 'SENHA_ATUAL_ERRADA' });
@@ -188,12 +164,7 @@ router.put('/senha', async (req, res) => {
       return res.status(400).json({ error: err.message, code: err.code || 'SENHA_INVALIDA' });
     }
 
-    await Usuario.updateOne(
-      { chave: CHAVE },
-      { $set: { senhaHash: hash, senhaTrocadaEm: new Date() } },
-      { upsert: true },
-    );
-
+    const atualizado = await usuario.atualizar({ senhaHash: hash, senhaTrocadaEm: new Date() });
     console.log('🔑 [Conta] Senha do painel trocada.');
     res.json({
       ok: true,
@@ -201,7 +172,7 @@ router.put('/senha', async (req, res) => {
          precisa saber que a senha do ambiente continua entrando. */
       aviso: 'A senha de AUTH_PASSWORD continua valendo como recuperação. '
            + 'Troque-a no servidor se quiser desativá-la.',
-      ...publico(await carregar()),
+      ...publico(atualizado),
     });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'SENHA_ERRO' });
@@ -213,20 +184,20 @@ router.put('/preferencias', async (req, res) => {
   try {
     const p = req.body?.preferencias || {};
     const n = req.body?.notificacoes || {};
-    const set = {};
+    const pref = {}, notif = {};
 
-    if (['escuro', 'claro'].includes(p.tema)) set['preferencias.tema'] = p.tema;
-    if (['pt', 'en', 'es'].includes(p.idioma)) set['preferencias.idioma'] = p.idioma;
-    if (typeof p.fundoAnimado === 'boolean') set['preferencias.fundoAnimado'] = p.fundoAnimado;
-    if (typeof n.mostrarNome === 'boolean') set['notificacoes.mostrarNome'] = n.mostrarNome;
-    if (typeof n.mostrarValor === 'boolean') set['notificacoes.mostrarValor'] = n.mostrarValor;
+    if (['escuro', 'claro'].includes(p.tema)) pref.tema = p.tema;
+    if (['pt', 'en', 'es'].includes(p.idioma)) pref.idioma = p.idioma;
+    if (typeof p.fundoAnimado === 'boolean') pref.fundoAnimado = p.fundoAnimado;
+    if (typeof n.mostrarNome === 'boolean') notif.mostrarNome = n.mostrarNome;
+    if (typeof n.mostrarValor === 'boolean') notif.mostrarValor = n.mostrarValor;
 
-    if (!Object.keys(set).length) {
+    if (!Object.keys(pref).length && !Object.keys(notif).length) {
       return res.status(400).json({ error: 'Nada para alterar.', code: 'SEM_ALTERACAO' });
     }
 
-    await Usuario.updateOne({ chave: CHAVE }, { $set: set }, { upsert: true });
-    res.json(publico(await carregar()));
+    await usuario.mesclar('preferencias', pref);
+    res.json(publico(await usuario.mesclar('notificacoes', notif)));
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'PREFERENCIA_ERRO' });
   }
@@ -268,7 +239,7 @@ router.post('/foto', upload.single('foto'), async (req, res) => {
     fs.writeFileSync(path.join(PASTA, `usuario${ext}`), req.file.buffer);
     const caminho = `/uploads/perfil/usuario${ext}?v=${Date.now()}`;
 
-    await Usuario.updateOne({ chave: CHAVE }, { $set: { avatar: caminho } }, { upsert: true });
+    await usuario.atualizar({ avatar: caminho });
     res.json({ ok: true, avatar: caminho });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'FOTO_ERRO' });
@@ -281,7 +252,7 @@ router.delete('/foto', async (_req, res) => {
     for (const ext of Object.values(TIPOS)) {
       try { fs.unlinkSync(path.join(PASTA, `usuario${ext}`)); } catch { /* não existia */ }
     }
-    await Usuario.updateOne({ chave: CHAVE }, { $set: { avatar: '' } }, { upsert: true });
+    await usuario.atualizar({ avatar: '' });
     res.json({ ok: true, avatar: '' });
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'FOTO_ERRO' });

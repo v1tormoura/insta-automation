@@ -16,7 +16,7 @@
  * a tela mostra isso como "—" em vez de "+0": as duas coisas são diferentes.
  */
 
-const SeguidoresDoDia = require('../models/SeguidoresDoDia');
+const { sql } = require('../db');
 
 /**
  * A etiqueta do dia, no fuso do processo.
@@ -49,42 +49,35 @@ function diaAnterior(dia) {
  * @returns {Promise<{dia: string, seguidores: number, novos: number|null}|null>}
  */
 async function registrar(conta, quando = new Date()) {
-  if (!conta?._id) return null;
+  if (!conta?.id) return null;
 
   const dia = diaDe(quando);
   const seguidores = Number(conta.followers) || 0;
 
   try {
-    /* O último ponto ANTES de hoje. `$lt` e não o dia de ontem exato para o
-       caso de dias sem registro. */
-    const anterior = await SeguidoresDoDia
-      .findOne({ accountId: conta._id, dia: { $lt: dia } })
-      .sort({ dia: -1 })
-      .select('seguidores')
-      .lean();
+    /* O último ponto ANTES de hoje — não "ontem" exato, para o caso de dias
+       sem registro. */
+    const [anterior] = await sql`
+      select seguidores from seguidores_do_dia
+      where account_id = ${conta.id} and dia < ${dia}
+      order by dia desc limit 1`;
 
     const novos = anterior ? seguidores - (Number(anterior.seguidores) || 0) : null;
 
-    await SeguidoresDoDia.updateOne(
-      { accountId: conta._id, dia },
-      {
-        $set: {
-          username: conta.username || '',
-          seguidores,
-          seguindo: Number(conta.following) || 0,
-          publicacoes: Number(conta.postsCount) || 0,
-          novos,
-        },
-      },
-      { upsert: true },
-    );
+    await sql`
+      insert into seguidores_do_dia (account_id, dia, username, seguidores, seguindo, publicacoes, novos)
+      values (${conta.id}, ${dia}, ${conta.username || ''}, ${seguidores},
+              ${Number(conta.following) || 0}, ${Number(conta.postsCount) || 0}, ${novos})
+      on conflict (account_id, dia) do update set
+        username = excluded.username, seguidores = excluded.seguidores, seguindo = excluded.seguindo,
+        publicacoes = excluded.publicacoes, novos = excluded.novos`;
 
     return { dia, seguidores, novos };
   } catch (err) {
     /* Nunca lança: isto é um efeito colateral da sincronização, e derrubar o
        sync de métricas para gravar um histórico seria trocar o principal pelo
        acessório. */
-    console.log(`⚠️ [SerieSeguidores] @${conta.username || conta._id}: ${err.message}`);
+    console.log(`⚠️ [SerieSeguidores] @${conta.username || conta.id}: ${err.message}`);
     return null;
   }
 }
@@ -107,10 +100,9 @@ async function novosNoPeriodo(de, ate, accountIds) {
   if (!ids.length) return { novos: 0, comHistorico: false, contasSemHistorico: 0 };
 
   try {
-    const linhas = await SeguidoresDoDia.find({
-      accountId: { $in: ids },
-      dia: { $gte: de, $lte: ate },
-    }).select('accountId novos').lean();
+    const linhas = await sql`
+      select account_id, novos from seguidores_do_dia
+      where account_id = any(${ids.map(String)}::uuid[]) and dia >= ${de} and dia <= ${ate}`;
 
     /* Só os dias com `novos` numérico entram na soma. Dia com `null` é o
        primeiro registro daquela conta: não há ganho a somar, e tratá-lo como

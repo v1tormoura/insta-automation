@@ -3,38 +3,21 @@
 /**
  * Motor de execução da campanha.
  *
- * A unidade de execução é UMA CampaignPublication = UM job do BullMQ. Não existe
- * job guarda-chuva da campanha: é isso que permite retry individual, cancelar
- * uma publicação sem tocar nas outras e sobreviver a um restart sem reprocessar
- * o que já saiu.
+ * A unidade de execução é UMA publicação = UM trabalho na fila. Não existe
+ * trabalho guarda-chuva da campanha: é isso que permite retry individual,
+ * cancelar uma publicação sem tocar nas outras e sobreviver a um restart sem
+ * reprocessar o que já saiu.
  *
- * ── Por que a publicação é injetada ─────────────────────────────────────────
- *
- * `publicarNaConta` chega por parâmetro em vez de ser importada. O único caminho
- * seguro de publicação do projeto — com lock atômico de `isBusy`, verificação de
- * limite diário e classificação de saúde da conta — é `publishOneAccount`, que
- * vive dentro de `queue/worker.js`. Esse arquivo é um ponto de entrada: ao ser
- * importado ele conecta no Mongo, instancia um Worker e registra intervalos.
- * Importá-lo daqui subiria um segundo worker; reescrever o caminho aqui criaria
- * uma SEGUNDA implementação do lock de conta — e duas implementações de lock
- * significam, na prática, duas publicações simultâneas na mesma conta.
- *
- * A injeção resolve os dois: o worker (que é o composition root) passa a função
- * que já usa, nada muda para Postar/Loop, e o executor fica testável.
+ * `publicarNaConta` chega por injeção (worker.js): é o único caminho de
+ * publicação, com a trava da conta e o ritmo — uma segunda implementação
+ * significaria duas publicações simultâneas na mesma conta.
  */
 
-const mongoose = require('mongoose');
-
-const Campaign             = require('../models/Campaign');
-const CampaignPublication  = require('../models/CampaignPublication');
-const Account              = require('../models/Account');
-const Media                = require('../models/Media');
-const Post                 = require('../models/Post');
-
+const { sql } = require('../db');
+const { campaigns, campaignPublications, media, posts } = require('../repos');
+const accounts = require('../repos/accounts');
 const fila = require('./campaignQueue');
 const { resolveTemplate } = require('./templateResolver');
-
-/* ── Erros ─────────────────────────────────────────────────────────────────── */
 
 class ExecutionError extends Error {
   constructor(code, message) {
@@ -44,883 +27,459 @@ class ExecutionError extends Error {
   }
 }
 
-/** Estados dos quais uma publicação não deve mais sair sozinha. */
+/** Estados dos quais uma publicação não sai mais sozinha. */
 const TERMINAIS = new Set(['published', 'cancelled']);
-
 /** Estados que ainda podem ser enfileirados. */
 const AGENDAVEIS = ['pending', 'scheduled'];
 
-/* ── Classificação de erro ─────────────────────────────────────────────────── */
+// ── Classificação de erro ────────────────────────────────────────────────────
+// O painel filtra e agrupa por estes códigos, então eles não podem depender do
+// texto livre da mensagem.
 
-/**
- * Traduz a falha em uma categoria estável.
- *
- * O painel filtra e agrupa por este código, então ele não pode depender de
- * texto livre da mensagem, que muda a cada versão da biblioteca. Erros do
- * provider instagrapi já chegam com `code`; o resto é reconhecido por padrão.
- */
+function _porSaudeDaConta(err) {
+  const c = require('./contas').classificarErro(err);
+  if (!c) return null;
+  if (c.status === 'token_invalido') return 'SESSION_EXPIRED';
+  if (c.status === 'banida') return 'ACCOUNT_UNAVAILABLE';
+  if (c.status === 'restrita') return /verifica/i.test(c.mensagem) ? 'ACCOUNT_CHALLENGE' : 'ACCOUNT_RESTRICTED';
+  return null;
+}
+
 function classificarErro(err) {
   const code = String(err?.code || '');
-  const msg  = String(err?.message || '').toLowerCase();
-
-  // Códigos que o provider/instagrapi já emite — mapeamento direto.
-  const DIRETOS = {
-    SESSION_EXPIRED:                'SESSION_EXPIRED',
-    NO_INSTAGRAPI_SESSION:          'SESSION_EXPIRED',
-    CHALLENGE_REQUIRED:             'ACCOUNT_CHALLENGE',
-    FEEDBACK_REQUIRED:              'ACCOUNT_RESTRICTED',
-    RATE_LIMITED:                   'RATE_LIMITED',
-    INSTAGRAPI_SERVICE_UNAVAILABLE: 'PROVIDER_UNAVAILABLE',
-    UNSUPPORTED_TYPE:               'UNSUPPORTED_TYPE',
-  };
-  if (DIRETOS[code]) return DIRETOS[code];
-
+  const msg = String(err?.message || '').toLowerCase();
+  if (code === 'SEM_TOKEN') return 'SESSION_EXPIRED';
+  if (code === 'ACCOUNT_BUSY' || code === 'ACCOUNT_UNAVAILABLE') return code;
   if (/limite diário|daily limit|teto diário atingido/.test(msg)) return 'DAILY_LIMIT';
-  if (/fora da janela de publicação/.test(msg))                return 'OUTSIDE_WINDOW';
-  if (/conta em uso|tempo de espera esgotado/.test(msg))      return 'ACCOUNT_BUSY';
-  if (/banida|banned|disabled/.test(msg))                     return 'ACCOUNT_UNAVAILABLE';
-  if (/não encontrada|not found/.test(msg))                   return 'ACCOUNT_UNAVAILABLE';
-  if (/rate.?limit|too many/.test(msg))                       return 'RATE_LIMITED';
-  if (/proxy|econnrefused|etimedout|enotfound|socket|network/.test(msg)) return 'NETWORK_ERROR';
-
+  if ([4, 17, 32, 613].includes(Number(err?.code)) || /rate.?limit|too many|please wait/.test(msg)) return 'RATE_LIMITED';
+  const porSaude = _porSaudeDaConta(err);
+  if (porSaude) return porSaude;
+  if (/econnrefused|etimedout|enotfound|socket|network|fetch failed/.test(msg)) return 'NETWORK_ERROR';
   return 'PUBLISH_ERROR';
 }
 
-/**
- * Classificação específica do comentário.
- *
- * Compartilha a base com a publicação — sessão expirada é sessão expirada nas
- * duas — mas tem categorias próprias: a mídia pode ter sido apagada entre
- * publicar e comentar, e a conta pode simplesmente não ter via de comentário.
- *
- * O padrão é COMMENT_FAILED, nunca UNKNOWN_ERROR: um balde chamado "erro
- * desconhecido" esconde exatamente os casos que precisam ser investigados.
- */
+/** O padrão é COMMENT_FAILED: "erro desconhecido" esconde o que precisa ser investigado. */
 function classificarErroComentario(err) {
   const code = String(err?.code || '');
-  const msg  = String(err?.message || '').toLowerCase();
-
-  const DIRETOS = {
-    COMMENT_NOT_SUPPORTED:    'COMMENT_NOT_SUPPORTED',
-    COMMENT_MEDIA_NOT_FOUND:  'COMMENT_MEDIA_NOT_FOUND',
-    COMMENT_EMPTY:            'COMMENT_FAILED',
-    SESSION_NOT_LOADED:       'SESSION_EXPIRED',
-    NO_INSTAGRAPI_SESSION:    'SESSION_EXPIRED',
-    SESSION_EXPIRED:          'SESSION_EXPIRED',
-    RATE_LIMITED:             'RATE_LIMITED',
-    FEEDBACK_REQUIRED:        'RATE_LIMITED',
-    CHALLENGE_REQUIRED:       'ACCOUNT_CHALLENGE',
-    ACCOUNT_SUSPENDED:        'ACCOUNT_UNAVAILABLE',
-    PROXY_ERROR:              'NETWORK_ERROR',
-    NETWORK_ERROR:            'NETWORK_ERROR',
-    INSTAGRAPI_SERVICE_UNAVAILABLE: 'PROVIDER_UNAVAILABLE',
-  };
-  if (DIRETOS[code]) return DIRETOS[code];
-
+  const msg = String(err?.message || '').toLowerCase();
+  if (code === 'SEM_TOKEN') return 'SESSION_EXPIRED';
+  if (code === 'COMMENT_NOT_SUPPORTED' || code === 'COMMENT_MEDIA_NOT_FOUND') return code;
   // Timeout é separado de rede: a requisição chegou, a resposta é que demorou.
-  // Reagendar um timeout é seguro só depois de conferir se o comentário saiu.
   if (/timeout|timed out|abort/.test(msg) || err?.name === 'TimeoutError') return 'TIMEOUT';
-  if (/media not found|does not exist|invalid media/.test(msg))            return 'COMMENT_MEDIA_NOT_FOUND';
-  if (/login required|session/.test(msg))                                  return 'SESSION_EXPIRED';
-  if (/rate.?limit|too many|please wait|429/.test(msg))                    return 'RATE_LIMITED';
-  if (/proxy|econnrefused|etimedout|enotfound|socket|network/.test(msg))   return 'NETWORK_ERROR';
-
+  if (/media not found|does not exist|invalid media|unsupported get request/.test(msg)) return 'COMMENT_MEDIA_NOT_FOUND';
+  if ([4, 17, 32, 613].includes(Number(err?.code)) || /rate.?limit|too many|please wait/.test(msg)) return 'RATE_LIMITED';
+  const porSaude = _porSaudeDaConta(err);
+  if (porSaude) return porSaude === 'ACCOUNT_RESTRICTED' ? 'RATE_LIMITED' : porSaude;
+  if (/econnrefused|etimedout|enotfound|socket|network|fetch failed/.test(msg)) return 'NETWORK_ERROR';
   return 'COMMENT_FAILED';
 }
 
-/* ── Log ───────────────────────────────────────────────────────────────────── */
+// ── Registro ─────────────────────────────────────────────────────────────────
 
 /**
- * Log estruturado de um evento de publicação.
- *
- * Só entram identificadores e metadados. Senha, sessão, token e proxy nunca
- * aparecem aqui — a publicação carrega a conta inteira em memória, e um
- * `JSON.stringify(account)` num log vazaria credenciais.
+ * Loga e grava o evento no histórico da campanha. Só identificadores — nunca
+ * a conta inteira, que carrega o token. Gravar não pode derrubar a execução.
  */
 function registrarEvento(evento, dados = {}) {
   const linha = {
     evento,
-    campaignId:    dados.campaignId    ? String(dados.campaignId)    : undefined,
+    campaignId: dados.campaignId ? String(dados.campaignId) : undefined,
     publicationId: dados.publicationId ? String(dados.publicationId) : undefined,
-    accountId:     dados.accountId     ? String(dados.accountId)     : undefined,
-    contentId:     dados.contentId     ? String(dados.contentId)     : undefined,
-    // Id da mídia: identificador público do post, não é segredo. Entra no log
-    // porque é o que permite conferir manualmente onde o comentário caiu.
-    mediaId:       dados.mediaId       ? String(dados.mediaId)       : undefined,
-    attempt:       dados.attempt,
-    durationMs:    dados.durationMs,
-    errorCode:     dados.errorCode,
-    error:         dados.error ? String(dados.error).slice(0, 300) : undefined,
-    at:            new Date().toISOString(),
+    accountId: dados.accountId ? String(dados.accountId) : undefined,
+    contentId: dados.contentId ? String(dados.contentId) : undefined,
+    mediaId: dados.mediaId ? String(dados.mediaId) : undefined,
+    attempt: dados.attempt,
+    durationMs: dados.durationMs,
+    errorCode: dados.errorCode,
+    error: dados.error ? String(dados.error).slice(0, 300) : undefined,
+    at: new Date().toISOString(),
   };
   for (const k of Object.keys(linha)) if (linha[k] === undefined) delete linha[k];
   console.log(`[Campaign] ${evento}`, JSON.stringify(linha));
 
-  /* E grava. O `console.log` serve a quem está no terminal no instante em que
-     a coisa acontece — e a mais ninguém, nem ao mesmo alguém no dia seguinte.
-     A pergunta de uma campanha que não publicou é sempre "o que aconteceu?", e
-     sem histórico a única resposta é o estado final: "falhou", que diz o
-     resultado e esconde o caminho.
-
-     Sem `await` e engolindo o próprio erro: registrar não pode atrasar nem
-     derrubar uma publicação. Um evento perdido é ruim; uma publicação perdida
-     por causa do registro dela seria pior. */
   if (dados.campaignId) {
-    try {
-      require('../models/CampaignEvent').create({
-        campaignId:    dados.campaignId,
-        publicationId: dados.publicationId || null,
-        accountId:     dados.accountId || null,
-        evento,
-        errorCode:     linha.errorCode  || '',
-        error:         linha.error      || '',
-        mediaId:       linha.mediaId    || '',
-        attempt:       linha.attempt    || 0,
-        durationMs:    linha.durationMs || 0,
-      }).catch(() => {});
-    } catch { /* modelo indisponível não derruba a execução */ }
+    sql`
+      insert into campaign_events (campaign_id, publication_id, account_id, evento, error_code, error, media_id, attempt, duration_ms)
+      values (${linha.campaignId}, ${linha.publicationId || null}, ${linha.accountId || null}, ${evento},
+              ${linha.errorCode || ''}, ${linha.error || ''}, ${linha.mediaId || ''},
+              ${linha.attempt || 0}, ${Math.round(linha.durationMs || 0)})`.catch(() => {});
   }
-
   return linha;
 }
 
-/** Emite evento SSE reusando o broadcaster existente — sem segundo mecanismo. */
 function emitir(broadcast, acao, dados) {
   if (typeof broadcast !== 'function') return;
-  try {
-    broadcast('campaigns', { action: acao, ...dados });
-  } catch { /* SSE não pode derrubar a execução */ }
+  try { broadcast('campaigns', { action: acao, ...dados }); } catch { /* SSE não derruba a execução */ }
 }
 
-/* ── Contadores ────────────────────────────────────────────────────────────── */
+// ── Contadores ───────────────────────────────────────────────────────────────
 
 /**
- * Recalcula os contadores da campanha CONTANDO as publicações.
- *
- * Deliberadamente não usa `$inc`. Incremento acumulativo diverge assim que um
- * processo morre entre a publicação e o incremento — e campanha grande com
- * restart no meio é justamente o cenário desta fase. Contar é O(n) no banco mas
- * roda em índice e é sempre verdade.
- *
- * @returns {Object} contagem por status, com `total`
+ * Recalcula os contadores CONTANDO as publicações — incremento acumulativo
+ * diverge assim que um processo morre entre publicar e incrementar.
  */
 async function recalcularContadores(campaignId) {
-  const linhas = await CampaignPublication.aggregate([
-    { $match: { campaignId: new mongoose.Types.ObjectId(String(campaignId)) } },
-    { $group: { _id: '$status', total: { $sum: 1 } } },
-  ]);
-
+  const linhas = await sql`
+    select status, count(*) as total from campaign_publications
+    where campaign_id = ${campaignId} group by status`;
   const c = { total: 0, pending: 0, scheduled: 0, processing: 0, published: 0, failed: 0, cancelled: 0 };
   for (const l of linhas) {
-    if (c[l._id] !== undefined) c[l._id] = l.total;
+    if (c[l.status] !== undefined) c[l.status] = l.total;
     c.total += l.total;
   }
-
-  // O model tem quatro contadores. "pending" agrega tudo que ainda não terminou,
-  // que é o que a lista de campanhas mostra; a divisão fina sai de estatisticas().
-  await Campaign.findByIdAndUpdate(campaignId, {
-    $set: {
-      totalPublications:     c.total,
-      pendingPublications:   c.pending + c.scheduled + c.processing,
-      publishedPublications: c.published,
-      failedPublications:    c.failed,
-    },
+  await campaigns.update(campaignId, {
+    totalPublications: c.total,
+    pendingPublications: c.pending + c.scheduled + c.processing,
+    publishedPublications: c.published,
+    failedPublications: c.failed,
   });
-
   return c;
 }
 
-/**
- * Fecha a campanha quando todas as publicações chegaram a estado terminal.
- *
- * Usa os status que Campaign.js já tem: `completed` (tudo publicou),
- * `partial` (publicou parte) e `failed` (nada publicou). Nenhum estado novo.
- */
+/** Fecha a campanha quando tudo chegou a estado terminal: completed, partial ou failed. */
 async function finalizarSeCompleta(campaignId, contadores = null) {
   const c = contadores || await recalcularContadores(campaignId);
+  if (c.pending + c.scheduled + c.processing > 0 || c.total === 0) return null;
 
-  const emAberto = c.pending + c.scheduled + c.processing;
-  if (emAberto > 0) return null;
-  if (c.total === 0) return null;
-
-  const campanha = await Campaign.findById(campaignId);
+  const campanha = await campaigns.findById(campaignId);
   if (!campanha) return null;
   if (['cancelled', 'completed', 'partial', 'failed'].includes(campanha.status)) return campanha.status;
 
-  const status = c.published === 0 ? 'failed'
-               : c.failed === 0 && c.cancelled === 0 ? 'completed'
-               : 'partial';
-
-  await Campaign.findByIdAndUpdate(campaignId, { $set: { status, completedAt: new Date() } });
+  const status = c.published === 0 ? 'failed' : c.failed === 0 && c.cancelled === 0 ? 'completed' : 'partial';
+  await campaigns.update(campaignId, { status, completedAt: new Date() });
   registrarEvento('CAMPAIGN_FINISHED', { campaignId, errorCode: status });
   return status;
 }
 
-/* ── Agendamento ───────────────────────────────────────────────────────────── */
+// ── Agendamento ──────────────────────────────────────────────────────────────
 
 /**
- * Enfileira todas as publicações agendáveis de uma campanha.
- *
- * Idempotente por construção: o jobId é derivado do id da publicação, então
- * chamar duas vezes (ou dois cliques simultâneos) não duplica nada — ver
- * campaignQueue.js. Também não usa Promise.all sem limite: uma campanha de
- * milhares de publicações abriria milhares de conexões ao Redis de uma vez.
+ * Enfileira todas as publicações agendáveis. Idempotente: a chave do trabalho
+ * vem do id da publicação. Publicação atrasada (horário já passou) é
+ * espalhada em 5–10 min de distância, para não sair tudo de uma vez.
  */
-async function agendarCampanha(campaignId, { agora = new Date(), lote = 50 } = {}) {
-  const campanha = await Campaign.findById(campaignId);
+async function agendarCampanha(campaignId, { agora = new Date() } = {}) {
+  const campanha = await campaigns.findById(campaignId);
   if (!campanha) throw new ExecutionError('CAMPAIGN_NOT_FOUND', 'Campanha não encontrada.');
-
   if (['paused', 'cancelled'].includes(campanha.status)) {
-    throw new ExecutionError(
-      'INVALID_CAMPAIGN_STATE',
-      `Campanha em "${campanha.status}" não pode agendar publicações.`,
-    );
+    throw new ExecutionError('INVALID_CAMPAIGN_STATE', `Campanha em "${campanha.status}" não pode agendar publicações.`);
   }
 
-  const total = await CampaignPublication.countDocuments({
-    campaignId, status: { $in: AGENDAVEIS },
-  });
+  const lista = await sql`
+    select * from campaign_publications
+    where campaign_id = ${campaignId} and status = any(${AGENDAVEIS})
+    order by scheduled_at, id`;
 
-  let agendadas = 0, jaExistiam = 0;
-
-  // `skip` é estável aqui porque 'scheduled' continua dentro de AGENDAVEIS: o
-  // conjunto filtrado não encolhe conforme as páginas são processadas. Se um dia
-  // o estado de saída sair dessa lista, esta paginação precisa virar keyset.
-  for (let pulados = 0; pulados < total; pulados += lote) {
-    const pagina = await CampaignPublication
-      .find({ campaignId, status: { $in: AGENDAVEIS } })
-      .sort({ scheduledAt: 1, _id: 1 })
-      .skip(pulados)
-      .limit(lote);
-
-    if (!pagina.length) break;
-
-    let atrasadosNestaPagina = 0;
-    for (const pub of pagina) {
-      let calcDelay = fila.calcularDelay(pub.scheduledAt, agora);
-      let novoAgendamento = pub.scheduledAt;
-
-      // Fase 16: Anti-Burst. Se o job está atrasado (delay 0), nós o empurramos
-      // para o futuro com espaçamento de segurança (5 a 10 minutos por job atrasado).
-      if (calcDelay === 0) {
-        const offsetMinutos = (atrasadosNestaPagina * 5) + Math.floor(Math.random() * 5);
-        novoAgendamento = new Date(agora.getTime() + offsetMinutos * 60_000);
-        calcDelay = fila.calcularDelay(novoAgendamento, agora);
-        atrasadosNestaPagina++;
-      }
-
-      const { jobId, criado } = await fila.agendarPublicacao(
-        { ...pub.toObject(), scheduledAt: novoAgendamento }, 
-        agora
-      );
-      
-      if (criado) agendadas++; else jaExistiam++;
-
-      await CampaignPublication.updateOne(
-        { _id: pub._id, status: { $in: AGENDAVEIS } },
-        { $set: { status: 'scheduled', bullMqJobId: jobId, scheduledAt: novoAgendamento } },
-      );
-
-      registrarEvento('PUBLICATION_SCHEDULED', {
-        campaignId, publicationId: pub._id,
-        accountId: pub.accountId, contentId: pub.contentId,
-      });
+  let agendadas = 0, jaExistiam = 0, atrasadas = 0;
+  for (const pub of lista) {
+    let quando = new Date(pub.scheduledAt);
+    if (fila.calcularDelay(quando, agora) === 0) {
+      quando = new Date(agora.getTime() + ((atrasadas * 5) + Math.floor(Math.random() * 5)) * 60_000);
+      atrasadas++;
     }
+    const { jobId, criado } = await fila.agendarPublicacao({ ...pub, scheduledAt: quando }, agora);
+    if (criado) agendadas++; else jaExistiam++;
+    await sql`
+      update campaign_publications set status = 'scheduled', queue_job_id = ${jobId}, scheduled_at = ${quando}
+      where id = ${pub.id} and status = any(${AGENDAVEIS})`;
+    registrarEvento('PUBLICATION_SCHEDULED', { campaignId, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId });
   }
 
   const contadores = await recalcularContadores(campaignId);
-  return { agendadas, jaExistiam, total, contadores };
+  return { agendadas, jaExistiam, total: lista.length, contadores };
 }
 
-/* ── Execução de uma publicação ────────────────────────────────────────────── */
-
-/**
- * Executa UMA publicação.
- *
- * @param {string} publicationId
- * @param {Object} deps
- * @param {Function} deps.publicarNaConta  (account, post) => Promise — o
- *        `publishOneAccount` do worker, injetado (ver cabeçalho do arquivo).
- * @param {Function} [deps.broadcast]
- * @param {Date}     [deps.agora]
- */
-async function processarPublicacao(publicationId, deps = {}) {
-  const { publicarNaConta, broadcast, agora = new Date() } = deps;
-  if (typeof publicarNaConta !== 'function') {
-    throw new ExecutionError('MISSING_PUBLISHER', 'publicarNaConta não foi injetado.');
-  }
-
-  const inicio = Date.now();
-
-  const pub = await CampaignPublication.findById(publicationId);
-  if (!pub) return { skipped: true, reason: 'PUBLICATION_NOT_FOUND' };
-
-  // Já publicada ou cancelada — nunca reexecuta. É o que protege contra job
-  // duplicado sobrevivente de um restart.
-  if (TERMINAIS.has(pub.status)) {
-    return { skipped: true, reason: `ALREADY_${pub.status.toUpperCase()}` };
-  }
-
-  const campanha = await Campaign.findById(pub.campaignId);
-  if (!campanha) return { skipped: true, reason: 'CAMPAIGN_NOT_FOUND' };
-
-  // Campanha cancelada: a publicação acompanha e não roda.
-  if (campanha.status === 'cancelled') {
-    await CampaignPublication.updateOne(
-      { _id: pub._id, status: { $in: [...AGENDAVEIS, 'processing'] } },
-      { $set: { status: 'cancelled' } },
-    );
-    registrarEvento('PUBLICATION_CANCELLED', {
-      campaignId: campanha._id, publicationId: pub._id, errorCode: 'CAMPAIGN_CANCELLED',
-    });
-    return { skipped: true, reason: 'CAMPAIGN_CANCELLED' };
-  }
-
-  // Campanha pausada: volta para 'pending' e NÃO consome tentativa. 'pending' e
-  // não 'scheduled' porque a pausa já removeu o job da fila — marcá-la como
-  // agendada descreveria uma fila que não existe, e o resume a ignoraria por
-  // achar que já estava enfileirada.
-  if (campanha.status === 'paused') {
-    await CampaignPublication.updateOne(
-      { _id: pub._id, status: 'scheduled' },
-      { $set: { status: 'pending', bullMqJobId: '' } },
-    );
-    return { skipped: true, reason: 'CAMPAIGN_PAUSED' };
-  }
-
-  // Reivindicação atômica. Só um executor consegue sair de pending/scheduled
-  // para processing; qualquer job duplicado que chegue depois encontra a linha
-  // já tomada e desiste sem publicar.
-  const tomada = await CampaignPublication.findOneAndUpdate(
-    { _id: pub._id, status: { $in: AGENDAVEIS } },
-    { $set: { status: 'processing', error: '', errorCode: '' }, $inc: { attempts: 1 } },
-    { new: true },
-  );
-  if (!tomada) {
-    return { skipped: true, reason: 'ALREADY_CLAIMED' };
-  }
-
-  registrarEvento('PUBLICATION_STARTED', {
-    campaignId: campanha._id, publicationId: pub._id,
-    accountId: pub.accountId, contentId: pub.contentId, attempt: tomada.attempts,
-  });
-  emitir(broadcast, 'publication_started', {
-    campaignId: String(campanha._id), publicationId: String(pub._id),
-  });
-
-  /** Marca falha sem derrubar as outras publicações da campanha. */
-  const falhar = async (codigo, mensagem) => {
-    await CampaignPublication.updateOne(
-      { _id: pub._id },
-      { $set: { status: 'failed', error: String(mensagem).slice(0, 500), errorCode: codigo } },
-    );
-    registrarEvento('PUBLICATION_FAILED', {
-      campaignId: campanha._id, publicationId: pub._id,
-      accountId: pub.accountId, contentId: pub.contentId,
-      attempt: tomada.attempts, durationMs: Date.now() - inicio,
-      errorCode: codigo, error: mensagem,
-    });
-    const contadores = await recalcularContadores(campanha._id);
-    await finalizarSeCompleta(campanha._id, contadores);
-    emitir(broadcast, 'publication_failed', {
-      campaignId: String(campanha._id), publicationId: String(pub._id), errorCode: codigo,
-    });
-    return { ok: false, errorCode: codigo };
-  };
-
-  /**
-   * Devolve a publicação para a fila, para o horário em que a conta pode
-   * publicar de novo — em vez de `falhar()`.
-   *
-   * `publishOneAccount` (worker.js, injetado como `publicarNaConta`) já sabe
-   * dizer QUANDO reabre: é ele que tem `ritmoDaConta` na mão, e manda esse
-   * horário junto do erro como `retryAt` (ver o catch mais abaixo). Sem isto,
-   * o teto diário e a janela de silêncio — pausas por TEMPO, não por erro —
-   * chegavam aqui como qualquer outra falha e ficavam `failed` para sempre:
-   * uma campanha agendada de madrugada saía do ar e só voltava se alguém
-   * notasse e clicasse em "Tentar novamente" — depois das 23h, de novo em
-   * vão. */
-  const adiar = async (motivo, ate) => {
-    await CampaignPublication.updateOne(
-      { _id: pub._id },
-      { $set: { status: 'scheduled', error: motivo, errorCode: 'RHYTHM_WAIT' } },
-    );
-    const { jobId } = await fila.reagendarPublicacao(
-      { _id: pub._id, campaignId: pub.campaignId, scheduledAt: ate }, agora,
-    );
-    await CampaignPublication.updateOne({ _id: pub._id }, { $set: { bullMqJobId: jobId } });
-    registrarEvento('PUBLICATION_DEFERRED', {
-      campaignId: campanha._id, publicationId: pub._id,
-      accountId: pub.accountId, contentId: pub.contentId,
-      attempt: tomada.attempts, error: motivo,
-    });
-    emitir(broadcast, 'publication_deferred', {
-      campaignId: String(campanha._id), publicationId: String(pub._id), ate,
-    });
-    return { ok: false, deferred: true, ate };
-  };
-
-  // Conta e conteúdo podem ter sumido entre o planejamento e a execução.
-  const conta = await Account.findById(pub.accountId).lean();
-  if (!conta) return falhar('ACCOUNT_UNAVAILABLE', 'A conta desta publicação não existe mais.');
-  if (conta.healthStatus === 'banida') {
-    return falhar('ACCOUNT_UNAVAILABLE', `Conta @${conta.username} está banida.`);
-  }
-
-  const midia = await Media.findById(pub.contentId).lean();
-  if (!midia) return falhar('CONTENT_NOT_FOUND', 'O conteúdo desta publicação não existe mais.');
-
-  // `Post.media` guarda o NOME do arquivo, que o publicador resolve dentro de
-  // uploads/. Cair para `url` aqui produziria "/uploads/x.mp4" e um caminho
-  // duplicado na hora de ler o arquivo — melhor falhar de forma legível.
-  const arquivo = midia.filename || '';
-  if (!arquivo) return falhar('CONTENT_NOT_FOUND', 'O conteúdo não possui arquivo associado.');
-
-  // Contexto de resolução — mesmos nomes que o templateResolver espera.
-  const contexto = {
-    username:    conta.username || '',
-    name:        conta.name || '',
-    campaign:    campanha.name || '',
-    contentName: midia.originalName || midia.filename || '',
-    now:         pub.scheduledAt,
-  };
-  // Cai para o texto já materializado na criação se o template estiver vazio —
-  // campanhas criadas antes desta resolução continuam publicando corretamente.
-  const legendaFinal = resolveTemplate(pub.captionTemplate, contexto).text || pub.resolvedCaption || '';
-
-  try {
-    // Um Post por publicação (decisão 2 da fase 2): preserva a tela de Posts e o
-    // histórico por conta que já existem.
-    const ehVideo = /\.(mp4|mov|webm|avi|mkv)$/i.test(arquivo);
-    let   postType  = campanha.settings?.postType || 'reel';
-    if (postType === 'reel' && !ehVideo) postType = 'post';
-
-    // Capa do vídeo (opcional). Só faz sentido em vídeo: o Instagram ignora
-    // cover em foto, e mandar mesmo assim gastaria uma consulta por publicação.
-    const capa = ehVideo ? await _arquivoDaCapa(campanha, pub.contentId, pub.accountId) : '';
-
-    const post = await Post.create({
-      media:       arquivo,
-      mediaType:   ehVideo ? 'video' : 'image',
-      postType,
-      cover:       capa,
-      // Legenda resolvida AGORA, a partir do template que o planner escolheu
-      // para este par conta+conteúdo. A escolha de QUAL template usar continua
-      // sendo só do planner — aqui só as variáveis são substituídas, pelo
-      // templateResolver oficial. Resolver na execução mantém o texto fiel se o
-      // username da conta mudou entre o planejamento e a publicação.
-      caption:     legendaFinal,
-      location:    campanha.settings?.location    || '',
-      /* `humanizador` e não `limpeza_leve`: o segundo é determinístico e
-         faria todas as contas da campanha subirem o mesmo arquivo. Ver
-         midiaPorConta.js. */
-      processMode: campanha.settings?.processMode || 'humanizador',
-      /* A marca desce para o post porque é o post que `prepararParaConta`
-         recebe. Sem esta linha o campo existiria na campanha e nunca chegaria
-         a quem desenha. */
-      ...(campanha.settings?.marcaDagua?.ativa ? { marcaDagua: campanha.settings.marcaDagua } : {}),
-      accounts:    [conta._id],
-      status:      'processando',
-      scheduledAt: pub.scheduledAt,
-    });
-
-    // O retorno traz o id da mídia criada. É ele que amarra o comentário a ESTA
-    // publicação — sem ele o comentário teria de adivinhar qual post é o alvo.
-    const resultado = await publicarNaConta(conta, post);
-    const mediaId   = String(resultado?.mediaId || '');
-
-    post.status = 'concluido';
-    post.error  = '';
-    await post.save();
-
-    await CampaignPublication.updateOne(
-      { _id: pub._id },
-      { $set: {
-        status: 'published', publishedAt: new Date(), postId: post._id,
-        instagramMediaId: mediaId, error: '', errorCode: '',
-        // Registra o texto que foi de fato enviado, não o template.
-        resolvedCaption: legendaFinal,
-      } },
-    );
-
-    registrarEvento('PUBLICATION_SUCCESS', {
-      campaignId: campanha._id, publicationId: pub._id,
-      accountId: conta._id, contentId: pub.contentId,
-      attempt: tomada.attempts, durationMs: Date.now() - inicio,
-      mediaId,
-    });
-
-    // Comentário vira job PRÓPRIO. O worker não dorme esperando o atraso.
-    await agendarComentarioDe({ ...pub.toObject?.() ?? pub, instagramMediaId: mediaId }, campanha);
-
-    const contadores = await recalcularContadores(campanha._id);
-    await finalizarSeCompleta(campanha._id, contadores);
-
-    emitir(broadcast, 'publication_success', {
-      campaignId: String(campanha._id), publicationId: String(pub._id),
-    });
-
-    return { ok: true, postId: String(post._id) };
-  } catch (err) {
-    // `retryAt` só existe quando quem publicou de verdade (`publishOneAccount`,
-    // em worker.js) recusou por teto diário ou por janela de silêncio — as duas
-    // pausas que são sobre TEMPO, não sobre a publicação em si. Depender do
-    // erro que a própria injeção devolve, em vez de perguntar a `ritmoDaConta`
-    // de novo aqui, é o que mantém esta função testável com um publicador
-    // falso: um mock que não seja o `publishOneAccount` real nunca marca
-    // `retryAt`, e continua caindo direto em `falhar()` como sempre caiu.
-    if (err.code === 'RHYTHM_WAIT' && err.retryAt) {
-      return adiar(err.message, err.retryAt);
-    }
-    return falhar(classificarErro(err), err.message || 'Falha ao publicar');
-  }
-}
-
-/* ── Comentário ────────────────────────────────────────────────────────────── */
-
-/**
- * Nome do arquivo da capa escolhida para este conteúdo, ou '' se não houver.
- *
- * A capa é guardada como id de Media (não como nome de arquivo) para sobreviver
- * a renomeações; a conversão para arquivo acontece aqui, na hora de publicar.
- * Capa apagada da biblioteca não derruba a publicação — o vídeo sai com o frame
- * que o Instagram escolher, que é o comportamento de quem não configurou capa.
- */
+/** Arquivo da capa escolhida (a do perfil vale acima da do conteúdo), ou ''. */
 async function _arquivoDaCapa(campanha, contentId, accountId) {
-  const ler = (mapa, chave) => {
-    if (!mapa || chave == null) return '';
-    return (typeof mapa.get === 'function' ? mapa.get(String(chave)) : mapa[String(chave)]) || '';
-  };
-  /* A capa do PERFIL vale acima da do conteúdo: é a escolha mais específica
-     ("este perfil tem esta cara"), e é o que "capa por perfil" promete. */
-  const capaId = ler(campanha?.covers?.byAccount, accountId) || ler(campanha?.covers?.byContent, contentId);
+  const capaId = campanha?.covers?.byAccount?.[String(accountId)] || campanha?.covers?.byContent?.[String(contentId)];
   if (!capaId) return '';
-
-  try {
-    const midia = await Media.findById(capaId).select('filename').lean();
-    return midia?.filename || '';
-  } catch {
-    return '';
-  }
+  const capa = await media.findById(String(capaId)).catch(() => null);
+  return capa?.filename || '';
 }
 
-/**
- * Atraso do comentário, sorteado na faixa configurada.
- *
- * Atraso fixo faz o comentário sair sempre no mesmo delta da publicação — em
- * dezenas de publicações isso é um padrão exato. O sorteio é por publicação, e
- * teto <= piso mantém o comportamento fixo de quem configurou assim.
- */
+/** Atraso do comentário sorteado na faixa configurada — fixo vira padrão detectável. */
 function _atrasoDoComentario(comments = {}) {
-  // Valor não numérico cai no padrão em vez de virar NaN: NaN chegaria à fila
-  // como `Number(NaN) || 0`, ou seja, comentário imediato sem ninguém perceber.
-  const minutos = (valor, padrao) => {
-    const n = Number(valor);
-    return Number.isFinite(n) ? Math.max(0, n) : padrao;
-  };
-
+  const minutos = (v, padrao) => (Number.isFinite(Number(v)) ? Math.max(0, Number(v)) : padrao);
   const piso = minutos(comments.delayMinutes, 2);
   const teto = minutos(comments.delayMaxMinutes, 6);
   if (!(teto > piso)) return piso;
   return piso + Math.random() * (teto - piso);
 }
 
-/** Agenda o comentário de uma publicação recém-publicada, se houver texto. */
+// ── Execução de uma publicação ───────────────────────────────────────────────
+
+/**
+ * @param {Object} deps
+ * @param {Function} deps.publicarNaConta  (conta, post) => Promise<{mediaId}>
+ * @param {Function} [deps.broadcast]
+ */
+async function processarPublicacao(publicationId, deps = {}) {
+  const { publicarNaConta, broadcast, agora = new Date() } = deps;
+  if (typeof publicarNaConta !== 'function') throw new ExecutionError('MISSING_PUBLISHER', 'publicarNaConta não foi injetado.');
+  const inicio = Date.now();
+
+  const pub = await campaignPublications.findById(publicationId);
+  if (!pub) return { skipped: true, reason: 'PUBLICATION_NOT_FOUND' };
+  if (TERMINAIS.has(pub.status)) return { skipped: true, reason: `ALREADY_${pub.status.toUpperCase()}` };
+
+  const campanha = await campaigns.findById(pub.campaignId);
+  if (!campanha) return { skipped: true, reason: 'CAMPAIGN_NOT_FOUND' };
+
+  if (campanha.status === 'cancelled') {
+    await sql`update campaign_publications set status = 'cancelled'
+              where id = ${pub.id} and status = any(${[...AGENDAVEIS, 'processing']})`;
+    registrarEvento('PUBLICATION_CANCELLED', { campaignId: campanha.id, publicationId: pub.id, errorCode: 'CAMPAIGN_CANCELLED' });
+    return { skipped: true, reason: 'CAMPAIGN_CANCELLED' };
+  }
+  // Pausada: volta a 'pending' (a pausa já tirou da fila) sem gastar tentativa.
+  if (campanha.status === 'paused') {
+    await sql`update campaign_publications set status = 'pending', queue_job_id = '' where id = ${pub.id} and status = 'scheduled'`;
+    return { skipped: true, reason: 'CAMPAIGN_PAUSED' };
+  }
+
+  // Reivindicação atômica: só um executor sai de pending/scheduled para processing.
+  const [tomada] = await sql`
+    update campaign_publications set status = 'processing', error = '', error_code = '', attempts = attempts + 1
+    where id = ${pub.id} and status = any(${AGENDAVEIS}) returning *`;
+  if (!tomada) return { skipped: true, reason: 'ALREADY_CLAIMED' };
+
+  registrarEvento('PUBLICATION_STARTED', {
+    campaignId: campanha.id, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId, attempt: tomada.attempts,
+  });
+  emitir(broadcast, 'publication_started', { campaignId: campanha.id, publicationId: pub.id });
+
+  const falhar = async (codigo, mensagem) => {
+    await campaignPublications.update(pub.id, { status: 'failed', error: String(mensagem).slice(0, 500), errorCode: codigo });
+    registrarEvento('PUBLICATION_FAILED', {
+      campaignId: campanha.id, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId,
+      attempt: tomada.attempts, durationMs: Date.now() - inicio, errorCode: codigo, error: mensagem,
+    });
+    await finalizarSeCompleta(campanha.id, await recalcularContadores(campanha.id));
+    emitir(broadcast, 'publication_failed', { campaignId: campanha.id, publicationId: pub.id, errorCode: codigo });
+    return { ok: false, errorCode: codigo };
+  };
+
+  /* Teto diário, janela e cota da API são pausas de TEMPO: a publicação volta
+     para a fila no horário em que a conta pode publicar, em vez de falhar. */
+  const adiar = async (motivo, ate) => {
+    await campaignPublications.update(pub.id, { status: 'scheduled', error: motivo, errorCode: 'RHYTHM_WAIT' });
+    const { jobId } = await fila.reagendarPublicacao({ id: pub.id, campaignId: pub.campaignId, scheduledAt: ate }, agora);
+    await campaignPublications.update(pub.id, { queueJobId: jobId });
+    registrarEvento('PUBLICATION_DEFERRED', {
+      campaignId: campanha.id, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId,
+      attempt: tomada.attempts, error: motivo,
+    });
+    emitir(broadcast, 'publication_deferred', { campaignId: campanha.id, publicationId: pub.id, ate });
+    return { ok: false, deferred: true, ate };
+  };
+
+  const conta = await accounts.findById(pub.accountId);
+  if (!conta) return falhar('ACCOUNT_UNAVAILABLE', 'A conta desta publicação não existe mais.');
+  if (conta.healthStatus === 'banida') return falhar('ACCOUNT_UNAVAILABLE', `Conta @${conta.username} está banida.`);
+
+  const midia = await media.findById(pub.contentId);
+  if (!midia?.filename) return falhar('CONTENT_NOT_FOUND', 'O conteúdo desta publicação não existe mais.');
+
+  const legendaFinal = resolveTemplate(pub.captionTemplate, {
+    username: conta.username || '', name: conta.name || '', campaign: campanha.name || '',
+    contentName: midia.originalName || midia.filename || '', now: pub.scheduledAt,
+  }).text || pub.resolvedCaption || '';
+
+  try {
+    const video = /\.(mp4|mov|webm|avi|mkv)$/i.test(midia.filename);
+    let postType = campanha.settings?.postType || 'reel';
+    if (postType === 'reel' && !video) postType = 'post';
+
+    // Um Post por publicação: a fila de postagens e o histórico por conta seguem valendo.
+    const post = await posts.insert({
+      media: midia.filename,
+      mediaType: video ? 'video' : 'image',
+      postType,
+      cover: video ? await _arquivoDaCapa(campanha, pub.contentId, pub.accountId) : '',
+      caption: legendaFinal,
+      // `humanizador`: `limpeza_leve` é determinístico e daria o mesmo arquivo a todas as contas.
+      processMode: campanha.settings?.processMode || 'humanizador',
+      marcaDagua: campanha.settings?.marcaDagua?.ativa ? campanha.settings.marcaDagua : null,
+      accountIds: [conta.id],
+      status: 'processando',
+      scheduledAt: pub.scheduledAt,
+    });
+
+    const { mediaId = '' } = await publicarNaConta(conta, post) || {};
+    await posts.update(post.id, { status: 'concluido', error: '' });
+    const publicada = await campaignPublications.update(pub.id, {
+      status: 'published', publishedAt: new Date(), postId: post.id,
+      instagramMediaId: String(mediaId), error: '', errorCode: '', resolvedCaption: legendaFinal,
+    });
+
+    registrarEvento('PUBLICATION_SUCCESS', {
+      campaignId: campanha.id, publicationId: pub.id, accountId: conta.id, contentId: pub.contentId,
+      attempt: tomada.attempts, durationMs: Date.now() - inicio, mediaId,
+    });
+    await agendarComentarioDe(publicada, campanha);
+    await finalizarSeCompleta(campanha.id, await recalcularContadores(campanha.id));
+    emitir(broadcast, 'publication_success', { campaignId: campanha.id, publicationId: pub.id });
+    return { ok: true, postId: post.id };
+  } catch (err) {
+    if (err.code === 'RHYTHM_WAIT' && err.retryAt) return adiar(err.message, err.retryAt);
+    return falhar(classificarErro(err), err.message || 'Falha ao publicar');
+  }
+}
+
+// ── Comentário ───────────────────────────────────────────────────────────────
+
 async function agendarComentarioDe(pub, campanha) {
   if (campanha.commentMode === 'disabled') return null;
   if (!String(pub.resolvedComment || '').trim()) return null;
-
-  const { jobId, criado } = await fila.agendarComentario(
-    pub, _atrasoDoComentario(campanha.comments),
-  );
-
-  await CampaignPublication.updateOne(
-    { _id: pub._id, commentStatus: { $in: ['none', 'failed'] } },
-    { $set: { commentStatus: 'scheduled', commentJobId: jobId } },
-  );
-
+  const { jobId, criado } = await fila.agendarComentario(pub, _atrasoDoComentario(campanha.comments));
+  await sql`
+    update campaign_publications set comment_status = 'scheduled', comment_job_id = ${jobId}
+    where id = ${pub.id} and comment_status in ('none', 'failed')`;
   return { jobId, criado };
 }
 
 /**
- * Publica o comentário de uma publicação.
- *
- * O comentário vai para a mídia identificada por `instagramMediaId`, gravado no
- * momento da publicação. Não existe busca por "mídia mais recente da conta":
- * numa campanha a mesma conta publica várias vezes, e a mais recente
- * frequentemente não é o alvo pretendido.
- *
- * @param {Function} deps.comentarNaConta (account, { mediaId, text }) => Promise
+ * Publica o comentário na mídia que a PRÓPRIA publicação devolveu — nunca na
+ * "mais recente da conta", que numa campanha raramente é a certa.
+ * @param {Function} deps.comentarNaConta (conta, { mediaId, text }) => Promise
  */
 async function processarComentario(publicationId, deps = {}) {
   const { comentarNaConta, broadcast } = deps;
   const inicio = Date.now();
 
-  const pub = await CampaignPublication.findById(publicationId);
+  const pub = await campaignPublications.findById(publicationId);
   if (!pub) return { skipped: true, reason: 'PUBLICATION_NOT_FOUND' };
-
-  // Comentar exige que o post exista. Se a publicação falhou ou foi cancelada
-  // depois do agendamento, não há onde comentar.
   if (pub.status !== 'published') return { skipped: true, reason: 'NOT_PUBLISHED' };
-  if (pub.commentStatus === 'posted')    return { skipped: true, reason: 'ALREADY_POSTED' };
+  if (pub.commentStatus === 'posted') return { skipped: true, reason: 'ALREADY_POSTED' };
   if (pub.commentStatus === 'cancelled') return { skipped: true, reason: 'CANCELLED' };
 
-  const campanha = await Campaign.findById(pub.campaignId);
+  const campanha = await campaigns.findById(pub.campaignId);
   if (!campanha) return { skipped: true, reason: 'CAMPAIGN_NOT_FOUND' };
   if (campanha.status === 'cancelled') {
-    await CampaignPublication.updateOne({ _id: pub._id }, { $set: { commentStatus: 'cancelled' } });
+    await campaignPublications.update(pub.id, { commentStatus: 'cancelled' });
     return { skipped: true, reason: 'CAMPAIGN_CANCELLED' };
   }
 
-  /** Marca a falha do comentário sem tocar no estado da publicação. */
+  // Falha de comentário NÃO reverte a publicação: o post já está no ar.
   const falharComentario = async (codigo, mensagem) => {
-    await CampaignPublication.updateOne(
-      { _id: pub._id },
-      { $set: {
-        commentStatus: 'failed',
-        commentError:  String(mensagem || '').slice(0, 500),
-        commentErrorCode: codigo,
-      } },
-    );
+    await campaignPublications.update(pub.id, {
+      commentStatus: 'failed', commentError: String(mensagem || '').slice(0, 500), commentErrorCode: codigo,
+    });
     registrarEvento('COMMENT_FAILED', {
-      campaignId: pub.campaignId, publicationId: pub._id, accountId: pub.accountId,
-      mediaId: pub.instagramMediaId, durationMs: Date.now() - inicio,
-      errorCode: codigo, error: mensagem,
+      campaignId: pub.campaignId, publicationId: pub.id, accountId: pub.accountId, mediaId: pub.instagramMediaId,
+      durationMs: Date.now() - inicio, errorCode: codigo, error: mensagem,
     });
-    emitir(broadcast, 'comment_failed', {
-      campaignId: String(pub.campaignId), publicationId: String(pub._id), errorCode: codigo,
-    });
-    // Falha de comentário NÃO reverte a publicação: o post já está no ar.
+    emitir(broadcast, 'comment_failed', { campaignId: pub.campaignId, publicationId: pub.id, errorCode: codigo });
     return { ok: false, errorCode: codigo };
   };
 
-  const conta = await Account.findById(pub.accountId).lean();
+  const conta = await accounts.findById(pub.accountId);
   if (!conta) return falharComentario('ACCOUNT_UNAVAILABLE', 'A conta desta publicação não existe mais.');
 
-  const midiaDoComentario = await Media.findById(pub.contentId).lean();
+  const midia = await media.findById(pub.contentId);
   const texto = resolveTemplate(pub.commentTemplate, {
-    username:    conta.username || '',
-    name:        conta.name || '',
-    campaign:    campanha.name || '',
-    contentName: midiaDoComentario?.originalName || midiaDoComentario?.filename || '',
-    now:         pub.scheduledAt,
+    username: conta.username || '', name: conta.name || '', campaign: campanha.name || '',
+    contentName: midia?.originalName || midia?.filename || '', now: pub.scheduledAt,
   }).text.trim() || String(pub.resolvedComment || '').trim();
-
   if (!texto) return { skipped: true, reason: 'NO_COMMENT_TEXT' };
 
-  // Sem o id da mídia não há como saber ONDE comentar. Falhar aqui é
-  // deliberado: comentar na "mídia mais recente" acertaria por acaso e erraria
-  // em silêncio no post de outra publicação da mesma conta.
   const mediaId = String(pub.instagramMediaId || '');
-  if (!mediaId) {
-    return falharComentario(
-      'COMMENT_MEDIA_NOT_FOUND',
-      'A publicação não registrou o id da mídia — a via usada não o expõe.',
-    );
-  }
+  if (!mediaId) return falharComentario('COMMENT_MEDIA_NOT_FOUND', 'A publicação não registrou o id da mídia.');
 
-  await CampaignPublication.updateOne({ _id: pub._id }, { $inc: { commentAttempts: 1 } });
-
+  await sql`update campaign_publications set comment_attempts = comment_attempts + 1 where id = ${pub.id}`;
   try {
-    if (typeof comentarNaConta !== 'function') {
-      throw new ExecutionError('COMMENT_NOT_SUPPORTED', 'Publicação de comentário não disponível.');
-    }
+    if (typeof comentarNaConta !== 'function') throw new ExecutionError('COMMENT_NOT_SUPPORTED', 'Publicação de comentário não disponível.');
     const r = await comentarNaConta(conta, { mediaId, text: texto });
-
-    await CampaignPublication.updateOne(
-      { _id: pub._id },
-      { $set: {
-        commentStatus: 'posted', commentPostedAt: new Date(),
-        commentError: '', commentErrorCode: '',
-        commentId: String(r?.commentId || ''),
-        resolvedComment: texto,
-      } },
-    );
+    await campaignPublications.update(pub.id, {
+      commentStatus: 'posted', commentPostedAt: new Date(), commentError: '', commentErrorCode: '',
+      commentId: String(r?.commentId || ''), resolvedComment: texto,
+    });
     registrarEvento('COMMENT_POSTED', {
-      campaignId: pub.campaignId, publicationId: pub._id, accountId: conta._id,
-      mediaId, durationMs: Date.now() - inicio,
+      campaignId: pub.campaignId, publicationId: pub.id, accountId: conta.id, mediaId, durationMs: Date.now() - inicio,
     });
-    emitir(broadcast, 'comment_posted', {
-      campaignId: String(pub.campaignId), publicationId: String(pub._id),
-    });
+    emitir(broadcast, 'comment_posted', { campaignId: pub.campaignId, publicationId: pub.id });
     return { ok: true, mediaId, commentId: String(r?.commentId || '') };
   } catch (err) {
     return falharComentario(classificarErroComentario(err), err.message || 'Falha ao comentar');
   }
 }
 
-/* ── Pausa, retomada e cancelamento ────────────────────────────────────────── */
+// ── Pausa, retomada, cancelamento e retry ────────────────────────────────────
 
-/**
- * Pausa: remove da fila os jobs ainda não executados.
- *
- * O que já está em `processing` continua até o fim — interromper no meio
- * deixaria o post publicado no Instagram sem registro correspondente aqui.
- */
+/** Tira da fila o que não começou. O que está em `processing` termina. */
 async function pausarCampanha(campaignId) {
-  const pendentes = await CampaignPublication
-    .find({ campaignId, status: { $in: AGENDAVEIS } })
-    .select('_id commentStatus')
-    .lean();
-
+  const pendentes = await sql`select id from campaign_publications where campaign_id = ${campaignId} and status = any(${AGENDAVEIS})`;
   let removidos = 0;
-  for (const p of pendentes) {
-    if (await fila.removerPublicacao(p._id)) removidos++;
-  }
-
-  await CampaignPublication.updateMany(
-    { campaignId, status: 'scheduled' },
-    { $set: { status: 'pending', bullMqJobId: '' } },
-  );
-
+  for (const p of pendentes) if (await fila.removerPublicacao(p.id)) removidos++;
+  await sql`update campaign_publications set status = 'pending', queue_job_id = '' where campaign_id = ${campaignId} and status = 'scheduled'`;
   registrarEvento('CAMPAIGN_PAUSED', { campaignId });
   return { removidos, pendentes: pendentes.length };
 }
 
-/**
- * Retomada: reenfileira apenas o que ficou pendente.
- *
- * Não duplica porque `agendarCampanha` só olha pending/scheduled — publicadas,
- * falhadas e canceladas ficam de fora — e o jobId determinístico rejeitaria a
- * segunda inserção de qualquer forma.
- */
 async function retomarCampanha(campaignId, { agora = new Date() } = {}) {
   const r = await agendarCampanha(campaignId, { agora });
   registrarEvento('CAMPAIGN_RESUMED', { campaignId });
   return r;
 }
 
-/** Cancelamento: tira da fila publicações E comentários ainda não executados. */
 async function cancelarCampanha(campaignId) {
-  const alvos = await CampaignPublication
-    .find({
-      campaignId,
-      $or: [{ status: { $in: AGENDAVEIS } }, { commentStatus: 'scheduled' }],
-    })
-    .select('_id status commentStatus')
-    .lean();
-
+  const alvos = await sql`
+    select id, status, comment_status from campaign_publications
+    where campaign_id = ${campaignId} and (status = any(${AGENDAVEIS}) or comment_status = 'scheduled')`;
   for (const p of alvos) {
-    if (AGENDAVEIS.includes(p.status)) await fila.removerPublicacao(p._id);
-    if (p.commentStatus === 'scheduled') await fila.removerComentario(p._id);
+    if (AGENDAVEIS.includes(p.status)) await fila.removerPublicacao(p.id);
+    if (p.commentStatus === 'scheduled') await fila.removerComentario(p.id);
   }
-
-  const pubs = await CampaignPublication.updateMany(
-    { campaignId, status: { $in: AGENDAVEIS } },
-    { $set: { status: 'cancelled', bullMqJobId: '' } },
-  );
-
-  await CampaignPublication.updateMany(
-    { campaignId, commentStatus: 'scheduled' },
-    { $set: { commentStatus: 'cancelled', commentJobId: '' } },
-  );
-
+  const r = await sql`
+    update campaign_publications set status = 'cancelled', queue_job_id = ''
+    where campaign_id = ${campaignId} and status = any(${AGENDAVEIS})`;
+  await sql`
+    update campaign_publications set comment_status = 'cancelled', comment_job_id = ''
+    where campaign_id = ${campaignId} and comment_status = 'scheduled'`;
   const contadores = await recalcularContadores(campaignId);
   registrarEvento('CAMPAIGN_CANCELLED', { campaignId });
-  return { canceladas: pubs.modifiedCount ?? 0, contadores };
+  return { canceladas: r.count, contadores };
 }
 
-/**
- * Reprocessa UMA publicação.
- *
- * Reaproveita a mesma linha — não cria CampaignPublication nova, o que também
- * violaria o índice único conta+conteúdo. `attempts` é preservado e será
- * incrementado pela execução.
- */
+/** Reprocessa UMA publicação, na mesma linha (o índice conta+conteúdo é único). */
 async function reprocessarPublicacao(publicationId, { agora = new Date() } = {}) {
-  const pub = await CampaignPublication.findById(publicationId);
+  const pub = await campaignPublications.findById(publicationId);
   if (!pub) throw new ExecutionError('PUBLICATION_NOT_FOUND', 'Publicação não encontrada.');
+  if (pub.status === 'published') throw new ExecutionError('ALREADY_PUBLISHED', 'Esta publicação já foi publicada.');
+  if (pub.status === 'processing') throw new ExecutionError('PUBLICATION_RUNNING', 'Esta publicação está em execução.');
 
-  if (pub.status === 'published') {
-    throw new ExecutionError('ALREADY_PUBLISHED', 'Esta publicação já foi publicada.');
-  }
-  if (pub.status === 'processing') {
-    throw new ExecutionError('PUBLICATION_RUNNING', 'Esta publicação está em execução.');
-  }
-
-  await CampaignPublication.updateOne(
-    { _id: pub._id },
-    { $set: { status: 'scheduled', error: '', errorCode: '' } },
-  );
-
-  // Sem remover o job anterior, o jobId determinístico devolveria o job velho.
-  pub.status = 'scheduled';
-  const { jobId, delay } = await fila.reagendarPublicacao(
-    { _id: pub._id, campaignId: pub.campaignId, scheduledAt: agora }, agora,
-  );
-
-  await CampaignPublication.updateOne({ _id: pub._id }, { $set: { bullMqJobId: jobId } });
-
+  await campaignPublications.update(pub.id, { status: 'scheduled', error: '', errorCode: '' });
+  const { jobId, delay } = await fila.reagendarPublicacao({ id: pub.id, campaignId: pub.campaignId, scheduledAt: agora }, agora);
+  await campaignPublications.update(pub.id, { queueJobId: jobId });
   registrarEvento('PUBLICATION_RETRY', {
-    campaignId: pub.campaignId, publicationId: pub._id,
-    accountId: pub.accountId, contentId: pub.contentId, attempt: pub.attempts,
+    campaignId: pub.campaignId, publicationId: pub.id, accountId: pub.accountId, contentId: pub.contentId, attempt: pub.attempts,
   });
-
   await recalcularContadores(pub.campaignId);
   return { jobId, delay };
 }
 
-/**
- * Reprocessa UM comentário que falhou.
- *
- * Independente do retry da publicação: o post já está no ar e não pode ser
- * republicado. Reaproveita a mesma linha, não cria CampaignPublication nova.
- * Uma falha entre 16 comentários volta sozinha — as outras 15 seguem intactas.
- */
-async function reprocessarComentario(publicationId, { agora = new Date() } = {}) {
-  const pub = await CampaignPublication.findById(publicationId);
+/** Reprocessa UM comentário que falhou — o post já está no ar e não se republica. */
+async function reprocessarComentario(publicationId) {
+  const pub = await campaignPublications.findById(publicationId);
   if (!pub) throw new ExecutionError('PUBLICATION_NOT_FOUND', 'Publicação não encontrada.');
-
-  if (pub.status !== 'published') {
-    throw new ExecutionError('NOT_PUBLISHED', 'Só é possível comentar em publicação que saiu.');
-  }
-  if (pub.commentStatus === 'posted') {
-    throw new ExecutionError('ALREADY_POSTED', 'Este comentário já foi publicado.');
-  }
+  if (pub.status !== 'published') throw new ExecutionError('NOT_PUBLISHED', 'Só é possível comentar em publicação que saiu.');
+  if (pub.commentStatus === 'posted') throw new ExecutionError('ALREADY_POSTED', 'Este comentário já foi publicado.');
   if (!String(pub.instagramMediaId || '')) {
-    throw new ExecutionError(
-      'COMMENT_MEDIA_NOT_FOUND',
-      'A publicação não registrou o id da mídia — não há onde comentar com segurança.',
-    );
+    throw new ExecutionError('COMMENT_MEDIA_NOT_FOUND', 'A publicação não registrou o id da mídia — não há onde comentar com segurança.');
   }
 
-  // Sem remover o job anterior, o jobId determinístico devolveria o já concluído.
-  await fila.removerComentario(pub._id);
-  const { jobId } = await fila.agendarComentario(pub, 0, agora);
-
-  await CampaignPublication.updateOne(
-    { _id: pub._id },
-    { $set: { commentStatus: 'scheduled', commentJobId: jobId, commentError: '', commentErrorCode: '' } },
-  );
-
+  await fila.removerComentario(pub.id);
+  const { jobId } = await fila.agendarComentario(pub, 0);
+  await campaignPublications.update(pub.id, { commentStatus: 'scheduled', commentJobId: jobId, commentError: '', commentErrorCode: '' });
   registrarEvento('COMMENT_RETRY', {
-    campaignId: pub.campaignId, publicationId: pub._id,
-    accountId: pub.accountId, mediaId: pub.instagramMediaId,
-    attempt: pub.commentAttempts,
+    campaignId: pub.campaignId, publicationId: pub.id, accountId: pub.accountId, mediaId: pub.instagramMediaId, attempt: pub.commentAttempts,
   });
-
   return { jobId };
 }
 
 module.exports = {
-  ExecutionError,
-  AGENDAVEIS,
-  classificarErro,
-  classificarErroComentario,
-  reprocessarComentario,
-  registrarEvento,
-  recalcularContadores,
-  finalizarSeCompleta,
-  agendarCampanha,
-  processarPublicacao,
-  agendarComentarioDe,
-  processarComentario,
-  // Exportados para teste: regras que precisam ser verificáveis sem subir fila
-  // nem banco — a faixa do atraso do comentário e a resolução da capa.
-  _atrasoDoComentario,
-  _arquivoDaCapa,
-  pausarCampanha,
-  retomarCampanha,
-  cancelarCampanha,
-  reprocessarPublicacao,
+  ExecutionError, AGENDAVEIS, classificarErro, classificarErroComentario, registrarEvento,
+  recalcularContadores, finalizarSeCompleta, agendarCampanha, processarPublicacao, agendarComentarioDe,
+  processarComentario, pausarCampanha, retomarCampanha, cancelarCampanha, reprocessarPublicacao,
+  reprocessarComentario, _atrasoDoComentario, _arquivoDaCapa,
 };

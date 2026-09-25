@@ -1,31 +1,19 @@
+'use strict';
+
 const router = require('express').Router();
 const { addClient, removeClient } = require('../events/broadcaster');
 
 router.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Sem isto, proxies com buffer seguram os eventos até juntar um bloco.
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
-
-  // Confirma conexão ao cliente
   res.write('event: connected\ndata: {}\n\n');
 
   addClient(res);
-
-  // Heartbeat a cada 30s para manter a conexão viva
-  const heartbeat = setInterval(() => {
-    try {
-      res.write('event: ping\ndata: {}\n\n');
-    } catch (_) {
-      clearInterval(heartbeat);
-    }
-  }, 30000);
-
-  req.on('close', () => {
-    clearInterval(heartbeat);
-    removeClient(res);
-  });
+  req.on('close', () => removeClient(res));
 });
 
 module.exports = router;

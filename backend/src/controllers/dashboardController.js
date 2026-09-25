@@ -1,690 +1,275 @@
-const fs = require('fs');
-const path = require('path');
-const Growth = require('../models/Growth');
-const Account = require('../models/Account');
-const Post = require('../models/Post');
-const Job  = require('../models/Job');
-const CampaignPublication = require('../models/CampaignPublication');
-/* A aritmética mora fora do controller e é testada sozinha. Aqui ela estava no
-   meio de um `Promise.all` de quinze consultas, onde ninguém revisa uma soma —
-   e foi assim que uma das três origens da fila ficou de fora sem nada acusar. */
-const { somarFilas, pendentesDoLoop, postagensDeHoje, porStatus, contarJobs } = require('./contagemDaFila');
-const mongoose = require('mongoose');
-let Insight;
-try { Insight = require('../models/Insight'); } catch {}
-let redisClient;
-try { redisClient = require('../queue/connection'); } catch {}
+'use strict';
 
-// Converte Jobs ativos em itens "upcoming" equivalentes a Posts agendados.
-// Para cada rodada restante do Job, gera um item por mídia com scheduledAt calculado.
-function jobsToUpcomingPosts(jobs) {
-  const items = [];
-  const now = Date.now();
+/** Painel: números da operação, fila, próximas publicações e postagens ao vivo. */
 
-  for (const job of jobs) {
-    if (!job.mediaFiles?.length || !job.accounts?.length) continue;
+const { sql } = require('../db');
+const { comContas } = require('../repos');
+const { somarFilas, postagensDeHoje, porStatus, contarJobs } = require('./contagemDaFila');
 
-    const totalMedia  = job.mediaFiles.length;
-    const limit       = Math.max(1, job.simultaneousLimit || 1);
-    const totalRounds = Math.ceil(totalMedia / limit);
-    const intervalMs  = (job.intervalMinutes || 0) * 60 * 1000;
+const FUSO = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
+const ATIVOS = ['queued', 'running', 'waiting_interval'];
+const PROBLEMAS = ['banida', 'restrita', 'token_invalido'];
 
-    const baseTime = (job.status === 'waiting_interval' && job.nextRoundAt)
-      ? new Date(job.nextRoundAt).getTime()
-      : now;
-
-    const startRound = job.currentRound || 0;
-    // Para loops: projeta no máximo 5 rodadas à frente para não poluir o forecast
-    const endRound = job.type === 'loop'
-      ? startRound + Math.min(5, totalRounds)
-      : totalRounds;
-
-    for (let round = startRound; round < endRound; round++) {
-      const startIdx  = (round % totalRounds) * limit;
-      if (startIdx >= totalMedia) break;
-      const roundMedia  = job.mediaFiles.slice(startIdx, Math.min(startIdx + limit, totalMedia));
-      const scheduledAt = new Date(baseTime + (round - startRound) * intervalMs);
-
-      const isCurrentRound = round === startRound;
-      const status = (isCurrentRound && job.status === 'running') ? 'processando'
-                   : (isCurrentRound && job.status === 'queued')  ? 'pendente'
-                   : 'agendado';
-
-      for (const mediaFile of roundMedia) {
-        items.push({
-          _id:       `job-${job._id}-r${round}-${mediaFile}`,
-          media:     mediaFile,
-          postType:  job.postType || 'reel',
-          caption:   job.caption  || '',
-          accounts:  job.accounts,
-          scheduledAt,
-          status,
-          _isJob:    true,
-          _jobId:    String(job._id),
-          _jobName:  job.name || '',
-          _round:    round,
-        });
-      }
-    }
-  }
-
-  return items;
-}
-
-function startOfDay() {
+function inicioDoDia() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
 }
+const diasAtras = n => new Date(Date.now() - n * 86_400_000);
 
-function daysAgo(days) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+/** Série diária dos últimos `dias`, com zero nos dias sem registro. */
+function serieDiaria(linhas, dias, campo) {
+  const mapa = Object.fromEntries(linhas.map(r => [r.dia, r.n]));
+  const serie = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    const dia = d.toLocaleDateString('en-CA');
+    serie.push({ date: dia, label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }), [campo]: mapa[dia] || 0 });
+  }
+  return serie;
 }
 
-function hasSession(username) {
-  const cookiesPath = path.resolve(__dirname, '../../sessions', username, 'cookies.json');
-  return fs.existsSync(cookiesPath);
+function porDia(status, desde) {
+  return sql`
+    select to_char((updated_at at time zone ${FUSO})::date, 'YYYY-MM-DD') as dia, count(*) as n
+    from posts where status = any(${status}) and updated_at >= ${desde}
+    group by 1`;
 }
 
-function calcHealthScore(account) {
-  let score = 100;
+/** Envios ativos cujas contas não estão todas banidas ou apagadas. */
+async function enviosAtivos() {
+  const lista = await sql`select * from jobs where status = any(${ATIVOS})`;
+  await comContas(lista, ['id', 'username', 'avatar', 'healthStatus']);
+  return lista.filter(j => j.accounts.some(a => a.healthStatus !== 'banida'));
+}
 
-  if (!hasSession(account.username)) score -= 30;
-  if (account.healthStatus === 'restrita') score -= 25;
-  if (account.healthStatus === 'erro_login') score -= 45;
-  if (account.healthStatus === 'sessao_expirada') score -= 40;
-  if (account.healthStatus === 'banida') score = 0;
-  if (account.lastError) score -= 15;
-  if (account.proxy && account.proxyStatus === 'offline') score -= 15;
-  if (account.isBusy) score -= 5;
+/**
+ * Cada rodada restante de um envio vira um item "próximo", com o horário
+ * previsto. Loop projeta no máximo 5 rodadas, para não poluir a previsão.
+ */
+function enviosComoProximos(lista) {
+  const itens = [];
+  const agora = Date.now();
+  for (const job of lista) {
+    if (!job.mediaFiles?.length || !job.accounts?.length) continue;
+    const total = job.mediaFiles.length;
+    const limite = Math.max(1, job.simultaneousLimit || 1);
+    const rodadas = Math.ceil(total / limite);
+    const intervalo = (job.intervalMinutes || 0) * 60_000;
+    const base = job.status === 'waiting_interval' && job.nextRoundAt ? new Date(job.nextRoundAt).getTime() : agora;
+    const inicio = job.currentRound || 0;
+    const fim = job.type === 'loop' ? inicio + Math.min(5, rodadas) : rodadas;
 
-  return Math.max(score, 0);
+    for (let rodada = inicio; rodada < fim; rodada++) {
+      const de = (rodada % rodadas) * limite;
+      if (de >= total) break;
+      const atual = rodada === inicio;
+      const status = atual && job.status === 'running' ? 'processando'
+        : atual && job.status === 'queued' ? 'pendente' : 'agendado';
+      for (const media of job.mediaFiles.slice(de, Math.min(de + limite, total))) {
+        itens.push({
+          id: `job-${job.id}-r${rodada}-${media}`,
+          media,
+          postType: job.postType || 'reel',
+          caption: job.caption || '',
+          accounts: job.accounts,
+          scheduledAt: new Date(base + (rodada - inicio) * intervalo),
+          status,
+          _isJob: true,
+          _jobId: job.id,
+          _jobName: job.name || '',
+          _round: rodada,
+        });
+      }
+    }
+  }
+  return itens;
+}
+
+async function bancoResponde() {
+  try { await sql`select 1`; return true; } catch { return false; }
 }
 
 exports.getDashboard = async (req, res) => {
-  try {
-    const today = startOfDay();
-    const sevenDaysAgo = daysAgo(7);
-    const thirtyDaysAgo = daysAgo(30);
+  const hoje = inicioDoDia();
+  const seteDias = diasAtras(7);
+  const trintaDias = diasAtras(30);
 
-    const accounts = await Account.find().sort({ updatedAt: -1 });
+  const [
+    contas, [contagem], campanhaPorStatus, [{ n: pubsHoje }], ativos,
+    avulsosProximos, diarios, errosDiarios, engajamento,
+  ] = await Promise.all([
+    sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, created_at, updated_at from accounts`,
+    sql`
+      select count(*) as total,
+        count(*) filter (where status = 'concluido') as concluidos,
+        count(*) filter (where status = 'parcial') as parciais,
+        count(*) filter (where status = 'erro') as erros,
+        count(*) filter (where status = 'agendado' and job_id is null) as agendados,
+        count(*) filter (where status = 'processando' and job_id is null) as processando,
+        count(*) filter (where status = 'pendente' and job_id is null) as pendentes,
+        count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${hoje}) as hoje,
+        count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as erros_hoje
+      from posts`,
+    sql`select status, count(*) as n from campaign_publications
+        where status in ('pending', 'scheduled', 'processing') group by status`,
+    sql`select count(*) as n from campaign_publications where status = 'published' and published_at >= ${hoje}`,
+    enviosAtivos(),
+    sql`select * from posts where status in ('agendado', 'pendente', 'processando') and job_id is null
+        order by scheduled_at asc nulls last limit 200`,
+    porDia(['concluido', 'parcial'], diasAtras(90)),
+    porDia(['erro'], seteDias),
+    sql`
+      select i.account_id, max(a.username) as username, max(a.avatar) as avatar,
+        avg(i.video_views) as avg_views, avg(i.like_count) as avg_likes, avg(i.comments_count) as avg_comments,
+        sum(i.video_views) as total_views, sum(i.like_count) as total_likes, count(*) as total_posts
+      from insights i join accounts a on a.id = i.account_id
+      where i.posted_at >= ${trintaDias} and a.health_status <> 'banida'
+      group by i.account_id order by total_views desc limit 10`,
+  ]);
 
-    const totalAccounts = accounts.length;
-    const BAD = ['banida', 'restrita', 'token_invalido'];
-    const activeAccounts = accounts.filter((a) =>
-      a.healthStatus === 'ativa' ||
-      (a.accessToken && a.igUserId && !BAD.includes(a.healthStatus))
-    ).length;
-    const restrictedAccounts    = accounts.filter((a) => a.healthStatus === 'restrita').length;
-    const bannedAccounts        = accounts.filter((a) => a.healthStatus === 'banida').length;
-    const tokenInvalidAccounts  = accounts.filter((a) => a.healthStatus === 'token_invalido').length;
-    const expiredSessions       = accounts.filter((a) => a.healthStatus === 'sessao_expirada').length;
-    const loginErrorAccounts    = accounts.filter((a) => a.healthStatus === 'erro_login').length;
-    const busyAccounts          = accounts.filter((a) => a.isBusy).length;
-    const cooldownAccounts      = accounts.filter((a) => a.dailyPostLimit > 0 && (a.postsToday || 0) >= a.dailyPostLimit).length;
+  const { rodando, enfileirados } = contarJobs(ativos);
+  const fila = somarFilas(
+    { agendados: contagem.agendados, processando: contagem.processando, pendentes: contagem.pendentes },
+    { rodando, enfileirados },
+    porStatus(campanhaPorStatus),
+  );
 
-    const sessionsOk = accounts.filter((a) => hasSession(a.username)).length;
-    const sessionsMissing = totalAccounts - sessionsOk;
+  await comContas(avulsosProximos);
+  const upcomingPosts = [...avulsosProximos, ...enviosComoProximos(ativos)]
+    .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
+    .slice(0, 200);
 
-    const proxiesConfigured = accounts.filter((a) => !!a.proxy).length;
-    const proxiesOnline = accounts.filter((a) => a.proxy && a.proxyStatus === 'online').length;
-    const proxiesOffline = accounts.filter((a) => a.proxy && a.proxyStatus !== 'online').length;
+  const finalizados = contagem.concluidos + contagem.erros + contagem.parciais;
+  const comLimite = contas.filter(a => a.dailyPostLimit && a.dailyPostLimit < 999999);
+  const criadas = desde => contas.filter(a => new Date(a.createdAt) >= desde).length;
+  const comProblema = desde => contas.filter(a => PROBLEMAS.includes(a.healthStatus) && (!desde || new Date(a.updatedAt) >= desde)).length;
+  const banco = await bancoResponde();
 
-    const healthyAccounts = accounts.filter((a) => calcHealthScore(a) >= 80).length;
-    const attentionAccounts = accounts.filter((a) => {
-      const score = calcHealthScore(a);
-      return score >= 50 && score < 80;
-    }).length;
-    const riskAccounts = accounts.filter((a) => calcHealthScore(a) < 50).length;
+  res.json({
+    totalAccounts: contas.length,
+    activeAccounts: contas.filter(a => a.healthStatus === 'ativa' || (a.accessToken && a.igUserId && !PROBLEMAS.includes(a.healthStatus))).length,
+    cooldownAccounts: contas.filter(a => a.dailyPostLimit > 0 && (a.postsToday || 0) >= a.dailyPostLimit).length,
 
-    const totalFollowers = accounts.reduce((sum, acc) => sum + (acc.followers || 0), 0);
+    totalPosts: contagem.total,
+    scheduledPosts: fila.agendados,
+    processingPosts: fila.processando,
+    pendingPosts: fila.pendentes,
+    successRate: finalizados > 0 ? Math.round((contagem.concluidos / finalizados) * 100) : 100,
 
-    const [
-      totalPosts, completedPosts,
-      scheduledPostsLegacy, processingPostsLegacy, pendingPostsLegacy,
-      partialPosts, errorPosts,
-      allActiveJobsRaw,
-      campanhaPubs,
-      loopsAtivos,
-    ] = await Promise.all([
-      Post.countDocuments(),
-      Post.countDocuments({ status: 'concluido' }),
-      /* `jobId: null` — só as publicações AVULSAS.
+    postsToday: postagensDeHoje(contagem.hoje, pubsHoje),
+    errorsToday: contagem.errosHoje,
+    dailyPostLimit: comLimite.reduce((soma, a) => soma + a.dailyPostLimit, 0),
 
-         Um envio cria um Post por mídia e o guarda com `jobId`. Sem este
-         filtro a mesma publicação era contada duas vezes: uma pelo Job (que
-         sabe quantas rodadas faltam) e outra pelo Post que a rodada acabou de
-         criar. Era o "2 saindo agora" quando só uma mídia estava saindo. */
-      Post.countDocuments({ status: 'agendado',    jobId: null }),
-      Post.countDocuments({ status: 'processando', jobId: null }),
-      Post.countDocuments({ status: 'pendente',    jobId: null }),
-      Post.countDocuments({ status: 'parcial' }),
-      Post.countDocuments({ status: 'erro' }),
-      Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
-        .populate('accounts', 'username avatar healthStatus')
-        .lean(),
+    upcomingPosts,
+    dailyPosts: serieDiaria(diarios, 90, 'posts'),
+    dailyErrors7d: serieDiaria(errosDiarios, 7, 'errors'),
 
-      /* As publicações de campanha faltavam nas contagens.
+    accountsAddedToday: criadas(hoje),
+    accountsAdded7d: criadas(seteDias),
+    accountsAdded30d: criadas(trintaDias),
+    problemsToday: comProblema(hoje),
+    problems7d: comProblema(seteDias),
+    problems30d: comProblema(null),
 
-         Uma campanha planeja dezenas de publicações e só cria o `Post` no
-         instante em que cada uma executa. Até lá elas vivem em
-         `CampaignPublication` — e o painel não olhava para lá. O efeito: subir
-         uma campanha com trinta publicações não mudava nada na fila, e quem
-         acabou de subi-la via os mesmos zeros de antes.
+    avgEngagementByAccount: engajamento.map(r => ({
+      accountId: r.accountId,
+      username: r.username,
+      avatar: r.avatar || null,
+      avgViews: Math.round(r.avgViews || 0),
+      avgLikes: Math.round(r.avgLikes || 0),
+      avgComments: Math.round(r.avgComments || 0),
+      totalViews: Math.round(r.totalViews || 0),
+      totalLikes: Math.round(r.totalLikes || 0),
+      totalPosts: r.totalPosts,
+    })),
 
-         Agrupado por status numa consulta só: seis `countDocuments` seriam
-         seis idas ao banco para responder a mesma pergunta. */
-      CampaignPublication.aggregate([
-        { $match: { status: { $in: ['pending', 'scheduled', 'processing', 'published'] } } },
-        { $group: { _id: '$status', n: { $sum: 1 } } },
-      ]).catch(() => []),
-
-      /* Os loops ativos. Só os campos da conta — um loop carrega a lista
-         inteira de mídias, e trazer 44 nomes de arquivo por loop para contar
-         o tamanho da lista é buscar o balde para medir a alça. */
-      require('../models/Loop')
-        .find({ status: 'ativo' })
-        .select('mediaFiles currentIndex status')
-        .lean()
-        .catch(() => []),
-    ]);
-
-    const campanhasPorStatus = porStatus(campanhaPubs);
-
-    // Filtra jobs cujas contas estão todas banidas ou foram excluídas
-    const BANNED_STATUSES = ['banida', 'banido'];
-    const allActiveJobs = allActiveJobsRaw.filter(job =>
-      job.accounts?.some(acc => acc && !BANNED_STATUSES.includes(acc.healthStatus))
-    );
-
-    /* Mídias que RESTAM, por rodada — ver midiasDoJob em contagemDaFila.js.
-       Antes era `mediaFiles.length` inteiro por job: um envio de 30 mídias
-       aparecia como "Processando 30" da primeira à última rodada. O que está
-       entre rodadas (waiting_interval) espera na fila, não é "agendado": não
-       tem horário marcado, sai quando o intervalo vencer. */
-    const { rodando: jobsRunning, enfileirados: jobsQueued } = contarJobs(allActiveJobs);
-    const jobsWaiting = 0;
-
-    /* Três origens: publicação avulsa (`Post`), lote (`Job`) e campanha
-       (`CampaignPublication`). O painel diz "a fila", e fila com uma das três
-       faltando é um número que contradiz a tela de Campanhas logo ao lado. */
-    const fila = somarFilas(
-      { agendados: scheduledPostsLegacy, processando: processingPostsLegacy, pendentes: pendingPostsLegacy },
-      { esperando: jobsWaiting, rodando: jobsRunning, enfileirados: jobsQueued },
-      campanhasPorStatus,
-      { pendentes: pendentesDoLoop(loopsAtivos) },
-    );
-    const scheduledPosts  = fila.agendados;
-    const processingPosts = fila.processando;
-    const pendingPosts    = fila.pendentes;
-
-    /* "Postagens hoje" soma as duas origens que produzem publicação real.
-
-       O `Post` cobre o caminho avulso e o do loop — os dois criam documento e
-       o worker os marca como concluídos. A campanha também cria um `Post`,
-       mas por conta: uma publicação para três contas vira três `Post`, e
-       contar só ali já estava certo. O que faltava era o caso em que a
-       publicação da campanha termina sem `Post` correspondente (falha ao
-       criar, ou publicação feita antes deste código existir).
-
-       `$max` em vez de soma para não contar a mesma publicação duas vezes:
-       quando as duas fontes concordam, o número é o mesmo; quando divergem,
-       o maior é o que descreve o que de fato saiu. */
-    const [postsTodayLegacy, pubsHoje] = await Promise.all([
-      Post.countDocuments({
-        status: { $in: ['concluido', 'parcial'] },
-        updatedAt: { $gte: today },
-      }),
-      CampaignPublication.countDocuments({
-        status: 'published',
-        publishedAt: { $gte: today },
-      }).catch(() => 0),
-    ]);
-    const postsToday = postagensDeHoje(postsTodayLegacy, pubsHoje);
-
-    const completedToday = await Post.countDocuments({
-      status: 'concluido',
-      updatedAt: { $gte: today },
-    });
-
-    const errorsToday = await Post.countDocuments({
-      status: 'erro',
-      updatedAt: { $gte: today },
-    });
-
-    const posts7Days = await Post.countDocuments({
-      createdAt: { $gte: sevenDaysAgo },
-    });
-
-    const posts30Days = await Post.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo },
-    });
-
-    const growth30Days = await Growth.find().sort({ createdAt: -1 }).limit(500);
-
-    // Série temporal: posts publicados/processados por dia (últimos 90 dias)
-    // Usa updatedAt para capturar quando o post foi de fato publicado, não quando foi criado/agendado
-    const ninetyDaysAgo = daysAgo(90);
-    const dailyPostsRaw = await Post.aggregate([
-      { $match: { status: { $in: ['concluido', 'parcial'] }, updatedAt: { $gte: ninetyDaysAgo } } },
-      { $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
-        count: { $sum: 1 },
-      }},
-    ]);
-    const rawMap = {};
-    dailyPostsRaw.forEach(d => { rawMap[d._id] = d.count; });
-    const dailyPosts = [];
-    for (let i = 89; i >= 0; i--) {
-      const d = new Date();
-      d.setHours(12, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      dailyPosts.push({
-        date: key,
-        label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
-        posts: rawMap[key] || 0,
-      });
-    }
-
-    const queueTotal = scheduledPosts + processingPosts + pendingPosts;
-    const realLimitAccounts = accounts.filter(a => a.dailyPostLimit && a.dailyPostLimit < 999999);
-    const dailyPostLimit = realLimitAccounts.reduce((sum, a) => sum + a.dailyPostLimit, 0);
-
-    const accountsAddedToday = accounts.filter(a => new Date(a.createdAt) >= today).length;
-    const accountsAdded7d    = accounts.filter(a => new Date(a.createdAt) >= sevenDaysAgo).length;
-    const accountsAdded30d   = accounts.filter(a => new Date(a.createdAt) >= thirtyDaysAgo).length;
-
-    const problemStatuses = ['banida', 'restrita', 'token_invalido'];
-    const problemsToday = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= today).length;
-    const problems7d    = accounts.filter(a => problemStatuses.includes(a.healthStatus) && new Date(a.updatedAt) >= sevenDaysAgo).length;
-    const problems30d   = accounts.filter(a => problemStatuses.includes(a.healthStatus)).length;
-
-    const legacyUpcoming = await Post.find({ status: { $in: ['agendado', 'pendente', 'processando'] } })
-      .populate('accounts')
-      .sort({ scheduledAt: 1 })
-      .limit(200)
-      .lean();
-
-    // Reutiliza allActiveJobs já filtrado (sem contas banidas/excluídas)
-    const upcomingPosts = [...legacyUpcoming, ...jobsToUpcomingPosts(allActiveJobs)]
-      .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
-      .slice(0, 200);
-
-    const latestPosts = await Post.find().populate('accounts').sort({ updatedAt: -1 }).limit(10);
-
-    const accountsInUse = accounts
-      .filter((a) => a.isBusy)
-      .sort((a, b) => new Date(b.busySince || 0) - new Date(a.busySince || 0))
-      .slice(0, 10);
-
-    const accountMostActive =
-      [...accounts].sort((a, b) => (b.postsToday || 0) - (a.postsToday || 0))[0] || null;
-
-    const topAccounts = [...accounts]
-      .sort((a, b) => (b.followers || 0) - (a.followers || 0))
-      .slice(0, 5)
-      .map((a) => ({
-        _id: a._id,
-        username: a.username,
-        followers: a.followers || 0,
-        following: a.following || 0,
-        postsCount: a.postsCount || 0,
-        healthStatus: a.healthStatus,
-        avatar: a.avatar || '',
-        healthScore: calcHealthScore(a),
-      }));
-
-    const worstAccounts = [...accounts]
-      .sort((a, b) => calcHealthScore(a) - calcHealthScore(b))
-      .slice(0, 5)
-      .map((a) => ({
-        _id: a._id,
-        username: a.username,
-        score: calcHealthScore(a),
-        healthStatus: a.healthStatus,
-        lastError: a.lastError,
-      }));
-
-    const lastErrorPost = await Post.findOne({
-      status: 'erro',
-    })
-      .populate('accounts')
-      .sort({ updatedAt: -1 });
-
-    const activities = [];
-
-    latestPosts.forEach((post) => {
-      const accountName = post.accounts?.[0]?.username || '';
-      const typeLabel   = post.postType === 'reel' ? 'Reel' : post.postType === 'story' ? 'Story' : 'Post';
-      const statusLabel = { concluido: 'publicado', erro: 'com erro', pendente: 'na fila', processando: 'processando', agendado: 'agendado', parcial: 'parcial' }[post.status] || post.status;
-      activities.push({
-        type:     'post',
-        action:   `${typeLabel} ${statusLabel}`,
-        status:   post.status,
-        account:  accountName,
-        postType: post.postType || 'post',
-        caption:  (post.caption || '').slice(0, 50),
-        date:     post.updatedAt || post.createdAt,
-      });
-    });
-
-    accounts.slice(0, 10).forEach((account) => {
-      const statusLabel = { ativa: 'conectada', banida: 'banida', restrita: 'restrita', sessao_expirada: 'sessão expirada', erro_login: 'erro de login' }[account.healthStatus] || account.healthStatus;
-      activities.push({
-        type:     'account',
-        action:   `Conta ${statusLabel}`,
-        status:   account.healthStatus || 'ativa',
-        account:  account.username,
-        avatar:   account.avatar || '',
-        username: account.username,
-        date:     account.updatedAt,
-      });
-    });
-
-    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    const finishedPosts = completedPosts + errorPosts + partialPosts;
-
-    const successRate =
-      finishedPosts > 0 ? Math.round((completedPosts / finishedPosts) * 100) : 100;
-
-    const errorRate = finishedPosts > 0 ? Math.round((errorPosts / finishedPosts) * 100) : 0;
-
-    const operationalScore =
-      totalAccounts > 0
-        ? Math.round(
-            (healthyAccounts * 100 + attentionAccounts * 65 + riskAccounts * 25) / totalAccounts
-          )
-        : 100;
-
-    const growthMap = {};
-
-    growth30Days.forEach((item) => {
-      if (!growthMap[item.username]) {
-        growthMap[item.username] = {
-          username: item.username,
-          first: item.followers,
-          last: item.followers,
-        };
-      }
-
-      growthMap[item.username].first = item.followers;
-    });
-
-    const topGrowth = Object.values(growthMap)
-      .map((item) => ({
-        username: item.username,
-        gained: item.last - item.first,
-      }))
-      .sort((a, b) => b.gained - a.gained)
-      .slice(0, 10);
-
-    // Engajamento médio por conta (views + likes) — últimos 30 dias
-    let avgEngagementByAccount = [];
-    if (Insight) {
-      try {
-        const activeAccounts = await Account.find({ healthStatus: { $nin: ['banida', 'banido'] } }).select('_id');
-        const activeIds = activeAccounts.map(a => a._id);
-        const engRaw = await Insight.aggregate([
-          { $match: { postedAt: { $gte: thirtyDaysAgo }, accountId: { $in: activeIds } } },
-          { $group: {
-            _id: '$accountId',
-            avgViews:    { $avg: '$videoViews' },
-            avgLikes:    { $avg: '$likeCount' },
-            avgComments: { $avg: '$commentsCount' },
-            totalViews:  { $sum: '$videoViews' },
-            totalLikes:  { $sum: '$likeCount' },
-            totalPosts:  { $sum: 1 },
-            username: { $first: '$username' },
-          }},
-          { $sort: { totalViews: -1 } },
-          { $limit: 10 },
-        ]);
-        const accIds   = engRaw.map(r => r._id).filter(Boolean);
-        const accDocs  = await Account.find({ _id: { $in: accIds } }).select('avatar');
-        const avatarMap = {};
-        accDocs.forEach(a => { avatarMap[String(a._id)] = a.avatar || null; });
-        avgEngagementByAccount = engRaw.map(r => ({
-          accountId:   r._id,
-          username:    r.username || String(r._id),
-          avgViews:    Math.round(r.avgViews    || 0),
-          avgLikes:    Math.round(r.avgLikes    || 0),
-          avgComments: Math.round(r.avgComments || 0),
-          totalViews:  Math.round(r.totalViews  || 0),
-          totalLikes:  Math.round(r.totalLikes  || 0),
-          totalPosts:  r.totalPosts,
-          avatar:      avatarMap[String(r._id)] || null,
-        }));
-      } catch {}
-    }
-
-    // Erros por dia — últimos 7 dias
-    const dailyErrorsRaw = await Post.aggregate([
-      { $match: { status: 'erro', updatedAt: { $gte: sevenDaysAgo } } },
-      { $group: {
-        _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt' } },
-        count: { $sum: 1 },
-      }},
-    ]);
-    const errMap = {};
-    dailyErrorsRaw.forEach(d => { errMap[d._id] = d.count; });
-    const dailyErrors7d = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setHours(12, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      dailyErrors7d.push({ date: key, label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }), errors: errMap[key] || 0 });
-    }
-
-    res.json({
-      totalAccounts,
-      activeAccounts,
-      restrictedAccounts,
-      expiredSessions,
-      bannedAccounts,
-      loginErrorAccounts,
-      busyAccounts,
-      cooldownAccounts,
-      topGrowth,
-      sessionsOk,
-      sessionsMissing,
-
-      proxiesConfigured,
-      proxiesOnline,
-      proxiesOffline,
-
-      healthyAccounts,
-      attentionAccounts,
-      riskAccounts,
-      operationalScore,
-
-      totalFollowers,
-
-      totalPosts,
-      completedPosts,
-      scheduledPosts,
-      processingPosts,
-      pendingPosts,
-      partialPosts,
-      errorPosts,
-      queueTotal,
-
-      postsToday,
-      completedToday,
-      dailyPostLimit,
-      errorsToday,
-      posts7Days,
-      posts30Days,
-
-      successRate,
-      errorRate,
-
-      accountMostActive,
-      topAccounts,
-      worstAccounts,
-      lastErrorPost,
-
-      upcomingPosts,
-      latestPosts,
-      accountsInUse,
-      activities: activities.slice(0, 20),
-      dailyPosts,
-
-      accountsAddedToday,
-      accountsAdded7d,
-      accountsAdded30d,
-      problemsToday,
-      problems7d,
-      problems30d,
-
-      avgEngagementByAccount,
-      dailyErrors7d,
-
-      system: {
-        backend: true,
-        mongo: mongoose.connection.readyState === 1,
-        redis: await (async () => {
-          try { await redisClient?.ping(); return true; } catch { return false; }
-        })(),
-        worker: await (async () => {
-          try { await redisClient?.ping(); return true; } catch { return false; }
-        })(),
-        headless: String(process.env.HEADLESS || 'false') === 'true',
-      },
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: err.message,
-    });
-  }
+    system: { backend: true, banco, worker: banco },
+  });
 };
 
 exports.getAccountStats = async (req, res) => {
-  try {
-    const today        = startOfDay();
-    const sevenDaysAgo = daysAgo(7);
-    const thirtyDaysAgo = daysAgo(30);
+  const hoje = inicioDoDia();
+  const seteDias = diasAtras(7);
+  const trintaDias = diasAtras(30);
 
-    const accounts = await Account.find()
-      .select('username avatar followers following postsCount healthStatus accessToken tokenExpiresAt igUserId lastSync lastPostAt updatedAt createdAt')
-      .lean();
+  const [contas, publicacoes, crescimento] = await Promise.all([
+    sql`select id, username, avatar, followers, following, posts_count, health_status, access_token,
+          token_expires_at, ig_user_id, last_sync, last_post_at from accounts`,
+    sql`
+      select conta as account_id,
+        count(*) filter (where status in ('concluido', 'parcial')) as posts30d,
+        count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${seteDias}) as posts7d,
+        count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${hoje}) as posts_today,
+        count(*) filter (where status = 'erro') as failures30d,
+        count(*) filter (where status = 'erro' and updated_at >= ${seteDias}) as failures7d,
+        count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as failures_today
+      from posts, unnest(account_ids) as conta
+      where updated_at >= ${trintaDias}
+      group by conta`,
+    sql`
+      select distinct on (account_id) account_id,
+        seguidores - first_value(seguidores) over (partition by account_id order by dia) as ganho
+      from seguidores_do_dia
+      where dia >= ${trintaDias.toLocaleDateString('en-CA')}
+      order by account_id, dia desc`,
+  ]);
 
-    const [successAgg, failureAgg, growthAgg] = await Promise.all([
-      Post.aggregate([
-        { $match: { updatedAt: { $gte: thirtyDaysAgo }, status: { $in: ['concluido', 'parcial'] } } },
-        { $unwind: '$accounts' },
-        { $group: {
-          _id: '$accounts',
-          posts30d:   { $sum: 1 },
-          postsToday: { $sum: { $cond: [{ $gte: ['$updatedAt', today]        }, 1, 0] } },
-          posts7d:    { $sum: { $cond: [{ $gte: ['$updatedAt', sevenDaysAgo] }, 1, 0] } },
-        }},
-      ]),
-      Post.aggregate([
-        { $match: { updatedAt: { $gte: thirtyDaysAgo }, status: 'erro' } },
-        { $unwind: '$accounts' },
-        { $group: {
-          _id: '$accounts',
-          failures30d:   { $sum: 1 },
-          failuresToday: { $sum: { $cond: [{ $gte: ['$updatedAt', today]        }, 1, 0] } },
-          failures7d:    { $sum: { $cond: [{ $gte: ['$updatedAt', sevenDaysAgo] }, 1, 0] } },
-        }},
-      ]),
-      Growth.aggregate([
-        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-        { $sort: { createdAt: 1 } },
-        { $group: { _id: '$account', first: { $first: '$followers' }, last: { $last: '$followers' } } },
-      ]),
-    ]);
+  const porConta = new Map(publicacoes.map(p => [p.accountId, p]));
+  const ganho = new Map(crescimento.map(g => [g.accountId, g.ganho]));
+  const agora = new Date();
 
-    const successMap = {};  successAgg.forEach(s  => { successMap[String(s._id)]  = s; });
-    const failureMap = {};  failureAgg.forEach(f  => { failureMap[String(f._id)]  = f; });
-    const growthMap  = {};  growthAgg.forEach(g   => { growthMap[String(g._id)]   = (g.last || 0) - (g.first || 0); });
+  const lista = contas.map(c => {
+    const p = porConta.get(c.id) || {};
+    const ok = p.posts30d || 0, falhas = p.failures30d || 0;
+    let status = 'ativa';
+    if (c.healthStatus === 'banida') status = 'banida';
+    else if (c.healthStatus === 'token_invalido') status = 'token_expired';
+    else if (c.healthStatus === 'restrita') status = 'restrita';
+    else if (c.accessToken && c.tokenExpiresAt && new Date(c.tokenExpiresAt) < agora) status = 'token_expired';
+    else if (c.accessToken && c.igUserId) status = 'connected';
 
-    const now = new Date();
-    const result = accounts.map(acc => {
-      const id = String(acc._id);
-      const s  = successMap[id] || {};
-      const f  = failureMap[id] || {};
-      const postsToday    = s.postsToday    || 0;
-      const posts7d       = s.posts7d       || 0;
-      const posts30d      = s.posts30d      || 0;
-      const failuresToday = f.failuresToday || 0;
-      const failures7d    = f.failures7d    || 0;
-      const failures30d   = f.failures30d   || 0;
-      const successRate   = (posts30d + failures30d) > 0
-        ? Math.round(posts30d / (posts30d + failures30d) * 100) : 0;
-      const growth30d = growthMap[id] || 0;
+    return {
+      id: c.id, username: c.username, avatar: c.avatar || '',
+      followers: c.followers, following: c.following, postsCount: c.postsCount,
+      postsToday: p.postsToday || 0, posts7d: p.posts7d || 0, posts30d: ok,
+      failuresToday: p.failuresToday || 0, failures7d: p.failures7d || 0, failures30d: falhas,
+      successRate: ok + falhas > 0 ? Math.round((ok / (ok + falhas)) * 100) : 0,
+      growth30d: ganho.get(c.id) || 0,
+      status, healthStatus: c.healthStatus,
+      lastSync: c.lastSync || c.lastPostAt || null,
+    };
+  });
 
-      let status = 'ativa';
-      if      (acc.healthStatus === 'banida')          status = 'banida';
-      else if (acc.healthStatus === 'sessao_expirada') status = 'token_expired';
-      else if (acc.healthStatus === 'erro_login')      status = 'token_expired';
-      else if (acc.healthStatus === 'token_invalido')  status = 'token_expired';
-      else if (acc.healthStatus === 'restrita')        status = 'restrita';
-      else if (acc.accessToken && acc.tokenExpiresAt && new Date(acc.tokenExpiresAt) < now) status = 'token_expired';
-      else if (acc.accessToken && acc.igUserId)        status = 'connected';
-
-      return {
-        _id: id, username: acc.username, avatar: acc.avatar || '',
-        followers: acc.followers || 0, following: acc.following || 0, postsCount: acc.postsCount || 0,
-        postsToday, posts7d, posts30d, failuresToday, failures7d, failures30d, successRate, growth30d,
-        status, healthStatus: acc.healthStatus,
-        lastSync: acc.lastSync || acc.lastPostAt || null,
-      };
-    });
-
-    result.sort((a, b) => b.posts30d - a.posts30d);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  lista.sort((a, b) => b.posts30d - a.posts30d);
+  res.json(lista);
 };
 
 exports.getLivePosts = async (req, res) => {
-  try {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const sel = 'username avatar';
+  const umaHora = new Date(Date.now() - 3_600_000);
+  const campos = ['id', 'username', 'avatar'];
 
-    const BANNED_LIVE = ['banida', 'banido'];
-    const [legacyProcessing, legacyQueue, errors, completed, activeJobsLiveRaw] = await Promise.all([
-      Post.find({ status: 'processando' })
-        .populate('accounts', sel).sort({ updatedAt: -1 }).limit(10).lean(),
-      Post.find({ status: { $in: ['pendente', 'agendado'] } })
-        .populate('accounts', sel).sort({ scheduledAt: 1, createdAt: 1 }).limit(30).lean(),
-      Post.find({ status: 'erro', updatedAt: { $gte: oneHourAgo } })
-        .populate('accounts', sel).sort({ updatedAt: -1 }).limit(15).lean(),
-      Post.find({ status: { $in: ['concluido', 'parcial'] }, updatedAt: { $gte: oneHourAgo } })
-        .populate('accounts', sel).sort({ updatedAt: -1 }).limit(15).lean(),
-      Job.find({ status: { $in: ['queued', 'running', 'waiting_interval'] } })
-        .populate('accounts', sel).lean(),
-    ]);
+  const [processando, naFila, erros, concluidos, ativos] = await Promise.all([
+    sql`select * from posts where status = 'processando' order by updated_at desc limit 10`,
+    sql`select * from posts where status in ('pendente', 'agendado') order by scheduled_at asc nulls last, created_at asc limit 30`,
+    sql`select * from posts where status = 'erro' and updated_at >= ${umaHora} order by updated_at desc limit 15`,
+    sql`select * from posts where status in ('concluido', 'parcial') and updated_at >= ${umaHora} order by updated_at desc limit 15`,
+    enviosAtivos(),
+  ]);
+  await comContas([...processando, ...naFila, ...erros, ...concluidos], campos);
 
-    const activeJobsLive = activeJobsLiveRaw.filter(job =>
-      job.accounts?.some(acc => acc && !BANNED_LIVE.includes(acc.healthStatus))
-    );
+  const rodando = ativos
+    .filter(j => j.status === 'running')
+    .map(j => ({ id: j.id, accounts: j.accounts, caption: j.caption || j.name || '', status: 'processando', updatedAt: j.updatedAt, error: j.lastError || '' }));
 
-    const runningJobs = activeJobsLive
-      .filter(j => j.status === 'running')
-      .map(j => ({
-        _id:      j._id,
-        accounts: j.accounts,
-        caption:  j.caption || j.name || '',
-        status:   'processando',
-        updatedAt: j.updatedAt,
-        error:    j.lastError || '',
-      }));
-
-    const processing = [...legacyProcessing, ...runningJobs].slice(0, 10);
-
-    const queue = [...legacyQueue, ...jobsToUpcomingPosts(activeJobsLive)]
+  res.json({
+    processing: [...processando, ...rodando].slice(0, 10),
+    queue: [...naFila, ...enviosComoProximos(ativos)]
       .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
-      .slice(0, 30);
-
-    res.json({ processing, queue, errors, completed });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+      .slice(0, 30),
+    errors: erros,
+    completed: concluidos,
+  });
 };

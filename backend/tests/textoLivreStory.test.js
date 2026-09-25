@@ -23,7 +23,7 @@
  * quebra a linha de comando inteira se um caractere não for escapado.
  */
 
-const { filtrosDeTexto, TAMANHOS_TEXTO } = require('../src/services/storyStickerRenderer');
+const { filtrosDeTexto, TAMANHOS_TEXTO } = require('../src/services/textoNoStory');
 
 const FONTE = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
 

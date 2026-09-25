@@ -18,7 +18,7 @@
  *                                a ligaria
  *   ordem não aplicada         → a opção existiria na tela e a fila sairia na
  *                                ordem do banco, como antes de existir opção
- *   `$in` fora de ordem        → o Mongo não devolve na ordem dos ids, então
+ *   `any(ids)` fora de ordem   → o banco não devolve na ordem dos ids, então
  *                                "na ordem em que eu escolhi" seria mentira
  *   loop infinito ignorado     → `type: 'post'` conclui quando as mídias
  *                                acabam; o loop tem de virar `type: 'loop'`
@@ -26,27 +26,15 @@
  *                                pediu marca
  */
 
-jest.mock('../src/models/Post', () => ({ create: jest.fn(), find: jest.fn(), findById: jest.fn(), countDocuments: jest.fn() }));
-jest.mock('../src/models/Job', () => ({ create: jest.fn(), findByIdAndUpdate: jest.fn(), findOne: jest.fn() }));
-jest.mock('../src/models/Media', () => ({ find: jest.fn() }));
-jest.mock('../src/queue/postQueue', () => ({ add: jest.fn() }));
 jest.mock('../src/events/broadcaster', () => ({ broadcast: jest.fn() }));
 
-const Job     = require('../src/models/Job');
-const Media   = require('../src/models/Media');
-const postQueue = require('../src/queue/postQueue');
+const banco = require('./helpers/banco');
 const { createPost } = require('../src/controllers/postController');
 
-const CONTAS = ['64b000000000000000000001', '64b000000000000000000002'];
+let CONTAS = [];
+const IDS = {};
 
-/** Três mídias de biblioteca, com datas bem separadas. */
-const DOCS = [
-  { _id: 'm1', filename: 'antigo.mp4',  createdAt: new Date('2026-01-01T00:00:00Z') },
-  { _id: 'm2', filename: 'meio.mp4',    createdAt: new Date('2026-05-01T00:00:00Z') },
-  { _id: 'm3', filename: 'recente.mp4', createdAt: new Date('2026-09-01T00:00:00Z') },
-];
-
-/** Chama o controller e devolve `{ code, corpo, job }`. */
+/** Chama o controller e devolve `{ code, corpo, job }` — o job lido do banco. */
 async function postar(body, files = []) {
   const resposta = { code: 200, corpo: null };
   const res = {
@@ -54,25 +42,33 @@ async function postar(body, files = []) {
     json(c)   { resposta.corpo = c; return this; },
   };
   await createPost({ body, files }, res);
-  return { ...resposta, job: Job.create.mock.calls[0]?.[0] || null };
+  const id = resposta.corpo?.job?.id;
+  const job = id ? (await banco.sql`select * from jobs where id = ${id}`)[0] : null;
+  return { ...resposta, job };
 }
 
 /** O corpo mínimo que o controller aceita, como o `multipart` o entrega. */
 const corpo = (extra = {}) => ({
-  mediaIds: JSON.stringify(['m3', 'm1', 'm2']),   // fora de ordem de propósito
+  mediaIds: JSON.stringify([IDS.m3, IDS.m1, IDS.m2]),   // fora de ordem de propósito
   accounts: JSON.stringify(CONTAS),
   intervalMinutes: '30',
   postType: 'reel',
   ...extra,
 });
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  /* O Mongo devolve na ordem dele, não na dos ids — reproduzido aqui. */
-  Media.find.mockResolvedValue([DOCS[0], DOCS[1], DOCS[2]]);
-  Job.create.mockImplementation(async o => ({ ...o, _id: 'job1' }));
-  Job.findByIdAndUpdate.mockResolvedValue({});
-  postQueue.add.mockResolvedValue({ id: 'bull1' });
+beforeEach(async () => {
+  await banco.limpar();
+  CONTAS = [(await banco.criarConta({ username: 'a' })).id, (await banco.criarConta({ username: 'b' })).id];
+  /* Três mídias da biblioteca, com datas bem separadas. Inseridas fora da
+     ordem cronológica: o banco não devolve na ordem dos ids pedidos. */
+  for (const [chave, filename, quando] of [
+    ['m2', 'meio.mp4', '2026-05-01T00:00:00Z'],
+    ['m3', 'recente.mp4', '2026-09-01T00:00:00Z'],
+    ['m1', 'antigo.mp4', '2026-01-01T00:00:00Z'],
+  ]) {
+    const [m] = await banco.sql`insert into media (filename, type, created_at) values (${filename}, 'video', ${new Date(quando)}) returning id`;
+    IDS[chave] = m.id;
+  }
 });
 
 describe('a ordem da fila chega ao job', () => {
@@ -92,7 +88,7 @@ describe('a ordem da fila chega ao job', () => {
 
   test('"na ordem em que eu escolhi" respeita os ids, não o banco', async () => {
     /* O defeito que existia antes de haver opção: os ids pedidos eram
-       m3, m1, m2 e o Mongo devolveu m1, m2, m3. */
+       m3, m1, m2 e o banco devolveu m1, m2, m3. */
     const { job } = await postar(corpo({ ordemDasMidias: 'selecao' }));
     expect(job.mediaFiles).toEqual(['recente.mp4', 'antigo.mp4', 'meio.mp4']);
   });
@@ -111,12 +107,6 @@ describe('ordem aleatória', () => {
     const ligada = await postar(corpo({ midiasAleatorias: 'true' }));
     expect(ligada.job.midiasAleatorias).toBe(true);
 
-    jest.clearAllMocks();
-    Media.find.mockResolvedValue(DOCS);
-    Job.create.mockImplementation(async o => ({ ...o, _id: 'j' }));
-    Job.findByIdAndUpdate.mockResolvedValue({});
-    postQueue.add.mockResolvedValue({ id: 'b' });
-
     const desligada = await postar(corpo({ midiasAleatorias: 'false' }));
     expect(desligada.job.midiasAleatorias).toBe(false);
   });
@@ -131,11 +121,6 @@ describe('ordem aleatória', () => {
 
   test('a mesma semente reproduz a mesma ordem', async () => {
     const a = await postar(corpo({ midiasAleatorias: 'true', sementeDaOrdem: 'fixa' }));
-    jest.clearAllMocks();
-    Media.find.mockResolvedValue(DOCS);
-    Job.create.mockImplementation(async o => ({ ...o, _id: 'j' }));
-    Job.findByIdAndUpdate.mockResolvedValue({});
-    postQueue.add.mockResolvedValue({ id: 'b' });
     const b = await postar(corpo({ midiasAleatorias: 'true', sementeDaOrdem: 'fixa' }));
     expect(a.job.mediaFiles).toEqual(b.job.mediaFiles);
   });
@@ -183,17 +168,17 @@ describe('a marca d\'água', () => {
   test('desligada não grava campo nenhum', async () => {
     /* Nada muda para quem nunca pediu marca. */
     const { job } = await postar(corpo({ marcaDagua: JSON.stringify({ ativa: false, opacidade: 70 }) }));
-    expect(job).not.toHaveProperty('marcaDagua');
+    expect(job.marcaDagua).toBeNull();
   });
 
   test('ausente não grava campo nenhum', async () => {
-    expect(await postar(corpo()).then(r => r.job)).not.toHaveProperty('marcaDagua');
+    expect((await postar(corpo())).job.marcaDagua).toBeNull();
   });
 
   test('JSON quebrado custa a marca, não a publicação', async () => {
     const { code, job } = await postar(corpo({ marcaDagua: '{ativa:true' }));
     expect(code).toBe(200);
-    expect(job).not.toHaveProperty('marcaDagua');
+    expect(job.marcaDagua).toBeNull();
   });
 
   test('valores fora de faixa são normalizados, não gravados crus', async () => {
@@ -208,10 +193,9 @@ describe('a marca d\'água', () => {
 
 describe('o que não mudou', () => {
   test('sem mídia continua 400', async () => {
-    Media.find.mockResolvedValue([]);
     const { code } = await postar({ ...corpo(), mediaIds: '[]' });
     expect(code).toBe(400);
-    expect(Job.create).not.toHaveBeenCalled();
+    expect(await banco.sql`select id from jobs`).toHaveLength(0);
   });
 
   test('sem conta continua 400', async () => {
@@ -227,8 +211,8 @@ describe('o que não mudou', () => {
 
   test('o agendamento continua virando atraso na fila', async () => {
     const daquiUmaHora = new Date(Date.now() + 3_600_000).toISOString();
-    await postar(corpo({ scheduledAt: daquiUmaHora }));
-    const { delay } = postQueue.add.mock.calls[0][2];
-    expect(delay).toBeGreaterThan(3_500_000);
+    const { job } = await postar(corpo({ scheduledAt: daquiUmaHora }));
+    const [rodada] = await banco.sql`select run_at from queue_jobs where name = 'job_round' and data->>'jobId' = ${job.id}`;
+    expect(rodada.runAt.getTime() - Date.now()).toBeGreaterThan(3_500_000);
   });
 });

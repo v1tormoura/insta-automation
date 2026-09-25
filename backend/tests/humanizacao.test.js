@@ -9,12 +9,6 @@
  * são exatamente os padrões que denunciam automação.
  */
 
-// A fila real abre conexão com o Redis só de ser importada — o executor a
-// carrega em cadeia e o processo de teste ficaria pendurado.
-jest.mock('../src/queue/postQueue', () => ({
-  add: jest.fn(), getJob: jest.fn(), remove: jest.fn(),
-}));
-
 const {
   criarRandom, embaralhar, espacarPorConta,
 } = require('../src/services/publicationPlanner');
@@ -118,7 +112,7 @@ describe('_atrasoDoComentario — atraso sorteado, não fixo', () => {
     expect(_atrasoDoComentario({ delayMinutes: 5, delayMaxMinutes: 1 })).toBe(5);
   });
 
-  test('padrões do model quando nada é informado', () => {
+  test('padrões quando nada é informado', () => {
     const minutos = _atrasoDoComentario({});
     expect(minutos).toBeGreaterThanOrEqual(2);
     expect(minutos).toBeLessThanOrEqual(6);

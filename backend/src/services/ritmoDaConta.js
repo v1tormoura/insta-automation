@@ -95,7 +95,7 @@ function tetoDeHoje(account, hoje = new Date()) {
   if (!TETO_PADRAO) return SEM_TETO;
 
   const dia = `${hoje.getFullYear()}-${hoje.getMonth()}-${hoje.getDate()}`;
-  const f = fracaoDe(`${account?._id || 'sem-id'}:${dia}`);
+  const f = fracaoDe(`${account?.id || 'sem-id'}:${dia}`);
   return TETO_MIN + Math.floor(f * (TETO_MAX - TETO_MIN + 1));
 }
 /**
@@ -104,7 +104,7 @@ function tetoDeHoje(account, hoje = new Date()) {
  * Estável por conta: a conta que acorda às 07:12 acorda às 07:12 todo dia.
  */
 function deslocamentoDe(account) {
-  return Math.floor(fracaoDe(`janela:${account?._id || 'sem-id'}`) * 90) - 45;
+  return Math.floor(fracaoDe(`janela:${account?.id || 'sem-id'}`) * 90) - 45;
 }
 
 /**

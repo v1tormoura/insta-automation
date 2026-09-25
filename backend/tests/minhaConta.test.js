@@ -84,36 +84,27 @@ describe('senhaDoPainel', () => {
 });
 
 /* ── O login com as duas senhas ────────────────────────────────────────────
-   Mock do model e do mongoose, porque o que está sob teste é a ORDEM das
+   O repositório do usuário é dublado: o que está sob teste é a ORDEM das
    tentativas — e ela não precisa de banco para ser verificada. */
 
+process.env.AUTH_PASSWORD = 'senha-do-ambiente';
 const mockUsuario = { valor: null, erro: null };
-const mockConexao = { readyState: 1 };
 
-jest.mock('mongoose', () => ({
-  get connection() { return mockConexao; },
-}));
-
-jest.mock('../src/models/Usuario', () => ({
-  findOne: () => ({
-    select: () => ({
-      lean: async () => {
-        if (mockUsuario.erro) throw mockUsuario.erro;
-        return mockUsuario.valor;
-      },
-    }),
-  }),
+jest.mock('../src/repos/usuario', () => ({
+  carregar: async () => {
+    if (mockUsuario.erro) throw mockUsuario.erro;
+    return mockUsuario.valor || { senhaHash: '' };
+  },
 }));
 
 const { senhaConfere } = require('../src/routes/authRoutes');
 
 describe('login: qual senha entra', () => {
-  const AMBIENTE = process.env.AUTH_PASSWORD || 'admin123';
+  const AMBIENTE = 'senha-do-ambiente';
 
   beforeEach(() => {
     mockUsuario.valor = null;
     mockUsuario.erro = null;
-    mockConexao.readyState = 1;
     jest.spyOn(console, 'log').mockImplementation(() => {});
   });
   afterEach(() => jest.restoreAllMocks());
@@ -144,20 +135,14 @@ describe('login: qual senha entra', () => {
     expect((await senhaConfere('nem-uma-nem-outra')).ok).toBe(false);
   });
 
-  test('banco fora do ar: a do ambiente entra sem tocar no model', async () => {
-    mockConexao.readyState = 0;
-    /* Se tocasse, o mongoose enfileiraria a consulta e o login ficaria dez
-       segundos pendurado antes de falhar. */
-    mockUsuario.erro = new Error('não deveria ter sido chamado');
+  test('banco fora do ar: a do ambiente entra, e o login não vira erro', async () => {
+    /* É justamente quando o banco caiu que alguém precisa entrar para ver o
+       que aconteceu. */
+    mockUsuario.erro = new Error('connect ECONNREFUSED');
     const r = await senhaConfere(AMBIENTE);
     expect(r.ok).toBe(true);
     expect(r.via).toBe('ambiente-sem-banco');
-  });
-
-  test('erro ao ler o usuário não vira exceção no login', async () => {
-    mockUsuario.erro = new Error('coleção sumiu');
-    const r = await senhaConfere(AMBIENTE);
-    expect(r.ok).toBe(true);
+    expect((await senhaConfere('chute')).ok).toBe(false);
   });
 
   test('entrada pelo caminho alternativo é registrada', async () => {
@@ -190,13 +175,6 @@ describe('a rota não vaza o hash', () => {
        comentário — quatro vezes neste projeto. */
     expect(dentro).not.toMatch(/senhaHash:\s*u/);
     expect(dentro).not.toMatch(/\.\.\.u\b/);
-  });
-
-  test('a leitura pede o hash explicitamente', () => {
-    /* Sem `+senhaHash`, `select: false` no schema esconde o campo e
-       `temSenhaPropria` sai false para sempre — inclusive depois de a senha ter
-       sido trocada com sucesso. Foi o defeito que apareceu rodando a rota. */
-    expect(fonte).toMatch(/select\('\+senhaHash'\)/);
   });
 
   test('só JPG, PNG e WebP — SVG fora', () => {

@@ -22,9 +22,6 @@
  *  3. Nenhuma validação de formato. Reel fora de spec o Instagram re-comprime
  *     mais forte, e reel re-comprimido entrega pior.
  *
- * E o `processMode` configurado na tela não fazia nada em conta mobile: a
- * interface inteira de humanização era decoração.
- *
  * ── Por que a semente
  *
  * A variação é determinística no par (post, conta). Contas diferentes recebem
@@ -66,17 +63,17 @@ async function _trilhaDaConta(config, aleatorio, account) {
   const ids = Array.isArray(config.ids) ? config.ids : [];
   if (!ids.length) return null;
   try {
-    const Trilha = require('../models/Trilha');
+    const { sql } = require('../db');
     const { escolher } = require('./trilhaPorConta');
-    const docs = await Trilha.find({ _id: { $in: ids } }).lean();
+    const docs = await sql`select * from trilhas where id = any(${ids.map(String)}::uuid[])`;
     const t = escolher(config, docs, aleatorio);
     if (!t) return null;
     const caminho = path.join(RAIZ_UPLOADS, t.arquivo);
     if (!fs.existsSync(caminho)) {
-      console.log(`⚠️ [MidiaPorConta] trilha "${t.nome}" não está no disco (${t.arquivo}) — @${account?.username || account?._id} sai sem trilha`);
+      console.log(`⚠️ [MidiaPorConta] trilha "${t.nome}" não está no disco (${t.arquivo}) — @${account?.username || account?.id} sai sem trilha`);
       return null;
     }
-    console.log(`🎵 [MidiaPorConta] @${account?.username || account?._id} → trilha "${t.nome}" (${t.modo}, vol ${t.volume})`);
+    console.log(`🎵 [MidiaPorConta] @${account?.username || account?.id} → trilha "${t.nome}" (${t.modo}, vol ${t.volume})`);
     return { caminho, modo: t.modo, volume: t.volume, nome: t.nome };
   } catch (err) {
     console.log(`⚠️ [MidiaPorConta] trilha indisponível (${err.message}) — publicando sem trilha`);
@@ -159,8 +156,8 @@ function tokenDaPublicacao(opcoes = {}) {
  * publicado como está: perder o post inteiro por causa da humanização seria
  * trocar um problema de alcance por um de funcionamento.
  *
- * @param {Object} post     — precisa de `_id`, `media` e opcionalmente `processMode`
- * @param {Object} account  — precisa de `_id`
+ * @param {Object} post     — precisa de `id`, `media` e opcionalmente `processMode`
+ * @param {Object} account  — precisa de `id`
  */
 async function prepararParaConta(post, account, opcoes = {}) {
   const relativo = String(post?.media || '');
@@ -206,8 +203,8 @@ async function prepararParaConta(post, account, opcoes = {}) {
   const modo = VARIAM.has(pedido) ? pedido : 'humanizador';
 
   const token = tokenDaPublicacao(opcoes);
-  const semente = sementeDe(String(post._id), String(account._id), token);
-  const marca = marcaDe(String(post._id), String(account._id), token);
+  const semente = sementeDe(String(post.id), String(account.id), token);
+  const marca = marcaDe(String(post.id), String(account.id), token);
 
   /* ── A marca d'água desta conta ───────────────────────────────────────────
 
@@ -292,13 +289,13 @@ async function prepararParaConta(post, account, opcoes = {}) {
     const caminho = rel.startsWith('..') ? saida : rel;
 
     console.log(
-      `🎬 [MidiaPorConta] @${account.username || account._id} → ` +
+      `🎬 [MidiaPorConta] @${account.username || account.id} → ` +
       `${path.basename(caminho)} (${modo})`
     );
     return { caminho, proprio: true };
   } catch (err) {
     console.log(
-      `⚠️ [MidiaPorConta] conversão falhou para @${account.username || account._id}: ` +
+      `⚠️ [MidiaPorConta] conversão falhou para @${account.username || account.id}: ` +
       `${err.message} — publicando o original`
     );
     return { caminho: relativo, proprio: false };
@@ -334,7 +331,7 @@ async function marcarImagem(absoluto, post, account, opcoes = {}) {
   if (!filtro) return null;
 
   const ext = path.extname(absoluto) || '.jpg';
-  const marca = marcaDe(String(post._id), String(account._id), tokenDaPublicacao(opcoes));
+  const marca = marcaDe(String(post.id), String(account.id), tokenDaPublicacao(opcoes));
   const saida = path.join(RAIZ_UPLOADS, 'processed', `${path.basename(absoluto, ext)}-c${marca}${ext}`);
 
   try {
@@ -347,10 +344,10 @@ async function marcarImagem(absoluto, post, account, opcoes = {}) {
         .save(saida);
     });
     const rel = path.relative(RAIZ_UPLOADS, saida).split(path.sep).join('/');
-    console.log(`🖼️ [MidiaPorConta] @${account.username || account._id} → ${path.basename(saida)} (marca d'água)`);
+    console.log(`🖼️ [MidiaPorConta] @${account.username || account.id} → ${path.basename(saida)} (marca d'água)`);
     return { caminho: rel.startsWith('..') ? saida : rel, proprio: true };
   } catch (err) {
-    console.log(`⚠️ [MidiaPorConta] marca na imagem falhou para @${account.username || account._id}: ${err.message} — publicando o original`);
+    console.log(`⚠️ [MidiaPorConta] marca na imagem falhou para @${account.username || account.id}: ${err.message} — publicando o original`);
     return null;
   }
 }
@@ -393,53 +390,7 @@ function descartar(caminho, proprio) {
   }
 }
 
-/**
- * A URL pública da mídia desta conta — para o caminho do Graph API.
- *
- * ── Por que o Graph precisa de URL e não de caminho
- *
- * O `clip_upload` da instagrapi lê o arquivo do disco. O Graph API faz o
- * contrário: recebe uma URL e BAIXA o vídeo do nosso servidor. São dois
- * contratos diferentes para a mesma decisão de "qual arquivo esta conta
- * publica", e por isso as duas funções moram aqui em vez de cada caminho
- * inventar a sua.
- *
- * ── O vazamento que isto fecha
- *
- * `prepareVideo(post)` era chamada UMA vez por post, antes do laço de contas, e
- * a mesma URL ia para todas as contas Graph. A correção do arquivo por conta
- * cobriu só o caminho mobile: conta oficial continuava subindo bytes idênticos
- * às das outras.
- *
- * @returns {Promise<{url: string|null, caminho: string, proprio: boolean}>}
- */
-async function urlParaConta(post, account, opcoes = {}) {
-  const publico = String(process.env.PUBLIC_URL || '').replace(/\/$/, '');
-  if (!publico) {
-    /* Sem PUBLIC_URL o Graph não tem de onde baixar. Devolver null deixa o
-       chamador cair no comportamento antigo em vez de publicar uma URL
-       inválida — que o Meta aceita e depois falha, sem dizer por quê. */
-    console.log('⚠️ [MidiaPorConta] PUBLIC_URL não definido — o Graph usa o caminho antigo');
-    return { url: null, caminho: '', proprio: false };
-  }
-
-  const r = await prepararParaConta(post, account, opcoes);
-  if (!r.proprio) {
-    // Não converteu (imagem, arquivo ausente, ou falha). O chamador decide.
-    return { url: null, caminho: r.caminho, proprio: false };
-  }
-
-  /* `convertToReelFormat` grava em `uploads/processed`, que é exatamente o que
-     `/uploads` serve — a URL é o basename sobre esse prefixo, a mesma forma que
-     `prepareVideo` montava. */
-  return {
-    url: `${publico}/uploads/processed/${path.basename(r.caminho)}`,
-    caminho: r.caminho,
-    proprio: true,
-  };
-}
-
 module.exports = {
-  prepararParaConta, urlParaConta, descartar,
+  prepararParaConta, descartar,
   criarAleatorio, sementeDe, marcaDe,
 };

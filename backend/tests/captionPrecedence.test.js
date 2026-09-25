@@ -3,10 +3,10 @@
 const { resolveCaption, resolveComment, resolveTemplate } = require('../src/services/templateResolver');
 
 describe('Precedencia e Resolucao de Legendas e Comentarios', () => {
-  const accountA = { _id: 'acc_A', username: 'loja_oficial', name: 'Loja Oficial SP' };
-  const accountB = { _id: 'acc_B', username: 'loja_rj', name: 'Loja RJ' };
-  const content1 = { _id: 'cnt_1', name: 'Video 01', filename: 'video1.mp4' };
-  const content2 = { _id: 'cnt_2', name: 'Foto 02', filename: 'foto2.jpg' };
+  const accountA = { id: 'acc_A', username: 'loja_oficial', name: 'Loja Oficial SP' };
+  const accountB = { id: 'acc_B', username: 'loja_rj', name: 'Loja RJ' };
+  const content1 = { id: 'cnt_1', name: 'Video 01', filename: 'video1.mp4' };
+  const content2 = { id: 'cnt_2', name: 'Foto 02', filename: 'foto2.jpg' };
   const campaign = { name: 'Campanha Black Friday' };
 
   test('Cenario 1: Legenda global para 1 conta e 1 conteudo', () => {

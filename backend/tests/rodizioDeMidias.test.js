@@ -16,7 +16,7 @@
 const { midiasDaRodada, pontosDePartida } = require('../src/services/rodizioDeMidias');
 
 const midias = n => Array.from({ length: n }, (_, i) => 'm' + (i + 1));
-const contas = n => Array.from({ length: n }, (_, i) => ({ _id: 'c' + (i + 1) }));
+const contas = n => Array.from({ length: n }, (_, i) => ({ id: 'c' + (i + 1) }));
 
 describe('pontos de partida', () => {
   test('espaçamento proporcional: 20 mídias e 10 contas partem de 2 em 2', () => {
@@ -71,7 +71,7 @@ describe('ligado — a promessa do modo', () => {
   });
 
   test('ao fim do ciclo, toda conta publicou TODAS as mídias — nada se perde', () => {
-    const vistos = new Map(C.map(c => [c._id, new Set()]));
+    const vistos = new Map(C.map(c => [c.id, new Set()]));
     for (let r = 0; r < 20; r++) {
       for (const [id, ms] of midiasDaRodada({ midias: M, contas: C, rodada: r, porRodada: 1, rodizio: true }).porConta) {
         ms.forEach(m => vistos.get(id).add(m));

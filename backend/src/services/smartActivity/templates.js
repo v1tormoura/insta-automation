@@ -44,22 +44,16 @@ const VARIAVEIS = Object.freeze({
      aviso oferece só as suas, por `VARIAVEIS_POR_TIPO`. */
   erro:          'O que o serviço respondeu quando falhou',
   dias:          'Quantos dias faltam para o token vencer',
-  motivo:        'Por que a conta parou (sessão expirada, banida…)',
+  motivo:        'Por que a conta parou (token inválido, banida…)',
   usado:         'Publicações feitas pela API nas últimas 24h',
   limite:        'Quantas a API do Instagram aceita em 24h (50)',
   libera:        'Horário estimado em que a cota volta a aceitar',
   quantidade:    'Quantos conteúdos cruzaram marcos além dos 3 avisados',
   maior:         'O maior valor entre eles, já formatado',
-  proxies:       'Quantos proxies existem no pool',
   contasRuins:   'Contas que não conseguem conectar',
   contasTotal:   'Total de contas cadastradas',
   presas:        'Publicações presas na fila',
   errosHoje:     'Erros de publicação no dia',
-  percentual:    'Percentual da cota de proxy já usado',
-  restanteGb:    'GB restantes da cota',
-  totalGb:       'GB totais da cota',
-  diasRestantes: 'Dias estimados até a cota acabar',
-  previsao:      'A estimativa em linguagem corrente',
   aviso:         'Nome do aviso que voltou ao normal',
   horas:         'Por quantas horas o problema durou',
 });
@@ -96,9 +90,6 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'contas', 'maior']),
 
   /* Avisos do vigia do sistema. */
-  cota:    Object.freeze(['percentual', 'restanteGb', 'totalGb', 'diasRestantes', 'previsao']),
-  proxy:   Object.freeze(['erro']),
-  pool:    Object.freeze(['proxies']),
   sessoes: Object.freeze(['contasRuins', 'contasTotal']),
   fila:    Object.freeze(['presas']),
   erros:   Object.freeze(['errosHoje']),
@@ -110,7 +101,7 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
 });
 
 /** Os tipos que vêm do vigia, e não de uma métrica do Instagram. */
-const TIPOS_DE_SISTEMA = Object.freeze(['cota', 'proxy', 'pool', 'sessoes', 'fila', 'erros', 'normalizado']);
+const TIPOS_DE_SISTEMA = Object.freeze(['sessoes', 'fila', 'erros', 'normalizado']);
 
 /**
  * `{ nome: descrição }` das variáveis de um aviso — é o que o editor lista.
@@ -202,27 +193,10 @@ const PADRAO = Object.freeze({
      para cá sem uma palavra mudada. Quem não editar nada continua recebendo
      exatamente a mesma frase de antes — a mudança é passar a poder editar,
      não passar a receber outra coisa. */
-  cota: Object.freeze({
-    titulo: 'Cota do proxy em {{percentual}}%',
-    mensagem: '{{restanteGb}} GB de {{totalGb}} GB restantes. {{previsao}} '
-            + 'Renove antes de acabar — quando acaba, tudo para de uma vez.',
-    tema: 'warning',
-  }),
-  proxy: Object.freeze({
-    titulo: 'O proxy parou de responder',
-    mensagem: '{{erro}}',
-    tema: 'warning',
-  }),
-  pool: Object.freeze({
-    titulo: 'O pool de proxies acabou',
-    mensagem: 'Os {{proxies}} proxies estão reservados. A próxima conta vai sair pelo IP global, '
-            + 'dividindo endereço com as outras — o padrão que o Instagram lê como automação.',
-    tema: 'warning',
-  }),
   sessoes: Object.freeze({
     titulo: '{{contasRuins}} de {{contasTotal}} contas sem conseguir conectar',
     mensagem: 'Quando é a maioria de uma vez, a causa costuma ser comum a todas — '
-            + 'proxy, rede ou serviço — e não cada conta individualmente.',
+            + 'o app da Meta ou o token — e não cada conta individualmente.',
     tema: 'warning',
   }),
   fila: Object.freeze({
@@ -370,13 +344,10 @@ const EXEMPLOS = Object.freeze({
   porConta: '@oliviapaganini: 1.024 · @lauramendes: 380',
 
   erro: 'Tempo de conexão esgotado ao sair para o Instagram.',
-  proxies: '8',
   contasRuins: '5', contasTotal: '9',
   presas: '2', errosHoje: '23',
-  percentual: '87', restanteGb: '12', totalGb: '100',
-  diasRestantes: '4', previsao: 'No ritmo atual, acaba em cerca de 4 dia(s).',
-  aviso: 'proxy', horas: '3',
-  dias: '6', motivo: 'Sessão expirada — reconecte pela API.',
+  aviso: 'fila de publicação', horas: '3',
+  dias: '6', motivo: 'Token inválido — reconecte pela API.',
   usado: '50', limite: '50', libera: '14:35',
   quantidade: '9', maior: '194.000',
 });

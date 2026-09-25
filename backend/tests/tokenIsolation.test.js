@@ -13,8 +13,8 @@ const TOKEN_A = 'IGQWRtoken_account_AAAA_business_12345';
 const TOKEN_B = 'IGQWRtoken_account_BBBB_business_67890';
 
 // Simulate DB-stored account objects (tokens stored encrypted)
-const dbAccountA = { _id: 'aaaabbbbcccc000000000001', username: 'account_a', accessToken: encrypt(TOKEN_A) };
-const dbAccountB = { _id: 'aaaabbbbcccc000000000002', username: 'account_b', accessToken: encrypt(TOKEN_B) };
+const dbAccountA = { id: '00000000-aaaa-bbbb-cccc-000000000001', username: 'account_a', accessToken: encrypt(TOKEN_A) };
+const dbAccountB = { id: '00000000-aaaa-bbbb-cccc-000000000002', username: 'account_b', accessToken: encrypt(TOKEN_B) };
 
 function resolveToken(account) {
   return decrypt(account.accessToken);

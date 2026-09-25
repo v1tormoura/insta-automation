@@ -33,7 +33,7 @@
  * ali é marca escondida — as posições abaixo respeitam essa margem.
  */
 
-const { acharFonte } = require('./storyStickerRenderer');
+const { acharFonte } = require('./textoNoStory');
 const { normalizarArroba } = require('./arrobaDoInstagram');
 
 /* A altura da tela do reel depois da cadeia de escala. Todos os modos de

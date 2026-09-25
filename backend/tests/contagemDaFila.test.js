@@ -27,10 +27,10 @@ describe('a fila soma as três origens', () => {
   test('publicação avulsa, lote e campanha', () => {
     const r = somarFilas(
       { agendados: 2, processando: 1, pendentes: 3 },
-      { esperando: 10, rodando: 2, enfileirados: 5 },
+      { rodando: 2, enfileirados: 5 },
       { scheduled: 30, processing: 1, pending: 7 },
     );
-    expect(r).toEqual({ agendados: 42, processando: 4, pendentes: 15 });
+    expect(r).toEqual({ agendados: 32, processando: 4, pendentes: 15 });
   });
 
   test('a campanha sozinha aparece na fila', () => {
@@ -42,7 +42,7 @@ describe('a fila soma as três origens', () => {
   });
 
   test('origem ausente conta zero, não quebra', () => {
-    /* O agregado do mongo devolve só os status que existem. Um painel que
+    /* O agrupamento por status devolve só os status que existem. Um painel que
        lança porque ninguém agendou nada seria pior que um número errado. */
     expect(somarFilas()).toEqual({ agendados: 0, processando: 0, pendentes: 0 });
     expect(somarFilas(null, undefined, {})).toEqual(
@@ -54,7 +54,7 @@ describe('a fila soma as três origens', () => {
        gráfico, quebra comparações, e não diz que veio de um campo ausente. */
     const r = somarFilas(
       { agendados: undefined, processando: null, pendentes: 'x' },
-      { esperando: NaN, rodando: -3, enfileirados: 4 },
+      { rodando: -3, enfileirados: 4 },
       {},
     );
     expect(r).toEqual({ agendados: 0, processando: 0, pendentes: 4 });
@@ -86,8 +86,8 @@ describe('postagens de hoje', () => {
 });
 
 describe('agrupamento por status', () => {
-  test('converte a saída do aggregate', () => {
-    expect(porStatus([{ _id: 'scheduled', n: 28 }, { _id: 'pending', n: 2 }]))
+  test('converte a saída do group by', () => {
+    expect(porStatus([{ status: 'scheduled', n: 28 }, { status: 'pending', n: 2 }]))
       .toEqual({ scheduled: 28, pending: 2 });
   });
 
@@ -99,64 +99,8 @@ describe('agrupamento por status', () => {
     }
   });
 
-  test('linha sem _id é descartada', () => {
-    expect(porStatus([{ n: 5 }, { _id: 'pending', n: 2 }])).toEqual({ pending: 2 });
-  });
-});
-
-describe('o loop é a quarta origem', () => {
-  const { pendentesDoLoop } = require('../src/controllers/contagemDaFila');
-
-  test('conta o que falta do ciclo, não a lista inteira', () => {
-    /* O loop é contínuo. Contar `mediaFiles.length` daria um número que nunca
-       desce — num loop rodando há uma semana ele não descreveria nada. */
-    const loops = [{ status: 'ativo', mediaFiles: new Array(44), currentIndex: 6 }];
-    expect(pendentesDoLoop(loops)).toBe(38);
-  });
-
-  test('loop recém-criado conta a lista toda', () => {
-    expect(pendentesDoLoop([{ status: 'ativo', mediaFiles: new Array(44), currentIndex: 0 }])).toBe(44);
-  });
-
-  test('loop pausado não entra na fila', () => {
-    /* Uma fila que inclui o que está parado é uma fila que não se esvazia: a
-       pessoa olha, vê 44, espera, e continua vendo 44. */
-    const loops = [
-      { status: 'pausado', mediaFiles: new Array(44), currentIndex: 0 },
-      { status: 'ativo',   mediaFiles: new Array(10), currentIndex: 3 },
-    ];
-    expect(pendentesDoLoop(loops)).toBe(7);
-  });
-
-  test('índice além do fim não vira número negativo', () => {
-    const loops = [{ status: 'ativo', mediaFiles: new Array(5), currentIndex: 9 }];
-    expect(pendentesDoLoop(loops)).toBe(0);
-  });
-
-  test('entrada estranha devolve zero em vez de quebrar o painel', () => {
-    for (const ruim of [null, undefined, 'x', 42, {}]) {
-      expect(pendentesDoLoop(ruim)).toBe(0);
-    }
-    expect(pendentesDoLoop([null, { status: 'ativo' }, {}])).toBe(0);
-  });
-
-  test('a soma da fila inclui o loop em pendentes', () => {
-    /* Em "pendentes" e não em "agendados": as mídias do loop não têm horário
-       marcado, saem quando o ciclo chegar nelas. */
-    const r = somarFilas(
-      { agendados: 1, processando: 2, pendentes: 3 },
-      { esperando: 0, rodando: 0, enfileirados: 0 },
-      {},
-      { pendentes: 38 },
-    );
-    expect(r.pendentes).toBe(41);
-    expect(r.agendados).toBe(1);
-  });
-
-  test('sem o quarto argumento a soma continua valendo', () => {
-    // Nenhum chamador antigo quebra por causa do parâmetro novo.
-    const r = somarFilas({ pendentes: 3 }, { enfileirados: 2 }, { pending: 1 });
-    expect(r.pendentes).toBe(6);
+  test('linha sem status é descartada', () => {
+    expect(porStatus([{ n: 5 }, { status: 'pending', n: 2 }])).toEqual({ pending: 2 });
   });
 });
 
@@ -214,9 +158,8 @@ describe('midiasDoJob / contarJobs — o que resta, não o total', () => {
       .toEqual({ processando: 0, naFila: 1 });
   });
 
-  test('pendentesDoLoop tambem conta por conta', () => {
-    const { pendentesDoLoop } = require('../src/controllers/contagemDaFila');
-    expect(pendentesDoLoop([{ status: 'ativo', mediaFiles: Array(10).fill('m'), currentIndex: 4, accounts: Array(3).fill('c') }])).toBe(18);
-    expect(pendentesDoLoop([{ status: 'ativo', mediaFiles: ['a'], currentIndex: 0 }])).toBe(1);
+  test('o loop (job type loop) entra pela mesma conta, com as contas vindas de accountIds', () => {
+    const loop = { status: 'waiting_interval', type: 'loop', currentRound: 4, mediaFiles: Array(10).fill('m'), simultaneousLimit: 1, accountIds: ['a', 'b', 'c'] };
+    expect(midiasDoJob(loop)).toEqual({ processando: 0, naFila: 18 });
   });
 });

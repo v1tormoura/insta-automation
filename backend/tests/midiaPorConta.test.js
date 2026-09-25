@@ -20,7 +20,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
-const ffmpegStatic = require('ffmpeg-static');
+const { FFMPEG_BIN: ffmpegStatic } = require('../src/services/ffmpegBin');
 
 const {
   criarAleatorio, sementeDe, marcaDe,
@@ -211,7 +211,7 @@ talvez('o vídeo sai diferente por conta', () => {
       '-of', 'default=noprint_wrappers=1', caminho,
     ]).catch(() => ({ stdout: '' }));
 
-    // ffprobe pode não vir com o ffmpeg-static; se veio, confere.
+    // ffprobe pode não estar instalado; se estiver, confere.
     if (stdout) {
       expect(stdout).toContain('width=1080');
       expect(stdout).toContain('height=1920');
@@ -222,155 +222,59 @@ talvez('o vídeo sai diferente por conta', () => {
 });
 
 describe('todos os caminhos de publicação passam por aqui', () => {
-  const fonteWorker = fs.readFileSync(
-    path.resolve(__dirname, '../src/queue/worker.js'), 'utf8'
-  );
+  const publicar = fs.readFileSync(path.resolve(__dirname, '../src/services/publicar.js'), 'utf8');
+  const worker = fs.readFileSync(path.resolve(__dirname, '../src/worker.js'), 'utf8');
 
-  test('o caminho mobile prepara a mídia por conta', () => {
-    /* O defeito era exatamente esta ausência: `publishViaInstagrapi` mandava
-       `post.media` cru. Um teste de unidade sobre o módulo não pega isso —
-       o módulo pode estar perfeito e ninguém chamá-lo. */
-    const trecho = fonteWorker.slice(fonteWorker.indexOf('async function publishViaInstagrapi'));
-    expect(trecho).toContain('prepararParaConta(post, account)');
+  test('reel, imagem e story preparam a mídia por conta', () => {
+    /* Um teste de unidade sobre o módulo não pega a ausência da chamada — o
+       módulo pode estar perfeito e ninguém chamá-lo. */
+    expect(publicar.match(/midiaPorConta\.prepararParaConta\(/g)).toHaveLength(3);
   });
 
-  test('o arquivo por conta é apagado depois', () => {
-    /* Sem isto, 44 reels em 5 contas deixam 220 arquivos por ciclo do loop.
-       O disco enche em dias e o sintoma aparece como falha de publicação sem
-       relação aparente com disco. */
-    const trecho = fonteWorker.slice(fonteWorker.indexOf('async function publishViaInstagrapi'));
-    expect(trecho).toContain('descartar(midia.caminho, midia.proprio)');
+  test('o arquivo por conta é apagado DEPOIS de a Meta concluir a publicação', () => {
+    /* A Meta BAIXA a mídia da nossa URL: apagar antes deixaria o container
+       pedindo um arquivo que não existe mais. O `finally` roda depois do
+       await da publicação inteira (container pronto e media_publish). */
+    const trecho = publicar.slice(publicar.indexOf('async function publicarReel'), publicar.indexOf('async function publicarImagem'));
+    expect(trecho.indexOf('await graph.publicarReel')).toBeLessThan(trecho.indexOf('apagar(gerados)'));
     expect(trecho).toContain('} finally {');
   });
 
-  test('a campanha usa o mesmo publicador, não um caminho próprio', () => {
-    /* Se a campanha tivesse publicação própria, ela ficaria de fora da
-       correção — e uma campanha de trinta publicações voltaria a subir o
-       mesmo arquivo para todas as contas. */
-    expect(fonteWorker).toContain('publicarNaConta: (account, post) => publishOneAccount(account, post, null)');
-  });
-
-  test('o loop repassa o processMode que guardou', () => {
-    const loopJob = fs.readFileSync(
-      path.resolve(__dirname, '../src/jobs/loopJob.js'), 'utf8'
-    );
-    expect(loopJob).toContain('processMode: loop.processMode');
-  });
-
-  test('o Loop tem processMode no schema — senão o Mongoose descarta', () => {
-    /* O controller gravava o campo e ele não existia no schema. Em modo
-       estrito o Mongoose descarta em silêncio: a escolha da pessoa sumia
-       entre o clique e o banco, sem erro em lugar nenhum. */
-    const Loop = require('../src/models/Loop');
-    expect(Loop.schema.paths).toHaveProperty('processMode');
-    expect(Loop.schema.paths.processMode.enumValues).toContain('humanizador');
+  test('Postar, Loop e campanha usam o mesmo publicador', () => {
+    expect(worker).toMatch(/publicarNaConta:\s*\(conta, post\) => publicarNaConta\(conta, post\)/);
+    expect(worker).toContain('const { mediaId } = await publicar(conta, postDaConta);');
   });
 
   test('modos determinísticos são promovidos antes de gerar o arquivo', () => {
     /* `limpeza_leve` não faz nenhuma chamada aleatória — provado com dois
        encodes do mesmo vídeo dando o mesmo SHA-256. Deixá-lo passar faria a
        semente por conta não mudar nada. */
-    const fonte = fs.readFileSync(
-      path.resolve(__dirname, '../src/services/midiaPorConta.js'), 'utf8'
-    );
+    const fonte = fs.readFileSync(path.resolve(__dirname, '../src/services/midiaPorConta.js'), 'utf8');
     expect(fonte).toContain("VARIAM = new Set(['ultra_clean', 'humanizador'])");
     expect(fonte).toContain("VARIAM.has(pedido) ? pedido : 'humanizador'");
   });
 });
 
-describe('o ritmo entre contas existe em todo caminho', () => {
-  const worker = fs.readFileSync(path.resolve(__dirname, '../src/queue/worker.js'), 'utf8');
-  const stories = fs.readFileSync(path.resolve(__dirname, '../src/routes/storyRoutes.js'), 'utf8');
-  const loopJob = fs.readFileSync(path.resolve(__dirname, '../src/jobs/loopJob.js'), 'utf8');
+describe('o ritmo entre contas', () => {
+  const worker = fs.readFileSync(path.resolve(__dirname, '../src/worker.js'), 'utf8');
+  const stories = fs.readFileSync(path.resolve(__dirname, '../src/services/stories.js'), 'utf8');
 
-  test('legado (loop e postar avulso): ordem sorteada e espera entre contas', () => {
-    expect(worker).toContain('embaralhar(post.accounts');
-    expect(worker).toMatch(/Math\.random\(\) \* 240000\) \+ 180000/);   // 3 a 7 min
+  test('envio (Postar/Loop): ordem sorteada, alternância e espera entre publicações', () => {
+    expect(worker).toMatch(/espacarPorConta\(embaralhar\(/);
+    expect(worker).toContain('120_000 + Math.floor(Math.random() * 180_000)');   // 2 a 5 min
   });
 
-  test('lote (Job): ordem sorteada, alternância e espera entre contas', () => {
-    expect(worker).toContain('espacarPorConta(embaralhar(pares, rand))');
-    expect(worker).toMatch(/Math\.random\(\) \* 180000\) \+ 120000/);   // 2 a 5 min
-  });
-
-  test('stories: ordem sorteada e espera entre contas', () => {
+  test('stories: ordem sorteada por mídia', () => {
     expect(stories).toContain('embaralhar(accountIds');
-    expect(stories).toMatch(/Math\.random\(\) \* 180000\) \+ 120000/);
-  });
-
-  test('loop: o ciclo tem jitter, não é intervalo cravado', () => {
-    /* Um post a cada 40min00s se detecta contando timestamps, sem olhar o
-       conteúdo. */
-    expect(loopJob).toContain('proximaRodada(loop.intervalMinutes)');
-    expect(loopJob).not.toContain('intervalMinutes * 60 * 1000');
   });
 });
 
-describe('o caminho oficial (Graph API) também recebe arquivo por conta', () => {
-  const worker = fs.readFileSync(
-    path.resolve(__dirname, '../src/queue/worker.js'), 'utf8'
-  );
+describe('falha na conversão não impede a publicação', () => {
+  const { prepararParaConta } = require('../src/services/midiaPorConta');
 
-  test('a URL é gerada por conta, dentro do laço', () => {
-    /* `prepareVideo(post)` era chamada UMA vez por post, ANTES do laço de
-       contas, e a mesma URL ia para todas as contas Graph. A correção
-       anterior cobriu só o caminho mobile: conta conectada pela API oficial
-       continuava subindo bytes idênticos aos das outras. */
-    expect(worker).toContain('urlParaConta(post, account)');
-  });
-
-  test('a URL por conta tem precedência sobre a compartilhada', () => {
-    expect(worker).toContain('urlDaConta || preProcessedVideoUrl');
-  });
-
-  test('só o caminho oficial entra — mobile e story têm o seu', () => {
-    expect(worker).toContain("!ehStory && account.provider !== 'instagrapi'");
-  });
-
-  test('a limpeza vem depois da publicação, não num finally', () => {
-    /* O Meta BAIXA o vídeo da nossa URL. Apagar antes de a publicação
-       concluir deixaria o container do Meta pedindo um arquivo que não existe
-       mais — diferente do mobile, onde o arquivo é lido do disco local antes
-       de a chamada retornar. */
-    const iPublica = worker.indexOf('const resultado = ehStory');
-    const iLimpa = worker.indexOf('if (midiaGraph?.proprio)');
-    expect(iLimpa).toBeGreaterThan(iPublica);
-  });
-
-  test('falha na conversão não impede a publicação', () => {
+  test('arquivo inexistente: segue com o original', async () => {
     // Perder a variação é ruim; não publicar é pior.
-    expect(worker).toContain('.catch(() => null)');
-  });
-});
-
-describe('a URL pública', () => {
-  const { urlParaConta } = require('../src/services/midiaPorConta');
-
-  test('sem PUBLIC_URL, devolve null em vez de uma URL inválida', async () => {
-    /* Uma URL inválida o Meta aceita no container e falha depois, sem dizer
-       por quê. Devolver null faz o chamador usar o caminho antigo. */
-    const antes = process.env.PUBLIC_URL;
-    delete process.env.PUBLIC_URL;
-    try {
-      const r = await urlParaConta({ _id: 'p1', media: 'x.mp4' }, { _id: 'c1' });
-      expect(r.url).toBeNull();
-      expect(r.proprio).toBe(false);
-    } finally {
-      if (antes !== undefined) process.env.PUBLIC_URL = antes;
-    }
-  });
-
-  test('arquivo inexistente devolve null, não uma URL para o nada', async () => {
-    const antes = process.env.PUBLIC_URL;
-    process.env.PUBLIC_URL = 'https://exemplo.test/';
-    try {
-      const r = await urlParaConta(
-        { _id: 'p1', media: 'nao-existe-mesmo.mp4' }, { _id: 'c1' }
-      );
-      expect(r.url).toBeNull();
-    } finally {
-      if (antes === undefined) delete process.env.PUBLIC_URL;
-      else process.env.PUBLIC_URL = antes;
-    }
+    const r = await prepararParaConta({ id: 'p1', media: 'nao-existe-mesmo.mp4' }, { id: 'c1', username: 'x' });
+    expect(r).toEqual({ caminho: 'nao-existe-mesmo.mp4', proprio: false });
   });
 });

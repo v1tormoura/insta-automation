@@ -1,75 +1,47 @@
 'use strict';
 
 /**
- * CSRF protection for OAuth state parameter.
+ * Assinatura do `state` do OAuth (proteção contra CSRF).
  *
- * Signs the state with HMAC-SHA256 so any tampering is detected in the callback.
- * Format: {original_state}~{8-byte-nonce}~{16-char-hmac}
+ * Formato: {state}~{nonce}~{hmac}. O retorno do Instagram só é aceito se o
+ * HMAC bater — sem isso, qualquer um poderia forjar um retorno e prender uma
+ * conta dele ao nosso painel.
  *
- * Backward compatible: unsigned states (legacy or missing key) are allowed through
- * with a console warning instead of a hard reject, to avoid breaking existing flows.
- *
- * Set OAUTH_STATE_SECRET (or ENCRYPTION_KEY as fallback) to enable signing.
+ * A chave é OAUTH_STATE_SECRET ou, na falta, ENCRYPTION_KEY (obrigatória).
  */
 
 const crypto = require('crypto');
 
-const SEPARATOR = '~';
+const SEPARADOR = '~';
 
-function getSigningKey() {
-  const raw = process.env.OAUTH_STATE_SECRET || process.env.ENCRYPTION_KEY;
-  if (!raw) return null;
-  return Buffer.from(raw.slice(0, 64).padEnd(64, '0'), 'hex');
+function chave() {
+  const bruta = process.env.OAUTH_STATE_SECRET || process.env.ENCRYPTION_KEY;
+  if (!bruta) throw new Error('OAUTH_STATE_SECRET/ENCRYPTION_KEY não configurada — o OAuth não pode ser assinado');
+  return crypto.createHash('sha256').update(bruta).digest();
 }
 
-function signState(originalState) {
-  const key = getSigningKey();
-  if (!key) {
-    console.warn('[CSRF] OAUTH_STATE_SECRET não configurado — state não assinado (modo degradado)');
-    return originalState;
-  }
-  const nonce   = crypto.randomBytes(8).toString('hex');
-  const payload = `${originalState}${SEPARATOR}${nonce}`;
-  const sig     = crypto.createHmac('sha256', key).update(payload).digest('hex').slice(0, 16);
-  return `${payload}${SEPARATOR}${sig}`;
+function hmac(payload) {
+  return crypto.createHmac('sha256', chave()).update(payload).digest('hex').slice(0, 32);
 }
 
-function verifyAndStripState(signedState) {
-  if (!signedState) return { valid: false, state: '' };
+function signState(state) {
+  const payload = `${state}${SEPARADOR}${crypto.randomBytes(8).toString('hex')}`;
+  return `${payload}${SEPARADOR}${hmac(payload)}`;
+}
 
-  const key = getSigningKey();
-  if (!key) {
-    console.warn('[CSRF] OAUTH_STATE_SECRET não configurado — validação desabilitada');
-    return { valid: true, state: signedState, unsigned: true };
-  }
+/** @returns {{valid: boolean, state: string}} */
+function verifyAndStripState(assinado) {
+  const partes = String(assinado || '').split(SEPARADOR);
+  if (partes.length < 3) return { valid: false, state: '' };
 
-  const parts = signedState.split(SEPARATOR);
+  const recebido = Buffer.from(partes.pop(), 'hex');
+  const payload = partes.join(SEPARADOR);
+  const esperado = Buffer.from(hmac(payload), 'hex');
+  const valido = recebido.length === esperado.length && crypto.timingSafeEqual(recebido, esperado);
+  if (!valido) return { valid: false, state: '' };
 
-  // Legacy state without CSRF suffix: 1 or 2 parts (no nonce, no sig)
-  if (parts.length < 3) {
-    console.warn(`[CSRF] State sem assinatura (legado): ${signedState.slice(0, 40)}...`);
-    return { valid: true, state: signedState, legacy: true };
-  }
-
-  const receivedSig = parts[parts.length - 1];
-  const payloadParts = parts.slice(0, -1);
-  const payload      = payloadParts.join(SEPARATOR);
-
-  const expectedSig = crypto.createHmac('sha256', key).update(payload).digest('hex').slice(0, 16);
-
-  let valid = false;
-  try {
-    valid = crypto.timingSafeEqual(Buffer.from(receivedSig, 'hex'), Buffer.from(expectedSig, 'hex'));
-  } catch { valid = false; }
-
-  if (!valid) {
-    console.error(`[CSRF] Assinatura inválida — possível adulteração de state`);
-    return { valid: false, state: '' };
-  }
-
-  // Strip nonce from payload to recover original state
-  const originalParts = payloadParts.slice(0, -1); // remove nonce (last part before sig)
-  return { valid: true, state: originalParts.join(SEPARATOR) };
+  partes.pop(); // o nonce
+  return { valid: true, state: partes.join(SEPARADOR) };
 }
 
 module.exports = { signState, verifyAndStripState };

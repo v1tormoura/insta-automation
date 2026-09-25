@@ -31,10 +31,10 @@ const VOLUME_MIN = 0.05;
 const VOLUME_MAX = 1.5;
 const VOLUME_PADRAO = Object.freeze({ substituir: 1.0, misturar: 0.3 });
 
-/** Só ids que parecem ObjectId — o resto é lixo de formulário. */
+/** Só ids que parecem uuid — o resto é lixo de formulário. */
 function _ids(lista) {
   if (!Array.isArray(lista)) return [];
-  return [...new Set(lista.map(v => String(v || '').trim()).filter(v => /^[0-9a-f]{24}$/i.test(v)))];
+  return [...new Set(lista.map(v => String(v || '').trim()).filter(v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)))];
 }
 
 /**
@@ -86,7 +86,7 @@ function escolher(config, trilhas, aleatorio) {
   /* Só as que a configuração pediu E que existem no banco, NA ORDEM dos ids
      pedidos: o sorteio precisa ser estável, e a ordem que o banco devolve não
      é garantida. */
-  const porId = new Map((trilhas || []).map(t => [String(t._id), t]));
+  const porId = new Map((trilhas || []).map(t => [String(t.id), t]));
   const validas = c.ids.map(id => porId.get(id)).filter(t => t && t.arquivo);
   if (!validas.length) return null;
 

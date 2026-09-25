@@ -27,7 +27,7 @@
  *
  * Uma hora tirada de `Date.now()` quebraria essa promessa: a segunda tentativa
  * gravaria outra hora e produziria outro arquivo. Aqui ela sai do INSTANTE DO
- * POST — que o ObjectId do Mongo já carrega — menos um deslocamento semeado
+ * POST — o `createdAt` dele — menos um deslocamento semeado
  * pelo par (post, conta). Fixo para sempre, e diferente em cada par.
  *
  * ── O que este módulo NÃO consegue remover
@@ -62,30 +62,14 @@ function fracaoDe(chave) {
 }
 
 /**
- * O instante em que este post existe, sem depender do relógio.
+ * O instante em que este post existe, sem depender do relógio: `createdAt`
+ * não muda, então o valor é o mesmo em toda reexecução.
  *
- * O ObjectId do Mongo carrega o segundo da criação nos primeiros 4 bytes, e é
- * daí que sai — o documento não muda, então o valor é o mesmo em toda
- * reexecução. `createdAt` serve igual quando existe.
- *
- * Sem nenhum dos dois (post sintético, teste), cai no relógio. Aí a
+ * Sem ele (post sintético, story avulso), cai no relógio. Aí a
  * reprodutibilidade se perde, e é melhor que falhar: um arquivo com hora
  * plausível vale mais que nenhum arquivo.
  */
 function instanteDoPost(post) {
-  const id = post?._id;
-  if (id && typeof id.getTimestamp === 'function') {
-    try {
-      const t = id.getTimestamp();
-      if (t instanceof Date && Number.isFinite(t.getTime())) return t.getTime();
-    } catch { /* ObjectId de outra biblioteca; tenta os próximos */ }
-  }
-  /* ObjectId como string de 24 hex: os 8 primeiros são o segundo em hexa. */
-  const comoTexto = String(id ?? '');
-  if (/^[0-9a-f]{24}$/i.test(comoTexto)) {
-    const seg = parseInt(comoTexto.slice(0, 8), 16);
-    if (Number.isFinite(seg) && seg > 0) return seg * 1000;
-  }
   const criado = post?.createdAt ? new Date(post.createdAt).getTime() : NaN;
   if (Number.isFinite(criado)) return criado;
   return Date.now();
@@ -108,12 +92,12 @@ function comoCreationTime(ms) {
  * Vêm DEPOIS da limpeza na linha de comando, senão `-map_metadata -1` apagaria
  * o que este módulo escreve. Quem monta a linha garante a ordem.
  *
- * @param {object} post — precisa de `_id` (ou `createdAt`)
- * @param {object} account — precisa de `_id`
+ * @param {object} post — precisa de `id` (ou `createdAt`)
+ * @param {object} account — precisa de `id`
  * @returns {string[]} argumentos para o ffmpeg
  */
 function argumentosDeMetadado(post, account) {
-  const chave = `${post?._id ?? ''}:${account?._id ?? ''}`;
+  const chave = `${post?.id ?? ''}:${account?.id ?? ''}`;
   const faixa = ATRASO_MAX_MS - ATRASO_MIN_MS;
   const atraso = ATRASO_MIN_MS + Math.floor(fracaoDe(chave) * faixa);
   const quando = comoCreationTime(instanteDoPost(post) - atraso);

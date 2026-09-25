@@ -1,308 +1,170 @@
 'use strict';
 
-const path   = require('path');
-const fs     = require('fs');
-const https  = require('https');
-const Account = require('../models/Account');
-const Insight = require('../models/Insight');
+/**
+ * Métricas das publicações pela API oficial, a cada 30 minutos.
+ *
+ * Para cada conta conectada: as últimas ~200 mídias, as métricas de cada uma e
+ * a miniatura guardada em uploads/insights (a URL da CDN do Instagram expira).
+ */
+
+const path = require('path');
+const fs = require('fs');
+const { sql } = require('../db');
+const { accounts } = require('../repos');
+const graph = require('./instagramAPI');
 const { broadcast } = require('../events/broadcaster');
 
-const GRAPH_IG     = 'https://graph.instagram.com/v21.0';
-const GRAPH_FB     = 'https://graph.facebook.com/v21.0';
 const INSIGHTS_DIR = path.resolve(__dirname, '../../uploads/insights');
+const LOTE_DE_MINIATURAS = 8;
 
 let _running = false;
-const _accountRunning = new Set(); // previne sync simultâneo da mesma conta
+const _contasRodando = new Set();
 
-function graphBase(token) {
-  if (token && /^(IGAAL|IGQ|IG)/i.test(token)) return GRAPH_IG;
-  return GRAPH_FB;
+/** Baixa a miniatura para o disco. Devolve o caminho público ou null. */
+async function baixarMiniatura(cdnUrl, igMediaId) {
+  try {
+    fs.mkdirSync(INSIGHTS_DIR, { recursive: true });
+    const arquivo = path.join(INSIGHTS_DIR, `${igMediaId}.jpg`);
+    if (!fs.existsSync(arquivo)) {
+      const r = await fetch(cdnUrl, { signal: AbortSignal.timeout(8_000) });
+      if (!r.ok) return null;
+      fs.writeFileSync(arquivo, Buffer.from(await r.arrayBuffer()));
+    }
+    return `/uploads/insights/${igMediaId}.jpg`;
+  } catch {
+    return null;
+  }
 }
 
-async function gGet(endpoint, params, token) {
-  const url = new URL(graphBase(token) + endpoint);
-  url.searchParams.set('access_token', token);
-  for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, String(v));
-  const r = await fetch(url.toString(), { signal: AbortSignal.timeout(12_000) });
-  const d = await r.json();
-  if (d.error) throw new Error(`[Graph] ${d.error.message} (${d.error.code})`);
-  return d;
+function lerMetricas(resposta) {
+  const m = {};
+  for (const item of resposta?.data || []) m[item.name] = item.values?.[0]?.value ?? item.total_value?.value ?? item.value ?? 0;
+  return m;
 }
 
-// Download thumbnail from CDN to local disk. Returns local path or null on failure.
-function downloadThumbnail(cdnUrl, igMediaId) {
-  return new Promise((resolve) => {
-    try {
-      if (!fs.existsSync(INSIGHTS_DIR)) fs.mkdirSync(INSIGHTS_DIR, { recursive: true });
-      const localFile = path.join(INSIGHTS_DIR, `${igMediaId}.jpg`);
-      if (fs.existsSync(localFile)) return resolve(`/uploads/insights/${igMediaId}.jpg`);
-
-      const file = fs.createWriteStream(localFile);
-      const timer = setTimeout(() => {
-        file.destroy(); fs.unlink(localFile, () => {}); resolve(null);
-      }, 8_000);
-
-      https.get(cdnUrl, (res) => {
-        if (res.statusCode !== 200) {
-          clearTimeout(timer); file.destroy(); fs.unlink(localFile, () => {}); return resolve(null);
-        }
-        res.pipe(file);
-        file.on('finish', () => { clearTimeout(timer); file.close(); resolve(`/uploads/insights/${igMediaId}.jpg`); });
-        file.on('error', () => { clearTimeout(timer); fs.unlink(localFile, () => {}); resolve(null); });
-      }).on('error', () => { clearTimeout(timer); fs.unlink(localFile, () => {}); resolve(null); });
-    } catch { resolve(null); }
-  });
-}
-
-// Fetch per-media metrics from the Graph API insights endpoint
-async function fetchMediaMetrics(mediaId, mediaType, token) {
-  const isVideo = mediaType === 'VIDEO' || mediaType === 'REEL';
-  // `impressions` is NOT a valid metric for VIDEO/REEL — it causes the entire
-  // insight call to fail, zeroing out all other metrics. Use `reach` instead.
-  // `likes` and `comments` from insights are more reliable than media-field counts.
-  const metricList = isVideo
+/**
+ * Métricas de uma mídia. `impressions` não existe para vídeo e derruba a
+ * chamada inteira; por isso a lista muda com o tipo, e há um conjunto mínimo
+ * de reserva.
+ */
+async function metricasDaMidia(mediaId, mediaType, token) {
+  const video = mediaType === 'VIDEO' || mediaType === 'REEL' || mediaType === 'REELS';
+  const lista = video
     ? 'reach,saved,shares,views,total_interactions,likes,comments'
     : 'impressions,reach,saved,shares,total_interactions,likes,comments';
   try {
-    const d = await gGet(`/${mediaId}/insights`, { metric: metricList }, token);
-    const m = {};
-    for (const item of (d.data || [])) {
-      m[item.name] = item.values?.[0]?.value ?? item.value ?? 0;
-    }
-    return m;
-  } catch (err) {
-    // Fallback: try minimal safe set if the full list is rejected
+    return lerMetricas(await graph.get(`/${mediaId}/insights`, { metric: lista }, token));
+  } catch {
     try {
-      const d = await gGet(`/${mediaId}/insights`, { metric: 'reach,saved,shares,total_interactions' }, token);
-      const m = {};
-      for (const item of (d.data || [])) {
-        m[item.name] = item.values?.[0]?.value ?? item.value ?? 0;
-      }
-      return m;
-    } catch (err2) {
-      console.warn(`[InsightSync] metrics ${mediaId}: ${err2.message}`);
+      return lerMetricas(await graph.get(`/${mediaId}/insights`, { metric: 'reach,saved,shares,total_interactions' }, token));
+    } catch (err) {
+      console.warn(`[InsightSync] métricas ${mediaId}: ${err.message}`);
       return {};
     }
   }
 }
 
-/**
- * Tempo assistido de um reel — em chamada SEPARADA de propósito.
- *
- * Uma métrica inválida derruba a chamada inteira (foi assim com `impressions`
- * em vídeo). Pedir o tempo assistido junto do resto faria uma mídia que não é
- * reel — vídeo de feed antigo, IGTV — zerar alcance, views e tudo. Separado,
- * o pior caso é ficar sem o tempo, com o resto intacto.
- */
-async function fetchWatchTime(mediaId, token) {
+/** Tempo assistido do reel, em chamada separada: métrica inválida derrubaria as outras. */
+async function tempoAssistido(mediaId, token) {
   try {
-    const d = await gGet(`/${mediaId}/insights`, { metric: 'ig_reels_avg_watch_time,ig_reels_video_view_total_time' }, token);
-    const m = {};
-    for (const item of (d.data || [])) m[item.name] = item.values?.[0]?.value ?? item.value ?? null;
-    const avg = Number(m.ig_reels_avg_watch_time);
+    const m = lerMetricas(await graph.get(`/${mediaId}/insights`, { metric: 'ig_reels_avg_watch_time,ig_reels_video_view_total_time' }, token));
+    const media = Number(m.ig_reels_avg_watch_time);
     const total = Number(m.ig_reels_video_view_total_time);
-    return {
-      avgWatchTimeMs:   Number.isFinite(avg)   ? avg   : null,
-      totalWatchTimeMs: Number.isFinite(total) ? total : null,
-    };
+    return { media: Number.isFinite(media) ? media : null, total: Number.isFinite(total) ? total : null };
   } catch {
-    return { avgWatchTimeMs: null, totalWatchTimeMs: null };
+    return { media: null, total: null };
   }
 }
 
-async function syncAccountInsights(account) {
-  if (!account.accessToken || !account.igUserId) return { skipped: true, reason: 'no_token' };
-  if (account.healthStatus === 'banida')         return { skipped: true, reason: 'banned'   };
-
-  const accountKey = String(account._id);
-  if (_accountRunning.has(accountKey)) return { skipped: true, reason: 'already_running' };
-  _accountRunning.add(accountKey);
-
-  try {
-  const now = new Date();
-  if (account.tokenExpiresAt && new Date(account.tokenExpiresAt) < now) {
-    return { skipped: true, reason: 'token_expired' };
-  }
-
-  const fields = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count';
-  let mediaList = [];
-  let nextUrl   = null;
-  let pages     = 0;
+async function syncAccountInsights(conta) {
+  if (!conta.accessToken || !conta.igUserId) return { skipped: true, reason: 'no_token' };
+  if (conta.healthStatus === 'banida') return { skipped: true, reason: 'banned' };
+  if (conta.tokenExpiresAt && new Date(conta.tokenExpiresAt) < new Date()) return { skipped: true, reason: 'token_expired' };
+  if (_contasRodando.has(conta.id)) return { skipped: true, reason: 'already_running' };
+  _contasRodando.add(conta.id);
 
   try {
-    do {
-      let data;
-      if (nextUrl) {
-        const r = await fetch(nextUrl + `&access_token=${account.accessToken}`, { signal: AbortSignal.timeout(12_000) });
-        data = await r.json();
-        if (data.error) break;
-      } else {
-        data = await gGet(`/${account.igUserId}/media`, { fields, limit: 50 }, account.accessToken);
+    const token = conta.accessToken;
+    const fields = 'id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count';
+    let midias = [];
+    try {
+      let pagina = await graph.get(`/${conta.igUserId}/media`, { fields, limit: 50 }, token);
+      for (let n = 1; ; n++) {
+        midias = midias.concat(pagina.data || []);
+        if (!pagina.paging?.next || n >= 4) break;
+        pagina = await graph.get(pagina.paging.next, {}, token);
       }
-      mediaList = mediaList.concat(data.data || []);
-      const raw = data.paging?.next || '';
-      nextUrl = raw ? raw.replace(/access_token=[^&]+&?/, '') : null;
-      pages++;
-    } while (nextUrl && pages < 4);
-  } catch (err) {
-    console.warn(`[InsightSync] ${account.username} media list: ${err.message}`);
-    return { error: err.message };
-  }
-
-  let synced = 0;
-  const thumbJobs = []; // (cdnUrl, igMediaId) pairs for batch download
-
-  for (const media of mediaList) {
-    try {
-      const metrics = await fetchMediaMetrics(media.id, media.media_type || 'IMAGE', account.accessToken);
-      const ehVideo = (media.media_type || '') === 'VIDEO' || (media.media_type || '') === 'REEL';
-      const tempo = ehVideo ? await fetchWatchTime(media.id, account.accessToken) : { avgWatchTimeMs: null, totalWatchTimeMs: null };
-
-      // Use max of media-field value and insights-endpoint value for accuracy.
-      // Insights API `likes`/`comments` is more reliable than media fields for hidden counts.
-      const likeCount     = Math.max(media.like_count     || 0, metrics.likes    || 0);
-      const commentsCount = Math.max(media.comments_count || 0, metrics.comments  || 0);
-      const shareCount    = metrics.shares      || 0;
-      const savedCount    = metrics.saved       || 0;
-      const reach         = metrics.reach       || 0;
-      // impressions not available for VIDEO on insights API → fall back to reach
-      const impressions   = metrics.impressions || metrics.reach || 0;
-      // `views` = Reels play count (replaces deprecated `plays`)
-      const videoViews    = metrics.views || metrics.plays || metrics.video_views || 0;
-      const totalInteractions = metrics.total_interactions
-        || (likeCount + commentsCount + shareCount + savedCount);
-      const engagementScore = likeCount + commentsCount * 3 + shareCount * 5 + savedCount * 4
-        + Math.floor((videoViews || impressions) * 0.1);
-
-      const cdnMediaUrl = media.media_url     || media.thumbnail_url || '';
-      const cdnThumbUrl = media.thumbnail_url || media.media_url     || '';
-
-      // Prefer existing local file to avoid overwriting with expired CDN URL
-      const localThumbFile = path.join(INSIGHTS_DIR, `${media.id}.jpg`);
-      const hasLocal       = fs.existsSync(localThumbFile);
-      const thumbToStore   = hasLocal ? `/uploads/insights/${media.id}.jpg` : cdnThumbUrl;
-
-      await Insight.findOneAndUpdate(
-        { igMediaId: media.id },
-        {
-          accountId: account._id,
-          username:  account.username,
-          igMediaId: media.id,
-          mediaType: media.media_type || 'IMAGE',
-          mediaUrl:  cdnMediaUrl,
-          thumbnailUrl: thumbToStore,
-          permalink:    media.permalink || '',
-          caption:      media.caption   || '',
-          postedAt:     media.timestamp ? new Date(media.timestamp) : null,
-          likeCount, commentsCount, shareCount, savedCount,
-          reach, impressions, videoViews, totalInteractions, engagementScore,
-          /* Só sobrescreve quando veio: um sync em que a Graph falhou nesta
-             métrica não pode apagar o tempo que o sync anterior tinha. */
-          ...(tempo.avgWatchTimeMs   != null ? { avgWatchTimeMs:   tempo.avgWatchTimeMs }   : {}),
-          ...(tempo.totalWatchTimeMs != null ? { totalWatchTimeMs: tempo.totalWatchTimeMs } : {}),
-          syncedAt: now,
-        },
-        { upsert: true, new: true }
-      );
-
-      if (!hasLocal && cdnThumbUrl) thumbJobs.push({ cdnUrl: cdnThumbUrl, igMediaId: media.id });
-      synced++;
     } catch (err) {
-      console.warn(`[InsightSync] ${media.id}: ${err.message}`);
+      console.warn(`[InsightSync] @${conta.username} lista de mídias: ${err.message}`);
+      return { error: err.message };
     }
-  }
 
-  // Download thumbnails in batches of 8 (background, after metrics upsert)
-  const BATCH = 8;
-  for (let i = 0; i < thumbJobs.length; i += BATCH) {
-    await Promise.all(
-      thumbJobs.slice(i, i + BATCH).map(async ({ cdnUrl, igMediaId }) => {
-        const localPath = await downloadThumbnail(cdnUrl, igMediaId);
-        if (localPath) {
-          await Insight.updateOne({ igMediaId }, { thumbnailUrl: localPath }).catch(() => {});
-        }
-      })
-    );
-  }
+    const agora = new Date();
+    const miniaturas = [];
+    let synced = 0;
 
-  console.log(`[InsightSync] @${account.username} — ${synced}/${mediaList.length} posts atualizados`);
-  return { synced, total: mediaList.length };
+    for (const media of midias) {
+      try {
+        const tipo = media.media_type || 'IMAGE';
+        const m = await metricasDaMidia(media.id, tipo, token);
+        const tempo = tipo === 'VIDEO' ? await tempoAssistido(media.id, token) : { media: null, total: null };
+
+        const likeCount = Math.max(media.like_count || 0, m.likes || 0);
+        const commentsCount = Math.max(media.comments_count || 0, m.comments || 0);
+        const shareCount = m.shares || 0;
+        const savedCount = m.saved || 0;
+        const reach = m.reach || 0;
+        const impressions = m.impressions || reach;
+        const videoViews = m.views || 0;
+        const totalInteractions = m.total_interactions || likeCount + commentsCount + shareCount + savedCount;
+        const engagementScore = likeCount + commentsCount * 3 + shareCount * 5 + savedCount * 4
+          + Math.floor((videoViews || impressions) * 0.1);
+
+        const cdnThumb = media.thumbnail_url || media.media_url || '';
+        const temLocal = fs.existsSync(path.join(INSIGHTS_DIR, `${media.id}.jpg`));
+
+        await sql`
+          insert into insights ${sql({
+            accountId: conta.id, username: conta.username, igMediaId: media.id,
+            mediaType: tipo, mediaUrl: media.media_url || media.thumbnail_url || '',
+            thumbnailUrl: temLocal ? `/uploads/insights/${media.id}.jpg` : cdnThumb,
+            permalink: media.permalink || '', caption: media.caption || '',
+            postedAt: media.timestamp ? new Date(media.timestamp) : null,
+            likeCount, commentsCount, shareCount, savedCount, reach, impressions, videoViews,
+            totalInteractions, engagementScore,
+            avgWatchTimeMs: tempo.media, totalWatchTimeMs: tempo.total, syncedAt: agora,
+          })}
+          on conflict (ig_media_id) do update set
+            account_id = excluded.account_id, username = excluded.username, media_type = excluded.media_type,
+            media_url = excluded.media_url, thumbnail_url = excluded.thumbnail_url, permalink = excluded.permalink,
+            caption = excluded.caption, posted_at = excluded.posted_at, like_count = excluded.like_count,
+            comments_count = excluded.comments_count, share_count = excluded.share_count,
+            saved_count = excluded.saved_count, reach = excluded.reach, impressions = excluded.impressions,
+            video_views = excluded.video_views, total_interactions = excluded.total_interactions,
+            engagement_score = excluded.engagement_score,
+            avg_watch_time_ms = coalesce(excluded.avg_watch_time_ms, insights.avg_watch_time_ms),
+            total_watch_time_ms = coalesce(excluded.total_watch_time_ms, insights.total_watch_time_ms),
+            synced_at = excluded.synced_at`;
+
+        if (!temLocal && cdnThumb) miniaturas.push({ cdnThumb, id: media.id });
+        synced++;
+      } catch (err) {
+        console.warn(`[InsightSync] ${media.id}: ${err.message}`);
+      }
+    }
+
+    for (let i = 0; i < miniaturas.length; i += LOTE_DE_MINIATURAS) {
+      await Promise.all(miniaturas.slice(i, i + LOTE_DE_MINIATURAS).map(async ({ cdnThumb, id }) => {
+        const local = await baixarMiniatura(cdnThumb, id);
+        if (local) await sql`update insights set thumbnail_url = ${local} where ig_media_id = ${id}`.catch(() => {});
+      }));
+    }
+
+    console.log(`[InsightSync] @${conta.username} — ${synced}/${midias.length} posts atualizados`);
+    return { synced, total: midias.length };
   } finally {
-    _accountRunning.delete(accountKey);
+    _contasRodando.delete(conta.id);
   }
-}
-
-/**
- * Métricas de publicação pela sessão instagrapi.
- *
- * ── O que este caminho consegue, e o que não consegue
- *
- * Curtidas, comentários e reproduções vêm dos contadores públicos e existem em
- * qualquer conta. Alcance e impressões vêm do endpoint de insights do próprio
- * Instagram, que só responde para conta PROFISSIONAL — em conta pessoal a
- * chamada falha, e falhar ali é o comportamento correto.
- *
- * Quando o alcance não vem, ele fica em zero e o `engagementScore` é calculado
- * sobre reproduções. Zero aqui significa "não medido", não "ninguém viu" — a
- * distinção importa porque o segundo seria uma afirmação falsa sobre o post.
- */
-async function syncAccountInsightsInstagrapi(account) {
-  const { getProvider } = require('../providers/ProviderFactory');
-  const now = new Date();
-
-  let resposta;
-  try {
-    const provider = getProvider(account);
-    resposta = await provider.mediaInsights(account, 12);
-  } catch (err) {
-    return { synced: 0, error: err.message?.slice(0, 120) || 'falha' };
-  }
-
-  const itens = resposta?.itens || [];
-  let synced = 0;
-
-  for (const m of itens) {
-    try {
-      const likeCount     = m.like_count    || 0;
-      const commentsCount = m.comment_count || 0;
-      const shareCount    = m.share_count   || 0;
-      const savedCount    = m.saved_count   || 0;
-      const reach         = m.reach         || 0;
-      const impressions   = m.impressions   || 0;
-      const videoViews    = m.video_views   || 0;
-
-      const totalInteractions = likeCount + commentsCount + shareCount + savedCount;
-      // A MESMA fórmula do caminho Graph. Duas fórmulas para a mesma métrica
-      // fariam o ranking mudar de critério conforme a origem da conta, e
-      // ninguém entenderia por que dois posts iguais pontuam diferente.
-      const engagementScore = likeCount + commentsCount * 3 + shareCount * 5 + savedCount * 4
-        + Math.floor((videoViews || impressions) * 0.1);
-
-      await Insight.findOneAndUpdate(
-        { igMediaId: m.media_id },
-        {
-          accountId: account._id,
-          username:  account.username,
-          igMediaId: m.media_id,
-          mediaType: m.media_type || 'IMAGE',
-          thumbnailUrl: m.thumbnail_url || '',
-          permalink: m.code ? `https://www.instagram.com/p/${m.code}/` : '',
-          caption:   m.caption || '',
-          postedAt:  m.taken_at ? new Date(m.taken_at) : null,
-          likeCount, commentsCount, shareCount, savedCount,
-          reach, impressions, videoViews, totalInteractions, engagementScore,
-          syncedAt: now,
-        },
-        { upsert: true, new: true }
-      );
-      synced++;
-    } catch (err) {
-      console.warn(`[InsightSync/instagrapi] ${m.media_id}: ${err.message}`);
-    }
-  }
-
-  const comAlcance = itens.filter(i => i.fonte === 'insights').length;
-  return { synced, total: itens.length, comAlcance };
 }
 
 async function syncAllInsights() {
@@ -310,44 +172,16 @@ async function syncAllInsights() {
   _running = true;
   const results = [];
   try {
-    /* DUAS fontes, e antes só uma era varrida.
-
-       Esta consulta pedia `accessToken` e `igUserId` — o caminho Graph API.
-       Numa base só instagrapi ela devolvia zero contas e o ciclo não fazia
-       nada, para sempre: métrica de post nunca atualizava, os marcos de
-       "visualizações de post" nunca disparavam, e o painel mostrava a opção
-       ligada sem ter como funcionar.
-
-       Agora cada conta vai pelo caminho que ela TEM. Graph quando há token da
-       Meta; instagrapi quando há sessão. Conta com os dois usa Graph, que traz
-       alcance e impressões oficiais. */
-    const accounts = await Account.find({
-      $or: [
-        { accessToken: { $nin: [null, ''] }, igUserId: { $nin: [null, ''] } },
-        { provider: 'instagrapi' },
-        { instagrapiSession: { $nin: [null, ''] } },
-      ],
-    }).select('username accessToken igUserId provider instagrapiSession healthStatus tokenExpiresAt');
-
-    for (const acc of accounts) {
-      const temGraph = !!(acc.accessToken && acc.igUserId);
-      const r = temGraph
-        ? await syncAccountInsights(acc)
-        : await syncAccountInsightsInstagrapi(acc);
-      results.push({ username: acc.username, via: temGraph ? 'graph' : 'instagrapi', ...r });
+    const contas = (await accounts.findMany()).filter(c => c.accessToken && c.igUserId);
+    for (const conta of contas) {
+      results.push({ username: conta.username, ...(await syncAccountInsights(conta)) });
     }
     broadcast('insights', { action: 'synced', count: results.length });
 
-    /* Detecção de marcos: LÊ o que este ciclo acabou de gravar. Nenhuma
-       chamada nova ao Instagram, nenhuma rotina paralela — a notificação é
-       consequência da métrica ter subido, não uma segunda corrida atrás dela.
-
-       Envelopado à parte: uma falha aqui não pode desfazer nem manchar uma
-       sincronização de métricas que já deu certo. */
+    // Marcos: lê o que este ciclo acabou de gravar. Falha aqui não mancha o sync.
     try {
       const detector = require('./smartActivity/detector');
-      const novas = await detector.varrer(accounts, { apenasStories: false });
-      // Desligado por padrão; devolve null quando não está ativo.
+      const novas = await detector.varrer(contas, { apenasStories: false });
       const resumo = await detector.resumoDoDia();
       const total = novas.length + (resumo ? 1 : 0);
       if (total) broadcast('notificacoes', { novas: total });
@@ -367,10 +201,4 @@ function startInsightAutoSync(intervalMs = 30 * 60 * 1000) {
   setInterval(() => syncAllInsights().catch(() => {}), intervalMs);
 }
 
-module.exports = {
-  syncAllInsights, syncAccountInsights, syncAccountInsightsInstagrapi, startInsightAutoSync,
-  // Compartilhados com o sync de stories: uma segunda implementação de chamada
-  // ao Graph divergiria na escolha da base (graph.instagram vs graph.facebook),
-  // que é justamente a parte que quebra em silêncio.
-  gGet, graphBase,
-};
+module.exports = { syncAllInsights, syncAccountInsights, startInsightAutoSync, lerMetricas };

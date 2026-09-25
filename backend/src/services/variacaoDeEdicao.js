@@ -145,16 +145,14 @@ function lerDoCorpo(valor) {
  * @param {string} [fonte]  caminho da fonte; descoberto no sistema se omitido
  */
 function filtroDoGancho(texto, segundos = 2.5, fonte) {
-  const caminhoFonte = fonte || require('./storyStickerRenderer').acharFonte();
+  const { acharFonte, escaparDrawtext } = require('./textoNoStory');
+  const caminhoFonte = fonte || acharFonte();
   if (!caminhoFonte) {
     console.log('⚠️ [Variação] nenhuma fonte no sistema — vídeo sai sem gancho');
     return null;
   }
 
-  const { escaparDrawtext } = require('./storyStickerRenderer');
-  const limpo = typeof escaparDrawtext === 'function'
-    ? escaparDrawtext(texto)
-    : String(texto || '').replace(/[\\':%]/g, '');
+  const limpo = escaparDrawtext(texto);
   if (!limpo) return null;
 
   /* `:` separa opções do drawtext e `\` é escape — num caminho do Windows os

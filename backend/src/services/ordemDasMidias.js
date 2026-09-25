@@ -5,7 +5,7 @@
  *
  * ── O defeito que existia antes de haver opção
  *
- * A biblioteca é lida com `Media.find({ _id: { $in: ids } })`, e o Mongo NÃO
+ * A biblioteca é lida com `where id = any(ids)`, e o banco NÃO
  * devolve na ordem dos ids — devolve na ordem que achar. Quem subia 400 vídeos
  * e escolhia quarenta deles numa ordem específica via a fila sair em outra, sem
  * nada na tela que explicasse. Ordenar por escolha, então, começa por
@@ -38,11 +38,11 @@ const ORDEM_PADRAO = 'antigos_primeiro';
  * (id inválido, mídia apagada entre a escolha e o envio) simplesmente não
  * aparece — some da fila em vez de virar um item quebrado nela.
  *
- * @param {Array<{_id: any}>} docs
+ * @param {Array<{id: any}>} docs
  * @param {Array<string>} ids
  */
 function naOrdemDosIds(docs, ids) {
-  const porId = new Map((docs || []).map(d => [String(d._id), d]));
+  const porId = new Map((docs || []).map(d => [String(d.id), d]));
   return (ids || [])
     .map(id => porId.get(String(id)))
     .filter(Boolean);

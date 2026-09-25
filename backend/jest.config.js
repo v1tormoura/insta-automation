@@ -13,4 +13,8 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/tests/**/*.test.js'],
   setupFiles: ['<rootDir>/tests/setup.env.js'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.after.js'],
+  globalSetup: '<rootDir>/tests/globalSetup.js',
+  // Os testes de banco compartilham o mesmo Postgres: um arquivo por vez.
+  maxWorkers: 1,
 };

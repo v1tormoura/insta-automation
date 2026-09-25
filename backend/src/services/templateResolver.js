@@ -108,8 +108,8 @@ function _leMapa(mapa, chave) {
  * Em seguida, substitui variáveis no template bruto com o contexto informado.
  */
 function resolveCaption({ campaign, account, content, captions, context = {} } = {}) {
-  const accountId = account?._id ? String(account._id) : (account?.id ? String(account.id) : (typeof account === 'string' ? account : ''));
-  const contentId = content?._id ? String(content._id) : (content?.id ? String(content.id) : (typeof content === 'string' ? content : ''));
+  const accountId = account?.id ? String(account.id) : (typeof account === 'string' ? account : '');
+  const contentId = content?.id ? String(content.id) : (typeof content === 'string' ? content : '');
   const fonte = captions || campaign?.captions;
 
   let template = '';

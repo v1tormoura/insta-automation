@@ -121,18 +121,7 @@ function formatarDia(dia) {
   return `${d}/${m}`;
 }
 
-/**
- * O filtro de data para uma consulta de `Insight`, pelo campo `postedAt`.
- *
- * Objeto vazio quando o período é "tudo" — e vazio é o certo, não
- * `{ postedAt: {} }`, que o Mongo trata como "nenhum documento casa".
- */
-function filtroDeInstante(p, campo = 'postedAt') {
-  if (!p?.desde || !p?.ate) return {};
-  return { [campo]: { $gte: p.desde, $lt: p.ate } };
-}
-
 module.exports = {
-  resolver, filtroDeInstante, etiqueta, inicioDoDia, fimDoDia,
+  resolver, etiqueta, inicioDoDia, fimDoDia,
   PERIODOS, PADRAO,
 };

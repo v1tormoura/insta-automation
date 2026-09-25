@@ -10,17 +10,8 @@
  * pode continuar recebendo, e quem não desligou não pode ficar sem.
  */
 
-const mockNotificacoes = [];
 const mockPush = jest.fn();
 const mockBroadcast = jest.fn();
-
-jest.mock('../src/models/Notificacao', () => ({
-  async create(doc) {
-    const nova = { ...doc, _id: `n${mockNotificacoes.length + 1}`, criadaEm: new Date() };
-    mockNotificacoes.push(nova);
-    return nova;
-  },
-}));
 
 jest.mock('../src/services/smartActivity/webPush', () => ({
   disponivel: () => true,
@@ -30,7 +21,8 @@ jest.mock('../src/services/smartActivity/webPush', () => ({
 jest.mock('../src/events/broadcaster', () => ({ broadcast: (...a) => mockBroadcast(...a) }));
 
 const thresholds = require('../src/services/smartActivity/thresholds');
-thresholds.bancoConectado = () => true;
+const banco = require('./helpers/banco');
+const gravadas = () => banco.sql`select * from notificacoes`;
 
 const CFG = {
   ativos: { postPublicado: true, erroPublicacao: true },
@@ -40,10 +32,15 @@ const CFG = {
 
 const eventos = require('../src/services/smartActivity/eventosDePublicacao');
 
-const conta = (id = 'c1', username = 'oliviapaganini') => ({ _id: id, username, avatar: '' });
+/* As notificações apontam para a conta: ela precisa existir no banco. */
+const contas = {};
+const conta = (chave = 'c1', username = 'oliviapaganini') => contas[chave] || { username };
 
-beforeEach(() => {
-  mockNotificacoes.length = 0;
+beforeEach(async () => {
+  await banco.limpar();
+  contas.c1 = await banco.criarConta({ username: 'oliviapaganini' });
+  contas.a = await banco.criarConta({ username: 'ana' });
+  contas.b = await banco.criarConta({ username: 'bia' });
   mockPush.mockReset().mockResolvedValue({ enviados: 1 });
   mockBroadcast.mockReset();
   thresholds.carregar = async () => ({ ...CFG });
@@ -65,7 +62,7 @@ describe('notificarPublicado', () => {
     // Diferente do marco: aqui não existe "a mesma publicação de novo".
     await eventos.notificarPublicado({ conta: conta('a', 'ana'), contentType: 'STORY' });
     await eventos.notificarPublicado({ conta: conta('b', 'bia'), contentType: 'STORY' });
-    expect(mockNotificacoes).toHaveLength(2);
+    expect(await gravadas()).toHaveLength(2);
   });
 
   test('desligado no painel não grava nem envia', async () => {
@@ -73,11 +70,11 @@ describe('notificarPublicado', () => {
     const n = await eventos.notificarPublicado({ conta: conta(), contentType: 'VIDEO' });
 
     expect(n).toBeNull();
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await gravadas()).toHaveLength(0);
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  test('aceita o vocabulário do modelo Post (minúsculo), não só o do Graph API', async () => {
+  test('aceita o vocabulário dos posts (minúsculo), não só o da Graph API', async () => {
     const n = await eventos.notificarPublicado({ conta: conta(), contentType: 'reel' });
     expect(n.mensagem).toBe('@oliviapaganini publicou um Reel.');
   });
@@ -107,7 +104,7 @@ describe('notificarErro', () => {
     thresholds.carregar = async () => ({ ...CFG, ativos: { ...CFG.ativos, erroPublicacao: false } });
     const n = await eventos.notificarErro({ conta: conta(), erro: 'x' });
     expect(n).toBeNull();
-    expect(mockNotificacoes).toHaveLength(0);
+    expect(await gravadas()).toHaveLength(0);
   });
 
   test('sem conta, não grava nem lança', async () => {
@@ -120,7 +117,24 @@ describe('notificarErro', () => {
     thresholds.carregar = async () => ({
       ...CFG, privacidade: { mostrarNome: true, mostrarValor: false },
     });
-    const n = await eventos.notificarErro({ conta: conta(), erro: 'Sessão expirou.' });
-    expect(n.mensagem).toContain('Sessão expirou.');
+    const n = await eventos.notificarErro({ conta: conta(), erro: 'Token expirou.' });
+    expect(n.mensagem).toContain('Token expirou.');
+  });
+});
+
+describe('avisos que não repetem', () => {
+  test('conta caiu: um aviso por janela de 6h', async () => {
+    const um = await eventos.notificarContaCaiu({ conta: conta(), motivo: 'token inválido' });
+    const dois = await eventos.notificarContaCaiu({ conta: conta(), motivo: 'token inválido' });
+    expect(um).toBeTruthy();
+    expect(dois).toBeNull();
+    // Outra conta não é bloqueada pela janela da primeira.
+    expect(await eventos.notificarContaCaiu({ conta: conta('a', 'ana'), motivo: 'x' })).toBeTruthy();
+  });
+
+  test('cota da API cheia diz quando libera', async () => {
+    const n = await eventos.notificarCotaDaApi({ conta: conta(), motivo: 'cota (50/50)', ate: new Date('2026-09-25T14:35:00') });
+    expect(n.eventType).toBe('cotaApi');
+    expect(n.mensagem).toMatch(/50\/50/);
   });
 });
