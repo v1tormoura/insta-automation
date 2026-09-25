@@ -31,6 +31,7 @@ export default function ConectarGuiado() {
 
   const conta = contaValida(params.get('conta'));
   const metaAppId = String(params.get('app') || '').trim();
+  const dono = String(params.get('d') || '').trim();
 
   /* ── O desfecho, quando o servidor manda de volta para cá ────────────────
 
@@ -116,7 +117,7 @@ export default function ConectarGuiado() {
             </div>
           )}
 
-          <PassosDeConexao conta={conta} metaAppId={metaAppId} mod="contas" onErro={setErro} />
+          <PassosDeConexao conta={conta} metaAppId={metaAppId} dono={dono} mod="contas" onErro={setErro} />
         </div>
         )}
       </div>

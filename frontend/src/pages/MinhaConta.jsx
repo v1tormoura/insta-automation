@@ -7,6 +7,7 @@ import PageShell from '../components/PageShell';
 import Toast from '../components/Toast';
 import { EsqueletoLista } from '../components/Estados';
 import { salvar as salvarPreferencias } from '../services/preferencias';
+import { avisarTopo } from '../services/contaDoUsuario';
 
 /**
  * Minha Conta.
@@ -87,6 +88,7 @@ export default function MinhaConta() {
     try {
       const { data } = await api.put('/conta', { nome, email });
       setConta(data);
+      avisarTopo();
       aviso('success', 'Salvo', 'Nome e e-mail atualizados.');
     } catch (e) {
       aviso('error', 'Não deu para salvar', e.response?.data?.error || 'Tente de novo.');
@@ -181,6 +183,7 @@ export default function MinhaConta() {
       corpo.append('foto', arquivo);
       const { data } = await api.post('/conta/foto', corpo);
       setConta(c => ({ ...c, avatar: data.avatar }));
+      avisarTopo();
       aviso('success', 'Foto trocada', 'Já aparece na barra do topo.');
     } catch (e) {
       aviso('error', 'Não deu para enviar', e.response?.data?.error || 'Tente de novo.');
@@ -197,6 +200,7 @@ export default function MinhaConta() {
     try {
       await api.delete('/conta/foto');
       setConta(c => ({ ...c, avatar: '' }));
+      avisarTopo();
     } catch (e) {
       aviso('error', 'Não deu para remover', e.response?.data?.error || 'Tente de novo.');
     } finally {
@@ -266,8 +270,9 @@ export default function MinhaConta() {
             {/* Dito porque a suposição natural é a oposta: um campo de e-mail
                 num painel normalmente serve para recuperar a senha. */}
             <Nota>
-              O endereço é guardado para registro. O painel não envia e-mail — não há
-              recuperação de senha por ele.
+              {conta?.papel === 'admin'
+                ? 'O endereço é guardado para registro — você entra pelo usuário do servidor. O painel não envia e-mail.'
+                : 'É com este e-mail que você entra. O painel não envia e-mail: se esquecer a senha, peça ao administrador.'}
             </Nota>
 
             <button className="btn-primary" onClick={salvarPerfil} disabled={salvando === 'perfil'}

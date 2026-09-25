@@ -96,3 +96,10 @@ describe('o endereço da página guiada', () => {
     expect(() => new URL(link)).not.toThrow();
   });
 });
+
+describe('montarLinkGuiado — o dono', () => {
+  test('o dono assinado vai no link, e sem ele o link sai como antes', () => {
+    expect(montarLinkGuiado('https://instaflow.pro', 'new', '', 'abc~123~ff')).toContain('d=abc%7E123%7Eff');
+    expect(montarLinkGuiado('https://instaflow.pro', 'new')).not.toContain('d=');
+  });
+});

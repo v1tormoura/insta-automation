@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { setToken } from '../services/auth';
+import { setToken, setUsuario } from '../services/auth';
 import { Meteors } from '../components/magicui/meteors';
 import { BlurFade } from '../components/magicui/blur-fade';
 import { AnimatedGradientText } from '../components/magicui/animated-gradient-text';
@@ -36,27 +36,85 @@ const FEATURES = [
 
 const ease = [0.21, 0.47, 0.32, 0.98];
 
+const ROTULO = { display:'block', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 };
+
+/** Campo do formulário, com o mesmo desenho dos dois originais (ícone à esquerda, foco com brilho). */
+function Campo({ rotulo, icone, direita, ...input }) {
+  return (
+    <div>
+      <label style={ROTULO}>{rotulo}</label>
+      <div style={{ position:'relative' }}>
+        <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none', display:'flex' }}>
+          {icone}
+        </span>
+        <input
+          {...input}
+          style={{
+            width:'100%', background:'var(--mf-border-subtle)',
+            border:'1px solid var(--border)',
+            borderRadius: 'var(--mf-r-md)', padding: direita ? '12px 40px 12px 32px' : '12px 12px 12px 32px',
+            color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
+            boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
+            fontFamily:'var(--font)',
+          }}
+          onFocus={e => { e.target.style.borderColor='var(--border2)'; e.target.style.boxShadow='var(--glow-sm)'; }}
+          onBlur={e  => { e.target.style.borderColor='var(--border)';  e.target.style.boxShadow='none'; }}
+        />
+        {direita}
+      </div>
+    </div>
+  );
+}
+
+const MailIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/>
+  </svg>
+);
+
+const TEXTOS = {
+  entrar:   { selo: 'Acesso restrito', titulo: 'Bem-vindo de volta', sub: 'Entre com seu e-mail e senha.' },
+  cadastro: { selo: 'Criar conta',     titulo: 'Peça seu acesso',    sub: 'Depois do cadastro, o administrador aprova o seu acesso.' },
+};
+
 export default function Login() {
+  const location = useLocation();
+  /* 'entrar' | 'cadastro' | 'enviado' — `/cadastro` abre direto no cadastro. */
+  const [modo, setModo] = useState(location.pathname === '/cadastro' ? 'cadastro' : 'entrar');
+  const [nome,     setNome]     = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirma, setConfirma] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
   const navigate = useNavigate();
 
+  function trocar(para) {
+    setModo(para);
+    setError('');
+    setPassword('');
+    setConfirma('');
+    navigate(para === 'cadastro' ? '/cadastro' : '/login', { replace: true });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (modo === 'cadastro' && password !== confirma) { setError('As senhas não conferem.'); return; }
     setLoading(true);
     try {
-      const res  = await fetch(`${API}/auth/login`, {
+      const cadastro = modo === 'cadastro';
+      const res  = await fetch(`${API}/auth/${cadastro ? 'cadastro' : 'login'}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username, password }),
+        body:    JSON.stringify(cadastro ? { nome, email: username, senha: password } : { username, password }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Erro ao entrar'); return; }
+      if (!res.ok) { setError(data.error || (cadastro ? 'Erro ao cadastrar' : 'Erro ao entrar')); return; }
+      if (cadastro) { setModo('enviado'); return; }
       setToken(data.token);
+      setUsuario(data.usuario);
       navigate('/');
     } catch {
       setError('Servidor inacessível');
@@ -64,6 +122,17 @@ export default function Login() {
       setLoading(false);
     }
   }
+
+  const texto = TEXTOS[modo] || TEXTOS.cadastro;
+  const olho = (
+    <button type="button" onClick={() => setShowPass(v => !v)} style={{
+      position:'absolute', right:10, top:'50%', transform:'translateY(-50%)',
+      background:'none', border:'none', cursor:'pointer', color:'var(--mf-text-3)', display:'flex', padding:4,
+    }}>
+      <EyeIcon open={showPass} />
+    </button>
+  );
+  const link = { background:'none', border:'none', padding:0, cursor:'pointer', color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:600, fontSize:'inherit', fontFamily:'var(--font)' };
 
   return (
     <div data-mf style={{
@@ -168,66 +237,62 @@ export default function Login() {
                   borderRadius: 'var(--mf-r-xl)', padding:'4px 12px', marginBottom:20,
                 }}>
                   <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', display:'flex' }}><LockIcon /></span>
-                  <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)', fontWeight:600 }}>Acesso restrito</span>
+                  <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-micro)', fontWeight:600 }}>{texto.selo}</span>
                 </div>
-                <h2 style={{ color:'var(--mf-text)', fontSize:23, fontWeight:800, margin:'0 0 6px', letterSpacing:'-.4px' }}>Bem-vindo de volta</h2>
-                <p style={{ color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', margin:0, lineHeight:1.6 }}>Entre com suas credenciais de acesso.</p>
+                <h2 style={{ color:'var(--mf-text)', fontSize:23, fontWeight:800, margin:'0 0 6px', letterSpacing:'-.4px' }}>
+                  {modo === 'enviado' ? 'Cadastro enviado' : texto.titulo}
+                </h2>
+                <p style={{ color:'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', margin:0, lineHeight:1.6 }}>
+                  {modo === 'enviado'
+                    ? 'Recebemos o seu pedido. Assim que o administrador aprovar, é só entrar com o e-mail e a senha que você escolheu.'
+                    : texto.sub}
+                </p>
               </div>
             </BlurFade>
 
+            {modo === 'enviado' ? (
+              <motion.button
+                type="button" onClick={() => trocar('entrar')}
+                whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+                style={{
+                  width:'100%', padding:'12px 16px', borderRadius: 'var(--mf-r-md)', border:'none', cursor:'pointer',
+                  background: 'linear-gradient(135deg, var(--cyan2), var(--mf-mod, var(--mf-accent-500)))',
+                  color:'var(--mf-bg)', fontWeight:700, fontSize: 'var(--mf-t-body)', fontFamily:'var(--font)',
+                  boxShadow:'0 0 18px color-mix(in oklch, var(--mf-mod-contas) 28%, transparent)',
+                }}
+              >
+                Voltar para o login
+              </motion.button>
+            ) : (
+
             <BlurFade delay={0.25}>
               <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                <div>
-                  <label style={{ display:'block', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 }}>USUÁRIO</label>
-                  <div style={{ position:'relative' }}>
-                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none', display:'flex' }}>
-                      <UserIcon />
-                    </span>
-                    <input
-                      type="text" value={username} onChange={e => setUsername(e.target.value)}
-                      placeholder="admin" autoFocus required
-                      style={{
-                        width:'100%', background:'var(--mf-border-subtle)',
-                        border:'1px solid var(--border)',
-                        borderRadius: 'var(--mf-r-md)', padding:'12px 12px 12px 32px',
-                        color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
-                        boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
-                        fontFamily:'var(--font)',
-                      }}
-                      onFocus={e => { e.target.style.borderColor='var(--border2)'; e.target.style.boxShadow='var(--glow-sm)'; }}
-                      onBlur={e  => { e.target.style.borderColor='var(--border)';  e.target.style.boxShadow='none'; }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ display:'block', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:7 }}>SENHA</label>
-                  <div style={{ position:'relative' }}>
-                    <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none', display:'flex' }}>
-                      <LockIcon />
-                    </span>
-                    <input
-                      type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••" required
-                      style={{
-                        width:'100%', background:'var(--mf-border-subtle)',
-                        border:'1px solid var(--border)',
-                        borderRadius: 'var(--mf-r-md)', padding:'12px 40px 12px 32px',
-                        color:'var(--mf-text)', fontSize: 'var(--mf-t-body)', outline:'none',
-                        boxSizing:'border-box', transition:'border-color .18s, box-shadow .18s',
-                        fontFamily:'var(--font)',
-                      }}
-                      onFocus={e => { e.target.style.borderColor='var(--border2)'; e.target.style.boxShadow='var(--glow-sm)'; }}
-                      onBlur={e  => { e.target.style.borderColor='var(--border)';  e.target.style.boxShadow='none'; }}
-                    />
-                    <button type="button" onClick={() => setShowPass(v => !v)} style={{
-                      position:'absolute', right:10, top:'50%', transform:'translateY(-50%)',
-                      background:'none', border:'none', cursor:'pointer', color:'var(--mf-text-3)', display:'flex', padding:4,
-                    }}>
-                      <EyeIcon open={showPass} />
-                    </button>
-                  </div>
-                </div>
+                {modo === 'cadastro' && (
+                  <Campo rotulo="NOME" icone={<UserIcon />} type="text" value={nome}
+                    onChange={e => setNome(e.target.value)} placeholder="Seu nome" autoComplete="name" required />
+                )}
+                <Campo
+                  rotulo={modo === 'cadastro' ? 'E-MAIL' : 'E-MAIL OU USUÁRIO'}
+                  icone={modo === 'cadastro' ? <MailIcon /> : <UserIcon />}
+                  type={modo === 'cadastro' ? 'email' : 'text'} value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder={modo === 'cadastro' ? 'voce@email.com' : 'voce@email.com'}
+                  autoComplete={modo === 'cadastro' ? 'email' : 'username'} autoFocus required
+                />
+                <Campo
+                  rotulo="SENHA" icone={<LockIcon />} direita={olho}
+                  type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder={modo === 'cadastro' ? 'Mínimo de 8 caracteres' : '••••••••'}
+                  autoComplete={modo === 'cadastro' ? 'new-password' : 'current-password'}
+                  minLength={modo === 'cadastro' ? 8 : undefined} required
+                />
+                {modo === 'cadastro' && (
+                  <Campo
+                    rotulo="CONFIRMAR SENHA" icone={<LockIcon />}
+                    type={showPass ? 'text' : 'password'} value={confirma} onChange={e => setConfirma(e.target.value)}
+                    placeholder="Repita a senha" autoComplete="new-password" required
+                  />
+                )}
 
                 <AnimatePresence>
                   {error && (
@@ -264,17 +329,24 @@ export default function Login() {
                   {loading ? (
                     <>
                       <svg style={{ animation:'spin .8s linear infinite' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 11-9-9"/></svg>
-                      Entrando...
+                      {modo === 'cadastro' ? 'Enviando...' : 'Entrando...'}
                     </>
                   ) : (
                     <>
-                      Entrar
+                      {modo === 'cadastro' ? 'Pedir acesso' : 'Entrar'}
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </>
                   )}
                 </motion.button>
+
+                <div style={{ textAlign:'center', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)', marginTop:2 }}>
+                  {modo === 'cadastro'
+                    ? <>Já tem acesso? <button type="button" style={link} onClick={() => trocar('entrar')}>Entrar</button></>
+                    : <>Ainda não tem acesso? <button type="button" style={link} onClick={() => trocar('cadastro')}>Criar conta</button></>}
+                </div>
               </form>
             </BlurFade>
+            )}
 
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:20 }}>
               <div style={{ width:6, height:6, background:'var(--mf-success-500)', borderRadius: 'var(--mf-r-full)', boxShadow:'0 0 6px var(--mf-success-500)' }} />

@@ -37,7 +37,8 @@ import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
 const ApiMeta             = lazy(() => import('./pages/ApiMeta'));
-import { isAuthenticated } from './services/auth';
+const Usuarios            = lazy(() => import('./pages/Usuarios'));
+import { isAuthenticated, isAdmin } from './services/auth';
 
 /* O que aparece entre clicar no menu e o pedaço da tela chegar. Discreto de
    propósito: em conexão boa dura menos de 200 ms e nem se nota. */
@@ -51,6 +52,11 @@ function CarregandoTela() {
 
 function PrivateRoute({ children }) {
   return isAuthenticated() ? children : <Navigate to="/login" replace />;
+}
+
+/** Telas só do admin: para os outros, o painel inicial. */
+function SoAdmin({ children }) {
+  return isAdmin() ? children : <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -73,6 +79,7 @@ export default function App() {
     <Suspense fallback={<CarregandoTela />}>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/cadastro" element={<Login />} />
       <Route path="/termos" element={<Termos />} />
       <Route path="/privacidade" element={<Privacidade />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />
@@ -117,7 +124,8 @@ export default function App() {
               <Route path="/performance"    element={<Performance />} />
               <Route path="/metricas-perfis" element={<MetricasDosPerfis />} />
               <Route path="/minha-conta"    element={<MinhaConta />} />
-              <Route path="/api-meta"       element={<ApiMeta />} />
+              <Route path="/api-meta"       element={<SoAdmin><ApiMeta /></SoAdmin>} />
+              <Route path="/usuarios"       element={<SoAdmin><Usuarios /></SoAdmin>} />
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"          element={<MediaLibrary />} />
             </Routes>

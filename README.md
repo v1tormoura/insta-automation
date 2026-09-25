@@ -12,6 +12,7 @@ da Meta** (API do Instagram com login do Instagram).
   prévia, pausa, retomada e reprocessamento individual.
 - **Métricas** — alcance, visualizações, público e ranking por conta e por post.
 - **Contas** — conexão por OAuth, saúde do token e renovação automática.
+- **Usuários** — cadastro com aprovação do admin; cada usuário vê só o que é dele.
 
 ## Estrutura
 

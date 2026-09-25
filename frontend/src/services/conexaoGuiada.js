@@ -48,9 +48,13 @@ export function contaValida(valor) {
  * @param {string} origem — normalmente `window.location.origin`
  * @param {string} [conta] — id da conta a reconectar, ou 'new'
  * @param {string} [metaAppId]
+ * @param {string} [dono] — o usuário, assinado pelo servidor (GET /oauth/dono).
+ *   A página guiada abre sem login no painel; é por ele que a conta conectada
+ *   cai no painel de quem gerou o link.
  */
-export function montarLinkGuiado(origem, conta = 'new', metaAppId = '') {
+export function montarLinkGuiado(origem, conta = 'new', metaAppId = '', dono = '') {
   const p = new URLSearchParams({ conta: contaValida(conta) });
+  if (dono) p.set('d', String(dono));
   /* Só entra se houver App escolhido: `app=` vazio na URL não significa nada e
      ainda faria o servidor procurar um MetaApp de id vazio. */
   const app = String(metaAppId ?? '').trim();

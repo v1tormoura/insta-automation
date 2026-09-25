@@ -4,7 +4,8 @@ import '../design/tokens.css';
 import '../design/sistema.css';
 import '../design/avancado.css';
 import '../design/ponte.css';
-import { removeToken } from '../services/auth';
+import { removeToken, getUsuario, setUsuario, isAdmin } from '../services/auth';
+import { aoMudarConta } from '../services/contaDoUsuario';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
@@ -101,10 +102,17 @@ function AvatarDoUsuario() {
 
   useEffect(() => {
     let ignorar = false;
-    api.get('/conta')
-      .then(({ data }) => { if (!ignorar) setConta(data); })
+    const ler = () => api.get('/conta')
+      .then(({ data }) => {
+        if (ignorar) return;
+        setConta(data);
+        // Mantém o papel guardado em dia (menu do admin) com o que o servidor diz.
+        setUsuario({ ...(getUsuario() || {}), id: data.id, nome: data.nome, email: data.email, papel: data.papel, avatar: data.avatar });
+      })
       .catch(() => {});
-    return () => { ignorar = true; };
+    ler();
+    const parar = aoMudarConta(ler);
+    return () => { ignorar = true; parar(); };
   }, []);
 
   const nome = conta?.nome || '';
@@ -120,13 +128,9 @@ function AvatarDoUsuario() {
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : iniciais}
       </span>
-      {/* Nome e papel, como na referencia. O papel e "Administrador" e nao um
-          campo do banco: o sistema tem um usuario so, o dono, e inventar um
-          campo de cargo para exibir sempre o mesmo valor seria guardar uma
-          constante no Mongo. */}
       <span className="mf-usuario__txt">
         <span className="mf-usuario__n">{nome || 'Minha conta'}</span>
-        <span className="mf-usuario__p">Administrador</span>
+        <span className="mf-usuario__p">{conta?.papel === 'admin' ? 'Administrador' : 'Usuário'}</span>
       </span>
     </button>
   );
@@ -231,13 +235,17 @@ const NAV_GROUPS = [
   {
     title: 'SISTEMA',
     items: [
-      { to: '/api-meta', mod: 'sistema',              label: 'API Meta',    sub: 'Apps Meta / OAuth',          icon: ICONS.apimeta },
+      { to: '/usuarios', mod: 'sistema',              label: 'Usuários',    sub: 'Cadastros e acessos',        icon: ICONS.perfis, admin: true },
+      { to: '/api-meta', mod: 'sistema',              label: 'API Meta',    sub: 'Apps Meta / OAuth',          icon: ICONS.apimeta, admin: true },
       { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Quando e como avisar',      icon: ICONS.bell    },
       { to: '/minha-conta', mod: 'sistema',           label: 'Minha Conta', sub: 'Perfil, senha e aparência',  icon: ICONS.usuario },
       { to: '/logs', mod: 'sistema',                  label: 'Histórico',   sub: 'Logs de atividade',          icon: ICONS.logs    },
     ],
   },
 ];
+
+/** Os itens que este usuário vê: os marcados `admin` só aparecem para o admin. */
+const visiveis = itens => itens.filter(i => !i.admin || isAdmin());
 
 /* ── build notification from SSE event ── */
 function buildNotif(data, event) {
@@ -282,7 +290,7 @@ function PaletaComandos({ aberta, aoFechar }) {
 
   const itens = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const todos = NAV_GROUPS.flatMap(g => g.items.map(i => ({ ...i, grupo: g.title })));
+    const todos = NAV_GROUPS.flatMap(g => visiveis(g.items).map(i => ({ ...i, grupo: g.title })));
     return termo
       ? todos.filter(i => `${i.label} ${i.sub || ''}`.toLowerCase().includes(termo))
       : todos;
@@ -396,6 +404,17 @@ export default function MainLayout({ children }) {
     }
   );
 
+  /* Admin: quantos cadastros esperam aprovação — o número no item "Usuários". */
+  const [pendentes, setPendentes] = useState(0);
+  const lerPendentes = () => {
+    if (!isAdmin()) return;
+    api.get('/usuarios', { params: { status: 'pendente' } })
+      .then(({ data }) => setPendentes(data?.pendentes || 0))
+      .catch(() => {});
+  };
+  useEffect(lerPendentes, [location.pathname]);
+  useServerEvents(['usuarios'], lerPendentes);
+
   useEffect(() => {
     const aoTeclar = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -458,14 +477,22 @@ export default function MainLayout({ children }) {
             {NAV_GROUPS.map(grupo => (
               <div className="mf-side__group" key={grupo.title}>
                 <div className="mf-side__label">{grupo.title}</div>
-                {grupo.items.map(item => (
+                {visiveis(grupo.items).map(item => (
                   <NavLink key={item.to} to={item.to} end={item.to === '/'}
                     className="mf-nav-item"
                     data-dica={item.label}
                     style={{ '--mf-mod': `var(--mf-mod-${item.mod || 'sistema'})`, textDecoration: 'none' }}>
                     <span className="mf-nav-item__ico">{item.icon}</span>
                     <span className="mf-nav-item__txt">
-                      <span className="mf-nav-item__t">{item.label}</span>
+                      <span className="mf-nav-item__t">
+                        {item.label}
+                        {item.to === '/usuarios' && pendentes > 0 && (
+                          <span title={`${pendentes} cadastro(s) esperando aprovação`} style={{
+                            marginLeft: 6, padding: '0 6px', borderRadius: 'var(--mf-r-full)', fontSize: 'var(--mf-t-nano)',
+                            fontWeight: 700, background: 'var(--mf-warning-500)', color: 'var(--mf-bg)', verticalAlign: 'middle',
+                          }}>{pendentes}</span>
+                        )}
+                      </span>
                       {/* A descrição SEMPRE existiu em `NAV_GROUPS` como `sub`,
                           e o render a jogava fora — vinte e oito itens com uma
                           linha de explicação escrita e nenhuma aparecendo. O

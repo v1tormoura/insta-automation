@@ -46,7 +46,7 @@ const APPS_E_SITES = 'https://www.instagram.com/accounts/manage_access/';
  * @param {(msg: string) => void} [props.onErro]
  */
 export default function PassosDeConexao({
-  conta = 'new', metaAppId = '', mod = 'contas', url = '', onAutorizar, onErro,
+  conta = 'new', metaAppId = '', dono = '', mod = 'contas', url = '', onAutorizar, onErro,
 }) {
   /* Se o passo 1 já foi feito. Não dá para SABER — o Instagram não nos conta se
      o convite foi aceito, e não existe API para consultar isso. O que a tela
@@ -62,7 +62,7 @@ export default function PassosDeConexao({
       let destino = url;
       if (!destino) {
         const { data } = await api.get('/oauth/url', {
-          params: { accountId: contaValida(conta), ...(metaAppId ? { metaAppId } : {}) },
+          params: { accountId: contaValida(conta), ...(metaAppId ? { metaAppId } : {}), ...(dono ? { dono } : {}) },
         });
         destino = data?.url;
       }

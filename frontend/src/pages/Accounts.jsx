@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { isAdmin } from '../services/auth';
 import { lerAviso, deveAnunciar, chaveDoArroba } from './janelaDeAutorizacao';
 import PassosDeConexao from '../components/PassosDeConexao';
 import { montarLinkGuiado } from '../services/conexaoGuiada';
@@ -323,6 +324,12 @@ export default function Accounts() {
       });
       setConviteArroba('');
       await carregarConvites();
+      /* Usuário comum pede; quem convida no painel da Meta é o admin. */
+      if (!isAdmin()) {
+        showToast('success', `@${data?.convite?.username || arroba} pedido`,
+          'O administrador vai adicionar a conta como testadora do app. Depois é só aceitar o convite no Instagram.');
+        return;
+      }
       /* Abrir o painel já com o @ copiado é o ponto todo: é o único passo que
          a Meta obriga a ser manual, então que seja um colar e um clique. */
       abrirPainelDoConvite(data?.convite?.username, data?.painel?.url);
@@ -391,8 +398,17 @@ export default function Accounts() {
      `window.location.origin` e não uma variável de ambiente: o link tem de
      apontar para o mesmo endereço por onde esta tela está sendo acessada, senão
      em produção ele mandaria para localhost. */
+  /* O link guiado abre num navegador sem login no painel: leva o dono
+     assinado pelo servidor, buscado uma vez aqui (o clique precisa copiar na
+     hora — o navegador só deixa escrever na área de transferência no gesto). */
+  const [donoDoLink, setDonoDoLink] = useState('');
+  useEffect(() => {
+    api.get('/oauth/dono').then(({ data }) => setDonoDoLink(data?.dono || '')).catch(() => {});
+  }, []);
+
   function copiarLinkGuiado(conta = 'new') {
-    const link = montarLinkGuiado(window.location.origin, conta, selectedAppId);
+    if (!donoDoLink) { showToast('warning', 'Aguarde', 'Preparando o link — tente de novo em um instante.'); return; }
+    const link = montarLinkGuiado(window.location.origin, conta, selectedAppId, donoDoLink);
 
     try { navigator.clipboard.writeText(link); }
     catch { showToast('warning', 'Copie à mão', link); }
@@ -996,6 +1012,18 @@ export default function Accounts() {
       {precisaApp && (
         <div className="modal-overlay" onClick={() => setPrecisaApp(false)}>
           <div className="modal" style={{ width:'min(460px,100%)' }} onClick={e => e.stopPropagation()}>
+            {!isAdmin() ? (<>
+              <h3 style={{ margin:'0 0 8px', fontSize:'var(--mf-t-h2)', fontWeight:800 }}>
+                A conexão ainda não está disponível
+              </h3>
+              <p style={{ fontSize:'var(--mf-t-sm)', color:'var(--mf-text-2)', lineHeight:1.7, margin:'0 0 16px' }}>
+                O administrador da plataforma ainda não cadastrou o App da Meta usado para conectar as contas.
+                Avise o administrador e tente de novo depois.
+              </p>
+              <button className="btn-primary" style={{ width:'100%', justifyContent:'center' }} onClick={() => setPrecisaApp(false)}>
+                Entendi
+              </button>
+            </>) : (<>
             <h3 style={{ margin:'0 0 8px', fontSize:'var(--mf-t-h2)', fontWeight:800 }}>
               Cadastre seu App Meta primeiro
             </h3>
@@ -1023,6 +1051,7 @@ export default function Accounts() {
                 Cadastrar App Meta
               </button>
             </div>
+            </>)}
           </div>
         </div>
       )}
@@ -1376,7 +1405,7 @@ export default function Accounts() {
                         </span>
                         <span style={{ fontSize:'var(--mf-t-nano)', fontWeight:700, color:tom, whiteSpace:'nowrap' }}>{rotulo}</span>
 
-                        {!c.conectado && (
+                        {!c.conectado && isAdmin() && (
                           <>
                             <button onClick={() => abrirPainelDoConvite(c.username, convitePainel.url)}
                               title="Copiar o @ e abrir o painel da Meta"
