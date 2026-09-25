@@ -19,8 +19,9 @@ services:
       # Biblioteca de mídia e arquivos processados. A Meta baixa daqui.
       - uploads:/app/uploads
     # Só no localhost do servidor: o acesso público entra pelo túnel.
+    # APP_PORT muda a porta local quando a 3000 já está em uso.
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
 
   tunnel:
     <<: *log

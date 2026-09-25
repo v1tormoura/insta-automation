@@ -14,4 +14,5 @@ docker image prune -f >/dev/null
 echo
 docker compose ps
 echo
-echo "Saúde: $(curl -fsS http://127.0.0.1:3000/healthz || echo 'API ainda subindo — veja: docker compose logs -f app')"
+PORTA=$(grep -E "^APP_PORT=" .env 2>/dev/null | cut -d= -f2)
+echo "Saúde: $(curl -fsS http://127.0.0.1:${PORTA:-3000}/healthz || echo 'API ainda subindo — veja: docker compose logs -f app')"
