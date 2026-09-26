@@ -16,3 +16,8 @@ process.env.TZ = 'America/Sao_Paulo';
    teste (TEST_DATABASE_URL para apontar outro). */
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgres://postgres@127.0.0.1:54329/insta_test';
 process.env.JEST = '1';
+
+/* A janela de publicação (8h–22h por padrão) usa o relógio de verdade: sem
+   isto, os testes que publicam falhariam só por rodar de madrugada. O teste
+   do ritmo apaga esta linha para conferir o padrão. */
+process.env.JANELA_PUBLICACAO = '0-24';

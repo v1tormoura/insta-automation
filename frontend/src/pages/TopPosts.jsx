@@ -8,6 +8,17 @@ import { EsqueletoGrade } from '../components/Estados';
 const fmt  = v => Number(v || 0).toLocaleString('pt-BR');
 const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
 
+/* Tempo médio assistido (reels). É o que mais pesa na distribuição: quem sai
+   no primeiro segundo diz ao Instagram que o vídeo não prende. */
+const segundos = ms => (Number.isFinite(Number(ms)) && ms !== null ? `${(Number(ms) / 1000).toFixed(1).replace('.', ',')}s` : '—');
+function leituraDaRetencao(ms) {
+  if (ms === null || ms === undefined || !Number.isFinite(Number(ms))) return null;
+  const s = Number(ms) / 1000;
+  if (s < 2) return { cor: 'var(--mf-danger-500)', texto: 'Prende pouco: a maioria sai nos primeiros segundos' };
+  if (s < 5) return { cor: 'var(--mf-warning-500)', texto: 'Retenção média: o começo segura, o resto não' };
+  return { cor: 'var(--mf-success-500)', texto: 'Boa retenção' };
+}
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const proxyImg = url => {
   if (!url) return '';
@@ -15,14 +26,14 @@ const proxyImg = url => {
   return `${API_BASE}/image-proxy?url=${encodeURIComponent(url)}`; // CDN URL — proxy
 };
 
-const METRICS  = ['Views','Alcance','Likes','Coments','Saves','Shares'];
+const METRICS  = ['Views','Alcance','Retenção','Likes','Coments','Saves','Shares'];
 const PERIODS  = ['7d','30d','90d','1a'];
 const TYPES    = ['Tudo','Reels','Carrossel','Foto'];
 
 const RANK_COLORS = ['var(--mf-mod-publicar)','var(--mf-info-500)','var(--mf-mod-contas)','var(--mf-success-500)','var(--mf-warning-500)','var(--mf-danger-500)'];
 
 function metricKey(m) {
-  return { Views:'views', Alcance:'alcance', Likes:'likes', Coments:'coments', Saves:'saves', Shares:'shares' }[m] || 'views';
+  return { Views:'views', Alcance:'alcance', 'Retenção':'retencao', Likes:'likes', Coments:'coments', Saves:'saves', Shares:'shares' }[m] || 'views';
 }
 function insightViews(ins) {
   return ins.videoViews || ins.impressions || 0;
@@ -53,7 +64,9 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
     { label:'COMENTS', val: ins.commentsCount},
     { label:'SAVES',   val: ins.savedCount   },
     { label:'SHARES',  val: ins.shareCount   },
+    ...(ins.avgWatchTimeMs != null ? [{ label:'ASSISTIDO', val: ins.avgWatchTimeMs, texto: segundos(ins.avgWatchTimeMs) }] : []),
   ];
+  const retencao = leituraDaRetencao(ins.avgWatchTimeMs);
 
   const handleClick = () => {
     if (selectMode) onToggle(ins.id);
@@ -116,13 +129,20 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
         )}
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(55px,100%), 1fr))', gap:6 }}>
-          {metrics.map(({ label, val }) => (
+          {metrics.map(({ label, val, texto }) => (
             <div key={label} style={{ background:'var(--mf-surface-1)', borderRadius: 'var(--mf-r-sm)', padding:'4px 8px', textAlign:'center' }}>
-              <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)' }}>{fmtK(val)}</div>
+              <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)' }}>{texto ?? fmtK(val)}</div>
               <div style={{ fontSize: 'var(--mf-t-nano)',  fontWeight:600, color:'#4a6a8a', letterSpacing:'.06em' }}>{label}</div>
             </div>
           ))}
         </div>
+
+        {retencao && (
+          <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:'var(--mf-t-nano)', color:'var(--mf-text-2)', lineHeight:1.4 }}>
+            <span style={{ width:7, height:7, borderRadius:'var(--mf-r-full)', background: retencao.cor, flexShrink:0 }} />
+            {retencao.texto}
+          </div>
+        )}
 
         {!selectMode && (
           <button

@@ -3,12 +3,11 @@
 /**
  * Quanto e quando uma conta publica.
  *
- * O estado atual do sistema é: sem teto e sem janela — decisão de quem opera,
- * tomada em 18/09/2026. Estes testes existem em duas metades:
+ * O estado atual do sistema é: sem teto (decisão de quem opera, 18/09/2026) e
+ * janela das 8h às 22h (26/09/2026). Estes testes existem em duas metades:
  *
- *  1. o padrão LIBERA, e libera de verdade — inclusive às 3 da manhã e com
- *     centenas de publicações no dia. É o que o dono pediu, e uma regressão
- *     aqui voltaria a segurar publicação sem ninguém entender por quê;
+ *  1. o padrão não tem teto — centenas de publicações no dia passam — mas
+ *     fecha a madrugada;
  *
  *  2. o mecanismo continua inteiro e volta pelo ambiente. Ele não foi apagado
  *     porque o defeito que ele corrigia era real — ~36 reels por dia, 24h por
@@ -17,6 +16,8 @@
  *     .env, não reescrever o módulo.
  */
 
+// O setup dos testes fixa 0-24 (ver setup.env.js); aqui vale o padrão de verdade.
+delete process.env.JANELA_PUBLICACAO;
 const {
   podePublicar, tetoDeHoje, dentroDaJanela, proximaAbertura, deslocamentoDe,
   SEM_TETO,
@@ -40,11 +41,10 @@ function comAmbiente(env, fn) {
   }
 }
 
-describe('o padrão: sem teto e sem janela', () => {
-  test('três da manhã publica igual três da tarde', () => {
-    for (const h of [0, 2, 3, 4, 5, 6, 12, 23]) {
-      expect(podePublicar(conta('a'), emHoras(h)).pode).toBe(true);
-    }
+describe('o padrão: sem teto, janela das 8h às 22h', () => {
+  test('madrugada espera; tarde publica', () => {
+    for (const h of [0, 2, 3, 4, 5, 6]) expect(podePublicar(conta('a'), emHoras(h)).pode).toBe(false);
+    for (const h of [10, 12, 15, 20]) expect(podePublicar(conta('a'), emHoras(h)).pode).toBe(true);
   });
 
   test('não existe teto vindo do sistema', () => {
@@ -54,15 +54,20 @@ describe('o padrão: sem teto e sem janela', () => {
 
   test('centenas de publicações no mesmo dia continuam passando', () => {
     // O caso que o teto barrava. Hoje é o comportamento pedido.
-    const r = podePublicar(conta('a', { postsToday: 500 }), emHoras(3));
+    const r = podePublicar(conta('a', { postsToday: 500 }), emHoras(14));
     expect(r.pode).toBe(true);
     expect(r.motivo).toBe('');
   });
 
-  test('a janela cobre o dia inteiro', () => {
-    for (const h of [0, 3, 7, 15, 22, 23]) {
-      expect(dentroDaJanela(conta('a'), emHoras(h))).toBe(true);
-    }
+  test('a janela é 8h–22h (com o deslocamento de até 45 min por conta)', () => {
+    for (const h of [0, 3, 6]) expect(dentroDaJanela(conta('a'), emHoras(h))).toBe(false);
+    for (const h of [10, 15, 20]) expect(dentroDaJanela(conta('a'), emHoras(h))).toBe(true);
+  });
+
+  test('JANELA_PUBLICACAO=0-24 desliga a janela', () => {
+    comAmbiente({ JANELA_PUBLICACAO: '0-24' }, r => {
+      for (const h of [0, 3, 12, 23]) expect(r.dentroDaJanela(conta('a'), emHoras(h))).toBe(true);
+    });
   });
 });
 

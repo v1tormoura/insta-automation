@@ -28,6 +28,7 @@ const ORDENS = {
   coments:         'comments_count desc, engagement_score desc',
   saves:           'saved_count desc, engagement_score desc',
   shares:          'share_count desc, engagement_score desc',
+  retencao:        'avg_watch_time_ms desc nulls last, video_views desc',
   engagementScore: 'engagement_score desc',
 };
 const TIPOS = { reel: 'VIDEO', foto: 'IMAGE', carrossel: 'CAROUSEL_ALBUM' };
