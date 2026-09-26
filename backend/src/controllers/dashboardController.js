@@ -4,7 +4,7 @@
 
 const { sql } = require('../db');
 const { comContas } = require('../repos');
-const { somarFilas, postagensDeHoje, porStatus, contarJobs } = require('./contagemDaFila');
+const { somarFilas, porStatus, contarJobs } = require('./contagemDaFila');
 
 const FUSO = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
 const ATIVOS = ['queued', 'running', 'waiting_interval'];
@@ -14,6 +14,10 @@ function inicioDoDia() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+/** Publicações da conta hoje. `posts_today` só zera na próxima publicação ou à meia-noite. */
+function hojeDaConta(a) {
+  return a.lastPostDate && new Date(a.lastPostDate) >= inicioDoDia() ? Number(a.postsToday) || 0 : 0;
 }
 const diasAtras = n => new Date(Date.now() - n * 86_400_000);
 
@@ -29,6 +33,19 @@ function serieDiaria(linhas, dias, campo) {
     serie.push({ date: dia, label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }), [campo]: mapa[dia] || 0 });
   }
   return serie;
+}
+
+/**
+ * Publicações que saíram, uma por conta: cada elemento de
+ * `posts.midias_publicadas` é uma mídia no ar numa conta, com a hora em `em`.
+ * Contar linhas de post dava 1 para uma mídia publicada em 5 contas.
+ */
+function publicadasPorDia(uid, desde) {
+  return sql`
+    select to_char(((m->>'em')::timestamptz at time zone ${FUSO})::date, 'YYYY-MM-DD') as dia, count(*) as n
+    from posts p, jsonb_array_elements(p.midias_publicadas) m
+    where p.usuario_id = ${uid} and (m->>'em')::timestamptz >= ${desde}
+    group by 1`;
 }
 
 function porDia(uid, status, desde) {
@@ -99,10 +116,10 @@ exports.getDashboard = async (req, res) => {
   const trintaDias = diasAtras(30);
 
   const [
-    contas, [contagem], campanhaPorStatus, [{ n: pubsHoje }], ativos,
+    contas, [contagem], campanhaPorStatus, ativos,
     avulsosProximos, diarios, errosDiarios, engajamento,
   ] = await Promise.all([
-    sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, created_at, updated_at
+    sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, last_post_date, created_at, updated_at
         from accounts where usuario_id = ${uid}`,
     sql`
       select count(*) as total,
@@ -112,17 +129,14 @@ exports.getDashboard = async (req, res) => {
         count(*) filter (where status = 'agendado' and job_id is null) as agendados,
         count(*) filter (where status = 'processando' and job_id is null) as processando,
         count(*) filter (where status = 'pendente' and job_id is null) as pendentes,
-        count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${hoje}) as hoje,
         count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as erros_hoje
       from posts where usuario_id = ${uid}`,
     sql`select status, count(*) as n from campaign_publications
         where usuario_id = ${uid} and status in ('pending', 'scheduled', 'processing') group by status`,
-    sql`select count(*) as n from campaign_publications
-        where usuario_id = ${uid} and status = 'published' and published_at >= ${hoje}`,
     enviosAtivos(uid),
     sql`select * from posts where usuario_id = ${uid} and status in ('agendado', 'pendente', 'processando') and job_id is null
         order by scheduled_at asc nulls last limit 200`,
-    porDia(uid, ['concluido', 'parcial'], diasAtras(90)),
+    publicadasPorDia(uid, diasAtras(90)),
     porDia(uid, ['erro'], seteDias),
     sql`
       select i.account_id, max(a.username) as username, max(a.avatar) as avatar,
@@ -154,7 +168,7 @@ exports.getDashboard = async (req, res) => {
   res.json({
     totalAccounts: contas.length,
     activeAccounts: contas.filter(a => a.healthStatus === 'ativa' || (a.accessToken && a.igUserId && !PROBLEMAS.includes(a.healthStatus))).length,
-    cooldownAccounts: contas.filter(a => a.dailyPostLimit > 0 && (a.postsToday || 0) >= a.dailyPostLimit).length,
+    cooldownAccounts: contas.filter(a => a.dailyPostLimit > 0 && hojeDaConta(a) >= a.dailyPostLimit).length,
 
     totalPosts: contagem.total,
     scheduledPosts: fila.agendados,
@@ -162,7 +176,8 @@ exports.getDashboard = async (req, res) => {
     pendingPosts: fila.pendentes,
     successRate: finalizados > 0 ? Math.round((contagem.concluidos / finalizados) * 100) : 100,
 
-    postsToday: postagensDeHoje(contagem.hoje, pubsHoje),
+    // O contador de cada conta: soma avulso, envio, loop, campanha e story.
+    postsToday: contas.reduce((soma, a) => soma + hojeDaConta(a), 0),
     errorsToday: contagem.errosHoje,
     dailyPostLimit: comLimite.reduce((soma, a) => soma + a.dailyPostLimit, 0),
 
@@ -199,19 +214,28 @@ exports.getAccountStats = async (req, res) => {
   const seteDias = diasAtras(7);
   const trintaDias = diasAtras(30);
 
-  const [contas, publicacoes, crescimento] = await Promise.all([
+  const [contas, publicadas, falhas, crescimento] = await Promise.all([
     sql`select id, username, avatar, followers, following, posts_count, health_status, access_token,
-          token_expires_at, ig_user_id, last_sync, last_post_at from accounts where usuario_id = ${uid}`,
+          token_expires_at, ig_user_id, last_sync, last_post_at, posts_today, last_post_date
+        from accounts where usuario_id = ${uid}`,
+    // Uma linha por mídia no ar numa conta — ver publicadasPorDia.
+    sql`
+      select (m->>'accountId')::uuid as account_id,
+        count(*) as posts30d,
+        count(*) filter (where (m->>'em')::timestamptz >= ${seteDias}) as posts7d,
+        count(*) filter (where (m->>'em')::timestamptz >= ${hoje}) as posts_today
+      from posts p, jsonb_array_elements(p.midias_publicadas) m
+      where p.usuario_id = ${uid} and (m->>'em')::timestamptz >= ${trintaDias}
+      group by 1`,
+    // Falha de uma conta: post em erro/parcial em que ela não publicou.
     sql`
       select conta as account_id,
-        count(*) filter (where status in ('concluido', 'parcial')) as posts30d,
-        count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${seteDias}) as posts7d,
-        count(*) filter (where status in ('concluido', 'parcial') and updated_at >= ${hoje}) as posts_today,
-        count(*) filter (where status = 'erro') as failures30d,
-        count(*) filter (where status = 'erro' and updated_at >= ${seteDias}) as failures7d,
-        count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as failures_today
-      from posts, unnest(account_ids) as conta
-      where usuario_id = ${uid} and updated_at >= ${trintaDias}
+        count(*) as failures30d,
+        count(*) filter (where updated_at >= ${seteDias}) as failures7d,
+        count(*) filter (where updated_at >= ${hoje}) as failures_today
+      from posts p, unnest(p.account_ids) as conta
+      where p.usuario_id = ${uid} and p.status in ('erro', 'parcial') and p.updated_at >= ${trintaDias}
+        and not exists (select 1 from jsonb_array_elements(p.midias_publicadas) m where m->>'accountId' = conta::text)
       group by conta`,
     sql`
       select distinct on (account_id) account_id,
@@ -221,13 +245,15 @@ exports.getAccountStats = async (req, res) => {
       order by account_id, dia desc`,
   ]);
 
-  const porConta = new Map(publicacoes.map(p => [p.accountId, p]));
+  const porConta = new Map(publicadas.map(p => [p.accountId, p]));
+  const falhasPorConta = new Map(falhas.map(f => [f.accountId, f]));
   const ganho = new Map(crescimento.map(g => [g.accountId, g.ganho]));
   const agora = new Date();
 
   const lista = contas.map(c => {
     const p = porConta.get(c.id) || {};
-    const ok = p.posts30d || 0, falhas = p.failures30d || 0;
+    const f = falhasPorConta.get(c.id) || {};
+    const ok = p.posts30d || 0, nFalhas = f.failures30d || 0;
     let status = 'ativa';
     if (c.healthStatus === 'banida') status = 'banida';
     else if (c.healthStatus === 'token_invalido') status = 'token_expired';
@@ -238,9 +264,10 @@ exports.getAccountStats = async (req, res) => {
     return {
       id: c.id, username: c.username, avatar: c.avatar || '',
       followers: c.followers, following: c.following, postsCount: c.postsCount,
-      postsToday: p.postsToday || 0, posts7d: p.posts7d || 0, posts30d: ok,
-      failuresToday: p.failuresToday || 0, failures7d: p.failures7d || 0, failures30d: falhas,
-      successRate: ok + falhas > 0 ? Math.round((ok / (ok + falhas)) * 100) : 0,
+      // Hoje pelo contador da conta: inclui story, que não vira post.
+      postsToday: Math.max(hojeDaConta(c), p.postsToday || 0), posts7d: p.posts7d || 0, posts30d: ok,
+      failuresToday: f.failuresToday || 0, failures7d: f.failures7d || 0, failures30d: nFalhas,
+      successRate: ok + nFalhas > 0 ? Math.round((ok / (ok + nFalhas)) * 100) : 0,
       growth30d: ganho.get(c.id) || 0,
       status, healthStatus: c.healthStatus,
       lastSync: c.lastSync || c.lastPostAt || null,
@@ -268,8 +295,11 @@ exports.getLivePosts = async (req, res) => {
   ]);
   await comContas([...processando, ...naFila, ...erros, ...concluidos], campos);
 
+  // Envio rodando só entra se nenhum post dele já estiver na lista — senão a
+  // mesma publicação aparecia duas vezes (o post e o envio).
+  const comPost = new Set(processando.map(p => p.jobId).filter(Boolean));
   const rodando = ativos
-    .filter(j => j.status === 'running')
+    .filter(j => j.status === 'running' && !comPost.has(j.id))
     .map(j => ({ id: j.id, accounts: j.accounts, caption: j.caption || j.name || '', status: 'processando', updatedAt: j.updatedAt, error: j.lastError || '' }));
 
   res.json({

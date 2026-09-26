@@ -546,15 +546,16 @@ function LoopsPanel({ loops }) {
 
   const totalRemaining = useMemo(() => activeLoops.reduce((s, l) => {
     const total = l.mediaFiles?.length || 0;
-    const sent  = l.postsCount || 0;
     if (total === 0) return s;
-    const rem = total - (sent % total);
-    return s + rem;
+    // currentIndex é a próxima RODADA desta volta; cada uma leva simultaneousLimit mídias.
+    const feitas = Math.min(total, (l.currentIndex || 0) * Math.max(1, l.simultaneousLimit || 1));
+    return s + (total - feitas);
   }, 0), [activeLoops]);
 
   const fmtNext = l => {
-    if (l.nextPostAt) {
-      const diff = new Date(l.nextPostAt) - Date.now();
+    const proxima = l.nextPostAt || l.nextRunAt;
+    if (proxima) {
+      const diff = new Date(proxima) - Date.now();
       if (diff <= 0) return 'agora';
       const m = Math.round(diff / 60000);
       return `em ${m}m`;
@@ -1153,7 +1154,7 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [loadStats, loadInsights, loadLoops]);
 
-  useServerEvents(['posts','accounts','sessions','health','insights','loop'], () => {
+  useServerEvents(['posts','accounts','jobs','campaigns','stories','insights'], () => {
     loadRef.current?.(); loadStats(); loadInsights(); loadLoops();
   });
 
@@ -1179,11 +1180,13 @@ export default function Dashboard() {
       value: x.posts || 0,
       forecast: false,
     }));
-    const todayISO = past.length > 0 ? past[past.length - 1].iso : new Date().toISOString().slice(0, 10);
+    // Dia LOCAL: toISOString é UTC, e depois das 21h o agendado de hoje caía em amanhã.
+    const diaLocal = dt => new Date(dt).toLocaleDateString('en-CA');
+    const todayISO = past.length > 0 ? past[past.length - 1].iso : diaLocal(new Date());
     const futureMap = {};
     (d.upcomingPosts||[]).forEach(post => {
       let iso;
-      try { iso = post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 10) : todayISO; }
+      try { iso = post.scheduledAt ? diaLocal(post.scheduledAt) : todayISO; }
       catch { iso = todayISO; }
       const count = post.accounts?.length || 1;
       futureMap[iso] = (futureMap[iso]||0) + count;

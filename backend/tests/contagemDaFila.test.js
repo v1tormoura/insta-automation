@@ -20,7 +20,7 @@
  * ficou de fora sem que nada acusasse.
  */
 
-const { somarFilas, postagensDeHoje, porStatus } =
+const { somarFilas, porStatus } =
   require('../src/controllers/contagemDaFila');
 
 describe('a fila soma as três origens', () => {
@@ -58,30 +58,6 @@ describe('a fila soma as três origens', () => {
       {},
     );
     expect(r).toEqual({ agendados: 0, processando: 0, pendentes: 4 });
-  });
-});
-
-describe('postagens de hoje', () => {
-  test('sem sobreposição, o maior é o que existe', () => {
-    expect(postagensDeHoje(12, 0)).toBe(12);
-    expect(postagensDeHoje(0, 9)).toBe(9);
-  });
-
-  test('as duas fontes concordando não dobram o número', () => {
-    /* A campanha cria um `Post` por conta ao publicar. Somar contaria a mesma
-       publicação duas vezes, e o painel mostraria o dobro do que saiu. */
-    expect(postagensDeHoje(9, 9)).toBe(9);
-  });
-
-  test('quando o Post falta, a campanha sustenta o número', () => {
-    /* Publicação anterior a este código, ou falha ao criar o Post. O que saiu
-       de fato foram 5 — dizer 2 esconderia três publicações reais. */
-    expect(postagensDeHoje(2, 5)).toBe(5);
-  });
-
-  test('nada publicado é zero, não nulo', () => {
-    expect(postagensDeHoje(0, 0)).toBe(0);
-    expect(postagensDeHoje(undefined, null)).toBe(0);
   });
 });
 

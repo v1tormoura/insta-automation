@@ -279,7 +279,7 @@ describe('a ligação com o resto do sistema', () => {
     /* Coluna que ninguém preenche é o defeito mais barato daqui: a fila
        abriria com o envio vazio em toda linha. */
     const w = ler('../src/worker.js');
-    expect(w).toMatch(/jobId: job\.id, jobRound: rodada, jobName: job\.name/);
+    expect(w).toMatch(/jobId: job\.id, jobRound: rodada, jobCiclo: job\.ciclo \|\| 0, jobName: job\.name/);
     expect(w).toContain('update posts set ig_media_id = ${mediaId}');
   });
 

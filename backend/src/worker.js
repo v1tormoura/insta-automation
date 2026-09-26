@@ -173,7 +173,7 @@ async function postDaRodada(job, media, rodada, legenda) {
   if (postType === 'reel' && !video) postType = 'post';
   const [novo] = await sql`
     insert into posts ${sql({
-      media, jobId: job.id, jobRound: rodada, jobName: job.name || '', usuarioId: job.usuarioId,
+      media, jobId: job.id, jobRound: rodada, jobCiclo: job.ciclo || 0, jobName: job.name || '', usuarioId: job.usuarioId,
       mediaType: video ? 'video' : 'image', postType,
       cover: job.cover || '', caption: legenda ?? (job.caption || ''), ctaComment: job.ctaComment || '',
       processMode: job.processMode || 'limpeza_leve',
@@ -183,10 +183,11 @@ async function postDaRodada(job, media, rodada, legenda) {
       capasPorConta: job.capasPorConta?.length ? job.capasPorConta : null,
       accountIds: job.accountIds, status: 'processando', scheduledAt: new Date(),
     })}
-    on conflict (job_id, media, job_round) where job_id is not null do nothing
+    on conflict (job_id, job_ciclo, media, job_round) where job_id is not null do nothing
     returning *`;
   if (novo) return novo;
-  const [existente] = await sql`select * from posts where job_id = ${job.id} and media = ${media} and job_round = ${rodada}`;
+  const [existente] = await sql`
+    select * from posts where job_id = ${job.id} and job_ciclo = ${job.ciclo || 0} and media = ${media} and job_round = ${rodada}`;
   return existente;
 }
 
@@ -203,7 +204,9 @@ async function processarRodada({ jobId }) {
       return;
     }
     rodada = 0;
-    await jobs.update(job.id, { currentRound: 0, roundsCompleted: 0 });
+    const [{ ciclo }] = await sql`
+      update jobs set current_round = 0, rounds_completed = 0, ciclo = ciclo + 1 where id = ${job.id} returning ciclo`;
+    job.ciclo = ciclo;
     broadcast('posts', { action: 'loop_cycled', jobId: job.id }, job.usuarioId);
   }
 
@@ -312,6 +315,8 @@ async function processarRodada({ jobId }) {
     status: 'waiting_interval', nextRoundAt: new Date(Date.now() + espera),
     ...(cicloDoLoop ? { currentRound: 0, roundsCompleted: 0 } : {}),
   });
+  // Nova volta, posts novos: sem isto a volta seguinte acharia os desta.
+  if (cicloDoLoop) await sql`update jobs set ciclo = ciclo + 1 where id = ${job.id}`;
   await agendarRodada(job.id, espera);
   broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
   console.log(`[Envio] "${job.name}" — rodada ${rodada + 1} (✓${sucessos} ✗${erros}). Próxima em ${(espera / 60000).toFixed(1)} min`);

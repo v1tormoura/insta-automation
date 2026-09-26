@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Quantas publicações estão na fila e quantas saíram hoje.
+ * Quantas publicações estão na fila.
  *
  * Três origens: publicação avulsa (posts sem envio), envio (jobs — Postar e
  * Loop) e campanha (campaign_publications). A fila do painel precisa somar as
@@ -18,16 +18,6 @@ function somarFilas(posts, jobs, campanhas) {
     processando: n(p.processando) + n(j.rodando)      + n(c.processing),
     pendentes:   n(p.pendentes)   + n(j.enfileirados) + n(c.pending),
   };
-}
-
-/**
- * Publicações de hoje: o maior entre posts e publicações de campanha. A
- * campanha também grava posts, então somar contaria duas vezes; o maior nunca
- * infla e cobre o caso em que uma das fontes não registrou.
- */
-function postagensDeHoje(dePosts, dePublicacoes) {
-  const n = v => (Number.isFinite(v) && v > 0 ? v : 0);
-  return Math.max(n(dePosts), n(dePublicacoes));
 }
 
 /** `[{status, n}]` → `{status: n}`. */
@@ -74,4 +64,4 @@ function contarJobs(jobs) {
   return soma;
 }
 
-module.exports = { somarFilas, postagensDeHoje, porStatus, midiasDoJob, contarJobs };
+module.exports = { somarFilas, porStatus, midiasDoJob, contarJobs };
