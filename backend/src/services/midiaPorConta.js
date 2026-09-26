@@ -41,7 +41,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const { convertToReelFormat, isVideo } = require('./videoProcessor');
+const { convertToReelFormat, isVideo, probeVideo } = require('./videoProcessor');
 const { argumentosDeMetadado } = require('./metadadosDoArquivo');
 
 const RAIZ_UPLOADS = path.resolve(__dirname, '../../uploads');
@@ -77,9 +77,28 @@ async function _trilhaDaConta(config, aleatorio, account) {
   }
 }
 
-/* Os modos que produzem arquivo diferente a cada semente. Os outros são
-   determinísticos — mesma entrada, mesmos bytes de saída. */
-const VARIAM = new Set(['ultra_clean', 'humanizador']);
+/* Os modos da tela. `sem_limpeza` é o padrão: o arquivo como foi enviado —
+   o mesmo que a pessoa publicaria pelo celular. */
+const MODOS = new Set(['sem_limpeza', 'limpeza_leve', 'ultra_clean', 'humanizador']);
+const MODO_PADRAO = 'sem_limpeza';
+
+/* Formato que a API de Reels aceita sem conversão. Fora disto (webm, mkv,
+   vp9, áudio que não é AAC), converte — sem variação nenhuma. */
+const CONTEINER_OK = /\.(mp4|mov)$/i;
+const VIDEO_OK = new Set(['h264', 'hevc']);
+
+/** O original serve como está? Na dúvida (probe falhou), não. */
+async function originalServe(absoluto) {
+  if (!CONTEINER_OK.test(absoluto)) return false;
+  try {
+    const probe = await probeVideo(absoluto);
+    const v = probe?.streams?.find(x => x.codec_type === 'video');
+    const a = probe?.streams?.find(x => x.codec_type === 'audio');
+    return !!v && VIDEO_OK.has(v.codec_name) && (!a || a.codec_name === 'aac');
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Gerador pseudoaleatório determinístico (mulberry32).
@@ -183,20 +202,15 @@ async function prepararParaConta(post, account, opcoes = {}) {
     return { caminho: relativo, proprio: false };
   }
 
-  /* ── Modos que não variam são promovidos ────────────────────────────
+  /* ── O modo é o que a tela escolheu ─────────────────────────────────
 
-     `sem_limpeza` e `limpeza_leve` não fazem UMA chamada aleatória. Encodei o
-     mesmo vídeo duas vezes com os parâmetros de `limpeza_leve` e o SHA-256
-     bateu: sem variação, a semente por conta não muda nada e todas as contas
-     voltariam a subir bytes idênticos — que é exatamente o defeito que este
-     módulo existe para corrigir.
-
-     A campanha ainda pede `limpeza_leve` por padrão, e o Post herda isso. Em
-     vez de deixar o módulo devolver algo que contradiz o próprio nome, o modo
-     é promovido para o menor que cumpre o contrato. Quem escolhe
-     `ultra_clean` ou `humanizador` de propósito continua com o que escolheu. */
-  const pedido = opcoes.processMode || post.processMode || 'humanizador';
-  const modo = VARIAM.has(pedido) ? pedido : 'humanizador';
+     Antes, `sem_limpeza` e `limpeza_leve` eram trocados em silêncio pelo
+     `humanizador` (tom do áudio alterado, micro-corte, cor e CRF sorteados).
+     A tela prometia "posta o vídeo original, sem alterar nada" e todo reel
+     saía manipulado — e o mesmo vídeo publicado à mão, original, pegava
+     views que os do painel não pegavam. Agora o modo pedido é o modo usado. */
+  const pedido = opcoes.processMode || post.processMode || MODO_PADRAO;
+  const modo = MODOS.has(pedido) ? pedido : MODO_PADRAO;
 
   const token = tokenDaPublicacao(opcoes);
   const semente = sementeDe(String(post.id), String(account.id), token);
@@ -267,13 +281,22 @@ async function prepararParaConta(post, account, opcoes = {}) {
     account,
   );
 
+  /* Sem limpeza e sem nada a desenhar ou trocar: vai o arquivo enviado,
+     byte a byte, se o formato já serve. */
+  const temEdicao = !!(filtro || variacao || ganchoFiltro || trilha);
+  if (modo === 'sem_limpeza' && !temEdicao && await originalServe(absoluto)) {
+    console.log(`🎬 [MidiaPorConta] @${account.username || account.id} → original (${path.basename(relativo)})`);
+    return { caminho: relativo, proprio: false };
+  }
+
   try {
     const saida = await convertToReelFormat(absoluto, {
       processMode: modo,
       quality: opcoes.quality || 'high',
       aleatorio: criarAleatorio(semente),
       sufixo: `c${marca}`,
-      metadados,
+      // Metadado "de celular" só nos modos de limpeza; sem limpeza não inventa nada.
+      ...(modo === 'sem_limpeza' ? {} : { metadados }),
       ...(filtro ? { marcaDagua: filtro } : {}),
       ...(variacao ? { variacao } : {}),
       ...(ganchoFiltro ? { ganchoFiltro } : {}),

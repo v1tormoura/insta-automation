@@ -245,14 +245,6 @@ describe('todos os caminhos de publicação passam por aqui', () => {
     expect(worker).toContain('const { mediaId } = await publicar(conta, postDaConta);');
   });
 
-  test('modos determinísticos são promovidos antes de gerar o arquivo', () => {
-    /* `limpeza_leve` não faz nenhuma chamada aleatória — provado com dois
-       encodes do mesmo vídeo dando o mesmo SHA-256. Deixá-lo passar faria a
-       semente por conta não mudar nada. */
-    const fonte = fs.readFileSync(path.resolve(__dirname, '../src/services/midiaPorConta.js'), 'utf8');
-    expect(fonte).toContain("VARIAM = new Set(['ultra_clean', 'humanizador'])");
-    expect(fonte).toContain("VARIAM.has(pedido) ? pedido : 'humanizador'");
-  });
 });
 
 describe('o ritmo entre contas', () => {
@@ -276,5 +268,51 @@ describe('falha na conversão não impede a publicação', () => {
     // Perder a variação é ruim; não publicar é pior.
     const r = await prepararParaConta({ id: 'p1', media: 'nao-existe-mesmo.mp4' }, { id: 'c1', username: 'x' });
     expect(r).toEqual({ caminho: 'nao-existe-mesmo.mp4', proprio: false });
+  });
+});
+
+/* O modo escolhido na tela é o modo usado. Antes, `sem_limpeza` e
+   `limpeza_leve` viravam `humanizador` em silêncio (tom do áudio, micro-corte,
+   cor) — a tela prometia "o vídeo original, sem alterar nada". */
+talvez('o modo escolhido é respeitado', () => {
+  jest.setTimeout(180000);
+  const { prepararParaConta } = require('../src/services/midiaPorConta');
+  let dir, mp4, comMp3;
+
+  beforeAll(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-modo-'));
+    mp4 = path.join(dir, 'original.mp4');
+    comMp3 = path.join(dir, 'audio-mp3.mp4');
+    const base = ['-hide_banner', '-loglevel', 'error',
+      '-f', 'lavfi', '-i', 'testsrc2=size=720x1280:rate=24:duration=1',
+      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', '-c:v', 'libx264', '-shortest'];
+    await execFileAsync(ffmpegStatic, [...base, '-c:a', 'aac', '-y', mp4]);
+    await execFileAsync(ffmpegStatic, [...base, '-c:a', 'libmp3lame', '-y', comMp3]);
+  });
+  afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* já foi */ } });
+
+  const conta = { id: 'c1', username: 'loja' };
+
+  test('sem limpeza: vai o arquivo enviado, sem conversão', async () => {
+    const r = await prepararParaConta({ id: 'p1', media: mp4, processMode: 'sem_limpeza' }, conta);
+    expect(r).toEqual({ caminho: mp4, proprio: false });
+  });
+
+  test('sem modo nenhum, o padrão é o original', async () => {
+    const r = await prepararParaConta({ id: 'p2', media: mp4 }, conta);
+    expect(r).toEqual({ caminho: mp4, proprio: false });
+  });
+
+  test('sem limpeza com formato que a API não aceita: converte', async () => {
+    const r = await prepararParaConta({ id: 'p3', media: comMp3, processMode: 'sem_limpeza' }, conta);
+    expect(r.proprio).toBe(true);
+    try { fs.unlinkSync(path.resolve(__dirname, '../uploads', r.caminho)); } catch { /* ok */ }
+  });
+
+  test('humanizador escolhido de propósito continua valendo', async () => {
+    const r = await prepararParaConta({ id: 'p4', media: mp4, processMode: 'humanizador' }, conta);
+    expect(r.proprio).toBe(true);
+    expect(r.caminho).toMatch(/human|c[0-9a-f]/);
+    try { fs.unlinkSync(path.resolve(__dirname, '../uploads', r.caminho)); } catch { /* ok */ }
   });
 });

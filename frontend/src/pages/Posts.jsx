@@ -313,7 +313,7 @@ export default function Posts() {
   const [scheduledAt, setScheduledAt] = useState('');
   const [intervalMins, setIntervalMins] = useState(3);   // backend exige >= 1
   const [simultaneousLimit, setSimultaneousLimit] = useState(1);
-  const [processMode, setProcessMode] = useState('limpeza_leve');
+  const [processMode, setProcessMode] = useState('sem_limpeza');
   const [toast, setToast] = useState(null);
   const [legends, setLegends] = useState([]);
   const [selectedLegend, setSelectedLegend] = useState('');
@@ -679,10 +679,10 @@ export default function Posts() {
   }
 
   const processModes = [
-    { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'SAFE',  desc: 'Posta o vídeo original, sem alterar nada',                          color: 'var(--mf-success-500)' },
-    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'RECOM', desc: 'Remove metadados e gera hash diferente',                            color: 'var(--mf-info-500)' },
+    { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'RECOM', desc: 'Posta o vídeo original, sem alterar nada',                          color: 'var(--mf-success-500)' },
+    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'LEVE',  desc: 'Remove metadados e gera hash diferente',                            color: 'var(--mf-info-500)' },
     { id: 'ultra_clean',  label: 'Ultra Clean',  tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo',                        color: 'var(--mf-mod-publicar)' },
-    { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + pitch áudio + CRF aleatório — fingerprint único', color: 'var(--mf-warning-500)' },
+    { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + tom do áudio alterados — pode reduzir o alcance', color: 'var(--mf-warning-500)' },
   ];
 
   /* ── Icon ── */

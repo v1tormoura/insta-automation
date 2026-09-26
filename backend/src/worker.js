@@ -176,7 +176,7 @@ async function postDaRodada(job, media, rodada, legenda) {
       media, jobId: job.id, jobRound: rodada, jobCiclo: job.ciclo || 0, jobName: job.name || '', usuarioId: job.usuarioId,
       mediaType: video ? 'video' : 'image', postType,
       cover: job.cover || '', caption: legenda ?? (job.caption || ''), ctaComment: job.ctaComment || '',
-      processMode: job.processMode || 'limpeza_leve',
+      processMode: job.processMode || 'sem_limpeza',
       marcaDagua: job.marcaDagua?.ativa ? job.marcaDagua : null,
       variacaoEdicao: job.variacaoEdicao?.ativa ? job.variacaoEdicao : null,
       trilha: job.trilha?.modo && job.trilha.modo !== 'nenhuma' && job.trilha.ids?.length ? job.trilha : null,

@@ -493,6 +493,7 @@ function jpegParaInstagram(inputPath, tipo = 'feed') {
 
 module.exports = {
   convertToReelFormat,
+  probeVideo,
   jpegParaInstagram,
   isVideo,
   isImage,

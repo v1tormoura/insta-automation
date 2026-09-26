@@ -19,10 +19,10 @@ const METRICS  = ['Views','Alcance','Likes','Coments','Saves','Shares'];
 const PERIODS  = ['7d','30d','90d','1a'];
 const TYPES    = ['Tudo','Reels','Carrossel','Foto'];
 const CLEAN_MODES = [
-  { value: 'limpeza_leve', label: 'Light (recomenda)' },
+  { value: 'sem_limpeza',  label: 'Sem limpeza (recomendado)' },
+  { value: 'limpeza_leve', label: 'Limpeza leve' },
   { value: 'ultra_clean',  label: 'Ultra Clean' },
-  { value: 'humanizador',  label: 'Humanizador (MAX)' },
-  { value: 'sem_limpeza',  label: 'Sem limpeza' },
+  { value: 'humanizador',  label: 'Humanizador (pode reduzir alcance)' },
 ];
 
 const RANK_COLORS = ['var(--mf-mod-publicar)','var(--mf-info-500)','var(--mf-mod-contas)','var(--mf-success-500)','var(--mf-warning-500)','var(--mf-danger-500)'];
@@ -152,7 +152,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
 function RepublishModal({ ins, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [postType, setPostType]   = useState(ins.mediaType === 'IMAGE' ? 'post' : 'reel');
-  const [cleanMode, setCleanMode] = useState('limpeza_leve');
+  const [cleanMode, setCleanMode] = useState('sem_limpeza');
   const [interval, setInterval]   = useState('3');
   const [scheduled, setScheduled] = useState('');
   const [loading, setLoading]     = useState(false);
@@ -353,7 +353,7 @@ function MiniaturaSelecionada({ ins, i }) {
 function BulkRepublishModal({ insArray, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [postType, setPostType]   = useState('reel');
-  const [cleanMode, setCleanMode] = useState('limpeza_leve');
+  const [cleanMode, setCleanMode] = useState('sem_limpeza');
   const [interval, setInterval]   = useState('3');
   const [scheduled, setScheduled] = useState('');
   const [progress, setProgress]   = useState(null);

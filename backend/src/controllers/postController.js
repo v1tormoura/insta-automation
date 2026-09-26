@@ -95,7 +95,7 @@ exports.createPost = async (req, res) => {
     caption: req.body.caption || '',
     cover: capa ? capa.filename : (req.body.coverFilename || ''),
     ctaComment: req.body.ctaComment || '',
-    processMode: req.body.processMode || 'limpeza_leve',
+    processMode: req.body.processMode || 'sem_limpeza',
     intervalMinutes,
     simultaneousLimit,
     totalRounds,

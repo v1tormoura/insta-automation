@@ -21,6 +21,8 @@ const { gerarMiniatura } = require('../services/miniaturaDeVideo');
 const UPLOADS = path.resolve(__dirname, '../../uploads');
 const ehVideo = nome => /\.(mp4|mov|webm|avi|mkv)$/i.test(nome || '');
 
+const MODOS = ['sem_limpeza', 'limpeza_leve', 'ultra_clean', 'humanizador'];
+
 const STATUS_DO_LOOP = {
   queued: 'ativo', running: 'ativo', waiting_interval: 'ativo',
   paused: 'pausado', completed: 'inativo', cancelled: 'inativo', failed: 'erro',
@@ -105,7 +107,7 @@ exports.create = async (req, res) => {
     caption: caption || '',
     cover: coverFile || '',
     ctaComment: ctaComment || '',
-    processMode: processMode || 'limpeza_leve',
+    processMode: processMode || 'sem_limpeza',
     intervalMinutes: Number(intervalMinutes),
     simultaneousLimit: 1,
     totalRounds: filaOrdenada.length,
@@ -142,8 +144,9 @@ exports.remove = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const { name, intervalMinutes, caption, ctaComment, mediaFiles } = req.body;
+  const { name, intervalMinutes, caption, ctaComment, mediaFiles, processMode } = req.body;
   const patch = {};
+  if (MODOS.includes(processMode)) patch.processMode = processMode;
   if (name !== undefined) patch.name = name;
   if (intervalMinutes !== undefined) patch.intervalMinutes = Math.max(1, Number(intervalMinutes) || 1);
   if (caption !== undefined) patch.caption = caption;

@@ -112,7 +112,7 @@ exports.republishPost = async (req, res) => {
     mediaType: video ? 'video' : 'image',
     postType: postType || (video ? 'reel' : 'post'),
     caption: caption || '',
-    processMode: processMode || 'limpeza_leve',
+    processMode: processMode || 'sem_limpeza',
   };
   const inicio = scheduledAt ? new Date(scheduledAt).getTime() : Date.now();
   const intervalo = Math.max(0, Number(intervalMinutes) || 0) * 60_000;
