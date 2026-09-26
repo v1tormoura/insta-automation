@@ -1,0 +1,121 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   CORES PARA NAVEGADOR ANTIGO — gerado a partir dos tokens do tema escuro
+   ══════════════════════════════════════════════════════════════════════════
+
+   Os tokens são oklch() e color-mix(), que o Chromium só entende a partir da
+   versão 111 (2023). Navegadores anti-detect / multilogin costumam rodar um
+   núcleo mais velho — e é justamente neles que o link guiado é aberto. Lá,
+   cada `var(--mf-*)` vira valor inválido: o fundo sai branco e o texto some.
+
+   Aqui vão os mesmos tokens já convertidos para rgb, só para quem não
+   entende oklch. Navegador atual ignora este bloco inteiro. O tema claro
+   também cai no escuro nesse caso (os tokens dele são oklch e ficariam
+   inválidos), por isso os seletores cobrem `[data-tema]`.
+
+   Para regenerar: ler o valor computado de cada `--*` em [data-mf] num
+   Chromium atual e converter com um <canvas> (fillStyle → getImageData). */
+@supports not (color: oklch(0 0 0)) {
+  :root {
+    --bg: rgb(11 16 21);
+    --card-border: rgb(255 255 255 / 0.07);
+    --mf-bg: rgb(11 16 21);
+  }
+  [data-mf],
+  [data-tema] [data-mf],
+  [data-mf][data-tema] {
+    --accent: rgb(0 223 255);
+    --accent-foreground: rgb(2 8 23);
+    --amber: rgb(245 175 32);
+    --background: rgb(2 8 23);
+    --bg: rgb(2 8 23);
+    --bg2: rgb(13 23 38);
+    --bg3: rgb(22 33 49);
+    --bg4: rgb(32 43 59);
+    --bg5: rgb(32 43 59);
+    --blue: rgb(7 200 255);
+    --blue2: rgb(4 148 190);
+    --blue3: rgb(8 201 255 / 0.13);
+    --border: rgb(5 200 255 / 0.20);
+    --border2: rgb(0 224 255 / 0.26);
+    --border3: rgb(0 222 255 / 0.45);
+    --card: rgb(13 23 38);
+    --card-border: rgb(5 200 255 / 0.20);
+    --card-foreground: rgb(242 245 249);
+    --card-shine: rgb(7 201 255 / 0.30);
+    --cyan: rgb(0 223 255);
+    --cyan2: rgb(0 160 188);
+    --cyan3: rgb(0 222 255 / 0.12);
+    --cyan4: rgb(0 221 255 / 0.06);
+    --destructive: rgb(253 115 109);
+    --destructive-foreground: rgb(2 8 23);
+    --foreground: rgb(242 245 249);
+    --green: rgb(49 217 109);
+    --indigo: rgb(7 200 255);
+    --info: rgb(7 200 255);
+    --info-foreground: rgb(2 8 23);
+    --input: rgb(8 200 255 / 0.38);
+    --mf-accent-300: rgb(97 244 255);
+    --mf-accent-500: rgb(0 223 255);
+    --mf-accent-700: rgb(0 148 178);
+    --mf-bg: rgb(2 8 23);
+    --mf-border: rgb(5 200 255 / 0.20);
+    --mf-border-focus: rgb(7 200 255);
+    --mf-border-strong: rgb(8 200 255 / 0.38);
+    --mf-border-subtle: rgb(10 196 255 / 0.10);
+    --mf-casca: rgb(8 17 30 / 0.72);
+    --mf-casca-solida: rgb(8 17 31);
+    --mf-danger-500: rgb(253 115 109);
+    --mf-danger-bg: rgb(255 116 108 / 0.13);
+    --mf-flare-500: rgb(7 200 255);
+    --mf-grade: rgb(0 200 255 / 0.05);
+    --mf-info-500: rgb(7 200 255);
+    --mf-info-bg: rgb(8 201 255 / 0.13);
+    --mf-mod-campanhas: rgb(7 200 255);
+    --mf-mod-contas: rgb(7 200 255);
+    --mf-mod-jobs: rgb(7 200 255);
+    --mf-mod-metricas: rgb(7 200 255);
+    --mf-mod-publicar: rgb(7 200 255);
+    --mf-mod-sistema: rgb(7 200 255);
+    --mf-neon: rgb(0 157 255);
+    --mf-overlay: rgb(1 2 12 / 0.82);
+    --mf-primary-100: rgb(198 239 255);
+    --mf-primary-300: rgb(130 230 255);
+    --mf-primary-500: rgb(7 200 255);
+    --mf-primary-600: rgb(0 157 255);
+    --mf-primary-700: rgb(7 110 255);
+    --mf-primary-fg: rgb(4 11 25);
+    --mf-success-500: rgb(49 217 109);
+    --mf-success-bg: rgb(46 216 108 / 0.13);
+    --mf-surface-1: rgb(13 23 38);
+    --mf-surface-2: rgb(22 33 49);
+    --mf-surface-3: rgb(32 43 59);
+    --mf-text: rgb(242 245 249);
+    --mf-text-2: rgb(182 191 200);
+    --mf-text-3: rgb(143 152 162);
+    --mf-warning-500: rgb(245 175 32);
+    --mf-warning-bg: rgb(247 178 31 / 0.13);
+    --muted: rgb(22 33 49);
+    --muted-foreground: rgb(143 152 162);
+    --orange: rgb(245 175 32);
+    --pink: rgb(7 200 255);
+    --popover: rgb(22 33 49);
+    --popover-foreground: rgb(242 245 249);
+    --primary: rgb(7 200 255);
+    --primary-fg: rgb(1 6 16);
+    --primary-foreground: rgb(4 11 25);
+    --purple: rgb(7 200 255);
+    --red: rgb(253 115 109);
+    --ring: rgb(7 200 255);
+    --secondary: rgb(32 43 59);
+    --secondary-foreground: rgb(242 245 249);
+    --success: rgb(49 217 109);
+    --success-foreground: rgb(2 8 23);
+    --text: rgb(242 245 249);
+    --text2: rgb(182 191 200);
+    --text3: rgb(143 152 162);
+    --text4: rgb(182 191 200);
+    --warning: rgb(245 175 32);
+    --warning-foreground: rgb(2 8 23);
+  }
+  html, body { background: rgb(2 8 23); color: rgb(242 245 249); }
+}

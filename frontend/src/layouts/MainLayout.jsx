@@ -4,6 +4,7 @@ import '../design/tokens.css';
 import '../design/sistema.css';
 import '../design/avancado.css';
 import '../design/ponte.css';
+import '../design/cores-legado.css';
 import { removeToken, getUsuario, setUsuario, isAdmin } from '../services/auth';
 import { aoMudarConta } from '../services/contaDoUsuario';
 import api from '../services/api';
