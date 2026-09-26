@@ -96,6 +96,16 @@ export function classifyMetaError(status: number, payload: MetaErrorPayload | un
   if (code === 100 && subcode === 33) {
     return { category: 'not_found', retryable: false, message: 'Objeto não encontrado no Instagram.' };
   }
+  if (code === undefined && status !== 429) {
+    // Resposta sem o formato de erro da Graph API: veio de proxy, firewall ou
+    // balanceador no caminho, não da Meta. É problema de conectividade.
+    return {
+      category: 'transient',
+      retryable: true,
+      retryAfterMs: 2 * MIN,
+      message: `Resposta inesperada ao falar com a Meta (HTTP ${status}). Verifique se o servidor alcança graph.instagram.com.`,
+    };
+  }
   if (payload?.is_transient || code === 1 || code === 2 || status >= 500) {
     return { category: 'transient', retryable: true, retryAfterMs: MIN, message: 'Instabilidade temporária na Meta. Nova tentativa agendada.' };
   }

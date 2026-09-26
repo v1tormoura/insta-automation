@@ -133,3 +133,11 @@ describe('status agregado', () => {
     expect(deriveCampaignStatus(counts({ total: 4, canceled: 4 }), false)).toBe('CANCELED');
   });
 });
+
+describe('respostas que não vieram da Graph API', () => {
+  it('403 de proxy/firewall vira problema de conectividade retentável', () => {
+    const c = classifyMetaError(403, { message: 'Host not in allowlist' });
+    expect(c).toMatchObject({ category: 'transient', retryable: true });
+    expect(c.message).toMatch(/HTTP 403/);
+  });
+});

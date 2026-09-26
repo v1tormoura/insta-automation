@@ -1,7 +1,6 @@
 import { INSIGHT_RANGE_DAYS, type AccountInsightsDTO, type InsightRange, type MediaInsightDTO, type UnavailableMetric } from '@nexora/shared';
 import { Types } from 'mongoose';
 import { redis } from '../../infra/redis.js';
-import { AppError } from '../../lib/errors.js';
 import { DAY, HOUR, isoDate } from '../../lib/time.js';
 import { isMetaError, metaGraph } from '../../integrations/meta/index.js';
 import { ACCOUNT_TOTAL_METRICS, METRIC_LABELS, getAccountDailySeries, getAccountTotals } from '../../integrations/meta/insights.js';
@@ -92,15 +91,15 @@ export async function getAccountInsights(userId: Types.ObjectId, accountId: stri
     await redis().set(cacheKey(accountId, range), JSON.stringify(dto), 'PX', HOUR);
     return dto;
   } catch (err) {
-    if (isMetaError(err) && err.category === 'auth') {
-      await setAccountStatus(userId, account._id, 'EXPIRED', err.userMessage);
-      throw new AppError('ACCOUNT_UNAVAILABLE', err.userMessage, 409);
-    }
-    if (isMetaError(err) && err.category === 'rate_limit') {
-      throw new AppError('RATE_LIMITED', 'A Meta limitou as consultas desta conta. Tente de novo em alguns minutos.', 429);
-    }
-    if (isMetaError(err)) throw new AppError('META_ERROR', err.userMessage, 502);
-    throw err;
+    if (!isMetaError(err)) throw err;
+    // Sem a Meta, ainda mostramos o que é nosso (seguidores por snapshot) e
+    // dizemos claramente por que o resto não veio. Não entra no cache.
+    if (err.category === 'auth') await setAccountStatus(userId, account._id, 'EXPIRED', err.userMessage);
+    const reason =
+      err.category === 'rate_limit'
+        ? 'A Meta limitou as consultas desta conta. Tente de novo em alguns minutos.'
+        : err.userMessage;
+    return base([{ key: '*', reason }]);
   }
 }
 

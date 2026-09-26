@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:demo": "tsx --env-file-if-exists=../../.env scripts/seed-demo.ts"
   },
   "dependencies": {
     "@nexora/shared": "*",

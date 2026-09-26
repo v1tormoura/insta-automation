@@ -102,22 +102,24 @@ async function fetchResilient(
   const absorb = (entries: InsightEntry[]) => {
     for (const e of entries) values[e.name] = entryValue(e);
   };
+  // Só um erro "de parâmetro" (code 100) pode ser culpa de uma métrica
+  // específica. Token, permissão, rate limit e rede valem para a chamada toda.
+  const isMetricError = (err: unknown): err is MetaApiError => err instanceof MetaApiError && err.category === 'invalid_request';
   try {
     absorb(await call(metrics));
   } catch (err) {
-    if (!(err instanceof MetaApiError) || !['invalid_request', 'permission', 'not_found', 'unknown'].includes(err.category)) throw err;
-    if (metrics.length === 1) {
-      unavailable.push({ key: metrics[0]!, reason: reasonFor(err) });
-      return { values, unavailable };
-    }
+    if (!isMetricError(err)) throw err;
+    let lastError: unknown = err;
     for (const metric of metrics) {
       try {
         absorb(await call([metric]));
       } catch (single) {
-        if (!(single instanceof MetaApiError) || single.category === 'auth' || single.category === 'rate_limit') throw single;
+        if (!isMetricError(single)) throw single;
+        lastError = single;
         unavailable.push({ key: metric, reason: reasonFor(single) });
       }
     }
+    if (unavailable.length === metrics.length && metrics.length > 1) throw lastError;
   }
   for (const m of metrics) {
     if (!(m in values) && !unavailable.some((u) => u.key === m)) {

@@ -1,5 +1,3 @@
-process.env.NEXORA_PROCESS ??= 'worker';
-
 import { Worker } from 'bullmq';
 import { env } from './config/env.js';
 import { connectMongo, disconnectMongo, syncIndexes } from './infra/mongo.js';

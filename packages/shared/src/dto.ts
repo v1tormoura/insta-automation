@@ -114,6 +114,7 @@ export interface PostDTO {
   status: PostStatus;
   scheduledAt: string | null;
   campaignId: string | null;
+  accountIds: string[];
   counts: { total: number; published: number; failed: number; pending: number; canceled: number };
   jobs?: JobDTO[];
   createdAt: string;

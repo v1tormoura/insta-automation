@@ -5,7 +5,7 @@ import { REDACT_PATHS, redactText } from './redact.js';
 export const logger = pino({
   level: env.NODE_ENV === 'test' ? (process.env.TEST_LOG_LEVEL ?? 'silent') : env.LOG_LEVEL,
   redact: { paths: REDACT_PATHS, censor: '[REDACTED]' },
-  base: { service: process.env.NEXORA_PROCESS ?? 'api' },
+  base: { service: process.env.NEXORA_PROCESS ?? (/worker\.[jt]s$/.test(process.argv[1] ?? '') ? 'worker' : 'api') },
   formatters: { level: (label) => ({ level: label }) },
   // Mensagens de erro podem carregar a URL chamada; a URL pode carregar o token.
   hooks: {

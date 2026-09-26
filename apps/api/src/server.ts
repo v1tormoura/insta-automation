@@ -1,5 +1,3 @@
-process.env.NEXORA_PROCESS ??= 'api';
-
 import { mkdir } from 'node:fs/promises';
 import { env } from './config/env.js';
 import { createApp } from './http/app.js';

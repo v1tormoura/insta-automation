@@ -95,7 +95,7 @@ async function syncMediaInsights(graph: GraphClient, accountId: string): Promise
           metrics = r.values;
           unavailable = r.unavailable;
         } catch (err) {
-          if (isMetaError(err) && (err.category === 'auth' || err.category === 'rate_limit')) throw err;
+          if (isMetaError(err) && ['auth', 'rate_limit', 'transient'].includes(err.category)) throw err;
           unavailable = [{ key: '*', reason: isMetaError(err) ? err.userMessage : 'Falha ao consultar insights.' }];
         }
       } else {

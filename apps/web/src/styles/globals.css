@@ -1,0 +1,165 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/*
+ * Tokens do Nexora. O chão é quase neutro e a cor mora nos acentos: ciano é a
+ * marca, violeta a segunda voz. Status (ok/aviso/erro) são reservados e sempre
+ * acompanham ícone + texto. As cores de gráfico vêm de uma paleta validada para
+ * daltonismo (blue slot 1 + critical), separada da marca.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f5f7fa;
+  --foreground: #0b1015;
+  --card: #ffffff;
+  --card-foreground: #0b1015;
+  --popover: #ffffff;
+  --popover-foreground: #0b1015;
+  --primary: #0e7490;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f5;
+  --secondary-foreground: #0b1015;
+  --muted: #eef1f5;
+  --muted-foreground: #56606b;
+  --accent: #e8f7fb;
+  --accent-foreground: #0b1015;
+  --destructive: #c42f2f;
+  --destructive-foreground: #ffffff;
+  --success: #0d8a3e;
+  --warning: #a86500;
+  --info: #0e7490;
+  --border: #e3e7ed;
+  --input: #d7dce4;
+  --ring: #0e7490;
+  --brand: #00b4d8;
+  --brand-2: #7c66f5;
+
+  --sidebar: #ffffff;
+  --sidebar-border: #e3e7ed;
+
+  --chart-1: #2a78d6;
+  --chart-critical: #d03b3b;
+  --chart-grid: #e8ebf0;
+  --chart-surface: #ffffff;
+}
+
+.dark {
+  --background: #0b1015;
+  --foreground: #f2f5f9;
+  --card: #12171d;
+  --card-foreground: #f2f5f9;
+  --popover: #1d242b;
+  --popover-foreground: #f2f5f9;
+  --primary: #00d4ff;
+  --primary-foreground: #031018;
+  --secondary: #1d242b;
+  --secondary-foreground: #f2f5f9;
+  --muted: #1a2027;
+  --muted-foreground: #9aa3ad;
+  --accent: #172631;
+  --accent-foreground: #f2f5f9;
+  --destructive: #fd736d;
+  --destructive-foreground: #1a0606;
+  --success: #31d96d;
+  --warning: #f5af20;
+  --info: #3fdcff;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.13);
+  --ring: #00d4ff;
+  --brand: #00d4ff;
+  --brand-2: #9b88ff;
+
+  --sidebar: #0e1318;
+  --sidebar-border: rgb(255 255 255 / 0.06);
+
+  --chart-1: #3987e5;
+  --chart-critical: #d03b3b;
+  --chart-grid: rgb(255 255 255 / 0.07);
+  --chart-surface: #12171d;
+}
+
+@theme inline {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 35%, transparent);
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Brilho sutil da marca atrás de áreas de destaque. */
+  .brand-glow {
+    background-image: radial-gradient(60% 80% at 0% 0%, color-mix(in oklab, var(--brand) 14%, transparent), transparent 70%),
+      radial-gradient(50% 70% at 100% 0%, color-mix(in oklab, var(--brand-2) 12%, transparent), transparent 70%);
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

@@ -18,7 +18,11 @@ function upload() {
   return multer({ dest: dir, limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
 }
 
-const listQuery = paginationSchema.extend({ kind: z.enum(MEDIA_KINDS).optional() });
+// A biblioteca é uma grade de miniaturas: páginas maiores que as listas comuns.
+const listQuery = paginationSchema.extend({
+  pageSize: z.coerce.number().int().min(1).max(200).default(60),
+  kind: z.enum(MEDIA_KINDS).optional(),
+});
 
 function sendVariant(res: Response, key: string | null | undefined, mime: string) {
   if (!key) throw notFound('Arquivo');

@@ -93,6 +93,7 @@ export async function toPostDTOs(userId: Types.ObjectId, posts: PostDoc[]): Prom
     status: p.status,
     scheduledAt: p.scheduledAt?.toISOString() ?? null,
     campaignId: p.campaignId?.toString() ?? null,
+    accountIds: p.accountIds.map(String),
     counts: p.counts,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
