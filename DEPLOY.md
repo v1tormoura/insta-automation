@@ -128,6 +128,23 @@ O link vale 1 hora e uma vez; ao trocar a senha por ele, a pessoa sai dos outros
 cd /root/insta-nova && ./deploy.sh
 ```
 
+### Atualização automática (opcional)
+
+Liga uma vez e o servidor passa a conferir o GitHub a cada 5 minutos: se houver
+versão nova na branch em uso, roda o `./deploy.sh` sozinho. No painel aparece
+"Nova versão disponível → Atualizar" — um clique recarrega a tela.
+
+```bash
+cd /root/insta-nova && git pull && ./instalar-atualizacao-automatica.sh
+```
+
+- Log: `journalctl -u insta-nova-atualizacao -n 50`
+- Desligar: `systemctl disable --now insta-nova-atualizacao.timer`
+- Roda como root e publica o que chegar na branch sem revisão: quem puder enviar
+  código ao repositório passa a rodar código no servidor. Mantenha o acesso ao
+  GitHub restrito (e com verificação em duas etapas).
+- Se o build falhar, a versão anterior continua no ar.
+
 ## Manutenção
 
 ```bash
