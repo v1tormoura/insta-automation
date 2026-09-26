@@ -79,7 +79,7 @@ exports.getInsights = async (req, res) => {
  * de novo nas contas escolhidas, de uma vez ou espaçada por `intervalMinutes`.
  */
 exports.republishPost = async (req, res) => {
-  const { igMediaId, mediaUrl, thumbnailUrl, mediaType, caption, postType, processMode, intervalMinutes, scheduledAt } = req.body;
+  const { igMediaId, mediaUrl, thumbnailUrl, mediaType, caption, postType, intervalMinutes, scheduledAt } = req.body;
   const pedidas = [...new Set((req.body.accounts || []).map(String).filter(ehUuid))];
   const accountIds = (await accounts.de(req.user.id).porIds(pedidas)).map(c => c.id);
   if (!pedidas.length) return res.status(400).json({ error: 'Selecione ao menos uma conta' });
@@ -112,7 +112,6 @@ exports.republishPost = async (req, res) => {
     mediaType: video ? 'video' : 'image',
     postType: postType || (video ? 'reel' : 'post'),
     caption: caption || '',
-    processMode: processMode || 'sem_limpeza',
   };
   const inicio = scheduledAt ? new Date(scheduledAt).getTime() : Date.now();
   const intervalo = Math.max(0, Number(intervalMinutes) || 0) * 60_000;

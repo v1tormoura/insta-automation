@@ -267,7 +267,6 @@ function LoopModal({ onClose, onCreated }) {
     name: '', accounts: [], mediaFiles: [],
     type: 'reel', intervalMinutes: '', caption: '', coverFile: '', ctaComment: '',
     capasPorConta: [],
-    processMode: 'sem_limpeza',
     /* Ordem e marca viajam para o backend na criação do loop.
        O loop recebe NOMES de arquivo, não ids da biblioteca, então não há
        `createdAt` a consultar: só embaralhar ou manter a ordem escolhida faz
@@ -278,12 +277,6 @@ function LoopModal({ onClose, onCreated }) {
   });
   const [marcaModal, setMarcaModal] = useState(false);
 
-  const processModes = [
-    { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'RECOM', desc: 'Posta o vídeo original, sem alterar nada',             color: 'var(--mf-success-500)' },
-    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'LEVE',  desc: 'Remove metadados e gera hash diferente',                color: 'var(--mf-info-500)' },
-    { id: 'ultra_clean',  label: 'Ultra Clean',  tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo',            color: 'var(--mf-mod-publicar)' },
-    { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + tom do áudio alterados — pode reduzir o alcance',      color: 'var(--mf-warning-500)' },
-  ];
 
   useEffect(() => {
     api.get('/accounts').then(r => setAccounts(r.data?.accounts || r.data || [])).catch(() => {});
@@ -761,28 +754,6 @@ function LoopModal({ onClose, onCreated }) {
                 <div className="lm-cta-hint">Postado ~2 min após publicar · Use <code>{'{username}'}</code> <code>{'{nome}'}</code></div>
               </>
             )}
-          </div>
-
-          {/* Modo de processamento */}
-          <div className="lm-row">
-            <label className="lm-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IcoRotulo k="processo" />Modo de processamento</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-              {processModes.map(m => (
-                <div key={m.id} onClick={() => setForm(f => ({ ...f, processMode: m.id }))}
-                  style={{
-                    padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
-                    background: form.processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
-                    borderColor: form.processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
-                    transition: 'all var(--mf-fast) var(--mf-ease-out)',
-                  }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                    <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 600, color: form.processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                    <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
-                  </div>
-                  <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Ordem da fila e marca d'água ─────────────────────────────────

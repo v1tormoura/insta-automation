@@ -80,7 +80,6 @@ app.use('/insights',      auth, require('./routes/insightRoutes'));
 app.use('/analytics',     auth, require('./routes/analyticsRoutes'));
 app.use('/jobs',          auth, require('./routes/jobRoutes'));
 app.use('/meta-apps',     auth, require('./routes/metaAppRoutes'));
-app.use('/trilhas',       auth, require('./routes/trilhaRoutes'));
 app.use('/convites',      auth, require('./routes/convitesRoutes'));
 app.use('/usuarios',      auth, auth.soAdmin, require('./routes/usuariosRoutes'));
 

@@ -36,9 +36,7 @@
 const { acharFonte } = require('./textoNoStory');
 const { normalizarArroba } = require('./arrobaDoInstagram');
 
-/* A altura da tela do reel depois da cadeia de escala. Todos os modos de
-   processamento terminam em 1080×1920 — inclusive o humanizador, que corta
-   alguns pixels e volta a escalar. */
+/* A altura da tela do reel depois da conversão (videoProcessor): 1080×1920. */
 const LARGURA = 1080;
 const ALTURA  = 1920;
 

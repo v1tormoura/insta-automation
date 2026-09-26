@@ -276,11 +276,11 @@ describe('o texto nunca vem do job', () => {
   });
 
   test('a marca entra no nome do arquivo convertido', () => {
-    /* `sem_limpeza` reaproveita o arquivo já convertido pelo caminho de saída.
+    /* A conversão reaproveita o arquivo já convertido pelo caminho de saída.
        Sem a marca no nome, duas contas com o mesmo vídeo compartilhariam o
        arquivo e o @ da primeira apareceria no vídeo da segunda. */
     const vp = ler('../src/services/videoProcessor.js');
-    expect(vp).toMatch(/suffix \+= `-m\$\{digital\}`/);
+    expect(vp).toMatch(/if \(marca\) suffix \+= `-m\$\{/);
   });
 
   test('a marca desce do job e da campanha para o post', () => {

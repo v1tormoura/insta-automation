@@ -298,8 +298,6 @@ async function processarPublicacao(publicationId, deps = {}) {
       postType,
       cover: video ? await _arquivoDaCapa(campanha, pub.contentId, pub.accountId) : '',
       caption: legendaFinal,
-      // `humanizador`: `limpeza_leve` é determinístico e daria o mesmo arquivo a todas as contas.
-      processMode: campanha.settings?.processMode || 'sem_limpeza',
       marcaDagua: campanha.settings?.marcaDagua?.ativa ? campanha.settings.marcaDagua : null,
       accountIds: [conta.id],
       status: 'processando',

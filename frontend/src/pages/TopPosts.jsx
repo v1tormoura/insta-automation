@@ -18,12 +18,6 @@ const proxyImg = url => {
 const METRICS  = ['Views','Alcance','Likes','Coments','Saves','Shares'];
 const PERIODS  = ['7d','30d','90d','1a'];
 const TYPES    = ['Tudo','Reels','Carrossel','Foto'];
-const CLEAN_MODES = [
-  { value: 'sem_limpeza',  label: 'Sem limpeza (recomendado)' },
-  { value: 'limpeza_leve', label: 'Limpeza leve' },
-  { value: 'ultra_clean',  label: 'Ultra Clean' },
-  { value: 'humanizador',  label: 'Humanizador (pode reduzir alcance)' },
-];
 
 const RANK_COLORS = ['var(--mf-mod-publicar)','var(--mf-info-500)','var(--mf-mod-contas)','var(--mf-success-500)','var(--mf-warning-500)','var(--mf-danger-500)'];
 
@@ -152,7 +146,6 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
 function RepublishModal({ ins, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [postType, setPostType]   = useState(ins.mediaType === 'IMAGE' ? 'post' : 'reel');
-  const [cleanMode, setCleanMode] = useState('sem_limpeza');
   const [interval, setInterval]   = useState('3');
   const [scheduled, setScheduled] = useState('');
   const [loading, setLoading]     = useState(false);
@@ -210,7 +203,7 @@ function RepublishModal({ ins, onClose, accounts }) {
         igMediaId: ins.igMediaId, mediaUrl: ins.mediaUrl,
         thumbnailUrl: coverUrl,
         mediaType: ins.mediaType, caption: effectiveCaption, accounts: selectedAccounts,
-        postType, processMode: cleanMode, intervalMinutes: Number(interval) || 3,
+        postType, intervalMinutes: Number(interval) || 3,
         scheduledAt: scheduled || undefined,
       });
       setDone(true);
@@ -312,7 +305,7 @@ function RepublishModal({ ins, onClose, accounts }) {
               </div>
             )}
 
-            <PostSettings postType={postType} setPostType={setPostType} cleanMode={cleanMode} setCleanMode={setCleanMode} interval={interval} setInterval={setInterval} />
+            <PostSettings postType={postType} setPostType={setPostType} interval={interval} setInterval={setInterval} />
             <ScheduleField scheduled={scheduled} setScheduled={setScheduled} />
             {error && <ErrorBox msg={error} />}
           </div>
@@ -353,7 +346,6 @@ function MiniaturaSelecionada({ ins, i }) {
 function BulkRepublishModal({ insArray, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [postType, setPostType]   = useState('reel');
-  const [cleanMode, setCleanMode] = useState('sem_limpeza');
   const [interval, setInterval]   = useState('3');
   const [scheduled, setScheduled] = useState('');
   const [progress, setProgress]   = useState(null);
@@ -423,7 +415,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           mediaType: ins.mediaType,
           caption: effectiveCaption !== null ? effectiveCaption : (ins.caption || ''),
           accounts: selectedAccounts, postType,
-          processMode: cleanMode, intervalMinutes: Number(interval) || 3,
+          intervalMinutes: Number(interval) || 3,
           scheduledAt: scheduled || undefined,
         });
         successCount++;
@@ -464,7 +456,7 @@ function BulkRepublishModal({ insArray, onClose, accounts }) {
           {/* Right: settings */}
           <div style={{ padding:'16px 24px', display:'flex', flexDirection:'column', gap:16, maxHeight:520, overflowY:'auto' }}>
             <AccountSelector accounts={accounts} selectedAccounts={selectedAccounts} onToggle={toggle} onSelectAll={selectAll} onClearAll={clearAll} />
-            <PostSettings postType={postType} setPostType={setPostType} cleanMode={cleanMode} setCleanMode={setCleanMode} interval={interval} setInterval={setInterval} />
+            <PostSettings postType={postType} setPostType={setPostType} interval={interval} setInterval={setInterval} />
 
             {/* Caption mode */}
             <div>
@@ -594,12 +586,11 @@ function AccountSelector({ accounts, selectedAccounts, onToggle, onSelectAll, on
 }
 
 
-function PostSettings({ postType, setPostType, cleanMode, setCleanMode, interval, setInterval }) {
+function PostSettings({ postType, setPostType, interval, setInterval }) {
   return (
     <div className="g3" style={{ gap:12 }}>
       {[
         { label:'Tipo', value:postType, setValue:setPostType, options:[['reel','Reels'],['post','Foto'],['story','Story']] },
-        { label:'Clean mode', value:cleanMode, setValue:setCleanMode, options:CLEAN_MODES.map(m=>[m.value,m.label]) },
       ].map(({ label, value, setValue, options }) => (
         <div key={label}>
           <label style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontWeight:600, display:'block', marginBottom:4 }}>{label}</label>

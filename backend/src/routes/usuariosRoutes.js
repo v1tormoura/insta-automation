@@ -101,7 +101,7 @@ router.post('/:id/reativar', async (req, res) => {
 
 /**
  * Apaga o usuário. As linhas dele saem em cascata (contas, envios, campanhas,
- * métricas…); os arquivos da biblioteca e das trilhas saem do disco.
+ * métricas…); os arquivos da biblioteca saem do disco.
  */
 router.delete('/:id', async (req, res) => {
   const u = await alvo(req, res);
@@ -111,10 +111,7 @@ router.delete('/:id', async (req, res) => {
   }
 
   await pausarTudo(u.id);
-  const [midias, trilhas] = await Promise.all([
-    sql`select filename from media where usuario_id = ${u.id} and filename not like '\\_\\_folder\\_%'`,
-    sql`select arquivo from trilhas where usuario_id = ${u.id}`,
-  ]);
+  const midias = await sql`select filename from media where usuario_id = ${u.id} and filename not like '\\_\\_folder\\_%'`;
   await sql`delete from usuarios where id = ${u.id}`;
 
   const { nomeDaMiniatura } = require('../services/miniaturaDeVideo');
@@ -123,7 +120,6 @@ router.delete('/:id', async (req, res) => {
     if (alvoArq.startsWith(UPLOADS + path.sep)) fs.rmSync(alvoArq, { force: true });
   };
   for (const { filename } of midias) { apagar(filename); apagar(nomeDaMiniatura(filename)); }
-  for (const { arquivo } of trilhas) apagar(arquivo);
 
   console.log(`🗑️  [Usuários] ${u.email} apagado (${midias.length} mídia(s))`);
   broadcast('usuarios', { action: 'apagado', id: u.id }, req.user.id);

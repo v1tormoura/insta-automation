@@ -48,5 +48,4 @@ module.exports = {
   posts: tabela('posts'),
   pushSubscriptions: tabela('push_subscriptions'),
   seguidoresDoDia: tabela('seguidores_do_dia'),
-  trilhas: tabela('trilhas'),
 };

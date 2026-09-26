@@ -10,12 +10,10 @@ import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import CapasPorPerfil from '../components/CapasPorPerfil';
-import ConfirmModal from '../components/ConfirmModal';
 import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import { useCotas, diasPelaCota } from '../services/useCotas';
 import TituloDeCartao from '../components/TituloDeCartao';
-import CartaoRecolhivel from '../components/CartaoRecolhivel';
 import CardMetadados from '../components/CardMetadados';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
@@ -294,8 +292,6 @@ export default function Posts() {
   const [capaPorPerfil, setCapaPorPerfil] = useState(false);
   const [capasPorConta, setCapasPorConta] = useState({});
   const [pickerCapaDe, setPickerCapaDe] = useState(null);   // accountId aguardando escolha na biblioteca
-  /* A trilha aguardando confirmação na caixa do painel. */
-  const [trilhaParaRemover, setTrilhaParaRemover] = useState(null);
 
   /* A biblioteca guarda o arquivo em `filename` e o caminho servido em `url`,
      e nenhum dos dois é obrigatório. Derivar aqui, uma vez, evita repetir a
@@ -313,7 +309,6 @@ export default function Posts() {
   const [scheduledAt, setScheduledAt] = useState('');
   const [intervalMins, setIntervalMins] = useState(3);   // backend exige >= 1
   const [simultaneousLimit, setSimultaneousLimit] = useState(1);
-  const [processMode, setProcessMode] = useState('sem_limpeza');
   const [toast, setToast] = useState(null);
   const [legends, setLegends] = useState([]);
   const [selectedLegend, setSelectedLegend] = useState('');
@@ -353,52 +348,6 @@ export default function Posts() {
   const [rodizioDeMidias, setRodizioDeMidias] = useState(false);
   const [loopInfinito,    setLoopInfinito]    = useState(false);
   const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
-  /* Variação de edição por conta — ver backend/services/variacaoDeEdicao.js.
-     Guarda só as opções; qual combinação cada conta recebe é sorteado na hora
-     de publicar, com semente em (post, conta). */
-  const [varEdicao, setVarEdicao] = useState({ ativa: false, ganchos: [] });
-  const [ganchoNovo, setGanchoNovo] = useState('');
-
-  /* ── Trilha de áudio por conta ────────────────────────────────────────────
-     `modo` nenhuma | substituir | misturar; `ids` as trilhas da biblioteca
-     entre as quais cada conta sorteia; `volume` 0.05..1.5. Só as OPÇÕES vão
-     no job — o sorteio é na publicação (services/trilhaPorConta.js). */
-  const [trilha, setTrilha] = useState({ modo: 'nenhuma', ids: [], volume: 1 });
-  const [trilhas, setTrilhas] = useState([]);
-  const [enviandoTrilha, setEnviandoTrilha] = useState(false);
-  const trilhaUploadRef = useRef();
-
-  async function carregarTrilhas() {
-    try { const r = await api.get('/trilhas'); setTrilhas(Array.isArray(r.data) ? r.data : []); } catch { /* segue sem este dado */ }
-  }
-  async function enviarTrilha(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    setEnviandoTrilha(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const r = await api.post('/trilhas', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setTrilhas(prev => [r.data, ...prev]);
-      // Quem acabou de subir uma trilha quer usá-la: já entra marcada.
-      setTrilha(cfg => ({ ...cfg, ids: [...cfg.ids, r.data.id] }));
-      showToast('success', 'Trilha', `"${r.data.nome}" adicionada à biblioteca.`);
-    } catch (err) {
-      showToast('error', 'Erro', err?.response?.data?.error || 'Falha ao enviar a trilha.');
-    } finally { setEnviandoTrilha(false); }
-  }
-  async function removerTrilha(tr) {
-    if (!tr) return;
-    setTrilhaParaRemover(null);
-    try {
-      await api.delete(`/trilhas/${tr.id}`);
-      setTrilhas(prev => prev.filter(x => x.id !== tr.id));
-      setTrilha(cfg => ({ ...cfg, ids: cfg.ids.filter(id => id !== tr.id) }));
-    } catch (err) {
-      showToast('error', 'Erro', err?.response?.data?.error || 'Falha ao remover a trilha.');
-    }
-  }
   const [marcaModal,      setMarcaModal]      = useState(false);
 
   /* ── Configurações de envio ───────────────────────────────────────────────
@@ -441,7 +390,6 @@ export default function Posts() {
         if (d.postType) setPostType(d.postType);
         if (d.intervalMins !== undefined) setIntervalMins(d.intervalMins);
         if (d.simultaneousLimit !== undefined) setSimultaneousLimit(d.simultaneousLimit);
-        if (d.processMode) setProcessMode(d.processMode);
         if (d.ctaComment !== undefined) setCtaComment(d.ctaComment);
         if (Array.isArray(d.selectedAccounts) && d.selectedAccounts.length) setSelectedAccounts(d.selectedAccounts);
         if (d.mediaSource) setMediaSource(d.mediaSource);
@@ -453,7 +401,6 @@ export default function Posts() {
         if (d.nomeDoEnvio !== undefined) setNomeDoEnvio(d.nomeDoEnvio);
         if (d.postsPor24h !== undefined) setPostsPor24h(d.postsPor24h);
         if (d.aquecimento !== undefined) setAquecimento(!!d.aquecimento);
-        if (d.trilha && typeof d.trilha === 'object') setTrilha({ modo: 'nenhuma', volume: 1, ...d.trilha, ids: Array.isArray(d.trilha.ids) ? d.trilha.ids : [] });
         if (d.legendaAleatoria && typeof d.legendaAleatoria === 'object') setLegendaAleatoria({ ativa: !!d.legendaAleatoria.ativa, categoria: String(d.legendaAleatoria.categoria || '') });
         if (d.capaPorPerfil !== undefined) setCapaPorPerfil(!!d.capaPorPerfil);
         if (d.capasPorConta && typeof d.capasPorConta === 'object') {
@@ -469,16 +416,16 @@ export default function Posts() {
   useEffect(() => {
     try {
       localStorage.setItem(DRAFT_POSTS_KEY, JSON.stringify({
-        caption, postType, intervalMins, simultaneousLimit, processMode,
+        caption, postType, intervalMins, simultaneousLimit,
         ctaComment, selectedAccounts, mediaSource,
         ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua,
-        nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil,
+        nomeDoEnvio, postsPor24h, aquecimento, legendaAleatoria, capaPorPerfil,
         /* Só o que veio da biblioteca: um File escolhido do computador não
            sobrevive ao refresh, e guardar só o nome enganaria. */
         capasPorConta: Object.fromEntries(Object.entries(capasPorConta).filter(([, c]) => c?.arquivo).map(([id, c]) => [id, { arquivo: c.arquivo, url: c.url, rotulo: c.rotulo }])),
       }));
     } catch { /* segue sem este dado */ }
-  }, [caption, postType, intervalMins, simultaneousLimit, processMode, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, trilha, legendaAleatoria, capaPorPerfil, capasPorConta]);
+  }, [caption, postType, intervalMins, simultaneousLimit, ctaComment, selectedAccounts, mediaSource, ordemDasMidias, midiasAleatorias, rodizioDeMidias, loopInfinito, marcaDagua, nomeDoEnvio, postsPor24h, aquecimento, legendaAleatoria, capaPorPerfil, capasPorConta]);
 
   /* A biblioteca, do jeito que o sorteio a vê: só ativas, agrupadas por
      categoria. É o que o bloco "sortear a cada post" mostra — o mesmo filtro
@@ -529,7 +476,6 @@ export default function Posts() {
       api.get('/accounts?limit=200'),
       api.get('/legends'),
     ]);
-    carregarTrilhas();
     if (postsR.status === 'fulfilled') {
       setPosts(postsR.value.data.posts || []);
       setPostPagination(postsR.value.data.pagination || null);
@@ -622,7 +568,6 @@ export default function Posts() {
     form.append('accounts', JSON.stringify(selectedAccounts));
     form.append('intervalMinutes', intervalMins);
     form.append('simultaneousLimit', simultaneousLimit);
-    form.append('processMode', processMode);
     /* Ordem, loop e marca. `multipart/form-data` só carrega texto — por isso a
        marca vai como JSON e os booleanos como 'true'/'false'. O backend aceita
        as duas formas; ver `lerDoCorpo` em marcaDagua.js. */
@@ -635,8 +580,6 @@ export default function Posts() {
        usuário. Sem o campo, o backend (`normalizarTeto` → null) não mexe no
        `dailyPostLimit` das contas — cada uma mantém o seu. */
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
-    if (varEdicao.ativa) form.append('variacaoEdicao', JSON.stringify(varEdicao));
-    if (trilha.modo !== 'nenhuma' && trilha.ids.length) form.append('trilha', JSON.stringify(trilha));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
     setPosting(true);
@@ -678,12 +621,6 @@ export default function Posts() {
     return 'badge-gray';
   }
 
-  const processModes = [
-    { id: 'sem_limpeza',  label: 'Sem Limpeza',  tag: 'RECOM', desc: 'Posta o vídeo original, sem alterar nada',                          color: 'var(--mf-success-500)' },
-    { id: 'limpeza_leve', label: 'Limpeza Leve', tag: 'LEVE',  desc: 'Remove metadados e gera hash diferente',                            color: 'var(--mf-info-500)' },
-    { id: 'ultra_clean',  label: 'Ultra Clean',  tag: 'ULTRA', desc: 'Remove todos metadados + re-encoda o vídeo',                        color: 'var(--mf-mod-publicar)' },
-    { id: 'humanizador',  label: 'Humanizador',  tag: 'MAX',   desc: 'Micro-crop + cor + tom do áudio alterados — pode reduzir o alcance', color: 'var(--mf-warning-500)' },
-  ];
 
   /* ── Icon ── */
   const pageIcon = (
@@ -792,15 +729,6 @@ export default function Posts() {
             )}
             {/* Picker de capa POR PERFIL: mesma biblioteca, mas o resultado vai
                 para a conta que abriu o modal. */}
-            <ConfirmModal
-              open={!!trilhaParaRemover}
-              title={`Remover "${trilhaParaRemover?.nome || ''}" da biblioteca?`}
-              message="A trilha sai da lista e não poderá mais ser escolhida em novos envios."
-              detalhe={<>Publicações <strong style={{ color: 'var(--mf-text)' }}>já criadas</strong> que a usam vão sair <strong style={{ color: 'var(--mf-text)' }}>sem trilha</strong> — o arquivo de áudio some do servidor.</>}
-              confirmLabel="Remover trilha"
-              onConfirm={() => removerTrilha(trilhaParaRemover)}
-              onCancel={() => setTrilhaParaRemover(null)}
-            />
 
             {pickerCapaDe && (
               <LibraryPickerModal
@@ -1136,7 +1064,7 @@ export default function Posts() {
                 <div style={{ marginTop: 10, borderTop: '1px solid var(--mf-border)', paddingTop: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-mod-publicar)', fontWeight: 700, marginBottom: 4 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
-                    Variação por conta
+                    Variação de legenda
                     <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 600, color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>engajamento</span>
                   </div>
                   <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.65 }}>
@@ -1210,181 +1138,6 @@ export default function Posts() {
               )}
             </div>
 
-            {/* ── Modo de processamento ──────────────────────────────────────
-                Morava na coluna da direita, entre o ritmo e as contas. Veio
-                para cá por duas razões que apontam para o mesmo lugar: ele é
-                sobre a MÍDIA — como o vídeo é tratado antes de sair — e por
-                isso pertence ao lado do conteúdo, não das configurações de
-                ritmo; e a coluna da esquerda acabava no comentário fixado
-                enquanto a direita seguia por mais uma tela, deixando um vazio
-                do tamanho deste card exatamente onde ele agora está. */}
-            {/* ── Variação de edição por conta ────────────────────────────
-                Vizinha do modo de processamento porque as duas tratam do PREPARO
-                da mídia — mas fazem coisas diferentes: o modo deixa o arquivo
-                único em bytes, esta muda a EDIÇÃO que cada conta publica. */}
-            <CartaoRecolhivel
-              icone="processo"
-              titulo="Variação por conta"
-              resumo={varEdicao.ativa ? (varEdicao.ganchos.length ? `${varEdicao.ganchos.length} gancho(s)` : 'ligada') : 'desligada'}
-            >
-              <div style={cardBodyStyle}>
-                <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:12 }}>
-                  <input type="checkbox" checked={varEdicao.ativa}
-                    onChange={e => setVarEdicao(v => ({ ...v, ativa: e.target.checked }))} />
-                  <span style={{ fontSize:'var(--mf-t-sm)', fontWeight:600 }}>
-                    Cada conta publica uma edição diferente
-                  </span>
-                </label>
-
-                <p style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.65, margin:'0 0 14px' }}>
-                  Sorteia por conta o <strong>início do corte</strong> (0 / 0,6 / 1,2s), a
-                  <strong> velocidade</strong> (1,00 / 1,04 / 1,07) e um <strong>gancho</strong> de texto
-                  nos primeiros segundos. Serve para as contas não publicarem a mesma abertura —
-                  é o que mais pesa na retenção.
-                </p>
-
-                <div style={{ opacity: varEdicao.ativa ? 1 : .45, pointerEvents: varEdicao.ativa ? 'auto' : 'none' }}>
-                  <label style={rotuloForm}>Ganchos (opcional — um por linha)</label>
-                  <div style={{ display:'flex', gap:8, marginBottom:8 }}>
-                    <input className="inp" style={{ flex:1 }} value={ganchoNovo}
-                      placeholder="Ex.: Assiste até o final"
-                      onChange={e => setGanchoNovo(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key !== 'Enter') return;
-                        e.preventDefault();
-                        const t = ganchoNovo.trim();
-                        if (!t) return;
-                        setVarEdicao(v => ({ ...v, ganchos: [...v.ganchos, t].slice(0, 20) }));
-                        setGanchoNovo('');
-                      }} />
-                    <button type="button" className="btn-ghost"
-                      onClick={() => {
-                        const t = ganchoNovo.trim();
-                        if (!t) return;
-                        setVarEdicao(v => ({ ...v, ganchos: [...v.ganchos, t].slice(0, 20) }));
-                        setGanchoNovo('');
-                      }}>Adicionar</button>
-                  </div>
-
-                  {varEdicao.ganchos.length > 0 && (
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                      {varEdicao.ganchos.map((g, i) => (
-                        <span key={`${g}-${i}`} style={{ display:'inline-flex', alignItems:'center', gap:6,
-                          fontSize:'var(--mf-t-micro)', padding:'4px 8px', borderRadius:'var(--mf-r-full)',
-                          background:'var(--mf-surface-2)', border:'1px solid var(--mf-border)', color:'var(--mf-text-2)' }}>
-                          {g}
-                          <button type="button" aria-label={`Remover ${g}`}
-                            onClick={() => setVarEdicao(v => ({ ...v, ganchos: v.ganchos.filter((_, j) => j !== i) }))}
-                            style={{ background:'none', border:'none', color:'var(--mf-text-3)', cursor:'pointer', lineHeight:1, padding:0 }}>×</button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:10, lineHeight:1.6 }}>
-                    Sem ganchos, a variação ainda muda corte e velocidade. O texto some
-                    depois de 2,5s e sai com contorno, para aparecer sobre qualquer fundo.
-                  </div>
-                </div>
-              </div>
-            </CartaoRecolhivel>
-
-            {/* ── Trilha de áudio por conta ────────────────────────────────
-                Vizinha da variação de edição porque é o mesmo movimento — mudar
-                o que cada conta publica — só que no ÁUDIO, que é o sinal mais
-                forte do reconhecimento de conteúdo reutilizado. Substituir muda
-                o fingerprint; misturar não, e a tela diz isso. */}
-            <CartaoRecolhivel
-              icone="processo"
-              titulo="Trilha de áudio"
-              resumo={trilha.modo === 'nenhuma' ? 'original' : `${trilha.modo} · ${trilha.ids.length} trilha(s)`}
-            >
-              <div style={cardBodyStyle}>
-                <input ref={trilhaUploadRef} type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg" style={{ display:'none' }} onChange={enviarTrilha} />
-
-                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
-                  {[
-                    ['nenhuma',    'Manter o áudio original',       'Nada muda.'],
-                    ['substituir', 'Substituir pela trilha',        'O original sai. É o único modo que muda o fingerprint de áudio — só para vídeo sem fala.'],
-                    ['misturar',   'Misturar por baixo do original', 'Clima. NÃO muda o fingerprint: o original continua lá, e o reconhecimento ouve através de fundo.'],
-                  ].map(([modo, rotulo, nota]) => (
-                    <label key={modo} style={{ display:'flex', gap:10, alignItems:'flex-start', cursor:'pointer', padding:'8px 10px', borderRadius:'var(--mf-r-sm)', border:`1px solid ${trilha.modo === modo ? 'var(--mf-mod-publicar)' : 'var(--mf-border)'}`, background: trilha.modo === modo ? 'color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent)' : 'transparent' }}>
-                      <input type="radio" name="trilha-modo" checked={trilha.modo === modo} onChange={() => setTrilha(t => ({ ...t, modo, volume: modo === 'misturar' ? Math.min(t.volume, 0.5) : t.volume }))} style={{ marginTop:3 }} />
-                      <span style={{ flex:1 }}>
-                        <span style={{ display:'block', fontSize:'var(--mf-t-sm)', fontWeight:600 }}>{rotulo}</span>
-                        <span style={{ display:'block', fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.5, marginTop:2 }}>{nota}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-
-                <div style={{ opacity: trilha.modo !== 'nenhuma' ? 1 : .45, pointerEvents: trilha.modo !== 'nenhuma' ? 'auto' : 'none' }}>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                    <label style={{ ...rotuloForm, margin:0 }}>Trilhas ({trilha.ids.length} escolhida{trilha.ids.length === 1 ? '' : 's'})</label>
-                    <button type="button" className="btn btn-ghost btn-sm" disabled={enviandoTrilha} onClick={() => trilhaUploadRef.current?.click()}>
-                      {enviandoTrilha ? 'Enviando…' : '+ Subir trilha'}
-                    </button>
-                  </div>
-
-                  {trilhas.length === 0 ? (
-                    <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', padding:'10px 0' }}>
-                      Nenhuma trilha na biblioteca ainda. Suba um mp3 — música livre de direitos; música comercial conhecida o Instagram detecta e pode silenciar o Reels.
-                    </div>
-                  ) : (
-                    <div style={{ display:'flex', flexDirection:'column', gap:4, maxHeight:180, overflowY:'auto' }}>
-                      {trilhas.map(t => {
-                        const marcada = trilha.ids.includes(t.id);
-                        return (
-                          <div key={t.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:'var(--mf-r-xs)', background: marcada ? 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)' : 'var(--mf-surface-2)' }}>
-                            <input type="checkbox" checked={marcada}
-                              onChange={e => setTrilha(cfg => ({ ...cfg, ids: e.target.checked ? [...cfg.ids, t.id] : cfg.ids.filter(id => id !== t.id) }))} />
-                            <span style={{ flex:1, minWidth:0, fontSize:'var(--mf-t-xs)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={t.nome}>{t.nome}</span>
-                            <span style={{ fontSize:'var(--mf-t-nano)', fontFamily:'var(--mf-mono)', color:'var(--mf-text-3)' }}>{t.tamanho ? `${(t.tamanho/1024/1024).toFixed(1)} MB` : ''}</span>
-                            <button type="button" className="btn-ghost" title="Remover da biblioteca" onClick={() => setTrilhaParaRemover(t)} style={{ padding:'2px 7px', fontSize:'var(--mf-t-micro)', color:'var(--mf-danger-500)', borderRadius:'var(--mf-r-xs)' }}>✕</button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <div style={{ marginTop:12 }}>
-                    <label style={rotuloForm}>Volume da trilha: {Math.round(trilha.volume * 100)}%</label>
-                    <input type="range" min="0.05" max={trilha.modo === 'misturar' ? 0.8 : 1.5} step="0.05" value={trilha.volume}
-                      onChange={e => setTrilha(t => ({ ...t, volume: Number(e.target.value) }))} style={{ width:'100%' }} />
-                  </div>
-
-                  <div style={{ fontSize:'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:10, lineHeight:1.6 }}>
-                    Com mais de uma trilha marcada, <strong>cada conta sorteia a sua</strong> — fixa por publicação, então o retry repete a mesma. Trilha mais curta que o vídeo completa com silêncio; mais longa é cortada no fim do vídeo.
-                  </div>
-                </div>
-              </div>
-            </CartaoRecolhivel>
-
-            <CartaoRecolhivel
-              icone="processo"
-              titulo="Modo de processamento"
-              resumo={(processModes.find(m => m.id === processMode) || {}).label || processMode}
-            >
-              <div style={cardBodyStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {processModes.map(m => (
-                    <div key={m.id} onClick={() => setProcessMode(m.id)}
-                      style={{
-                        padding: '8px 12px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer', border: '1px solid',
-                        background: processMode === m.id ? `${m.color}14` : 'color-mix(in oklch, var(--mf-bg) 50%, transparent)',
-                        borderColor: processMode === m.id ? `${m.color}44` : 'var(--mf-border)',
-                        transition: 'all var(--mf-fast) var(--mf-ease-out)',
-                      }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                        <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 600, color: processMode === m.id ? m.color : 'var(--mf-text)' }}>{m.label}</span>
-                        <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, padding: '2px 4px', borderRadius: 'var(--mf-r-xs)', background: `${m.color}22`, color: m.color, fontFamily: 'var(--mf-mono)' }}>{m.tag}</span>
-                      </div>
-                      <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{m.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CartaoRecolhivel>
           </motion.div>
 
           {/* ── RIGHT COLUMN ── */}

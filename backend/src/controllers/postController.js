@@ -13,8 +13,6 @@ const { agendarRodada } = require('../worker');
 const { broadcast } = require('../events/broadcaster');
 const { ordenar, naOrdemDosIds, ORDENS, ORDEM_PADRAO } = require('../services/ordemDasMidias');
 const { lerDoCorpo: lerMarcaDagua } = require('../services/marcaDagua');
-const { lerDoCorpo: lerVariacaoEdicao } = require('../services/variacaoDeEdicao');
-const { lerDoCorpo: lerTrilha } = require('../services/trilhaPorConta');
 const { lerDoCorpo: lerLegendaAleatoria } = require('../services/legendaAleatoria');
 const { lerDoCorpo: lerCapasPorConta } = require('../services/capaPorConta');
 const { aplicarNasContas: aplicarTetoDiario } = require('../services/tetoDiario');
@@ -86,8 +84,6 @@ exports.createPost = async (req, res) => {
     midiasAleatorias,
     sementeDaOrdem,
     marcaDagua: lerMarcaDagua(req.body.marcaDagua),
-    variacaoEdicao: lerVariacaoEdicao(req.body.variacaoEdicao),
-    trilha: lerTrilha(req.body.trilha),
     legendaAleatoria: lerLegendaAleatoria(req.body.legendaAleatoria),
     capasPorConta: lerCapasPorConta(req.body.capasPorConta, arquivos.filter(f => f.fieldname === 'capas')),
     rodizioDeMidias: sim(req.body.rodizioDeMidias),
@@ -95,7 +91,6 @@ exports.createPost = async (req, res) => {
     caption: req.body.caption || '',
     cover: capa ? capa.filename : (req.body.coverFilename || ''),
     ctaComment: req.body.ctaComment || '',
-    processMode: req.body.processMode || 'sem_limpeza',
     intervalMinutes,
     simultaneousLimit,
     totalRounds,

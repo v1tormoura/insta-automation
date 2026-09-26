@@ -6,8 +6,8 @@
  * A Meta baixa a mídia da nossa URL pública (PUBLIC_URL/uploads/...), então o
  * trabalho aqui é deixar o arquivo certo nesse endereço:
  *
- *   Reel .... vídeo único por conta (midiaPorConta: humanização, marca d'água,
- *             trilha, variação de edição) → media_type=REELS
+ *   Reel .... o vídeo enviado (convertido só se o formato não servir, ou com
+ *             a marca d'água da conta — midiaPorConta) → media_type=REELS
  *   Imagem .. marca d'água da conta, depois JPEG na proporção que o feed aceita
  *   Story ... texto queimado (se houver), imagem 9:16 em JPEG ou vídeo único
  *
