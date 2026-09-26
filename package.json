@@ -1,0 +1,20 @@
+{
+  "name": "nexora",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Nexora — SaaS de gestão e publicação no Instagram usando exclusivamente as APIs oficiais da Meta.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @nexora/api & npm run dev:worker --workspace @nexora/api & npm run dev --workspace @nexora/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}

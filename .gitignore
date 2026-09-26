@@ -1,34 +1,25 @@
-# Dependencies
+# Dependências
 node_modules/
-frontend/node_modules/
-backend/node_modules/
 
-# Build output
-frontend/dist/
-frontend/dist-ssr/
+# Build
+dist/
+*.tsbuildinfo
 
-# Environment variables
+# Ambiente
 .env
-backend/.env
-frontend/.env
-*.local
+.env.*
+!.env.example
+
+# Dados locais
+storage/
+uploads/
 
 # Logs
 logs/
 *.log
 npm-debug.log*
 
-# Browser session data
-backend/sessions/
-
-# Editor
+# Editor / SO
 .vscode/
 .idea/
 .DS_Store
-
-# Uploads
-uploads/
-
-# Python bytecode
-__pycache__/
-*.pyc
