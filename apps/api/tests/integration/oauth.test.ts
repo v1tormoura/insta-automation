@@ -4,6 +4,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { setMetaGraph } from '../../src/integrations/meta/index.js';
 import { InstagramAccount } from '../../src/modules/accounts/account.model.js';
 import { openToken } from '../../src/modules/accounts/tokenVault.js';
+import { hmac } from '../../src/lib/crypto.js';
+import { MediaInsight } from '../../src/modules/insights/insight.models.js';
 import { OAuthState } from '../../src/modules/oauth/oauthState.model.js';
 import type { RealtimeHub } from '../../src/modules/realtime/events.js';
 import { resetDatabases, startDatabases, stopDatabases } from '../helpers/db.js';
@@ -155,5 +157,48 @@ describe('OAuth do Instagram', () => {
     const after = await InstagramAccount.findOne({ userId: new Types.ObjectId(user.id) }).select('+token').lean();
     expect(after!.status).toBe('DISCONNECTED');
     expect(after!.token).toBeUndefined();
+  });
+
+  describe('callbacks de plataforma da Meta', () => {
+    const signed = (payload: object, secret = 'test-app-secret') => {
+      const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      return `${hmac(secret, body)}.${body}`;
+    };
+
+    it('deauthorize apaga o token de todas as conexões daquela conta', async () => {
+      const { agent, user } = await signedInAgent(app);
+      await agent.get(`/api/oauth/instagram/callback?code=a&state=${await start(agent)}`);
+      await request(app)
+        .post('/api/oauth/instagram/deauthorize')
+        .type('form')
+        .send({ signed_request: signed({ algorithm: 'HMAC-SHA256', user_id: '17841400000000999' }) })
+        .expect(200);
+      const doc = await InstagramAccount.findOne({ userId: new Types.ObjectId(user.id) }).select('+token').lean();
+      expect(doc).toMatchObject({ status: 'DISCONNECTED' });
+      expect(doc!.token).toBeUndefined();
+    });
+
+    it('recusa signed_request com assinatura inválida', async () => {
+      await request(app)
+        .post('/api/oauth/instagram/deauthorize')
+        .type('form')
+        .send({ signed_request: signed({ algorithm: 'HMAC-SHA256', user_id: '1' }, 'outro-segredo') })
+        .expect(400);
+    });
+
+    it('data deletion remove métricas e devolve código de confirmação', async () => {
+      const { agent, user } = await signedInAgent(app);
+      await agent.get(`/api/oauth/instagram/callback?code=a&state=${await start(agent)}`);
+      const account = await InstagramAccount.findOne({ userId: new Types.ObjectId(user.id) }).lean();
+      await MediaInsight.create({ userId: account!.userId, accountId: account!._id, igMediaId: 'm1', metrics: {}, syncedAt: new Date() });
+      const res = await request(app)
+        .post('/api/oauth/instagram/data-deletion')
+        .type('form')
+        .send({ signed_request: signed({ algorithm: 'HMAC-SHA256', user_id: '17841400000000999' }) })
+        .expect(200);
+      expect(res.body.url).toMatch(/^http:\/\/localhost:5173\/privacy\/deletion\?code=/);
+      expect(res.body.confirmation_code).toBeTruthy();
+      expect(await MediaInsight.countDocuments({ userId: account!.userId })).toBe(0);
+    });
   });
 });

@@ -30,6 +30,7 @@ function NotFound() {
 }
 
 export const router = createBrowserRouter([
+  { path: '/privacy/deletion', lazy: page(() => import('@/features/legal/DataDeletionPage'), 'DataDeletionPage') },
   {
     element: (
       <RedirectIfAuthed>

@@ -2,12 +2,21 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "MouraFlow Frontend",
+      "name": "Nexora Web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5200,
-      "env": { "PORT": "5200", "DISABLE_HTTPS": "true" },
-      "cwd": "frontend"
+      "runtimeArgs": ["run", "dev", "--workspace", "@nexora/web"],
+      "port": 5173
+    },
+    {
+      "name": "Nexora API",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@nexora/api"],
+      "port": 4000
+    },
+    {
+      "name": "Nexora Worker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:worker", "--workspace", "@nexora/api"]
     }
   ]
 }

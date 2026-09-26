@@ -60,7 +60,9 @@ const schema = z.object({
 export type Env = z.infer<typeof schema>;
 
 function load(): Env {
-  const parsed = schema.safeParse(process.env);
+  // `VAR=` vazio (comum em .env e env_file do Docker) vale como "não definido".
+  const raw = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== undefined && v.trim() !== ''));
+  const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     const lines = parsed.error.issues.map((i) => `  • ${i.path.join('.')}: ${i.message}`);
     // Falhar no boot com a lista inteira é melhor que falhar na primeira requisição.
