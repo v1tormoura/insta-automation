@@ -137,12 +137,9 @@ docker compose logs -f web         # log do HTTPS/Caddy
 docker compose restart app
 ```
 
-Push no celular (opcional): gere as chaves e cole no `.env` como `VAPID_PUBLIC_KEY`
-e `VAPID_PRIVATE_KEY`, depois `docker compose up -d`:
-
-```bash
-docker compose run --rm app npx web-push generate-vapid-keys
-```
+Push no celular: as chaves são geradas sozinhas na primeira subida e ficam
+guardadas no banco — basta ativar em **Notificações** no painel. (Se preferir
+fixá-las no `.env`, `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` têm precedência.)
 
 **Backup**: o banco está no Supabase. A biblioteca de mídia fica no volume
 `insta-nova_uploads`:

@@ -15,6 +15,10 @@ const { migrar } = require('./db/migrate');
 async function subir() {
   await migrar(sql);
 
+  // Push no celular sem ninguém gerar chave à mão (ver webPush.prepararChaves).
+  await require('./services/smartActivity/webPush').prepararChaves()
+    .catch(e => console.warn('[WebPush] chaves:', e.message));
+
   const app = require('./app');
   const servidor = app.listen(config.port, () => console.log(`🚀 API na porta ${config.port} — ${config.publicUrl}`));
 

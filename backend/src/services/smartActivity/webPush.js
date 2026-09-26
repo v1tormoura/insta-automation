@@ -2,8 +2,9 @@
 
 /**
  * Web Push (VAPID): entrega as notificações da Central aos aparelhos inscritos.
- * Sem VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY, tudo vira no-op e a Central segue
- * funcionando sozinha. Inscrição que o serviço de push dá como morta (404/410)
+ * As chaves vêm do .env (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY) ou, sem elas, de
+ * um par gerado na primeira subida e guardado no banco (`prepararChaves`).
+ * Sem nenhuma das duas, tudo vira no-op e a Central segue funcionando sozinha. Inscrição que o serviço de push dá como morta (404/410)
  * sai; outras falhas contam, e com 8 falhas a inscrição para de receber.
  */
 
@@ -11,11 +12,15 @@ const { sql } = require('../../db');
 
 let webpush = null;
 let configurado = false;
+let doBanco = null; // { publica, privada } gerado por prepararChaves
+
+const _publica = () => (process.env.VAPID_PUBLIC_KEY || '').trim() || doBanco?.publica || '';
+const _privada = () => (process.env.VAPID_PRIVATE_KEY || '').trim() || doBanco?.privada || '';
 
 function _carregar() {
   if (configurado) return webpush;
-  const publica = (process.env.VAPID_PUBLIC_KEY || '').trim();
-  const privada = (process.env.VAPID_PRIVATE_KEY || '').trim();
+  const publica = _publica();
+  const privada = _privada();
   const contato = (process.env.VAPID_SUBJECT || 'mailto:admin@example.com').trim();
   configurado = true;
   if (!publica || !privada) return null;
@@ -30,7 +35,30 @@ function _carregar() {
 }
 
 const disponivel = () => !!_carregar();
-const chavePublica = () => (process.env.VAPID_PUBLIC_KEY || '').trim() || null;
+const chavePublica = () => _publica() || null;
+
+/**
+ * Garante um par de chaves sem ninguém precisar gerar à mão. O .env, se tiver,
+ * manda. Senão, usa o par guardado no banco — e gera um na primeira vez. É
+ * gerado UMA vez e reaproveitado: trocar de par invalidaria as inscrições dos
+ * aparelhos, que ficam presas à chave pública com que foram feitas.
+ * A privada vai cifrada (ENCRYPTION_KEY), como os tokens do Instagram.
+ */
+async function prepararChaves() {
+  if ((process.env.VAPID_PUBLIC_KEY || '').trim() && (process.env.VAPID_PRIVATE_KEY || '').trim()) return 'env';
+  const settings = require('../../repos/settings');
+  const { encrypt, decrypt } = require('../tokenEncryption');
+  let salvo = await settings.ler('vapid');
+  if (!salvo?.publica || !salvo?.privada) {
+    const par = require('web-push').generateVAPIDKeys();
+    salvo = { publica: par.publicKey, privada: encrypt(par.privateKey) };
+    await settings.gravar('vapid', salvo);
+    console.log('🔑 [WebPush] chaves geradas e guardadas no banco');
+  }
+  doBanco = { publica: salvo.publica, privada: decrypt(salvo.privada) };
+  configurado = false; // relê na próxima chamada
+  return 'banco';
+}
 
 function _payload(n) {
   return JSON.stringify({
@@ -105,4 +133,4 @@ async function estado(endpoint, usuarioId) {
   };
 }
 
-module.exports = { disponivel, chavePublica, enviar, inscrever, cancelar, estado };
+module.exports = { disponivel, chavePublica, prepararChaves, enviar, inscrever, cancelar, estado };

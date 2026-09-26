@@ -122,7 +122,7 @@ export const notificacaoDoNavegador = {
       const { data } = await api.get('/notificacoes/push/chave-publica');
       if (!data?.chave) {
         return { ok: false, motivo: 'sem-chave',
-          texto: 'O servidor ainda não tem chaves VAPID configuradas. Gere-as e reinicie o backend.' };
+          texto: 'O servidor ainda não preparou as chaves do push. Atualize o servidor (./deploy.sh) — elas são geradas sozinhas na subida.' };
       }
 
       /* Reaproveita a inscrição existente quando há uma: o navegador devolve a
