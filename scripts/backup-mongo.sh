@@ -33,7 +33,9 @@ set -euo pipefail
 
 COMPOSE=/root/insta-automation/docker-compose.yml
 DESTINO=/root/backups/mongo
-BANCO=insta-automation
+# O Nexora 2 grava no banco `nexora`. O banco antigo (`insta-automation`) continua
+# no mesmo volume, intocado; para incluí-lo: BANCO=insta-automation ./backup-mongo.sh
+BANCO=${BANCO:-nexora}
 RETENCAO_DIAS=${RETENCAO_DIAS:-7}
 
 mkdir -p "$DESTINO"

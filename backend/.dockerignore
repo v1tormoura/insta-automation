@@ -1,6 +1,0 @@
-node_modules
-sessions
-data
-uploads
-*.log
-.env
