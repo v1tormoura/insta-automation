@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, X, TrendingUp, Flame, Eye, Award, Info, AlertTriangle, CheckCheck } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
-import { ContextoSmartActivity, useSmartActivity } from '../services/smartActivityContexto';
+import { ContextoSmartActivity, useSmartActivity, EVENTO_CONFIG } from '../services/smartActivityContexto';
 import { notificacaoDoNavegador } from '../services/notificacaoNavegador';
 import { urlDoAvatar } from '../utils/avatar';
 import { useNotifications, markRead as marcarEfemerasLidas } from '../services/useNotifications';
@@ -46,6 +46,7 @@ const TEMAS = {
   info:        { icone: Info,       cor: 'var(--mf-info-500)' },
 };
 const temaDe = t => TEMAS[t] || TEMAS.milestone;
+const TEMAS_DE_METRICA = new Set(['story', 'viral', 'reach', 'milestone', 'achievement']);
 
 /**
  * "agora", "há 7m", "ontem".
@@ -174,7 +175,9 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
   const { cor } = temaDe(notificacao.tema);
   const partes = useMemo(() => {
     const m = String(notificacao.mensagem || '');
-    const numero = m.match(/[\d][\d.,]*/);
+    /* Só aviso de MÉTRICA destaca o número (e o anima): em "Fulano 2
+       (fulano2@x.com) pediu acesso" o primeiro dígito é parte de um nome. */
+    const numero = TEMAS_DE_METRICA.has(notificacao.tema) && m.match(/[\d][\d.,]*/);
     if (!numero) return [{ t: m }];
     const i = numero.index;
     return [
@@ -182,7 +185,7 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
       { t: numero[0], destaque: true },
       { t: m.slice(i + numero[0].length) },
     ];
-  }, [notificacao.mensagem]);
+  }, [notificacao.mensagem, notificacao.tema]);
 
   return (
     <div
@@ -212,8 +215,11 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--mf-2)' }}>
           <span style={{
             fontSize: compacto ? 'var(--mf-t-sm)' : 'var(--mf-t-body)',
-            fontWeight: 700, color: 'var(--mf-text)', minWidth: 0,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            fontWeight: 700, color: 'var(--mf-text)', minWidth: 0, lineHeight: 1.35,
+            /* Até duas linhas: "Novo cadastro esperando aprovação" cortado em
+               "Novo cadastro espera…" no celular escondia justamente o assunto. */
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            overflow: 'hidden', overflowWrap: 'anywhere',
           }}>{notificacao.titulo}</span>
           <span style={{ flex: 1 }} />
           <span style={{
@@ -224,7 +230,7 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
 
         <div style={{
           fontSize: compacto ? 'var(--mf-t-xs)' : 'var(--mf-t-sm)',
-          color: 'var(--mf-text-2)', lineHeight: 1.5, marginTop: 3,
+          color: 'var(--mf-text-2)', lineHeight: 1.5, marginTop: 3, overflowWrap: 'anywhere',
         }}>
           {partes.map((p, i) => p.destaque
             ? <strong key={i} style={{
@@ -335,6 +341,12 @@ export function SmartActivityProvider({ children }) {
     setVisiveis(v => v.filter(n => n.id !== id));
   }, []);
 
+  /* Abrir a Central recolhe a pilha: os mesmos avisos estão na lista, e os
+     cartões por cima dela cobriam justamente o que se abriu para ler. */
+  const recolherPilha = useCallback(() => { setVisiveis([]); setFila([]); }, []);
+  // Com a Central aberta, aviso novo não aparece por cima dela (entra na lista).
+  const [centralAberta, setCentralAberta] = useState(false);
+
   const marcarLida = useCallback(async id => {
     setPersistidas(l => l.map(n => n.id === id ? { ...n, lidaEm: new Date().toISOString() } : n));
     setNaoLidasPersistidas(n => Math.max(0, n - 1));
@@ -384,17 +396,33 @@ export function SmartActivityProvider({ children }) {
 
   const naoLidas = naoLidasPersistidas + (naoLidasEfemeras || 0);
 
+  /* "Some depois de" (Configurações de notificação). 0 = só ao fechar. Relido
+     quando a tela de configuração salva — sem isto a escolha era gravada e
+     a pilha seguia com 6s fixos. */
+  const [duracaoMs, setDuracaoMs] = useState(6000);
+  useEffect(() => {
+    const ler = () => api.get('/notificacoes/config')
+      .then(({ data }) => {
+        const ms = Number(data?.exibicao?.duracaoMs);
+        if (Number.isFinite(ms) && ms >= 0) setDuracaoMs(ms);
+      })
+      .catch(() => { /* fica o padrão */ });
+    ler();
+    window.addEventListener(EVENTO_CONFIG, ler);
+    return () => window.removeEventListener(EVENTO_CONFIG, ler);
+  }, []);
+
   const valor = useMemo(() => ({
-    itens, naoLidas, visiveis, aguardando: fila.length,
-    dispensar, marcarLida, marcarTodas, apagarLidas, recarregar: carregar,
-  }), [itens, naoLidas, visiveis, fila.length, dispensar, marcarLida, marcarTodas, apagarLidas, carregar]);
+    itens, naoLidas, visiveis, aguardando: fila.length, duracaoMs,
+    centralAberta, setCentralAberta, dispensar, recolherPilha, marcarLida, marcarTodas, apagarLidas, recarregar: carregar,
+  }), [itens, naoLidas, visiveis, fila.length, duracaoMs, centralAberta, dispensar, recolherPilha, marcarLida, marcarTodas, apagarLidas, carregar]);
 
   return <ContextoSmartActivity.Provider value={valor}>{children}</ContextoSmartActivity.Provider>;
 }
 
 /* ── Pilha de avisos ────────────────────────────────────────────────────── */
 
-/** Some sozinho depois da duração; o relógio pausa sob o cursor. */
+/** Some sozinho depois da duração (0 = só ao fechar); o relógio pausa sob o cursor. */
 function Aviso({ notificacao, onFechar, duracao = 6000 }) {
   const [entrando, setEntrando] = useState(true);
   const [pausado, setPausado] = useState(false);
@@ -405,7 +433,7 @@ function Aviso({ notificacao, onFechar, duracao = 6000 }) {
   }, []);
 
   useEffect(() => {
-    if (pausado) return;
+    if (pausado || !duracao) return;
     const t = setTimeout(onFechar, duracao);
     return () => clearTimeout(t);
   }, [pausado, duracao, onFechar]);
@@ -426,8 +454,8 @@ function Aviso({ notificacao, onFechar, duracao = 6000 }) {
 }
 
 export function PilhaDeAvisos() {
-  const { visiveis, aguardando, dispensar } = useSmartActivity();
-  if (!visiveis?.length) return null;
+  const { visiveis, aguardando, dispensar, duracaoMs, centralAberta } = useSmartActivity();
+  if (!visiveis?.length || centralAberta) return null;
 
   return (
     <div
@@ -440,7 +468,7 @@ export function PilhaDeAvisos() {
         pointerEvents: 'none',
       }}>
       {visiveis.map(n => (
-        <Aviso key={n.id} notificacao={n} onFechar={() => dispensar(n.id)} />
+        <Aviso key={n.id} notificacao={n} duracao={duracaoMs} onFechar={() => dispensar(n.id)} />
       ))}
 
       {aguardando > 0 && (
@@ -474,7 +502,7 @@ function agrupar(itens) {
 }
 
 export function SinoDeNotificacoes() {
-  const { itens, naoLidas, marcarLida, marcarTodas, apagarLidas } = useSmartActivity();
+  const { itens, naoLidas, marcarLida, marcarTodas, apagarLidas, recolherPilha, setCentralAberta } = useSmartActivity();
   /* Só as PERSISTIDAS contam. As efêmeras vivem na memória da aba e somem
      sozinhas; oferecer "apagar" para elas prometeria uma limpeza que o botão
      não faz. */
@@ -512,9 +540,11 @@ export function SinoDeNotificacoes() {
 
   const grupos = useMemo(() => agrupar(itens || []), [itens]);
 
+  useEffect(() => { setCentralAberta?.(aberta); }, [aberta, setCentralAberta]);
+
   return (
     <div ref={caixaRef} style={{ position: 'relative' }}>
-      <button onClick={() => setAberta(a => !a)}
+      <button onClick={() => { if (!aberta) recolherPilha?.(); setAberta(a => !a); }}
         aria-label={naoLidas ? `${naoLidas} notificações não lidas` : 'Notificações'}
         style={{
           position: 'relative', width: 34, height: 34, borderRadius: 'var(--mf-r-md)',

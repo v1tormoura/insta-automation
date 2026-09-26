@@ -102,12 +102,6 @@ tbody td { padding: 11px 12px; font-size: 13px; }
 .upload-zone span { font-size: 12px; color: var(--mf-text-2); }
 
 /* ── TOAST (legacy) ── */
-.toast-legacy { position: fixed; bottom: 24px; right: 24px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 12px; padding: 13px 16px; min-width: 270px; box-shadow: var(--mf-shadow-3); z-index: 9999; animation: toastIn .25s ease; }
-.toast-legacy.toast-success { border-left: 3px solid var(--mf-success-500); }
-.toast-legacy.toast-error { border-left: 3px solid var(--mf-danger-500); }
-.toast-legacy strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-.toast-legacy p { font-size: 12px; color: var(--mf-text-2); margin: 0; }
-.toast-legacy button { background: none; border: none; color: var(--mf-text-3); font-size: 18px; cursor: pointer; float: right; margin-top: -2px; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ── MODAL (legacy) ── */

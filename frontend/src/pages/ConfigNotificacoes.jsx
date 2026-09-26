@@ -4,6 +4,7 @@ import api from '../services/api';
 import PageShell from '../components/PageShell';
 import Toast from '../components/Toast';
 import { Cartao } from '../components/SmartActivity';
+import { EVENTO_CONFIG } from '../services/smartActivityContexto';
 import { notificacaoDoNavegador } from '../services/notificacaoNavegador';
 import { EsqueletoLista } from '../components/Estados';
 
@@ -288,6 +289,7 @@ export default function ConfigNotificacoes() {
         mensagens: cfg.mensagens,
         resumo: { hora: cfg.resumo?.hora || '22:00' },
       });
+      window.dispatchEvent(new Event(EVENTO_CONFIG));
       aviso('success', 'Salvo', 'As notificações passam a usar estes modelos.');
     } catch (err) {
       const d = err.response?.data;

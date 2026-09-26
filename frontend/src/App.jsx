@@ -3,6 +3,7 @@ import './App.css';
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import './design/avisos.css';
 import MainLayout from './layouts/MainLayout';
 import { LimiteDeRota } from './components/LimiteDeErro';
 /* Cada tela vira um pedaço separado do bundle, carregado na primeira visita.
@@ -62,20 +63,17 @@ function SoAdmin({ children }) {
 export default function App() {
   return (
     <>
-    <Toaster
-      position="bottom-right"
-      theme="dark"
-      richColors
-      toastOptions={{
-        style: {
-          background: 'var(--mf-surface-1)',
-          border: '1px solid color-mix(in_oklch,var(--mf-mod,var(--mf-accent-500))_20%,transparent)',
-          color: '#e2edfd',
-          backdropFilter: 'blur(16px)',
-          fontSize: '13px',
-        },
-      }}
-    />
+    {/* `data-mf` dá aos avisos os tokens do tema; `contents` não cria caixa. */}
+    <div data-mf style={{ display: 'contents' }}>
+      <Toaster
+        position="bottom-right"
+        closeButton
+        visibleToasts={4}
+        offset={20}
+        mobileOffset={{ bottom: 'calc(12px + env(safe-area-inset-bottom))', left: 12, right: 12 }}
+        toastOptions={{ unstyled: false, classNames: { toast: 'mf-aviso' } }}
+      />
+    </div>
     <Suspense fallback={<CarregandoTela />}>
     <Routes>
       <Route path="/login" element={<Login />} />

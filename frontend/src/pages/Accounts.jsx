@@ -102,7 +102,7 @@ export default function Accounts() {
   const [bulkDeleteModal,setBulkDeleteModal]= useState(false);
   const [bulkDeleting,   setBulkDeleting]   = useState(false);
 
-  function showToast(type, title, message) { setToast({ type, title, message }); setTimeout(() => setToast(null), 4000); }
+  function showToast(type, title, message) { setToast({ type, title, message }); }
 
   /* Começa em false se o cache já tem contas: nesse caso a tela desenha na
      hora e um esqueleto apareceria só para sumir no quadro seguinte. */
@@ -567,7 +567,7 @@ export default function Accounts() {
 
   return (
     <>
-      {toast && <Toast type={toast.type} title={toast.title} message={toast.message} />}
+      <Toast toast={toast} onClose={() => setToast(null)} />
       <ConfirmModal
         open={deleteModal}
         title="Excluir conta"

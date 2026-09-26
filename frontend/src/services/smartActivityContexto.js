@@ -15,3 +15,6 @@ export const ContextoSmartActivity = createContext(null);
 export function useSmartActivity() {
   return useContext(ContextoSmartActivity) || {};
 }
+
+/** Disparado pela tela de configuração ao salvar: a pilha relê o "some depois de". */
+export const EVENTO_CONFIG = 'config-de-notificacoes-salva';

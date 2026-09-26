@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '../services/api';
+import { avisar } from '../services/avisos';
 import { MetricaLinha, ListaDeMetricas } from '../components/Metrica';
 import FilaDePostagens from '../components/FilaDePostagens';
 import { useServerEvents } from '../services/useServerEvents';
@@ -1127,7 +1128,6 @@ export default function Dashboard() {
   const [loops,         setLoops]         = useState([]);
   const [syncingIns,    setSyncingIns]    = useState(false);
   const [refreshing,    setRefreshing]    = useState(false);
-  const [toast,         setToast]         = useState('');
   const [period,        setPeriod]        = useState(7);
   const [accountsPeriod,setAccountsPeriod]= useState('hoje');
   const [problemsPeriod,setProblemsPeriod]= useState('hoje');
@@ -1135,7 +1135,6 @@ export default function Dashboard() {
   const [primeiraCarga, setPrimeiraCarga] = useState(true);
   const loadRef  = useRef(null);
   // chartContainerRef removed — ResponsiveContainer handles sizing
-  const showToast = msg => { setToast(msg); clearTimeout(window.__ifToast); window.__ifToast = setTimeout(() => setToast(''), 2600); };
 
   const load        = useCallback(async () => { try { const r = await api.get('/dashboard');                                                setData(r.data); }       catch { setData(d => d ?? {}); }
     /* Só a primeira carga mostra esqueleto: o painel recarrega sozinho, e
@@ -1162,7 +1161,7 @@ export default function Dashboard() {
     setRefreshing(true);
     Promise.all([load(), loadStats(), loadInsights(), loadLoops()]).finally(() => {
       setTimeout(() => setRefreshing(false), 600);
-      showToast('Dados sincronizados com sucesso.');
+      avisar('success', 'Dados sincronizados');
     });
   };
 
@@ -1500,18 +1499,8 @@ export default function Dashboard() {
           <span>Worker <b style={{ color:d.system?.worker?'var(--mf-success-500)':'var(--mf-danger-500)' }}>{d.system?.worker?'Ativo':'Parado'}</b></span>
           <span>Contas <b>{fmt(d.totalAccounts)}</b></span>
           <span>Posts <b>{fmt(d.totalPosts)}</b></span>
-          <button onClick={() => showToast('Versão 2.4.7 — Nexora Pulse')}>Novidades</button>
         </footer>
       </div>
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div className="toast" initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:12 }}>
-            <ShieldCheck size={17} />{toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

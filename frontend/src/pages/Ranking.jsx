@@ -48,7 +48,6 @@ export default function Ranking() {
 
   function showToast(type, title, message) {
     setToast({ type, title, message });
-    setTimeout(() => setToast(null), 3500);
   }
 
   async function load() {

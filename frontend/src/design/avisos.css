@@ -1,0 +1,58 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   AVISOS DAS AÇÕES — o visual do sonner com os tokens do painel
+   ══════════════════════════════════════════════════════════════════════════
+
+   Um aviso só para o painel inteiro (services/avisos.js). Os seletores levam
+   `[data-sonner-toaster]` na frente porque o sonner injeta o CSS dele em
+   tempo de execução, DEPOIS desta folha: com a mesma especificidade, o dele
+   venceria. O `data-mf` em volta do <Toaster> (App.jsx) é o que dá acesso
+   aos tokens — sem ele, cada `var(--mf-*)` resolvia vazio. */
+
+[data-sonner-toaster] [data-sonner-toast].mf-aviso {
+  --tom: var(--mf-primary-500);
+  display: flex; align-items: flex-start; gap: var(--mf-3);
+  box-sizing: border-box;
+  padding: 12px 40px 12px 14px;
+  background: var(--mf-surface-1);
+  color: var(--mf-text);
+  border: 1px solid var(--mf-border-strong);
+  border-left: 3px solid var(--tom);
+  border-radius: var(--mf-r-md);
+  box-shadow: 0 12px 32px oklch(0 0 0 / 0.38);
+  font-family: var(--mf-font, Inter, system-ui, sans-serif);
+}
+[data-sonner-toaster] [data-sonner-toast].mf-aviso[data-type='success'] { --tom: var(--mf-success-500); }
+[data-sonner-toaster] [data-sonner-toast].mf-aviso[data-type='error']   { --tom: var(--mf-danger-500); }
+[data-sonner-toaster] [data-sonner-toast].mf-aviso[data-type='warning'] { --tom: var(--mf-warning-500); }
+[data-sonner-toaster] [data-sonner-toast].mf-aviso[data-type='info']    { --tom: var(--mf-info-500); }
+
+[data-sonner-toaster] [data-sonner-toast].mf-aviso [data-icon] {
+  flex: none; margin: 1px 0 0; width: 18px; height: 18px; color: var(--tom);
+}
+[data-sonner-toaster] [data-sonner-toast].mf-aviso [data-content] { flex: 1; min-width: 0; gap: 2px; }
+[data-sonner-toaster] [data-sonner-toast].mf-aviso [data-title] {
+  font-size: var(--mf-t-sm, 13px); font-weight: 700; line-height: 1.4; color: var(--mf-text);
+  overflow-wrap: anywhere;
+}
+[data-sonner-toaster] [data-sonner-toast].mf-aviso [data-description] {
+  font-size: var(--mf-t-xs, 12px); line-height: 1.5; color: var(--mf-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* O "×" no canto de cima à direita, dentro do cartão — o padrão do sonner é
+   meio para fora, à esquerda, onde se confunde com o ícone. */
+[data-sonner-toaster] [data-sonner-toast].mf-aviso [data-close-button] {
+  left: auto; right: 8px; top: 8px; transform: none;
+  width: 24px; height: 24px;
+  background: transparent; border: 0; border-radius: var(--mf-r-sm);
+  color: var(--mf-text-3);
+}
+[data-sonner-toaster] [data-sonner-toast].mf-aviso [data-close-button]:hover {
+  background: var(--mf-surface-2); color: var(--mf-text);
+}
+
+/* Celular: atalho de teclado não existe, e a etiqueta "Ctrl K" comia o espaço
+   do "Buscar página…". */
+@media (max-width: 640px), (pointer: coarse) {
+  .mf-cmd-trigger .mf-kbd { display: none; }
+}
