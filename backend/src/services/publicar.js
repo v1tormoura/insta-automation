@@ -116,12 +116,35 @@ async function publicarStory(conta, story) {
   }
 }
 
+/* Contas já conferidas neste processo: uma leitura de /me por conta, não por post. */
+const _conferidas = new Set();
+
+/**
+ * Garante que `conta.igUserId` é o id da conta profissional (o `user_id` do
+ * /me). Contas conectadas antes da correção guardaram o id do app, e com ele
+ * a Meta recusa /{id}/media com "Object with ID ... does not exist". Conserta
+ * na hora e grava, sem pedir reconexão.
+ */
+async function conferirId(conta) {
+  if (!conta?.id || _conferidas.has(conta.id) || !conta.accessToken) return;
+  const p = await graph.perfil(conta.accessToken).catch(() => null);
+  if (!p) return;
+  _conferidas.add(conta.id);
+  if (p.igUserId && p.igUserId !== conta.igUserId) {
+    console.log(`🔧 [Publicar] @${conta.username} — id da conta corrigido (${conta.igUserId} → ${p.igUserId})`);
+    conta.igUserId = p.igUserId;
+    await require('../repos/accounts').update(conta.id, { igUserId: p.igUserId })
+      .catch(e => console.log(`⚠️ [Publicar] não gravou o id novo: ${e.message}`));
+  }
+}
+
 /**
  * Publica o post nesta conta. A legenda passa pela variação por conta
  * (spintax `{a|b}`), com semente estável no par post+conta.
  * @returns {Promise<{mediaId: string}>}
  */
 async function publicar(conta, post) {
+  await conferirId(conta);
   const tipo = post.postType || 'reel';
   if (tipo === 'story') {
     return { mediaId: await publicarStory(conta, { media: post.media, id: post.id, textoLivre: post.textoLivre }) };
@@ -133,4 +156,4 @@ async function publicar(conta, post) {
   return { mediaId };
 }
 
-module.exports = { publicar, publicarStory, urlPublica, midiaLocal };
+module.exports = { publicar, publicarStory, urlPublica, midiaLocal, _conferirId: conferirId };

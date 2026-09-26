@@ -83,7 +83,11 @@ function lerDono(assinado) {
 async function gravar({ token, expiraEm, igUserId, alvo, metaAppId, usuarioId }) {
   if (!usuarioId) throw new Error('gravar: usuário obrigatório');
   const p = await graph.perfil(token);
-  const id = igUserId || p.igUserId;
+  /* O `user_id` do /me vem primeiro: é o id da conta profissional, o que
+     publica. O da troca do código é o id da pessoa NO APP — usado em
+     /{id}/media, a Meta responde "Object with ID ... does not exist". Ele só
+     serve para achar contas gravadas com ele antes desta correção. */
+  const id = p.igUserId || igUserId;
   if (!id) throw new Error('A Meta não informou qual conta autorizou');
 
   const campos = {
@@ -105,7 +109,8 @@ async function gravar({ token, expiraEm, igUserId, alvo, metaAppId, usuarioId })
   };
 
   const minhas = accounts.de(usuarioId);
-  const mesmaConta = await accounts.findOne({ igUserId: id });
+  const mesmaConta = await accounts.findOne({ igUserId: id })
+    || (igUserId && igUserId !== id ? await accounts.findOne({ igUserId }) : null);
   if (mesmaConta && mesmaConta.usuarioId !== usuarioId) {
     throw new Error(`@${p.username || id} já está conectada por outro usuário da plataforma.`);
   }

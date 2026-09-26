@@ -85,6 +85,15 @@ async function sincronizar(conta) {
 
   try {
     const p = await graph.perfil(conta.accessToken);
+    // Conta gravada com o id do app (antes da correção em conexao.gravar):
+    // passa para o id da conta profissional, sem precisar reconectar.
+    if (p.igUserId && p.igUserId !== conta.igUserId) {
+      const [outra] = await sql`select id from accounts where ig_user_id = ${p.igUserId} and id <> ${conta.id}`;
+      if (!outra) {
+        update.igUserId = p.igUserId;
+        conta.igUserId = p.igUserId;
+      }
+    }
     Object.assign(update, {
       username: p.username || conta.username,
       name: p.name || conta.name,
