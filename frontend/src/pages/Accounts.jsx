@@ -255,6 +255,19 @@ export default function Accounts() {
     finally { setConnecting(p => ({ ...p, [key]: false })); }
   }
 
+  /* Trocar o app com a janela aberta: a URL já buscada é do app anterior, e o
+     link guiado sai do `selectedAppId` — os dois precisam mudar juntos. */
+  async function trocarAppDaEscolha(id) {
+    setSelectedAppId(id);
+    const account = escolhaOAuth?.account;
+    try {
+      const params = { ...(account?.id ? { accountId: account.id } : {}), ...(id ? { metaAppId: id } : {}) };
+      const { data } = await api.get('/oauth/url', { params });
+      if (!data?.url) throw new Error('URL não retornada');
+      setEscolhaOAuth(e => e && { ...e, url: data.url });
+    } catch (err) { showToast('error', 'Erro', err.response?.data?.error || err.message); }
+  }
+
   async function handleManualConnect() {
     if (!callbackUrl.trim()) return;
     setOauthConnecting(true);
@@ -1247,6 +1260,24 @@ export default function Accounts() {
               <button onClick={() => setEscolhaOAuth(null)} aria-label="Fechar"
                 style={{ background:'none', border:'none', color:'var(--mf-text-3)', fontSize:'var(--mf-t-h1)', cursor:'pointer', lineHeight:1 }}>×</button>
             </div>
+
+            {/* Com mais de um app, a conta precisa ser testadora do app
+                escolhido aqui — autorizar por outro dá "Cargo de programador
+                insuficiente". Por isso o app fica à vista, antes dos passos. */}
+            {metaApps.length > 1 && (
+              <div style={{ marginTop:16 }}>
+                <label style={{ fontSize:'var(--mf-t-micro)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:.5, textTransform:'uppercase', display:'block', marginBottom:6 }}>App Meta a usar</label>
+                <select value={selectedAppId} onChange={e => trocarAppDaEscolha(e.target.value)}
+                  style={{ width:'100%', padding:'8px 12px', borderRadius:'var(--mf-r-md)', border:'1px solid var(--border)', background:'var(--bg3)', color:'var(--mf-text)', fontSize:'var(--mf-t-sm)', outline:'none', cursor:'pointer' }}>
+                  {metaApps.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}{a.isDefault ? ' (padrão)' : ''}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', marginTop:6, lineHeight:1.6 }}>
+                  A conta precisa ser testadora <strong>deste</strong> app.
+                </div>
+              </div>
+            )}
 
             {/* O aviso vem antes dos passos: se o retorno não tem para onde
                 ir, seguir os dois passos não conecta nada. */}
