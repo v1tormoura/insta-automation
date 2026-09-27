@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import api from '../services/api';
 import { avisar } from '../services/avisos';
+import { getUsuario } from '../services/auth';
 import { MetricaLinha, ListaDeMetricas } from '../components/Metrica';
 import FilaDePostagens from '../components/FilaDePostagens';
 import { useServerEvents } from '../services/useServerEvents';
@@ -1174,7 +1175,8 @@ export default function Dashboard() {
   const sparkErrors  = useMemo(() => (d.dailyErrors7d||[]).map(x => x.errors||0), [d.dailyErrors7d]);
   const forecastData = useMemo(() => {
     const past = (d.dailyPosts||[]).slice(-period).map(x => ({
-      day:  x.label || x.date || '',
+      // Formatado aqui (e não o rótulo pronto do servidor): sai no idioma do painel.
+      day:  x.date ? new Date(x.date + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) : (x.label || ''),
       iso:  (x.date || '').slice(0, 10),
       value: x.posts || 0,
       forecast: false,
@@ -1243,7 +1245,9 @@ export default function Dashboard() {
               <div>
                 <div className="eyebrow">DASHBOARD</div>
                 <div className="title-line">
-                  <h1>Visão geral, <span className="text-gradient-brand">Vitor Marcelo</span></h1>
+                  {/* O nome de quem está logado — estava escrito fixo, e todo usuário
+                      via o nome do dono da plataforma. */}
+                  <h1>Visão geral, <span className="text-gradient-brand" data-sem-traducao>{(getUsuario()?.nome || '').split(' ').slice(0, 2).join(' ') || 'bem-vindo'}</span></h1>
                   <span className="live-status">
                     <span style={{ background:sysDotColor, boxShadow:`0 0 10px ${sysDotColor}` }} />
                     {!sysLoaded ? 'Carregando...' : sysOk ? 'Todos os sistemas operacionais' : 'Verificar sistemas'}

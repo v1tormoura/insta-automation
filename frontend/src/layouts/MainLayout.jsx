@@ -13,7 +13,7 @@ import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
 import FundoCiber from '../components/FundoCiber';
 import AvisoDeVersao from '../components/AvisoDeVersao';
-import { lidas as lerPreferencias, salvar as salvarPreferencias } from '../services/preferencias';
+import { lidas as lerPreferencias, salvar as salvarPreferencias, sincronizar as sincronizarPreferencias } from '../services/preferencias';
 
 /**
  * Alterna o tema, no topo.
@@ -107,6 +107,8 @@ function AvatarDoUsuario() {
       .then(({ data }) => {
         if (ignorar) return;
         setConta(data);
+        // Tema, idioma e fundo escolhidos na conta valem em qualquer aparelho.
+        sincronizarPreferencias(data.preferencias);
         // Mantém o papel guardado em dia (menu do admin) com o que o servidor diz.
         setUsuario({ ...(getUsuario() || {}), id: data.id, nome: data.nome, email: data.email, papel: data.papel, avatar: data.avatar });
       })

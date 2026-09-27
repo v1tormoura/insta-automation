@@ -53,7 +53,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
   const fmtDate = d => {
     if (!d) return '';
     const dt = new Date(d);
-    return `${String(dt.getDate()).padStart(2,'0')} DE ${dt.toLocaleString('pt-BR',{month:'short'}).toUpperCase()}. ${String(dt.getFullYear()).slice(2)}`;
+    return dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }).toUpperCase();
   };
 
   const views = insightViews(ins);

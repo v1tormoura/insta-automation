@@ -68,7 +68,8 @@ function publico(u) {
     senhaTrocadaEm: u?.senhaTrocadaEm || null,
     preferencias: {
       tema:   u?.preferencias?.tema   || 'escuro',
-      idioma: u?.preferencias?.idioma || 'pt',
+      // null = nunca escolheu: o painel segue o idioma do navegador.
+      idioma: u?.preferencias?.idioma || null,
       fundoAnimado: u?.preferencias?.fundoAnimado !== false,
     },
     notificacoes: {

@@ -338,7 +338,7 @@ export function ByAccountView({ publicacoes, onAbrir }) {
                   {nomeConta(g.conta)}
                 </span>
                 <span className="block text-[var(--mf-t-nano)] text-[var(--mf-text-3)]">
-                  {g.total} publicaç{g.total === 1 ? 'ão' : 'ões'}
+                  {g.total} {g.total === 1 ? 'publicação' : 'publicações'}
                 </span>
               </span>
               <span className="shrink-0 font-mono text-[var(--mf-t-body)] font-extrabold tabular-nums text-[var(--mf-text)]">

@@ -1,3 +1,5 @@
+import { definirIdioma } from '../i18n/tradutor';
+
 /**
  * Tema, fundo e idioma — aplicados no documento.
  *
@@ -23,17 +25,24 @@
 
 const CHAVE = 'mf-preferencias';
 
+/* Sem escolha gravada, o idioma vem do navegador: quem abre o painel com o
+   navegador em inglês (um revisor da Meta, por exemplo) já o vê em inglês. */
+function idiomaDoNavegador() {
+  const l = String((typeof navigator !== 'undefined' && navigator.language) || '').toLowerCase();
+  return l.startsWith('en') ? 'en' : l.startsWith('es') ? 'es' : 'pt';
+}
+
 const PADRAO = { tema: 'escuro', idioma: 'pt', fundoAnimado: true };
 
 /** O que está gravado neste navegador. Nunca lança: aba privada bloqueia o acesso. */
 export function lidas() {
   try {
     const cru = localStorage.getItem(CHAVE);
-    if (!cru) return { ...PADRAO };
+    if (!cru) return { ...PADRAO, idioma: idiomaDoNavegador() };
     const v = JSON.parse(cru);
     return {
       tema: v?.tema === 'claro' ? 'claro' : 'escuro',
-      idioma: ['pt', 'en', 'es'].includes(v?.idioma) ? v.idioma : 'pt',
+      idioma: ['pt', 'en', 'es'].includes(v?.idioma) ? v.idioma : idiomaDoNavegador(),
       fundoAnimado: v?.fundoAnimado !== false,
     };
   } catch {
@@ -59,6 +68,7 @@ export function aplicar(p = lidas()) {
   else raiz.removeAttribute('data-fundo');
 
   raiz.setAttribute('lang', p.idioma === 'en' ? 'en' : p.idioma === 'es' ? 'es' : 'pt-BR');
+  definirIdioma(p.idioma);
   return p;
 }
 
@@ -72,11 +82,13 @@ export function salvar(parcial) {
 /** Aplica o que o servidor devolveu, e alinha o navegador com ele. */
 export function sincronizar(doServidor) {
   if (!doServidor) return lidas();
-  return salvar({
-    tema: doServidor.tema,
-    idioma: doServidor.idioma,
-    fundoAnimado: doServidor.fundoAnimado,
-  });
+  /* Só o que a conta tem de fato escolhido: idioma null (nunca escolheu)
+     mantém o do navegador. */
+  const p = {};
+  if (doServidor.tema) p.tema = doServidor.tema;
+  if (doServidor.idioma) p.idioma = doServidor.idioma;
+  if (typeof doServidor.fundoAnimado === 'boolean') p.fundoAnimado = doServidor.fundoAnimado;
+  return salvar(p);
 }
 
 export default { lidas, aplicar, salvar, sincronizar };

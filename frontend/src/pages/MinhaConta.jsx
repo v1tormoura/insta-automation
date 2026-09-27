@@ -6,7 +6,7 @@ import api from '../services/api';
 import PageShell from '../components/PageShell';
 import Toast from '../components/Toast';
 import { EsqueletoLista } from '../components/Estados';
-import { salvar as salvarPreferencias } from '../services/preferencias';
+import { salvar as salvarPreferencias, lidas as lerPreferencias } from '../services/preferencias';
 import { avisarTopo } from '../services/contaDoUsuario';
 
 /**
@@ -21,10 +21,9 @@ import { avisarTopo } from '../services/contaDoUsuario';
  *
  * ── O que está aqui e ainda não faz efeito, dito com essas palavras
  *
- * O idioma. Não existe tradução no produto: as telas estão escritas em
- * português no código. O seletor guarda a escolha e o `lang` do documento
- * muda; nada mais. Escondê-lo daria a impressão de que a função não foi
- * pedida, e um seletor que troca de bandeira sem trocar de idioma seria pior.
+ * O idioma. As telas são escritas em português; inglês e espanhol vêm do
+ * dicionário aplicado na tela (i18n/tradutor.js). Texto que falte no
+ * dicionário aparece em português até ser acrescentado lá.
  *
  * ── Por que os avisos por tipo leem a configuração do Smart Activity
  *
@@ -363,15 +362,12 @@ export default function MinhaConta() {
             </Campo>
 
             <Campo rotulo="Idioma">
-              <Escolha valor={conta.preferencias.idioma} opcoes={IDIOMAS}
+              <Escolha valor={conta.preferencias.idioma || lerPreferencias().idioma} opcoes={IDIOMAS}
                 onChange={v => mudarPreferencia({ idioma: v })} />
             </Campo>
-            {/* Dito, e não escondido. Um seletor que troca de idioma sem trocar
-                o texto seria a pior das opções; esconder o controle daria a
-                impressão de que a função não foi pedida. */}
             <Nota>
-              A escolha é guardada e muda o <code>lang</code> da página. As telas do
-              painel ainda estão só em português — não há tradução no produto.
+              O painel inteiro muda para o idioma escolhido, na hora. A escolha fica
+              guardada na sua conta.
             </Nota>
 
             <Campo rotulo="Animação de fundo" style={{ marginTop: 'var(--mf-4)' }}>
