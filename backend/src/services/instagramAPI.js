@@ -8,13 +8,9 @@
  *   Token longo .... graph.instagram.com/access_token      (ig_exchange_token, 60 dias)
  *   Renovação ...... graph.instagram.com/refresh_access_token (ig_refresh_token)
  *   Perfil ......... GET  /me
- *   Publicação ..... POST /{ig-user-id}/media  →  GET /{container}?fields=status_code
- *                    →  POST /{ig-user-id}/media_publish
+ *   Publicação ..... em publicacao.js (upload direto do vídeo; imagem por URL)
  *   Comentário ..... POST /{media-id}/comments
  *   Cota ........... GET  /{ig-user-id}/content_publishing_limit
- *
- * A Meta BAIXA a mídia de uma URL pública (a nossa PUBLIC_URL/uploads/...);
- * não existe upload direto de arquivo nesta API.
  *
  * O que ela NÃO faz (e por isso não existe aqui): login por senha, curtir,
  * seguir, editar perfil, figurinha de link/enquete em story, localização por
@@ -25,7 +21,6 @@ const VERSAO = process.env.GRAPH_API_VERSION || 'v21.0';
 const GRAPH = `https://graph.instagram.com/${VERSAO}`;
 const TIMEOUT_MS = 30_000;
 
-const delay = ms => new Promise(r => setTimeout(r, ms));
 
 /** Erro da Graph com o código da Meta preservado (quem classifica precisa dele). */
 class GraphError extends Error {
@@ -118,71 +113,14 @@ async function perfil(token) {
   };
 }
 
-// ── Publicação ───────────────────────────────────────────────────────────────
-
-async function criarContainer(conta, params) {
-  const d = await post(`/${conta.igUserId}/media`, params, conta.accessToken);
-  if (!d?.id) throw new Error('A Meta não devolveu o id do container');
-  return d.id;
-}
-
-/** Espera a Meta baixar e processar a mídia. Vídeo leva de segundos a minutos. */
-async function aguardarContainer(containerId, token, { limiteMs = 5 * 60_000, intervaloMs = 5000 } = {}) {
-  const inicio = Date.now();
-  while (Date.now() - inicio < limiteMs) {
-    const d = await get(`/${containerId}`, { fields: 'status_code,status' }, token);
-    if (d.status_code === 'FINISHED') return;
-    if (d.status_code === 'ERROR') throw new Error(`A Meta não conseguiu processar a mídia: ${d.status || 'erro sem detalhe'}`);
-    if (d.status_code === 'EXPIRED') throw new Error('O container expirou antes de ser publicado');
-    await delay(intervaloMs);
-  }
-  throw new Error(`A Meta não terminou de processar a mídia em ${Math.round(limiteMs / 60_000)} min`);
-}
-
-async function publicarContainer(conta, containerId) {
-  const d = await post(`/${conta.igUserId}/media_publish`, { creation_id: containerId }, conta.accessToken);
-  if (!d?.id) throw new Error('A Meta não devolveu o id da publicação');
-  return String(d.id);
-}
-
 function exigirConexao(conta) {
   if (!conta?.igUserId || !conta?.accessToken) {
     throw Object.assign(new Error(`@${conta?.username || '?'} não está conectada pela API oficial — reconecte em Contas`), { code: 'SEM_TOKEN' });
   }
 }
 
-/** Reel a partir da URL pública do vídeo. Devolve o id da mídia publicada. */
-async function publicarReel(conta, { videoUrl, caption = '', coverUrl = null, compartilharNoFeed = true }) {
-  exigirConexao(conta);
-  const container = await criarContainer(conta, {
-    media_type: 'REELS',
-    video_url: videoUrl,
-    caption,
-    cover_url: coverUrl,
-    share_to_feed: compartilharNoFeed ? 'true' : 'false',
-  });
-  await aguardarContainer(container, conta.accessToken);
-  return publicarContainer(conta, container);
-}
-
-/** Post de imagem (JPEG) no feed. */
-async function publicarImagem(conta, { imageUrl, caption = '' }) {
-  exigirConexao(conta);
-  const container = await criarContainer(conta, { image_url: imageUrl, caption });
-  await aguardarContainer(container, conta.accessToken, { intervaloMs: 2000 });
-  return publicarContainer(conta, container);
-}
-
-/** Story de imagem ou vídeo. Sem figurinhas: a API oficial não as publica. */
-async function publicarStory(conta, { url, video = false }) {
-  exigirConexao(conta);
-  const container = await criarContainer(conta, {
-    media_type: 'STORIES',
-    ...(video ? { video_url: url } : { image_url: url }),
-  });
-  await aguardarContainer(container, conta.accessToken, { intervaloMs: video ? 5000 : 2000 });
-  return publicarContainer(conta, container);
-}
+// ── Comentário e cota ───────────────────────────────────────────────────────
+// (A publicação em si mora em publicacao.js.)
 
 /** Comenta numa mídia específica — a que a própria publicação devolveu. */
 async function comentar(conta, mediaId, texto) {
@@ -201,6 +139,5 @@ async function limiteDePublicacao(conta) {
 module.exports = {
   GRAPH, VERSAO, GraphError, get, post,
   trocarCodigo, tokenDeLongaDuracao, renovarToken, perfil,
-  publicarReel, publicarImagem, publicarStory, comentar, limiteDePublicacao,
-  aguardarContainer,
+  comentar, limiteDePublicacao,
 };

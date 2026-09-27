@@ -23,8 +23,9 @@ const config = {
   port: Number(process.env.PORT) || 3000,
   databaseUrl: process.env.DATABASE_URL || '',
 
-  /* Endereço público DESTA API. A Meta baixa daqui os vídeos e imagens que
-     publicamos, e é para cá que o OAuth devolve o código. */
+  /* Endereço público DESTA API. A Meta baixa daqui as imagens e as capas
+     (o vídeo vai por upload direto; esta URL é o plano B dele), e é para cá
+     que o OAuth devolve o código. */
   publicUrl: semBarra(process.env.PUBLIC_URL),
   /* Endereço do painel (Cloudflare Pages). Pode ser uma lista separada por
      vírgula quando o painel responde em mais de um domínio. */

@@ -25,7 +25,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // ── Públicas ────────────────────────────────────────────────────────────────
-// A Meta baixa daqui as mídias que publicamos.
+// A Meta baixa daqui imagens, capas e — no plano B — vídeos que publicamos.
 app.use('/uploads', express.static(UPLOADS, { maxAge: '1h' }));
 
 app.get('/image-proxy', async (req, res) => {

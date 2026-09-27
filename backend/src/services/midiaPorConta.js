@@ -57,7 +57,7 @@ function relativo(absoluto) {
  * @param {Object} post     — precisa de `id` e `media`; `marcaDagua` opcional
  * @param {Object} account  — precisa de `id` (e `username`, para a marca)
  * @returns {Promise<{caminho: string, proprio: boolean}>} `proprio` = arquivo
- *   gerado aqui, que o publicador apaga depois de a Meta baixar
+ *   gerado aqui, que o publicador apaga depois de a publicação terminar
  */
 async function prepararParaConta(post, account, opcoes = {}) {
   const original = String(post?.media || '');

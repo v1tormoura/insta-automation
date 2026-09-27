@@ -1,24 +1,23 @@
 'use strict';
 
 /**
- * Publica UM post em UMA conta pela API oficial.
+ * Publica UM post em UMA conta. Reescrito do zero em 27/09/2026.
  *
- * A Meta baixa a mídia da nossa URL pública (PUBLIC_URL/uploads/...), então o
- * trabalho aqui é deixar o arquivo certo nesse endereço:
+ *   1. confere o id da conta (o `user_id` do /me)
+ *   2. prepara o arquivo — o original; convertido só se o formato não servir
+ *      ou se houver marca d'água (midiaPorConta); story com texto queimado
+ *   3. entrega à Meta (publicacao.js) — vídeo por upload direto, imagem por URL
+ *   4. apaga o que foi gerado para a publicação (nunca o original)
  *
- *   Reel .... o vídeo enviado (convertido só se o formato não servir, ou com
- *             a marca d'água da conta — midiaPorConta) → media_type=REELS
- *   Imagem .. marca d'água da conta, depois JPEG na proporção que o feed aceita
- *   Story ... texto queimado (se houver), imagem 9:16 em JPEG ou vídeo único
- *
- * Os arquivos gerados são apagados DEPOIS da publicação: apagar antes deixaria
- * a Meta pedindo um arquivo que não existe mais.
+ * A legenda passa pela variação por conta (spintax `{a|b}`), com semente
+ * estável no par post+conta.
  */
 
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 const graph = require('./instagramAPI');
+const publicacao = require('./publicacao');
 const midiaPorConta = require('./midiaPorConta');
 const { jpegParaInstagram, isVideo } = require('./videoProcessor');
 const { resolverLegenda } = require('./variarLegenda');
@@ -29,7 +28,7 @@ function absoluto(caminho) {
   return path.isAbsolute(caminho) ? caminho : path.join(RAIZ_UPLOADS, caminho);
 }
 
-/** URL pública de um arquivo dentro de uploads/. */
+/** URL pública de um arquivo dentro de uploads/ (imagens, capa e o plano B do vídeo). */
 function urlPublica(caminho) {
   const rel = path.relative(RAIZ_UPLOADS, absoluto(caminho)).split(path.sep).map(encodeURIComponent).join('/');
   if (rel.startsWith('..')) throw new Error(`Arquivo fora de uploads/ não pode ser publicado: ${caminho}`);
@@ -41,8 +40,8 @@ function apagar(arquivos) {
 }
 
 /**
- * Converte um endereço de mídia (URL deste servidor, caminho relativo a
- * uploads/ ou URL externa) em arquivo local. URL externa é baixada para tmp/.
+ * Endereço de mídia (URL deste servidor, caminho em uploads/ ou URL externa)
+ * → arquivo local. URL externa é baixada para uploads/tmp/.
  * @returns {Promise<{caminho: string, temporario: boolean}>}
  */
 async function midiaLocal(endereco) {
@@ -61,69 +60,13 @@ async function midiaLocal(endereco) {
   return { caminho: nome, temporario: true };
 }
 
-async function publicarReel(conta, post, legenda) {
-  const gerados = [];
-  try {
-    const midia = await midiaPorConta.prepararParaConta(post, conta);
-    if (midia.proprio) gerados.push(midia.caminho);
-    const coverUrl = post.cover ? urlPublica(post.cover) : null;
-    return await graph.publicarReel(conta, { videoUrl: urlPublica(midia.caminho), caption: legenda, coverUrl });
-  } finally {
-    apagar(gerados);
-  }
-}
-
-async function publicarImagem(conta, post, legenda) {
-  const gerados = [];
-  try {
-    const comMarca = await midiaPorConta.prepararParaConta(post, conta);
-    if (comMarca.proprio) gerados.push(comMarca.caminho);
-    const jpeg = await jpegParaInstagram(absoluto(comMarca.caminho), 'feed');
-    gerados.push(jpeg);
-    return await graph.publicarImagem(conta, { imageUrl: urlPublica(jpeg), caption: legenda });
-  } finally {
-    apagar(gerados);
-  }
-}
-
-/**
- * Story de imagem ou vídeo, com o texto livre da tela de Stories queimado.
- * @param {{media: string, textoLivre?: object, id?: string}} story
- */
-async function publicarStory(conta, story) {
-  const gerados = [];
-  try {
-    const origem = await midiaLocal(story.media);
-    if (origem.temporario) gerados.push(origem.caminho);
-
-    let arquivo = origem.caminho;
-    if (story.textoLivre) {
-      const { queimarTexto } = require('./textoNoStory');
-      const r = await queimarTexto(absoluto(arquivo), story.textoLivre);
-      if (r.queimado) { arquivo = r.caminho; gerados.push(arquivo); }
-    }
-
-    if (isVideo(arquivo)) {
-      const midia = await midiaPorConta.prepararParaConta({ id: story.id || arquivo, media: arquivo }, conta);
-      if (midia.proprio) gerados.push(midia.caminho);
-      return await graph.publicarStory(conta, { url: urlPublica(midia.caminho), video: true });
-    }
-    const jpeg = await jpegParaInstagram(absoluto(arquivo), 'story');
-    gerados.push(jpeg);
-    return await graph.publicarStory(conta, { url: urlPublica(jpeg), video: false });
-  } finally {
-    apagar(gerados);
-  }
-}
-
 /* Contas já conferidas neste processo: uma leitura de /me por conta, não por post. */
 const _conferidas = new Set();
 
 /**
  * Garante que `conta.igUserId` é o id da conta profissional (o `user_id` do
- * /me). Contas conectadas antes da correção guardaram o id do app, e com ele
- * a Meta recusa /{id}/media com "Object with ID ... does not exist". Conserta
- * na hora e grava, sem pedir reconexão.
+ * /me). Contas conectadas antes guardaram o id do app, e com ele a Meta recusa
+ * /{id}/media com "Object with ID ... does not exist". Conserta e grava.
  */
 async function conferirId(conta) {
   if (!conta?.id || _conferidas.has(conta.id) || !conta.accessToken) return;
@@ -138,22 +81,72 @@ async function conferirId(conta) {
   }
 }
 
+/** Reel: o vídeo desta conta, com capa e legenda. */
+async function reel(conta, post, legenda, gerados) {
+  const midia = await midiaPorConta.prepararParaConta(post, conta);
+  if (midia.proprio) gerados.push(midia.caminho);
+  return publicacao.publicarVideo(conta, {
+    tipo: 'REELS',
+    caminho: absoluto(midia.caminho),
+    url: urlPublica(midia.caminho),
+    legenda,
+    capaUrl: post.cover ? urlPublica(post.cover) : null,
+  });
+}
+
+/** Post de imagem no feed: marca d'água (se houver) e JPEG na proporção do feed. */
+async function imagem(conta, post, legenda, gerados) {
+  const comMarca = await midiaPorConta.prepararParaConta(post, conta);
+  if (comMarca.proprio) gerados.push(comMarca.caminho);
+  const jpeg = await jpegParaInstagram(absoluto(comMarca.caminho), 'feed');
+  gerados.push(jpeg);
+  return publicacao.publicarImagem(conta, { tipo: 'IMAGE', url: urlPublica(jpeg), legenda });
+}
+
+/** Story de imagem ou vídeo, com o texto livre da tela de Stories queimado. */
+async function story(conta, s, gerados) {
+  const origem = await midiaLocal(s.media);
+  if (origem.temporario) gerados.push(origem.caminho);
+
+  let arquivo = origem.caminho;
+  if (s.textoLivre) {
+    const { queimarTexto } = require('./textoNoStory');
+    const r = await queimarTexto(absoluto(arquivo), s.textoLivre);
+    if (r.queimado) { arquivo = r.caminho; gerados.push(arquivo); }
+  }
+
+  if (isVideo(arquivo)) {
+    const midia = await midiaPorConta.prepararParaConta({ id: s.id || arquivo, media: arquivo }, conta);
+    if (midia.proprio) gerados.push(midia.caminho);
+    return publicacao.publicarVideo(conta, { tipo: 'STORIES', caminho: absoluto(midia.caminho), url: urlPublica(midia.caminho) });
+  }
+  const jpeg = await jpegParaInstagram(absoluto(arquivo), 'story');
+  gerados.push(jpeg);
+  return publicacao.publicarImagem(conta, { tipo: 'STORIES', url: urlPublica(jpeg) });
+}
+
 /**
- * Publica o post nesta conta. A legenda passa pela variação por conta
- * (spintax `{a|b}`), com semente estável no par post+conta.
+ * Publica o post nesta conta.
  * @returns {Promise<{mediaId: string}>}
  */
 async function publicar(conta, post) {
   await conferirId(conta);
-  const tipo = post.postType || 'reel';
-  if (tipo === 'story') {
-    return { mediaId: await publicarStory(conta, { media: post.media, id: post.id, textoLivre: post.textoLivre }) };
+  /* O que foi gerado para esta publicação sai DEPOIS de a Meta terminar:
+     no plano B (URL) ela ainda baixa daqui até o container ficar pronto. */
+  const gerados = [];
+  try {
+    const tipo = post.postType || 'reel';
+    if (tipo === 'story') {
+      return { mediaId: await story(conta, { media: post.media, id: post.id, textoLivre: post.textoLivre }, gerados) };
+    }
+    const legenda = resolverLegenda(post.caption || '', `${post.id}:${conta.id}`);
+    const mediaId = isVideo(post.media)
+      ? await reel(conta, post, legenda, gerados)
+      : await imagem(conta, post, legenda, gerados);
+    return { mediaId };
+  } finally {
+    apagar(gerados);
   }
-  const legenda = resolverLegenda(post.caption || '', `${post.id}:${conta.id}`);
-  const mediaId = isVideo(post.media)
-    ? await publicarReel(conta, post, legenda)
-    : await publicarImagem(conta, post, legenda);
-  return { mediaId };
 }
 
-module.exports = { publicar, publicarStory, urlPublica, midiaLocal, _conferirId: conferirId };
+module.exports = { publicar, urlPublica, midiaLocal, _conferirId: conferirId };

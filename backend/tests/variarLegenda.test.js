@@ -76,10 +76,12 @@ describe('a publicação aplica a variação por conta', () => {
 
   test('publica com a legenda resolvida, e antes do publish', () => {
     const iResolve = fonte.indexOf('resolverLegenda(post.caption');
-    const iPublish = fonte.lastIndexOf('publicarReel(conta, post, legenda)');
+    const iPublish = fonte.lastIndexOf('reel(conta, post, legenda, gerados)');
     expect(iResolve).toBeGreaterThan(0);
     expect(iPublish).toBeGreaterThan(iResolve);
-    expect(fonte).toContain('caption: legenda');
+    // A legenda resolvida é a que vai para a Meta (vídeo e imagem).
+    expect(fonte).toMatch(/tipo: 'REELS',[\s\S]*?legenda,/);
+    expect(fonte).toMatch(/tipo: 'IMAGE', url: urlPublica\(jpeg\), legenda/);
   });
 });
 

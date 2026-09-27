@@ -101,9 +101,9 @@ describe('todos os caminhos de publicação passam por aqui', () => {
   test('o arquivo por conta é apagado DEPOIS de a Meta concluir a publicação', () => {
     /* A Meta BAIXA a mídia da nossa URL: apagar antes deixaria o container
        pedindo um arquivo que não existe mais. */
-    const trecho = publicar.slice(publicar.indexOf('async function publicarReel'), publicar.indexOf('async function publicarImagem'));
-    expect(trecho.indexOf('await graph.publicarReel')).toBeLessThan(trecho.indexOf('apagar(gerados)'));
-    expect(trecho).toContain('} finally {');
+    const trecho = publicar.slice(publicar.indexOf('async function publicar(conta, post)'));
+    expect(trecho.indexOf('await reel(')).toBeLessThan(trecho.indexOf('apagar(gerados)'));
+    expect(trecho.indexOf('} finally {')).toBeLessThan(trecho.indexOf('apagar(gerados)'));
   });
 
   test('Postar, Loop e campanha usam o mesmo publicador', () => {
