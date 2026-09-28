@@ -41,10 +41,9 @@ function comAmbiente(env, fn) {
   }
 }
 
-describe('o padrão: sem teto, janela das 8h às 22h', () => {
-  test('madrugada espera; tarde publica', () => {
-    for (const h of [0, 2, 3, 4, 5, 6]) expect(podePublicar(conta('a'), emHoras(h)).pode).toBe(false);
-    for (const h of [10, 12, 15, 20]) expect(podePublicar(conta('a'), emHoras(h)).pode).toBe(true);
+describe('o padrão: sem teto e sem janela', () => {
+  test('publica a qualquer hora — um envio das 22h35 não espera até o dia seguinte', () => {
+    for (const h of [0, 2, 3, 6, 10, 15, 22, 23]) expect(podePublicar(conta('a'), emHoras(h, 35)).pode).toBe(true);
   });
 
   test('não existe teto vindo do sistema', () => {
@@ -59,9 +58,11 @@ describe('o padrão: sem teto, janela das 8h às 22h', () => {
     expect(r.motivo).toBe('');
   });
 
-  test('a janela é 8h–22h (com o deslocamento de até 45 min por conta)', () => {
-    for (const h of [0, 3, 6]) expect(dentroDaJanela(conta('a'), emHoras(h))).toBe(false);
-    for (const h of [10, 15, 20]) expect(dentroDaJanela(conta('a'), emHoras(h))).toBe(true);
+  test('JANELA_PUBLICACAO=8-22 liga a janela (com o deslocamento de até 45 min por conta)', () => {
+    comAmbiente({ JANELA_PUBLICACAO: '8-22' }, r => {
+      for (const h of [0, 3, 6]) expect(r.dentroDaJanela(conta('a'), emHoras(h))).toBe(false);
+      for (const h of [10, 15, 20]) expect(r.dentroDaJanela(conta('a'), emHoras(h))).toBe(true);
+    });
   });
 
   test('JANELA_PUBLICACAO=0-24 desliga a janela', () => {

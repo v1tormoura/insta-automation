@@ -7,6 +7,7 @@
 
 const router = require('express').Router();
 const metaApps = require('../repos/metaApps');
+const config = require('../config');
 const { soAdmin } = require('../middleware/auth');
 
 const aparado = v => String(v ?? '').trim();
@@ -15,6 +16,15 @@ router.get('/', async (req, res) => {
   const lista = await metaApps.listar();
   if (req.user.papel === 'admin') return res.json(lista);
   res.json(lista.map(a => ({ id: a.id, name: a.name, appId: a.appId, isDefault: a.isDefault })));
+});
+
+/* O endereço de retorno que o servidor MANDA para a Meta. A tela mostrava um
+   endereço deduzido no navegador — se o do servidor for outro, cadastrar o da
+   tela dá "Invalid redirect_uri" com tudo parecendo certo. */
+router.get('/config', (req, res) => {
+  let dominio = '';
+  try { dominio = new URL(config.oauthRedirectUri).hostname; } catch { /* URI mal formada: a tela mostra só ela */ }
+  res.json({ redirectUri: config.oauthRedirectUri, dominio });
 });
 
 router.use(soAdmin);

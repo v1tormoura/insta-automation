@@ -3,14 +3,15 @@
 /**
  * Quanto e quando uma conta pode publicar.
  *
- * ── Estado atual: sem teto; janela das 8h às 22h
+ * ── Estado atual: sem teto e sem janela
  *
- * Sem teto diário por decisão de quem opera o sistema (a conta com teto
- * próprio configurado continua obedecendo). A janela é 8h–22h por padrão
- * (26/09/2026). Pelo ambiente, sem tocar no código:
+ * Sem teto diário e sem janela por decisão de quem opera o sistema (a conta
+ * com teto próprio configurado continua obedecendo). A janela 8h–22h ficou
+ * ligada por padrão de 26 a 28/09/2026 e segurou por horas um envio feito às
+ * 22h35 — quem clica em Postar quer que saia. Pelo ambiente, sem tocar no código:
  *
  *     TETO_DIARIO_PADRAO=6-10     # liga o teto: publicações por dia, sorteadas na faixa
- *     JANELA_PUBLICACAO=7-23      # outra janela; 0-24 desliga
+ *     JANELA_PUBLICACAO=8-22      # liga a janela
  *
  * ── Por que o mecanismo continua aqui em vez de ser apagado
  *
@@ -54,9 +55,8 @@ const TETO_PADRAO = _faixaDoAmbiente(process.env.TETO_DIARIO_PADRAO);
 const TETO_MIN = TETO_PADRAO ? TETO_PADRAO.min : 0;
 const TETO_MAX = TETO_PADRAO ? TETO_PADRAO.max : 0;
 
-/* Sem janela no ambiente: 8h às 22h. Publicar de madrugada entrega para quase
-   ninguém e é o horário típico de automação; `JANELA_PUBLICACAO=0-24` desliga. */
-const JANELA = _faixaDoAmbiente(process.env.JANELA_PUBLICACAO) || { min: 8, max: 22 };
+/* Sem janela no ambiente: o dia inteiro. `JANELA_PUBLICACAO=8-22` liga. */
+const JANELA = _faixaDoAmbiente(process.env.JANELA_PUBLICACAO) || { min: 0, max: 24 };
 const JANELA_INICIO = JANELA.min;
 const JANELA_FIM = JANELA.max;
 

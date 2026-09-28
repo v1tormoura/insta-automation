@@ -13,8 +13,13 @@ const MASCARA = '••••••••';
 
 function paraApi(app) {
   if (!app) return app;
+  /* Qual id vai como `client_id` no login: o do Instagram só quando id E
+     segredo do Instagram estão cadastrados (a mesma regra de `credenciais`). */
+  const usaIg = !!(app.instagramAppId && app.instagramAppSecret);
   return {
     ...app,
+    clientIdDoLogin: usaIg ? app.instagramAppId : app.appId,
+    igSemSegredo: !!app.instagramAppId && !app.instagramAppSecret,
     appSecret: app.appSecret ? MASCARA : '',
     instagramAppSecret: app.instagramAppSecret ? MASCARA : '',
   };

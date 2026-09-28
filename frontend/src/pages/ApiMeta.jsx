@@ -6,7 +6,6 @@ import api from '../services/api';
 import { toast } from 'sonner';
 import { EsqueletoLista } from '../components/Estados';
 
-const BACKEND_URL  = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const EMPTY_FORM = { name: '', appId: '', appSecret: '', loginConfigId: '', instagramAppId: '', instagramAppSecret: '' };
 
@@ -50,6 +49,7 @@ export default function ApiMeta() {
   const [saving, setSaving]       = useState(false);
   const [deleting, setDeleting]   = useState(null);
   const [copiedKey, setCopiedKey] = useState('');
+  const [doServidor, setDoServidor] = useState(null);
 
   const loadApps = useCallback(async () => {
     try {
@@ -61,6 +61,7 @@ export default function ApiMeta() {
   }, []);
 
   useEffect(() => { loadApps(); }, [loadApps]);
+  useEffect(() => { api.get('/meta-apps/config').then(r => setDoServidor(r.data)).catch(() => {}); }, []);
 
   function openNew() { setEditId(null); setForm(EMPTY_FORM); setShowForm(true); }
   function openEdit(app) {
@@ -115,9 +116,9 @@ export default function ApiMeta() {
   }
 
   const configRows = [
-    { label: 'Redirect URI principal',       value: `${window.location.origin}/oauth-callback` },
-    { label: 'Redirect URI alternativa',     value: `${BACKEND_URL}/oauth/callback` },
-    { label: 'Site URL / App Domains',       value: window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname },
+    /* O endereço que o servidor envia de fato — é ele que a Meta compara. */
+    { label: 'URI de redirecionamento do OAuth (cole exatamente este)', value: doServidor?.redirectUri || `${window.location.origin}/oauth-callback` },
+    { label: 'Domínio do app', value: doServidor?.dominio || window.location.hostname },
   ];
 
   return (
@@ -142,7 +143,7 @@ export default function ApiMeta() {
           <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 800, color: 'var(--mf-mod-publicar)', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>Configuração do App Meta</div>
           <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 4 }}>Copie esses valores no painel Meta Developers</div>
           <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginBottom: 16 }}>
-            Em <strong style={{ color: 'var(--mf-text-2)' }}>developers.facebook.com → Seu App → Configurações → Básico / OAuth</strong>, use os valores abaixo.
+            Em <strong style={{ color: 'var(--mf-text-2)' }}>developers.facebook.com → Seu App → Instagram → Configuração da API com login do Instagram → Configurações de login de empresa</strong>, cole a URI abaixo em <strong style={{ color: 'var(--mf-text-2)' }}>URIs de redirecionamento do OAuth</strong> — em cada app cadastrado.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {configRows.map(({ label, value }) => (
@@ -226,12 +227,24 @@ export default function ApiMeta() {
                           IG App ID: <code style={{ fontFamily: 'var(--mf-mono)', color: 'var(--mf-mod, var(--mf-accent-500))' }}>{app.instagramAppId}</code>
                         </span>
                       )}
+                      {app.clientIdDoLogin && (
+                        <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>
+                          Login usa: <code style={{ fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-2)' }}>{app.clientIdDoLogin}</code>
+                        </span>
+                      )}
                       {app.loginConfigId && (
                         <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>
                           Login Config: <code style={{ fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-2)' }}>{app.loginConfigId}</code>
                         </span>
                       )}
                     </div>
+                    {/* Id do Instagram sem o segredo: o login cai no id do
+                        Facebook, e o Instagram recusa com "Invalid redirect_uri". */}
+                    {app.igSemSegredo && (
+                      <div style={{ marginTop: 8, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', lineHeight: 1.6 }}>
+                        Falta o <strong>Instagram App Secret</strong>: sem ele o login usa o App ID do Facebook e o Instagram recusa. Edite e preencha.
+                      </div>
+                    )}
                   </div>
 
                   {/* actions */}
@@ -298,13 +311,13 @@ export default function ApiMeta() {
             </div>
 
             <FormField label="Nome do App" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Ex: App Principal, App Backup, App KaiikyFlow..." required />
-            <FormField label="Meta App ID" value={form.appId} onChange={v => setForm(f => ({ ...f, appId: v }))} placeholder="1611952840654185" required hint="developers.facebook.com → Seu App → Configurações → Básico → App ID" />
+            <FormField label="Meta App ID" value={form.appId} onChange={v => setForm(f => ({ ...f, appId: v }))} placeholder="Ex: 1234567890123456" required hint="developers.facebook.com → Seu App → Configurações → Básico → App ID" />
             <FormField label={editId ? 'Meta App Secret (deixe vazio para não alterar)' : 'Meta App Secret'} value={form.appSecret} onChange={v => setForm(f => ({ ...f, appSecret: v }))} placeholder="••••••••••••••••" type="password" required={!editId} hint="developers.facebook.com → Configurações → Básico → App Secret → Mostrar" />
 
             <div style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />
             <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)', letterSpacing: .5, marginBottom: 14, textTransform: 'uppercase' }}>Campos opcionais</div>
 
-            <FormField label="Instagram App ID (sub-app separado)" value={form.instagramAppId} onChange={v => setForm(f => ({ ...f, instagramAppId: v }))} placeholder="1760567911642665" hint="Se você tem um sub-app exclusivo para Instagram Business Login" />
+            <FormField label="Instagram App ID (sub-app separado)" value={form.instagramAppId} onChange={v => setForm(f => ({ ...f, instagramAppId: v }))} placeholder="Ex: 9876543210987654" hint="Se você tem um sub-app exclusivo para Instagram Business Login" />
             <FormField label={editId ? 'Instagram App Secret (deixe vazio para não alterar)' : 'Instagram App Secret'} value={form.instagramAppSecret} onChange={v => setForm(f => ({ ...f, instagramAppSecret: v }))} placeholder="••••••••••••••••" type="password" />
             <FormField label="Meta Login Config ID (opcional)" value={form.loginConfigId} onChange={v => setForm(f => ({ ...f, loginConfigId: v }))} placeholder="deixe vazio para login padrão" hint="Apenas necessário se você criou uma configuração de login customizada" />
 
