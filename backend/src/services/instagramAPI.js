@@ -8,7 +8,7 @@
  *   Token longo .... graph.instagram.com/access_token      (ig_exchange_token, 60 dias)
  *   Renovação ...... graph.instagram.com/refresh_access_token (ig_refresh_token)
  *   Perfil ......... GET  /me
- *   Publicação ..... em publicacao.js (upload direto do vídeo; imagem por URL)
+ *   Publicação ..... em publicacao.js (fluxo do Publicador: a Meta baixa a mídia pela URL)
  *   Comentário ..... POST /{media-id}/comments
  *   Cota ........... GET  /{ig-user-id}/content_publishing_limit
  *

@@ -170,13 +170,12 @@ async function agendarCampanha(campaignId, { agora = new Date() } = {}) {
     where campaign_id = ${campaignId} and status = any(${AGENDAVEIS})
     order by scheduled_at, id`;
 
-  let agendadas = 0, jaExistiam = 0, atrasadas = 0;
+  let agendadas = 0, jaExistiam = 0;
   for (const pub of lista) {
     let quando = new Date(pub.scheduledAt);
-    if (fila.calcularDelay(quando, agora) === 0) {
-      quando = new Date(agora.getTime() + ((atrasadas * 5) + Math.floor(Math.random() * 5)) * 60_000);
-      atrasadas++;
-    }
+    // Vencida: sai agora (como o agendador do Publicador); a trava da conta
+    // faz as da mesma conta saírem uma depois da outra.
+    if (fila.calcularDelay(quando, agora) === 0) quando = agora;
     const { jobId, criado } = await fila.agendarPublicacao({ ...pub, scheduledAt: quando }, agora);
     if (criado) agendadas++; else jaExistiam++;
     await sql`

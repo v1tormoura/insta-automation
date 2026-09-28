@@ -60,10 +60,10 @@ describe('jitter', () => {
   });
 });
 
-describe('o worker usa o módulo', () => {
-  test('a próxima rodada do envio sai com jitter, não com o intervalo exato', () => {
+describe('o worker não usa jitter (fluxo do Publicador)', () => {
+  test('a próxima rodada do envio sai no intervalo exato', () => {
     const fonte = require('fs').readFileSync(require('path').resolve(__dirname, '../src/worker.js'), 'utf8');
-    expect(fonte).toContain("require('./services/ritmoHumano')");
-    expect(fonte).toMatch(/comJitter\(\(job\.intervalMinutes/);
+    expect(fonte).not.toContain("require('./services/ritmoHumano')");
+    expect(fonte).toMatch(/Math\.max\(PISO_INTERVALO_MS, \(job\.intervalMinutes/);
   });
 });

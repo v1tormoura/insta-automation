@@ -80,8 +80,8 @@ describe('a publicação aplica a variação por conta', () => {
     expect(iResolve).toBeGreaterThan(0);
     expect(iPublish).toBeGreaterThan(iResolve);
     // A legenda resolvida é a que vai para a Meta (vídeo e imagem).
-    expect(fonte).toMatch(/tipo: 'REELS',[\s\S]*?legenda,/);
-    expect(fonte).toMatch(/tipo: 'IMAGE', url: urlPublica\(jpeg\), legenda/);
+    expect(fonte).toMatch(/tipo: 'REEL',[\s\S]*?legenda,/);
+    expect(fonte).toMatch(/tipo: 'IMAGE', midia: \{ kind: 'image', url: urlPublica\(jpeg\) \}, legenda/);
   });
 });
 

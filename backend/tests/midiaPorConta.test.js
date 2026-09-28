@@ -92,10 +92,8 @@ describe('todos os caminhos de publicação passam por aqui', () => {
   const publicar = fs.readFileSync(path.resolve(__dirname, '../src/services/publicar.js'), 'utf8');
   const worker = fs.readFileSync(path.resolve(__dirname, '../src/worker.js'), 'utf8');
 
-  test('reel, imagem e story preparam a mídia por conta', () => {
-    /* Um teste de unidade sobre o módulo não pega a ausência da chamada — o
-       módulo pode estar perfeito e ninguém chamá-lo. */
-    expect(publicar.match(/midiaPorConta\.prepararParaConta\(/g)).toHaveLength(3);
+  test('o vídeo passa pela conferência de formato, sem marca d\'água', () => {
+    expect(publicar).toContain('marcaDagua: null');
   });
 
   test('o arquivo por conta é apagado DEPOIS de a Meta concluir a publicação', () => {
@@ -108,20 +106,20 @@ describe('todos os caminhos de publicação passam por aqui', () => {
 
   test('Postar, Loop e campanha usam o mesmo publicador', () => {
     expect(worker).toMatch(/publicarNaConta:\s*\(conta, post\) => publicarNaConta\(conta, post\)/);
-    expect(worker).toContain('const { mediaId } = await publicar(conta, postDaConta);');
+    expect(worker).toContain('const { mediaId, permalink } = await publicar(conta, postDaConta);');
   });
 });
 
-describe('o ritmo entre contas', () => {
+describe('o ritmo entre contas (como no Publicador)', () => {
   const worker = fs.readFileSync(path.resolve(__dirname, '../src/worker.js'), 'utf8');
   const stories = fs.readFileSync(path.resolve(__dirname, '../src/services/stories.js'), 'utf8');
 
-  test('envio (Postar/Loop): ordem sorteada, alternância e espera entre publicações', () => {
-    expect(worker).toMatch(/espacarPorConta\(embaralhar\(/);
-    expect(worker).toContain('120_000 + Math.floor(Math.random() * 180_000)');   // 2 a 5 min
+  test('envio (Postar/Loop): contas ao mesmo tempo, na ordem, sem sorteio nem espera aleatória', () => {
+    expect(worker).toContain('emParalelo(');
+    expect(worker).not.toMatch(/embaralhar|Math\.random|comJitter/);
   });
 
-  test('stories: ordem sorteada por mídia', () => {
-    expect(stories).toContain('embaralhar(accountIds');
+  test('stories: sem ordem sorteada nem espera aleatória', () => {
+    expect(stories).not.toMatch(/embaralhar|Math\.random/);
   });
 });

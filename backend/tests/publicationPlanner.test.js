@@ -531,3 +531,19 @@ describe('reuso por Postar e Loop', () => {
     expect(fonte).not.toMatch(/Date\.now\(\)/);   // nem o relógio
   });
 });
+
+describe("estratégia 'publicador' (o planner do Publicador)", () => {
+  const { generatePlan } = require('../src/services/publicationPlanner');
+  test('cada conteúdo sai em todas as contas no mesmo horário; o próximo, um intervalo fixo depois', () => {
+    const inicio = new Date('2026-06-15T12:00:00Z');
+    const plano = generatePlan({
+      accounts: [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+      contents: [{ id: 'x' }, { id: 'y' }],
+      strategy: { mode: 'publicador' },
+      schedule: { intervalMinMinutes: 30, intervalMaxMinutes: 30, useFixedInterval: true },
+      startAt: inicio,
+    });
+    expect(plano.map(p => `${p.contentId}${p.accountId}@${(p.scheduledAt - inicio) / 60_000}`))
+      .toEqual(['xa@0', 'xb@0', 'xc@0', 'ya@30', 'yb@30', 'yc@30']);
+  });
+});

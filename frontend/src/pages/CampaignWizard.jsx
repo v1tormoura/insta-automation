@@ -12,7 +12,6 @@ import CardMetadados from '../components/CardMetadados';
 import TituloDeCartao from '../components/TituloDeCartao';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 import { EsqueletoLista } from '../components/Estados';
-import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import CapasPorPerfil from '../components/CapasPorPerfil';
 import { MARCA_PADRAO } from '../services/marcaDagua';
@@ -178,6 +177,8 @@ const ETAPAS = [
 ];
 
 const ESTRATEGIAS = [
+  { id: 'publicador', nome: 'Igual ao Publicador (recomendado)',
+    desc: 'Cada conteúdo sai em todas as contas ao mesmo tempo; o próximo, um intervalo fixo depois. Sem sorteio.' },
   { id: 'interleaved_random', nome: 'Distribuição intercalada',
     desc: 'Alterna contas e conteúdos com ordem semeada. Evita blocos rígidos e nunca repete a mesma conta em sequência.' },
   { id: 'round_robin', nome: 'Round robin',
@@ -199,11 +200,11 @@ const estadoInicial = {
   captionMode: 'global',
   captions: { global: '', byAccount: {}, byContent: {}, byAccountContent: {} },
   commentMode: 'disabled', comments: { global: '', delayMinutes: 2, delayMaxMinutes: 6 },
-  strategy: { mode: 'interleaved_random' },
+  strategy: { mode: 'publicador' },
   schedule: {
     startAt: '',
-    intervalMinMinutes: 12, intervalMaxMinutes: 28,
-    useFixedInterval: false,
+    intervalMinMinutes: 30, intervalMaxMinutes: 30,
+    useFixedInterval: true,
     windowStart: '', windowEnd: '', weekdays: [],
   },
   settings: { respectDailyLimit: true, postType: 'reel', marcaDagua: MARCA_PADRAO },
@@ -233,7 +234,6 @@ export default function CampaignWizard() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro]     = useState(null);
   const [toast, setToast]   = useState(null);
-  const [marcaModal, setMarcaModal] = useState(false);
 
   // null enquanto a prévia carrega; o botão de criar espera o veredito.
   const [previaValida, setPreviaValida] = useState(null);
@@ -812,34 +812,6 @@ export default function CampaignWizard() {
         </div>
       </>)}
 
-      {/* ── Marca d'água ──────────────────────────────────────────────────
-          Numa campanha ela importa mais que em qualquer outro lugar: são
-          dezenas de contas publicando o mesmo conteúdo, e o @ de cada uma no
-          próprio vídeo é o que distingue "vinte contas com o mesmo material"
-          de "vinte contas repostando a mesma coisa uma da outra".
-
-          O texto NÃO é guardado na campanha — é o @ de cada conta, resolvido na
-          execução. Guardá-lo faria a marca de uma conta aparecer no vídeo de
-          outra, que é exatamente a assinatura que se está tentando evitar. */}
-      {painel("Marca d'água", (
-        <>
-          <button type="button" onClick={() => setMarcaModal(true)}
-            className={form.settings.marcaDagua?.ativa ? 'btn-ghost tom-modulo' : 'btn-ghost'}
-            style={{ width: '100%', justifyContent: 'center',
-              ...(form.settings.marcaDagua?.ativa ? {
-                '--tom': 'var(--mf-mod-campanhas)',
-                color: 'var(--mf-mod-campanhas)',
-                background: 'color-mix(in oklch, var(--mf-mod-campanhas) 10%, transparent)',
-              } : {}) }}>
-            {form.settings.marcaDagua?.ativa
-              ? `Ativa — ${form.settings.marcaDagua.posicao}, ${form.settings.marcaDagua.opacidade}%`
-              : "Adicionar marca d'água"}
-          </button>
-          <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', marginTop:9, lineHeight:1.6 }}>
-            Grava o @ de cada conta no próprio vídeo, na hora de publicar.
-          </div>
-        </>
-      ))}
 
       {painel('Limite diário', (
         <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
@@ -1031,15 +1003,6 @@ export default function CampaignWizard() {
         </div>
       </div>
 
-      <MarcaDaguaModal
-        aberto={marcaModal}
-        valor={form.settings.marcaDagua}
-        contas={form.accountIds?.length || 0}
-        arroba={contas.find(a => form.accountIds?.includes(a.id))?.username || ''}
-        mod="campanhas"
-        onCancelar={() => setMarcaModal(false)}
-        onAplicar={c => { mudarEm('settings', 'marcaDagua', c); setMarcaModal(false); }}
-      />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </PageShell>

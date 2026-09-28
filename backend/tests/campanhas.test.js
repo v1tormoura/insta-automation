@@ -255,12 +255,12 @@ describe('agendamento', () => {
     expect(Math.abs(job.runAt - inicio)).toBeLessThan(2000);
   });
 
-  test('publicações atrasadas são espaçadas em vez de saírem de uma vez', async () => {
+  test('publicações atrasadas saem agora (como o agendador do Publicador)', async () => {
+    const antes = Date.now();
     const c = await svc.criarCampanha(DONO.id, dados({ schedule: { startAt: new Date(Date.now() - 86_400_000), intervalMinMinutes: 1, intervalMaxMinutes: 1 } }));
     await executor.agendarCampanha(c.id);
-    const horarios = (await trabalhos('campanha_publicacao')).map(j => j.runAt.getTime()).sort((a, b) => a - b);
-    // 4 atrasadas: 0–4, 5–9, 10–14 e 15–19 min a partir de agora.
-    expect(horarios[horarios.length - 1] - horarios[0]).toBeGreaterThanOrEqual(11 * 60_000 - 1000);
+    const horarios = (await trabalhos('campanha_publicacao')).map(j => j.runAt.getTime());
+    expect(horarios.every(h => h >= antes - 1000 && h <= Date.now() + 1000)).toBe(true);
   });
 
   test('campanha pausada ou cancelada não agenda', async () => {

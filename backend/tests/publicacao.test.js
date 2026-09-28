@@ -1,22 +1,22 @@
 'use strict';
 
 /**
- * A publicação reescrita (publicacao.js), contra uma Meta simulada.
+ * A publicação no fluxo do Publicador (publicacao.js), contra uma Meta simulada.
  *
- *   vídeo           → container resumable, upload direto do arquivo para
- *                     rupload.facebook.com, espera FINISHED, media_publish
- *   upload falhou   → a mesma publicação uma vez pela URL (video_url)
- *   erro da conta   → não tenta de novo (token inválido não melhora pela URL)
- *   imagem          → image_url
+ *   reel            → container com video_url (a Meta baixa o arquivo), espera
+ *                     FINISHED, media_publish, permalink
+ *   story / foto    → video_url | image_url
+ *   não pronto      → o media_publish volta a esperar o processamento
+ *   resposta perdida→ confere o container antes de publicar de novo (nunca duas vezes)
+ *   EXPIRED         → descarta o container e cria outro
+ *   erro da conta   → falha na hora, sem nova tentativa
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
 const publicacao = require('../src/services/publicacao');
+const { GraphError } = require('../src/services/instagramAPI');
 
 const conta = { id: 'c1', username: 'loja', igUserId: '1784', accessToken: 'TOKEN' };
-let chamadas, roteiro, arquivo;
+let chamadas, roteiro;
 
 function responder(corpo, status = 200) {
   return { ok: status < 400, status, text: async () => JSON.stringify(corpo) };
@@ -24,69 +24,97 @@ function responder(corpo, status = 200) {
 
 beforeEach(() => {
   chamadas = [];
-  roteiro = {};
-  arquivo = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'pub-')), 'video.mp4');
-  fs.writeFileSync(arquivo, Buffer.alloc(2048, 7));
+  roteiro = { status: ['FINISHED'], publicar: [], containers: 0 };
+  publicacao._tempo.esperar = async () => {};
   global.fetch = jest.fn(async (url, opcoes = {}) => {
     const u = String(url);
     const corpo = opcoes.body instanceof URLSearchParams ? Object.fromEntries(opcoes.body) : null;
-    let bytes = null;
-    if (opcoes.body && !(opcoes.body instanceof URLSearchParams)) {
-      bytes = 0; for await (const pedaco of opcoes.body) bytes += pedaco.length;
+    chamadas.push({ url: u, metodo: opcoes.method || 'GET', corpo });
+    if (u.includes('/media_publish')) {
+      const r = roteiro.publicar.shift();
+      if (r === 'rede') throw new TypeError('fetch failed');
+      if (r) return responder({ error: r }, 400);
+      return responder({ id: 'MIDIA_NO_AR' });
     }
-    chamadas.push({ url: u, metodo: opcoes.method || 'GET', corpo, headers: opcoes.headers || {}, bytes });
-    if (u.includes('/media_publish')) return responder({ id: 'MIDIA_NO_AR' });
+    if (/\/1784\/media\?/.test(u)) return responder({ data: [{ id: 'ACHADA', caption: 'oi', timestamp: new Date().toISOString() }] });
     if (u.includes('/1784/media')) {
-      if (corpo.upload_type === 'resumable') return roteiro.containerFalha ? responder({ error: roteiro.containerFalha }, 400) : responder({ id: 'C1', uri: 'https://rupload.facebook.com/ig-api-upload/v21.0/C1' });
-      return responder({ id: 'C2' });
+      if (roteiro.containerFalha) return responder({ error: roteiro.containerFalha }, 400);
+      roteiro.containers++;
+      return responder({ id: `C${roteiro.containers}` });
     }
-    if (u.startsWith('https://rupload.facebook.com/')) return roteiro.uploadFalha ? responder({ debug_info: 'falhou' }, 500) : responder({ success: true });
-    if (/\/C[12]\?/.test(u)) return responder({ status_code: 'FINISHED' });
+    if (/\/C\d+\?/.test(u)) {
+      const s = roteiro.status.length > 1 ? roteiro.status.shift() : roteiro.status[0];
+      return responder({ status_code: s });
+    }
+    if (u.includes('/MIDIA_NO_AR?') || u.includes('/ACHADA?')) return responder({ permalink: 'https://instagram.com/reel/x' });
     return responder({ error: { message: 'rota inesperada ' + u } }, 404);
   });
 });
 
-test('reel: upload direto do arquivo inteiro e publicação', async () => {
-  const id = await publicacao.publicarVideo(conta, { tipo: 'REELS', caminho: arquivo, url: 'https://x/uploads/v.mp4', legenda: 'oi', capaUrl: 'https://x/uploads/capa.jpg' });
-  expect(id).toBe('MIDIA_NO_AR');
-  const [criar, upload, status, publicar] = chamadas;
-  expect(criar.corpo).toMatchObject({ media_type: 'REELS', upload_type: 'resumable', caption: 'oi', cover_url: 'https://x/uploads/capa.jpg', share_to_feed: 'true' });
-  expect(criar.corpo.video_url).toBeUndefined();
-  expect(upload.url).toBe('https://rupload.facebook.com/ig-api-upload/v21.0/C1');
-  expect(upload.headers).toMatchObject({ Authorization: 'OAuth TOKEN', offset: '0', file_size: '2048' });
-  expect(upload.bytes).toBe(2048);
-  expect(status.url).toContain('/C1?');
-  expect(publicar.corpo).toMatchObject({ creation_id: 'C1' });
+const reel = { tipo: 'REEL', midia: { kind: 'video', url: 'https://x/uploads/v.mp4' }, legenda: 'oi', capaUrl: 'https://x/uploads/capa.jpg' };
+
+test('reel: video_url, espera FINISHED, publica e busca o permalink', async () => {
+  roteiro.status = ['IN_PROGRESS', 'IN_PROGRESS', 'FINISHED'];
+  const r = await publicacao.publicarNoInstagram(conta, reel);
+  expect(r).toEqual({ mediaId: 'MIDIA_NO_AR', permalink: 'https://instagram.com/reel/x' });
+  const criar = chamadas[0];
+  expect(criar.corpo).toMatchObject({ media_type: 'REELS', video_url: 'https://x/uploads/v.mp4', caption: 'oi', cover_url: 'https://x/uploads/capa.jpg', share_to_feed: 'true' });
+  expect(criar.corpo.upload_type).toBeUndefined();
+  expect(chamadas.filter(c => /\/C1\?/.test(c.url))).toHaveLength(3);
+  expect(chamadas.find(c => c.url.includes('media_publish')).corpo).toMatchObject({ creation_id: 'C1' });
 });
 
-test('story em vídeo: resumable sem legenda nem capa', async () => {
-  await publicacao.publicarVideo(conta, { tipo: 'STORIES', caminho: arquivo, url: 'https://x/v.mp4' });
-  expect(chamadas[0].corpo).toEqual({ media_type: 'STORIES', upload_type: 'resumable', access_token: 'TOKEN' });
+test('reel sem capa usa o quadro (thumb_offset)', async () => {
+  await publicacao.publicarNoInstagram(conta, { ...reel, capaUrl: null, thumbOffsetMs: 1500 });
+  expect(chamadas[0].corpo.thumb_offset).toBe('1500');
+  expect(chamadas[0].corpo.cover_url).toBeUndefined();
 });
 
-test('upload direto falhou: publica pela URL', async () => {
-  roteiro.uploadFalha = true;
-  const id = await publicacao.publicarVideo(conta, { tipo: 'REELS', caminho: arquivo, url: 'https://x/uploads/v.mp4', legenda: 'oi' });
-  expect(id).toBe('MIDIA_NO_AR');
-  const plano = chamadas.find(c => c.corpo?.video_url);
-  expect(plano.corpo).toMatchObject({ media_type: 'REELS', video_url: 'https://x/uploads/v.mp4', caption: 'oi' });
-  expect(chamadas.at(-1).corpo).toMatchObject({ creation_id: 'C2' });
+test('story de vídeo e foto do feed', async () => {
+  await publicacao.publicarNoInstagram(conta, { tipo: 'STORY', midia: { kind: 'video', url: 'https://x/s.mp4' } });
+  expect(chamadas[0].corpo).toMatchObject({ media_type: 'STORIES', video_url: 'https://x/s.mp4' });
+  chamadas.length = 0;
+  await publicacao.publicarNoInstagram(conta, { tipo: 'IMAGE', midia: { kind: 'image', url: 'https://x/f.jpg' }, legenda: 'l' });
+  expect(chamadas[0].corpo).toMatchObject({ image_url: 'https://x/f.jpg', caption: 'l' });
+  expect(chamadas[0].corpo.media_type).toBeUndefined();
 });
 
-test('erro da conta (token inválido) não tenta de novo pela URL', async () => {
-  roteiro.containerFalha = { message: 'Error validating access token', type: 'OAuthException', code: 190 };
-  await expect(publicacao.publicarVideo(conta, { tipo: 'REELS', caminho: arquivo, url: 'https://x/v.mp4' }))
-    .rejects.toMatchObject({ code: 190 });
-  expect(chamadas.some(c => c.corpo?.video_url)).toBe(false);
+test('"ainda não pronto" no media_publish volta a esperar e publica', async () => {
+  roteiro.publicar = [{ message: 'Media is not ready', code: 9007, error_subcode: 2207027 }];
+  const r = await publicacao.publicarNoInstagram(conta, reel);
+  expect(r.mediaId).toBe('MIDIA_NO_AR');
+  expect(chamadas.filter(c => c.url.includes('media_publish'))).toHaveLength(2);
 });
 
-test('imagem: por URL', async () => {
-  const id = await publicacao.publicarImagem(conta, { tipo: 'IMAGE', url: 'https://x/uploads/f.jpg', legenda: 'foto' });
-  expect(id).toBe('MIDIA_NO_AR');
-  expect(chamadas[0].corpo).toMatchObject({ image_url: 'https://x/uploads/f.jpg', caption: 'foto' });
+test('resposta do media_publish perdida e container PUBLISHED: não publica de novo', async () => {
+  roteiro.publicar = ['rede'];
+  roteiro.status = ['FINISHED', 'PUBLISHED'];
+  const r = await publicacao.publicarNoInstagram(conta, reel);
+  expect(r.mediaId).toBe('ACHADA');
+  expect(chamadas.filter(c => c.url.includes('media_publish'))).toHaveLength(1);
 });
 
-test('conta sem token não chama a Meta', async () => {
-  await expect(publicacao.publicarVideo({ username: 'x' }, { tipo: 'REELS', caminho: arquivo })).rejects.toMatchObject({ code: 'SEM_TOKEN' });
+test('container EXPIRED: cria outro e publica', async () => {
+  roteiro.status = ['EXPIRED', 'FINISHED'];
+  const r = await publicacao.publicarNoInstagram(conta, reel);
+  expect(r.mediaId).toBe('MIDIA_NO_AR');
+  expect(roteiro.containers).toBe(2);
+});
+
+test('erro da conta (token) falha na hora, sem nova tentativa', async () => {
+  roteiro.containerFalha = { message: 'Invalid OAuth access token', type: 'OAuthException', code: 190 };
+  await expect(publicacao.publicarNoInstagram(conta, reel)).rejects.toBeInstanceOf(GraphError);
+  expect(roteiro.containers).toBe(0);
+  expect(chamadas).toHaveLength(1);
+});
+
+test('erro passageiro tenta até 5 vezes', async () => {
+  roteiro.containerFalha = { message: 'An unexpected error has occurred', code: 2 };
+  await expect(publicacao.publicarNoInstagram(conta, reel)).rejects.toThrow('unexpected');
+  expect(chamadas).toHaveLength(publicacao.MAX_TENTATIVAS);
+});
+
+test('sem token: recusa antes de chamar a Meta', async () => {
+  await expect(publicacao.publicarNoInstagram({ username: 'x' }, reel)).rejects.toMatchObject({ code: 'SEM_TOKEN' });
   expect(chamadas).toHaveLength(0);
 });

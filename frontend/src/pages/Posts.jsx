@@ -10,7 +10,6 @@ import Segmentado from '../components/Segmentado';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import CapasPorPerfil from '../components/CapasPorPerfil';
-import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import { useCotas, diasPelaCota } from '../services/useCotas';
 import TituloDeCartao from '../components/TituloDeCartao';
@@ -348,7 +347,6 @@ export default function Posts() {
   const [rodizioDeMidias, setRodizioDeMidias] = useState(false);
   const [loopInfinito,    setLoopInfinito]    = useState(false);
   const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
-  const [marcaModal,      setMarcaModal]      = useState(false);
 
   /* ── Configurações de envio ───────────────────────────────────────────────
      `postsPor24h` NÃO fica no job: ele é gravado em `Account.dailyPostLimit`,
@@ -1316,27 +1314,6 @@ export default function Posts() {
                   onChange={setSelectedAccounts}
                 />
 
-                {/* ── Marca d'água ──────────────────────────────────────────
-                    Fica junto às contas porque o texto dela É o @ da conta:
-                    não há um texto a escrever, e a única pergunta é como
-                    desenhar. `type="button"` porque estamos dentro do form —
-                    sem isso, abrir o modal publicaria. */}
-                <button type="button" onClick={() => setMarcaModal(true)}
-                  className={marcaDagua.ativa ? 'btn-ghost tom-modulo' : 'btn-ghost'}
-                  style={{ width: '100%', justifyContent: 'center', marginTop: 10,
-                    ...(marcaDagua.ativa ? {
-                      '--tom': 'var(--mf-mod-publicar)',
-                      color: 'var(--mf-mod-publicar)',
-                      background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',
-                    } : {}) }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-                  </svg>
-                  {marcaDagua.ativa
-                    ? `Marca d'água ativa — ${marcaDagua.posicao}, ${marcaDagua.opacidade}%`
-                    : "Adicionar marca d'água"}
-                </button>
-
                 <CardMetadados style={{ marginTop: 12 }} />
 
                 {/* Summary */}
@@ -1391,21 +1368,6 @@ export default function Posts() {
             </div>
           </motion.div>
         </form>
-
-        {/* Fora do <form> de propósito: dentro dele, o Enter num controle do
-            modal submeteria a publicação. */}
-        <MarcaDaguaModal
-          aberto={marcaModal}
-          valor={marcaDagua}
-          contas={selectedCount}
-          /* O @ da primeira conta escolhida, para a prévia mostrar um handle
-             real em vez de um exemplo — o comprimento do @ muda como a marca
-             ocupa a largura. */
-          arroba={accounts.find(a => selectedAccounts.includes(a.id))?.username || ''}
-          mod="publicar"
-          onCancelar={() => setMarcaModal(false)}
-          onAplicar={c => { setMarcaDagua(c); setMarcaModal(false); }}
-        />
 
         {/* Posts list */}
         {posts.length > 0 && (

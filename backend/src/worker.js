@@ -24,8 +24,6 @@ const graph = require('./services/instagramAPI');
 const contas = require('./services/contas');
 const cotaDaApi = require('./services/cotaDaApi');
 const { podePublicar } = require('./services/ritmoDaConta');
-const { criarRandom, embaralhar, espacarPorConta } = require('./services/publicationPlanner');
-const { comJitter } = require('./services/ritmoHumano');
 const traduzirErro = require('./utils/traduzirErro');
 const avisos = require('./services/smartActivity/eventosDePublicacao');
 
@@ -35,8 +33,17 @@ const PISO_INTERVALO_MS = 60_000;
 const TETO_ESPERA_MS = 6 * 60 * 60 * 1000;
 const ESTADOS_ATIVOS = ['queued', 'running', 'waiting_interval'];
 
-/** Intervalo humano entre publicações seguidas de uma rodada. */
-const intervaloHumano = () => 120_000 + Math.floor(Math.random() * 180_000);
+/* Como no Publicador: contas diferentes publicam ao mesmo tempo (até este
+   limite), e a MESMA conta espera ao menos 1 min entre uma publicação e outra. */
+const PUBLICACOES_SIMULTANEAS = Math.max(1, Number(process.env.PUBLICACOES_SIMULTANEAS) || 5);
+const INTERVALO_MINIMO_DA_CONTA_MS = 60_000;
+
+/** Roda `fn` sobre os itens com no máximo `limite` ao mesmo tempo, na ordem. */
+async function emParalelo(itens, limite, fn) {
+  let proximo = 0;
+  const trabalhador = async () => { while (proximo < itens.length) { const i = proximo++; await fn(itens[i], i); } };
+  await Promise.all(Array.from({ length: Math.min(limite, itens.length) }, trabalhador));
+}
 
 function mesmoDia(data) {
   if (!data) return false;
@@ -116,7 +123,7 @@ async function publicarNaConta(contaAlvo, post, { respeitarRitmo = true } = {}) 
   try {
     const postDaConta = tipo === 'story' ? post : require('./services/capaPorConta').aplicar(post, conta);
     console.log(`[Publicar] @${conta.username} — ${tipo} ${post.media}`);
-    const { mediaId } = await publicar(conta, postDaConta);
+    const { mediaId, permalink } = await publicar(conta, postDaConta);
 
     await accounts.update(conta.id, {
       postsToday: (conta.postsToday || 0) + 1, lastPostDate: new Date(), lastPostAt: new Date(),
@@ -125,7 +132,7 @@ async function publicarNaConta(contaAlvo, post, { respeitarRitmo = true } = {}) 
     if (mediaId && post.id) {
       await sql`
         update posts set ig_media_id = ${mediaId},
-          midias_publicadas = midias_publicadas || ${sql.json([{ accountId: conta.id, igMediaId: mediaId, em: new Date().toISOString() }])}
+          midias_publicadas = midias_publicadas || ${sql.json([{ accountId: conta.id, igMediaId: mediaId, permalink: permalink || null, em: new Date().toISOString() }])}
         where id = ${post.id}`;
     }
     console.log(`✅ [Publicar] @${conta.username} — publicado (${mediaId})`);
@@ -220,8 +227,7 @@ async function processarRodada({ jobId }) {
   const plano = midiasDaRodada({
     midias: job.mediaFiles, contas: contasDoJob, rodada, porRodada: job.simultaneousLimit, rodizio: !!job.rodizioDeMidias,
   });
-  const rand = criarRandom(`${job.id}:${rodada}`);
-  const contasDaRodada = embaralhar(contasDoJob, rand);
+  const contasDaRodada = contasDoJob;
 
   // Quem pode publicar agora (ritmo e cota) — decidido ANTES de criar posts.
   const vereditos = await Promise.all(contasDaRodada.map(async conta => ({ conta, ritmo: await podePublicarAgora(conta) })));
@@ -230,8 +236,8 @@ async function processarRodada({ jobId }) {
   }
   const disponiveis = vereditos.filter(v => v.ritmo.pode).map(v => v.conta);
 
-  // ±12% sobre o intervalo pedido: múltiplos exatos seriam uma cadência que ninguém produz.
-  const intervaloDoJob = () => comJitter((job.intervalMinutes || 0) * 60_000, { pisoMs: PISO_INTERVALO_MS });
+  // O intervalo pedido, exato (como o planner do Publicador).
+  const intervaloDoJob = () => Math.max(PISO_INTERVALO_MS, (job.intervalMinutes || 0) * 60_000);
 
   if (contasDaRodada.length && !disponiveis.length) {
     const aberturas = vereditos.map(v => v.ritmo.ate).filter(Boolean).map(d => new Date(d).getTime());
@@ -267,21 +273,28 @@ async function processarRodada({ jobId }) {
       if (p && !jaPublicado.has(`${p.post.id}:${conta.id}`)) pares.push({ accountId: conta.id, conta, preparada: p });
     }
   }
-  const sequencia = espacarPorConta(embaralhar(pares, rand));
-
-  let sucessos = 0, erros = 0;
-  for (const [i, { conta, preparada }] of sequencia.entries()) {
-    if (i > 0) await delay(intervaloHumano());
-    // Sinal de vida + leitura do status: pausar/cancelar vale no meio da rodada.
-    const [{ status } = {}] = await sql`update jobs set updated_at = now() where id = ${job.id} returning status`;
-    if (['paused', 'cancelled'].includes(status)) break;
-    try {
-      await publicarNaConta(conta, preparada.post);
-      preparada.sucessos++; sucessos++;
-    } catch (err) {
-      preparada.erros.push(`@${conta.username}: ${err.message}`); erros++;
-    }
+  // Uma fila por conta; as contas publicam ao mesmo tempo, cada uma na sua ordem.
+  const porContaNaRodada = new Map();
+  for (const par of pares) {
+    if (!porContaNaRodada.has(par.accountId)) porContaNaRodada.set(par.accountId, []);
+    porContaNaRodada.get(par.accountId).push(par);
   }
+
+  let sucessos = 0, erros = 0, parado = false;
+  await emParalelo([...porContaNaRodada.values()], PUBLICACOES_SIMULTANEAS, async lista => {
+    for (const [i, { conta, preparada }] of lista.entries()) {
+      if (i > 0) await delay(INTERVALO_MINIMO_DA_CONTA_MS);
+      // Sinal de vida + leitura do status: pausar/cancelar vale no meio da rodada.
+      const [{ status } = {}] = await sql`update jobs set updated_at = now() where id = ${job.id} returning status`;
+      if (parado || ['paused', 'cancelled'].includes(status)) { parado = true; return; }
+      try {
+        await publicarNaConta(conta, preparada.post);
+        preparada.sucessos++; sucessos++;
+      } catch (err) {
+        preparada.erros.push(`@${conta.username}: ${err.message}`); erros++;
+      }
+    }
+  });
 
   for (const p of preparadas) {
     const feitas = p.sucessos + p.erros.length;
@@ -328,14 +341,12 @@ async function processarPost({ postId }) {
   // Retentar um post parcial não pode publicar de novo onde ele já saiu.
   const jaSaiu = new Set((post.midiasPublicadas || []).map(m => m.accountId));
   const pendentes = (await accounts.porIds(post.accountIds)).filter(c => !jaSaiu.has(c.id) && c.usuarioId === post.usuarioId);
-  const lista = embaralhar(pendentes, criarRandom(`post:${post.id}`));
   let ok = jaSaiu.size;
   const erros = [];
-  for (const [i, conta] of lista.entries()) {
-    if (i > 0) await delay(intervaloHumano());
+  await emParalelo(pendentes, PUBLICACOES_SIMULTANEAS, async conta => {
     try { await publicarNaConta(conta, post); ok++; }
     catch (err) { erros.push(`@${conta.username}: ${err.message}`); }
-  }
+  });
   const status = ok && !erros.length ? 'concluido' : ok ? 'parcial' : 'erro';
   await posts.update(post.id, { status, error: erros.join(' | ') });
   broadcast('posts', { action: 'created' }, post.usuarioId);

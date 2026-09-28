@@ -4,10 +4,9 @@
  * Stories em massa (tela de Stories): uma ou mais mídias em várias contas.
  *
  * Como a tela descreve — "N stories em M contas, um a cada X min": cada mídia
- * sai em todas as contas escolhidas, e o intervalo separa uma mídia da próxima
- * (±10%). Cada mídia é um trabalho na fila, então o lote continua se o
- * servidor reiniciar no meio. As contas saem em ordem sorteada, com alguns
- * segundos entre uma e outra.
+ * sai em todas as contas escolhidas ao mesmo tempo, e o intervalo exato separa
+ * uma mídia da próxima (como no Publicador). Cada mídia é um trabalho na fila,
+ * então o lote continua se o servidor reiniciar no meio.
  *
  * Só o que a API oficial publica: imagem ou vídeo, com o texto da tela
  * queimado na mídia. Figurinha de link não existe na API de conteúdo.
@@ -19,10 +18,9 @@ const crypto = require('crypto');
 const { accounts } = require('../repos');
 const fila = require('../queue');
 const { broadcast } = require('../events/broadcaster');
-const { criarRandom, embaralhar } = require('./publicationPlanner');
 
-const esperar = ms => new Promise(r => setTimeout(r, ms));
-const ENTRE_CONTAS_MS = () => 5_000 + Math.floor(Math.random() * 15_000);
+/* Como no Publicador: as contas publicam ao mesmo tempo, até este limite. */
+const SIMULTANEAS = Math.max(1, Number(process.env.PUBLICACOES_SIMULTANEAS) || 5);
 
 const VAZIO = Object.freeze({ id: null, running: false, total: 0, completed: 0, errors: 0, results: [], startedAt: null });
 const _lotes = new Map(); // usuarioId → lote atual
@@ -62,12 +60,10 @@ async function iniciarLote(usuarioId, accountIds, midias, textoLivre, intervalMi
   _lotes.set(String(usuarioId), { id, running: true, total, completed: 0, errors: 0, results: [], startedAt: new Date() });
   broadcast('stories', { action: 'started', total }, usuarioId);
 
-  let atraso = 0;
   for (const [i, media] of midias.entries()) {
-    if (i > 0) atraso += Math.round(intervaloMs * (0.9 + Math.random() * 0.2));
-    // Ordem sorteada por mídia: a mesma sequência de contas todo dia seria um padrão.
-    const ordem = embaralhar(accountIds, criarRandom(`stories:${id}:${i}`));
-    await fila.enfileirar('story', { lote: id, usuarioId, accountIds: ordem, media, textoLivre }, { atrasoMs: atraso });
+    // O intervalo pedido, exato, entre uma mídia e a próxima.
+    const atraso = i * intervaloMs;
+    await fila.enfileirar('story', { lote: id, usuarioId, accountIds, media, textoLivre }, { atrasoMs: atraso });
   }
   return { id, total };
 }
@@ -93,18 +89,22 @@ async function processar({ lote, usuarioId, accountIds = [], media, textoLivre }
     }
   };
 
-  for (const [i, accountId] of accountIds.entries()) {
-    if (i > 0) await esperar(ENTRE_CONTAS_MS());
-    const conta = await contaDo(usuarioId, accountId);
-    if (!conta) { registrar({ accountId, status: 'error', error: 'Conta não encontrada' }); continue; }
-    try {
-      await publicarNaConta(conta, media, textoLivre);
-      registrar({ accountId, username: conta.username, status: 'success', method: 'graph' });
-    } catch (err) {
-      console.error(`❌ [Story] @${conta.username}: ${err.message}`);
-      registrar({ accountId, username: conta.username, status: 'error', error: err.message });
+  let proximo = 0;
+  const trabalhador = async () => {
+    while (proximo < accountIds.length) {
+      const accountId = accountIds[proximo++];
+      const conta = await contaDo(usuarioId, accountId);
+      if (!conta) { registrar({ accountId, status: 'error', error: 'Conta não encontrada' }); continue; }
+      try {
+        await publicarNaConta(conta, media, textoLivre);
+        registrar({ accountId, username: conta.username, status: 'success', method: 'graph' });
+      } catch (err) {
+        console.error(`❌ [Story] @${conta.username}: ${err.message}`);
+        registrar({ accountId, username: conta.username, status: 'error', error: err.message });
+      }
     }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(SIMULTANEAS, accountIds.length) }, trabalhador));
 }
 
 module.exports = { status, publicarAgora, iniciarLote, processar };

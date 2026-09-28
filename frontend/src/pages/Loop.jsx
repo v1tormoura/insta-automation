@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw, Plus, Pause, Play, Trash2, Clock, Film,
   History, AlertTriangle, CheckCircle, X,
-  Upload, Hash, Sparkles, Image as ImageIcon,
+  Upload, Hash, Sparkles,
 } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
@@ -12,7 +12,6 @@ import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import CapasPorPerfil from '../components/CapasPorPerfil';
-import MarcaDaguaModal from '../components/MarcaDaguaModal';
 import CardMetadados from '../components/CardMetadados';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { MARCA_PADRAO } from '../services/marcaDagua';
@@ -275,7 +274,6 @@ function LoopModal({ onClose, onCreated }) {
     midiasAleatorias: false,
     marcaDagua: MARCA_PADRAO,
   });
-  const [marcaModal, setMarcaModal] = useState(false);
 
 
   useEffect(() => {
@@ -770,25 +768,6 @@ function LoopModal({ onClose, onCreated }) {
             </div>
           )}
 
-          <div className="lm-row">
-            {/* O loop já repete para sempre por natureza — é o que `type: 'loop'`
-                faz no worker. Por isso não há chave de "loop infinito" aqui:
-                ela seria um interruptor para algo que já está ligado. */}
-            <button type="button" onClick={() => setMarcaModal(true)}
-              className={form.marcaDagua?.ativa ? 'btn-ghost tom-modulo' : 'btn-ghost'}
-              style={{ width: '100%', justifyContent: 'center',
-                ...(form.marcaDagua?.ativa ? {
-                  '--tom': 'var(--mf-mod-publicar)',
-                  color: 'var(--mf-mod-publicar)',
-                  background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)',
-                } : {}) }}>
-              <ImageIcon size={14} />
-              {form.marcaDagua?.ativa
-                ? `Marca d'água ativa — ${form.marcaDagua.posicao}, ${form.marcaDagua.opacidade}%`
-                : "Adicionar marca d'água"}
-            </button>
-          </div>
-
           <CardMetadados style={{ margin: '4px 0' }} />
 
           {/* Hashtags para viralizar */}
@@ -842,17 +821,6 @@ function LoopModal({ onClose, onCreated }) {
           </div>
         </form>
 
-        {/* Fora do <form>: dentro dele, o Enter num controle do modal criaria o
-            loop antes de a marca ser aplicada. */}
-        <MarcaDaguaModal
-          aberto={marcaModal}
-          valor={form.marcaDagua}
-          contas={form.accounts.length}
-          arroba={(accounts || []).find(a => form.accounts.includes(a.id))?.username || ''}
-          mod="publicar"
-          onCancelar={() => setMarcaModal(false)}
-          onAplicar={c => { setForm(f => ({ ...f, marcaDagua: c })); setMarcaModal(false); }}
-        />
       </motion.div>
     </motion.div>
   );

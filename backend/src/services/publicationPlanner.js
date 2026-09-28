@@ -477,6 +477,33 @@ function generatePlan({
     return [];
   }
 
+  const templates = par => ({
+    captionTemplate: captionMode === 'disabled' ? '' : _escolherTemplate(captions, par.accountId, par.contentId),
+    commentTemplate: commentMode === 'disabled' ? '' : _escolherTemplate(comments, par.accountId, par.contentId),
+  });
+
+  /* 'publicador' — o planner do Publicador: runAt = início + i·intervalo.
+     Cada conteúdo sai em TODAS as contas no mesmo horário (na ordem das
+     contas); o próximo conteúdo, um intervalo fixo depois. Sem sorteio. */
+  if (strategy.mode === 'publicador') {
+    const ordemDoConteudo = new Map(contents.map((c, i) => [String(c.id), i]));
+    const ordemDaConta = new Map(accounts.map((a, i) => [String(a.id), i]));
+    const ordenadosP = [...pares].sort((x, y) =>
+      ordemDoConteudo.get(String(x.contentId)) - ordemDoConteudo.get(String(y.contentId))
+      || ordemDaConta.get(String(x.accountId)) - ordemDaConta.get(String(y.accountId)));
+    const plano = [];
+    let instante = _proximoInstanteValido(new Date(startAt.getTime()), cfg);
+    let conteudoAnterior = null;
+    ordenadosP.forEach((par, indice) => {
+      if (conteudoAnterior !== null && String(par.contentId) !== conteudoAnterior) {
+        instante = _proximoInstanteValido(new Date(instante.getTime() + cfg.intervalMin * 60_000), cfg);
+      }
+      conteudoAnterior = String(par.contentId);
+      plano.push({ order: indice + 1, accountId: par.accountId, contentId: par.contentId, scheduledAt: new Date(instante.getTime()), ...templates(par) });
+    });
+    return plano;
+  }
+
   const ordenar = ESTRATEGIAS[strategy.mode] || ESTRATEGIAS.interleaved_random;
   const ordenados = ordenar(pares, rand);
 

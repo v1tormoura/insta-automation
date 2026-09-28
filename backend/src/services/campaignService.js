@@ -23,7 +23,7 @@ class CampaignError extends Error {
 
 /* ── Validação ─────────────────────────────────────────────────────────────── */
 
-const ESTRATEGIAS_VALIDAS = ['interleaved_random', 'sequential', 'round_robin', 'account_first', 'manual'];
+const ESTRATEGIAS_VALIDAS = ['publicador', 'interleaved_random', 'sequential', 'round_robin', 'account_first', 'manual'];
 const MODOS_LEGENDA       = ['global', 'per_account', 'per_content', 'per_account_content'];
 const MODOS_COMENTARIO    = ['disabled', 'global', 'per_account', 'per_content', 'per_account_content', 'per_publication'];
 
@@ -506,7 +506,7 @@ async function preverCampanha(usuarioId, dados, agora = new Date()) {
       accounts:    contas.length,
       contents:    midias.length,
       publications: publicacoes.length,
-      strategy:    dados.strategy?.mode || 'interleaved_random',
+      strategy:    dados.strategy?.mode || 'publicador',
       captionMode: dados.captionMode || 'global',
       commentMode: dados.commentMode || 'disabled',
       window: dados.schedule?.windowStart && dados.schedule?.windowEnd
