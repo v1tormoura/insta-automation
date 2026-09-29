@@ -93,9 +93,8 @@ const ENVIO = [
   { id: 'envioConcluido', rotulo: 'Envio concluído',      desc: 'Quando o pacote termina: quantas saíram e quantas falharam' },
 ];
 
-/** Outros avisos: mais marcos de uma vez e, para o admin, cadastro novo. */
+/** Outros avisos: para o admin, cadastro novo. */
 const OUTROS = [
-  { id: 'resumoMarcos',   rotulo: 'Vários marcos',   desc: 'Quando muitos conteúdos cruzam marcos na mesma sincronização' },
   { id: 'novoCadastro',   rotulo: 'Novo cadastro',   desc: 'Só para o admin: alguém pediu acesso ao painel' },
 ];
 
@@ -117,7 +116,6 @@ const QUANDO = {
   contaCaiu:      'Quando a conta para: token inválido, verificação pedida pelo Instagram ou banimento. Uma vez a cada 6h por conta.',
   envioIniciado:  'Ao enviar pelo Postar, criar um Loop, iniciar uma Campanha ou mandar Stories em massa. Ex.: 2 contas, 120 reels.',
   envioConcluido: 'Quando o envio do Postar, a Campanha ou o lote de Stories termina (o Loop não termina — repete).',
-  resumoMarcos:   'Quando mais de 3 conteúdos cruzam marcos na mesma sincronização: os 3 maiores saem inteiros, o resto vem neste resumo.',
   novoCadastro:   'Quando alguém se cadastra e espera aprovação. Só o admin recebe.',
 };
 

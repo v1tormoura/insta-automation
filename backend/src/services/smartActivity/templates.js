@@ -96,7 +96,6 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   envioConcluido: Object.freeze(['origem', 'nome', 'contas', 'publicadas', 'falhas', 'tipo']),
   novoCadastro:   Object.freeze(['nomeCadastro', 'emailCadastro']),
   cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
-  resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'contas', 'maior']),
 
   /* Avisos do vigia do sistema. */
   sessoes: Object.freeze(['contasRuins', 'contasTotal']),
@@ -190,13 +189,6 @@ const PADRAO = Object.freeze({
 
   /* A cota da API do Meta: 50 publicações por conta em 24h. O envio para por
      horas sem erro nenhum na fila — sem este aviso, parece que travou. */
-  /* Vários reels cruzando marcos na mesma sincronização: os 3 maiores saem
-     inteiros, o resto vira este resumo. Sem ele era uma avalanche. */
-  resumoMarcos: Object.freeze({
-    titulo: 'Mais {{quantidade}} marcos 🚀',
-    mensagem: 'Mais {{quantidade}} conteúdos de {{contas}} conta(s) passaram de marcos nesta sincronização — o maior foi {{account}}, com {{maior}}.',
-    tema: 'viral',
-  }),
   cotaApi: Object.freeze({
     titulo: 'Cota da API do Instagram cheia ⏳',
     mensagem: '{{account}} publicou {{usado}}/{{limite}} pela API em 24h. O envio segue sozinho quando liberar, por volta de {{libera}}.',

@@ -296,8 +296,7 @@ function _umPorConteudo(candidatos) {
 
 /**
  * Grava os candidatos de UMA VARREDURA (todas as contas) respeitando o limite
- * global (regra 2): os LIMITE maiores saem inteiros; o resto vira UM resumo,
- * assinado pela conta do maior deles.
+ * global (regra 2): os LIMITE maiores saem inteiros; o resto não avisa.
  */
 async function _gravarCoalescido(candidatos, cfg) {
   const criadas = [];
@@ -310,36 +309,8 @@ async function _gravarCoalescido(candidatos, cfg) {
     const nova = await _gravar(doc, { push: false });
     if (nova) criadas.push(nova);
   }
-  if (!resto.length) {
-    await _entregarUmPush(criadas, cfg);
-    return criadas;
-  }
-
-  const maior = resto[0];
-  const contasNoResto = new Set(resto.map(d => String(d.accountId)));
-  const modelo = templates.modeloDe('resumoMarcos', cfg.mensagens);
-  const vars = templates.discretas({
-    username: maior.username || '',
-    account: maior.username ? `@${maior.username}` : 'uma conta',
-    quantidade: String(resto.length),
-    contas: String(contasNoResto.size),
-    maior: templates.formatarNumero(maior.metadados?.valor || 0),
-  }, cfg.privacidade || {});
-  const resumo = await _gravarSemPush({
-    accountId: maior.accountId,
-    username: maior.username || '',
-    avatar: maior.avatar || '',
-    eventType: 'resumoMarcos',
-    tema: modelo.tema,
-    prioridade: 'normal',
-    titulo: templates.render(modelo.titulo, vars),
-    mensagem: templates.render(modelo.mensagem, vars),
-    metadados: {
-      quantidade: resto.length,
-      conteudos: resto.map(d => ({ contentId: d.contentId, metricType: d.metricType, threshold: d.threshold, valor: d.metadados?.valor || 0, permalink: d.metadados?.permalink || '' })),
-    },
-  });
-  if (resumo) criadas.push(resumo);
+  /* O resto não gera aviso: o resumo "Mais N marcos" saiu a pedido (29/09/2026). */
+  if (resto.length) console.log(`[SmartActivity] ${resto.length} marco(s) além dos ${LIMITE_POR_VARREDURA} desta varredura não avisados`);
   await _entregarUmPush(criadas, cfg);
   return criadas;
 }

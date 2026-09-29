@@ -51,7 +51,6 @@ const PADRAO = Object.freeze({
     erroPublicacao: true,
     contaCaiu: true,
     cotaApi: true,
-    resumoMarcos: true,
     envioIniciado: true,
     envioConcluido: true,
     novoCadastro: true,

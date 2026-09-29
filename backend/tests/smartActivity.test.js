@@ -184,12 +184,11 @@ describe('coalescência por varredura', () => {
     const marcos = criadas.filter(n => n.eventType === 'milestone');
     const resumos = criadas.filter(n => n.eventType === 'resumoMarcos');
     expect(marcos).toHaveLength(LIMITE_POR_VARREDURA);
-    expect(resumos).toHaveLength(1);
+    // O resumo "Mais N marcos" foi removido: o resto não avisa.
+    expect(resumos).toHaveLength(0);
+    expect(criadas).toHaveLength(LIMITE_POR_VARREDURA);
     // Os que saem inteiros são os MAIORES.
     expect(marcos.map(n => n.metadados.valor).sort((a, b) => b - a)).toEqual([10000, 9000, 8000]);
-    expect(resumos[0].metadados.quantidade).toBe(10 - LIMITE_POR_VARREDURA);
-    expect(resumos[0].mensagem).toContain('7');
-    expect(resumos[0].mensagem).toContain('7.000');
   });
 
   test(`até ${LIMITE_POR_VARREDURA} conteúdos saem inteiros, sem resumo`, async () => {
@@ -203,7 +202,7 @@ describe('coalescência por varredura', () => {
     expect(criadas).toHaveLength(LIMITE_POR_VARREDURA);
   });
 
-  test('o teto é GLOBAL: seis contas com três marcos cada viram 3 avisos + 1 resumo, não 24', async () => {
+  test('o teto é GLOBAL: seis contas com três marcos cada viram 3 avisos, não 18', async () => {
     /* Medido em produção: "3 por conta + resumo" com seis contas era uma
        rajada de 12–15 a cada 30 min. */
     const candidatos = [];
@@ -218,9 +217,7 @@ describe('coalescência por varredura', () => {
     const marcos = criadas.filter(n => n.eventType === 'milestone');
     const resumos = criadas.filter(n => n.eventType === 'resumoMarcos');
     expect(marcos).toHaveLength(LIMITE_POR_VARREDURA);
-    expect(resumos).toHaveLength(1);
-    expect(resumos[0].metadados.quantidade).toBe(15);
-    expect(resumos[0].mensagem).toMatch(/15 conteúdos de [56] conta/);
+    expect(resumos).toHaveLength(0);
   });
 
   test('views e alcance do MESMO reel na mesma varredura: sai só o de views', async () => {
@@ -626,11 +623,11 @@ describe('entrega única por varredura', () => {
       candidatos.push(...await detector.processarInsight(reel('p' + i, i * 1000), c, CFG, { gravar: false }));
     }
     const criadas = await detector._gravarCoalescido(candidatos, CFG);
-    // 3 marcos + 1 resumo gravados na Central…
-    expect(criadas).toHaveLength(detector.LIMITE_POR_VARREDURA + 1);
+    // 3 marcos gravados na Central (o resumo "Mais N marcos" foi removido)…
+    expect(criadas).toHaveLength(detector.LIMITE_POR_VARREDURA);
     // …e nenhum deles disparou push individual (o módulo de push nem está
     // disponível nos testes; o que este teste protege é que `_gravar` foi
     // chamado com push desligado — senão seriam 4 envios).
-    expect(criadas.every(n => n.eventType === 'milestone' || n.eventType === 'resumoMarcos')).toBe(true);
+    expect(criadas.every(n => n.eventType === 'milestone')).toBe(true);
   });
 });
