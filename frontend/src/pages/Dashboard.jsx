@@ -274,19 +274,8 @@ function MetricCard({ title, value, meta, orbType = 'cyan', spark = [], delay = 
    As ilustrações (ampulheta, orbe, cristal, gelo) permanecem: são a
    assinatura visual que o produto já tinha, e trocá-las seria descartar
    identidade em nome de padronização. */
-function Visual({ kind, compact = false }) {
-  return (
-    <div className={`visual visual-${kind} ${compact ? 'compact' : ''}`} aria-hidden="true">
-      {kind === 'orb' && <div className="orb"><span className="orb-core"/><span className="orb-ring ring-one"/><span className="orb-ring ring-two"/><span className="orb-latitude lat-a"/><span className="orb-latitude lat-b"/></div>}
-      {kind === 'crystal' && <div className="crystal"><span className="facet facet-a"/><span className="facet facet-b"/><span className="facet facet-c"/><span className="crystal-core"/></div>}
-      {kind === 'ice' && <div className="ice"><span className="ice-shard shard-a"/><span className="ice-shard shard-b"/><span className="ice-shard shard-c"/><span className="ice-shard shard-d"/></div>}
-      {kind === 'hourglass' && <div className="hourglass"><span className="hg-top"/><span className="hg-middle"/><span className="hg-bottom"/><span className="hg-sand"/></div>}
-    </div>
-  );
-}
-
 /* ── WideMetric ── */
-function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange, chip, tone = 'cyan', spark = [] }) {
+function WideMetric({ title, value, subtitle, activePeriod, onPeriodChange, chip, tone = 'cyan', spark = [] }) {
   const mod = tone === 'muted' ? 'sistema' : 'metricas';
   const nums = spark.length ? spark : [0, 0];
   const mx = Math.max(...nums), mn = Math.min(...nums), faixa = mx - mn || 1;
@@ -355,11 +344,9 @@ function WideMetric({ title, value, subtitle, kind, activePeriod, onPeriodChange
             Duas camadas em vez de um filtro de blur: um halo translúcido maior
             atrás e um núcleo sólido pequeno na frente. Mais barato que
             feGaussianBlur e não depende do suporte a filtro do renderizador. */}
-        <circle cx={ultimoX} cy={ultimoY} r="5" fill="var(--mf-mod)" opacity=".22" />
         <circle cx={ultimoX} cy={ultimoY} r="2.1" fill="var(--mf-mod)" />
       </svg>
 
-      <Visual kind={kind} compact />
     </motion.article>
   );
 }
@@ -1314,10 +1301,10 @@ export default function Dashboard() {
               existe: o selo agora só aparece quando há o que mostrar. */}
           <WideMetric title="CONTAS ADICIONADAS" value={fmt(accountsAddedValue)}
           subtitle={(d.totalAccounts || 0) > 0 ? `de ${fmt(d.totalAccounts)} no total` : ''}
-          kind="orb" activePeriod={accountsPeriod} onPeriodChange={setAccountsPeriod} spark={sparkDaily} />
+          activePeriod={accountsPeriod} onPeriodChange={setAccountsPeriod} spark={sparkDaily} />
           <WideMetric title="CONTAS COM PROBLEMA" value={fmt(problemsValue)}
           subtitle={problemsValue > 0 ? 'precisam de atenção' : 'nenhuma precisa de atenção'}
-          kind="ice" activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} tone="muted" spark={sparkDaily} />
+          activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} tone="muted" spark={sparkDaily} />
         </motion.section>)}
 
         {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
@@ -1420,10 +1407,6 @@ export default function Dashboard() {
             <div className="panel queue-panel" style={{ ...card, borderRadius: 'var(--mf-r-xl)' }}>
               <PanelHeader title="Resumo da fila" icon={Layers3} right={<SelectBtn active={false} onClick={() => {}}>Todos<ChevronDown size={12} style={{ marginLeft:2 }}/></SelectBtn>} />
               <div className="queue-body">
-                <div className="queue-hourglass-wrap">
-                  <div className="queue-orbit orbit-1" /><div className="queue-orbit orbit-2" />
-                  <div className="hourglass"><span className="hg-top"/><span className="hg-middle"/><span className="hg-bottom"/><span className="hg-sand"/></div>
-                </div>
                 <ListaDeMetricas>
                   {queueItems.map(item => (
                     <MetricaLinha key={item.label} rotulo={item.label} valor={item.value} cor={item.color} />

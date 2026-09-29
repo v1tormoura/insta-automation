@@ -19,6 +19,11 @@
 .dashboard {
   max-width: 1600px; width: 100%;
   margin: 0 auto; padding: 22px 26px 16px; position: relative;
+  /* Números e rótulos na fonte do produto, com algarismos de largura fixa —
+     a fonte mono de terminal (zero cortado) deixava o painel com cara de
+     console. */
+  --mf-mono: var(--mf-font);
+  font-variant-numeric: tabular-nums;
 }
 .dash-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
 .header-left { display: flex; gap: 12px; }
@@ -314,7 +319,7 @@
 .empty-copy h2 { font-size: 15px; margin: 0; color: var(--mf-text); }
 .empty-copy p { margin: 6px 0 0; font-size: 11px; color: var(--mf-text-2); }
 .queue-panel { min-height: 210px; }
-.queue-body { min-height: 166px; padding: 10px 16px; display: grid; grid-template-columns: 44% 56%; align-items: center; }
+.queue-body { min-height: 166px; padding: 10px 16px; display: grid; grid-template-columns: 1fr; align-items: center; }
 .queue-hourglass-wrap { height: 142px; position: relative; display: grid; place-items: center; }
 .queue-hourglass-wrap .hourglass { position: relative; right: auto; bottom: auto; transform: scale(1.35); }
 .queue-orbit { position: absolute; border-radius: 50%; border: 1px solid rgba(255,163,43,.37); }

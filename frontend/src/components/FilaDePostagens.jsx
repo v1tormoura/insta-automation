@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 /* `Instagram` não existe nesta versão do lucide-react — o build recusa o
    import com "Missing export". `AtSign` diz a mesma coisa aqui e melhor: a
    coluna mostra um @, não a marca. */
-import { List, Eye, Trash2, Info, AtSign, ChevronRight, ChevronLeft, Eraser } from 'lucide-react';
+import { List, Eye, Trash2, Info, ChevronRight, ChevronLeft, Eraser } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { urlDoAvatar } from '../utils/avatar';
@@ -266,21 +266,32 @@ function Linha({ item, onApagar }) {
       <td style={{ padding: '10px', maxWidth: 190 }}>
         {/* Uma publicação pode ter mais de uma conta. Mostrar só a primeira
             mentiria sobre onde ela saiu. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {item.contas.length === 0 && (
-            <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontStyle: 'italic' }}>Conta removida</span>
-          )}
-          {item.contas.map(c => (
-            <span key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-              {c.avatar
-                ? <img src={urlDoAvatar(c.avatar)} alt="" width={15} height={15}
-                    style={{ borderRadius: 'var(--mf-r-full)', objectFit: 'cover', flexShrink: 0 }}
-                    onError={e => { e.target.style.display = 'none'; }} />
-                : <AtSign size={12} style={{ color: 'var(--mf-mod-contas)', flexShrink: 0 }} />}
-              <span className="mf-trunc" style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>@{c.username}</span>
+        {/* Uma conta: o @. Várias: avatares empilhados e "N contas", com a
+            lista completa na dica — cinco @ um embaixo do outro faziam cada
+            linha ter cinco de altura. */}
+        {item.contas.length === 0 ? (
+          <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', fontStyle: 'italic' }}>Conta removida</span>
+        ) : (
+          <span title={item.contas.map(c => '@' + c.username).join('\n')}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ display: 'flex', flexShrink: 0 }}>
+              {item.contas.slice(0, 3).map((c, k) => (
+                <span key={c.id} style={{ width: 20, height: 20, borderRadius: 'var(--mf-r-full)', overflow: 'hidden',
+                  marginLeft: k ? -6 : 0, border: '1.5px solid var(--mf-surface-1)', background: 'var(--mf-surface-3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9, fontWeight: 700, color: 'var(--mf-text-2)' }}>
+                  {c.avatar
+                    ? <img src={urlDoAvatar(c.avatar)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => { e.target.style.display = 'none'; }} />
+                    : c.username?.[0]?.toUpperCase()}
+                </span>
+              ))}
             </span>
-          ))}
-        </div>
+            <span className="mf-trunc" style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
+              {item.contas.length === 1 ? `@${item.contas[0].username}` : `${item.contas.length} contas`}
+            </span>
+          </span>
+        )}
       </td>
 
       <td style={{ padding: '10px' }}>
