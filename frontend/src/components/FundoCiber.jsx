@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * O fundo vivo: filamentos de energia e partículas.
+ * O fundo vivo: só os filamentos, devagar (sem partículas nem pulsos
+ * luminosos — pedido de 29/09/2026).
  *
  * ── Por que canvas, e não CSS
  *
@@ -51,9 +52,7 @@ import { useEffect, useRef } from 'react';
    "movimento" e não só "textura parada". Mais linhas cobrindo a tela toda
    é a metade da correção; a outra é a distribuição, mais abaixo. */
 const LINHAS_POR_MPX = 34;      // por megapixel de viewport
-const PARTICULAS_POR_MPX = 90;
 const MAX_LINHAS = 60;
-const MAX_PARTICULAS = 160;
 
 /* Passos por linha. Menos que ~40 mostra os cantos do polígono; mais que ~80
    não muda o que se vê e multiplica a conta. */
@@ -63,7 +62,7 @@ const TAMANHO_PASSO = 26;
 /* Escala de tempo. O ciclo tem de ser longo o bastante para o movimento não
    competir com a leitura: entre dois olhares para a tela, o desenho mudou
    menos do que a atenção que sobraria para notá-lo. */
-const VELOCIDADE = 0.000045;
+const VELOCIDADE = 0.000016;
 
 /* Teto de densidade de pixel. Em telas 3x, pintar tudo em resolução nativa
    triplica o custo de preenchimento para um desenho que é quase todo
@@ -83,7 +82,7 @@ export default function FundoCiber() {
     const menosMovimento = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     let larg = 0, alt = 0, dpr = 1;
-    let linhas = [], particulas = [];
+    let linhas = [];
     let quadro = 0;
     let t = 0;
     let ultimo = 0;
@@ -185,7 +184,6 @@ export default function FundoCiber() {
     function semear() {
       const mpx = Math.max(0.12, (larg * alt) / 1e6);
       const nLinhas = Math.min(MAX_LINHAS, Math.round(LINHAS_POR_MPX * mpx));
-      const nPart = Math.min(MAX_PARTICULAS, Math.round(PARTICULAS_POR_MPX * mpx));
       semente = 20260908;
 
       /* Cobria só a diagonal alta-direita — a origem ficava fora da tela para
@@ -207,13 +205,6 @@ export default function FundoCiber() {
         };
       });
 
-      particulas = Array.from({ length: nPart }, () => ({
-        x: sorteio() * larg,
-        y: sorteio() * alt,
-        r: 0.6 + sorteio() * 1.5,
-        fase: sorteio() * 6.283,
-        vel: 0.35 + sorteio() * 0.9,
-      }));
     }
 
     function medir() {
@@ -298,39 +289,6 @@ export default function FundoCiber() {
         traco(6.5, 3.4);    // o halo
         traco(2.4, 6.8);    // o corpo
         traco(0.8, 13.0);   // o núcleo aceso
-
-        /* O pulso: um ponto de luz que percorre o filamento. É o que faz o
-           fundo parecer ter corrente passando, e não só desenho parado. */
-        const prog = ((t * 90 + linha.fase) % 1.6) / 1.6;
-        if (prog < 1) {
-          const i = Math.min(pontos.length - 2, Math.floor(prog * (pontos.length / 2)) * 2);
-          const desvanece = Math.sin(prog * Math.PI);
-          const g = ctx.createRadialGradient(pontos[i], pontos[i + 1], 0, pontos[i], pontos[i + 1], 28);
-          g.addColorStop(0, rgba(cor, 46 * desvanece * forca));
-          g.addColorStop(1, rgba(cor, 0));
-          ctx.fillStyle = g;
-          ctx.fillRect(pontos[i] - 28, pontos[i + 1] - 28, 56, 56);
-        }
-      }
-
-      /* ── As partículas ──────────────────────────────────────────────── */
-      for (const p of particulas) {
-        /* Elas seguem o MESMO campo das linhas. Movimento independente
-           denunciaria que são duas coisas coladas; seguindo o campo, leem
-           como poeira carregada pela mesma corrente. */
-        const a = angulo(p.x, p.y, t + p.fase);
-        p.x += Math.cos(a) * p.vel;
-        p.y += Math.sin(a) * p.vel;
-        if (p.x < -20) p.x = larg + 20; else if (p.x > larg + 20) p.x = -20;
-        if (p.y < -20) p.y = alt + 20; else if (p.y > alt + 20) p.y = -20;
-
-        /* Cintilância: aparece e desaparece, em vez de ficar acesa. Um campo
-           de pontos permanentes lê como defeito da tela. */
-        const cintila = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 380 + p.fase * 7));
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, 6.283);
-        ctx.fillStyle = rgba(cor, 38 * cintila * forca);
-        ctx.fill();
       }
 
       ctx.globalCompositeOperation = 'source-over';

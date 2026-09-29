@@ -97,208 +97,154 @@ function Countdown({ nextRoundAt }) {
   }, [nextRoundAt]);
 
   if (!nextRoundAt || secs <= 0) return null;
-  const m = Math.floor(secs / 60), s = secs % 60;
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  const texto = h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : m > 0 ? `${m}m ${String(s).padStart(2, '0')}s` : `${s}s`;
+  return <span style={{ fontVariantNumeric: 'tabular-nums' }}>Próxima em {texto}</span>;
+}
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const srcDoAvatar = a => (a?.avatar ? (a.avatar.startsWith('/uploads') ? `${API_URL}${a.avatar}` : a.avatar) : '');
+
+/** Avatares empilhados: até 3, e "+N" para o resto. */
+function Contas({ contas = [] }) {
+  const vis = contas.slice(0, 3);
+  const resto = contas.length - vis.length;
   return (
-    <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', fontVariantNumeric: 'tabular-nums' }}>
-      {ICONS.clock} próxima em {m > 0 ? `${m}m ` : ''}{String(s).padStart(2, '0')}s
-    </span>
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      {vis.map((a, i) => (
+        <div key={a.id || i} title={`@${a.username}`} style={{
+          width: 30, height: 30, borderRadius: 'var(--mf-r-full)', overflow: 'hidden', flexShrink: 0,
+          marginLeft: i ? -9 : 0, border: '2px solid var(--mf-surface-1)', background: 'var(--mf-surface-3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-text-2)',
+        }}>
+          {srcDoAvatar(a)
+            ? <img src={srcDoAvatar(a)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+            : a.username?.[0]?.toUpperCase()}
+        </div>
+      ))}
+      {resto > 0 && (
+        <div style={{ width: 30, height: 30, borderRadius: 'var(--mf-r-full)', marginLeft: -9, flexShrink: 0,
+          border: '2px solid var(--mf-surface-1)', background: 'var(--mf-surface-3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text-2)' }}>+{resto}</div>
+      )}
+    </div>
   );
 }
 
-// ── Formata número compacto ────────────────────────────────────────────────
-function fmtN(n) {
-  if (!n) return '—';
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0','') + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.0','') + 'K';
-  return String(n);
+/** Botão só de ícone, com dica — o rodapé do cartão fica numa linha só. */
+function Acao({ titulo, icone, cor = 'var(--mf-text-2)', onClick }) {
+  return (
+    <button type="button" onClick={onClick} title={titulo} aria-label={titulo}
+      style={{ width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)', background: 'var(--mf-surface-2)',
+        color: cor, cursor: 'pointer', transition: 'background var(--mf-fast) var(--mf-ease-out)' }}>
+      {icone}
+    </button>
+  );
 }
 
 // ── Job card ────────────────────────────────────────────────────────────────
+/* Três faixas, de cima para baixo: QUEM (contas, nome, estado), QUANTO
+   (progresso) e QUANDO/AÇÕES (próxima rodada e botões). O resto — seguidores,
+   rodada, mídias — virou uma linha só de detalhe, porque ninguém decide nada
+   por ele. */
 function JobCard({ job, onAction, selecionado = false, aoSelecionar }) {
   const isLoop      = job.type === 'loop';
   const isActive    = ['queued', 'running', 'waiting_interval'].includes(job.status);
   const isCompleted = job.status === 'completed';
   const isCancelled = ['cancelled', 'failed'].includes(job.status);
   const isPaused    = job.status === 'paused';
-  const API         = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  const totalProgress  = job.postsTotal || (job.totalRounds * (job.accounts?.length || 1));
-  const pct            = totalProgress > 0 ? Math.round((job.postsPublished / totalProgress) * 100) : 0;
-  const mediaLen       = job.mediaFiles?.length || 0;
-  const cyclePos       = mediaLen > 0 ? (job.roundsCompleted % mediaLen) : 0;
-  const cyclePct       = mediaLen > 0 ? Math.round((cyclePos / mediaLen) * 100) : 0;
+  const contas       = job.accounts || [];
+  const mediaLen     = job.mediaFiles?.length || 0;
+  const total        = isLoop ? mediaLen : (job.postsTotal || (job.totalRounds * (contas.length || 1)));
+  const feitos       = isLoop ? (mediaLen > 0 ? job.roundsCompleted % mediaLen : 0) : (job.postsPublished || 0);
+  const pct          = total > 0 ? Math.min(100, Math.round((feitos / total) * 100)) : 0;
+  const principal    = contas[0];
+  const nomeContas   = contas.length === 1
+    ? `@${principal.username}`
+    : `${contas.length} contas`;
 
-  const mainAccount    = job.accounts?.[0];
-  const extraAccounts  = (job.accounts?.length || 0) - 1;
+  const detalhe = [
+    isLoop ? 'Loop' : 'Post',
+    `${mediaLen} mídia${mediaLen === 1 ? '' : 's'}`,
+    job.intervalMinutes > 0 ? `a cada ${job.intervalMinutes} min` : null,
+  ].filter(Boolean).join(' · ');
 
   return (
-    /* A faixa à esquerda repete a cor do selo. É redundante de propósito:
-       numa grade de vinte jobs o olho encontra "o que falhou" pela faixa,
-       sem precisar ler selo nenhum. */
     <div className="mf-card--hover" style={{
       background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)',
-      borderRadius: 'var(--mf-r-lg)', minWidth: 0, containerType: 'inline-size',
-      padding: 'var(--mf-4)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-3)',
-      borderLeft: `3px solid ${STATUS[job.status]?.cor || 'var(--mf-border)'}`,
-      /* Marcado se vê de longe: numa grade de vinte, contar quais estão
-         selecionados pela caixinha exige olhar um por um. */
+      borderRadius: 'var(--mf-r-lg)', minWidth: 0,
+      padding: 'var(--mf-4)', display: 'flex', flexDirection: 'column', gap: 'var(--mf-4)',
       ...(selecionado ? {
         outline: '1px solid color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 55%, transparent)',
-        background: 'color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 7%, var(--mf-surface-1))',
+        background: 'color-mix(in oklch, var(--mf-mod, var(--mf-accent-500)) 6%, var(--mf-surface-1))',
       } : {}),
     }}>
-      {/* Header: nome + badges */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, justifyContent: 'space-between' }}>
+      {/* ── Quem ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', minWidth: 0 }}>
+        {aoSelecionar && (
+          <input type="checkbox" checked={selecionado} onChange={aoSelecionar}
+            aria-label={`Selecionar ${job.name || 'este envio'}`}
+            style={{ width: 15, height: 15, flexShrink: 0, cursor: 'pointer',
+              accentColor: 'var(--mf-mod, var(--mf-accent-500))' }} />
+        )}
+        <Contas contas={contas} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {/* A caixa vem ANTES do ícone do tipo: é o primeiro elemento da
-                linha, onde o olho começa a ler, e é o que a seleção em massa
-                precisa achar sem procurar em vinte cartões. */}
-            {aoSelecionar && (
-              <input type="checkbox" checked={selecionado} onChange={aoSelecionar}
-                aria-label={`Selecionar ${job.name || 'este envio'}`}
-                style={{ width: 15, height: 15, flexShrink: 0, cursor: 'pointer',
-                  accentColor: 'var(--mf-mod, var(--mf-accent-500))' }} />
-            )}
-            <span style={{ color: isLoop ? 'var(--mf-mod-jobs)' : 'var(--mf-text-3)', display: 'flex', flexShrink: 0 }}>
-              {isLoop ? ICONS.loop : ICONS.post}
-            </span>
-            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {job.name || 'Sem nome'}
-            </span>
-            <StatusBadge status={job.status} />
-            {isLoop && (
-              <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--mf-r-full)',
-                color: 'var(--mf-mod-jobs)',
-                background: 'color-mix(in oklch, var(--mf-mod-jobs) 10%, transparent)',
-                border: '1px solid color-mix(in oklch, var(--mf-mod-jobs) 24%, transparent)' }}>
-                Loop
-              </span>
-            )}
+          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {principal ? nomeContas : (job.name || 'Sem nome')}
           </div>
-          <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 4 }}>
-            Criado em {new Date(job.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-            {job.intervalMinutes > 0 && <span style={{ marginLeft: 8 }}>· intervalo {job.intervalMinutes}min</span>}
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {detalhe}
           </div>
         </div>
+        <StatusBadge status={job.status} />
       </div>
 
-      {/* Conta principal */}
-      {mainAccount && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mf-3)', minWidth: 0, background: 'var(--mf-surface-2)', borderRadius: 'var(--mf-r-md)', padding: 'var(--mf-2) var(--mf-3)' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 'var(--mf-r-full)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--mf-border-strong)', background: 'var(--mf-surface-3)' }}>
-            {mainAccount.avatar
-              ? <img src={mainAccount.avatar.startsWith('/uploads') ? `${API}${mainAccount.avatar}` : mainAccount.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.currentTarget.style.display='none'; }} />
-              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text-2)' }}>{mainAccount.username?.[0]?.toUpperCase()}</div>
-            }
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {mainAccount.name || mainAccount.username}
-              {extraAccounts > 0 && (
-                <span style={{ marginLeft: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontWeight: 400 }}>
-                  +{extraAccounts} {extraAccounts === 1 ? 'conta' : 'contas'}
+      {/* ── Quanto ── */}
+      {total > 0 && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
+              <strong style={{ color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{feitos}</strong>
+              <span style={{ color: 'var(--mf-text-3)' }}> de {total} {isLoop ? 'no ciclo' : 'publicadas'}</span>
+              {job.postsErrors > 0 && (
+                <span style={{ color: 'var(--mf-danger-500)', marginLeft: 8 }}>
+                  {job.postsErrors} erro{job.postsErrors === 1 ? '' : 's'}
                 </span>
               )}
-            </div>
-            <div className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>@{mainAccount.username}</div>
+            </span>
+            <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
           </div>
-          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
-            {[
-              { label: 'seg', value: fmtN(mainAccount.followers) },
-              { label: 'seg.', value: fmtN(mainAccount.following) },
-              { label: 'posts', value: fmtN(mainAccount.postsCount) },
-            ].map(s => (
-              <div key={s.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 700, color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
-                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+          <ProgressBar published={feitos} total={total} errors={isLoop ? 0 : job.postsErrors} />
         </div>
       )}
 
-      {/* Stats row */}
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
-          {ICONS.media}
-          <span>{mediaLen} mídia(s)</span>
-        </div>
-        {job.totalRounds > 0 && (
-          <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
-            Rodada {Math.min(job.roundsCompleted + (isActive ? 1 : 0), job.totalRounds)}/{isLoop ? '∞' : job.totalRounds}
-          </div>
-        )}
-        {job.postsPublished > 0 && (
-          <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-success-500)' }}>✓ {job.postsPublished} publicado(s)</div>
-        )}
-        {job.postsErrors > 0 && (
-          <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-danger-500)' }}>✗ {job.postsErrors} erro(s)</div>
-        )}
-      </div>
-
-      {/* Barra de progresso — post comum: absoluta; loop: ciclo atual */}
-      {!isLoop && totalProgress > 0 && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginBottom: 3 }}>
-            <span>Progresso</span><span>{pct}%</span>
-          </div>
-          <ProgressBar published={job.postsPublished} total={totalProgress} errors={job.postsErrors} />
-        </div>
-      )}
-      {isLoop && mediaLen > 0 && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginBottom: 3 }}>
-            <span>Ciclo atual</span><span>{cyclePos}/{mediaLen} ({cyclePct}%)</span>
-          </div>
-          <ProgressBar published={cyclePos} total={mediaLen} errors={0} />
-        </div>
-      )}
-
-      {/* Countdown for waiting_interval */}
-      {job.status === 'waiting_interval' && job.nextRoundAt && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)' }}>
-          <Countdown nextRoundAt={job.nextRoundAt} />
-        </div>
-      )}
-
-      {/* Error */}
       {job.lastError && (
-        <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 20%, transparent)', borderRadius: 'var(--mf-r-sm)', padding: '4px 8px' }}>
-          {job.lastError.slice(0, 120)}
+        <div title={job.lastError} style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-danger-500)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: -6 }}>
+          {job.lastError}
         </div>
       )}
 
-      {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-        {(isActive || isPaused) && !isPaused && (
-          <button onClick={() => onAction(job.id, 'pause')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-mod-publicar) 10%, transparent)', color: 'var(--mf-mod-publicar)', cursor: 'pointer', fontWeight: 600 }}>
-            {ICONS.pause} Pausar
-          </button>
-        )}
-        {isPaused && (
-          <button onClick={() => onAction(job.id, 'resume')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-success-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-success-500) 10%, transparent)', color: 'var(--mf-success-500)', cursor: 'pointer', fontWeight: 600 }}>
-            {ICONS.play} Retomar
-          </button>
-        )}
-        {isActive && (
-          <button onClick={() => onAction(job.id, 'cancel')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', background: 'color-mix(in oklch, var(--mf-danger-500) 8%, transparent)', color: 'var(--mf-danger-500)', cursor: 'pointer', fontWeight: 600 }}>
-            {ICONS.stop} Cancelar
-          </button>
-        )}
-        {(isCompleted || isCancelled) && (
-          <button onClick={() => onAction(job.id, 'rerun')}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'color-mix(in oklch, var(--mf-info-500) 8%, transparent)', color: 'var(--mf-info-500)', cursor: 'pointer', fontWeight: 600 }}>
-            {ICONS.refresh} Reexecutar
-          </button>
-        )}
-        <button onClick={() => onAction(job.id, 'delete')}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', fontSize: 'var(--mf-t-xs)', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--mf-text-3)', cursor: 'pointer', marginLeft: 'auto' }}>
-          {ICONS.trash}
-        </button>
+      {/* ── Quando e ações ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 'var(--mf-3)',
+        borderTop: '1px solid var(--mf-border-subtle)' }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {job.status === 'waiting_interval' && job.nextRoundAt
+            ? <Countdown nextRoundAt={job.nextRoundAt} />
+            : `Criado ${new Date(job.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+        </span>
+        {isActive && <Acao titulo="Pausar" icone={ICONS.pause} onClick={() => onAction(job.id, 'pause')} />}
+        {isPaused && <Acao titulo="Retomar" icone={ICONS.play} cor="var(--mf-success-500)" onClick={() => onAction(job.id, 'resume')} />}
+        {(isActive || isPaused) && <Acao titulo="Cancelar" icone={ICONS.stop} cor="var(--mf-danger-500)" onClick={() => onAction(job.id, 'cancel')} />}
+        {(isCompleted || isCancelled) && <Acao titulo="Reexecutar" icone={ICONS.refresh} onClick={() => onAction(job.id, 'rerun')} />}
+        <Acao titulo="Excluir" icone={ICONS.trash} cor="var(--mf-text-3)" onClick={() => onAction(job.id, 'delete')} />
       </div>
     </div>
   );
@@ -445,33 +391,28 @@ export default function JobManager() {
           `aria-pressed` dizem qual filtro está ativo. */}
       <div role="group" aria-label="Filtrar jobs por estado"
         style={{ display: 'flex', gap: 'var(--mf-2)', flexWrap: 'wrap', alignItems: 'center', marginBottom: 'var(--mf-4)' }}>
-        {filters.map(f => {
-          const ativo = filter === f.key;
-          return (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              aria-pressed={ativo}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                height: 30, padding: '0 var(--mf-3)', borderRadius: 'var(--mf-r-full)',
-                fontSize: 'var(--mf-t-xs)', fontWeight: 600, cursor: 'pointer',
-                color: ativo ? 'var(--mf-mod-jobs)' : 'var(--mf-text-2)',
-                background: ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 13%, transparent)' : 'var(--mf-surface-2)',
-                border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 32%, transparent)' : 'var(--mf-border)'}`,
-                transition: 'background var(--mf-fast) var(--mf-ease-out), border-color var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out)',
-              }}
-            >
-              {f.label}
-              {counts[f.key] > 0 && (
-                <span className="mf-mono" style={{ fontSize: 'var(--mf-t-micro)', borderRadius: 'var(--mf-r-full)', padding: '2px 4px',
-                  background: ativo ? 'color-mix(in oklch, var(--mf-mod-jobs) 20%, transparent)' : 'var(--mf-surface-3)' }}>
-                  {counts[f.key]}
-                </span>
-              )}
-            </button>
-          );
-        })}
+        <div style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 'var(--mf-r-md)', flexWrap: 'wrap',
+          background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border)' }}>
+          {filters.map(f => {
+            const ativo = filter === f.key;
+            return (
+              <button key={f.key} onClick={() => setFilter(f.key)} aria-pressed={ativo}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                  height: 28, padding: '0 var(--mf-3)', borderRadius: 'var(--mf-r-sm)', border: 'none',
+                  fontSize: 'var(--mf-t-xs)', fontWeight: 600, cursor: 'pointer',
+                  color: ativo ? 'var(--mf-text)' : 'var(--mf-text-3)',
+                  background: ativo ? 'var(--mf-surface-3)' : 'transparent',
+                  transition: 'background var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out)',
+                }}>
+                {f.label}
+                {counts[f.key] > 0 && (
+                  <span className="mf-mono" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>{counts[f.key]}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
         <button onClick={load} className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }}>
           {ICONS.refresh} Atualizar
