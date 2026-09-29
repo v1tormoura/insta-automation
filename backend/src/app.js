@@ -61,6 +61,7 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/oauth', require('./routes/oauthRoutes'));
+app.use('/meta', require('./routes/metaCallbacksRoutes'));
 
 // ── Com login (JWT) ─────────────────────────────────────────────────────────
 app.use('/events',        auth, require('./routes/eventsRoutes'));

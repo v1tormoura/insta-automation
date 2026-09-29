@@ -24,7 +24,14 @@ router.get('/', async (req, res) => {
 router.get('/config', (req, res) => {
   let dominio = '';
   try { dominio = new URL(config.oauthRedirectUri).hostname; } catch { /* URI mal formada: a tela mostra só ela */ }
-  res.json({ redirectUri: config.oauthRedirectUri, dominio });
+  res.json({
+    redirectUri: config.oauthRedirectUri,
+    redirectAlternativa: `${config.publicUrl}/oauth/callback`,
+    desautorizacao: `${config.publicUrl}/meta/deauthorize`,
+    exclusaoDeDados: `${config.publicUrl}/meta/data-deletion`,
+    siteUrl: config.frontendUrl,
+    dominio,
+  });
 });
 
 router.use(soAdmin);

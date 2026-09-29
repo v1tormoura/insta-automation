@@ -40,6 +40,121 @@ function FormField({ label, value, onChange, placeholder, type = 'text', hint, r
   );
 }
 
+const cartao = { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-lg)', padding: '20px 24px', marginTop: 20 };
+const tituloCartao = { fontSize: 'var(--mf-t-body)', fontWeight: 750, color: 'var(--mf-text)', marginBottom: 4 };
+const textoCartao = { fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.7 };
+const forte = { color: 'var(--mf-text-2)', fontWeight: 650 };
+const codigo = { fontFamily: 'var(--mf-mono)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' };
+
+function LinhaCopiar({ rotulo, valor, copiar, copiado }) {
+  const feito = copiado === rotulo;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-md)', padding: '8px 12px' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text-3)', letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 2 }}>{rotulo}</div>
+        <div style={{ ...codigo, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{valor || '—'}</div>
+      </div>
+      <button type="button" onClick={() => valor && copiar(valor, rotulo)}
+        style={{ flexShrink: 0, padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: feito ? 'color-mix(in oklch, var(--mf-success-500) 15%, transparent)' : 'var(--bg2)', color: feito ? 'var(--mf-success-500)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+        {feito ? <><IcoCheck /> Copiado</> : <><IcoCopy /> Copiar</>}
+      </button>
+    </div>
+  );
+}
+
+/** Estado do token de cada conta: válido, vencendo, vencido ou sem token. */
+function estadoDoToken(c) {
+  if (!c.hasApiToken || c.healthStatus === 'token_invalido') return { rotulo: 'Reconectar', cor: 'var(--mf-danger-500)' };
+  if (!c.tokenExpiresAt) return { rotulo: 'Válido', cor: 'var(--mf-success-500)' };
+  const dias = Math.ceil((new Date(c.tokenExpiresAt) - Date.now()) / 86_400_000);
+  if (dias < 0) return { rotulo: 'Vencido', cor: 'var(--mf-danger-500)' };
+  if (dias <= 7) return { rotulo: `Vence em ${dias} d`, cor: 'var(--mf-warning-500)' };
+  return { rotulo: `Válido · ${dias} d`, cor: 'var(--mf-success-500)' };
+}
+
+/* Guia do painel da Meta: endereços para colar, legenda cortada, e o estado
+   dos tokens. Os endereços vêm do servidor (/meta-apps/config) — são os que
+   ele usa de verdade. */
+function GuiaDaMeta({ cfg, copiar, copiado }) {
+  const [contas, setContas] = useState(null);
+  useEffect(() => {
+    api.get('/accounts', { params: { limit: 500 } })
+      .then(r => setContas(r.data?.accounts || []))
+      .catch(() => setContas([]));
+  }, []);
+  const dominio = cfg?.dominio || window.location.hostname;
+  const site = cfg?.siteUrl || window.location.origin;
+
+  return (
+    <>
+      <div style={cartao}>
+        <div style={tituloCartao}>URL obrigatória no Meta (Invalid redirect_uri)</div>
+        <div style={textoCartao}>O Instagram só aceita o login se esta URL estiver salva no <strong style={forte}>seu</strong> app. Cole no lugar certo e clique em Salvar:</div>
+        <ol style={{ ...textoCartao, margin: '10px 0 14px', paddingLeft: 20, listStyle: 'decimal' }}>
+          <li>Abra <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{ color: 'var(--mf-primary-500)' }}>developers.facebook.com/apps</a> e entre no app</li>
+          <li>Instagram → <strong style={forte}>Configuração da API com login do Instagram</strong> → <strong style={forte}>Configurações de login de empresa</strong></li>
+          <li>Em <strong style={forte}>URIs de redirecionamento do OAuth</strong>, cole a URL abaixo (exata, sem barra no final)</li>
+          <li>Em Configurações → Básico: Domínios do app = <span style={codigo}>{dominio}</span> e URL do site = <span style={codigo}>{site}</span></li>
+          <li>Na mesma tela de login de empresa, cole as URLs de desautorização e de exclusão de dados</li>
+          <li>Salve e conecte de novo em Contas</li>
+        </ol>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <LinhaCopiar rotulo="OAuth redirect URI (obrigatória)" valor={cfg?.redirectUri} copiar={copiar} copiado={copiado} />
+          <LinhaCopiar rotulo="Adicione também (opcional)" valor={cfg?.redirectAlternativa} copiar={copiar} copiado={copiado} />
+          <LinhaCopiar rotulo="Desautorização" valor={cfg?.desautorizacao} copiar={copiar} copiado={copiado} />
+          <LinhaCopiar rotulo="Exclusão de dados" valor={cfg?.exclusaoDeDados} copiar={copiar} copiado={copiado} />
+        </div>
+      </div>
+
+      <div style={cartao}>
+        <div style={tituloCartao}>Reel sobe sem legenda?</div>
+        <div style={textoCartao}>
+          O Nexora envia a legenda. Se o vídeo publica e o texto some, o app da Meta ainda está em <strong style={forte}>modo de desenvolvimento</strong> para
+          essa permissão — a Meta aceita o vídeo e corta a legenda até o acesso avançado.
+        </div>
+        <ol style={{ ...textoCartao, margin: '10px 0 8px', paddingLeft: 20, listStyle: 'decimal' }}>
+          <li>No app → Revisão do app → Permissões e recursos → <strong style={forte}>instagram_business_content_publish</strong> → <strong style={forte}>Solicitar acesso avançado</strong></li>
+          <li>Se o botão estiver cinza: Instagram → Configuração da API com login do Instagram → bloco <strong style={forte}>Concluir a análise do app</strong> → marque essa permissão</li>
+          <li>Conclua a verificação da empresa, se a Meta pedir</li>
+          <li>Espere o status mudar para <strong style={forte}>Acesso avançado</strong> e o app ficar <strong style={forte}>Live</strong></li>
+          <li>Em <a href="/accounts" style={{ color: 'var(--mf-primary-500)' }}>Contas</a>, reconecte a conta aceitando todas as permissões</li>
+        </ol>
+        <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
+          Enquanto o app estiver em desenvolvimento, cada @ precisa estar em Funções do app → Testadores do Instagram, com o convite aceito.
+          Reels já publicados sem texto não podem ser editados pela API — apague e publique de novo depois da aprovação.
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20, display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 16px', borderRadius: 'var(--mf-r-md)',
+        background: 'color-mix(in oklch, var(--mf-mod-publicar) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-mod-publicar) 24%, transparent)',
+        fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', lineHeight: 1.6 }}>
+        <span aria-hidden="true" style={{ color: 'var(--mf-mod-publicar)', fontWeight: 800 }}>i</span>
+        <span>As conexões são feitas pelo login oficial do Instagram (OAuth), sem senha e sem automação de navegador. Depois de configurar o app, vá em <a href="/accounts" style={{ color: 'var(--mf-primary-500)' }}>Contas</a> e clique em Conectar.</span>
+      </div>
+
+      <div style={cartao}>
+        <div style={tituloCartao}>Status dos tokens por conta</div>
+        {contas === null && <div style={textoCartao}>Carregando…</div>}
+        {contas?.length === 0 && <div style={textoCartao}>Nenhuma conta do Instagram conectada ainda.</div>}
+        {contas?.length > 0 && (
+          <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+            {contas.map(c => {
+              const e = estadoDoToken(c);
+              return (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 'var(--mf-r-md)', background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: e.cor, flexShrink: 0 }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{c.username}</span>
+                  <span style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: e.cor, whiteSpace: 'nowrap' }}>{e.rotulo}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 export default function ApiMeta() {
   const [apps, setApps]           = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -115,11 +230,6 @@ export default function ApiMeta() {
     setTimeout(() => setCopiedKey(''), 2000);
   }
 
-  const configRows = [
-    /* O endereço que o servidor envia de fato — é ele que a Meta compara. */
-    { label: 'URI de redirecionamento do OAuth (cole exatamente este)', value: doServidor?.redirectUri || `${window.location.origin}/oauth-callback` },
-    { label: 'Domínio do app', value: doServidor?.dominio || window.location.hostname },
-  ];
 
   return (
     <PageShell
@@ -136,33 +246,6 @@ export default function ApiMeta() {
         </button>
       }
     >
-
-      {/* ── Configuração para o painel Meta ─────────────────── */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-lg)', padding: '16px 24px', marginBottom: 24 }}>
-          <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 800, color: 'var(--mf-mod-publicar)', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' }}>Configuração do App Meta</div>
-          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)', marginBottom: 4 }}>Copie esses valores no painel Meta Developers</div>
-          <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginBottom: 16 }}>
-            Em <strong style={{ color: 'var(--mf-text-2)' }}>developers.facebook.com → Seu App → Instagram → Configuração da API com login do Instagram → Configurações de login de empresa</strong>, cole a URI abaixo em <strong style={{ color: 'var(--mf-text-2)' }}>URIs de redirecionamento do OAuth</strong> — em cada app cadastrado.
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {configRows.map(({ label, value }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--mf-r-md)', padding: '8px 12px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)', marginBottom: 2 }}>{label}</div>
-                  <div style={{ fontSize: 'var(--mf-t-xs)', fontFamily: 'var(--mf-mono)', color: 'var(--mf-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
-                </div>
-                <button
-                  onClick={() => copy(value, label)}
-                  style={{ flexShrink: 0, padding: '4px 8px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--border)', background: copiedKey === label ? 'color-mix(in oklch, var(--mf-success-500) 15%, transparent)' : 'var(--bg2)', color: copiedKey === label ? 'var(--mf-success-500)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all var(--mf-normal) var(--mf-ease-out)' }}
-                >
-                  {copiedKey === label ? <><IcoCheck /> Copiado</> : <><IcoCopy /> Copiar</>}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </motion.div>
 
       {/* ── Lista de apps ───────────────────────────────────── */}
       <div style={{ fontSize: 'var(--mf-t-micro)', fontWeight: 800, color: 'var(--mf-text-3)', letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>
@@ -286,6 +369,8 @@ export default function ApiMeta() {
           <strong style={{ color: 'var(--mf-text-2)' }}>Como usar múltiplos apps:</strong> O app marcado como <strong>Padrão</strong> é usado automaticamente no fluxo OAuth. Ao conectar uma conta em <strong>Contas</strong>, você pode escolher qual app usar no dropdown que aparece no modal de conexão.
         </div>
       )}
+
+      <GuiaDaMeta cfg={doServidor} copiar={copy} copiado={copiedKey} />
 
       {/* ── Modal: Criar / Editar ──────────────────────────────
           Renderizado por PORTAL no <body> (com `data-mf` para os tokens
