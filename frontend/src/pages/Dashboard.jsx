@@ -67,7 +67,7 @@ function InsightThumb({ ins, rank }) {
         : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--mf-border)' }}><Flame size={24} /></div>
       }
       <div style={{ position:'absolute', inset:0, background:'linear-gradient(to bottom,rgba(0,0,0,.3) 0%,transparent 40%,rgba(0,0,0,.7) 100%)' }} />
-      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-on-cor, var(--mf-primary-fg))', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:20, height:20, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
+      <div style={{ position:'absolute', top:7, right:7, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:20, height:20, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 10px ${color}80` }}>
         #{rank+1}
       </div>
       <div style={{ position:'absolute', bottom:7, left:7, right:7 }}>

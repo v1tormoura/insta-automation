@@ -308,7 +308,7 @@
 .forecast-content { min-height: 190px; position: relative; overflow: hidden; }
 .forecast-graphic { position: absolute; inset: 5px 0 24px; display: grid; place-items: center; pointer-events: none; z-index: 1; }
 .folder-holo { color: var(--mf-mod, var(--mf-accent-500)); opacity: .75; filter: drop-shadow(0 0 10px color-mix(in oklch, var(--mf-mod-contas) 80%, transparent)); z-index: 2; animation: dash-hoverSlow 3.2s ease-in-out infinite; }
-.holo-floor { position: absolute; bottom: 5px; width: 74%; height: 38px; border-radius: 50%; border: 1px solid color-mix(in oklch, var(--mf-primary-500) 50%, transparent); box-shadow: inset 0 0 22px color-mix(in oklch, var(--mf-mod-contas) 14%, transparent), 0 0 22px color-mix(in oklch, var(--mf-primary-500) 22%, transparent); background: radial-gradient(ellipse, color-mix(in oklch, var(--mf-primary-500) 20%, transparent), transparent 68%); }
+.holo-floor { position: absolute; bottom: 5px; width: 74%; height: 38px; border-radius: 50%; border: 1px solid rgba(0,200,255,.5); box-shadow: inset 0 0 22px color-mix(in oklch, var(--mf-mod-contas) 14%, transparent), 0 0 22px rgba(0,200,255,.22); background: radial-gradient(ellipse, color-mix(in oklch, var(--mf-primary-500) 20%, transparent), transparent 68%); }
 .forecast-chart { padding: 8px 4px 4px; position: relative; z-index: 0; }
 .empty-copy { position: absolute; z-index: 2; left: 50%; top: 56%; width: 100%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; }
 .empty-copy h2 { font-size: 15px; margin: 0; color: var(--mf-text); }

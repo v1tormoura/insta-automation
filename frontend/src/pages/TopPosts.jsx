@@ -99,7 +99,7 @@ function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) 
           ? <div style={{ position:'absolute', top:8, right:8, background: isSelected ? 'var(--mf-mod, var(--mf-accent-500))' : 'rgba(0,0,0,.6)', color: isSelected ? 'var(--mf-primary-fg)' : 'oklch(1 0 0 / 0.86)', width:26, height:26, borderRadius: 'var(--mf-r-sm)', display:'flex', alignItems:'center', justifyContent:'center', border:`2px solid ${isSelected ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`, transition:'all .15s' }}>
               {isSelected ? <CheckSquare size={15} /> : <Square size={15} />}
             </div>
-          : <div style={{ position:'absolute', top:8, right:8, background:color, color:'var(--mf-on-cor, var(--mf-primary-fg))', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:26, height:26, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 14px ${color}77` }}>
+          : <div style={{ position:'absolute', top:8, right:8, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:26, height:26, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 14px ${color}77` }}>
               #{rank}
             </div>
         }
@@ -356,7 +356,7 @@ function MiniaturaSelecionada({ ins, i }) {
         ? <img src={src} alt="" onError={() => setImgErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
         : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#1e3a5f' }}><Flame size={20} /></div>
       }
-      <div style={{ position:'absolute', top:4, right:4, background:color, color:'var(--mf-on-cor, var(--mf-primary-fg))', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:18, height:18, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ position:'absolute', top:4, right:4, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:18, height:18, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center' }}>
         {i+1}
       </div>
     </div>

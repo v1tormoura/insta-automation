@@ -194,14 +194,9 @@ describe.each(Object.entries(TEMAS))('tema %s', (nome, tema) => {
   test('a tinta do botão passa sobre o próprio botão', () => {
     // --mf-primary-fg é o rótulo que fica SOBRE a cor viva. Trocar a paleta e
     // esquecer dele produz botão bonito com texto ilegível.
-    const r = razao(tema['mf-primary-fg'], tema['mf-primary-500']);
-    expect(r, `primary-fg sobre mf-primary-500: ${r.toFixed(2)}`).toBeGreaterThanOrEqual(AA_TEXTO);
-    /* Sobre as cores de estado o rótulo é `--mf-on-cor` (escuro), quando o
-       tema o define; sem ele, vale o primary-fg como antes. */
-    const tinta = tema['mf-on-cor'] || tema['mf-primary-fg'];
-    for (const fundo of SEMANTICAS) {
-      const r2 = razao(tinta, tema[fundo]);
-      expect(r2, `rótulo sobre ${fundo}: ${r2.toFixed(2)}`).toBeGreaterThanOrEqual(AA_TEXTO);
+    for (const fundo of ['mf-primary-500', ...SEMANTICAS]) {
+      const r = razao(tema['mf-primary-fg'], tema[fundo]);
+      expect(r, `primary-fg sobre ${fundo}: ${r.toFixed(2)}`).toBeGreaterThanOrEqual(AA_TEXTO);
     }
   });
 

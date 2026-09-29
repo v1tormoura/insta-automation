@@ -209,7 +209,6 @@
   color: var(--mf-primary-fg);
   border-color: transparent;
   font-weight: 700;
-  /* O brilho violeta em volta do botão principal (estilo GoatPost). */
   box-shadow: var(--mf-glow-primary);
 }
 [data-mf] .btn-primary:hover:not(:disabled) {
