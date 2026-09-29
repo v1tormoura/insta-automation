@@ -102,6 +102,10 @@ exports.createPost = async (req, res) => {
   await agendarRodada(job.id, atraso || 0);
 
   broadcast('posts', { action: 'created' }, uid);
+  await require('../services/smartActivity/eventosDePublicacao').notificarEnvio({
+    usuarioId: uid, origem: loopInfinito ? 'Loop' : 'Postar', nome: job.name,
+    contas: accountIds.length, publicacoes: mediaFiles.length * accountIds.length, postType,
+  });
   res.json({ success: true, job: await comContas(job), tetoAplicado });
 };
 

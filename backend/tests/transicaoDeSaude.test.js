@@ -65,11 +65,11 @@ describe('avisarTransicao', () => {
 
     expect(await s.avisarTransicao({ conta, de: 'ativa', para: 'restrita', lastError: 'checkpoint_required', notificar })).toEqual({ id: 'n1' });
     expect(await s.avisarTransicao({ conta, de: 'restrita', para: 'restrita', lastError: 'checkpoint_required', notificar })).toBeNull();
-    expect(await s.avisarTransicao({ conta, de: 'restrita', para: 'ativa', notificar, notificarVolta })).toEqual({ id: 'n2' });
+    // A volta não avisa mais (só a queda).
+    expect(await s.avisarTransicao({ conta, de: 'restrita', para: 'ativa', notificar, notificarVolta })).toBeNull();
     expect(await s.avisarTransicao({ conta: null, de: 'ativa', para: 'banida', notificar })).toBeNull();
 
-    expect(voltas).toHaveLength(1);
-    expect(voltas[0].motivo).toMatch(/voltou a publicar/);
+    expect(voltas).toHaveLength(0);
     expect(chamadas).toHaveLength(1);
     expect(chamadas[0].conta).toBe(conta);
     expect(chamadas[0].motivo).toBe('o Instagram pediu verificação ou restringiu a atividade (checkpoint_required)');

@@ -54,13 +54,11 @@ describe('recuperação', () => {
     expect(s.recuperou(undefined, 'ativa')).toBe(false);
   });
 
-  test('avisarTransicao chama o notificador de VOLTA na recuperação, e só ele', async () => {
+  test('avisarTransicao não avisa a volta — só a queda', async () => {
     const caiu = [], voltou = [];
     const conta = { id: 'c1', username: 'eliane' };
     await s.avisarTransicao({ conta, de: 'restrita', para: 'ativa', notificar: async p => caiu.push(p), notificarVolta: async p => voltou.push(p) });
-    await s.avisarTransicao({ conta, de: 'ativa', para: 'ativa', notificar: async p => caiu.push(p), notificarVolta: async p => voltou.push(p) });
     expect(caiu).toHaveLength(0);
-    expect(voltou).toHaveLength(1);
-    expect(voltou[0].motivo).toBe('saiu de verificação/restrição e voltou a publicar normalmente');
+    expect(voltou).toHaveLength(0);
   });
 });

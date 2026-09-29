@@ -43,7 +43,6 @@ const VARIAVEIS = Object.freeze({
      dicionário porque `validar()` sem tipo confere contra ele — mas cada
      aviso oferece só as suas, por `VARIAVEIS_POR_TIPO`. */
   erro:          'O que o serviço respondeu quando falhou',
-  dias:          'Quantos dias faltam para o token vencer',
   motivo:        'Por que a conta parou (token inválido, banida…)',
   usado:         'Publicações feitas pela API nas últimas 24h',
   limite:        'Quantas a API do Instagram aceita em 24h (50)',
@@ -56,6 +55,15 @@ const VARIAVEIS = Object.freeze({
   errosHoje:     'Erros de publicação no dia',
   aviso:         'Nome do aviso que voltou ao normal',
   horas:         'Por quantas horas o problema durou',
+
+  /* Envios (Postar, Loop, Campanha, Stories). */
+  origem:        'De onde saiu o envio: Postar, Loop, Campanha ou Stories',
+  nome:          'Nome do envio',
+  tipo:          'reels, fotos ou stories (no singular quando é um só)',
+  publicadas:    'Publicações que saíram (no fim do envio)',
+  falhas:        'Publicações que falharam (no fim do envio)',
+  nomeCadastro:  'Nome de quem pediu acesso',
+  emailCadastro: 'E-mail de quem pediu acesso',
 });
 
 /**
@@ -83,9 +91,10 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   /* Publicação em si — dispara na hora, por publicação, não por métrica. */
   postPublicado:  Object.freeze(['account', 'username', 'contentType', 'time']),
   erroPublicacao: Object.freeze(['account', 'username', 'contentType', 'erro', 'time']),
-  tokenExpirando: Object.freeze(['account', 'username', 'dias']),
   contaCaiu:      Object.freeze(['account', 'username', 'motivo']),
-  contaVoltou:    Object.freeze(['account', 'username', 'motivo']),
+  envioIniciado:  Object.freeze(['origem', 'nome', 'contas', 'publicacoes', 'tipo']),
+  envioConcluido: Object.freeze(['origem', 'nome', 'contas', 'publicadas', 'falhas', 'tipo']),
+  novoCadastro:   Object.freeze(['nomeCadastro', 'emailCadastro']),
   cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
   resumoMarcos:   Object.freeze(['account', 'username', 'quantidade', 'contas', 'maior']),
 
@@ -154,25 +163,31 @@ const PADRAO = Object.freeze({
     tema: 'warning',
   }),
 
-  /* ── Avisos que faltavam ───────────────────────────────────────────────
-     Os três nasceram de problemas reais que passaram despercebidos até doer:
-     token vencendo sem ninguém ver (a conta parava de publicar do nada), conta
-     caindo no meio de um lote, e envio terminando sem dizer o placar. */
-  tokenExpirando: Object.freeze({
-    titulo: 'Token vence em {{dias}} dias 🔑',
-    mensagem: '{{account}} precisa ser reconectada antes disso, ou para de publicar.',
-    tema: 'warning',
-  }),
   contaCaiu: Object.freeze({
     titulo: 'Conta parou ⛔',
     mensagem: '{{account}}: {{motivo}}',
     tema: 'danger',
   }),
-  contaVoltou: Object.freeze({
-    titulo: 'Conta voltou ✅',
-    mensagem: '{{account}} {{motivo}}.',
+
+  /* ── Envios ─────────────────────────────────────────────────────────── */
+  envioIniciado: Object.freeze({
+    titulo: 'Publicações enviadas 📦',
+    mensagem: '{{contas}} conta(s), {{publicacoes}} {{tipo}} enviados para publicar.',
+    tema: 'info',
+  }),
+  envioConcluido: Object.freeze({
+    titulo: 'Envio concluído 🏁',
+    mensagem: '{{nome}}: {{publicadas}} {{tipo}} publicados em {{contas}} conta(s), {{falhas}} com erro.',
     tema: 'success',
   }),
+
+  /* Só para o admin. */
+  novoCadastro: Object.freeze({
+    titulo: 'Novo cadastro esperando aprovação',
+    mensagem: '{{nomeCadastro}} ({{emailCadastro}}) pediu acesso. Aprove em Usuários.',
+    tema: 'info',
+  }),
+
   /* A cota da API do Meta: 50 publicações por conta em 24h. O envio para por
      horas sem erro nenhum na fila — sem este aviso, parece que travou. */
   /* Vários reels cruzando marcos na mesma sincronização: os 3 maiores saem
@@ -347,9 +362,12 @@ const EXEMPLOS = Object.freeze({
   contasRuins: '5', contasTotal: '9',
   presas: '2', errosHoje: '23',
   aviso: 'fila de publicação', horas: '3',
-  dias: '6', motivo: 'Token inválido — reconecte pela API.',
+  motivo: 'Token inválido — reconecte pela API.',
   usado: '50', limite: '50', libera: '14:35',
   quantidade: '9', maior: '194.000',
+  origem: 'Postar', nome: 'Post 29/09', tipo: 'reels',
+  publicadas: '118', falhas: '2',
+  nomeCadastro: 'Maria Souza', emailCadastro: 'maria@email.com',
 });
 
 /**

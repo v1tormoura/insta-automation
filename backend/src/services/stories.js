@@ -57,8 +57,11 @@ async function iniciarLote(usuarioId, accountIds, midias, textoLivre, intervalMi
   const total = midias.length * accountIds.length;
   if (!total) return { id, total };
 
-  _lotes.set(String(usuarioId), { id, running: true, total, completed: 0, errors: 0, results: [], startedAt: new Date() });
+  _lotes.set(String(usuarioId), { id, running: true, total, contas: accountIds.length, completed: 0, errors: 0, results: [], startedAt: new Date() });
   broadcast('stories', { action: 'started', total }, usuarioId);
+  require('./smartActivity/eventosDePublicacao').notificarEnvio({
+    usuarioId, origem: 'Stories', nome: 'Stories', contas: accountIds.length, publicacoes: total, postType: 'story',
+  });
 
   for (const [i, media] of midias.entries()) {
     // O intervalo pedido, exato, entre uma mídia e a próxima.
@@ -84,6 +87,10 @@ async function processar({ lote, usuarioId, accountIds = [], media, textoLivre }
     }
     if (atual.completed + atual.errors >= atual.total) {
       atual.running = false;
+      require('./smartActivity/eventosDePublicacao').notificarEnvioConcluido({
+        usuarioId, origem: 'Stories', nome: 'Stories',
+        contas: atual.contas || 0, publicadas: atual.completed, falhas: atual.errors, postType: 'story',
+      });
       broadcast('stories', { action: 'completed', results: atual.results }, usuarioId);
       broadcast('posts', { action: 'created' }, usuarioId);
     }

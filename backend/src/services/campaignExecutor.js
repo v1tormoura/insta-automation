@@ -148,6 +148,11 @@ async function finalizarSeCompleta(campaignId, contadores = null) {
   const status = c.published === 0 ? 'failed' : c.failed === 0 && c.cancelled === 0 ? 'completed' : 'partial';
   await campaigns.update(campaignId, { status, completedAt: new Date() });
   registrarEvento('CAMPAIGN_FINISHED', { campaignId, errorCode: status });
+  await require('./smartActivity/eventosDePublicacao').notificarEnvioConcluido({
+    usuarioId: campanha.usuarioId, origem: 'Campanha', nome: campanha.name,
+    contas: (campanha.accountIds || []).length, publicadas: c.published, falhas: c.failed,
+    postType: campanha.settings?.postType || 'reel',
+  });
   return status;
 }
 

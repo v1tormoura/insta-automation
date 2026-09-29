@@ -138,7 +138,7 @@ router.post('/cadastro', async (req, res) => {
   }
   errou([`c:${req.ip}`]); // conta cadastros por IP: 8 em 15 min, depois espera
   console.log(`🆕 [Auth] Cadastro pendente: ${email}`);
-  require('../services/avisosDoAdmin').novoCadastro(u).catch(e => console.log('[Auth] aviso ao admin falhou:', e.message));
+  await require('../services/avisosDoAdmin').novoCadastro(u).catch(e => console.log('[Auth] aviso ao admin falhou:', e.message));
 
   res.status(201).json({
     ok: true,

@@ -84,20 +84,42 @@ const PUBLICACAO = [
   { id: 'postPublicado',  rotulo: 'Publicado',        desc: 'Quando uma publicação sai com sucesso' },
   { id: 'erroPublicacao', rotulo: 'Falha ao publicar', desc: 'Quando uma publicação falha' },
   { id: 'cotaApi',        rotulo: 'Cota da API cheia', desc: 'O Instagram aceita 50 publicações por conta em 24h pela API; avisa quando enche e quando libera' },
-  { id: 'contaCaiu',      rotulo: 'Conta parou',       desc: 'Verificação pedida pelo Instagram, token inválido ou banimento — de qualquer origem' },
-  { id: 'contaVoltou',    rotulo: 'Conta voltou',      desc: 'Quando uma conta que estava parada volta a ativa (verificação concluída, conta reconectada)' },
-  { id: 'tokenExpirando', rotulo: 'Token vencendo',    desc: 'Avisa 7 dias antes, para dar tempo de reconectar' },
+  { id: 'contaCaiu',      rotulo: 'Conta caiu',        desc: 'Verificação pedida pelo Instagram, token inválido ou banimento — de qualquer origem' },
+];
+
+/** Os avisos de ENVIO: sobre o pacote inteiro (Postar, Loop, Campanha, Stories). */
+const ENVIO = [
+  { id: 'envioIniciado',  rotulo: 'Publicações enviadas', desc: 'Ao enviar um pacote: quantas contas e quantas publicações' },
+  { id: 'envioConcluido', rotulo: 'Envio concluído',      desc: 'Quando o pacote termina: quantas saíram e quantas falharam' },
+];
+
+/** Outros avisos: mais marcos de uma vez e, para o admin, cadastro novo. */
+const OUTROS = [
+  { id: 'resumoMarcos',   rotulo: 'Vários marcos',   desc: 'Quando muitos conteúdos cruzam marcos na mesma sincronização' },
+  { id: 'novoCadastro',   rotulo: 'Novo cadastro',   desc: 'Só para o admin: alguém pediu acesso ao painel' },
 ];
 
 /** Todo aviso editável, por id — para achar o rótulo sem varrer as listas. */
-const TODOS = [...METRICAS, RESUMO, ...PUBLICACAO, ...SISTEMA];
+const TODOS = [...METRICAS, RESUMO, ...PUBLICACAO, ...ENVIO, ...OUTROS, ...SISTEMA];
 const PELO_ID = Object.fromEntries(TODOS.map(a => [a.id, a]));
 
 /** Um aviso do sistema não tem marcos nem interruptor. */
 const ehDoSistema = id => SISTEMA.some(a => a.id === id);
 
 /** Um aviso de publicação tem interruptor, mas não tem marco para configurar. */
-const ehDePublicacao = id => PUBLICACAO.some(a => a.id === id);
+const ehDePublicacao = id => [...PUBLICACAO, ...ENVIO, ...OUTROS].some(a => a.id === id);
+
+/** Quando cada aviso de publicação/envio sai — mostrado ao lado do editor. */
+const QUANDO = {
+  postPublicado:  'A cada publicação que sai com sucesso — story, reel, carrossel ou imagem, em qualquer conta.',
+  erroPublicacao: 'A cada tentativa de publicação que falha, com o motivo do erro.',
+  cotaApi:        'Quando a conta atinge o limite de publicações da API nas últimas 24h. Uma vez a cada 20h por conta.',
+  contaCaiu:      'Quando a conta para: token inválido, verificação pedida pelo Instagram ou banimento. Uma vez a cada 6h por conta.',
+  envioIniciado:  'Ao enviar pelo Postar, criar um Loop, iniciar uma Campanha ou mandar Stories em massa. Ex.: 2 contas, 120 reels.',
+  envioConcluido: 'Quando o envio do Postar, a Campanha ou o lote de Stories termina (o Loop não termina — repete).',
+  resumoMarcos:   'Quando mais de 3 conteúdos cruzam marcos na mesma sincronização: os 3 maiores saem inteiros, o resto vem neste resumo.',
+  novoCadastro:   'Quando alguém se cadastra e espera aprovação. Só o admin recebe.',
+};
 
 /**
  * A condição real de disparo de cada aviso do sistema.
@@ -358,11 +380,9 @@ export default function ConfigNotificacoes() {
             {[
               { titulo: 'MARCOS DE AUDIÊNCIA', itens: [...METRICAS, RESUMO], comInterruptor: true },
               { titulo: 'PUBLICAÇÃO',          itens: PUBLICACAO,           comInterruptor: true },
-              /* AVISOS DO SISTEMA saíram do editor a pedido: eles não têm
-                 interruptor (desligar o aviso de que a automação parou seria
-                 desligar a única coisa que avisa que ela parou), então o que
-                 este grupo oferecia era só reescrever o texto deles. Fora
-                 daqui, continuam disparando normalmente — com o texto padrão. */
+              { titulo: 'ENVIOS',              itens: ENVIO,                comInterruptor: true },
+              { titulo: 'OUTROS',              itens: OUTROS,               comInterruptor: true },
+              { titulo: 'SISTEMA',             itens: SISTEMA,              comInterruptor: true },
             ].map(grupo => (
               <div key={grupo.titulo} style={{ display: 'grid', gap: 'var(--mf-2)' }}>
                 <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.09em',
@@ -534,13 +554,7 @@ export default function ConfigNotificacoes() {
                   : ehDePublicacao(metrica)
                   ? painel('Quando este aviso dispara', (
                     <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', lineHeight: 1.7 }}>
-                      {metrica === 'postPublicado'
-                        ? 'A cada publicação que sai com sucesso — story, reel, carrossel ou imagem, em qualquer conta.'
-                        : 'A cada tentativa de publicação que falha, com o motivo do erro.'}
-                      <div style={{ marginTop: 'var(--mf-2)', color: 'var(--mf-text-3)' }}>
-                        Um aviso por publicação. Sem marco e sem teto — duas contas publicando
-                        o mesmo conteúdo geram dois avisos, porque são duas publicações.
-                      </div>
+                      {QUANDO[metrica]}
                     </div>
                   ))
                   : painel('Quando avisar', <>
@@ -605,7 +619,7 @@ export default function ConfigNotificacoes() {
                   </>)}
 
                 {painel('Comportamento', <>
-                  {[...METRICAS, ...PUBLICACAO].map(m => (
+                  {[...METRICAS, ...PUBLICACAO, ...ENVIO, ...OUTROS, ...SISTEMA].map(m => (
                     <label key={m.id} style={{
                       display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0',
                       borderBottom: '1px solid var(--mf-border-subtle)', cursor: 'pointer',
@@ -691,7 +705,7 @@ export default function ConfigNotificacoes() {
                         mensagens para calibrar, saber QUAL chegou é metade da
                         informação — e um teste só de Stories nunca revelaria
                         um erro no de Alcance. */}
-                    {[...METRICAS, ...PUBLICACAO].map(m => (
+                    {[...METRICAS, ...PUBLICACAO, ...ENVIO, ...OUTROS, ...SISTEMA].map(m => (
                       <button key={m.id} onClick={() => testarAviso(m.id, false)} disabled={!!testando}
                         className="mf-btn mf-btn--ghost"
                         style={{ width: '100%', justifyContent: 'space-between',

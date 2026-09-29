@@ -20,7 +20,6 @@ const verificacao = require('./verificacaoDoInstagram');
 const { broadcast } = require('../events/broadcaster');
 
 const RENOVAR_ANTES_MS = 15 * 24 * 60 * 60 * 1000;
-const AVISAR_ANTES_DIAS = 7;
 const INTERVALO_MS = 5 * 60 * 1000;
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
@@ -141,11 +140,6 @@ async function sincronizar(conta) {
   const salva = await accounts.update(conta.id, update);
   if (salva) {
     await require('./serieDeSeguidores').registrar(salva);
-    const dias = salva.tokenExpiresAt ? Math.ceil((new Date(salva.tokenExpiresAt) - agora) / 86_400_000) : null;
-    if (dias !== null && dias >= 0 && dias <= AVISAR_ANTES_DIAS) {
-      require('./smartActivity/eventosDePublicacao').notificarTokenExpirando({ conta: salva, dias })
-        .catch(e => console.log('[Aviso] token expirando falhou:', e.message));
-    }
     broadcast('accounts', { action: 'health_update', accountId: salva.id, username: salva.username, healthStatus: salva.healthStatus }, salva.usuarioId);
   }
   return salva;

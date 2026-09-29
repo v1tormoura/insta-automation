@@ -220,6 +220,10 @@ exports.start = rota(async (req, res) => {
   }
   const atualizada = await transicionar(campanha, 'scheduled', { startedAt: campanha.startedAt || new Date() });
   const r = await executor.agendarCampanha(campanha.id);
+  await require('../services/smartActivity/eventosDePublicacao').notificarEnvio({
+    usuarioId: req.user.id, origem: 'Campanha', nome: campanha.name,
+    contas: (campanha.accountIds || []).length, publicacoes: executaveis, postType: campanha.settings?.postType || 'reel',
+  });
   res.json({ campaign: campanhaSegura(atualizada), scheduled: r.agendadas, alreadyQueued: r.jaExistiam, total: executaveis });
 });
 

@@ -168,6 +168,19 @@ async function publicarNaConta(contaAlvo, post, { respeitarRitmo = true } = {}) 
 
 // ── Envios (Postar e Loop) ───────────────────────────────────────────────────
 
+/** O envio (Postar) terminou: marca e avisa o placar. */
+async function concluirEnvio(job) {
+  const [fim] = await sql`
+    update jobs set status = 'completed', completed_at = now()
+    where id = ${job.id} and status <> 'completed' returning *`;
+  broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
+  if (!fim) return;
+  await avisos.notificarEnvioConcluido({
+    usuarioId: fim.usuarioId, origem: 'Postar', nome: fim.name,
+    contas: (fim.accountIds || []).length, publicadas: fim.postsPublished, falhas: fim.postsErrors, postType: fim.postType,
+  });
+}
+
 async function agendarRodada(jobId, atrasoMs = 0) {
   await fila.cancelarPorDados('job_round', 'jobId', jobId);
   await fila.enfileirar('job_round', { jobId }, { atrasoMs });
@@ -203,8 +216,7 @@ async function processarRodada({ jobId }) {
   let rodada = job.currentRound;
   if (rodada * job.simultaneousLimit >= total) {
     if (job.type !== 'loop') {
-      await jobs.update(job.id, { status: 'completed', completedAt: new Date() });
-      broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
+      await concluirEnvio(job);
       return;
     }
     rodada = 0;
@@ -311,8 +323,7 @@ async function processarRodada({ jobId }) {
   broadcast('posts', { action: 'created' }, job.usuarioId);
 
   if (!temMais) {
-    await jobs.update(job.id, { status: 'completed', completedAt: new Date() });
-    broadcast('jobs', { action: 'job_updated', jobId: job.id }, job.usuarioId);
+    await concluirEnvio(job);
     return;
   }
 

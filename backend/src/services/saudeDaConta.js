@@ -66,18 +66,13 @@ function recuperou(de, para) {
  * @param {Function} [p.notificar] injeção para testes; padrão: notificarContaCaiu
  * @returns {Promise<object|null>} a notificação criada, ou null
  */
-async function avisarTransicao({ conta, de, para, lastError, notificar, notificarVolta } = {}) {
+async function avisarTransicao({ conta, de, para, lastError, notificar } = {}) {
   if (!conta) return null;
   if (mudouParaRuim(de, para)) {
     const fn = notificar || require('./smartActivity/eventosDePublicacao').notificarContaCaiu;
     return fn({ conta, motivo: motivo(para, lastError) });
   }
-  /* A volta também é notícia — é o que fecha o ciclo "conta caiu": sem
-     isto a pessoa fica olhando o painel para saber se a verificação pegou. */
-  if (recuperou(de, para)) {
-    const fn = notificarVolta || require('./smartActivity/eventosDePublicacao').notificarContaVoltou;
-    return fn({ conta, motivo: `saiu de ${ROTULO_CURTO[de] || de} e voltou a publicar normalmente` });
-  }
+  // A volta não avisa: só a queda (pedido de 29/09/2026).
   return null;
 }
 

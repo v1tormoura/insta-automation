@@ -113,6 +113,10 @@ exports.create = async (req, res) => {
 
   await agendarRodada(job.id, 0);
   broadcast('accounts', { action: 'loop_created' }, req.user.id);
+  await require('../services/smartActivity/eventosDePublicacao').notificarEnvio({
+    usuarioId: req.user.id, origem: 'Loop', nome: job.name,
+    contas: accountIds.length, publicacoes: filaOrdenada.length * accountIds.length, postType: job.postType,
+  });
   await responderLoop(res, job);
 };
 

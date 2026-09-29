@@ -49,6 +49,12 @@ const PADRAO = Object.freeze({
        chegar do Instagram. */
     postPublicado: true,
     erroPublicacao: true,
+    contaCaiu: true,
+    cotaApi: true,
+    resumoMarcos: true,
+    envioIniciado: true,
+    envioConcluido: true,
+    novoCadastro: true,
 
     /* Avisos do vigia do sistema (contas sem conectar, fila presa, erros
        do dia) — desligados por padrão. Desligado, a verificação nem roda. */
