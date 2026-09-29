@@ -71,7 +71,7 @@
 :root {
   /* ── oklch semantic tokens ──────────── */
   --primary:          var(--mf-primary-500);
-  --primary-fg:       oklch(0.12 0.03 250);
+  --primary-fg:       var(--mf-primary-fg);
   --primary-glow:     color-mix(in oklch, var(--mf-primary-500) 22%, transparent);
   --primary-glow-lg:  color-mix(in oklch, var(--mf-primary-500) 42%, transparent);
 
@@ -90,15 +90,15 @@
      diferente do app no overscroll do celular. `--mf-bg` é declarado no :root
      de tokens.css justamente para poder ser lido daqui. */
   --bg:  var(--mf-bg);
-  --bg2: #0b1628;
-  --bg3: #101e34;
-  --bg4: #162440;
-  --bg5: #1c2e50;
+  --bg2: var(--mf-surface-1);
+  --bg3: var(--mf-surface-2);
+  --bg4: var(--mf-surface-3);
+  --bg5: var(--mf-surface-3);
 
-  --cyan:  #00d4ff;
+  --cyan:  #8b5cf6;
   --cyan2: var(--mf-primary-600);
-  --cyan3: rgba(0,212,255,.10);
-  --cyan4: rgba(0,212,255,.05);
+  --cyan3: rgba(139,92,246,.10);
+  --cyan4: rgba(139,92,246,.05);
 
   /* Paleta legada. Ela existe de antes do sistema em `design/`, e ainda é
      carregada — `--purple` e `--pink` chegavam à tela por `.badge-purple` e
@@ -107,27 +107,27 @@
      Azul, índigo, roxo e rosa passam a ser o ciano da marca em três
      luminosidades. Verde, vermelho, âmbar e laranja ficam: ali a cor é o
      significado, e um crachá de erro em ciano não avisa ninguém de nada. */
-  --blue:   #00d4ff;
-  --blue2:  #00a8cc;
-  --blue3:  rgba(0,212,255,.12);
-  --indigo: #00a8cc;
-  --purple: #00c2ea;
-  --pink:   #00d4ff;
+  --blue:   #8b5cf6;
+  --blue2:  #7c3aed;
+  --blue3:  rgba(139,92,246,.12);
+  --indigo: #7c3aed;
+  --purple: #a78bfa;
+  --pink:   #8b5cf6;
   --green:  #10b981;
   --red:    #f43f5e;
   --amber:  #f59e0b;
   --orange: #f97316;
 
   /* ── Text hierarchy ─────────────────── */
-  --text:  #e2edfd;
-  --text2: #7f9ab5;
+  --text:  #f4f4f6;
+  --text2: #a1a1aa;
   --text3: #3a5268;
   --text4: #1e3048;
 
   /* ── Borders ────────────────────────── */
   --border:  rgba(255,255,255,.07);
-  --border2: rgba(0,212,255,.22);
-  --border3: rgba(0,212,255,.42);
+  --border2: rgba(139,92,246,.22);
+  --border3: rgba(139,92,246,.42);
 
   /* ── Shape ──────────────────────────── */
   --radius:    10px;
@@ -219,7 +219,7 @@ body {
   h1 { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -.5px; line-height: 1.2; }
   h2 { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -.3px; }
   h3 { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.2px; }
-  ::selection { background: rgba(0,212,255,.22); }
+  ::selection { background: rgba(139,92,246,.22); }
   button  { cursor: pointer; font-family: var(--font); border: none; outline: none; }
   input, textarea, select { font-family: var(--font); outline: none; }
   a { text-decoration: none; color: inherit; }
@@ -243,7 +243,7 @@ body {
   content: '';
   position: absolute;
   top: 0; left: 18px; right: 18px; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--card-shine, rgba(0,212,255,.28)), transparent);
+  background: linear-gradient(90deg, transparent, var(--card-shine, rgba(139,92,246,.28)), transparent);
   pointer-events: none;
 }
 
@@ -260,7 +260,7 @@ body {
 }
 .lift:hover {
   transform: translateY(-3px);
-  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 0 1px rgba(0,212,255,.14);
+  box-shadow: 0 16px 44px rgba(0,0,0,.52), 0 0 0 1px rgba(139,92,246,.14);
 }
 
 /* sheen — diagonal shimmer sweep on hover */
@@ -291,7 +291,7 @@ body {
 /* orb — radial ambient glow decoration */
 .orb {
   border-radius: 50%;
-  background: radial-gradient(circle, var(--primary-glow, rgba(0,212,255,.12)), transparent 70%);
+  background: radial-gradient(circle, var(--primary-glow, rgba(139,92,246,.12)), transparent 70%);
   filter: blur(24px);
   pointer-events: none;
   position: absolute;
@@ -392,7 +392,7 @@ body {
 .drawer::after {
   content: '';
   position: absolute; top: 0; bottom: 0; right: 0; width: 1px;
-  background: linear-gradient(to bottom, transparent 0%, rgba(0,212,255,.22) 35%, rgba(0,212,255,.10) 65%, transparent 100%);
+  background: linear-gradient(to bottom, transparent 0%, rgba(139,92,246,.22) 35%, rgba(139,92,246,.10) 65%, transparent 100%);
   pointer-events: none;
 }
 
@@ -406,7 +406,7 @@ body {
 .drawer-header::after {
   content: '';
   position: absolute; bottom: 0; left: 20px; right: 20px; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,212,255,.18), transparent);
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,.18), transparent);
   pointer-events: none;
 }
 
@@ -502,7 +502,7 @@ body {
 }
 .drawer-avatar {
   width: 32px; height: 32px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--mf-primary-600), oklch(0.55 0.20 250));
+  background: linear-gradient(135deg, var(--mf-primary-600), var(--mf-primary-500));
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
   box-shadow: 0 0 12px color-mix(in oklch, var(--mf-primary-500) 40%, transparent);
@@ -588,7 +588,7 @@ body {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 600;
   background: linear-gradient(135deg, var(--cyan2) 0%, var(--cyan) 100%);
-  color: oklch(0.12 0.03 250); border: none; cursor: pointer;
+  color: var(--mf-primary-fg); border: none; cursor: pointer;
   box-shadow: 0 0 18px var(--glow-sm), 0 2px 8px rgba(0,0,0,.3);
   transition: all .2s cubic-bezier(.4,0,.2,1);
   white-space: nowrap;
@@ -628,7 +628,7 @@ body {
 .card::before {
   content: '';
   position: absolute; top: 0; left: 16px; right: 16px; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,212,255,.28), transparent);
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,.28), transparent);
 }
 .card-p    { padding: 16px 18px; }
 .card-glow { box-shadow: 0 4px 28px rgba(0,0,0,.45), 0 0 0 1px rgba(0,180,255,.04) inset; }
@@ -668,9 +668,9 @@ body {
   cursor: pointer;
   transition: all .22s ease;
 }
-.stat-card::before { content:''; position:absolute; top:0; left:14px; right:14px; height:1px; background:linear-gradient(90deg,transparent,rgba(0,212,255,.32),transparent); }
+.stat-card::before { content:''; position:absolute; top:0; left:14px; right:14px; height:1px; background:linear-gradient(90deg,transparent,rgba(139,92,246,.32),transparent); }
 .stat-card::after  { content:''; position:absolute; bottom:-18px; right:-12px; width:70px; height:70px; border-radius:50%; background:radial-gradient(circle,var(--accent,var(--cyan)) 0%,transparent 70%); opacity:.06; }
-.stat-card:hover { transform: translateY(-2px); border-color: rgba(0,212,255,.2); box-shadow: var(--mf-shadow-3); }
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(139,92,246,.2); box-shadow: var(--mf-shadow-3); }
 .sc-top  { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
 .sc-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.07); }
 .sc-trend { font-size: 11px; display: flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
@@ -717,11 +717,11 @@ body {
 .badge-green  { background: rgba(16,185,129,.1);   color: var(--green);  border: 1px solid rgba(16,185,129,.18); }
 .badge-red    { background: rgba(244,63,94,.1);    color: var(--red);    border: 1px solid rgba(244,63,94,.18); }
 .badge-amber  { background: rgba(245,158,11,.1);   color: var(--amber);  border: 1px solid rgba(245,158,11,.18); }
-.badge-blue   { background: rgba(0,212,255,.07);   color: var(--cyan);   border: 1px solid rgba(0,212,255,.18); }
+.badge-blue   { background: rgba(139,92,246,.07);   color: var(--cyan);   border: 1px solid rgba(139,92,246,.18); }
 .badge-purple { background: rgba(139,92,246,.1);   color: var(--purple); border: 1px solid rgba(139,92,246,.18); }
 .badge-gray   { background: rgba(255,255,255,.06); color: var(--text2);  border: 1px solid var(--border); }
 .badge-indigo { background: rgba(99,102,241,.1);   color: #a5b4fc;       border: 1px solid rgba(99,102,241,.22); }
-.badge-cyan   { background: rgba(0,212,255,.07);   color: var(--cyan);   border: 1px solid rgba(0,212,255,.18); }
+.badge-cyan   { background: rgba(139,92,246,.07);   color: var(--cyan);   border: 1px solid rgba(139,92,246,.18); }
 
 /* ════════════════════════════════════════════════════════
    BUTTONS
@@ -736,16 +736,16 @@ body {
 }
 .btn-primary {
   background: linear-gradient(135deg, var(--cyan2), var(--cyan));
-  color: #040e1c;
-  box-shadow: 0 0 16px rgba(0,212,255,.28);
+  color: var(--mf-primary-fg);
+  box-shadow: 0 0 16px rgba(139,92,246,.28);
 }
-.btn-primary:hover { box-shadow: 0 0 26px rgba(0,212,255,.45); transform: translateY(-1px); }
+.btn-primary:hover { box-shadow: 0 0 26px rgba(139,92,246,.45); transform: translateY(-1px); }
 .btn-cyan {
   background: linear-gradient(135deg, var(--cyan2), var(--cyan));
-  color: #040e1c;
-  box-shadow: 0 0 14px rgba(0,212,255,.24);
+  color: var(--mf-primary-fg);
+  box-shadow: 0 0 14px rgba(139,92,246,.24);
 }
-.btn-cyan:hover { box-shadow: 0 0 26px rgba(0,212,255,.44); transform: translateY(-1px); }
+.btn-cyan:hover { box-shadow: 0 0 26px rgba(139,92,246,.44); transform: translateY(-1px); }
 .btn-ghost {
   background: rgba(255,255,255,.04);
   color: var(--text2);
@@ -800,7 +800,7 @@ select.inp {
   padding-right: 34px; cursor: pointer;
 }
 /* Força dark nas options — funciona Firefox/Edge; Chrome usa OS popup */
-select.inp option { background: #0a1525; color: #e2edfd; }
+select.inp option { background: var(--mf-surface-2); color: var(--mf-text); }
 /* Color input dentro de .inp-wrap — tamanho consistente */
 input[type="color"].inp { padding: 2px 4px; height: 36px; cursor: pointer; }
 
@@ -858,7 +858,7 @@ input[type=range] {
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
   background: linear-gradient(135deg, var(--cyan), var(--blue));
-  cursor: pointer; box-shadow: 0 0 8px rgba(0,212,255,.4);
+  cursor: pointer; box-shadow: 0 0 8px rgba(139,92,246,.4);
 }
 
 /* ════════════════════════════════════════════════════════
@@ -962,8 +962,8 @@ input[type=range]::-webkit-slider-thumb {
 .eyebrow {
   display: inline-flex; align-items: center;
   border-radius: 5px;
-  border: 1px solid rgba(0,212,255,.18);
-  background: rgba(0,212,255,.06);
+  border: 1px solid rgba(139,92,246,.18);
+  background: rgba(139,92,246,.06);
   padding: 2px 8px;
   font-family: var(--font-mono);
   font-size: 10px; font-weight: 500;

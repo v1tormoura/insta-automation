@@ -6,6 +6,7 @@
 
    Em macOS e iOS o `-apple-system` da pilha vence antes e o preview usa SF Pro
    — melhor ainda, porque é literalmente a letra do iPhone. */
+import '@fontsource-variable/plus-jakarta-sans';
 import '@fontsource/inter/600.css';
 import '@fontsource/inter/800.css';
 import './index.css';

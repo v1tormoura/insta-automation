@@ -148,7 +148,7 @@ export default function FundoCiber() {
       const css = getComputedStyle(tela);
       const claro = raiz.getAttribute('data-tema') === 'claro';
       const cor = paraRgb(css.getPropertyValue('--mf-primary-500').trim())
-        || paraRgb('oklch(0.776 0.149 227)') || [0, 200, 255];
+        || paraRgb('oklch(0.606 0.25 292.7)') || [124, 58, 237];
       const cor2 = paraRgb(css.getPropertyValue('--mf-glow').trim())
         || paraRgb('oklch(0.579 0.232 260)') || [0, 110, 255];
       /* No tema claro o mesmo desenho vira sujeira sobre papel: a mesma
