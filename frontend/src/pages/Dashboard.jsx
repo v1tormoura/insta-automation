@@ -23,6 +23,7 @@ import { useServerEvents } from '../services/useServerEvents';
 import { NumberTicker } from '../components/magicui/number-ticker';
 import { BlurFade } from '../components/magicui/blur-fade';
 import ConnectedAccountsMetrics from '../components/ConnectedAccountsMetrics';
+import MapaDeAudiencia from '../components/MapaDeAudiencia';
 import { EsqueletoMetricas } from '../components/Estados';
 
 /* ── helpers (unchanged) ── */
@@ -1322,6 +1323,11 @@ export default function Dashboard() {
         {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
         <BlurFade delay={0.04} inView>
           <ConnectedAccountsMetrics />
+        </BlurFade>
+
+        {/* ── AUDIÊNCIA POR ESTADO ── */}
+        <BlurFade delay={0.06} inView>
+          <MapaDeAudiencia />
         </BlurFade>
 
         {/* ── POSTAGENS EM TEMPO REAL ── */}
