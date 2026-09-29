@@ -14,7 +14,6 @@ import api from '../services/api';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
-import CardMetadados from '../components/CardMetadados';
 import TituloDeCartao from '../components/TituloDeCartao';
 import useServerEvents from '../services/useServerEvents';
 import { EsqueletoLista } from '../components/Estados';
@@ -713,7 +712,6 @@ export default function Stories() {
               </div>
             </div>
 
-            <CardMetadados tipo="ambos" style={{ marginBottom: 14 }} />
 
             {/* Publicar */}
             <div style={{ ...PANEL, padding: 18 }}>

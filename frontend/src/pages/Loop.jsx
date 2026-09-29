@@ -12,7 +12,6 @@ import PageShell from '../components/PageShell';
 import AccountPicker from '../components/AccountPicker';
 import LibraryPickerModal from '../components/LibraryPickerModal';
 import CapasPorPerfil from '../components/CapasPorPerfil';
-import CardMetadados from '../components/CardMetadados';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
@@ -768,7 +767,6 @@ function LoopModal({ onClose, onCreated }) {
             </div>
           )}
 
-          <CardMetadados style={{ margin: '4px 0' }} />
 
           {/* Hashtags para viralizar */}
           <div className="lm-row lm-htag-row">

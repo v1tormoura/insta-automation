@@ -13,7 +13,6 @@ import CapasPorPerfil from '../components/CapasPorPerfil';
 import SeletorTipoPublicacao from '../components/SeletorTipoPublicacao';
 import { useCotas, diasPelaCota } from '../services/useCotas';
 import TituloDeCartao from '../components/TituloDeCartao';
-import CardMetadados from '../components/CardMetadados';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
@@ -93,29 +92,62 @@ function LegendDropdown({ legends, value, onChange }) {
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /* ── Card de mídia com thumbnail real (canvas para vídeo, objectURL para imagem) ── */
-/* ── Atalhos de valor ──────────────────────────────────────────────────────
-   Fileira de valores prontos ao lado de um campo. O campo continua aceitando
-   qualquer número — os atalhos são para os quatro valores que se usa em 95%
-   das vezes, e o realce diz qual deles está em vigor agora. */
-function Atalhos({ opcoes, atual, onEscolher }) {
+/** Rótulo, controle e uma linha de ajuda — o mesmo formato em todo o cartão. */
+function Campo({ rotulo, ajuda, extra, children }) {
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, minHeight: 20 }}>
+        <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 650, color: 'var(--mf-text)' }}>{rotulo}</span>
+        {extra}
+      </div>
+      {children}
+      {ajuda && <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.5 }}>{ajuda}</div>}
+    </div>
+  );
+}
+
+/** Controle segmentado: uma fileira de opções, uma marcada. */
+function Opcoes({ opcoes, atual, onEscolher }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${opcoes.length}, minmax(0, 1fr))`, gap: 2, padding: 3,
+      borderRadius: 'var(--mf-r-md)', background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
       {opcoes.map(([valor, rotulo]) => {
         const ativo = valor === atual;
         return (
-          <button key={String(valor)} type="button" onClick={() => onEscolher(valor)}
+          <button key={String(valor)} type="button" onClick={() => onEscolher(valor)} aria-pressed={ativo}
             style={{
-              padding: '4px 10px', borderRadius: 'var(--mf-r-xl)', cursor: 'pointer',
-              fontSize: 'var(--mf-t-nano)', fontWeight: 700, whiteSpace: 'nowrap',
-              background: ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 14%, transparent)' : 'var(--mf-surface-2)',
-              border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-mod-publicar) 34%, transparent)' : 'var(--mf-border)'}`,
-              color: ativo ? 'var(--mf-mod-publicar)' : 'var(--mf-text-3)',
-              transition: 'all var(--mf-fast) var(--mf-ease-out)',
+              minHeight: 30, padding: '4px 4px', borderRadius: 'var(--mf-r-sm)', border: 'none', cursor: 'pointer',
+              fontSize: 'var(--mf-t-micro)', fontWeight: 650, lineHeight: 1.2, minWidth: 0,
+              background: ativo ? 'var(--mf-surface-3)' : 'transparent',
+              color: ativo ? 'var(--mf-text)' : 'var(--mf-text-3)',
+              boxShadow: ativo ? 'inset 0 0 0 1px var(--mf-border-strong)' : 'none',
+              transition: 'background var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out)',
             }}>
             {rotulo}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** − N + com o máximo ao lado. */
+function Contador({ valor, min, max, onChange, sufixo }) {
+  const botao = (rot, novo, desab) => (
+    <button type="button" disabled={desab} onClick={() => onChange(novo)} aria-label={rot === '−' ? 'Menos' : 'Mais'}
+      style={{ width: 32, height: 32, borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)',
+        background: 'var(--mf-surface-2)', color: desab ? 'var(--mf-text-3)' : 'var(--mf-text)',
+        cursor: desab ? 'not-allowed' : 'pointer', fontSize: 'var(--mf-t-body)', fontWeight: 700, opacity: desab ? .5 : 1 }}>
+      {rot}
+    </button>
+  );
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {botao('−', Math.max(min, valor - 1), valor <= min)}
+      <span style={{ minWidth: 28, textAlign: 'center', fontSize: 'var(--mf-t-h2)', fontWeight: 750,
+        color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{valor}</span>
+      {botao('+', Math.min(max, valor + 1), valor >= max)}
+      {sufixo && <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{sufixo}</span>}
     </div>
   );
 }
@@ -659,11 +691,6 @@ export default function Posts() {
     flexWrap: 'wrap', rowGap: 'var(--mf-2)',
   };
   const cardBodyStyle = { padding: 'var(--mf-4)' };
-  const rotuloForm = {
-    display: 'block', marginBottom: 7,
-    fontSize: 'var(--mf-t-micro)', fontWeight: 700, color: 'var(--mf-text-3)',
-    letterSpacing: .5, textTransform: 'uppercase',
-  };
 
   return (
     <>
@@ -1155,145 +1182,97 @@ export default function Posts() {
               <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
             </div>
 
-            {/* ── Ritmo: intervalo, teto por conta e início ─────────────────
-                Os três andam juntos porque respondem à mesma pergunta — quanto
-                esta conta publica por dia — vista de três ângulos. O resumo
-                verde fecha a conta, que é o que ninguém faz de cabeça. */}
+            {/* ── Configurações de envio ─────────────────────────────────────
+                Quatro blocos na ordem em que se decide: nome, ritmo, início e
+                o resumo do que vai acontecer. Cada bloco com um rótulo e uma
+                linha de ajuda, no máximo. */}
             <div className="mf-card">
               <div style={cardHdStyle}>
                 <TituloDeCartao icone="envio">Configurações de envio</TituloDeCartao>
-                <span style={{ fontSize: 'var(--mf-t-sm)', color: 'var(--mf-info-500)', fontWeight: 700, fontFamily: 'var(--mf-mono)' }}>
-                  {rotuloDeIntervalo(intervalMins)}
-                </span>
               </div>
-              <div style={cardBodyStyle}>
+              <div style={{ ...cardBodyStyle, display: 'grid', gap: 'var(--mf-5)' }}>
 
-                <label style={rotuloForm}>Nome deste envio</label>
-                <input className="inp" value={nomeDoEnvio} onChange={e => setNomeDoEnvio(e.target.value)}
-                  placeholder="Ex: Aquecimento — Contas Novas" />
+                <Campo rotulo="Nome do envio" ajuda="Aparece em Jobs e nas notificações.">
+                  <input className="inp" value={nomeDoEnvio} onChange={e => setNomeDoEnvio(e.target.value)}
+                    placeholder="Ex.: Reels da semana" />
+                </Campo>
 
-                {/* Aquecimento é um preset, não um módulo à parte: ele só move
-                    intervalo e teto para valores de conta nova. Dizer os
-                    números no rótulo evita ter de adivinhar o que ele fez. */}
-                <ChaveDeOpcao
-                  titulo="Envio de aquecimento"
-                  descricao="Conta nova, ritmo de conta nova: 1 post a cada 3h. Marcar ajusta o intervalo abaixo."
-                  marcada={aquecimento}
-                  onChange={v => {
-                    setAquecimento(v);
-                    if (v) setIntervalMins(180);
-                  }}
-                />
+                <Campo rotulo="Intervalo entre rodadas"
+                  ajuda={`Uma rodada a cada ${rotuloDeIntervalo(intervalMins)}.`}
+                  extra={
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <input className="inp" type="number" min="1" max="1440" value={intervalMins}
+                        aria-label="Intervalo em minutos"
+                        onChange={e => { setIntervalMins(Math.min(1440, Math.max(1, Number(e.target.value) || 1))); setAquecimento(false); }}
+                        style={{ width: 70, height: 30, padding: '0 6px', textAlign: 'center', fontFamily: 'var(--mf-mono)' }} />
+                      <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>min</span>
+                    </span>
+                  }>
+                  <Opcoes
+                    opcoes={[[10, '10 min'], [30, '30 min'], [60, '1 h'], [180, '3 h'], [240, '4 h']]}
+                    atual={intervalMins}
+                    onEscolher={v => { setIntervalMins(v); setAquecimento(v === 180); }}
+                  />
+                </Campo>
 
-                <label style={{ ...rotuloForm, marginTop: 18 }}>Intervalo entre posts</label>
-                {/* Arrastar OU digitar: a barra vai até 360 min, mas o campo
-                    aceita qualquer valor de 1 a 1440 (24h). Os dois se espelham,
-                    e os atalhos abaixo continuam como toque rápido. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <input type="range" min="1" max="360" step="1" value={Math.min(360, Math.max(1, intervalMins))}
-                    onChange={e => setIntervalMins(Number(e.target.value))}
-                    style={{ flex: 1, minWidth: 0, accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <input className="inp" type="number" min="1" max="1440" value={intervalMins}
-                      onChange={e => setIntervalMins(Math.min(1440, Math.max(1, Number(e.target.value) || 1)))}
-                      style={{ width: 74, textAlign: 'center', fontFamily: 'var(--mf-mono)' }} />
-                    <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>min</span>
+                <Campo rotulo="Mídias por rodada"
+                  ajuda={`Cada rodada publica ${simultaneousLimit} mídia${simultaneousLimit === 1 ? '' : 's'} em todas as contas escolhidas, ao mesmo tempo.`}>
+                  <Contador
+                    valor={Math.min(simultaneousLimit, Math.max(activeMediaCount, 1))}
+                    min={1} max={Math.max(activeMediaCount, 1)}
+                    onChange={setSimultaneousLimit}
+                    sufixo={`de ${Math.max(activeMediaCount, 1)}`}
+                  />
+                </Campo>
+
+                <Campo rotulo="Início"
+                  ajuda={scheduledAt
+                    ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.`
+                    : 'Começa assim que você publicar.'}>
+                  <Opcoes
+                    opcoes={INICIOS.map(i => [i.id, i.rotulo])}
+                    atual={inicioEscolhido}
+                    onEscolher={id => {
+                      setInicioEscolhido(id);
+                      const quando = INICIOS.find(i => i.id === id)?.quando?.();
+                      setScheduledAt(quando ? paraCampoLocal(quando) : '');
+                    }}
+                  />
+                  {inicioEscolhido === 'escolher' && (
+                    <input className="inp" type="datetime-local" style={{ marginTop: 8 }}
+                      value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
+                  )}
+                </Campo>
+
+                {/* ── Resumo ── */}
+                <div style={{ borderRadius: 'var(--mf-r-md)', border: '1px solid var(--mf-border)',
+                  background: 'var(--mf-surface-2)', padding: 'var(--mf-3)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--mf-2)' }}>
+                    {[
+                      ['Mídias', activeMediaCount],
+                      ['Contas', selectedCount],
+                      ['Publicações', totalEstimated],
+                      ['Duração', activeMediaCount > 0
+                        ? (horasIntervalo < 1 ? `${Math.round(horasIntervalo * 60)} min`
+                          : horasIntervalo < 48 ? `${horasIntervalo.toFixed(horasIntervalo < 10 ? 1 : 0)} h`
+                          : `${(horasIntervalo / 24).toFixed(1)} d`)
+                        : '—'],
+                    ].map(([rot, val]) => (
+                      <div key={rot} style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 750, color: 'var(--mf-text)',
+                          fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{val}</div>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>{rot}</div>
+                      </div>
+                    ))}
                   </div>
+                  {diasCota != null && diasCota > 1 && (
+                    <div style={{ marginTop: 'var(--mf-3)', paddingTop: 'var(--mf-2)', borderTop: '1px solid var(--mf-border-subtle)',
+                      fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', lineHeight: 1.5 }}>
+                      A API aceita {limiteDaCota} publicações por conta em 24h: este envio leva ≈ {diasCota} dias.
+                      {selectedCount === 1 && ' Dividir entre mais contas encurta.'}
+                    </div>
+                  )}
                 </div>
-                <Atalhos
-                  opcoes={[[10, '10 min'], [30, '30 min'], [60, '1 hora'], [240, '4 horas']]}
-                  atual={intervalMins}
-                  onEscolher={setIntervalMins}
-                />
-                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.6 }}>
-                  Arraste, digite os minutos, ou toque num atalho — qualquer valor de 1 a 1440.
-                </div>
-
-                {/* "Postagens por conta em 24h" foi removido do painel a pedido
-                    do usuário. O teto diário continua existindo POR CONTA
-                    (dailyPostLimit, em Contas) — este painel apenas não o altera
-                    mais, e o publish não manda mais esse campo. */}
-
-                <label style={{ ...rotuloForm, marginTop: 18 }}>Quando começar a postar?</label>
-                <Atalhos
-                  opcoes={INICIOS.map(i => [i.id, i.rotulo])}
-                  atual={inicioEscolhido}
-                  onEscolher={id => {
-                    setInicioEscolhido(id);
-                    const quando = INICIOS.find(i => i.id === id)?.quando?.();
-                    /* 'escolher' não calcula data nenhuma: ele só abre o campo
-                       abaixo, e é o campo que manda. */
-                    setScheduledAt(quando ? paraCampoLocal(quando) : '');
-                  }}
-                />
-                {inicioEscolhido === 'escolher' && (
-                  <input className="inp" type="datetime-local" style={{ marginTop: 8 }}
-                    value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
-                )}
-                <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 7, lineHeight: 1.6 }}>
-                  {scheduledAt
-                    ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR')} — os próximos seguem o intervalo acima.`
-                    : 'Começa agora — os próximos posts seguem o intervalo definido acima.'}
-                </div>
-
-                {/* O teto do lote sai de `activeMediaCount`, e NÃO de
-                    `media.length`: este último conta só o upload, então
-                    escolhendo da Biblioteca o máximo caía para 1 e o
-                    controle travava com "/1 reels" mesmo havendo 10
-                    mídias selecionadas. */}
-                {/* ── Lote por rodada ──────────────────────────────────────
-                    Estava num cartão próprio ao lado. Era a mesma pergunta que
-                    o intervalo responde — com que ritmo isso sai — partida em
-                    dois cartões, e a pessoa tinha de somar as duas telas de
-                    cabeça para saber o que ia acontecer. Junto, a conta fecha
-                    num lugar só. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '18px 0 12px' }}>
-                  <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
-                  <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 800, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--mf-text-3)' }}>Lote por rodada</span>
-                  <span style={{ flex: 1, height: 1, background: 'var(--mf-border)' }} />
-                </div>
-                <p style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 12 }}>
-                  Quantos reels entram em cada rodada. Dentro da rodada as publicações saem
-                  uma a uma, com 2 a 5 min entre elas e ordem de contas sorteada.
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)' }}>LOTE</span>
-                  <span style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, color: 'var(--mf-info-500)', letterSpacing: -1, fontVariantNumeric: 'tabular-nums' }}>{simultaneousLimit}</span>
-                  <span style={{ fontSize: 'var(--mf-t-body)', color: 'var(--mf-text-3)' }}>/{Math.max(activeMediaCount, 1)} reels</span>
-                </div>
-                <input type="range" min="1" max={Math.max(activeMediaCount, 1)} value={Math.min(simultaneousLimit, Math.max(activeMediaCount, 1))}
-                  onChange={e => setSimultaneousLimit(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--mf-info-500)', cursor: 'pointer' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4, fontFamily: 'var(--mf-mono)' }}>
-                  <span>1</span><span>{Math.max(activeMediaCount, 1)}</span>
-                </div>
-                <div style={{ marginTop: 10, padding: '8px 12px', background: 'color-mix(in oklch, var(--mf-info-500) 6%, transparent)', borderRadius: 'var(--mf-r-sm)', border: '1px solid color-mix(in oklch, var(--mf-info-500) 15%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-info-500)', lineHeight: 1.5 }}>
-                  {simultaneousLimit === 1
-                    ? 'Sequencial — 1 reel por rodada, enviado conta a conta com intervalo humano entre cada publicação.'
-                    : `Lotes de ${simultaneousLimit} — reels 1–${simultaneousLimit} entram na mesma rodada, mas as publicações saem uma de cada vez: nenhuma conta recebe dois posts seguidos.`
-                  }
-                </div>
-
-                {/* ── Quanto tempo isso leva ───────────────────────────────
-                    Duas contas: a do intervalo (o que você escolheu) e a da
-                    cota da API do Instagram (50 por conta em 24h — o Meta
-                    recusa acima disso, e a fila espera). Vale a maior. Sem
-                    isto a pessoa mandava 124 vídeos numa conta e descobria
-                    dois dias depois que tinha uma parede no caminho. */}
-                {activeMediaCount > 0 && selectedCount > 0 && (
-                  <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)', background: 'color-mix(in oklch, var(--mf-bg) 50%, transparent)', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', lineHeight: 1.6 }}>
-                    <div style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mf-text-3)', marginBottom: 3 }}>Quanto tempo leva</div>
-                    Pelo intervalo: <strong style={{ color: 'var(--mf-text)' }}>≈ {horasIntervalo < 1 ? `${Math.round(horasIntervalo * 60)} min` : horasIntervalo < 48 ? `${horasIntervalo.toFixed(horasIntervalo < 10 ? 1 : 0)} h` : `${(horasIntervalo / 24).toFixed(1)} dias`}</strong>
-                    {diasCota != null && (
-                      <> · pela cota da API ({limiteDaCota}/dia por conta): <strong style={{ color: diasCota > 1 ? 'var(--mf-warning-500)' : 'var(--mf-text)' }}>≈ {diasCota} dia{diasCota === 1 ? '' : 's'}</strong>
-                        {restanteMinimo != null && <span style={{ color: 'var(--mf-text-3)' }}> — hoje ainda cabem {restanteMinimo} na conta mais cheia</span>}
-                      </>
-                    )}
-                    {diasCota != null && diasCota > 1 && selectedCount === 1 && (
-                      <div style={{ marginTop: 4, color: 'var(--mf-text-3)' }}>Dividir entre mais contas encurta: cada conta tem a própria cota.</div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -1303,8 +1282,8 @@ export default function Posts() {
                 <TituloDeCartao icone="contas">Contas</TituloDeCartao>
               </div>
               <div style={cardBodyStyle}>
-                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-2)', marginBottom: 10 }}>
-                  Selecione onde publicar — cada conta posta 1 vez por mídia
+                <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 10 }}>
+                  Cada conta publica cada mídia uma vez.
                 </div>
 
                 <AccountPicker
@@ -1313,18 +1292,6 @@ export default function Posts() {
                   selected={selectedAccounts}
                   onChange={setSelectedAccounts}
                 />
-
-                <CardMetadados style={{ marginTop: 12 }} />
-
-                {/* Summary */}
-                <div className="g3" style={{ gap: 6, marginTop: 12 }}>
-                  {[['Mídias', media.length, 'var(--mf-info-500)'], ['Contas', selectedCount, 'var(--mf-mod-publicar)'], ['Total', totalEstimated, 'var(--mf-mod, var(--mf-accent-500))']].map(([l, v, c]) => (
-                    <div key={l} style={{ textAlign:'center', background:'var(--mf-surface-2)', borderRadius:'var(--mf-r-md)', padding:'var(--mf-2) var(--mf-1)', border:'1px solid var(--mf-border)', minWidth:0 }}>
-                      <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 900, letterSpacing: -1, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2, fontFamily: 'var(--mf-mono)' }}>{l}</div>
-                    </div>
-                  ))}
-                </div>
 
                 <button className="btn-primary" type="submit" disabled={posting}
                   style={{

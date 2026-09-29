@@ -8,7 +8,6 @@ import CaptionEditor from '../components/campaign/CaptionEditor';
 import CommentEditor from '../components/campaign/CommentEditor';
 import CampaignPreview from '../components/campaign/CampaignPreview';
 import ContentPicker from '../components/campaign/ContentPicker';
-import CardMetadados from '../components/CardMetadados';
 import TituloDeCartao from '../components/TituloDeCartao';
 import { urlDoAvatar, iniciaisDe } from '../utils/avatar';
 import { EsqueletoLista } from '../components/Estados';
@@ -642,7 +641,6 @@ export default function CampaignWizard() {
   function EtapaConteudos() {
     return painel(null, (
       <>
-      <CardMetadados style={{ marginBottom: 16 }} />
       <ContentPicker
         selecionados={form.contentIds}
         onSelecionar={ids => mudar('contentIds', ids)}
