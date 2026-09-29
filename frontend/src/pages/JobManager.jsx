@@ -285,34 +285,34 @@ export default function JobManager() {
 
   useServerEvents(['jobs', 'posts'], () => load());
 
+  /* Excluir e cancelar perguntam antes, numa caixa de confirmação. */
+  const [executando, setExecutando] = useState(false);
   async function handleAction(id, action) {
-    if (action === 'delete') {
-      if (confirming?.id === id && confirming?.action === 'delete') {
-        try { await api.delete(`/jobs/${id}`); load(); setConfirming(null); }
-        catch (e) { alert(e.response?.data?.error || 'Erro'); }
-      } else {
-        setConfirming({ id, action: 'delete' });
-        setTimeout(() => setConfirming(null), 3000);
-      }
-      return;
-    }
-    if (action === 'cancel') {
-      if (confirming?.id === id && confirming?.action === 'cancel') {
-        try { await api.post(`/jobs/${id}/cancel`); load(); setConfirming(null); }
-        catch (e) { alert(e.response?.data?.error || 'Erro'); }
-      } else {
-        setConfirming({ id, action: 'cancel' });
-        setTimeout(() => setConfirming(null), 3000);
-      }
-      return;
-    }
+    if (action === 'delete' || action === 'cancel') { setConfirming({ id, action }); return; }
     try {
       if (action === 'pause')  await api.post(`/jobs/${id}/pause`);
       if (action === 'resume') await api.post(`/jobs/${id}/resume`);
       if (action === 'rerun')  await api.post(`/jobs/${id}/rerun`);
       load();
-    } catch (e) { alert(e.response?.data?.error || 'Erro'); }
+    } catch (e) { setError(e.response?.data?.error || 'Erro'); }
   }
+
+  async function confirmarAcao() {
+    if (!confirming) return;
+    const { id, action } = confirming;
+    setExecutando(true);
+    try {
+      if (action === 'delete') await api.delete(`/jobs/${id}`);
+      else await api.post(`/jobs/${id}/cancel`);
+      setConfirming(null);
+      await load();
+    } catch (e) {
+      setConfirming(null);
+      setError(e.response?.data?.error || 'Erro');
+    } finally { setExecutando(false); }
+  }
+  const jobConfirmando = confirming ? jobs.find(j => j.id === confirming.id) : null;
+  const confirmandoAtivo = !!jobConfirmando && ['queued', 'running', 'waiting_interval', 'paused'].includes(jobConfirmando.status);
 
   /* Apagar os selecionados.
 
@@ -491,16 +491,21 @@ export default function JobManager() {
         </div>
       )}
 
-      {/* Confirm banner */}
-      {confirming && (
-        <div role="status" style={{ background: 'var(--mf-warning-bg)', border: '1px solid oklch(0.80 0.16 78 / 0.3)', borderRadius: 'var(--mf-r-md)',
-          padding: 'var(--mf-3) var(--mf-4)', marginBottom: 'var(--mf-4)', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-warning-500)',
-          display: 'flex', alignItems: 'center', gap: 'var(--mf-2)', flexWrap: 'wrap' }}>
-          {ICONS.warn}
-          Clique novamente em <b>{confirming.action === 'delete' ? 'Excluir' : 'Cancelar'}</b> para confirmar.
-          <button onClick={() => setConfirming(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mf-text-3)', padding: 2 }}>{ICONS.x}</button>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!confirming}
+        title={confirming?.action === 'cancel' ? 'Cancelar este envio?' : 'Excluir este envio?'}
+        message={confirming?.action === 'cancel'
+          ? 'O que ainda faltava publicar não sai. As publicações que já foram ao ar continuam no Instagram.'
+          : 'Ele sai da lista. As publicações que já foram ao ar continuam no Instagram.'}
+        detalhe={confirming?.action === 'delete' && confirmandoAtivo
+          ? <strong style={{ color: 'var(--mf-danger-500)' }}>Este envio ainda está em andamento — excluir interrompe o que faltava.</strong>
+          : null}
+        confirmLabel={confirming?.action === 'cancel' ? 'Cancelar envio' : 'Excluir'}
+        cancelLabel="Voltar"
+        carregando={executando}
+        onConfirm={confirmarAcao}
+        onCancel={() => setConfirming(null)}
+      />
 
       {/* Job list */}
       {loading ? (
@@ -529,10 +534,7 @@ export default function JobManager() {
               job={job}
               selecionado={selecionados.has(job.id)}
               aoSelecionar={() => alternarSelecao(job.id)}
-              onAction={(id, action) => {
-                if (confirming?.id === id) handleAction(id, action);
-                else handleAction(id, action);
-              }}
+              onAction={handleAction}
             />
           ))}
         </div>
