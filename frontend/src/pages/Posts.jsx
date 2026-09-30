@@ -17,6 +17,7 @@ import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import { EsqueletoLista } from '../components/Estados';
+import { Check, Minus, Plus, Clock, Layers, Users, Send, Timer, Tag, CalendarClock } from 'lucide-react';
 
 /* ── Custom legend dropdown ── */
 function LegendDropdown({ legends, value, onChange }) {
@@ -92,38 +93,44 @@ function LegendDropdown({ legends, value, onChange }) {
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /* ── Card de mídia com thumbnail real (canvas para vídeo, objectURL para imagem) ── */
-/** Rótulo, controle e uma linha de ajuda — o mesmo formato em todo o cartão. */
-function Campo({ rotulo, ajuda, extra, children }) {
+/** Rótulo com ícone, controle e uma linha de ajuda — o mesmo formato em todo o cartão. */
+function Campo({ rotulo, icone: Icone, ajuda, extra, children }) {
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8, minHeight: 20 }}>
-        <span style={{ fontSize: 'var(--mf-t-xs)', fontWeight: 650, color: 'var(--mf-text)' }}>{rotulo}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, minHeight: 20 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 'var(--mf-t-micro)', fontWeight: 700,
+          letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-3)' }}>
+          {Icone && <Icone size={13} style={{ color: 'var(--mf-primary-500)' }} />}{rotulo}
+        </span>
         {extra}
       </div>
       {children}
-      {ajuda && <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 6, lineHeight: 1.5 }}>{ajuda}</div>}
+      {ajuda && <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 8, lineHeight: 1.5 }}>{ajuda}</div>}
     </div>
   );
 }
 
-/** Controle segmentado: uma fileira de opções, uma marcada. */
-function Opcoes({ opcoes, atual, onEscolher }) {
+/** Grade de cartões de escolha: título + subtítulo, o marcado com borda e check. */
+function Opcoes({ opcoes, atual, onEscolher, colunas = 3 }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${opcoes.length}, minmax(0, 1fr))`, gap: 2, padding: 3,
-      borderRadius: 'var(--mf-r-md)', background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
-      {opcoes.map(([valor, rotulo]) => {
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))`, gap: 6 }}>
+      {opcoes.map(([valor, titulo, sub, largo]) => {
         const ativo = valor === atual;
         return (
           <button key={String(valor)} type="button" onClick={() => onEscolher(valor)} aria-pressed={ativo}
             style={{
-              minHeight: 30, padding: '4px 4px', borderRadius: 'var(--mf-r-sm)', border: 'none', cursor: 'pointer',
-              fontSize: 'var(--mf-t-micro)', fontWeight: 650, lineHeight: 1.2, minWidth: 0,
-              background: ativo ? 'var(--mf-surface-3)' : 'transparent',
-              color: ativo ? 'var(--mf-text)' : 'var(--mf-text-3)',
-              boxShadow: ativo ? 'inset 0 0 0 1px var(--mf-border-strong)' : 'none',
-              transition: 'background var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out)',
+              position: 'relative', gridColumn: largo ? 'span 2' : undefined, minWidth: 0, textAlign: 'left',
+              padding: '9px 10px', borderRadius: 'var(--mf-r-md)', cursor: 'pointer',
+              background: ativo ? 'color-mix(in oklch, var(--mf-primary-500) 10%, var(--mf-surface-1))' : 'var(--mf-surface-2)',
+              border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-primary-500) 55%, transparent)' : 'var(--mf-border)'}`,
+              boxShadow: ativo ? '0 0 16px -6px color-mix(in oklch, var(--mf-primary-500) 60%, transparent)' : 'none',
+              transition: 'border-color var(--mf-fast) var(--mf-ease-out), background var(--mf-fast) var(--mf-ease-out)',
             }}>
-            {rotulo}
+            <span style={{ display: 'block', fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: ativo ? 14 : 0 }}>{titulo}</span>
+            {sub && <span style={{ display: 'block', fontSize: 'var(--mf-t-nano)', color: ativo ? 'var(--mf-text-2)' : 'var(--mf-text-3)',
+              marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>}
+            {ativo && <Check size={13} style={{ position: 'absolute', top: 9, right: 8, color: 'var(--mf-primary-500)' }} />}
           </button>
         );
       })}
@@ -131,23 +138,26 @@ function Opcoes({ opcoes, atual, onEscolher }) {
   );
 }
 
-/** − N + com o máximo ao lado. */
+/** Número com − e + numa só peça, ocupando a linha. */
 function Contador({ valor, min, max, onChange, sufixo }) {
-  const botao = (rot, novo, desab) => (
-    <button type="button" disabled={desab} onClick={() => onChange(novo)} aria-label={rot === '−' ? 'Menos' : 'Mais'}
-      style={{ width: 32, height: 32, borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)',
-        background: 'var(--mf-surface-2)', color: desab ? 'var(--mf-text-3)' : 'var(--mf-text)',
-        cursor: desab ? 'not-allowed' : 'pointer', fontSize: 'var(--mf-t-body)', fontWeight: 700, opacity: desab ? .5 : 1 }}>
-      {rot}
+  const botao = (Icone, novo, desab, rotulo) => (
+    <button type="button" disabled={desab} onClick={() => onChange(novo)} aria-label={rotulo}
+      style={{ width: 40, height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 'var(--mf-r-sm)', border: '1px solid var(--mf-border)',
+        background: desab ? 'transparent' : 'var(--mf-surface-3)', color: desab ? 'var(--mf-text-3)' : 'var(--mf-text)',
+        cursor: desab ? 'not-allowed' : 'pointer', opacity: desab ? .45 : 1 }}>
+      <Icone size={15} />
     </button>
   );
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      {botao('−', Math.max(min, valor - 1), valor <= min)}
-      <span style={{ minWidth: 28, textAlign: 'center', fontSize: 'var(--mf-t-h2)', fontWeight: 750,
-        color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{valor}</span>
-      {botao('+', Math.min(max, valor + 1), valor >= max)}
-      {sufixo && <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{sufixo}</span>}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 4, borderRadius: 'var(--mf-r-md)',
+      background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
+      {botao(Minus, Math.max(min, valor - 1), valor <= min, 'Menos')}
+      <div style={{ flex: 1, textAlign: 'center', lineHeight: 1.1 }}>
+        <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 800, color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums' }}>{valor}</div>
+        {sufixo && <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>{sufixo}</div>}
+      </div>
+      {botao(Plus, Math.min(max, valor + 1), valor >= max, 'Mais')}
     </div>
   );
 }
@@ -389,6 +399,7 @@ export default function Posts() {
   const [aquecimento,     setAquecimento]     = useState(false);
   const [postsPor24h,     setPostsPor24h]     = useState(10);
   const [inicioEscolhido, setInicioEscolhido] = useState('agora');
+  const [intervaloProprio, setIntervaloProprio] = useState(false);
 
   const DRAFT_POSTS_KEY = 'posts_form_draft_v1';
 
@@ -1192,45 +1203,58 @@ export default function Posts() {
               </div>
               <div style={{ ...cardBodyStyle, display: 'grid', gap: 'var(--mf-5)' }}>
 
-                <Campo rotulo="Nome do envio" ajuda="Aparece em Jobs e nas notificações.">
+                <Campo rotulo="Nome do envio" icone={Tag} ajuda="Aparece em Jobs e nas notificações.">
                   <input className="inp" value={nomeDoEnvio} onChange={e => setNomeDoEnvio(e.target.value)}
-                    placeholder="Ex.: Reels da semana" />
+                    placeholder="Ex.: Reels da semana" style={{ height: 42 }} />
                 </Campo>
 
-                <Campo rotulo="Intervalo entre rodadas"
-                  ajuda={`Uma rodada a cada ${rotuloDeIntervalo(intervalMins)}.`}
-                  extra={
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <input className="inp" type="number" min="1" max="1440" value={intervalMins}
+                <Campo rotulo="Intervalo entre rodadas" icone={Clock}
+                  ajuda={`Uma rodada a cada ${rotuloDeIntervalo(intervalMins)}.`}>
+                  <Opcoes
+                    opcoes={[
+                      [10, '10 min', 'Rápido'], [30, '30 min', 'Frequente'], [60, '1 h', 'A cada hora'],
+                      [180, '3 h', 'Recomendado'], [240, '4 h', 'Espaçado'],
+                      ['outro', [10, 30, 60, 180, 240].includes(intervalMins) ? 'Outro' : rotuloDeIntervalo(intervalMins), 'Personalizado'],
+                    ]}
+                    atual={intervaloProprio || ![10, 30, 60, 180, 240].includes(intervalMins) ? 'outro' : intervalMins}
+                    onEscolher={v => {
+                      if (v === 'outro') { setIntervaloProprio(true); return; }
+                      setIntervaloProprio(false); setIntervalMins(v); setAquecimento(v === 180);
+                    }}
+                  />
+                  {(intervaloProprio || ![10, 30, 60, 180, 240].includes(intervalMins)) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                      <input className="inp sem-setas" type="number" min="1" max="1440" value={intervalMins} inputMode="numeric"
                         aria-label="Intervalo em minutos"
                         onChange={e => { setIntervalMins(Math.min(1440, Math.max(1, Number(e.target.value) || 1))); setAquecimento(false); }}
-                        style={{ width: 70, height: 30, padding: '0 6px', textAlign: 'center', fontFamily: 'var(--mf-mono)' }} />
-                      <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>min</span>
-                    </span>
-                  }>
-                  <Opcoes
-                    opcoes={[[10, '10 min'], [30, '30 min'], [60, '1 h'], [180, '3 h'], [240, '4 h']]}
-                    atual={intervalMins}
-                    onEscolher={v => { setIntervalMins(v); setAquecimento(v === 180); }}
-                  />
+                        style={{ flex: 1, height: 40, textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} />
+                      <span style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)' }}>minutos</span>
+                    </div>
+                  )}
                 </Campo>
 
-                <Campo rotulo="Mídias por rodada"
+                <Campo rotulo="Mídias por rodada" icone={Layers}
                   ajuda={`Cada rodada publica ${simultaneousLimit} mídia${simultaneousLimit === 1 ? '' : 's'} em todas as contas escolhidas, ao mesmo tempo.`}>
                   <Contador
                     valor={Math.min(simultaneousLimit, Math.max(activeMediaCount, 1))}
                     min={1} max={Math.max(activeMediaCount, 1)}
                     onChange={setSimultaneousLimit}
-                    sufixo={`de ${Math.max(activeMediaCount, 1)}`}
+                    sufixo={`de ${Math.max(activeMediaCount, 1)} mídia${Math.max(activeMediaCount, 1) === 1 ? '' : 's'}`}
                   />
                 </Campo>
 
-                <Campo rotulo="Início"
+                <Campo rotulo="Início" icone={CalendarClock}
                   ajuda={scheduledAt
                     ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.`
                     : 'Começa assim que você publicar.'}>
                   <Opcoes
-                    opcoes={INICIOS.map(i => [i.id, i.rotulo])}
+                    opcoes={INICIOS.map(i => {
+                      const q = i.quando();
+                      const sub = i.id === 'agora' ? 'Imediato' : i.id === 'escolher' ? 'Data e hora' : q
+                        ? q.toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', '')
+                        : '';
+                      return [i.id, i.rotulo, sub, i.id === 'escolher'];
+                    })}
                     atual={inicioEscolhido}
                     onEscolher={id => {
                       setInicioEscolhido(id);
@@ -1239,34 +1263,43 @@ export default function Posts() {
                     }}
                   />
                   {inicioEscolhido === 'escolher' && (
-                    <input className="inp" type="datetime-local" style={{ marginTop: 8 }}
+                    <input className="inp" type="datetime-local" style={{ marginTop: 8, height: 42 }}
                       value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
                   )}
                 </Campo>
 
                 {/* ── Resumo ── */}
-                <div style={{ borderRadius: 'var(--mf-r-md)', border: '1px solid var(--mf-border)',
-                  background: 'var(--mf-surface-2)', padding: 'var(--mf-3)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--mf-2)' }}>
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
                     {[
-                      ['Mídias', activeMediaCount],
-                      ['Contas', selectedCount],
-                      ['Publicações', totalEstimated],
+                      ['Mídias', activeMediaCount, Layers],
+                      ['Contas', selectedCount, Users],
+                      ['Publicações', totalEstimated, Send, true],
                       ['Duração', activeMediaCount > 0
                         ? (horasIntervalo < 1 ? `${Math.round(horasIntervalo * 60)} min`
                           : horasIntervalo < 48 ? `${horasIntervalo.toFixed(horasIntervalo < 10 ? 1 : 0)} h`
                           : `${(horasIntervalo / 24).toFixed(1)} d`)
-                        : '—'],
-                    ].map(([rot, val]) => (
-                      <div key={rot} style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 'var(--mf-t-h2)', fontWeight: 750, color: 'var(--mf-text)',
-                          fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{val}</div>
-                        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 2 }}>{rot}</div>
+                        : '—', Timer],
+                    ].map(([rot, val, Icone, destaque]) => (
+                      <div key={rot} style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                        borderRadius: 'var(--mf-r-md)',
+                        background: destaque ? 'color-mix(in oklch, var(--mf-primary-500) 9%, var(--mf-surface-1))' : 'var(--mf-surface-2)',
+                        border: `1px solid ${destaque ? 'color-mix(in oklch, var(--mf-primary-500) 35%, transparent)' : 'var(--mf-border)'}` }}>
+                        <span style={{ width: 30, height: 30, flexShrink: 0, borderRadius: 'var(--mf-r-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'color-mix(in oklch, var(--mf-primary-500) 14%, transparent)', color: 'var(--mf-primary-500)' }}>
+                          <Icone size={15} />
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ display: 'block', fontSize: 'var(--mf-t-body)', fontWeight: 800, color: 'var(--mf-text)',
+                            fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', lineHeight: 1.2 }}>{val}</span>
+                          <span style={{ display: 'block', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>{rot}</span>
+                        </span>
                       </div>
                     ))}
                   </div>
                   {diasCota != null && diasCota > 1 && (
-                    <div style={{ marginTop: 'var(--mf-3)', paddingTop: 'var(--mf-2)', borderTop: '1px solid var(--mf-border-subtle)',
+                    <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--mf-r-sm)',
+                      background: 'color-mix(in oklch, var(--mf-warning-500) 8%, transparent)', border: '1px solid color-mix(in oklch, var(--mf-warning-500) 30%, transparent)',
                       fontSize: 'var(--mf-t-micro)', color: 'var(--mf-warning-500)', lineHeight: 1.5 }}>
                       A API aceita {limiteDaCota} publicações por conta em 24h: este envio leva ≈ {diasCota} dias.
                       {selectedCount === 1 && ' Dividir entre mais contas encurta.'}

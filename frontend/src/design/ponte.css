@@ -1935,3 +1935,6 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
    fonte mono de verdade só onde é código. */
 [data-mf] { font-variant-numeric: tabular-nums; }
 [data-mf] code, [data-mf] pre, [data-mf] kbd, [data-mf] .mf-kbd { font-family: var(--mf-code); }
+[data-mf] input.sem-setas::-webkit-outer-spin-button,
+[data-mf] input.sem-setas::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+[data-mf] input.sem-setas { -moz-appearance: textfield; appearance: textfield; }
