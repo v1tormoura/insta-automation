@@ -44,7 +44,7 @@ const cartao = { background: 'var(--card)', border: '1px solid var(--border)', b
 const tituloCartao = { fontSize: 'var(--mf-t-body)', fontWeight: 750, color: 'var(--mf-text)', marginBottom: 4 };
 const textoCartao = { fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.7 };
 const forte = { color: 'var(--mf-text-2)', fontWeight: 650 };
-const codigo = { fontFamily: 'var(--mf-mono)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' };
+const codigo = { fontFamily: 'var(--mf-code)', color: 'var(--mf-text)', fontSize: 'var(--mf-t-micro)' };
 
 function LinhaCopiar({ rotulo, valor, copiar, copiado }) {
   const feito = copiado === rotulo;

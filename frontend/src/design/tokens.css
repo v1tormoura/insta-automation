@@ -308,7 +308,12 @@
      número: em fonte com largura tabular, um contador que muda de 9 para 10
      não empurra o texto ao lado. */
   --mf-font: 'Plus Jakarta Sans Variable', 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --mf-mono: 'GeistMono', ui-monospace, monospace;
+  /* `--mf-mono` era a GeistMono em rótulos e números do painel inteiro — o
+     zero cortado e o espaçamento de terminal davam cara de console. Agora é
+     a fonte do produto (os números seguem com largura fixa, abaixo). A mono
+     de verdade fica em `--mf-code`, para código, URL e token. */
+  --mf-mono: var(--mf-font);
+  --mf-code: 'GeistMono', ui-monospace, monospace;
 
   /* Fluido: o título acompanha a viewport sem breakpoint, então não existe
      largura em que ele fique grande demais ou pequeno demais. */

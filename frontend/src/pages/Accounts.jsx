@@ -701,16 +701,14 @@ export default function Accounts() {
             <motion.div key={s.label} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*.05, duration:.28 }}
               style={{ '--c':s.cor, position:'relative', overflow:'hidden', minWidth:0,
                 containerType:'inline-size',
-                background:'color-mix(in oklch, var(--c) 9%, transparent)',
-                border:'1px solid color-mix(in oklch, var(--c) 20%, transparent)',
+                background:'var(--mf-surface-1)',
+                border:'1px solid var(--mf-border)',
                 borderRadius:'var(--mf-r-lg)', padding:'var(--mf-4)' }}
             >
-              <span aria-hidden="true" style={{ position:'absolute', inset:'auto -8px -12px auto', width:52, height:52, borderRadius:'var(--mf-r-full)',
-                background:'radial-gradient(circle, color-mix(in oklch, var(--c) 18%, transparent), transparent 70%)' }} />
               <span style={{ color:'var(--c)', display:'block' }}><s.Icon /></span>
               {/* mono e tabular porque o número muda ao sincronizar: sem
                   largura fixa de dígito, o rótulo abaixo dança a cada troca */}
-              <div className="mf-mono" style={{ fontSize:'clamp(1.35rem, 1.05rem + 1.6cqw, 1.75rem)', fontWeight:650, color:'var(--c)', lineHeight:1, letterSpacing:'-.03em', marginTop:'var(--mf-3)' }}>{s.value}</div>
+              <div className="mf-mono" style={{ fontSize:'clamp(1.35rem, 1.05rem + 1.6cqw, 1.75rem)', fontWeight:700, color:'var(--mf-text)', lineHeight:1, letterSpacing:'-.02em', marginTop:'var(--mf-3)' }}>{s.value}</div>
               <div className="mf-trunc" style={{ fontSize:'var(--mf-t-xs)', color:'var(--mf-text-3)', marginTop:5, fontWeight:600 }}>{s.label}</div>
             </motion.div>
           ))}
@@ -787,7 +785,6 @@ export default function Accounts() {
                 style={{
                   background: isSel ? 'color-mix(in oklch, var(--mf-mod-publicar) 12%, var(--mf-surface-1))' : `color-mix(in oklch, var(--mf-surface-1) 92%, transparent)`,
                   border:     isSel ? '1px solid color-mix(in oklch, var(--mf-primary-500) 45%, transparent)' : `1px solid var(--mf-border)`,
-                  borderLeft:`3px solid ${hc}`,
                   borderRadius: 'var(--mf-r-lg)', overflow:'hidden',
                   display:'flex', flexDirection:'column',
                   transition:'transform .2s, box-shadow .2s, border-color .2s, background .15s',

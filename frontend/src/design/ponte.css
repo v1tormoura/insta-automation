@@ -1930,3 +1930,8 @@ span.mf-pilula:hover { border-color: var(--mf-border); color: var(--mf-text-3); 
 [data-mf] input[type="number"]:hover::-webkit-inner-spin-button,
 [data-mf] input[type="number"]:focus::-webkit-inner-spin-button { opacity: 1; }
 
+
+/* Números com largura fixa em todo o painel (contadores não "pulam"), e a
+   fonte mono de verdade só onde é código. */
+[data-mf] { font-variant-numeric: tabular-nums; }
+[data-mf] code, [data-mf] pre, [data-mf] kbd, [data-mf] .mf-kbd { font-family: var(--mf-code); }

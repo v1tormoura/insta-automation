@@ -19,11 +19,6 @@
 .dashboard {
   max-width: 1600px; width: 100%;
   margin: 0 auto; padding: 22px 26px 16px; position: relative;
-  /* Números e rótulos na fonte do produto, com algarismos de largura fixa —
-     a fonte mono de terminal (zero cortado) deixava o painel com cara de
-     console. */
-  --mf-mono: var(--mf-font);
-  font-variant-numeric: tabular-nums;
 }
 .dash-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 18px; }
 .header-left { display: flex; gap: 12px; }
