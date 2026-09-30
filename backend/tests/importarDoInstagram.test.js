@@ -85,3 +85,21 @@ describe('por URL', () => {
       .rejects.toThrow('não é de nenhuma das suas contas');
   });
 });
+
+test('upload + conversão (substituir): o convertido toma o lugar do original', async () => {
+  const { execFileSync } = require('child_process');
+  const { FFMPEG_BIN } = require('../src/services/ffmpegBin');
+  const nome = `teste-substituir-${Date.now()}.png`;
+  const arquivo = path.resolve(__dirname, '../uploads', nome);
+  execFileSync(FFMPEG_BIN || 'ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=red:s=64x64', '-frames:v', '1', arquivo]);
+  const { media } = require('../src/repos');
+  const original = await media.de(banco.DONO_ID).insert({ filename: nome, originalName: 'foto.png', path: nome, url: `/uploads/${nome}`, mimeType: 'image/png', size: 10, type: 'image', folder: 'Importados' });
+
+  const r = await imp.converterDaBiblioteca({ usuarioId: banco.DONO_ID, ids: [original.id], qualidade: '360', pasta: 'Importados', substituir: true });
+  gerados.push(...r.importados.map(m => m.filename));
+  expect(r.erros).toEqual([]);
+  expect(r.importados[0].originalName).toBe('foto.jpg');
+  const linhas = await sql`select id from media where usuario_id = ${banco.DONO_ID}`;
+  expect(linhas.map(l => l.id)).toEqual([r.importados[0].id]);
+  expect(fs.existsSync(arquivo)).toBe(false);
+});

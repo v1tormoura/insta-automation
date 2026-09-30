@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Film, Image as ImageIcon, Layers, Music, Check, Loader2, ExternalLink, Link2, Upload, FolderOpen, User, Sparkles } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import api from '../services/api';
 import { avisar } from '../services/avisos';
 import { useServerEvents } from '../services/useServerEvents';
+import { getToken } from '../services/auth';
 
 /**
  * Importar mídias — o que as SUAS contas conectadas já publicaram vai para a
@@ -30,6 +31,29 @@ const ABAS = [
   ['upload', 'Upload', Upload],
   ['biblioteca', 'Da Biblioteca', FolderOpen],
 ];
+const DESTINOS = [
+  ['biblioteca', 'Biblioteca', 'Numa pasta', FolderOpen],
+  ['baixar', 'Baixar', 'No computador', Download],
+  ['ambos', 'Os dois', 'Salva e baixa', Layers],
+];
+
+/** Link de download de um item da Biblioteca (`remover`: some da Biblioteca depois de baixado). */
+const linkDeDownload = (id, remover) =>
+  `${API_URL}/importar/baixar/${id}?token=${encodeURIComponent(getToken() || '')}${remover ? '&remover=1' : ''}`;
+
+/** Dispara os downloads, um a um, com uma folga para o navegador não barrar. */
+async function baixarTodos(arquivos, remover) {
+  for (const a of arquivos) {
+    const link = document.createElement('a');
+    link.href = linkDeDownload(a.id, remover);
+    link.rel = 'noopener';
+    document.body.appendChild(link); link.click(); link.remove();
+    await new Promise(r => setTimeout(r, 900));
+  }
+}
+
+const tamanhoDe = b => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round((b || 0) / 1024))} KB`);
+
 const FORMATOS = [
   ['mp4', 'MP4', 'Compatível', Film],
   ['webm', 'WEBM', 'Web', Film],
@@ -78,6 +102,8 @@ export default function Importar() {
   const [arquivos, setArquivos] = useState([]);
   const [biblioteca, setBiblioteca] = useState(null);
   const [marcadosBib, setMarcadosBib] = useState(() => new Set());
+  const [destino, setDestino] = useState('biblioteca');
+  const destinoDoEnvio = useRef('biblioteca'); // o destino de quando o envio começou
 
   useEffect(() => {
     api.get('/accounts', { params: { limit: 500 } })
@@ -111,16 +137,21 @@ export default function Importar() {
     return () => { vivo = false; };
   }, [conta]);
 
+  function terminar({ importados, erros = 0, detalhes = [], arquivos = [] }) {
+    const dest = destinoDoEnvio.current;
+    setProgresso({ fim: true, importados, erros, detalhe: detalhes[0] || '', arquivos, destino: dest });
+    const onde = dest === 'baixar' ? 'baixando no seu computador' : dest === 'ambos' ? 'na Biblioteca e baixando' : 'na Biblioteca';
+    avisar(erros ? (importados ? 'warning' : 'error') : 'success', importados ? 'Pronto' : 'Não deu certo',
+      importados
+        ? `${importados} arquivo(s) ${onde}${erros ? `, ${erros} com erro` : ''}.`
+        : String(detalhes[0] || 'Falhou.').replace(/^[^:]*: /, ''));
+    if (dest !== 'biblioteca' && arquivos.length) baixarTodos(arquivos, dest === 'baixar');
+    if (aba === 'biblioteca') carregarBiblioteca();
+  }
+
   useServerEvents(['media'], d => {
     if (d?.action === 'importacao') setProgresso({ feitas: d.feitas, total: d.total });
-    if (d?.action === 'importacao_fim') {
-      setProgresso({ fim: true, importados: d.importados, erros: d.erros, detalhe: d.detalhes?.[0] || '' });
-      avisar(d.erros ? (d.importados ? 'warning' : 'error') : 'success', d.importados ? 'Pronto' : 'Não deu certo',
-        d.importados
-          ? `${d.importados} arquivo(s) na Biblioteca${d.erros ? `, ${d.erros} com erro` : ''}.`
-          : String(d.detalhes?.[0] || 'Falhou.').replace(/^[^:]*: /, ''));
-      if (aba === 'biblioteca') carregarBiblioteca();
-    }
+    if (d?.action === 'importacao_fim') terminar({ importados: d.importados, erros: d.erros, detalhes: d.detalhes || [], arquivos: d.arquivos || [] });
   });
 
   const escolherConta = id => {
@@ -144,6 +175,7 @@ export default function Importar() {
 
   async function importar() {
     if (!quantos) return;
+    destinoDoEnvio.current = destino;
     try {
       if (aba === 'contas') {
         await api.post('/importar', { accountId: conta, ids: [...marcados], qualidade, formato, pasta });
@@ -155,14 +187,15 @@ export default function Importar() {
         for (const f of arquivos) form.append('files', f);
         setProgresso({ feitas: 0, total: arquivos.length });
         const { data } = await api.post('/media/upload', form);
-        const ids = (data?.media || []).map(m => m.id);
+        const enviados = data?.media || [];
+        const ids = enviados.map(m => m.id);
         setArquivos([]);
         if (semConversao) {
-          setProgresso({ fim: true, importados: ids.length, erros: 0 });
-          avisar('success', 'Pronto', `${ids.length} arquivo(s) na Biblioteca.`);
+          terminar({ importados: ids.length, arquivos: enviados.map(m => ({ id: m.id, nome: m.originalName, url: m.url, tipo: m.type, tamanho: m.size })) });
           return;
         }
-        await api.post('/importar/converter', { ids, qualidade, formato, pasta });
+        // O convertido substitui o que acabou de subir — não fica o antigo na Biblioteca.
+        await api.post('/importar/converter', { ids, qualidade, formato, pasta, substituir: true });
         setProgresso({ feitas: 0, total: ids.length });
         return;
       } else {
@@ -175,10 +208,11 @@ export default function Importar() {
     }
   }
 
-  const rotuloDoBotao = aba === 'contas' ? `Importar ${quantos || ''} para a Biblioteca`
+  const n = quantos || '';
+  const rotuloDoBotao = aba === 'contas' ? (destino === 'baixar' ? `Baixar ${n}` : `Importar ${n}`)
     : aba === 'url' ? 'Baixar agora'
-    : aba === 'upload' ? (semConversao ? `Enviar ${quantos || ''} para a Biblioteca` : `Enviar e converter ${quantos || ''}`)
-    : `Converter ${quantos || ''}`;
+    : aba === 'upload' ? (semConversao ? (destino === 'baixar' ? `Baixar ${n}` : `Enviar ${n}`) : `Converter ${n}`)
+    : `Converter ${n}`;
 
   return (
     <PageShell icon={<Download size={18} />} title="Importar mídias"
@@ -403,14 +437,46 @@ export default function Importar() {
             O formato vale para vídeos (MP3 extrai só o áudio). Fotos saem em JPG, na qualidade escolhida.{aba === 'contas' && !temVideo && marcados.size ? ' Nenhum vídeo selecionado.' : ''}
           </div>
 
-          {rotulo('Pasta na Biblioteca')}
-          <input className="inp" value={pasta} onChange={e => setPasta(e.target.value)} placeholder="Importados" style={{ marginBottom: 'var(--mf-4)' }} />
+          {rotulo('Destino')}
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 'var(--mf-4)' }}>
+            {DESTINOS.map(([id, t, s, I]) => (
+              <Opcao key={id} ativo={destino === id} onClick={() => setDestino(id)} titulo={t} sub={s} icone={I} />
+            ))}
+          </div>
+
+          {destino !== 'baixar' && <>
+            {rotulo('Pasta na Biblioteca')}
+            <input className="inp" value={pasta} onChange={e => setPasta(e.target.value)} placeholder="Importados" style={{ marginBottom: 'var(--mf-4)' }} />
+          </>}
 
           {progresso && (
             <div style={{ marginBottom: 'var(--mf-3)', fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
               {progresso.fim
-                ? <>Pronto: <strong style={{ color: 'var(--mf-text)' }}>{progresso.importados}</strong> arquivo(s) na Biblioteca{progresso.erros ? `, ${progresso.erros} com erro` : ''}.{' '}
-                    <a href="/biblioteca" style={{ color: 'var(--mf-primary-500)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>Abrir <ExternalLink size={11} /></a></>
+                ? <>Pronto: <strong style={{ color: 'var(--mf-text)' }}>{progresso.importados}</strong> arquivo(s)
+                    {progresso.destino === 'baixar' ? ' baixados' : ' na Biblioteca'}{progresso.erros ? `, ${progresso.erros} com erro` : ''}.{' '}
+                    {progresso.destino !== 'baixar' && (
+                      <a href="/biblioteca" style={{ color: 'var(--mf-primary-500)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>Abrir <ExternalLink size={11} /></a>
+                    )}
+                    {progresso.destino !== 'baixar' && progresso.arquivos?.length > 0 && (
+                      <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+                        {progresso.arquivos.map(a => (
+                          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 6px 6px 10px',
+                            borderRadius: 'var(--mf-r-sm)', background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
+                            {a.tipo === 'video' ? <Film size={13} /> : a.tipo === 'image' ? <ImageIcon size={13} /> : <Music size={13} />}
+                            <span className="mf-trunc" style={{ flex: 1, minWidth: 0 }} title={a.nome}>{a.nome}</span>
+                            <span style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>{tamanhoDe(a.tamanho)}</span>
+                            <a href={linkDeDownload(a.id, false)} className="btn btn-ghost btn-sm" style={{ gap: 4 }} aria-label={`Baixar ${a.nome}`}>
+                              <Download size={13} /> Baixar
+                            </a>
+                          </div>
+                        ))}
+                        {progresso.arquivos.length > 1 && (
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => baixarTodos(progresso.arquivos, false)} style={{ justifySelf: 'start' }}>
+                            <Download size={13} /> Baixar todos
+                          </button>
+                        )}
+                      </div>
+                    )}</>
                 : <>Importando… {progresso.feitas} de {progresso.total}
                     <div style={{ height: 4, borderRadius: 2, background: 'var(--mf-surface-3)', marginTop: 6, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${progresso.total ? (progresso.feitas / progresso.total) * 100 : 0}%`, background: 'var(--mf-primary-500)', transition: 'width .3s' }} />

@@ -286,7 +286,23 @@ async function importarUrl({ usuarioId, contas, url, qualidade = 'original', for
  * Converte vídeos que JÁ estão na Biblioteca (aba "Converter vídeo" e
  * "Extrair áudio"): cada um vira um arquivo novo, o original fica.
  */
-async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', formato = 'mp4', pasta = 'Convertidos', aoProgredir }) {
+/** Tira um item da Biblioteca: a linha, o arquivo e a miniatura. */
+async function removerDaBiblioteca(usuarioId, item) {
+  const { media } = require('../repos');
+  const { nomeDaMiniatura } = require('./miniaturaDeVideo');
+  await media.de(usuarioId).remove(item.id);
+  if (!item.filename || item.filename.startsWith('__folder_')) return;
+  for (const nome of [item.filename, nomeDaMiniatura(item.filename)]) {
+    const alvo = path.resolve(UPLOADS, nome);
+    if (alvo.startsWith(UPLOADS + path.sep)) fs.rmSync(alvo, { force: true });
+  }
+}
+
+/**
+ * `substituir`: o convertido toma o lugar do original (upload + conversão —
+ * não sobra o arquivo antigo na Biblioteca).
+ */
+async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', formato = 'mp4', pasta = 'Convertidos', substituir = false, aoProgredir }) {
   if (!QUALIDADES.includes(String(qualidade))) qualidade = 'original';
   if (!FORMATOS.includes(formato)) formato = 'mp4';
   const { media } = require('../repos');
@@ -306,10 +322,18 @@ async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', f
       const base = path.basename(item.filename).replace(/\.[^.]+$/, '');
       const nomeBase = (item.originalName || base).replace(/\.[^.]+$/, '');
       const sufixo = formato === 'mp3' ? 'áudio' : qualidade === 'original' ? (ehVideo ? formato.toUpperCase() : 'JPG') : `${qualidade}p`;
-      convertidos.push(await processar({
-        usuarioId, bruto: origem, video: ehVideo, base, rotulo: `${nomeBase} (${sufixo})`,
-        qualidade, formato, pasta: pasta || 'Convertidos', manterBruto: true,
-      }));
+      let novo = null;
+      try {
+        novo = await processar({
+          usuarioId, bruto: origem, video: ehVideo, base, rotulo: substituir ? nomeBase : `${nomeBase} (${sufixo})`,
+          qualidade, formato, pasta: pasta || 'Convertidos', manterBruto: true,
+        });
+      } catch (err) {
+        // Substituindo, "nada a converter" só quer dizer que o original já serve.
+        if (!(substituir && /nada a converter/.test(err.message))) throw err;
+      }
+      if (novo && substituir) await removerDaBiblioteca(usuarioId, item);
+      convertidos.push(novo || item);
     } catch (err) {
       erros.push(`${id}: ${err.message}`);
     }
@@ -318,4 +342,4 @@ async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', f
   return { importados: convertidos, erros };
 }
 
-module.exports = { listar, importar, importarUrl, converterDaBiblioteca, processar, codigoDoInstagram, _ipPrivado: ipPrivado, arquivosDe, escala, _converter: converter, QUALIDADES, UPSCALE, FORMATOS, MAX_POR_IMPORTACAO };
+module.exports = { listar, importar, importarUrl, converterDaBiblioteca, removerDaBiblioteca, processar, codigoDoInstagram, _ipPrivado: ipPrivado, arquivosDe, escala, _converter: converter, QUALIDADES, UPSCALE, FORMATOS, MAX_POR_IMPORTACAO };

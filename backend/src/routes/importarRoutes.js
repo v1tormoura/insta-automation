@@ -9,18 +9,23 @@
  */
 
 const router = require('express').Router();
-const { accounts } = require('../repos');
+const fs = require('fs');
+const path = require('path');
+const { accounts, media } = require('../repos');
 const fila = require('../queue');
 const importar = require('../services/importarDoInstagram');
 
+const UPLOADS = path.resolve(__dirname, '../../uploads');
+
 /* Converter / extrair áudio de vídeos que já estão na Biblioteca. */
 router.post('/converter', async (req, res) => {
-  const { ids, qualidade, formato, pasta } = req.body || {};
+  const { ids, qualidade, formato, pasta, substituir } = req.body || {};
   if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Escolha ao menos um vídeo' });
   if (ids.length > importar.MAX_POR_IMPORTACAO) return res.status(400).json({ error: `No máximo ${importar.MAX_POR_IMPORTACAO} por vez` });
   await fila.enfileirar('converter_midias', {
     usuarioId: req.user.id, ids: ids.map(String),
     qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), pasta: String(pasta || 'Convertidos'),
+    substituir: substituir === true,
   });
   res.json({ ok: true, total: ids.length });
 });
@@ -34,6 +39,21 @@ router.post('/url', async (req, res) => {
     qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), pasta: String(pasta || 'Importados'),
   });
   res.json({ ok: true, total: 1 });
+});
+
+/* Baixar um arquivo da Biblioteca para o computador. `?remover=1` tira da
+   Biblioteca depois que o arquivo foi entregue (destino "só baixar"). O link é
+   aberto pelo navegador, então o token vem em ?token=. */
+router.get('/baixar/:id', async (req, res) => {
+  const item = await media.de(req.user.id).findById(req.params.id).catch(() => null);
+  if (!item || !item.filename || item.filename.startsWith('__folder_')) return res.status(404).json({ error: 'Arquivo não encontrado' });
+  const arquivo = path.resolve(UPLOADS, item.filename);
+  if (!arquivo.startsWith(UPLOADS + path.sep) || !fs.existsSync(arquivo)) return res.status(404).json({ error: 'Arquivo não encontrado' });
+  const ext = path.extname(item.filename);
+  const nome = String(item.originalName || path.basename(item.filename)).replace(/[\\/:*?"<>|]+/g, '_');
+  res.download(arquivo, nome.toLowerCase().endsWith(ext.toLowerCase()) ? nome : nome.replace(/\.[^.]+$/, '') + ext, err => {
+    if (!err && req.query.remover === '1') importar.removerDaBiblioteca(req.user.id, item).catch(() => {});
+  });
 });
 
 router.get('/:accountId', async (req, res) => {
