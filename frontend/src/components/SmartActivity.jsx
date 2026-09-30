@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, X, TrendingUp, Flame, Eye, Award, Info, AlertTriangle, CheckCheck } from 'lucide-react';
+import { Bell, BellOff, X, TrendingUp, Flame, Eye, Award, Info, AlertTriangle, CheckCheck, Check, Trash2, Settings } from 'lucide-react';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { ContextoSmartActivity, useSmartActivity, EVENTO_CONFIG } from '../services/smartActivityContexto';
@@ -46,6 +46,8 @@ const TEMAS = {
   info:        { icone: Info,       cor: 'var(--mf-info-500)' },
 };
 const temaDe = t => TEMAS[t] || TEMAS.milestone;
+/* O número da métrica — nunca um dígito colado a um @ ("@fulano969"). */
+const NUMERO_DA_METRICA = /(?<![\w@.])\d[\d.,]*/;
 const TEMAS_DE_METRICA = new Set(['story', 'viral', 'reach', 'milestone', 'achievement']);
 
 /**
@@ -123,20 +125,20 @@ function Monograma() {
     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
 }
 
-function Avatar({ notificacao, tamanho = 38 }) {
+function Avatar({ notificacao, tamanho = 38, redondo = false }) {
   const [falhou, setFalhou] = useState(false);
   const src = urlDoAvatar(notificacao.avatar);
   const { icone: Ico, cor } = temaDe(notificacao.tema);
 
   return (
     <span style={{
-      width: tamanho, height: tamanho, borderRadius: 'var(--mf-r-md)', flexShrink: 0,
+      width: tamanho, height: tamanho, borderRadius: redondo ? '50%' : 'var(--mf-r-md)', flexShrink: 0,
       position: 'relative', display: 'grid', placeItems: 'center', overflow: 'visible',
       background: `color-mix(in oklch, ${cor} 14%, var(--mf-surface-2))`,
       boxShadow: `0 0 0 1px color-mix(in oklch, ${cor} 30%, transparent)`,
     }}>
       <span style={{
-        position: 'absolute', inset: 0, borderRadius: 'var(--mf-r-md)',
+        position: 'absolute', inset: 0, borderRadius: redondo ? '50%' : 'var(--mf-r-md)',
         overflow: 'hidden', display: 'grid', placeItems: 'center',
       }}>
         {/* Sem foto sincronizada, entra a MARCA — não as iniciais.
@@ -153,8 +155,8 @@ function Avatar({ notificacao, tamanho = 38 }) {
       {/* O selo do tema fica FORA do recorte do avatar: dentro, ele seria
           cortado pelo canto arredondado e viraria uma meia-lua. */}
       <span style={{
-        position: 'absolute', right: -5, bottom: -5,
-        width: 18, height: 18, borderRadius: 'var(--mf-r-full)',
+        position: 'absolute', right: redondo ? -3 : -5, bottom: redondo ? -3 : -5,
+        width: redondo ? 16 : 18, height: redondo ? 16 : 18, borderRadius: 'var(--mf-r-full)',
         display: 'grid', placeItems: 'center',
         background: cor, color: 'var(--mf-bg)',
         border: '2px solid var(--mf-surface-1)',
@@ -177,7 +179,7 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
     const m = String(notificacao.mensagem || '');
     /* Só aviso de MÉTRICA destaca o número (e o anima): em "Fulano 2
        (fulano2@x.com) pediu acesso" o primeiro dígito é parte de um nome. */
-    const numero = TEMAS_DE_METRICA.has(notificacao.tema) && m.match(/[\d][\d.,]*/);
+    const numero = TEMAS_DE_METRICA.has(notificacao.tema) && m.match(NUMERO_DA_METRICA);
     if (!numero) return [{ t: m }];
     const i = numero.index;
     return [
@@ -261,6 +263,107 @@ export function Cartao({ notificacao, onFechar, onAbrir, compacto = false }) {
     </div>
   );
 }
+
+/**
+ * Uma linha da Central: lista corrida com divisória, ponto nas não lidas,
+ * título, texto em até duas linhas e o @ só quando o texto não o traz.
+ */
+function Linha({ notificacao: n, onMarcarLida }) {
+  const naoLida = !n.lidaEm;
+  const mensagem = String(n.mensagem || '');
+  const mostrarConta = n.username && !mensagem.toLowerCase().includes(`@${String(n.username).toLowerCase()}`);
+  const partes = useMemo(() => {
+    const numero = TEMAS_DE_METRICA.has(n.tema) && mensagem.match(NUMERO_DA_METRICA);
+    if (!numero) return [{ t: mensagem }];
+    return [
+      { t: mensagem.slice(0, numero.index) },
+      { t: numero[0], destaque: true },
+      { t: mensagem.slice(numero.index + numero[0].length) },
+    ];
+  }, [mensagem, n.tema]);
+
+  return (
+    <div className="sa-linha" data-nao-lida={naoLida || undefined}
+      onClick={() => naoLida && onMarcarLida?.()}
+      role={naoLida && onMarcarLida ? 'button' : undefined} tabIndex={naoLida && onMarcarLida ? 0 : undefined}
+      onKeyDown={e => { if (naoLida && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onMarcarLida?.(); } }}>
+      <span className="sa-ponto" aria-hidden />
+      <Avatar notificacao={n} tamanho={36} redondo />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span className="sa-titulo">{n.titulo}</span>
+          <span style={{ flex: 1 }} />
+          <span className="sa-quando">{quandoFoi(n.criadaEm)}</span>
+        </div>
+        {mensagem && (
+          <div className="sa-texto">
+            {partes.map((p, i) => p.destaque
+              ? <strong key={i} style={{ color: 'var(--mf-text)', fontWeight: 700 }}>{p.t}</strong>
+              : <span key={i}>{p.t}</span>)}
+          </div>
+        )}
+        {(mostrarConta || n.metricType === 'storyViews') && (
+          <div className="sa-meta">
+            {mostrarConta ? `@${n.username}` : ''}{mostrarConta && n.metricType === 'storyViews' ? ' · ' : ''}{n.metricType === 'storyViews' ? 'Story' : ''}
+          </div>
+        )}
+      </div>
+      {naoLida && onMarcarLida && (
+        <button type="button" className="sa-acao-linha" title="Marcar como lida" aria-label="Marcar como lida"
+          onClick={e => { e.stopPropagation(); onMarcarLida(); }}>
+          <Check size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+const CSS_CENTRAL = `
+.sa-central { font-feature-settings: 'tnum'; }
+.sa-icone-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--mf-r-sm);
+  background: transparent; border: 1px solid transparent; color: var(--mf-text-3); cursor: pointer; padding: 0;
+  transition: background var(--mf-fast) var(--mf-ease-out), color var(--mf-fast) var(--mf-ease-out); }
+.sa-icone-btn:hover { background: var(--mf-surface-2); color: var(--mf-text); border-color: var(--mf-border); }
+.sa-icone-btn[data-perigo]:hover { color: var(--mf-danger-500); }
+.sa-icone-btn:focus-visible, .sa-aba:focus-visible, .sa-linha:focus-visible { outline: 2px solid var(--mf-primary-500); outline-offset: -2px; }
+.sa-aba { position: relative; height: 36px; padding: 0 2px; margin-right: 16px; background: none; border: none; cursor: pointer;
+  font-size: var(--mf-t-xs); font-weight: 650; color: var(--mf-text-3); display: inline-flex; align-items: center; gap: 6px; }
+.sa-aba[aria-selected="true"] { color: var(--mf-text); }
+.sa-aba[aria-selected="true"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  border-radius: 2px; background: var(--mf-primary-500); }
+.sa-contagem { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center;
+  font-size: 10px; font-weight: 800; background: var(--mf-surface-3); color: var(--mf-text-2); }
+.sa-aba[aria-selected="true"] .sa-contagem { background: color-mix(in oklch, var(--mf-primary-500) 18%, transparent); color: var(--mf-primary-500); }
+.sa-grupo { position: sticky; top: 0; z-index: 1; padding: 10px 16px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--mf-text-3); background: var(--mf-surface-1); }
+.sa-linha { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px 12px 22px;
+  border-bottom: 1px solid var(--mf-border-subtle); transition: background var(--mf-fast) var(--mf-ease-out); }
+.sa-linha:hover { background: color-mix(in oklch, var(--mf-surface-2) 70%, transparent); }
+.sa-linha[data-nao-lida] { background: color-mix(in oklch, var(--mf-primary-500) 5%, transparent); cursor: pointer; }
+.sa-linha[data-nao-lida]:hover { background: color-mix(in oklch, var(--mf-primary-500) 9%, transparent); }
+.sa-ponto { position: absolute; left: 8px; top: 26px; width: 7px; height: 7px; border-radius: 50%; background: transparent; }
+.sa-linha[data-nao-lida] .sa-ponto { background: var(--mf-primary-500); box-shadow: 0 0 8px var(--mf-primary-500); }
+.sa-titulo { font-size: var(--mf-t-sm); font-weight: 600; color: var(--mf-text-2); line-height: 1.35; min-width: 0;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.sa-linha[data-nao-lida] .sa-titulo { color: var(--mf-text); font-weight: 700; }
+.sa-quando { font-size: 11px; color: var(--mf-text-3); flex-shrink: 0; white-space: nowrap; }
+.sa-texto { font-size: var(--mf-t-xs); color: var(--mf-text-3); line-height: 1.5; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.sa-linha[data-nao-lida] .sa-texto { color: var(--mf-text-2); }
+.sa-meta { font-size: 11px; color: var(--mf-text-3); margin-top: 4px; }
+.sa-acao-linha { position: absolute; right: 12px; top: 9px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; padding: 0; opacity: 0;
+  background: var(--mf-surface-2); border: 1px solid var(--mf-border); color: var(--mf-text-2);
+  transition: opacity var(--mf-fast) var(--mf-ease-out); }
+.sa-linha:hover .sa-acao-linha, .sa-acao-linha:focus-visible { opacity: 1; }
+.sa-linha[data-nao-lida]:hover .sa-quando { visibility: hidden; }
+.sa-acao-linha:hover { color: var(--mf-primary-500); border-color: color-mix(in oklch, var(--mf-primary-500) 45%, transparent); }
+@media (hover: none) { .sa-acao-linha { display: none; } }
+.sa-rodape { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px; text-decoration: none;
+  border-top: 1px solid var(--mf-border); font-size: var(--mf-t-xs); font-weight: 650; color: var(--mf-text-3);
+  transition: color var(--mf-fast) var(--mf-ease-out), background var(--mf-fast) var(--mf-ease-out); }
+.sa-rodape:hover { color: var(--mf-text); background: var(--mf-surface-2); }
+`;
 
 /* ── Estado compartilhado ───────────────────────────────────────────────── */
 
@@ -538,7 +641,10 @@ export function SinoDeNotificacoes() {
     return () => { document.removeEventListener('mousedown', fora); window.removeEventListener('keydown', esc); };
   }, [aberta]);
 
-  const grupos = useMemo(() => agrupar(itens || []), [itens]);
+  const [filtro, setFiltro] = useState('todas');
+  const grupos = useMemo(
+    () => agrupar((itens || []).filter(n => filtro === 'todas' || !n.lidaEm)),
+    [itens, filtro]);
 
   useEffect(() => { setCentralAberta?.(aberta); }, [aberta, setCentralAberta]);
 
@@ -569,103 +675,78 @@ export function SinoDeNotificacoes() {
       </button>
 
       {aberta && (
-        <div style={{
+        <div className="sa-central" role="dialog" aria-label="Notificações" style={{
           ...(estreito
             ? { position: 'fixed', top: 'calc(var(--mf-topbar) + 8px)',
                 left: 'var(--mf-3)', right: 'var(--mf-3)', width: 'auto' }
             : { position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                width: 'min(380px, calc(100vw - var(--mf-6)))' }),
-          maxHeight: 'min(520px, calc(100vh - var(--mf-topbar) - var(--mf-8)))',
+                width: 'min(400px, calc(100vw - var(--mf-6)))' }),
+          maxHeight: 'min(560px, calc(100vh - var(--mf-topbar) - var(--mf-8)))',
           display: 'flex', flexDirection: 'column',
           background: 'var(--mf-surface-1)', border: '1px solid var(--mf-border-strong)',
           borderRadius: 'var(--mf-r-lg)', boxShadow: 'var(--mf-shadow-3)',
           zIndex: 'var(--mf-z-drawer)', overflow: 'hidden',
         }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 'var(--mf-2)',
-            padding: 'var(--mf-3) var(--mf-4)', borderBottom: '1px solid var(--mf-border)',
-          }}>
-            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>
-              Notificações
-            </span>
+          <style>{CSS_CENTRAL}</style>
+
+          {/* Cabeçalho: título e ações em ícone (com dica) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 0 16px' }}>
+            <span style={{ fontSize: 'var(--mf-t-body)', fontWeight: 700, color: 'var(--mf-text)' }}>Notificações</span>
             <span style={{ flex: 1 }} />
-            {naoLidas > 0 && (
-              <button onClick={marcarTodas} style={{
-                fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
-                background: 'transparent', border: 'none',
-                color: 'var(--mf-primary-500)', padding: 0,
-              }}>Marcar todas como lidas</button>
-            )}
-            {/* Aparece só quando há o que apagar, e diz quantas — "Apagar
-                lidas" sem número não deixa ninguém prever o que vai sumir. */}
-            {lidas > 0 && (
-              <button onClick={apagarLidas}
-                title={`Apagar ${lidas} notificação(ões) já lida(s). As não lidas ficam.`}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  fontSize: 'var(--mf-t-nano)', fontWeight: 700, cursor: 'pointer',
-                  background: 'transparent', border: 'none',
-                  color: 'var(--mf-text-3)', padding: 0,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'var(--mf-danger-500)'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'var(--mf-text-3)'; }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2" strokeLinecap="round">
-                  <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                </svg>
-                Apagar lidas ({lidas})
-              </button>
-            )}
+            <button type="button" className="sa-icone-btn" onClick={marcarTodas} disabled={!naoLidas}
+              title="Marcar todas como lidas" aria-label="Marcar todas como lidas" style={{ opacity: naoLidas ? 1 : .35 }}>
+              <CheckCheck size={16} />
+            </button>
+            {/* Só as lidas somem — o que não foi visto não sai por um clique. */}
+            <button type="button" className="sa-icone-btn" data-perigo onClick={apagarLidas} disabled={!lidas}
+              title={lidas ? `Apagar ${lidas} lida${lidas === 1 ? '' : 's'}` : 'Nada lido para apagar'} aria-label="Apagar lidas"
+              style={{ opacity: lidas ? 1 : .35 }}>
+              <Trash2 size={15} />
+            </button>
+            <a href="/settings/notificacoes" className="sa-icone-btn" title="Configurar notificações" aria-label="Configurar notificações">
+              <Settings size={15} />
+            </a>
           </div>
 
-          {/* ── Por que grade com `gap`, e não margem em cada cartão ────────
+          {/* Abas */}
+          <div role="tablist" style={{ display: 'flex', padding: '4px 16px 0', borderBottom: '1px solid var(--mf-border)' }}>
+            {[['todas', 'Todas', null], ['naoLidas', 'Não lidas', naoLidas]].map(([id, rot, n]) => (
+              <button key={id} type="button" role="tab" className="sa-aba" aria-selected={filtro === id} onClick={() => setFiltro(id)}>
+                {rot}{n > 0 && <span className="sa-contagem">{n > 99 ? '99+' : n}</span>}
+              </button>
+            ))}
+          </div>
 
-              Os cartões saíam um atrás do outro sem espaço nenhum. Cada um tem
-              borda de 1px, então a borda de baixo de um encostava na de cima do
-              seguinte e as duas viravam uma linha de 2px: a lista parecia um
-              bloco único dividido por traços, não cartões separados.
-
-              `gap` e não `margin-bottom` no cartão: margem no último item
-              deixaria um vão morto antes do rodapé, e margens verticais
-              colapsam de formas que dependem do que está em volta. O `gap`
-              descreve o espaço ENTRE irmãos, que é exatamente o que se quer.
-
-              O espaço entre GRUPOS é maior que entre cartões — é o que faz
-              "HOJE" e "03 DE SET." se lerem como seções em vez de mais duas
-              linhas na mesma pilha. */}
-          <div style={{ overflowY: 'auto', flex: 1, padding: 'var(--mf-2)', display: 'grid', gap: 'var(--mf-4)', alignContent: 'start' }}>
+          <div style={{ overflowY: 'auto', flex: 1 }}>
             {!grupos.length && (
-              <div style={{
-                padding: 'var(--mf-10) var(--mf-4)', textAlign: 'center',
-                fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.7,
-              }}>
-                Nada por aqui ainda.<br />
-                Você é avisado a cada publicação que sai ou falha, e recebe o resumo do dia com o total.
+              <div style={{ padding: '44px 24px', textAlign: 'center' }}>
+                <span style={{ width: 44, height: 44, margin: '0 auto 12px', borderRadius: '50%', display: 'grid', placeItems: 'center',
+                  background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)', color: 'var(--mf-text-3)' }}>
+                  {filtro === 'naoLidas' ? <CheckCheck size={18} /> : <BellOff size={18} />}
+                </span>
+                <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>
+                  {filtro === 'naoLidas' ? 'Tudo em dia' : 'Nenhuma notificação'}
+                </div>
+                <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', marginTop: 4, lineHeight: 1.6 }}>
+                  {filtro === 'naoLidas' ? 'Você já leu todas as notificações.' : 'Os avisos de publicações, envios e marcos aparecem aqui.'}
+                </div>
               </div>
             )}
 
             {grupos.map(([rotulo, lista]) => (
-              <div key={rotulo} style={{ display: 'grid', gap: 'var(--mf-2)' }}>
-                <div style={{
-                  fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.08em',
-                  color: 'var(--mf-text-3)', padding: '0 var(--mf-2)',
-                }}>{rotulo.toUpperCase()}</div>
+              <section key={rotulo} aria-label={rotulo}>
+                <div className="sa-grupo">{rotulo}</div>
                 {lista.map(n => (
-                  <Cartao key={n.id} notificacao={n} compacto
-                    onAbrir={() => !n.lidaEm && !n.efemera && marcarLida(n.id)} />
+                  <Linha key={n.id} notificacao={n}
+                    onMarcarLida={n.efemera ? undefined : () => marcarLida(n.id)} />
                 ))}
-              </div>
+              </section>
             ))}
           </div>
 
-          {/* Um caminho para os ajustes a partir de onde a dúvida nasce: é
-              olhando uma notificação que se decide mudar o que ela diz. */}
-          <a href="/settings/notificacoes" style={{
-            display: 'block', textAlign: 'center', textDecoration: 'none',
-            padding: 'var(--mf-3)', borderTop: '1px solid var(--mf-border)',
-            fontSize: 'var(--mf-t-nano)', fontWeight: 700, color: 'var(--mf-text-3)',
-          }}>Configurar notificações</a>
+          <a href="/settings/notificacoes" className="sa-rodape">
+            <Settings size={13} /> Configurar notificações
+          </a>
         </div>
       )}
     </div>
