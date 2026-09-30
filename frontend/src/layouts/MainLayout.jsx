@@ -484,6 +484,7 @@ export default function MainLayout({ children }) {
                   <NavLink key={item.to} to={item.to} end={item.to === '/'}
                     className="mf-nav-item"
                     data-dica={item.label}
+                    title={item.sub || undefined}
                     style={{ '--mf-mod': `var(--mf-mod-${item.mod || 'sistema'})`, textDecoration: 'none' }}>
                     <span className="mf-nav-item__ico">{item.icon}</span>
                     <span className="mf-nav-item__txt">
@@ -496,13 +497,8 @@ export default function MainLayout({ children }) {
                           }}>{pendentes}</span>
                         )}
                       </span>
-                      {/* A descrição SEMPRE existiu em `NAV_GROUPS` como `sub`,
-                          e o render a jogava fora — vinte e oito itens com uma
-                          linha de explicação escrita e nenhuma aparecendo. O
-                          CSS já falava dela ("o rótulo e a descrição são dois
-                          spans"), então a intenção estava nos dois lados e só
-                          o JSX faltava. */}
-                      {item.sub && <span className="mf-nav-item__s">{item.sub}</span>}
+                      {/* A descrição (`sub`) não aparece mais no menu — itens de uma
+                          linha só, mais limpos. Ela continua na dica e na busca. */}
                     </span>
                   </NavLink>
                 ))}
