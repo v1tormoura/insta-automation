@@ -75,6 +75,7 @@ app.use('/notificacoes',  auth, require('./routes/notificacoesRoutes'));
 app.use('/conta',         auth, require('./routes/contaRoutes'));
 app.use('/ai',            auth, require('./routes/aiRoutes'));
 app.use('/media',         auth, require('./routes/mediaRoutes'));
+app.use('/importar',      auth, require('./routes/importarRoutes'));
 app.use('/api/stories',   auth, require('./routes/storyRoutes'));
 app.use('/loops',         auth, require('./routes/loopRoutes'));
 app.use('/insights',      auth, require('./routes/insightRoutes'));

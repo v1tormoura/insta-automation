@@ -381,6 +381,15 @@ function handlers() {
     job_round: processarRodada,
     post: processarPost,
     comentario_fixado: processarComentarioFixado,
+    importar_midias: async ({ usuarioId, accountId, ids, qualidade, formato, pasta }) => {
+      const conta = await accounts.findById(accountId);
+      if (!conta || conta.usuarioId !== usuarioId) return;
+      const r = await require('./services/importarDoInstagram').importar({
+        usuarioId, conta, ids, qualidade, formato, pasta,
+        aoProgredir: p => broadcast('media', { action: 'importacao', ...p }, usuarioId),
+      });
+      broadcast('media', { action: 'importacao_fim', importados: r.importados.length, erros: r.erros.length, detalhes: r.erros.slice(0, 5) }, usuarioId);
+    },
     story: dados => require('./services/stories').processar(dados),
     campanha_publicacao: ({ campaignPublicationId }) => executor.processarPublicacao(campaignPublicationId, {
       publicarNaConta: (conta, post) => publicarNaConta(conta, post),

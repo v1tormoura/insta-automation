@@ -33,6 +33,7 @@ const Performance         = lazy(() => import('./pages/Performance'));
 const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
 const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
 const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
+const Importar            = lazy(() => import('./pages/Importar'));
 const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
 import Login from './pages/Login';
 import Termos from './pages/Termos';
@@ -127,6 +128,7 @@ export default function App() {
               <Route path="/usuarios"       element={<SoAdmin><Usuarios /></SoAdmin>} />
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"          element={<MediaLibrary />} />
+              <Route path="/importar"            element={<Importar />} />
             </Routes>
             </Suspense>
             </LimiteDeRota>
