@@ -134,3 +134,32 @@ describe('Buscar Reels pela URL do perfil', () => {
     expect(r.depois).toBeNull();
   });
 });
+
+describe('Fotos no Importar', () => {
+  test("so: 'fotos' traz foto e carrossel, sem os vídeos", async () => {
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ data: [
+      { id: 'R1', media_type: 'VIDEO', media_product_type: 'REELS' },
+      { id: 'F1', media_type: 'IMAGE', media_product_type: 'FEED' },
+      { id: 'C1', media_type: 'CAROUSEL_ALBUM', media_product_type: 'FEED' },
+    ] }) }));
+    const r = await imp.listar(conta, { so: 'fotos' });
+    expect(r.itens.map(i => i.id)).toEqual(['F1', 'C1']);
+  });
+
+  test('foto da Biblioteca convertida para WEBP, com upscale', async () => {
+    const { execFileSync } = require('child_process');
+    const { FFMPEG_BIN } = require('../src/services/ffmpegBin');
+    const nome = `teste-webp-${Date.now()}.png`;
+    const arquivo = path.resolve(__dirname, '../uploads', nome);
+    gerados.push(nome);
+    execFileSync(FFMPEG_BIN || 'ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=64x64', '-frames:v', '1', arquivo]);
+    const { media } = require('../src/repos');
+    const original = await media.de(banco.DONO_ID).insert({ filename: nome, originalName: 'foto.png', path: nome, url: `/uploads/${nome}`, mimeType: 'image/png', size: 10, type: 'image', folder: 'X' });
+    const r = await imp.converterDaBiblioteca({ usuarioId: banco.DONO_ID, ids: [original.id], qualidade: '1080', formato: 'mp3', formatoFoto: 'webp' });
+    gerados.push(...r.importados.map(m => m.filename));
+    expect(r.erros).toEqual([]);
+    expect(r.importados[0]).toMatchObject({ mimeType: 'image/webp', type: 'image' });
+    const dim = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', path.resolve(__dirname, '../uploads', r.importados[0].filename)]).toString().trim();
+    expect(dim).toBe('1080,1080');
+  });
+});

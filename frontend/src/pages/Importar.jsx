@@ -31,6 +31,18 @@ const ABAS = [
   ['upload', 'Upload', Upload],
   ['biblioteca', 'Da Biblioteca', FolderOpen],
 ];
+const FORMATOS_FOTO = [
+  ['jpg', 'JPG', 'Compatível', ImageIcon],
+  ['png', 'PNG', 'Sem perdas', ImageIcon],
+  ['webp', 'WEBP', 'Leve', ImageIcon],
+];
+/* O que buscar no perfil: [id, rótulo do seletor, singular, plural]. */
+const TIPOS_DO_PERFIL = [
+  ['reels', 'Reels', 'Reel', 'Reels'],
+  ['fotos', 'Fotos', 'foto', 'fotos'],
+  ['tudo', 'Tudo', 'publicação', 'publicações'],
+];
+
 const DESTINOS = [
   ['biblioteca', 'Biblioteca', 'Numa pasta', FolderOpen],
   ['baixar', 'Baixar', 'No computador', Download],
@@ -106,7 +118,11 @@ export default function Importar() {
   /* Buscar Reels pela URL do perfil: só escolhe a conta e liga o filtro de
      Reels — a lista, o grid, a seleção e o download são os da aba "Minhas contas". */
   const [perfilUrl, setPerfilUrl] = useState('');
-  const [somenteReels, setSomenteReels] = useState(false);
+  const [somenteReels, setSomenteReels] = useState(false); // busca pelo perfil ativa
+  const [tipoPerfil, setTipoPerfil] = useState('reels');
+  const [formatoFoto, setFormatoFoto] = useState('jpg');
+  const paramsDoPerfil = somenteReels && tipoPerfil !== 'tudo' ? { so: tipoPerfil } : {};
+  const [, rotuloDoTipo, nomeUm, nomeVarios] = TIPOS_DO_PERFIL.find(t => t[0] === tipoPerfil);
   const [busca, setBusca] = useState({ estado: 'inicial' }); // inicial | buscando | ok | vazio | erro | indisponivel
   const [recarga, setRecarga] = useState(0);
   const destinoDoEnvio = useRef('biblioteca'); // o destino de quando o envio começou
@@ -125,7 +141,7 @@ export default function Importar() {
     if (!conta) return;
     setCarregando(true); setErro('');
     try {
-      const { data } = await api.get(`/importar/${conta}`, { params: { ...(mais && depois ? { depois } : {}), ...(somenteReels ? { reels: 1 } : {}) } });
+      const { data } = await api.get(`/importar/${conta}`, { params: { ...(mais && depois ? { depois } : {}), ...paramsDoPerfil } });
       setItens(v => {
         if (!mais) return data.itens;
         const ja = new Set(v.map(i => i.id));
@@ -135,12 +151,12 @@ export default function Importar() {
     } catch (e) {
       setErro(e.response?.data?.error || 'Não foi possível listar as publicações.');
     } finally { setCarregando(false); }
-  }, [conta, depois, somenteReels]);
+  }, [conta, depois, somenteReels, tipoPerfil]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!conta) return;
     let vivo = true;
-    api.get(`/importar/${conta}`, { params: somenteReels ? { reels: 1 } : {} })
+    api.get(`/importar/${conta}`, { params: paramsDoPerfil })
       .then(({ data }) => {
         if (!vivo) return;
         setItens(data.itens); setDepois(data.depois); setErro('');
@@ -153,7 +169,7 @@ export default function Importar() {
       })
       .finally(() => { if (vivo) setCarregando(false); });
     return () => { vivo = false; };
-  }, [conta, somenteReels, recarga]);
+  }, [conta, somenteReels, recarga]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function buscarReels() {
     const entrada = perfilUrl.trim();
@@ -207,7 +223,7 @@ export default function Importar() {
   }
   useEffect(() => { if (aba === 'biblioteca' && biblioteca === null) carregarBiblioteca(); }, [aba]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const semConversao = qualidade === 'original' && formato === 'mp4';
+  const semConversao = qualidade === 'original' && formato === 'mp4' && formatoFoto === 'jpg';
   const quantos = aba === 'contas' ? marcados.size : aba === 'url' ? (url.trim() ? 1 : 0) : aba === 'upload' ? arquivos.length : marcadosBib.size;
 
   async function importar() {
@@ -215,9 +231,9 @@ export default function Importar() {
     destinoDoEnvio.current = destino;
     try {
       if (aba === 'contas') {
-        await api.post('/importar', { accountId: conta, ids: [...marcados], qualidade, formato, pasta });
+        await api.post('/importar', { accountId: conta, ids: [...marcados], qualidade, formato, formatoFoto, pasta });
       } else if (aba === 'url') {
-        await api.post('/importar/url', { url: url.trim(), qualidade, formato, pasta });
+        await api.post('/importar/url', { url: url.trim(), qualidade, formato, formatoFoto, pasta });
       } else if (aba === 'upload') {
         const form = new FormData();
         form.append('folder', pasta || 'Importados');
@@ -232,11 +248,11 @@ export default function Importar() {
           return;
         }
         // O convertido substitui o que acabou de subir — não fica o antigo na Biblioteca.
-        await api.post('/importar/converter', { ids, qualidade, formato, pasta, substituir: true });
+        await api.post('/importar/converter', { ids, qualidade, formato, formatoFoto, pasta, substituir: true });
         setProgresso({ feitas: 0, total: ids.length });
         return;
       } else {
-        await api.post('/importar/converter', { ids: [...marcadosBib], qualidade, formato, pasta });
+        await api.post('/importar/converter', { ids: [...marcadosBib], qualidade, formato, formatoFoto, pasta });
       }
       setProgresso({ feitas: 0, total: quantos });
     } catch (e) {
@@ -259,7 +275,27 @@ export default function Importar() {
       <section className="mf-card" style={{ padding: 'var(--mf-4)', marginBottom: 'var(--mf-4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <Film size={15} style={{ color: 'var(--mf-primary-500)' }} />
-          <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>Importar Reels de perfil</span>
+          <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>Importar de perfil</span>
+          <span style={{ flex: 1 }} />
+          <div role="group" aria-label="O que buscar" style={{ display: 'inline-flex', gap: 2, padding: 3, borderRadius: 'var(--mf-r-md)',
+            background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
+            {TIPOS_DO_PERFIL.map(([id, rot]) => {
+              const ativo = id === tipoPerfil;
+              return (
+                <button key={id} type="button" aria-pressed={ativo} disabled={busca.estado === 'buscando'}
+                  onClick={() => {
+                    if (ativo) return;
+                    setTipoPerfil(id);
+                    if (somenteReels) { setCarregando(true); setItens([]); setMarcados(new Set()); setDepois(null); setBusca(b => ({ ...b, estado: 'buscando' })); setRecarga(n => n + 1); }
+                  }}
+                  style={{ height: 26, padding: '0 12px', border: 'none', borderRadius: 'var(--mf-r-sm)', cursor: 'pointer',
+                    fontSize: 'var(--mf-t-micro)', fontWeight: 700,
+                    background: ativo ? 'var(--mf-primary-500)' : 'transparent', color: ativo ? 'var(--mf-bg)' : 'var(--mf-text-3)' }}>
+                  {rot}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', height: 44,
@@ -271,20 +307,20 @@ export default function Importar() {
               style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)' }} />
           </div>
           <button type="button" className="btn-primary" onClick={buscarReels} disabled={!perfilUrl.trim() || busca.estado === 'buscando'} style={{ height: 44 }}>
-            {busca.estado === 'buscando' ? <Loader2 size={16} className="mf-spin" /> : <Film size={16} />}
-            {busca.estado === 'buscando' ? 'Buscando Reels…' : 'Buscar Reels'}
+            {busca.estado === 'buscando' ? <Loader2 size={16} className="mf-spin" /> : tipoPerfil === 'fotos' ? <ImageIcon size={16} /> : <Film size={16} />}
+            {busca.estado === 'buscando' ? `Buscando ${nomeVarios}…` : `Buscar ${tipoPerfil === 'tudo' ? 'tudo' : nomeVarios}`}
           </button>
         </div>
         <div aria-live="polite" data-busca-status style={{ fontSize: 'var(--mf-t-micro)', marginTop: 10, lineHeight: 1.6,
           color: ['erro', 'indisponivel'].includes(busca.estado) ? 'var(--mf-danger-500)' : 'var(--mf-text-3)' }}>
           {busca.estado === 'inicial' && 'Nenhum perfil importado. Funciona com os perfis conectados ao Nexora pela API oficial (os seus e os de quem autorizou pelo link guiado).'}
-          {busca.estado === 'buscando' && 'Buscando Reels…'}
+          {busca.estado === 'buscando' && `Buscando ${nomeVarios}…`}
           {busca.estado === 'ok' && <>
-            <strong style={{ color: 'var(--mf-text)' }}>@{busca.username}</strong> · {itens.length}{depois ? '+' : ''} Reel{itens.length === 1 ? '' : 's'} encontrado{itens.length === 1 ? '' : 's'}
+            <strong style={{ color: 'var(--mf-text)' }}>@{busca.username}</strong> · {itens.length}{depois ? '+' : ''} {itens.length === 1 ? nomeUm : nomeVarios} encontrad{tipoPerfil === 'reels' ? 'o' : 'a'}{itens.length === 1 ? '' : 's'}
             {depois ? ' — use "Carregar mais" no fim da lista.' : '.'}
           </>}
-          {busca.estado === 'vazio' && <><strong style={{ color: 'var(--mf-text)' }}>@{busca.username}</strong> · Nenhum Reel encontrado neste perfil.</>}
-          {busca.estado === 'erro' && (busca.msg || 'Não foi possível obter os Reels deste perfil.')}
+          {busca.estado === 'vazio' && <><strong style={{ color: 'var(--mf-text)' }}>@{busca.username}</strong> · Nenhum{tipoPerfil === 'reels' ? '' : 'a'} {nomeUm} encontrad{tipoPerfil === 'reels' ? 'o' : 'a'} neste perfil.</>}
+          {busca.estado === 'erro' && (busca.msg || `Não foi possível obter ${tipoPerfil === 'reels' ? 'os' : 'as'} ${nomeVarios} deste perfil.`)}
           {busca.estado === 'indisponivel' && <>Este perfil{busca.username ? <> (@{busca.username})</> : ''} não está disponível para importação. Só perfis conectados ao Nexora podem ser importados.</>}
         </div>
       </section>
@@ -423,7 +459,7 @@ export default function Importar() {
         {/* Publicações */}
         {aba === 'contas' && <section className="mf-card" style={{ padding: 'var(--mf-4)', gridColumn: 'span 2', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'var(--mf-3)', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>{somenteReels && busca.username ? `Reels de @${busca.username}` : 'Publicações'}</span>
+            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>{somenteReels && busca.username ? `${tipoPerfil === 'tudo' ? 'Publicações' : rotuloDoTipo} de @${busca.username}` : 'Publicações'}</span>
             {somenteReels && (
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setSomenteReels(false); setBusca({ estado: 'inicial' }); setCarregando(true); setItens([]); setMarcados(new Set()); setDepois(null); }}>
                 Ver todas as publicações
@@ -503,14 +539,24 @@ export default function Importar() {
             Re-renderiza em resolução maior (escala Lanczos + nitidez). Aumenta a resolução e o tamanho do arquivo, mas não recria detalhe que não existe no original. 4K e 8K levam alguns minutos.
           </div>
 
-          {rotulo('Formato de saída')}
+          {rotulo('Formato dos vídeos')}
           <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 'var(--mf-2)' }}>
             {FORMATOS.map(([id, t, s, I]) => (
               <Opcao key={id} ativo={formato === id} onClick={() => setFormato(id)} titulo={t} sub={s} icone={I} />
             ))}
           </div>
           <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 'var(--mf-4)', lineHeight: 1.5 }}>
-            O formato vale para vídeos (MP3 extrai só o áudio). Fotos saem em JPG, na qualidade escolhida.{aba === 'contas' && !temVideo && marcados.size ? ' Nenhum vídeo selecionado.' : ''}
+            Vale para os vídeos (MP3 extrai só o áudio).{aba === 'contas' && !temVideo && marcados.size ? ' Nenhum vídeo selecionado.' : ''}
+          </div>
+
+          {rotulo('Formato das fotos')}
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 'var(--mf-2)' }}>
+            {FORMATOS_FOTO.map(([id, t, s, I]) => (
+              <Opcao key={id} ativo={formatoFoto === id} onClick={() => setFormatoFoto(id)} titulo={t} sub={s} icone={I} />
+            ))}
+          </div>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 'var(--mf-4)', lineHeight: 1.5 }}>
+            Vale para as fotos, com a qualidade e o upscale escolhidos acima.
           </div>
 
           {rotulo('Destino')}
