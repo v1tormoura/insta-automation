@@ -11,6 +11,8 @@
  * de novo na hora de baixar. Depois do download, a conversão opcional:
  *
  *   qualidade  original | 720 | 480 | 360   (menor lado do vídeo, sem ampliar)
+ *              1080 | 2160 | 4320           (UPSCALE: re-renderiza maior, Lanczos +
+ *                                            nitidez — não cria detalhe que não existe)
  *   formato    mp4 | webm | mp3             (mp3 = só o áudio)
  *
  * Imagens entram como vieram (JPEG). Roda na fila, mídia a mídia, avisando o
@@ -28,7 +30,9 @@ ffmpeg.setFfmpegPath(FFMPEG_BIN);
 
 const UPLOADS = path.resolve(__dirname, '../../uploads');
 const CAMPOS = 'id,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,caption';
-const QUALIDADES = ['original', '720', '480', '360'];
+const QUALIDADES = ['original', '720', '480', '360', '1080', '2160', '4320'];
+/** Resoluções que AMPLIAM o vídeo (a tela chama de upscale). */
+const UPSCALE = ['1080', '2160', '4320'];
 const FORMATOS = ['mp4', 'webm', 'mp3'];
 const MAX_POR_IMPORTACAO = 200;
 
@@ -76,6 +80,10 @@ async function baixar(url, destino) {
 
 /** Filtro de escala: o menor lado vira `alvo`, sem ampliar vídeo menor. */
 function escala(alvo) {
+  if (UPSCALE.includes(String(alvo))) {
+    // Upscale: o menor lado vai exatamente para `alvo`, com Lanczos e um toque de nitidez.
+    return `scale='if(gt(iw,ih),-2,${alvo})':'if(gt(iw,ih),${alvo},-2)':flags=lanczos,unsharp=5:5:0.6:5:5:0.0`;
+  }
   return `scale='if(gt(iw,ih),-2,min(iw,${alvo}))':'if(gt(iw,ih),min(ih,${alvo}),-2)'`;
 }
 
@@ -91,7 +99,8 @@ function converter(origem, destino, { qualidade, formato }) {
           .outputOptions([...opcoes, '-b:v', '0', '-crf', '32', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1']);
       } else {
         cmd.videoCodec('libx264').audioCodec('aac')
-          .outputOptions([...opcoes, '-crf', '20', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart']);
+          .outputOptions([...opcoes, '-crf', '20', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+            ...(qualidade === '4320' ? ['-x264-params', 'level=6.2'] : [])]);
       }
     }
     cmd.on('end', resolve).on('error', reject).save(destino);
@@ -150,4 +159,163 @@ async function importar({ usuarioId, conta, ids, qualidade = 'original', formato
   return { importados, erros };
 }
 
-module.exports = { listar, importar, arquivosDe, escala, _converter: converter, QUALIDADES, FORMATOS, MAX_POR_IMPORTACAO };
+/* ── Um arquivo local → Biblioteca, com qualidade/upscale/formato ─────────── */
+
+const MIME = { mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', jpg: 'image/jpeg' };
+
+/** Imagem: redimensiona (inclusive upscale) e salva em JPEG. */
+function converterImagem(origem, destino, qualidade) {
+  return new Promise((resolve, reject) => {
+    const opcoes = qualidade !== 'original' ? ['-vf', escala(qualidade)] : [];
+    ffmpeg(origem).outputOptions([...opcoes, '-frames:v', '1', '-q:v', '2']).on('end', resolve).on('error', reject).save(destino);
+  });
+}
+
+/**
+ * Processa um arquivo já no disco e grava na Biblioteca.
+ * @returns {Promise<object>} a linha nova de `media`
+ */
+async function processar({ usuarioId, bruto, video, base, rotulo, qualidade, formato, pasta, pastaDisco = 'convertidos', manterBruto = false }) {
+  const dir = path.join(UPLOADS, pastaDisco);
+  fs.mkdirSync(dir, { recursive: true });
+  let final = bruto, ext;
+  if (video) {
+    if (qualidade !== 'original' || formato !== 'mp4' || !/\.mp4$/i.test(bruto)) {
+      ext = formato;
+      final = path.join(dir, `${base}-${formato === 'mp3' ? 'audio' : qualidade}-${crypto.randomBytes(3).toString('hex')}.${ext}`);
+      await converter(bruto, final, { qualidade, formato });
+    } else ext = 'mp4';
+  } else {
+    ext = 'jpg';
+    if (qualidade !== 'original' || !/\.jpe?g$/i.test(bruto)) {
+      final = path.join(dir, `${base}-${qualidade}-${crypto.randomBytes(3).toString('hex')}.jpg`);
+      await converterImagem(bruto, final, qualidade);
+    }
+  }
+  if (final === bruto && manterBruto) throw new Error('nada a converter — escolha outra qualidade ou formato');
+  if (final !== bruto && !manterBruto) fs.rmSync(bruto, { force: true });
+  const nome = path.relative(UPLOADS, final).split(path.sep).join('/');
+  const mime = MIME[ext] || 'application/octet-stream';
+  const { media } = require('../repos');
+  const item = await media.de(usuarioId).insert({
+    filename: nome, originalName: `${rotulo}.${ext}`, path: nome, url: `/uploads/${nome}`, mimeType: mime,
+    size: fs.statSync(final).size,
+    type: mime.startsWith('video/') ? 'video' : mime.startsWith('image/') ? 'image' : 'other',
+    folder: String(pasta || 'Importados').slice(0, 60),
+  });
+  if (item.type === 'video') require('./miniaturaDeVideo').garantirMiniatura(UPLOADS, nome).catch(() => {});
+  return item;
+}
+
+/* ── Por URL ────────────────────────────────────────────────────────────────
+   Dois tipos de link, e só eles:
+     • publicação de uma conta CONECTADA (instagram.com/p|reel/CÓDIGO) —
+       achada na lista da própria conta, pela API oficial;
+     • link DIRETO de um arquivo (resposta video/* ou image/*).
+   Página de perfil ou post de terceiros não é raspada. */
+
+const dns = require('dns').promises;
+const net = require('net');
+
+function ipPrivado(ip) {
+  if (net.isIPv6(ip)) return ip === '::1' || /^f[cd]/i.test(ip) || /^fe80/i.test(ip) || ip.startsWith('::ffff:127.');
+  const [a, b] = ip.split('.').map(Number);
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+}
+
+async function conferirDestino(url) {
+  let u;
+  try { u = new URL(url); } catch { throw new Error('URL inválida'); }
+  if (!/^https?:$/.test(u.protocol)) throw new Error('Use um link http ou https');
+  const ips = await dns.lookup(u.hostname, { all: true }).catch(() => []);
+  if (!ips.length || ips.some(x => ipPrivado(x.address))) throw new Error('Endereço não permitido');
+  return u;
+}
+
+function codigoDoInstagram(url) {
+  const m = /instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i.exec(url);
+  return m ? m[1] : null;
+}
+
+/** Acha a publicação pelo código do link nas contas conectadas do usuário. */
+async function acharNasContas(contas, codigo) {
+  for (const conta of contas.filter(c => c.accessToken && c.igUserId)) {
+    let depois = null;
+    for (let pagina = 0; pagina < 20; pagina++) {
+      const d = await get(`/${conta.igUserId}/media`, { fields: 'id,permalink', limit: 50, ...(depois ? { after: depois } : {}) }, conta.accessToken).catch(() => null);
+      const achada = (d?.data || []).find(m => String(m.permalink || '').includes(`/${codigo}`));
+      if (achada) return { conta, mediaId: String(achada.id) };
+      depois = d?.paging?.next ? d?.paging?.cursors?.after : null;
+      if (!depois) break;
+    }
+  }
+  return null;
+}
+
+async function importarUrl({ usuarioId, contas, url, qualidade = 'original', formato = 'mp4', pasta = 'Importados' }) {
+  if (!QUALIDADES.includes(String(qualidade))) qualidade = 'original';
+  if (!FORMATOS.includes(formato)) formato = 'mp4';
+  const codigo = codigoDoInstagram(url);
+  if (codigo) {
+    const achado = await acharNasContas(contas, codigo);
+    if (!achado) throw new Error('Essa publicação não é de nenhuma das suas contas conectadas.');
+    return importar({ usuarioId, conta: achado.conta, ids: [achado.mediaId], qualidade, formato, pasta });
+  }
+  if (/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|kwai|twitter\.com|x\.com/i.test(url)) {
+    throw new Error('Link de página de rede social não é aceito. Use o link de uma publicação das suas contas conectadas ou o link direto do arquivo.');
+  }
+  await conferirDestino(url);
+  const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(5 * 60_000) });
+  if (!res.ok) throw new Error(`o link respondeu HTTP ${res.status}`);
+  const tipo = String(res.headers.get('content-type') || '');
+  const video = tipo.startsWith('video/'), imagem = tipo.startsWith('image/');
+  if (!video && !imagem) throw new Error('O link não é de um vídeo ou de uma imagem.');
+  const tamanho = Number(res.headers.get('content-length') || 0);
+  if (tamanho > 500 * 1024 * 1024) throw new Error('Arquivo maior que 500 MB.');
+  const dir = path.join(UPLOADS, 'importados');
+  fs.mkdirSync(dir, { recursive: true });
+  const base = `link-${crypto.randomBytes(4).toString('hex')}`;
+  const bruto = path.join(dir, `${base}.${video ? (/webm/.test(tipo) ? 'webm' : /quicktime/.test(tipo) ? 'mov' : 'mp4') : (/png/.test(tipo) ? 'png' : /webp/.test(tipo) ? 'webp' : 'jpg')}`);
+  fs.writeFileSync(bruto, Buffer.from(await res.arrayBuffer()));
+  const nomeNoLink = decodeURIComponent(new URL(url).pathname.split('/').pop() || base).replace(/\.[^.]+$/, '').slice(0, 60) || base;
+  const item = await processar({ usuarioId, bruto, video, base, rotulo: nomeNoLink, qualidade, formato, pasta, pastaDisco: 'importados' });
+  return { importados: [item], erros: [] };
+}
+
+/**
+ * Converte vídeos que JÁ estão na Biblioteca (aba "Converter vídeo" e
+ * "Extrair áudio"): cada um vira um arquivo novo, o original fica.
+ */
+async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', formato = 'mp4', pasta = 'Convertidos', aoProgredir }) {
+  if (!QUALIDADES.includes(String(qualidade))) qualidade = 'original';
+  if (!FORMATOS.includes(formato)) formato = 'mp4';
+  const { media } = require('../repos');
+  const convertidos = [], erros = [];
+  const lista = [...new Set((ids || []).map(String))].slice(0, MAX_POR_IMPORTACAO);
+  const dir = path.join(UPLOADS, 'convertidos');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const [i, id] of lista.entries()) {
+    try {
+      const item = await media.de(usuarioId).findById(id);
+      const ehVideo = item && (item.type === 'video' || /\.(mp4|mov|webm|m4v|mkv)$/i.test(item.filename));
+      const ehFoto = item && !ehVideo && (item.type === 'image' || /\.(jpe?g|png|webp)$/i.test(item.filename));
+      if (!item || (!ehVideo && !ehFoto)) throw new Error('não é um vídeo ou foto da sua Biblioteca');
+      const origem = path.resolve(UPLOADS, item.filename);
+      if (!origem.startsWith(UPLOADS + path.sep) || !fs.existsSync(origem)) throw new Error('arquivo não encontrado');
+      if (ehFoto && formato === 'mp3') throw new Error('foto não tem áudio');
+      const base = path.basename(item.filename).replace(/\.[^.]+$/, '');
+      const nomeBase = (item.originalName || base).replace(/\.[^.]+$/, '');
+      const sufixo = formato === 'mp3' ? 'áudio' : qualidade === 'original' ? (ehVideo ? formato.toUpperCase() : 'JPG') : `${qualidade}p`;
+      convertidos.push(await processar({
+        usuarioId, bruto: origem, video: ehVideo, base, rotulo: `${nomeBase} (${sufixo})`,
+        qualidade, formato, pasta: pasta || 'Convertidos', manterBruto: true,
+      }));
+    } catch (err) {
+      erros.push(`${id}: ${err.message}`);
+    }
+    aoProgredir?.({ feitas: i + 1, total: lista.length, importados: convertidos.length, erros: erros.length });
+  }
+  return { importados: convertidos, erros };
+}
+
+module.exports = { listar, importar, importarUrl, converterDaBiblioteca, processar, codigoDoInstagram, _ipPrivado: ipPrivado, arquivosDe, escala, _converter: converter, QUALIDADES, UPSCALE, FORMATOS, MAX_POR_IMPORTACAO };

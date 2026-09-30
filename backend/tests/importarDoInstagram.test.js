@@ -61,3 +61,27 @@ test('sem token: recusa', async () => {
 test('escala pelo menor lado, sem ampliar', () => {
   expect(imp.escala(720)).toBe("scale='if(gt(iw,ih),-2,min(iw,720))':'if(gt(iw,ih),min(ih,720),-2)'");
 });
+
+describe('por URL', () => {
+  test('código de publicação do Instagram', () => {
+    expect(imp.codigoDoInstagram('https://www.instagram.com/reel/ABC_12-x/?igsh=1')).toBe('ABC_12-x');
+    expect(imp.codigoDoInstagram('https://instagram.com/loja/p/XYZ/')).toBe('XYZ');
+    expect(imp.codigoDoInstagram('https://cdn.site.com/video.mp4')).toBeNull();
+  });
+
+  test('endereços internos são recusados', () => {
+    for (const ip of ['127.0.0.1', '10.1.2.3', '192.168.0.9', '172.20.0.1', '169.254.169.254', '::1']) expect(imp._ipPrivado(ip)).toBe(true);
+    for (const ip of ['8.8.8.8', '151.101.1.1']) expect(imp._ipPrivado(ip)).toBe(false);
+  });
+
+  test('página de rede social de terceiros não é aceita', async () => {
+    await expect(imp.importarUrl({ usuarioId: banco.DONO_ID, contas: [], url: 'https://www.tiktok.com/@a/video/1' }))
+      .rejects.toThrow('não é aceito');
+  });
+
+  test('publicação que não é de uma conta conectada é recusada', async () => {
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: '1', permalink: 'https://www.instagram.com/reel/OUTRO/' }] }) }));
+    await expect(imp.importarUrl({ usuarioId: banco.DONO_ID, contas: [conta], url: 'https://www.instagram.com/reel/ABC/' }))
+      .rejects.toThrow('não é de nenhuma das suas contas');
+  });
+});
