@@ -189,7 +189,7 @@ export default function Importar() {
         {ABAS.map(([id, rot, Ic]) => {
           const ativa = aba === id;
           return (
-            <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => setAba(id)}
+            <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => { setAba(id); if (progresso?.fim) setProgresso(null); }}
               style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 14px', marginBottom: -1, cursor: 'pointer',
                 background: 'none', border: 'none', borderBottom: `2px solid ${ativa ? 'var(--mf-primary-500)' : 'transparent'}`,
                 color: ativa ? 'var(--mf-text)' : 'var(--mf-text-3)', fontSize: 'var(--mf-t-sm)', fontWeight: ativa ? 700 : 550 }}>
@@ -258,7 +258,7 @@ export default function Importar() {
               <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>Arraste vídeos ou fotos, ou clique para escolher</span>
               <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>MP4, MOV, WEBM, JPG, PNG, WEBP</span>
               <input type="file" multiple accept="video/*,image/*" style={{ display: 'none' }}
-                onChange={e => { setArquivos(a => [...a, ...e.target.files]); e.target.value = ''; }} />
+                onChange={e => { const novos = [...e.target.files]; e.target.value = ''; setArquivos(a => [...a, ...novos]); }} />
             </label>
             {arquivos.length > 0 && (
               <div style={{ display: 'grid', gap: 6, marginTop: 'var(--mf-3)' }}>
