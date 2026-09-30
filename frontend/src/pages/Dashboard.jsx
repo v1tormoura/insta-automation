@@ -7,7 +7,7 @@ import {
   AlertTriangle, ChevronDown, ChevronRight, Users2,
   Clock3, Flame, FolderOpen, HeartPulse, Layers3,
   Plus, RefreshCw, Send,
-  ShieldCheck, TrendingUp, Zap,
+  ShieldCheck,
   Play, Repeat2, ListVideo, Eye, Timer,
 } from 'lucide-react';
 import {
@@ -115,30 +115,11 @@ function AvatarChip({ username, avatar, size = 32 }) {
   );
 }
 
-/* ── StatusBadge ── */
 /* ══════════════════════════════════════════════════════════════════════════
    PRIMITIVAS VISUAIS — migradas para o design system (src/design/*.css)
    As props e o comportamento são exatamente os de antes: só a apresentação
    mudou, então nenhum consumidor precisou ser alterado.
    ══════════════════════════════════════════════════════════════════════════ */
-
-/* Estado da conta no vocabulário semântico do sistema. Antes cada status
-   trazia o próprio hex; agora pede uma intenção e o sistema resolve. */
-const STATUS_CFG = {
-  connected:     { label: 'Conectada',     tom: 'success' },
-  token_expired: { label: 'Token expirado', tom: 'warning' },
-  banida:        { label: 'Banida',        tom: 'danger'  },
-  restrita:      { label: 'Restrita',      tom: 'warning' },
-  ativa:         { label: 'Ativa',         tom: 'info'    },
-};
-function StatusBadge({ status }) {
-  const c = STATUS_CFG[status] || STATUS_CFG.ativa;
-  return (
-    <span className="mf-badge" data-tone={c.tom}>
-      <span className="mf-badge__dot" aria-hidden="true" />{c.label}
-    </span>
-  );
-}
 
 /* ── PanelHeader ── */
 function PanelHeader({ title, icon: Icon, right }) {
@@ -773,207 +754,6 @@ function TopViewsRanking({ d }) {
   );
 }
 
-/* ── PostagensTable ── */
-function PostagensTable({ stats }) {
-  const [col, setCol] = useState('hoje');
-  const sorted = useMemo(() => [...stats].sort((a,b) => {
-    const va = col==='hoje'?a.postsToday:col==='7d'?a.posts7d:a.posts30d;
-    const vb = col==='hoje'?b.postsToday:col==='7d'?b.posts7d:b.posts30d;
-    return vb-va;
-  }), [stats, col]);
-  const totals = useMemo(() => stats.reduce((acc,s) => ({ hoje:acc.hoje+s.postsToday,'7d':acc['7d']+s.posts7d,'30d':acc['30d']+s.posts30d }), { hoje:0,'7d':0,'30d':0 }), [stats]);
-  const thS = { fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.08em', padding:'8px 12px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', cursor:'pointer', whiteSpace:'nowrap' };
-  return (
-    <div style={{ ...card }} className="lift">
-      <PanelHeader title="Postagens por conta" icon={Send} right={
-        <div style={{ display:'flex', gap:4 }}>
-          {PERIODS.map(p => <SelectBtn key={p.value} active={col===p.value} onClick={() => setCol(p.value)}>{p.label}</SelectBtn>)}
-        </div>
-      } />
-      <div style={{ padding:'8px 12px 4px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', borderBottom:'1px solid var(--mf-border-subtle)' }}>
-        {stats.length} conta(s) ·&nbsp;
-        <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals.hoje)}</span> hoje ·&nbsp;
-        <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals['7d'])}</span> em 7d ·&nbsp;
-        <span style={{ color:'var(--mf-mod, var(--mf-accent-500))', fontWeight:700 }}>{fmt(totals['30d'])}</span> em 30d
-      </div>
-      <div className="tbl-sticky-first">
-        <table style={{ width:'100%', borderCollapse:'collapse', minWidth:520 }}>
-          <thead>
-            <tr>
-              <th style={{ ...thS, textAlign:'left' }}>CONTA</th>
-              {[{ label:'HOJE',value:'hoje' },{ label:'7 DIAS',value:'7d' },{ label:'30 DIAS',value:'30d' }].map(p => (
-                <th key={p.value} style={{ ...thS, color:col===p.value?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)' }} onClick={() => setCol(p.value)}>{p.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding:'16px 12px', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>Nenhuma postagem no período.</td></tr>
-            ) : sorted.map((acc, i) => (
-              <motion.tr key={acc.id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:i*.03 }}
-                style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
-                onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
-                onMouseLeave={e => e.currentTarget.style.background='transparent'}
-              >
-                <td style={{ padding:'8px 12px' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-                    <AvatarChip username={acc.username} avatar={acc.avatar} />
-                    <div>
-                      <div style={{ fontWeight:600, fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>@{acc.username}</div>
-                      <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{fmtK(acc.followers)} seguidores</div>
-                    </div>
-                  </div>
-                </td>
-                <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-body)', color:col==='hoje'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsToday)}</td>
-                <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-body)', color:col==='7d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts7d)}</td>
-                <td style={{ padding:'8px 12px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-body)', color:col==='30d'?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* ── PerformanceTable ── */
-function PerformanceTable({ stats }) {
-  const agg = useMemo(() => stats.reduce((acc,a) => ({ followers:acc.followers+a.followers, published:acc.published+a.posts30d, failures:acc.failures+a.failures30d, growth:acc.growth+(a.growth30d||0) }), { followers:0, published:0, failures:0, growth:0 }), [stats]);
-  const successRate = (agg.published+agg.failures)>0 ? Math.round(agg.published/(agg.published+agg.failures)*100) : 0;
-  const fmtDate = d => { if (!d) return '—'; const dt=new Date(d); return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; };
-  const thS = { fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)', fontWeight:600, letterSpacing:'.07em', padding:'8px 8px', textAlign:'right', borderBottom:'1px solid var(--mf-border-subtle)', whiteSpace:'nowrap' };
-  return (
-    <div style={{ ...card }} className="lift">
-      <PanelHeader title="Performance por conta" icon={TrendingUp} right={
-        <div style={{ display:'flex', alignItems:'center', gap:12, fontSize: 'var(--mf-t-micro)', flexWrap:'wrap' }}>
-          <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-success-500)', boxShadow:'0 0 6px var(--mf-success-500)', display:'inline-block' }} /><span style={{ color:'var(--mf-success-500)', fontWeight:700, fontSize: 'var(--mf-t-nano)' }}>LIVE</span></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Seg <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmtK(agg.followers)}</strong></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Pub <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{fmt(agg.published)}</strong></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Falhas <strong style={{ color:'var(--mf-danger-500)' }}>{fmt(agg.failures)}</strong></span>
-          <span style={{ color:'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)' }}>Sucesso <strong style={{ color:'var(--mf-success-500)' }}>{successRate}%</strong></span>
-        </div>
-      } />
-      <div className="tbl-scroll-wrap">
-        <table style={{ width:'100%', borderCollapse:'collapse', minWidth:700 }}>
-          <thead>
-            <tr>
-              <th style={{ ...thS, textAlign:'left', width:36 }}>#</th>
-              <th style={{ ...thS, textAlign:'left' }}>CONTA</th>
-              <th style={thS}>STATUS</th>
-              <th style={thS}>SEGUIDORES</th>
-              <th className="col-mob-hide" style={thS}>CRESCIMENTO 30D</th>
-              <th style={thS}>PUBLICADOS</th>
-              <th style={thS}>FALHAS</th>
-              <th style={thS}>SUCESSO</th>
-              <th className="col-mob-hide" style={thS}>MÍDIAS</th>
-              <th className="col-mob-hide" style={thS}>ÚLTIMA SYNC</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.length===0 ? (
-              <tr><td colSpan={10} style={{ padding:'16px 8px', color:'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)' }}>Nenhuma conta encontrada.</td></tr>
-            ) : stats.map((acc,idx) => {
-              const growth = acc.growth30d||0;
-              return (
-                <motion.tr key={acc.id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:idx*.025 }}
-                  style={{ borderBottom:'1px solid var(--mf-border-subtle)' }}
-                  onMouseEnter={e => e.currentTarget.style.background='color-mix(in oklch, var(--mf-mod-contas) 3%, transparent)'}
-                  onMouseLeave={e => e.currentTarget.style.background='transparent'}
-                >
-                  <td style={{ padding:'8px 8px', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', fontWeight:600 }}>{String(idx+1).padStart(2,'0')}</td>
-                  <td style={{ padding:'8px 8px' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <AvatarChip username={acc.username} avatar={acc.avatar} size={28} />
-                      <div>
-                        <div style={{ fontWeight:600, fontSize: 'var(--mf-t-xs)', color:'var(--mf-text)', whiteSpace:'nowrap' }}>@{acc.username}</div>
-                        <div style={{ fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>{acc.following} seguindo</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding:'8px 8px', textAlign:'right' }}><StatusBadge status={acc.status} /></td>
-                  <td style={{ padding:'8px 8px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontVariantNumeric:'tabular-nums' }}>{fmtK(acc.followers)}</td>
-                  <td className="col-mob-hide" style={{ padding:'8px 8px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-sm)', color:growth>0?'var(--mf-success-500)':growth<0?'var(--mf-danger-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{growth>0?'+':''}{fmt(growth)}</td>
-                  <td style={{ padding:'8px 8px', textAlign:'right', fontWeight:700, color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-sm)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.posts30d)}</td>
-                  <td style={{ padding:'8px 8px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-sm)', color:acc.failures30d>10?'var(--mf-danger-500)':acc.failures30d>0?'var(--mf-warning-500)':'var(--mf-text-3)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.failures30d)}</td>
-                  <td style={{ padding:'8px 8px', textAlign:'right', fontWeight:700, fontSize: 'var(--mf-t-sm)', color:acc.posts30d===0?'var(--mf-text-3)':acc.successRate>=80?'var(--mf-success-500)':acc.successRate>=60?'var(--mf-warning-500)':'var(--mf-danger-500)' }}>{acc.posts30d===0?'—':`${acc.successRate}%`}</td>
-                  <td className="col-mob-hide" style={{ padding:'8px 8px', textAlign:'right', fontWeight:700, color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontVariantNumeric:'tabular-nums' }}>{fmt(acc.postsCount)}</td>
-                  <td className="col-mob-hide" style={{ padding:'8px 8px', textAlign:'right', fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-3)', whiteSpace:'nowrap' }}>{fmtDate(acc.lastSync)}</td>
-                </motion.tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* ── SmartInsights ── */
-function InsightCard({ icon, title, value, sub, detail, color }) {
-  return (
-    <motion.div variants={fadeUp} whileHover={{ y:-3, boxShadow:`0 16px 44px rgba(0,0,0,.52), 0 0 0 1px ${color}25` }} transition={spring}
-      style={{ background:'color-mix(in oklch, var(--mf-surface-1) 75%, transparent)', border:`1px solid ${color}20`, borderRadius: 'var(--mf-r-lg)', padding:'16px 16px', display:'flex', flexDirection:'column', gap:10, position:'relative', overflow:'hidden' }}
-      className="sheen">
-      <div style={{ position:'absolute', top:-20, right:-14, width:80, height:80, borderRadius: 'var(--mf-r-full)', background:`${color}08`, pointerEvents:'none' }} />
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <span style={{ width:34, height:34, borderRadius: 'var(--mf-r-md)', background:`${color}15`, border:`1px solid ${color}28`, display:'flex', alignItems:'center', justifyContent:'center', fontSize: 'var(--mf-t-h2)', flexShrink:0, color }}>{icon}</span>
-        <div>
-          <div style={{ fontFamily:'var(--mf-mono)', fontSize: 'var(--mf-t-nano)', fontWeight:700, color:'var(--mf-text-3)', letterSpacing:'.1em', textTransform:'uppercase' }}>{title}</div>
-          <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight:800, color, lineHeight:1.1, marginTop:2 }}>{value}</div>
-        </div>
-      </div>
-      <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-2)', lineHeight:1.55 }}>{sub}</div>
-      {detail && <div style={{ fontSize: 'var(--mf-t-micro)', color:`${color}cc`, fontWeight:600, borderTop:`1px solid ${color}15`, paddingTop:8 }}>{detail}</div>}
-    </motion.div>
-  );
-}
-
-function SmartInsights({ accountStats, data: d }) {
-  const totalAccounts  = accountStats.length;
-  const healthy        = accountStats.filter(a => a.healthStatus==='ativa'||a.status==='connected').length;
-  const banned         = accountStats.filter(a => a.healthStatus==='banida').length;
-  const tokenFailed    = accountStats.filter(a => a.healthStatus === 'token_invalido').length;
-  const successRate    = totalAccounts > 0 ? Math.round(healthy/totalAccounts*100) : 0;
-  const totalFollowers = accountStats.reduce((s,a) => s+(a.followers||0), 0);
-  const growth30d      = accountStats.reduce((s,a) => s+(a.growth30d||0), 0);
-  const growthPct      = totalFollowers > 0 ? ((growth30d/totalFollowers)*100).toFixed(2) : '0.00';
-  const posts30d       = accountStats.reduce((s,a) => s+(a.posts30d||0), 0);
-  const failures30d    = accountStats.reduce((s,a) => s+(a.failures30d||0), 0);
-  const postSuccessRate= (posts30d+failures30d)>0 ? Math.round(posts30d/(posts30d+failures30d)*100) : 100;
-  const bestAccount    = [...accountStats].sort((a,b) => (b.followers||0)-(a.followers||0))[0];
-  const worstAccount   = banned > 0 ? accountStats.find(a => a.healthStatus==='banida') : null;
-
-  const insights = [
-    { icon:<TrendingUp size={17}/>, title:'CRESCIMENTO 30 DIAS', value:growth30d>=0?`+${fmtK(growth30d)}`:fmtK(growth30d),
-      sub:`${totalAccounts} conta(s) geraram ${growth30d>=0?'+':''}${growthPct}% de crescimento no total de seguidores nos últimos 30 dias.`,
-      detail:growth30d>0?`Melhor conta: @${bestAccount?.username||'—'} com ${fmtK(bestAccount?.followers)} seguidores`:totalAccounts===0?'Adicione contas para ver o crescimento.':'Nenhum crescimento registrado ainda.',
-      color:growth30d>=0?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-danger-500)' },
-    { icon:<HeartPulse size={17}/>, title:'SAÚDE DAS CONTAS', value:`${successRate}%`,
-      sub:`${healthy} de ${totalAccounts} conta(s) saudáveis. ${banned>0?`${banned} banida(s)`:'Nenhuma banida'}. ${tokenFailed>0?`${tokenFailed} com token expirado.`:''}`.trim(),
-      detail:banned>0?`Conta banida: @${worstAccount?.username||'—'}`:tokenFailed>0?`${tokenFailed} token(s) precisam ser renovados`:'Todas as contas em perfeita saúde',
-      color:successRate>=80?'var(--mf-success-500)':successRate>=60?'var(--mf-warning-500)':'var(--mf-danger-500)' },
-    { icon:<Zap size={17}/>, title:'TAXA DE PUBLICAÇÃO', value:`${postSuccessRate}%`,
-      sub:`${posts30d} postagens concluídas e ${failures30d} falhas nos últimos 30 dias.`,
-      detail:postSuccessRate<80?'Taxa abaixo do ideal — verifique os logs':failures30d>0?`${failures30d} falha(s) detectada(s)`:'Publicações perfeitas sem falhas',
-      color:postSuccessRate>=90?'var(--mf-success-500)':postSuccessRate>=70?'var(--mf-warning-500)':'var(--mf-danger-500)' },
-    { icon:<Layers3 size={17}/>, title:'FILA E AGENDAMENTOS', value:fmtK((d.pendingPosts||0)+(d.scheduledPosts||0)),
-      sub:`${d.pendingPosts||0} na fila + ${d.scheduledPosts||0} agendadas. ${d.processingPosts>0?`${d.processingPosts} publicando agora.`:''}`.trim(),
-      detail:(d.pendingPosts||0)+(d.scheduledPosts||0)===0?'Fila vazia — adicione conteúdo':(d.pendingPosts||0)>10?`Ótima fila — ${d.pendingPosts} posts prontos`:'Fila ativa com posts programados',
-      color:'var(--mf-mod-publicar)' },
-  ];
-
-  return (
-    <motion.section variants={stagger} initial="hidden" animate="show" style={{ padding:'0 0 4px' }}>
-      <div style={{ fontFamily:'var(--mf-mono)', display:'flex', alignItems:'center', gap:7, fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', marginBottom:12, textTransform:'uppercase' }}>
-        <TrendingUp size={13} /> Insights inteligentes
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
-        {insights.map(ins => <InsightCard key={ins.title} {...ins} />)}
-      </div>
-    </motion.section>
-  );
-}
-
 /* ══════════════════════════════════════════════════════
    ── PAINEL DE POSTAGENS EM TEMPO REAL
    ══════════════════════════════════════════════════════ */
@@ -1415,21 +1195,6 @@ export default function Dashboard() {
               </div>
             </div>
           </section>
-        </BlurFade>
-
-        {/* ── Postagens por Conta ── */}
-        <BlurFade delay={0} inView>
-          <PostagensTable stats={accountStats} />
-        </BlurFade>
-
-        {/* ── Performance por Conta ── */}
-        <BlurFade delay={0} inView>
-          <PerformanceTable stats={accountStats} />
-        </BlurFade>
-
-        {/* ── Smart Insights ── */}
-        <BlurFade delay={0} inView>
-          <SmartInsights accountStats={accountStats} data={d} />
         </BlurFade>
 
         {/* ── Top Posts widget ── */}
