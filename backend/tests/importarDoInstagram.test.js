@@ -103,3 +103,34 @@ test('upload + conversão (substituir): o convertido toma o lugar do original', 
   expect(linhas.map(l => l.id)).toEqual([r.importados[0].id]);
   expect(fs.existsSync(arquivo)).toBe(false);
 });
+
+describe('Buscar Reels pela URL do perfil', () => {
+  test('lê o @ do link do perfil e recusa link de publicação ou de outra rede', () => {
+    expect(imp.usernameDoPerfil('https://www.instagram.com/Loja.X/')).toBe('loja.x');
+    expect(imp.usernameDoPerfil('instagram.com/loja/reels/')).toBe('loja');
+    expect(imp.usernameDoPerfil('@loja')).toBe('loja');
+    expect(imp.usernameDoPerfil('https://www.instagram.com/p/ABC/')).toBeNull();
+    expect(imp.usernameDoPerfil('https://tiktok.com/@loja')).toBeNull();
+  });
+
+  test('só perfis conectados ao app são acessíveis', () => {
+    const contas = [conta, { id: 'c2', username: 'semtoken' }];
+    expect(imp.contaDoPerfil(contas, 'https://instagram.com/loja/').conta).toBe(conta);
+    expect(imp.contaDoPerfil(contas, 'https://instagram.com/semtoken/').conta).toBeNull();
+    expect(imp.contaDoPerfil(contas, 'https://instagram.com/outroperfil/')).toEqual({ nome: 'outroperfil', conta: null });
+  });
+
+  test('somenteReels junta páginas e devolve só os Reels', async () => {
+    let pagina = 0;
+    global.fetch = jest.fn(async () => {
+      pagina++;
+      const data = pagina === 1
+        ? [{ id: 'R1', media_type: 'VIDEO', media_product_type: 'REELS' }, { id: 'F1', media_type: 'IMAGE', media_product_type: 'FEED' }]
+        : [{ id: 'R2', media_type: 'VIDEO', media_product_type: 'REELS' }];
+      return { ok: true, status: 200, text: async () => JSON.stringify({ data, paging: pagina === 1 ? { cursors: { after: 'P2' }, next: 'x' } : {} }) };
+    });
+    const r = await imp.listar(conta, { somenteReels: true, limite: 24 });
+    expect(r.itens.map(i => i.id)).toEqual(['R1', 'R2']);
+    expect(r.depois).toBeNull();
+  });
+});

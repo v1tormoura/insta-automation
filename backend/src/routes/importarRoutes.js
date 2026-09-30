@@ -56,11 +56,21 @@ router.get('/baixar/:id', async (req, res) => {
   });
 });
 
+/* Buscar Reels pela URL do perfil: resolve o perfil para uma conta que o app
+   pode ler. A lista em si sai de GET /:accountId?reels=1, a mesma do grid. */
+router.get('/perfil', async (req, res) => {
+  const contas = await accounts.de(req.user.id).findMany();
+  const { nome, conta } = importar.contaDoPerfil(contas, req.query.url);
+  if (!nome) return res.status(400).json({ error: 'Cole o link de um perfil, como https://www.instagram.com/usuario/', codigo: 'URL_INVALIDA' });
+  if (!conta) return res.status(404).json({ error: 'Este perfil não está disponível para importação.', codigo: 'INDISPONIVEL', username: nome });
+  res.json({ accountId: conta.id, username: conta.username });
+});
+
 router.get('/:accountId', async (req, res) => {
   const conta = await accounts.de(req.user.id).findById(req.params.accountId).catch(() => null);
   if (!conta) return res.status(404).json({ error: 'Conta não encontrada' });
   try {
-    res.json(await importar.listar(conta, { depois: req.query.depois || null, limite: req.query.limite }));
+    res.json(await importar.listar(conta, { depois: req.query.depois || null, limite: req.query.limite, somenteReels: req.query.reels === '1' }));
   } catch (err) {
     res.status(err.status || 502).json({ error: err.message });
   }

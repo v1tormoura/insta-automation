@@ -103,6 +103,12 @@ export default function Importar() {
   const [biblioteca, setBiblioteca] = useState(null);
   const [marcadosBib, setMarcadosBib] = useState(() => new Set());
   const [destino, setDestino] = useState('biblioteca');
+  /* Buscar Reels pela URL do perfil: só escolhe a conta e liga o filtro de
+     Reels — a lista, o grid, a seleção e o download são os da aba "Minhas contas". */
+  const [perfilUrl, setPerfilUrl] = useState('');
+  const [somenteReels, setSomenteReels] = useState(false);
+  const [busca, setBusca] = useState({ estado: 'inicial' }); // inicial | buscando | ok | vazio | erro | indisponivel
+  const [recarga, setRecarga] = useState(0);
   const destinoDoEnvio = useRef('biblioteca'); // o destino de quando o envio começou
 
   useEffect(() => {
@@ -119,23 +125,53 @@ export default function Importar() {
     if (!conta) return;
     setCarregando(true); setErro('');
     try {
-      const { data } = await api.get(`/importar/${conta}`, { params: mais && depois ? { depois } : {} });
-      setItens(v => (mais ? [...v, ...data.itens] : data.itens));
+      const { data } = await api.get(`/importar/${conta}`, { params: { ...(mais && depois ? { depois } : {}), ...(somenteReels ? { reels: 1 } : {}) } });
+      setItens(v => {
+        if (!mais) return data.itens;
+        const ja = new Set(v.map(i => i.id));
+        return [...v, ...data.itens.filter(i => !ja.has(i.id))];
+      });
       setDepois(data.depois);
     } catch (e) {
       setErro(e.response?.data?.error || 'Não foi possível listar as publicações.');
     } finally { setCarregando(false); }
-  }, [conta, depois]);
+  }, [conta, depois, somenteReels]);
 
   useEffect(() => {
     if (!conta) return;
     let vivo = true;
-    api.get(`/importar/${conta}`)
-      .then(({ data }) => { if (vivo) { setItens(data.itens); setDepois(data.depois); setErro(''); } })
-      .catch(e => { if (vivo) setErro(e.response?.data?.error || 'Não foi possível listar as publicações.'); })
+    api.get(`/importar/${conta}`, { params: somenteReels ? { reels: 1 } : {} })
+      .then(({ data }) => {
+        if (!vivo) return;
+        setItens(data.itens); setDepois(data.depois); setErro('');
+        if (somenteReels) setBusca(b => ({ ...b, estado: data.itens.length ? 'ok' : 'vazio' }));
+      })
+      .catch(e => {
+        if (!vivo) return;
+        setErro(e.response?.data?.error || 'Não foi possível listar as publicações.');
+        if (somenteReels) setBusca(b => ({ ...b, estado: 'erro' }));
+      })
       .finally(() => { if (vivo) setCarregando(false); });
     return () => { vivo = false; };
-  }, [conta]);
+  }, [conta, somenteReels, recarga]);
+
+  async function buscarReels() {
+    const entrada = perfilUrl.trim();
+    if (!entrada || busca.estado === 'buscando') return;
+    setBusca({ estado: 'buscando' });
+    try {
+      const { data } = await api.get('/importar/perfil', { params: { url: entrada } });
+      setAba('contas'); if (progresso?.fim) setProgresso(null);
+      setCarregando(true); setItens([]); setMarcados(new Set()); setDepois(null); setErro('');
+      setBusca({ estado: 'buscando', username: data.username });
+      setSomenteReels(true); setConta(data.accountId); setRecarga(n => n + 1);
+    } catch (e) {
+      const d = e.response?.data || {};
+      setBusca(d.codigo === 'INDISPONIVEL'
+        ? { estado: 'indisponivel', username: d.username }
+        : { estado: 'erro', msg: d.codigo === 'URL_INVALIDA' ? d.error : '' });
+    }
+  }
 
   function terminar({ importados, erros = 0, detalhes = [], arquivos = [] }) {
     const dest = destinoDoEnvio.current;
@@ -155,7 +191,8 @@ export default function Importar() {
   });
 
   const escolherConta = id => {
-    if (id === conta) return;
+    if (somenteReels) { setSomenteReels(false); setBusca({ estado: 'inicial' }); }
+    else if (id === conta) return;
     setCarregando(true); setItens([]); setMarcados(new Set()); setDepois(null); setConta(id);
   };
   const alternar = id => setMarcados(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -217,6 +254,40 @@ export default function Importar() {
   return (
     <PageShell icon={<Download size={18} />} title="Importar mídias"
       subtitle="Das suas contas, por link ou upload — na qualidade e no formato que quiser">
+
+      {/* Buscar Reels pela URL do perfil — alimenta o grid de "Minhas contas" */}
+      <section className="mf-card" style={{ padding: 'var(--mf-4)', marginBottom: 'var(--mf-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <Film size={15} style={{ color: 'var(--mf-primary-500)' }} />
+          <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>Importar Reels de perfil</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', height: 44,
+            borderRadius: 'var(--mf-r-md)', background: 'var(--mf-surface-2)', border: '1px solid var(--mf-border)' }}>
+            <Link2 size={15} style={{ color: 'var(--mf-text-3)', flexShrink: 0 }} />
+            <input value={perfilUrl} onChange={e => setPerfilUrl(e.target.value)} aria-label="URL do perfil do Instagram"
+              placeholder="Cole o link do perfil do Instagram… (https://www.instagram.com/usuario/)"
+              onKeyDown={e => { if (e.key === 'Enter') buscarReels(); }}
+              style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', color: 'var(--mf-text)', fontSize: 'var(--mf-t-sm)' }} />
+          </div>
+          <button type="button" className="btn-primary" onClick={buscarReels} disabled={!perfilUrl.trim() || busca.estado === 'buscando'} style={{ height: 44 }}>
+            {busca.estado === 'buscando' ? <Loader2 size={16} className="mf-spin" /> : <Film size={16} />}
+            {busca.estado === 'buscando' ? 'Buscando Reels…' : 'Buscar Reels'}
+          </button>
+        </div>
+        <div aria-live="polite" data-busca-status style={{ fontSize: 'var(--mf-t-micro)', marginTop: 10, lineHeight: 1.6,
+          color: ['erro', 'indisponivel'].includes(busca.estado) ? 'var(--mf-danger-500)' : 'var(--mf-text-3)' }}>
+          {busca.estado === 'inicial' && 'Nenhum perfil importado. Funciona com os perfis conectados ao Nexora pela API oficial (os seus e os de quem autorizou pelo link guiado).'}
+          {busca.estado === 'buscando' && 'Buscando Reels…'}
+          {busca.estado === 'ok' && <>
+            <strong style={{ color: 'var(--mf-text)' }}>@{busca.username}</strong> · {itens.length}{depois ? '+' : ''} Reel{itens.length === 1 ? '' : 's'} encontrado{itens.length === 1 ? '' : 's'}
+            {depois ? ' — use "Carregar mais" no fim da lista.' : '.'}
+          </>}
+          {busca.estado === 'vazio' && <><strong style={{ color: 'var(--mf-text)' }}>@{busca.username}</strong> · Nenhum Reel encontrado neste perfil.</>}
+          {busca.estado === 'erro' && (busca.msg || 'Não foi possível obter os Reels deste perfil.')}
+          {busca.estado === 'indisponivel' && <>Este perfil{busca.username ? <> (@{busca.username})</> : ''} não está disponível para importação. Só perfis conectados ao Nexora podem ser importados.</>}
+        </div>
+      </section>
 
       {/* Abas */}
       <div role="tablist" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 'var(--mf-4)', borderBottom: '1px solid var(--mf-border)' }}>
@@ -352,7 +423,12 @@ export default function Importar() {
         {/* Publicações */}
         {aba === 'contas' && <section className="mf-card" style={{ padding: 'var(--mf-4)', gridColumn: 'span 2', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'var(--mf-3)', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>Publicações</span>
+            <span style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>{somenteReels && busca.username ? `Reels de @${busca.username}` : 'Publicações'}</span>
+            {somenteReels && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setSomenteReels(false); setBusca({ estado: 'inicial' }); setCarregando(true); setItens([]); setMarcados(new Set()); setDepois(null); }}>
+                Ver todas as publicações
+              </button>
+            )}
             <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{marcados.size} de {itens.length} selecionadas</span>
             <span style={{ flex: 1 }} />
             <button type="button" className="btn btn-ghost btn-sm" disabled={!itens.length}

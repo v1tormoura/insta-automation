@@ -42,12 +42,24 @@ function exigirConexao(conta) {
   }
 }
 
-/** Uma página das publicações da conta. */
-async function listar(conta, { depois = null, limite = 24 } = {}) {
+/** Uma página das publicações da conta (`somenteReels`: só os Reels, juntando páginas até encher). */
+async function listar(conta, { depois = null, limite = 24, somenteReels = false } = {}) {
   exigirConexao(conta);
+  const tamanho = Math.min(50, Math.max(1, Number(limite) || 24));
+  if (somenteReels) {
+    const itens = [];
+    let cursor = depois;
+    for (let pagina = 0; pagina < 6; pagina++) {
+      const r = await listar(conta, { depois: cursor, limite: 50 });
+      itens.push(...r.itens.filter(i => i.produto === 'REELS'));
+      cursor = r.depois;
+      if (!cursor || itens.length >= tamanho) break;
+    }
+    return { itens, depois: cursor };
+  }
   const d = await get(`/${conta.igUserId}/media`, {
     fields: `${CAMPOS},children{id,media_type,media_url,thumbnail_url}`,
-    limit: Math.min(50, Math.max(1, Number(limite) || 24)),
+    limit: tamanho,
     ...(depois ? { after: depois } : {}),
   }, conta.accessToken);
   const itens = (d?.data || []).map(m => ({
@@ -232,6 +244,36 @@ async function conferirDestino(url) {
   return u;
 }
 
+/**
+ * O @ de um link de perfil (instagram.com/fulano/), de "@fulano" ou de "fulano".
+ * Link de publicação (/p/, /reel/…) ou de outra página não é perfil → null.
+ */
+function usernameDoPerfil(entrada) {
+  const t = String(entrada || '').trim();
+  const direto = /^@?([A-Za-z0-9._]{1,30})$/.exec(t);
+  if (direto) return direto[1].toLowerCase();
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`); } catch { return null; }
+  if (!/(^|\.)instagram\.com$/i.test(u.hostname)) return null;
+  const partes = u.pathname.split('/').filter(Boolean);
+  if (partes.length < 1 || partes.length > 2 || (partes[1] && !/^reels?$/i.test(partes[1]))) return null;
+  const nome = partes[0];
+  if (/^(p|reel|reels|tv|stories|explore|accounts|direct)$/i.test(nome) || !/^[A-Za-z0-9._]{1,30}$/.test(nome)) return null;
+  return nome.toLowerCase();
+}
+
+/**
+ * Perfil → conta que o app pode ler: só as conectadas pela API oficial (a do
+ * próprio usuário ou a de quem autorizou pelo link guiado). Qualquer outro
+ * perfil não é acessível e volta null.
+ */
+function contaDoPerfil(contas, entrada) {
+  const nome = usernameDoPerfil(entrada);
+  if (!nome) return { nome: null, conta: null };
+  const conta = contas.find(c => String(c.username || '').toLowerCase() === nome && c.accessToken && c.igUserId) || null;
+  return { nome, conta };
+}
+
 function codigoDoInstagram(url) {
   const m = /instagram\.com\/(?:[^/]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i.exec(url);
   return m ? m[1] : null;
@@ -342,4 +384,4 @@ async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', f
   return { importados: convertidos, erros };
 }
 
-module.exports = { listar, importar, importarUrl, converterDaBiblioteca, removerDaBiblioteca, processar, codigoDoInstagram, _ipPrivado: ipPrivado, arquivosDe, escala, _converter: converter, QUALIDADES, UPSCALE, FORMATOS, MAX_POR_IMPORTACAO };
+module.exports = { listar, usernameDoPerfil, contaDoPerfil, importar, importarUrl, converterDaBiblioteca, removerDaBiblioteca, processar, codigoDoInstagram, _ipPrivado: ipPrivado, arquivosDe, escala, _converter: converter, QUALIDADES, UPSCALE, FORMATOS, MAX_POR_IMPORTACAO };
