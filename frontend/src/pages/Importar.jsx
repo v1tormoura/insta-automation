@@ -43,6 +43,12 @@ const TIPOS_DO_PERFIL = [
   ['tudo', 'Tudo', 'publicação', 'publicações'],
 ];
 
+const MODOS_IA = [
+  ['', 'Desligada', 'Só o filtro'],
+  ['rapida', 'IA rápida', 'Segundos por foto'],
+  ['maxima', 'IA máxima', 'Minutos por foto'],
+];
+
 const DESTINOS = [
   ['biblioteca', 'Biblioteca', 'Numa pasta', FolderOpen],
   ['baixar', 'Baixar', 'No computador', Download],
@@ -121,6 +127,11 @@ export default function Importar() {
   const [somenteReels, setSomenteReels] = useState(false); // busca pelo perfil ativa
   const [tipoPerfil, setTipoPerfil] = useState('reels');
   const [formatoFoto, setFormatoFoto] = useState('jpg');
+  const [ia, setIa] = useState('');
+  const [iaDisponivel, setIaDisponivel] = useState(null);
+  useEffect(() => {
+    api.get('/importar/ia').then(r => setIaDisponivel(!!r.data?.disponivel)).catch(() => setIaDisponivel(false));
+  }, []);
   const paramsDoPerfil = somenteReels && tipoPerfil !== 'tudo' ? { so: tipoPerfil } : {};
   const [, rotuloDoTipo, nomeUm, nomeVarios] = TIPOS_DO_PERFIL.find(t => t[0] === tipoPerfil);
   const [busca, setBusca] = useState({ estado: 'inicial' }); // inicial | buscando | ok | vazio | erro | indisponivel
@@ -223,7 +234,7 @@ export default function Importar() {
   }
   useEffect(() => { if (aba === 'biblioteca' && biblioteca === null) carregarBiblioteca(); }, [aba]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const semConversao = qualidade === 'original' && formato === 'mp4' && formatoFoto === 'jpg';
+  const semConversao = qualidade === 'original' && formato === 'mp4' && formatoFoto === 'jpg' && !ia;
   const quantos = aba === 'contas' ? marcados.size : aba === 'url' ? (url.trim() ? 1 : 0) : aba === 'upload' ? arquivos.length : marcadosBib.size;
 
   async function importar() {
@@ -231,9 +242,9 @@ export default function Importar() {
     destinoDoEnvio.current = destino;
     try {
       if (aba === 'contas') {
-        await api.post('/importar', { accountId: conta, ids: [...marcados], qualidade, formato, formatoFoto, pasta });
+        await api.post('/importar', { accountId: conta, ids: [...marcados], qualidade, formato, formatoFoto, ia: ia || null, pasta });
       } else if (aba === 'url') {
-        await api.post('/importar/url', { url: url.trim(), qualidade, formato, formatoFoto, pasta });
+        await api.post('/importar/url', { url: url.trim(), qualidade, formato, formatoFoto, ia: ia || null, pasta });
       } else if (aba === 'upload') {
         const form = new FormData();
         form.append('folder', pasta || 'Importados');
@@ -248,11 +259,11 @@ export default function Importar() {
           return;
         }
         // O convertido substitui o que acabou de subir — não fica o antigo na Biblioteca.
-        await api.post('/importar/converter', { ids, qualidade, formato, formatoFoto, pasta, substituir: true });
+        await api.post('/importar/converter', { ids, qualidade, formato, formatoFoto, ia: ia || null, pasta, substituir: true });
         setProgresso({ feitas: 0, total: ids.length });
         return;
       } else {
-        await api.post('/importar/converter', { ids: [...marcadosBib], qualidade, formato, formatoFoto, pasta });
+        await api.post('/importar/converter', { ids: [...marcadosBib], qualidade, formato, formatoFoto, ia: ia || null, pasta });
       }
       setProgresso({ feitas: 0, total: quantos });
     } catch (e) {
@@ -557,6 +568,22 @@ export default function Importar() {
           </div>
           <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 'var(--mf-4)', lineHeight: 1.5 }}>
             Vale para as fotos, com a qualidade e o upscale escolhidos acima.
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-micro)', fontWeight: 700, letterSpacing: '.08em',
+            textTransform: 'uppercase', color: 'var(--mf-text-3)', margin: '0 0 8px' }}>
+            <Sparkles size={13} style={{ color: 'var(--mf-primary-500)' }} /> Melhorar fotos com IA
+          </div>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 'var(--mf-2)',
+            opacity: iaDisponivel === false ? .5 : 1, pointerEvents: iaDisponivel === false ? 'none' : 'auto' }}>
+            {MODOS_IA.map(([id, t, s]) => (
+              <Opcao key={id || 'off'} ativo={ia === id} onClick={() => setIa(id)} titulo={t} sub={s} />
+            ))}
+          </div>
+          <div style={{ fontSize: 'var(--mf-t-micro)', color: iaDisponivel === false ? 'var(--mf-warning-500)' : 'var(--mf-text-3)', marginBottom: 'var(--mf-4)', lineHeight: 1.5 }}>
+            {iaDisponivel === false
+              ? 'O upscale com IA não está instalado neste servidor — atualize com o deploy.'
+              : 'Real-ESRGAN: tira os blocos da compressão e reconstrói bordas e texturas. Só para fotos (em vídeo levaria horas); máximo 50 por vez. A IA máxima é um pouco melhor, mas bem mais lenta.'}
           </div>
 
           {rotulo('Destino')}

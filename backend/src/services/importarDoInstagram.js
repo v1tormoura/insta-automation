@@ -37,6 +37,8 @@ const FORMATOS = ['mp4', 'webm', 'mp3'];
 /** Formato de saída das fotos (o `formato` acima vale para vídeo). */
 const FORMATOS_FOTO = ['jpg', 'png', 'webp'];
 const fotoValida = f => (FORMATOS_FOTO.includes(f) ? f : 'jpg');
+/** Upscale de foto com IA: 'rapida' | 'maxima' (qualquer outra coisa = desligado). */
+const iaValida = v => (['rapida', 'maxima'].includes(v) ? v : null);
 const MIME = { mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 const MAX_POR_IMPORTACAO = 200;
 
@@ -147,8 +149,9 @@ function converter(origem, destino, { qualidade, formato }) {
  * Importa as publicações escolhidas para a Biblioteca do usuário.
  * @returns {Promise<{importados: object[], erros: string[]}>}
  */
-async function importar({ usuarioId, conta, ids, qualidade = 'original', formato = 'mp4', formatoFoto = 'jpg', pasta = 'Importados', aoProgredir }) {
+async function importar({ usuarioId, conta, ids, qualidade = 'original', formato = 'mp4', formatoFoto = 'jpg', ia = null, pasta = 'Importados', aoProgredir }) {
   formatoFoto = fotoValida(formatoFoto);
+  ia = iaValida(ia);
   exigirConexao(conta);
   if (!QUALIDADES.includes(String(qualidade))) qualidade = 'original';
   if (!FORMATOS.includes(formato)) formato = 'mp4';
@@ -170,9 +173,9 @@ async function importar({ usuarioId, conta, ids, qualidade = 'original', formato
           final = path.join(dir, `${base}-${formato === 'mp3' ? 'audio' : qualidade}.${formato}`);
           await converter(bruto, final, { qualidade, formato });
           fs.rmSync(bruto, { force: true });
-        } else if (!arq.video && (qualidade !== 'original' || formatoFoto !== 'jpg')) {
-          final = path.join(dir, `${base}-${qualidade}.${formatoFoto}`);
-          await converterImagem(bruto, final, qualidade, formatoFoto);
+        } else if (!arq.video && (qualidade !== 'original' || formatoFoto !== 'jpg' || ia)) {
+          final = path.join(dir, `${base}-${ia ? 'ia-' : ''}${qualidade}.${formatoFoto}`);
+          await tratarFoto(bruto, final, { qualidade, formatoFoto, ia });
           fs.rmSync(bruto, { force: true });
         }
 
@@ -201,6 +204,21 @@ async function importar({ usuarioId, conta, ids, qualidade = 'original', formato
 
 /* ── Um arquivo local → Biblioteca, com qualidade/upscale/formato ─────────── */
 
+/**
+ * A foto no tamanho e formato pedidos — com `ia`, a rede (Real-ESRGAN) faz a
+ * ampliação/restauração e o ffmpeg só converte para o formato final.
+ */
+async function tratarFoto(origem, destino, { qualidade, formatoFoto, ia }) {
+  if (!ia) return converterImagem(origem, destino, qualidade, formatoFoto);
+  const tmp = `${destino}.ia.png`;
+  try {
+    await require('./upscaleIA').melhorar(origem, tmp, ia, qualidade === 'original' ? 'original' : qualidade);
+    await converterImagem(tmp, destino, 'original', formatoFoto);
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
+}
+
 /** Imagem: redimensiona (inclusive upscale) e salva em JPG, PNG ou WEBP. */
 function converterImagem(origem, destino, qualidade, formatoFoto = 'jpg') {
   return new Promise((resolve, reject) => {
@@ -214,8 +232,9 @@ function converterImagem(origem, destino, qualidade, formatoFoto = 'jpg') {
  * Processa um arquivo já no disco e grava na Biblioteca.
  * @returns {Promise<object>} a linha nova de `media`
  */
-async function processar({ usuarioId, bruto, video, base, rotulo, qualidade, formato, formatoFoto = 'jpg', pasta, pastaDisco = 'convertidos', manterBruto = false }) {
+async function processar({ usuarioId, bruto, video, base, rotulo, qualidade, formato, formatoFoto = 'jpg', ia = null, pasta, pastaDisco = 'convertidos', manterBruto = false }) {
   formatoFoto = fotoValida(formatoFoto);
+  ia = iaValida(ia);
   const dir = path.join(UPLOADS, pastaDisco);
   fs.mkdirSync(dir, { recursive: true });
   let final = bruto, ext;
@@ -228,9 +247,9 @@ async function processar({ usuarioId, bruto, video, base, rotulo, qualidade, for
   } else {
     ext = formatoFoto;
     const jaNoFormato = formatoFoto === 'jpg' ? /\.jpe?g$/i.test(bruto) : bruto.toLowerCase().endsWith(`.${formatoFoto}`);
-    if (qualidade !== 'original' || !jaNoFormato) {
-      final = path.join(dir, `${base}-${qualidade}-${crypto.randomBytes(3).toString('hex')}.${formatoFoto}`);
-      await converterImagem(bruto, final, qualidade, formatoFoto);
+    if (qualidade !== 'original' || !jaNoFormato || ia) {
+      final = path.join(dir, `${base}-${ia ? 'ia-' : ''}${qualidade}-${crypto.randomBytes(3).toString('hex')}.${formatoFoto}`);
+      await tratarFoto(bruto, final, { qualidade, formatoFoto, ia });
     }
   }
   if (final === bruto && manterBruto) throw new Error('nada a converter — escolha outra qualidade ou formato');
@@ -323,14 +342,14 @@ async function acharNasContas(contas, codigo) {
   return null;
 }
 
-async function importarUrl({ usuarioId, contas, url, qualidade = 'original', formato = 'mp4', formatoFoto = 'jpg', pasta = 'Importados' }) {
+async function importarUrl({ usuarioId, contas, url, qualidade = 'original', formato = 'mp4', formatoFoto = 'jpg', ia = null, pasta = 'Importados' }) {
   if (!QUALIDADES.includes(String(qualidade))) qualidade = 'original';
   if (!FORMATOS.includes(formato)) formato = 'mp4';
   const codigo = codigoDoInstagram(url);
   if (codigo) {
     const achado = await acharNasContas(contas, codigo);
     if (!achado) throw new Error('Essa publicação não é de nenhuma das suas contas conectadas.');
-    return importar({ usuarioId, conta: achado.conta, ids: [achado.mediaId], qualidade, formato, formatoFoto, pasta });
+    return importar({ usuarioId, conta: achado.conta, ids: [achado.mediaId], qualidade, formato, formatoFoto, ia, pasta });
   }
   if (/instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|kwai|twitter\.com|x\.com/i.test(url)) {
     throw new Error('Link de página de rede social não é aceito. Use o link de uma publicação das suas contas conectadas ou o link direto do arquivo.');
@@ -349,7 +368,7 @@ async function importarUrl({ usuarioId, contas, url, qualidade = 'original', for
   const bruto = path.join(dir, `${base}.${video ? (/webm/.test(tipo) ? 'webm' : /quicktime/.test(tipo) ? 'mov' : 'mp4') : (/png/.test(tipo) ? 'png' : /webp/.test(tipo) ? 'webp' : 'jpg')}`);
   fs.writeFileSync(bruto, Buffer.from(await res.arrayBuffer()));
   const nomeNoLink = decodeURIComponent(new URL(url).pathname.split('/').pop() || base).replace(/\.[^.]+$/, '').slice(0, 60) || base;
-  const item = await processar({ usuarioId, bruto, video, base, rotulo: nomeNoLink, qualidade, formato, formatoFoto, pasta, pastaDisco: 'importados' });
+  const item = await processar({ usuarioId, bruto, video, base, rotulo: nomeNoLink, qualidade, formato, formatoFoto, ia, pasta, pastaDisco: 'importados' });
   return { importados: [item], erros: [] };
 }
 
@@ -373,8 +392,9 @@ async function removerDaBiblioteca(usuarioId, item) {
  * `substituir`: o convertido toma o lugar do original (upload + conversão —
  * não sobra o arquivo antigo na Biblioteca).
  */
-async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', formato = 'mp4', formatoFoto = 'jpg', pasta = 'Convertidos', substituir = false, aoProgredir }) {
+async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', formato = 'mp4', formatoFoto = 'jpg', ia = null, pasta = 'Convertidos', substituir = false, aoProgredir }) {
   formatoFoto = fotoValida(formatoFoto);
+  ia = iaValida(ia);
   if (!QUALIDADES.includes(String(qualidade))) qualidade = 'original';
   if (!FORMATOS.includes(formato)) formato = 'mp4';
   const { media } = require('../repos');
@@ -392,12 +412,13 @@ async function converterDaBiblioteca({ usuarioId, ids, qualidade = 'original', f
       if (!origem.startsWith(UPLOADS + path.sep) || !fs.existsSync(origem)) throw new Error('arquivo não encontrado');
       const base = path.basename(item.filename).replace(/\.[^.]+$/, '');
       const nomeBase = (item.originalName || base).replace(/\.[^.]+$/, '');
-      const sufixo = ehVideo && formato === 'mp3' ? 'áudio' : qualidade === 'original' ? (ehVideo ? formato : formatoFoto).toUpperCase() : `${qualidade}p`;
+      const sufixo = (ehVideo && formato === 'mp3' ? 'áudio' : qualidade === 'original' ? (ehVideo ? formato : formatoFoto).toUpperCase() : `${qualidade}p`)
+        + (ia && ehFoto ? ' · IA' : '');
       let novo = null;
       try {
         novo = await processar({
           usuarioId, bruto: origem, video: ehVideo, base, rotulo: substituir ? nomeBase : `${nomeBase} (${sufixo})`,
-          qualidade, formato, formatoFoto, pasta: pasta || 'Convertidos', manterBruto: true,
+          qualidade, formato, formatoFoto, ia, pasta: pasta || 'Convertidos', manterBruto: true,
         });
       } catch (err) {
         // Substituindo, "nada a converter" só quer dizer que o original já serve.

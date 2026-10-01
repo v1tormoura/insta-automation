@@ -16,15 +16,18 @@ const fila = require('../queue');
 const importar = require('../services/importarDoInstagram');
 
 const UPLOADS = path.resolve(__dirname, '../../uploads');
+/* Com IA cada foto leva de segundos a minutos: lote menor, para não ocupar o servidor por horas. */
+const MAX_COM_IA = 50;
 
 /* Converter / extrair áudio de vídeos que já estão na Biblioteca. */
 router.post('/converter', async (req, res) => {
-  const { ids, qualidade, formato, formatoFoto, pasta, substituir } = req.body || {};
+  const { ids, qualidade, formato, formatoFoto, ia, pasta, substituir } = req.body || {};
   if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Escolha ao menos um vídeo' });
   if (ids.length > importar.MAX_POR_IMPORTACAO) return res.status(400).json({ error: `No máximo ${importar.MAX_POR_IMPORTACAO} por vez` });
+  if (ia && ids.length > MAX_COM_IA) return res.status(400).json({ error: `Com IA, no máximo ${MAX_COM_IA} por vez` });
   await fila.enfileirar('converter_midias', {
     usuarioId: req.user.id, ids: ids.map(String),
-    qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), formatoFoto: String(formatoFoto || 'jpg'), pasta: String(pasta || 'Convertidos'),
+    qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), formatoFoto: String(formatoFoto || 'jpg'), ia: ia ? String(ia) : null, pasta: String(pasta || 'Convertidos'),
     substituir: substituir === true,
   });
   res.json({ ok: true, total: ids.length });
@@ -32,11 +35,11 @@ router.post('/converter', async (req, res) => {
 
 /* Por URL: publicação de uma conta conectada ou link direto do arquivo. */
 router.post('/url', async (req, res) => {
-  const { url, qualidade, formato, formatoFoto, pasta } = req.body || {};
+  const { url, qualidade, formato, formatoFoto, ia, pasta } = req.body || {};
   if (!/^https?:\/\//i.test(String(url || '').trim())) return res.status(400).json({ error: 'Cole um link começando com http ou https' });
   await fila.enfileirar('importar_url', {
     usuarioId: req.user.id, url: String(url).trim(),
-    qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), formatoFoto: String(formatoFoto || 'jpg'), pasta: String(pasta || 'Importados'),
+    qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), formatoFoto: String(formatoFoto || 'jpg'), ia: ia ? String(ia) : null, pasta: String(pasta || 'Importados'),
   });
   res.json({ ok: true, total: 1 });
 });
@@ -55,6 +58,9 @@ router.get('/baixar/:id', async (req, res) => {
     if (!err && req.query.remover === '1') importar.removerDaBiblioteca(req.user.id, item).catch(() => {});
   });
 });
+
+/* O upscale de foto com IA está instalado neste servidor? */
+router.get('/ia', (req, res) => res.json({ disponivel: require('../services/upscaleIA').disponivel() }));
 
 /* Buscar Reels pela URL do perfil: resolve o perfil para uma conta que o app
    pode ler. A lista em si sai de GET /:accountId?reels=1, a mesma do grid. */
@@ -77,16 +83,17 @@ router.get('/:accountId', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { accountId, ids, qualidade, formato, formatoFoto, pasta } = req.body || {};
+  const { accountId, ids, qualidade, formato, formatoFoto, ia, pasta } = req.body || {};
   const conta = await accounts.de(req.user.id).findById(accountId).catch(() => null);
   if (!conta) return res.status(404).json({ error: 'Conta não encontrada' });
   if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Escolha ao menos uma publicação' });
   if (ids.length > importar.MAX_POR_IMPORTACAO) {
     return res.status(400).json({ error: `No máximo ${importar.MAX_POR_IMPORTACAO} publicações por importação` });
   }
+  if (ia && ids.length > MAX_COM_IA) return res.status(400).json({ error: `Com IA, no máximo ${MAX_COM_IA} publicações por vez` });
   await fila.enfileirar('importar_midias', {
     usuarioId: req.user.id, accountId: conta.id, ids: ids.map(String),
-    qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), formatoFoto: String(formatoFoto || 'jpg'), pasta: String(pasta || 'Importados'),
+    qualidade: String(qualidade || 'original'), formato: String(formato || 'mp4'), formatoFoto: String(formatoFoto || 'jpg'), ia: ia ? String(ia) : null, pasta: String(pasta || 'Importados'),
   });
   res.json({ ok: true, total: ids.length });
 });

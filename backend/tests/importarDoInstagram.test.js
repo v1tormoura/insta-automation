@@ -163,3 +163,23 @@ describe('Fotos no Importar', () => {
     expect(dim).toBe('1080,1080');
   });
 });
+
+describe('Upscale de foto com IA', () => {
+  const comIA = require('../src/services/upscaleIA').disponivel();
+  (comIA ? test : test.skip)('foto da Biblioteca restaurada pela IA, no tamanho pedido', async () => {
+    const { execFileSync } = require('child_process');
+    const { FFMPEG_BIN } = require('../src/services/ffmpegBin');
+    const nome = `teste-ia-${Date.now()}.png`;
+    const arquivo = path.resolve(__dirname, '../uploads', nome);
+    gerados.push(nome);
+    execFileSync(FFMPEG_BIN || 'ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=s=96x120', '-frames:v', '1', arquivo]);
+    const { media } = require('../src/repos');
+    const original = await media.de(banco.DONO_ID).insert({ filename: nome, originalName: 'foto.png', path: nome, url: `/uploads/${nome}`, mimeType: 'image/png', size: 10, type: 'image', folder: 'X' });
+    const r = await imp.converterDaBiblioteca({ usuarioId: banco.DONO_ID, ids: [original.id], qualidade: '1080', formatoFoto: 'jpg', ia: 'rapida' });
+    gerados.push(...r.importados.map(m => m.filename));
+    expect(r.erros).toEqual([]);
+    expect(r.importados[0].originalName).toBe('foto (1080p · IA).jpg');
+    const dim = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', path.resolve(__dirname, '../uploads', r.importados[0].filename)]).toString().trim();
+    expect(dim).toBe('1080,1350');
+  }, 120000);
+});
