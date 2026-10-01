@@ -536,7 +536,7 @@ export default function Importar() {
             ))}
           </div>
           <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 'var(--mf-4)', lineHeight: 1.5 }}>
-            Re-renderiza em resolução maior (escala Lanczos + nitidez). Aumenta a resolução e o tamanho do arquivo, mas não recria detalhe que não existe no original. 4K e 8K levam alguns minutos.
+            Limpa o ruído da compressão, amplia (Lanczos) e aplica nitidez adaptativa com um leve realce de cor. Fica mais limpo e definido, mas não cria detalhe que não existe no original. Em vídeo já 1080p, "Full HD" só realça. 4K e 8K levam alguns minutos.
           </div>
 
           {rotulo('Formato dos vídeos')}

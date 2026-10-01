@@ -100,11 +100,22 @@ async function baixar(url, destino) {
   fs.writeFileSync(destino, Buffer.from(await res.arrayBuffer()));
 }
 
+/**
+ * Realce do upscale, na ordem que importa:
+ *   1. hqdn3d  — tira o ruído e os blocos da compressão ANTES de ampliar
+ *                (ampliado, o ruído vira mancha e a nitidez o realçaria);
+ *   2. lanczos — amplia o menor lado até o alvo;
+ *   3. cas     — nitidez adaptativa: reforça borda sem estourar o que já é nítido;
+ *   4. eq      — um toque de contraste e cor, que é o que o olho lê como "mais definido".
+ * Não inventa detalhe (isso só IA faz), mas o resultado fica visivelmente mais limpo e nítido.
+ */
+const REALCE_ANTES = 'hqdn3d=1.5:1.5:4:4';
+const REALCE_DEPOIS = 'cas=0.7,eq=contrast=1.04:saturation=1.08';
+
 /** Filtro de escala: o menor lado vira `alvo`, sem ampliar vídeo menor. */
 function escala(alvo) {
   if (UPSCALE.includes(String(alvo))) {
-    // Upscale: o menor lado vai exatamente para `alvo`, com Lanczos e um toque de nitidez.
-    return `scale='if(gt(iw,ih),-2,${alvo})':'if(gt(iw,ih),${alvo},-2)':flags=lanczos,unsharp=5:5:0.6:5:5:0.0`;
+    return `${REALCE_ANTES},scale='if(gt(iw,ih),-2,${alvo})':'if(gt(iw,ih),${alvo},-2)':flags=lanczos,${REALCE_DEPOIS}`;
   }
   return `scale='if(gt(iw,ih),-2,min(iw,${alvo}))':'if(gt(iw,ih),min(ih,${alvo}),-2)'`;
 }
@@ -121,7 +132,10 @@ function converter(origem, destino, { qualidade, formato }) {
           .outputOptions([...opcoes, '-b:v', '0', '-crf', '32', '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1']);
       } else {
         cmd.videoCodec('libx264').audioCodec('aac')
-          .outputOptions([...opcoes, '-crf', '20', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+          // No upscale, mais qualidade de codificação: o realce não pode ser comido pela compressão.
+          .outputOptions([...opcoes, '-crf', UPSCALE.includes(String(qualidade)) ? '17' : '20',
+            '-preset', UPSCALE.includes(String(qualidade)) && qualidade !== '4320' ? 'medium' : 'veryfast',
+            '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             ...(qualidade === '4320' ? ['-x264-params', 'level=6.2'] : [])]);
       }
     }
