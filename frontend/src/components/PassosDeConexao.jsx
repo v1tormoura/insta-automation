@@ -46,7 +46,7 @@ const APPS_E_SITES = 'https://www.instagram.com/accounts/manage_access/';
  * @param {(msg: string) => void} [props.onErro]
  */
 export default function PassosDeConexao({
-  conta = 'new', metaAppId = '', dono = '', mod = 'contas', url = '', onAutorizar, onErro,
+  conta = 'new', metaAppId = '', dono = '', mod = 'contas', url = '', onAutorizar, onErro, usarSessao = false,
 }) {
   /* Se o passo 1 já foi feito. Não dá para SABER — o Instagram não nos conta se
      o convite foi aceito, e não existe API para consultar isso. O que a tela
@@ -54,15 +54,19 @@ export default function PassosDeConexao({
   const [abriuInstagram, setAbriuInstagram] = useState(false);
   const [indo, setIndo] = useState(false);
 
-  async function autorizar() {
+  /* `usarSessao` (página guiada): o navegador já está logado na conta, então a
+     autorização vai direto para "Permitir", sem pedir login. `outraConta`
+     força o login para quem está logado na conta errada. */
+  async function autorizar({ outraConta = false } = {}) {
     setIndo(true);
     try {
       /* A URL vem de fora quando quem chama já a pediu — o modal do painel a
          tem em mãos, e buscá-la de novo geraria um `state` novo à toa. */
-      let destino = url;
+      let destino = outraConta ? '' : url;
       if (!destino) {
         const { data } = await api.get('/oauth/url', {
-          params: { accountId: contaValida(conta), ...(metaAppId ? { metaAppId } : {}), ...(dono ? { dono } : {}) },
+          params: { accountId: contaValida(conta), ...(metaAppId ? { metaAppId } : {}), ...(dono ? { dono } : {}),
+            ...(usarSessao && !outraConta ? { login: 0 } : {}) },
         });
         destino = data?.url;
       }
@@ -112,7 +116,7 @@ export default function PassosDeConexao({
       >
         <button type="button" className="btn-primary" disabled={indo}
           style={{ width: '100%', justifyContent: 'center', padding: '11px' }}
-          onClick={autorizar}>
+          onClick={() => autorizar()}>
           {indo ? <><span className="mf-spin" /> Abrindo autorização…</> : '2. Conectar conta no painel →'}
         </button>
       </Passo>
@@ -121,11 +125,20 @@ export default function PassosDeConexao({
         {/* O atalho para quem já é testador. Sem ele, quem reconecta uma conta
             antiga passaria pelo passo 1 toda vez sem precisar. */}
         Já aceitou o convite antes?{' '}
-        <button type="button" onClick={autorizar} disabled={indo}
+        <button type="button" onClick={() => autorizar()} disabled={indo}
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
             color: 'var(--mf-mod)', fontWeight: 700, fontSize: 'inherit', textDecoration: 'underline' }}>
           Conectar direto
         </button>
+        {usarSessao && (<>
+          <br />
+          Logado em outra conta do Instagram?{' '}
+          <button type="button" onClick={() => autorizar({ outraConta: true })} disabled={indo}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+              color: 'var(--mf-mod)', fontWeight: 700, fontSize: 'inherit', textDecoration: 'underline' }}>
+            Entrar com outra conta
+          </button>
+        </>)}
         <br />
         Não encontrou o convite no Instagram? Peça ao administrador para te convidar como testador.
       </div>

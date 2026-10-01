@@ -33,7 +33,7 @@ const SEPARADOR_DONO = '__dono_';
  * dono, assinado com HMAC para ninguém forjar um retorno — nem prender uma
  * conta no painel de outra pessoa.
  */
-async function urlDeAutorizacao({ accountId = 'new', metaAppId = null, usuarioId } = {}) {
+async function urlDeAutorizacao({ accountId = 'new', metaAppId = null, usuarioId, forcarLogin = config.oauthForceReauth } = {}) {
   if (!usuarioId) throw new Error('urlDeAutorizacao: usuário obrigatório');
   const app = await metaApps.credenciais(metaAppId);
   if (!app) return null;
@@ -47,8 +47,10 @@ async function urlDeAutorizacao({ accountId = 'new', metaAppId = null, usuarioId
   });
   /* Faz o Instagram pedir login a cada autorização: sem isto, a segunda conta
      no mesmo navegador reaproveita a sessão e autoriza a MESMA conta de novo.
-     Vem da URL que o próprio painel da Meta gera no login da empresa. */
-  if (config.oauthForceReauth) params.set('force_reauth', 'true');
+     Vem da URL que o próprio painel da Meta gera no login da empresa.
+     A página guiada desliga: ela abre no navegador da PRÓPRIA conta, já
+     logada — pedir login de novo ali só atrapalha. */
+  if (forcarLogin) params.set('force_reauth', 'true');
   if (app.loginConfigId) params.set('config_id', app.loginConfigId);
 
   return { url: `https://www.instagram.com/oauth/authorize?${params}`, metaAppId: app.id };

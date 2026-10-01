@@ -58,6 +58,8 @@ router.get('/url', async (req, res) => {
     accountId: req.query.accountId || 'new',
     metaAppId: req.query.metaAppId || null,
     usuarioId,
+    // ?login=0: usar a sessão do Instagram que já está aberta neste navegador.
+    ...(req.query.login === '0' ? { forcarLogin: false } : {}),
   });
   if (!r) return res.status(400).json({ error: 'Nenhum App Meta cadastrado. Cadastre um app na página API Meta antes de conectar.' });
   const aviso = avisoDoRedirect(config.oauthRedirectUri, config.frontendUrl);

@@ -117,7 +117,7 @@ export default function ConectarGuiado() {
             </div>
           )}
 
-          <PassosDeConexao conta={conta} metaAppId={metaAppId} dono={dono} mod="contas" onErro={setErro} />
+          <PassosDeConexao conta={conta} metaAppId={metaAppId} dono={dono} mod="contas" onErro={setErro} usarSessao />
         </div>
         )}
       </div>

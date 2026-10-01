@@ -86,6 +86,11 @@ describe('URL de autorização', () => {
     expect(new URL(url).searchParams.get('force_reauth')).toBe('true');
   });
 
+  test('página guiada (forcarLogin: false): usa a sessão aberta, sem pedir login', async () => {
+    const { url } = await conexao.urlDeAutorizacao({ usuarioId: DONO, forcarLogin: false });
+    expect(new URL(url).searchParams.get('force_reauth')).toBeNull();
+  });
+
   test('config_id do login da empresa entra quando cadastrado', async () => {
     metaApps.credenciais.mockResolvedValueOnce({ id: 'a', appId: '1', appSecret: 's', loginConfigId: '999' });
     const { url } = await conexao.urlDeAutorizacao({ usuarioId: DONO });
