@@ -303,9 +303,12 @@ export default function Stories() {
       } else {
         showToast('success', 'Publicado!', `${data.successCount || 0} de ${data.total || selected.length} publicados.`);
       }
+      /* Concluído: tudo o que foi escolhido para este envio volta ao zero —
+         mídias, contas e texto — e o rascunho junto. */
       setMedias([]);
+      setSelected([]);
       setTexto('');
-      setIntervalMin(1);
+      try { localStorage.removeItem(DRAFT_KEY); } catch { /* segue */ }
     } catch (e) { showToast('error', 'Erro', e.response?.data?.error || 'Falha ao publicar.'); }
     finally { setLoading(false); }
   }

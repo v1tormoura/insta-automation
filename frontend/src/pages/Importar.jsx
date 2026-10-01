@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Film, Image as ImageIcon, Layers, Music, Check, Loader2, ExternalLink, Link2, Upload, FolderOpen, User, Sparkles } from 'lucide-react';
 import PageShell from '../components/PageShell';
 import api from '../services/api';
 import { avisar } from '../services/avisos';
-import { useServerEvents } from '../services/useServerEvents';
-import { getToken } from '../services/auth';
+import { useTarefa, iniciar, progredir, concluir, falhar, consumir, obter } from '../services/tarefas';
+import { linkDeDownload, baixarTodos } from '../services/downloads';
 
 /**
  * Importar mídias — o que as SUAS contas conectadas já publicaram vai para a
@@ -55,21 +55,6 @@ const DESTINOS = [
   ['ambos', 'Os dois', 'Salva e baixa', Layers],
 ];
 
-/** Link de download de um item da Biblioteca (`remover`: some da Biblioteca depois de baixado). */
-const linkDeDownload = (id, remover) =>
-  `${API_URL}/importar/baixar/${id}?token=${encodeURIComponent(getToken() || '')}${remover ? '&remover=1' : ''}`;
-
-/** Dispara os downloads, um a um, com uma folga para o navegador não barrar. */
-async function baixarTodos(arquivos, remover) {
-  for (const a of arquivos) {
-    const link = document.createElement('a');
-    link.href = linkDeDownload(a.id, remover);
-    link.rel = 'noopener';
-    document.body.appendChild(link); link.click(); link.remove();
-    await new Promise(r => setTimeout(r, 900));
-  }
-}
-
 const tamanhoDe = b => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round((b || 0) / 1024))} KB`);
 
 const FORMATOS = [
@@ -114,7 +99,14 @@ export default function Importar() {
   const [qualidade, setQualidade] = useState('original');
   const [formato, setFormato] = useState('mp4');
   const [pasta, setPasta] = useState('Importados');
-  const [progresso, setProgresso] = useState(null); // { feitas, total } | { fim, importados, erros }
+  /* A importação roda fora da tela (services/tarefas + IndicadorDeTarefas, que
+     escuta o SSE sempre): sair do Importar não perde o progresso nem o fim. */
+  const tarefa = useTarefa('importar');
+  const [resultado, setResultado] = useState(null); // o último fim, já entregue a esta tela
+  const progresso = tarefa?.fase === 'rodando'
+    ? { feitas: tarefa.feitas, total: tarefa.total, pct: tarefa.pct, etapa: tarefa.etapa }
+    : resultado;
+  const setProgresso = setResultado;
   const [aba, setAba] = useState('contas');
   const [url, setUrl] = useState('');
   const [arquivos, setArquivos] = useState([]);
@@ -136,7 +128,6 @@ export default function Importar() {
   const [, rotuloDoTipo, nomeUm, nomeVarios] = TIPOS_DO_PERFIL.find(t => t[0] === tipoPerfil);
   const [busca, setBusca] = useState({ estado: 'inicial' }); // inicial | buscando | ok | vazio | erro | indisponivel
   const [recarga, setRecarga] = useState(0);
-  const destinoDoEnvio = useRef('biblioteca'); // o destino de quando o envio começou
 
   useEffect(() => {
     api.get('/accounts', { params: { limit: 500 } })
@@ -200,22 +191,27 @@ export default function Importar() {
     }
   }
 
-  function terminar({ importados, erros = 0, detalhes = [], arquivos = [] }) {
-    const dest = destinoDoEnvio.current;
-    setProgresso({ fim: true, importados, erros, detalhe: detalhes[0] || '', arquivos, destino: dest });
+  /* O fim da importação — com a tela aberta ou ao voltar para ela: mostra o
+     resultado, avisa, e limpa o que foi selecionado para este envio. */
+  useEffect(() => {
+    if (!tarefa || tarefa.fase === 'rodando') return;
+    const d = tarefa.dados || {};
+    const dest = d.destino || 'biblioteca';
+    const fim = tarefa.fase === 'erro'
+      ? { fim: true, importados: 0, erros: 1, detalhe: tarefa.mensagem, arquivos: [], destino: dest }
+      : { fim: true, importados: d.importados || 0, erros: d.erros || 0, detalhe: d.detalhes?.[0] || '', arquivos: d.arquivos || [], destino: dest };
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setResultado(fim);
+    if (fim.importados) { setMarcados(new Set()); setMarcadosBib(new Set()); setArquivos([]); setUrl(''); }
+    /* eslint-enable react-hooks/set-state-in-effect */
     const onde = dest === 'baixar' ? 'baixando no seu computador' : dest === 'ambos' ? 'na Biblioteca e baixando' : 'na Biblioteca';
-    avisar(erros ? (importados ? 'warning' : 'error') : 'success', importados ? 'Pronto' : 'Não deu certo',
-      importados
-        ? `${importados} arquivo(s) ${onde}${erros ? `, ${erros} com erro` : ''}.`
-        : String(detalhes[0] || 'Falhou.').replace(/^[^:]*: /, ''));
-    if (dest !== 'biblioteca' && arquivos.length) baixarTodos(arquivos, dest === 'baixar');
-    if (aba === 'biblioteca') carregarBiblioteca();
-  }
-
-  useServerEvents(['media'], d => {
-    if (d?.action === 'importacao') setProgresso({ feitas: d.feitas, total: d.total });
-    if (d?.action === 'importacao_fim') terminar({ importados: d.importados, erros: d.erros, detalhes: d.detalhes || [], arquivos: d.arquivos || [] });
-  });
+    avisar(fim.erros ? (fim.importados ? 'warning' : 'error') : 'success', fim.importados ? 'Pronto' : 'Não deu certo',
+      fim.importados
+        ? `${fim.importados} arquivo(s) ${onde}${fim.erros ? `, ${fim.erros} com erro` : ''}.`
+        : String(fim.detalhe || 'Falhou.').replace(/^[^:]*: /, ''));
+    if (aba === 'biblioteca' || biblioteca !== null) carregarBiblioteca();
+    consumir('importar');
+  }, [tarefa]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const escolherConta = id => {
     if (somenteReels) { setSomenteReels(false); setBusca({ estado: 'inicial' }); }
@@ -238,37 +234,43 @@ export default function Importar() {
   const quantos = aba === 'contas' ? marcados.size : aba === 'url' ? (url.trim() ? 1 : 0) : aba === 'upload' ? arquivos.length : marcadosBib.size;
 
   async function importar() {
-    if (!quantos) return;
-    destinoDoEnvio.current = destino;
+    if (!quantos || importando) return;
+    setResultado(null);
+    const dados = { destino, servidor: aba !== 'upload' };
+    const rotulo = aba === 'upload' ? `Enviando ${arquivos.length} arquivo(s)` : `Importando ${quantos} item(ns)`;
+    iniciar('importar', { rotulo, rota: '/importar', total: aba === 'upload' ? 0 : quantos, etapa: aba === 'upload' ? 'Subindo os arquivos' : 'Na fila', dados });
     try {
       if (aba === 'contas') {
         await api.post('/importar', { accountId: conta, ids: [...marcados], qualidade, formato, formatoFoto, ia: ia || null, pasta });
       } else if (aba === 'url') {
         await api.post('/importar/url', { url: url.trim(), qualidade, formato, formatoFoto, ia: ia || null, pasta });
       } else if (aba === 'upload') {
+        /* O upload sai do navegador: segue mesmo trocando de tela (só não
+           fechando a aba) — por isso `local`, que faz o navegador perguntar. */
+        progredir('importar', { dados: { ...dados, local: true } });
         const form = new FormData();
         form.append('folder', pasta || 'Importados');
         for (const f of arquivos) form.append('files', f);
-        setProgresso({ feitas: 0, total: arquivos.length });
-        const { data } = await api.post('/media/upload', form);
+        const { data } = await api.post('/media/upload', form, {
+          onUploadProgress: e => { if (e.total) progredir('importar', { pct: Math.min(99, Math.round((e.loaded / e.total) * 100)) }); },
+        });
         const enviados = data?.media || [];
         const ids = enviados.map(m => m.id);
-        setArquivos([]);
         if (semConversao) {
-          terminar({ importados: ids.length, arquivos: enviados.map(m => ({ id: m.id, nome: m.originalName, url: m.url, tipo: m.type, tamanho: m.size })) });
+          const lista = enviados.map(m => ({ id: m.id, nome: m.originalName, url: m.url, tipo: m.type, tamanho: m.size }));
+          concluir('importar', { dados: { importados: ids.length, erros: 0, arquivos: lista } });
+          if (destino !== 'biblioteca' && lista.length) baixarTodos(lista, destino === 'baixar');
           return;
         }
         // O convertido substitui o que acabou de subir — não fica o antigo na Biblioteca.
         await api.post('/importar/converter', { ids, qualidade, formato, formatoFoto, ia: ia || null, pasta, substituir: true });
-        setProgresso({ feitas: 0, total: ids.length });
-        return;
+        // Daqui em diante o progresso vem do servidor (SSE).
+        progredir('importar', { pct: null, feitas: 0, total: ids.length, etapa: 'Convertendo', dados: { ...obter('importar')?.dados, local: false, servidor: true } });
       } else {
         await api.post('/importar/converter', { ids: [...marcadosBib], qualidade, formato, formatoFoto, ia: ia || null, pasta });
       }
-      setProgresso({ feitas: 0, total: quantos });
     } catch (e) {
-      setProgresso(null);
-      avisar('error', 'Não foi possível', e.response?.data?.error || e.message);
+      falhar('importar', e.response?.data?.error || e.message);
     }
   }
 
@@ -626,9 +628,9 @@ export default function Importar() {
                         )}
                       </div>
                     )}</>
-                : <>Importando… {progresso.feitas} de {progresso.total}
+                : <>{progresso.pct != null ? `${progresso.etapa || 'Enviando'}… ${progresso.pct}%` : `${progresso.etapa === 'Na fila' ? 'Na fila' : 'Processando'}… ${progresso.feitas} de ${progresso.total}`}
                     <div style={{ height: 4, borderRadius: 2, background: 'var(--mf-surface-3)', marginTop: 6, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${progresso.total ? (progresso.feitas / progresso.total) * 100 : 0}%`, background: 'var(--mf-primary-500)', transition: 'width .3s' }} />
+                      <div style={{ height: '100%', width: `${progresso.pct != null ? progresso.pct : progresso.total ? (progresso.feitas / progresso.total) * 100 : 0}%`, background: 'var(--mf-primary-500)', transition: 'width .3s' }} />
                     </div></>}
             </div>
           )}

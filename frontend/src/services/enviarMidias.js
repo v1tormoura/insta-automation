@@ -25,13 +25,23 @@ export function montarLotes(arquivos, limite = LIMITE_POR_ENVIO) {
 }
 
 /** @returns {Promise<object[]>} as mídias criadas, na ordem dos arquivos. */
-export async function enviarMidias(arquivos, { folder } = {}) {
+/**
+ * @param {(enviados: number, total: number) => void} [opts.aoProgredir] bytes enviados até agora, de todos os lotes
+ */
+export async function enviarMidias(arquivos, { folder, aoProgredir } = {}) {
   const media = [];
-  for (const lote of montarLotes(Array.from(arquivos || []))) {
+  const lista = Array.from(arquivos || []);
+  const total = lista.reduce((s, f) => s + (f.size || 0), 0);
+  let jaFoi = 0;
+  for (const lote of montarLotes(lista)) {
     const form = new FormData();
     lote.forEach(f => form.append('media', f));
     if (folder) form.append('folder', folder);
-    const { data } = await api.post('/media/upload', form);
+    const { data } = await api.post('/media/upload', form, {
+      onUploadProgress: e => aoProgredir?.(jaFoi + Math.min(e.loaded, e.total || e.loaded), total),
+    });
+    jaFoi += lote.reduce((s, f) => s + (f.size || 0), 0);
+    aoProgredir?.(jaFoi, total);
     media.push(...(data?.media || data?.files || []));
   }
   return media;

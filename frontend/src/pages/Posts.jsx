@@ -17,6 +17,7 @@ import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import { EsqueletoLista } from '../components/Estados';
+import { rodar, useTarefa, consumir } from '../services/tarefas';
 import { Check, Minus, Plus, Clock, Layers, Users, Send, Timer, Tag, CalendarClock } from 'lucide-react';
 
 /* ── Custom legend dropdown ── */
@@ -369,7 +370,10 @@ export default function Posts() {
   const [postPage, setPostPage] = useState(1);
   const [postPagination, setPostPagination] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [posting, setPosting] = useState(false);
+  /* O envio roda FORA da tela (services/tarefas): sair do Postar não o perde,
+     e ao voltar a tela lê o progresso daqui. */
+  const tarefaDeEnvio = useTarefa('postar');
+  const posting = tarefaDeEnvio?.fase === 'rodando';
   const [posted, setPosted]   = useState(false);
   const [ctaComment, setCtaComment]       = useState('');
   const [mediaSource, setMediaSource]     = useState('upload');
@@ -623,35 +627,53 @@ export default function Posts() {
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
     if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
-    setPosting(true);
-    try {
+    const mensagemDoFim = scheduledAt ? 'Posts agendados!' : loopInfinito ? 'Loop infinito iniciado!' : 'Posts enviados!';
+    /* Loop infinito não tem total: ele volta ao começo quando as mídias
+       acabam, então anunciar um número seria anunciar um fim que não vem. */
+    const detalheDoFim = loopInfinito
+      ? `${activeMediaCount} mídia(s) em ${selectedCount} conta(s), repetindo a cada ${intervalMins} min.`
+      : `${totalEstimated} publicações adicionadas à fila.`;
+    const rotulo = nomeDoEnvio.trim() ? `Enviando “${nomeDoEnvio.trim()}”` : `Enviando ${activeMediaCount} mídia(s) para ${selectedCount} conta(s)`;
+
+    rodar('postar', { rotulo, rota: '/posts', etapa: 'Subindo os arquivos', dados: { local: true } }, async progresso => {
       if (passaDoLimite) {
-        const subidas = await enviarMidias(media);
+        const subidas = await enviarMidias(media, {
+          aoProgredir: (env, tot) => progresso({ pct: tot ? Math.min(99, Math.round((env / tot) * 95)) : null, etapa: 'Subindo os arquivos' }),
+        });
         form.append('mediaIds', JSON.stringify(subidas.map(m => m.id)));
       }
-      await api.post('/posts', form);
-      setCaption(''); setMedia([]); setCover(null); setCapasPorConta({});
-      setSelectedAccounts([]); setScheduledAt('');
-      setIntervalMins(0); setSelectedLegend('');
-      setLibraryMedia([]);
-      showToast(
-        'success',
-        scheduledAt ? 'Posts agendados!' : loopInfinito ? 'Loop infinito iniciado!' : 'Posts enviados!',
-        /* Loop infinito não tem total: ele volta ao começo quando as mídias
-           acabam, então anunciar um número seria anunciar um fim que não vem. */
-        loopInfinito
-          ? `${activeMediaCount} mídia(s) em ${selectedCount} conta(s), repetindo a cada ${intervalMins} min.`
-          : `${totalEstimated} publicações adicionadas à fila.`,
-      );
+      await api.post('/posts', form, {
+        onUploadProgress: e => { if (!passaDoLimite && e.total) progresso({ pct: Math.min(99, Math.round((e.loaded / e.total) * 100)), etapa: 'Subindo os arquivos' }); },
+      });
+      // Concluído: o rascunho sai já — se a tela não estiver aberta, ela volta limpa.
+      try { localStorage.removeItem(DRAFT_POSTS_KEY); } catch { /* segue */ }
+      return { mensagem: mensagemDoFim, dados: { detalhe: detalheDoFim } };
+    }).catch(() => { /* o erro chega pela tarefa (efeito abaixo) */ });
+  }
+
+  /** Tudo o que foi escolhido para ESTE envio volta ao zero; as preferências (intervalo, marca…) ficam. */
+  function limparFormulario() {
+    setCaption(''); setMedia([]); setLibraryMedia([]); setCover(null); setCoverLibFile(null);
+    setCapasPorConta({}); setCapaPorPerfil(false); setSelectedAccounts([]);
+    setScheduledAt(''); setInicioEscolhido('agora'); setSelectedLegend('');
+    setNomeDoEnvio(''); setCtaComment(''); setLoopInfinito(false);
+    setLegendaAleatoria(l => ({ ...l, ativa: false }));
+  }
+
+  /* O fim do envio — com a tela aberta na hora ou ao voltar para ela depois. */
+  useEffect(() => {
+    if (!tarefaDeEnvio || tarefaDeEnvio.fase === 'rodando') return;
+    if (tarefaDeEnvio.fase === 'ok') {
+      limparFormulario(); // eslint-disable-line react-hooks/set-state-in-effect
+      showToast('success', tarefaDeEnvio.mensagem || 'Posts enviados!', tarefaDeEnvio.dados?.detalhe || '');
       setPosted(true);
       setTimeout(() => setPosted(false), 2500);
       load();
-    } catch (err) {
-      showToast('error', 'Erro', err.response?.data?.error || 'Erro ao criar posts.');
-    } finally {
-      setPosting(false);
+    } else {
+      showToast('error', 'Erro', tarefaDeEnvio.mensagem || 'Erro ao criar posts.');
     }
-  }
+    consumir('postar');
+  }, [tarefaDeEnvio]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function statusBadgeClass(status) {
     if (status === 'concluido') return 'badge-green';
@@ -680,7 +702,7 @@ export default function Posts() {
         disabled={posting}
         onClick={() => document.getElementById('postform').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}>
         {posting ? (
-          <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Publicando...</>
+          <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>{posting && tarefaDeEnvio?.pct != null ? `Publicando… ${tarefaDeEnvio.pct}%` : 'Publicando…'}</>
         ) : posted ? (
           <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Publicado!</>
         ) : (
@@ -715,6 +737,25 @@ export default function Posts() {
         actions={pageActions}
       >
         {/* Form grid */}
+        {/* Envio em andamento — inclusive o que começou antes de sair desta tela. */}
+        {posting && (
+          <div role="status" data-envio-em-andamento style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', marginBottom: 16,
+            borderRadius: 'var(--mf-r-lg)', background: 'color-mix(in oklch, var(--mf-primary-500) 9%, var(--mf-surface-1))',
+            border: '1px solid color-mix(in oklch, var(--mf-primary-500) 40%, transparent)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mf-primary-500)" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 700, color: 'var(--mf-text)' }}>
+                {tarefaDeEnvio.rotulo}{tarefaDeEnvio.pct != null ? ` — ${tarefaDeEnvio.pct}%` : ''}
+              </div>
+              <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 2 }}>
+                {tarefaDeEnvio.etapa || 'Em andamento'}. Pode usar outras telas — ao terminar, o formulário é limpo. Só não feche esta aba.
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: 'var(--mf-surface-3)', marginTop: 8, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${tarefaDeEnvio.pct ?? 10}%`, background: 'var(--mf-primary-500)', transition: 'width .3s' }} />
+              </div>
+            </div>
+          </div>
+        )}
         <form id="postform" onSubmit={createPost} className="layout-form-2col" style={{ marginBottom: 20 }}>
 
           {/* ── LEFT COLUMN ── */}
@@ -1345,7 +1386,7 @@ export default function Posts() {
                   {posting ? (
                     <>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
-                      Publicando...
+                      {posting && tarefaDeEnvio?.pct != null ? `Publicando… ${tarefaDeEnvio.pct}%` : 'Publicando…'}
                     </>
                   ) : posted ? (
                     <>

@@ -11,6 +11,7 @@ import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { pushNotification } from '../services/useNotifications';
 import { SmartActivityProvider, SinoDeNotificacoes, PilhaDeAvisos } from '../components/SmartActivity';
+import IndicadorDeTarefas from '../components/IndicadorDeTarefas';
 import FundoCiber from '../components/FundoCiber';
 import AvisoDeVersao from '../components/AvisoDeVersao';
 import { lidas as lerPreferencias, salvar as salvarPreferencias, sincronizar as sincronizarPreferencias } from '../services/preferencias';
@@ -580,6 +581,7 @@ export default function MainLayout({ children }) {
 
       <PaletaComandos aberta={paleta} aoFechar={() => setPaleta(false)} />
       <PilhaDeAvisos />
+      <IndicadorDeTarefas />
     </div>
     </SmartActivityProvider>
   );

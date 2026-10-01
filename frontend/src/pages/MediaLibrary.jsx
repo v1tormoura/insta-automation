@@ -5,6 +5,7 @@ import { enviarMidias } from '../services/enviarMidias';
 import Toast from '../components/Toast';
 import PageShell from '../components/PageShell';
 import { EsqueletoGrade } from '../components/Estados';
+import { rodar, useTarefa, consumir } from '../services/tarefas';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -28,7 +29,9 @@ export default function MediaLibrary() {
   const [folders, setFolders]     = useState([]);
   const [activeFolder, setActive] = useState(null);
   const [toast, setToast]         = useState(null);
-  const [uploading, setUploading] = useState(false);
+  /* O upload roda fora da tela (services/tarefas): trocar de página não o perde. */
+  const tarefaDeUpload = useTarefa('biblioteca');
+  const uploading = tarefaDeUpload?.fase === 'rodando';
   const [dragOver, setDragOver]   = useState(false);
 
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -66,16 +69,26 @@ export default function MediaLibrary() {
 
   useEffect(() => { load(); }, []);
 
-  async function upload(rawFiles) {
-    if (!rawFiles.length) return;
-    setUploading(true);
-    try {
-      const media = await enviarMidias(rawFiles, { folder: activeFolder || 'default' });
-      await load();
-      toast_('success', 'Upload concluído', `${media.length} arquivo(s) adicionado(s)${activeFolder ? ` à pasta "${activeFolder}"` : ''}.`);
-    } catch { toast_('error', 'Erro', 'Falha no upload.'); }
-    finally { setUploading(false); }
+  function upload(rawFiles) {
+    if (!rawFiles.length || uploading) return;
+    const pasta = activeFolder;
+    rodar('biblioteca', { rotulo: `Enviando ${rawFiles.length} arquivo(s) para a Biblioteca`, rota: '/biblioteca', etapa: 'Subindo os arquivos', dados: { local: true } },
+      async progresso => {
+        const media = await enviarMidias(rawFiles, {
+          folder: pasta || 'default',
+          aoProgredir: (env, tot) => progresso({ pct: tot ? Math.min(99, Math.round((env / tot) * 100)) : null }),
+        });
+        return { mensagem: `${media.length} arquivo(s) adicionado(s)${pasta ? ` à pasta "${pasta}"` : ''}.` };
+      }).catch(() => {});
   }
+
+  /* O fim do upload — na hora ou ao voltar para a Biblioteca. */
+  useEffect(() => {
+    if (!tarefaDeUpload || tarefaDeUpload.fase === 'rodando') return;
+    if (tarefaDeUpload.fase === 'ok') { load(); toast_('success', 'Upload concluído', tarefaDeUpload.mensagem); } // eslint-disable-line react-hooks/set-state-in-effect
+    else toast_('error', 'Erro', tarefaDeUpload.mensagem || 'Falha no upload.');
+    consumir('biblioteca');
+  }, [tarefaDeUpload]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function deleteFile(id) {
     const item = files.find(f => f.id === id);
@@ -143,7 +156,7 @@ export default function MediaLibrary() {
       <label className="btn-primary" style={{ cursor:'pointer', fontSize: 'var(--mf-t-xs)', padding:'4px 12px', borderRadius: 'var(--mf-r-sm)', display:'flex', alignItems:'center' }}>
         <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple style={{ display:'none' }}
           onChange={e => upload(Array.from(e.target.files || []))} />
-        {uploading ? '⏳ Enviando...' : '⬆️ Upload'}
+        {uploading ? `⏳ Enviando${tarefaDeUpload?.pct != null ? ` ${tarefaDeUpload.pct}%` : '...'}` : '⬆️ Upload'}
       </label>
     </div>
   );
@@ -218,7 +231,7 @@ export default function MediaLibrary() {
               <input type="file" accept="image/*,video/*" multiple style={{ display:'none' }}
                 onChange={e => upload(Array.from(e.target.files || []))} />
               <div style={{ fontSize: 'var(--mf-t-display)', marginBottom:6 }}>⬆️</div>
-              <strong style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>{uploading ? 'Enviando...' : activeFolder ? `Arraste para "${activeFolder}" ou clique` : 'Arraste arquivos ou clique'}</strong>
+              <strong style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)' }}>{uploading ? `Enviando${tarefaDeUpload?.pct != null ? `… ${tarefaDeUpload.pct}%` : '...'}` : activeFolder ? `Arraste para "${activeFolder}" ou clique` : 'Arraste arquivos ou clique'}</strong>
               <span style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', marginTop:4 }}>MP4, MOV, JPG, PNG · Múltiplos arquivos</span>
             </label>
 
