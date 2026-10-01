@@ -419,7 +419,15 @@ export default function Accounts() {
     api.get('/oauth/dono').then(({ data }) => setDonoDoLink(data?.dono || '')).catch(() => {});
   }, []);
 
-  function copiarLinkGuiado(conta = 'new') {
+  /* O atalho da janela anônima de quem está olhando — um site não pode abri-la
+     sozinho (o navegador não deixa), então o máximo é dizer a tecla certa. */
+  const atalhoAnonimo = (() => {
+    const ua = navigator.userAgent || '';
+    const mac = /Mac|iPhone|iPad/i.test(navigator.platform || ua);
+    return `${mac ? '⌘' : 'Ctrl'}+Shift+${/Firefox/i.test(ua) ? 'P' : 'N'}`;
+  })();
+
+  function copiarLinkGuiado(conta = 'new', { anonima = false } = {}) {
     if (!donoDoLink) { showToast('warning', 'Aguarde', 'Preparando o link — tente de novo em um instante.'); return; }
     const link = montarLinkGuiado(window.location.origin, conta, selectedAppId, donoDoLink);
 
@@ -430,6 +438,11 @@ export default function Accounts() {
     /* Liga a escuta: a conta é autorizada no outro navegador e aparece aqui
        sozinha, sem ninguém apertar mais nada. */
     setOauthWaiting(true);
+    if (anonima) {
+      showToast('success', 'Link copiado — abra uma janela anônima',
+        `Aperte ${atalhoAnonimo}, cole o link, entre na conta e clique em Permitir. Ela aparece aqui sozinha; feche a janela e repita para a próxima.`);
+      return;
+    }
     showToast('success', 'Link guiado copiado',
       'Cole no navegador do perfil. A página lá mostra os 2 passos e a conta entra aqui sozinha.');
   }
@@ -1314,6 +1327,17 @@ export default function Accounts() {
                 que cai direto no Instagram e falha sem explicação quando o
                 convite de testador não foi aceito. O link do cabeçalho continua
                 copiando o link cru, para quem já sabe o que fazer com ele. */}
+            {/* Janela anônima: cada uma começa sem login nem cookie, então cada
+                conta é conectada num navegador "vazio". O site não consegue abrir
+                a janela (bloqueio do navegador); copia o link e diz o atalho. */}
+            <button className="btn-ghost tom-modulo" style={{ width:'100%', justifyContent:'center', padding:'11px', marginBottom:8,
+                '--tom':'var(--mf-mod-contas)',
+                color:'var(--mf-mod, var(--mf-accent-500))',
+                background:'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)' }}
+              onClick={() => { copiarLinkGuiado(escolhaOAuth.account?.id || 'new', { anonima: true }); setEscolhaOAuth(null); }}>
+              <IcoCopy /> Conectar em janela anônima ({atalhoAnonimo})
+            </button>
+
             <button className="btn-ghost tom-modulo" style={{ width:'100%', justifyContent:'center', padding:'11px',
                 '--tom':'var(--mf-mod-contas)',
                 color:'var(--mf-mod, var(--mf-accent-500))',
@@ -1323,9 +1347,10 @@ export default function Accounts() {
             </button>
 
             <div style={{ fontSize:'var(--mf-t-micro)', color:'var(--mf-text-3)', lineHeight:1.7, marginTop:12 }}>
-              Cole no perfil do multilogin (anti-detect) onde a conta está logada.
-              A página guiada abre os 2 passos lá dentro, e ao autorizar a conta
-              entra aqui sozinha — sem voltar e sem colar nada.
+              <strong>Janela anônima:</strong> copia o link; abra uma janela anônima, cole, entre na conta e permita.
+              Cada janela nova começa vazia — feche e repita para a próxima conta.<br />
+              <strong>Multilogin:</strong> cole no perfil onde a conta já está logada.
+              Nos dois casos a conta entra aqui sozinha.
             </div>
 
             {/* A saída de emergência, não o caminho normal.
