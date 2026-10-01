@@ -474,7 +474,7 @@ export default function Accounts() {
      mesmo problema por outro caminho. */
   function abrirAutorizacaoEmJanela(url) {
     setEscolhaOAuth(null);
-    const janela = window.open(url, 'mf_oauth', 'width=560,height=760,noreferrer');
+    const janela = window.open(url, 'mf_oauth', 'width=560,height=760');
     if (!janela) {
       soCopiarLink(url);
       showToast('warning', 'Janela bloqueada',
