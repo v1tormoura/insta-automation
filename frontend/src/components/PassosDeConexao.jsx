@@ -57,6 +57,13 @@ export default function PassosDeConexao({
   /* `usarSessao` (página guiada): o navegador já está logado na conta, então a
      autorização vai direto para "Permitir", sem pedir login. `outraConta`
      força o login para quem está logado na conta errada. */
+  /* No celular, sem `force_reauth` o link do Instagram é capturado pelo APP
+     (link universal) e a autorização sai do navegador onde o link foi colado.
+     Com ele, o Instagram mostra o login na própria página — por isso o atalho
+     da sessão aberta vale só no computador. */
+  const celular = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  const manterSessao = usarSessao && !celular;
+
   async function autorizar({ outraConta = false } = {}) {
     setIndo(true);
     try {
@@ -66,7 +73,7 @@ export default function PassosDeConexao({
       if (!destino) {
         const { data } = await api.get('/oauth/url', {
           params: { accountId: contaValida(conta), ...(metaAppId ? { metaAppId } : {}), ...(dono ? { dono } : {}),
-            ...(usarSessao && !outraConta ? { login: 0 } : {}) },
+            ...(manterSessao && !outraConta ? { login: 0 } : {}) },
         });
         destino = data?.url;
       }
@@ -130,7 +137,7 @@ export default function PassosDeConexao({
             color: 'var(--mf-mod)', fontWeight: 700, fontSize: 'inherit', textDecoration: 'underline' }}>
           Conectar direto
         </button>
-        {usarSessao && (<>
+        {manterSessao && (<>
           <br />
           Logado em outra conta do Instagram?{' '}
           <button type="button" onClick={() => autorizar({ outraConta: true })} disabled={indo}
