@@ -497,7 +497,7 @@ export default function Importar() {
                     background: 'var(--mf-surface-2)',
                     border: `2px solid ${sel ? 'var(--mf-primary-500)' : 'transparent'}`,
                     boxShadow: sel ? '0 0 16px -4px color-mix(in oklch, var(--mf-primary-500) 70%, transparent)' : 'none' }}>
-                  {i.miniatura && <img src={i.miniatura} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                  {i.miniatura && <img src={`${API_URL}/image-proxy?url=${encodeURIComponent(i.miniatura)}`} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
                   <span style={{ position: 'absolute', top: 6, left: 6, display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 'var(--mf-r-full)',
                     background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 10, fontWeight: 700 }}>
                     {i.tipo === 'VIDEO' ? <Film size={11} /> : i.tipo === 'CAROUSEL_ALBUM' ? <Layers size={11} /> : <ImageIcon size={11} />}
