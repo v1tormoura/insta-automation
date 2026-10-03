@@ -378,6 +378,8 @@ async function importarUrl({ usuarioId, contas, url, qualidade = 'original', for
  */
 /** Tira um item da Biblioteca: a linha, o arquivo e a miniatura. */
 async function removerDaBiblioteca(usuarioId, item) {
+  // Em uso por um envio que ainda não terminou: fica (apagar deixaria contas sem o vídeo).
+  if (await require('./midiaEmUso').midiaEmUso(usuarioId, item.filename)) return;
   const { media } = require('../repos');
   const { nomeDaMiniatura } = require('./miniaturaDeVideo');
   await media.de(usuarioId).remove(item.id);

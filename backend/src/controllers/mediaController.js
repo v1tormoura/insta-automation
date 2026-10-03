@@ -63,6 +63,11 @@ exports.uploadMedia = async (req, res) => {
 };
 
 exports.deleteMedia = async (req, res) => {
+  const atual = await tabela.de(req.user.id).findById(req.params.id).catch(() => null);
+  const emUso = atual && await require('../services/midiaEmUso').midiaEmUso(req.user.id, atual.filename);
+  if (emUso) {
+    return res.status(409).json({ error: `Mídia em uso pelo envio "${emUso}" — espere terminar de publicar (ou cancele o envio) para apagar` });
+  }
   const item = await tabela.de(req.user.id).remove(req.params.id);
   if (!item) return res.status(404).json({ error: 'Mídia não encontrada' });
   if (item.filename && !item.filename.startsWith('__folder_')) {

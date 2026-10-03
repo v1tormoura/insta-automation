@@ -97,7 +97,7 @@ export default function MediaLibrary() {
 
   async function doDeleteFile(id) {
     try { await api.delete(`/media/${id}`); await load(); toast_('success', 'Removida', 'Mídia excluída.'); }
-    catch { toast_('error', 'Erro', 'Falha ao excluir.'); }
+    catch (e) { toast_('error', 'Não foi possível', e.response?.data?.error || 'Falha ao excluir.'); }
     setConfirmModal(null);
   }
 

@@ -154,6 +154,10 @@ async function story(conta, s, gerados) {
  * @returns {Promise<{mediaId: string|null, permalink: string|null}>}
  */
 async function publicar(conta, post) {
+  const local = String(post.media || '');
+  if (local && !/^https?:\/\//i.test(local) && !fs.existsSync(absoluto(local))) {
+    throw Object.assign(new Error('O arquivo desta mídia foi apagado do servidor (Biblioteca) antes de esta conta publicar — envie de novo'), { code: 'MIDIA_APAGADA' });
+  }
   await conferirId(conta);
   /* O que foi gerado para esta publicação sai DEPOIS de a Meta terminar:
      ela baixa daqui até o container ficar pronto. */
