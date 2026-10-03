@@ -50,7 +50,7 @@ function _num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 function indiceDeEnvios(posts) {
   const m = new Map();
   for (const p of posts || []) {
-    const envio = { jobId: p.jobId ? String(p.jobId) : SEM_ENVIO, jobName: p.jobName || '' };
+    const envio = { jobId: p.jobId ? String(p.jobId) : SEM_ENVIO, jobName: p.jobName || '', rotulo: p.jobRotulo || '', duracaoMs: p.duracaoMs || null };
     if (p.igMediaId) m.set(String(p.igMediaId), envio);
     for (const mp of p.midiasPublicadas || []) {
       if (mp?.igMediaId) m.set(String(mp.igMediaId), envio);
@@ -71,7 +71,7 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
   const idx = indiceDeEnvios(posts);
 
   const reels = (insights || []).map(i => {
-    const envio = idx.get(String(i.igMediaId)) || { jobId: SEM_ENVIO, jobName: '' };
+    const envio = idx.get(String(i.igMediaId)) || { jobId: SEM_ENVIO, jobName: '', rotulo: '', duracaoMs: null };
     const views = _num(i.videoViews);
     const likes = _num(i.likeCount);
     const saves = _num(i.savedCount);
@@ -95,8 +95,13 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
       /* Segundos assistidos em média. É a retenção: o que decide se o
          Instagram continua distribuindo depois do público-teste. */
       assistidoS: i.avgWatchTimeMs != null ? Number((Number(i.avgWatchTimeMs) / 1000).toFixed(1)) : null,
+      /* Retenção em %: tempo médio assistido ÷ duração do vídeo. Passa de
+         100% quando o vídeo é revisto (loop) — e isso é ótimo sinal. */
+      retencao: i.avgWatchTimeMs != null && envio.duracaoMs
+        ? Math.round((Number(i.avgWatchTimeMs) / envio.duracaoMs) * 100) : null,
       jobId: envio.jobId,
       jobName: envio.jobName,
+      rotulo: envio.rotulo,
     };
   }).sort((a, b) => b.reach - a.reach);
 
@@ -104,7 +109,7 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
   const porConta = new Map();
   for (const r of reels) {
     const e = porEnvio.get(r.jobId) || {
-      jobId: r.jobId, jobName: r.jobName, reels: 0, reach: 0, views: 0, likes: 0, saves: 0, shares: 0,
+      jobId: r.jobId, jobName: r.jobName, rotulo: r.rotulo, reels: 0, reach: 0, views: 0, likes: 0, saves: 0, shares: 0,
       reachMax: 0, contas: new Set(), primeiro: null, ultimo: null, top: [],
       _tempoPonderado: 0, _viewsComTempo: 0,
     };
@@ -159,7 +164,43 @@ function agrupar(insights, posts, { topReelsPorEnvio = 3 } = {}) {
     };
   }).sort((a, b) => b.reach - a.reach);
 
-  return { envios, contas, reels };
+  return { envios, contas, reels, etiquetas: porEtiqueta(reels) };
 }
 
-module.exports = { agrupar, indiceDeEnvios, mediana, SEM_ENVIO, JANELA_DO_CHAO, PISO_PRONTA };
+/**
+ * O comparativo: os reels agrupados pela etiqueta do envio ("Original",
+ * "Repost"...). Médias por reel, para grupos de tamanhos diferentes serem
+ * comparáveis; retenção ponderada por views. Sem etiqueta = "Sem etiqueta".
+ */
+function porEtiqueta(reels) {
+  const g = new Map();
+  for (const r of reels) {
+    const nome = r.rotulo || '';
+    const e = g.get(nome) || { rotulo: nome, reels: 0, reach: 0, views: 0, likes: 0, saves: 0, shares: 0, comments: 0,
+      _t: 0, _tv: 0, _r: 0, _rv: 0, alcances: [], envios: new Set(), contas: new Set() };
+    e.reels++; e.reach += r.reach; e.views += r.views; e.likes += r.likes; e.saves += r.saves; e.shares += r.shares; e.comments += r.comments;
+    e.alcances.push(r.reach);
+    if (r.jobId !== SEM_ENVIO) e.envios.add(r.jobId);
+    if (r.username) e.contas.add(r.username);
+    if (r.assistidoS != null && r.views > 0) { e._t += r.assistidoS * r.views; e._tv += r.views; }
+    if (r.retencao != null && r.views > 0) { e._r += r.retencao * r.views; e._rv += r.views; }
+    g.set(nome, e);
+  }
+  const por1k = (n, v) => (v ? Number(((n / v) * 1000).toFixed(1)) : null);
+  return [...g.values()].map(e => ({
+    rotulo: e.rotulo,
+    reels: e.reels,
+    envios: e.envios.size,
+    contas: e.contas.size,
+    reachMedio: Math.round(e.reach / e.reels),
+    reachMediano: mediana(e.alcances),
+    viewsMedio: Math.round(e.views / e.reels),
+    assistidoS: e._tv ? Number((e._t / e._tv).toFixed(1)) : null,
+    retencao: e._rv ? Math.round(e._r / e._rv) : null,
+    sharesPor1k: por1k(e.shares, e.views),
+    savesPor1k: por1k(e.saves, e.views),
+    taxa: e.views ? Number((((e.likes + e.saves) / e.views) * 100).toFixed(1)) : null,
+  })).sort((a, b) => b.reachMediano - a.reachMediano);
+}
+
+module.exports = { agrupar, porEtiqueta, indiceDeEnvios, mediana, SEM_ENVIO, JANELA_DO_CHAO, PISO_PRONTA };

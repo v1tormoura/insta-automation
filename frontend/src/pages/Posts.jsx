@@ -400,6 +400,8 @@ export default function Posts() {
      Um segundo número no job criaria duas respostas para "quantas esta conta
      pode hoje". */
   const [nomeDoEnvio,     setNomeDoEnvio]     = useState('');
+  /* Etiqueta do comparativo de conteúdo (Performance): "Original", "Repost"… */
+  const [rotuloDoEnvio,   setRotuloDoEnvio]   = useState('');
   const [aquecimento,     setAquecimento]     = useState(false);
   const [postsPor24h,     setPostsPor24h]     = useState(10);
   const [inicioEscolhido, setInicioEscolhido] = useState('agora');
@@ -621,6 +623,7 @@ export default function Posts() {
     form.append('rodizioDeMidias', String(rodizioDeMidias));
     form.append('loopInfinito', String(loopInfinito));
     if (nomeDoEnvio.trim()) form.append('name', nomeDoEnvio.trim());
+    if (rotuloDoEnvio.trim()) form.append('rotulo', rotuloDoEnvio.trim());
     /* `postsPor24h` não vai mais: o teto diário saiu deste painel a pedido do
        usuário. Sem o campo, o backend (`normalizarTeto` → null) não mexe no
        `dailyPostLimit` das contas — cada uma mantém o seu. */
@@ -656,7 +659,7 @@ export default function Posts() {
     setCaption(''); setMedia([]); setLibraryMedia([]); setCover(null); setCoverLibFile(null);
     setCapasPorConta({}); setCapaPorPerfil(false); setSelectedAccounts([]);
     setScheduledAt(''); setInicioEscolhido('agora'); setSelectedLegend('');
-    setNomeDoEnvio(''); setCtaComment(''); setLoopInfinito(false);
+    setNomeDoEnvio(''); setRotuloDoEnvio(''); setCtaComment(''); setLoopInfinito(false);
     setLegendaAleatoria(l => ({ ...l, ativa: false }));
   }
 
@@ -1247,6 +1250,24 @@ export default function Posts() {
                 <Campo rotulo="Nome do envio" icone={Tag} ajuda="Aparece em Jobs e nas notificações.">
                   <input className="inp" value={nomeDoEnvio} onChange={e => setNomeDoEnvio(e.target.value)}
                     placeholder="Ex.: Reels da semana" style={{ height: 42 }} />
+                </Campo>
+
+                <Campo rotulo="Etiqueta do conteúdo" icone={Tag}
+                  ajuda="Agrupa este envio no Comparativo de conteúdo (Performance) para ver o que alcança mais.">
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {['Original', 'Repost', 'Licenciado', 'Teste'].map(s => {
+                      const ativo = rotuloDoEnvio === s;
+                      return (
+                        <button key={s} type="button" aria-pressed={ativo} onClick={() => setRotuloDoEnvio(ativo ? '' : s)}
+                          style={{ height: 32, padding: '0 12px', borderRadius: 'var(--mf-r-full)', cursor: 'pointer', fontSize: 'var(--mf-t-xs)', fontWeight: 700,
+                            background: ativo ? 'color-mix(in oklch, var(--mf-primary-500) 14%, transparent)' : 'var(--mf-surface-2)',
+                            border: `1px solid ${ativo ? 'color-mix(in oklch, var(--mf-primary-500) 55%, transparent)' : 'var(--mf-border)'}`,
+                            color: ativo ? 'var(--mf-text)' : 'var(--mf-text-3)' }}>{s}</button>
+                      );
+                    })}
+                    <input className="inp" value={rotuloDoEnvio} onChange={e => setRotuloDoEnvio(e.target.value)} maxLength={40}
+                      placeholder="ou um tema…" aria-label="Etiqueta do conteúdo" style={{ flex: '1 1 120px', height: 32 }} />
+                  </div>
                 </Campo>
 
                 <Campo rotulo="Intervalo entre rodadas" icone={Clock}

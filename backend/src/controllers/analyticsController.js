@@ -22,9 +22,10 @@ exports.getAlcancePorEnvio = async (req, res) => {
   const ids = insights.map(i => i.igMediaId).filter(Boolean);
   const posts = ids.length
     ? await sql`
-        select ig_media_id, midias_publicadas, job_id, job_name from posts
-        where usuario_id = ${req.user.id} and (ig_media_id = any(${ids})
-           or exists (select 1 from jsonb_array_elements(midias_publicadas) m where m->>'igMediaId' = any(${ids})))`
+        select p.ig_media_id, p.midias_publicadas, p.job_id, p.job_name, p.duracao_ms, coalesce(j.rotulo, '') as job_rotulo
+        from posts p left join jobs j on j.id = p.job_id
+        where p.usuario_id = ${req.user.id} and (p.ig_media_id = any(${ids})
+           or exists (select 1 from jsonb_array_elements(p.midias_publicadas) m where m->>'igMediaId' = any(${ids})))`
     : [];
   res.json({ dias, ...agruparPorEnvio(insights, posts) });
 };

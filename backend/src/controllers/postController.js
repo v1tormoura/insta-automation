@@ -76,6 +76,7 @@ exports.createPost = async (req, res) => {
 
   const job = await jobs.de(uid).insert({
     name: req.body.name || `Post ${new Date().toLocaleString('pt-BR')}`,
+    rotulo: String(req.body.rotulo || '').trim().slice(0, 40),
     type: loopInfinito ? 'loop' : 'post',
     status: 'queued',
     accountIds,

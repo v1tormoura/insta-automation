@@ -6,6 +6,7 @@ import PageShell from '../components/PageShell';
 import { EsqueletoMetricas, EsqueletoTabela, Bloco } from '../components/Estados';
 import TituloDeCartao from '../components/TituloDeCartao';
 import AlcancePorEnvio from '../components/AlcancePorEnvio';
+import ComparativoDeConteudo from '../components/ComparativoDeConteudo';
 import PublicoDosReels from '../components/PublicoDosReels';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -351,6 +352,7 @@ export default function Performance() {
               não mostrava: qual TIPO de vídeo alcança (por envio) e QUEM é
               alcançado (demografia, quando o Instagram libera). */}
           <div style={{ display:"flex", flexDirection:"column", gap:16, marginTop:16 }}>
+            <ComparativoDeConteudo period={period} />
             <AlcancePorEnvio period={period} />
             <PublicoDosReels />
           </div>

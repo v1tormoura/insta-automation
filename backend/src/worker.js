@@ -186,14 +186,25 @@ async function agendarRodada(jobId, atrasoMs = 0) {
   await fila.enfileirar('job_round', { jobId }, { atrasoMs });
 }
 
+/** Duração do vídeo em ms (para a retenção em %); null se não deu para ler. */
+async function duracaoDoVideo(media) {
+  try {
+    const caminho = require('path').resolve(__dirname, '../uploads', media);
+    const p = await require('./services/videoProcessor').probeVideo(caminho);
+    const s = Number(p?.format?.duration);
+    return Number.isFinite(s) && s > 0 ? Math.round(s * 1000) : null;
+  } catch { return null; }
+}
+
 /** O post desta mídia nesta rodada — o mesmo, se a rodada rodar de novo. */
 async function postDaRodada(job, media, rodada, legenda) {
   const video = /\.(mp4|mov|webm|avi|mkv)$/i.test(media);
   let postType = job.postType || 'reel';
   if (postType === 'reel' && !video) postType = 'post';
+  const duracaoMs = video ? await duracaoDoVideo(media) : null;
   const [novo] = await sql`
     insert into posts ${sql({
-      media, jobId: job.id, jobRound: rodada, jobCiclo: job.ciclo || 0, jobName: job.name || '', usuarioId: job.usuarioId,
+      media, duracaoMs, jobId: job.id, jobRound: rodada, jobCiclo: job.ciclo || 0, jobName: job.name || '', usuarioId: job.usuarioId,
       mediaType: video ? 'video' : 'image', postType,
       cover: job.cover || '', caption: legenda ?? (job.caption || ''), ctaComment: job.ctaComment || '',
       marcaDagua: job.marcaDagua?.ativa ? job.marcaDagua : null,
