@@ -84,6 +84,22 @@ async function criarContainer(conta, entrada) {
   return String(d.id);
 }
 
+/* O que cada código de recusa da Meta quer dizer (status do container). */
+const MOTIVOS = {
+  2207004: 'imagem maior que 8 MB',
+  2207005: 'formato de imagem não aceito',
+  2207009: 'proporção não aceita',
+  2207010: 'legenda longa demais',
+  2207026: 'formato de vídeo não aceito (resolução, fps, codec ou duração)',
+  2207052: 'a Meta não conseguiu baixar o arquivo do servidor',
+  2207053: 'falha temporária no envio da Meta',
+  2207006: 'mídia não encontrada',
+  2207008: 'o container expirou',
+};
+function motivoDoErro(sub, status) {
+  return MOTIVOS[sub] ? `${MOTIVOS[sub]} (${sub})` : (status || 'ERROR');
+}
+
 async function statusDoContainer(conta, id) {
   const d = await get(`/${id}`, { fields: 'status_code,status' }, conta.accessToken);
   return { statusCode: d.status_code, status: d.status || null };
@@ -166,7 +182,8 @@ async function uma(conta, entrada, estado) {
     if (st.statusCode === 'ERROR') {
       estado.containerId = null;
       const sub = Number(String(st.status || '').match(/(2207\d{3})/)?.[1]);
-      throw new GraphError({ message: `A Meta não conseguiu processar a mídia: ${st.status || 'ERROR'}`, code: 9, error_subcode: Number.isFinite(sub) ? sub : undefined }, 400);
+      console.log(`⚠️ [Publicação] @${conta.username} container ${estado.containerId} ERROR: ${st.status || '(sem detalhe)'}`);
+      throw new GraphError({ message: `A Meta não conseguiu processar a mídia: ${motivoDoErro(sub, st.status)}`, code: 9, error_subcode: Number.isFinite(sub) ? sub : undefined }, 400);
     }
     if (idade > LIMITE_DO_CONTAINER) {
       estado.containerId = null;

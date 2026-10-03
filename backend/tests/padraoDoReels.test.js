@@ -31,5 +31,5 @@ test('4K, 120 fps e índice no fim: converte', async () => {
 
 test('erros da Meta em português', () => {
   expect(traduzirErro('Error validating access token: You cannot access the app till you log in to www.instagram.com and follow the instructions given.')).toMatch(/verificação/);
-  expect(traduzirErro('A Meta não conseguiu processar a mídia: ERROR')).toMatch(/1920 px/);
+  expect(traduzirErro('A Meta não conseguiu processar a mídia: ERROR')).toMatch(/recusou o arquivo: ERROR/);
 }, 60000);

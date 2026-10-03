@@ -20,10 +20,15 @@ const config = require('../config');
 const graph = require('./instagramAPI');
 const publicacao = require('./publicacao');
 const midiaPorConta = require('./midiaPorConta');
-const { jpegParaInstagram, isVideo } = require('./videoProcessor');
+const { jpegParaInstagram, isVideo, convertToReelFormat } = require('./videoProcessor');
 const { resolverLegenda } = require('./variarLegenda');
 
 const RAIZ_UPLOADS = path.resolve(__dirname, '../../uploads');
+
+function relativoDeUploads(abs) {
+  const rel = path.relative(path.resolve(__dirname, '../../uploads'), abs).split(path.sep).join('/');
+  return rel.startsWith('..') ? abs : rel;
+}
 
 function absoluto(caminho) {
   return path.isAbsolute(caminho) ? caminho : path.join(RAIZ_UPLOADS, caminho);
@@ -92,14 +97,28 @@ async function videoParaAConta(post, conta, gerados) {
 /** Reel: o vídeo, com capa (imagem própria ou quadro) e legenda. */
 async function reel(conta, post, legenda, gerados) {
   const video = await videoParaAConta(post, conta, gerados);
-  return publicacao.publicarNoInstagram(conta, {
+  const enviar = arquivo => publicacao.publicarNoInstagram(conta, {
     tipo: 'REEL',
-    midia: { kind: 'video', url: urlPublica(video) },
+    midia: { kind: 'video', url: urlPublica(arquivo) },
     legenda,
     capaUrl: post.cover ? urlPublica(post.cover) : null,
     thumbOffsetMs: Number.isFinite(post.thumbOffsetMs) ? post.thumbOffsetMs : undefined,
     noFeed: post.shareToFeed !== false,
   });
+  try {
+    return await enviar(video);
+  } catch (err) {
+    /* A Meta recusou o arquivo (status ERROR do container) e o que foi era o
+       original: tenta uma vez com ele refeito no padrão exato do Reels
+       (1080×1920, H.264, AAC, faststart) — o que o celular faria. */
+    if (!/não conseguiu processar a mídia/i.test(err.message) || video !== post.media) throw err;
+    console.log(`🔁 [Publicar] @${conta.username} — Meta recusou o original (${err.message}); refazendo no padrão do Reels`);
+    const refeito = relativoDeUploads(await convertToReelFormat(absoluto(post.media), {
+      quality: 'high', sufixo: `r${midiaPorConta.marcaDe(String(post.id), String(conta.id))}`,
+    }));
+    gerados.push(refeito);
+    return enviar(refeito);
+  }
 }
 
 /** Foto no feed: JPEG na proporção do feed (a API só aceita JPEG). */
