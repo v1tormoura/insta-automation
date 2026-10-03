@@ -549,7 +549,7 @@ export default function Importar() {
             ))}
           </div>
           <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginBottom: 'var(--mf-4)', lineHeight: 1.5 }}>
-            Limpa o ruído da compressão, amplia (Lanczos) e aplica nitidez adaptativa com um leve realce de cor. Fica mais limpo e definido, mas não cria detalhe que não existe no original. Em vídeo já 1080p, "Full HD" só realça. 4K e 8K levam alguns minutos.
+            Limpa o ruído da compressão, amplia (Lanczos) e aplica nitidez adaptativa com um leve realce de cor. Fica mais limpo e definido, mas não cria detalhe que não existe no original. Em vídeo já 1080p, "Full HD" só realça. 4K e 8K levam alguns minutos e servem para baixar — o Reels aceita até 1920 px, então ao postar o Nexora reduz para 1080×1920 sozinho.
           </div>
 
           {rotulo('Formato dos vídeos')}

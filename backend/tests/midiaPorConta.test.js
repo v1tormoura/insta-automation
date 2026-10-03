@@ -52,7 +52,7 @@ talvez('o vídeo que vai para a conta', () => {
     const base = ['-hide_banner', '-loglevel', 'error',
       '-f', 'lavfi', '-i', 'testsrc2=size=720x1280:rate=24:duration=1',
       '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', '-c:v', 'libx264', '-shortest'];
-    await execFileAsync(ffmpegBin, [...base, '-c:a', 'aac', '-y', mp4]);
+    await execFileAsync(ffmpegBin, [...base, '-c:a', 'aac', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', mp4]);
     await execFileAsync(ffmpegBin, [...base, '-c:a', 'libmp3lame', '-y', comMp3]);
   });
   afterAll(() => {

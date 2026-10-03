@@ -303,7 +303,7 @@ async function processarRodada({ jobId }) {
         await publicarNaConta(conta, preparada.post);
         preparada.sucessos++; sucessos++;
       } catch (err) {
-        preparada.erros.push(`@${conta.username}: ${err.message}`); erros++;
+        preparada.erros.push(`@${conta.username}: ${traduzirErro(err.message)}`); erros++;
       }
     }
   });
@@ -356,7 +356,7 @@ async function processarPost({ postId }) {
   const erros = [];
   await emParalelo(pendentes, PUBLICACOES_SIMULTANEAS, async conta => {
     try { await publicarNaConta(conta, post); ok++; }
-    catch (err) { erros.push(`@${conta.username}: ${err.message}`); }
+    catch (err) { erros.push(`@${conta.username}: ${traduzirErro(err.message)}`); }
   });
   const status = ok && !erros.length ? 'concluido' : ok ? 'parcial' : 'erro';
   await posts.update(post.id, { status, error: erros.join(' | ') });

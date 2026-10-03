@@ -8,6 +8,11 @@ function traduzirErro(msg) {
   if (!msg) return 'Erro desconhecido';
   const m = String(msg);
 
+  // "Confirme que você é humano": chega como erro de token, mas reconectar não resolve.
+  if (/log in to www\.instagram\.com|follow the instructions given/i.test(m))
+    return 'Instagram pediu verificação nesta conta — entre em instagram.com com ela e conclua; o token volta a valer sozinho';
+  if (/não conseguiu processar a mídia/i.test(m))
+    return 'A Meta recusou o arquivo (formato fora do padrão do Reels: até 1920 px, 23–60 fps, até 25 Mbps) — o próximo envio converte sozinho';
   if (/session.*expired|token.*expired|expired.*token|has been logged out|user.*logged.*out/i.test(m))
     return 'Token expirado — reconecte via 🔗 API';
   if (/password.*changed|change.*password|password.*reset/i.test(m))

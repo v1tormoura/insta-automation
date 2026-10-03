@@ -29,17 +29,66 @@ const RAIZ_UPLOADS = path.resolve(__dirname, '../../uploads');
 const CONTEINER_OK = /\.(mp4|mov)$/i;
 const VIDEO_OK = new Set(['h264', 'hevc']);
 
+/**
+ * Os limites do Reels na API (fora deles a Meta devolve status ERROR, sem
+ * dizer o motivo): lado maior até 1920 px, 23–60 fps, yuv420p 8 bits, até
+ * 25 Mbps, áudio AAC até 48 kHz, e o índice (moov) no começo do arquivo.
+ */
+const LIMITES = { lado: 1920, fpsMin: 23, fpsMax: 60, bitrate: 25_000_000, audioHz: 48_000 };
+
+function fpsDe(v) {
+  const [n, d] = String(v?.avg_frame_rate || v?.r_frame_rate || '0/1').split('/').map(Number);
+  return d ? n / d : 0;
+}
+
+/** O índice (moov) vem antes dos dados (mdat)? A Meta baixa por URL e precisa dele no começo. */
+function moovNoComeco(absoluto) {
+  let fd;
+  try {
+    fd = fs.openSync(absoluto, 'r');
+    const tamanho = fs.fstatSync(fd).size;
+    const cab = Buffer.alloc(16);
+    let pos = 0;
+    for (let i = 0; i < 50 && pos + 8 <= tamanho; i++) {
+      fs.readSync(fd, cab, 0, 16, pos);
+      let len = cab.readUInt32BE(0);
+      const tipo = cab.toString('latin1', 4, 8);
+      if (tipo === 'moov') return true;
+      if (tipo === 'mdat') return false;
+      if (len === 1) len = Number(cab.readBigUInt64BE(8));
+      if (len < 8) return false;
+      pos += len;
+    }
+    return false;
+  } catch { return false; }
+  finally { if (fd !== undefined) fs.closeSync(fd); }
+}
+
+/** Por que o original NÃO serve (lista vazia = serve como está). */
+async function motivosParaConverter(absoluto) {
+  if (!CONTEINER_OK.test(absoluto)) return ['contêiner'];
+  let probe;
+  try { probe = await probeVideo(absoluto); } catch { return ['não deu para ler o vídeo']; }
+  const v = probe?.streams?.find(x => x.codec_type === 'video');
+  const a = probe?.streams?.find(x => x.codec_type === 'audio');
+  if (!v) return ['sem trilha de vídeo'];
+  const m = [];
+  if (!VIDEO_OK.has(v.codec_name)) m.push(`codec ${v.codec_name}`);
+  if (Math.max(v.width || 0, v.height || 0) > LIMITES.lado) m.push(`${v.width}x${v.height} (máx. ${LIMITES.lado})`);
+  const fps = fpsDe(v);
+  if (fps && (fps < LIMITES.fpsMin || fps > LIMITES.fpsMax)) m.push(`${fps.toFixed(0)} fps`);
+  if (v.pix_fmt && v.pix_fmt !== 'yuv420p' && v.pix_fmt !== 'yuvj420p') m.push(v.pix_fmt);
+  const br = Number(probe?.format?.bit_rate || v.bit_rate || 0);
+  if (br > LIMITES.bitrate) m.push(`${Math.round(br / 1e6)} Mbps`);
+  if (a && a.codec_name !== 'aac') m.push(`áudio ${a.codec_name}`);
+  if (a && Number(a.sample_rate) > LIMITES.audioHz) m.push(`áudio ${a.sample_rate} Hz`);
+  if (!moovNoComeco(absoluto)) m.push('índice no fim do arquivo');
+  return m;
+}
+
 /** O original serve como está? Na dúvida (probe falhou), não. */
 async function originalServe(absoluto) {
-  if (!CONTEINER_OK.test(absoluto)) return false;
-  try {
-    const probe = await probeVideo(absoluto);
-    const v = probe?.streams?.find(x => x.codec_type === 'video');
-    const a = probe?.streams?.find(x => x.codec_type === 'audio');
-    return !!v && VIDEO_OK.has(v.codec_name) && (!a || a.codec_name === 'aac');
-  } catch {
-    return false;
-  }
+  return (await motivosParaConverter(absoluto)).length === 0;
 }
 
 /** Nome curto e estável do arquivo desta conta para este post. */
@@ -78,10 +127,12 @@ async function prepararParaConta(post, account, opcoes = {}) {
     ? require('./marcaDagua').filtroDaMarca(configDaMarca, account.username)
     : null;
 
-  if (!filtro && await originalServe(absoluto)) {
+  const motivos = filtro ? [] : await motivosParaConverter(absoluto);
+  if (!filtro && !motivos.length) {
     console.log(`🎬 [MidiaPorConta] @${account.username || account.id} → original (${path.basename(original)})`);
     return { caminho: original, proprio: false };
   }
+  if (motivos.length) console.log(`🎬 [MidiaPorConta] ${path.basename(original)} fora do padrão do Reels (${motivos.join(', ')}) — convertendo`);
 
   try {
     const saida = await convertToReelFormat(absoluto, {
@@ -158,4 +209,4 @@ function descartar(caminho, proprio) {
   try { fs.unlinkSync(absoluto); } catch { /* já não existe */ }
 }
 
-module.exports = { prepararParaConta, descartar, marcaDe };
+module.exports = { motivosParaConverter, moovNoComeco, prepararParaConta, descartar, marcaDe };
