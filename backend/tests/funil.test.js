@@ -69,6 +69,9 @@ describe('ponta a ponta', () => {
     const resumo = await (await pedir('/funil/resumo?dias=7')).json();
     expect(resumo.etapas).toEqual({ cliques: 1, entrou: 3, checkout: 2, comprou: 1 });
     expect(resumo.receita).toBe(29.9);
+    expect(resumo.ticketMedio).toBe(29.9);
+    expect(resumo.serie).toHaveLength(7);
+    expect(resumo.hoje).toMatchObject({ cliques: 1, entrou: 3, checkout: 2, comprou: 1, receita: 29.9 });
     expect(resumo.origens.find(o => o.origem === 'Bio da conta A')).toMatchObject({ cliques: 1, entrou: 2, checkout: 2, comprou: 1 });
 
     const parados = await (await pedir('/funil/leads?dias=7&etapa=checkout')).json();
@@ -83,3 +86,4 @@ describe('ponta a ponta', () => {
     expect((await pedir('/funil/webhook/errado', { method: 'POST', body: '{}' })).status).toBe(404);
   });
 });
+

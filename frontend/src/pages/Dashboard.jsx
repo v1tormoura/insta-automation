@@ -24,6 +24,7 @@ import { NumberTicker } from '../components/magicui/number-ticker';
 import { BlurFade } from '../components/magicui/blur-fade';
 import ConnectedAccountsMetrics from '../components/ConnectedAccountsMetrics';
 import MapaDeAudiencia from '../components/MapaDeAudiencia';
+import ResumoDoWebhook from '../components/ResumoDoWebhook';
 import { EsqueletoMetricas } from '../components/Estados';
 
 /* ── helpers (unchanged) ── */
@@ -1086,6 +1087,11 @@ export default function Dashboard() {
           subtitle={problemsValue > 0 ? 'precisam de atenção' : 'nenhuma precisa de atenção'}
           activePeriod={problemsPeriod} onPeriodChange={setProblemsPeriod} tone="muted" spark={sparkDaily} />
         </motion.section>)}
+
+        {/* ── VENDAS DO BOT (webhook) — some sozinho sem eventos ── */}
+        <BlurFade delay={0.02} inView>
+          <ResumoDoWebhook />
+        </BlurFade>
 
         {/* ── MÉTRICAS GLOBAIS · CONTAS CONECTADAS ── */}
         <BlurFade delay={0.04} inView>

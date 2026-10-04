@@ -161,6 +161,35 @@ function leadsDe(eventos) {
   return [...m.values()];
 }
 
+/* O dia no fuso de quem usa o painel (Brasil), não o dia em UTC. */
+const diaLocal = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+/**
+ * Por dia: leads novos (primeira vez que a pessoa aparece), quem clicou em
+ * comprar, vendas e receita. `hoje` é o último ponto da série.
+ */
+function seriePorDia(eventos, nDias) {
+  const dias = [];
+  for (let i = nDias - 1; i >= 0; i--) dias.push(diaLocal(Date.now() - i * 86_400_000));
+  const m = new Map(dias.map(d => [d, { dia: d, cliques: 0, entrou: 0, checkout: 0, comprou: 0, receita: 0 }]));
+  const vistos = { entrou: new Set(), checkout: new Set(), comprou: new Set() };
+  for (const e of eventos) {
+    const b = m.get(diaLocal(e.criadoEm));
+    if (e.etapa === 'clique') { if (b) b.cliques++; continue; }
+    if (e.etapa === 'outro') continue;
+    const quem = e.lead || e.id;
+    for (const etapa of ['entrou', 'checkout', 'comprou']) {
+      if (funil.ORDEM[e.etapa] < funil.ORDEM[etapa] || vistos[etapa].has(quem)) continue;
+      vistos[etapa].add(quem);
+      if (!b) continue;
+      b[etapa]++;
+      if (etapa === 'comprou' && e.valor != null) b.receita = Math.round((b.receita + Number(e.valor)) * 100) / 100;
+    }
+  }
+  const serie = [...m.values()];
+  return { serie, hoje: serie.at(-1) };
+}
+
 painel.get('/resumo', async (req, res) => {
   const dias = diasDe(req.query);
   const eventos = await eventosDoPeriodo(req.user.id, dias);
@@ -187,6 +216,8 @@ painel.get('/resumo', async (req, res) => {
   }
   res.json({
     dias, etapas, receita: Math.round(receita * 100) / 100,
+    ticketMedio: etapas.comprou ? Math.round((receita / etapas.comprou) * 100) / 100 : 0,
+    ...seriePorDia(eventos, Math.min(dias, 30)),
     origens: [...porOrigem.values()].sort((a, b) => b.comprou - a.comprou || b.entrou - a.entrou || b.cliques - a.cliques),
     ultimoEvento: eventos.at(-1)?.criadoEm || null,
   });

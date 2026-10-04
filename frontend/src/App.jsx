@@ -34,7 +34,7 @@ const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
 const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
 const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
 const Importar            = lazy(() => import('./pages/Importar'));
-const Funil               = lazy(() => import('./pages/Funil'));
+const Webhook             = lazy(() => import('./pages/Webhook'));
 const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
 import Login from './pages/Login';
 import Termos from './pages/Termos';
@@ -130,7 +130,8 @@ export default function App() {
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"          element={<MediaLibrary />} />
               <Route path="/importar"            element={<Importar />} />
-              <Route path="/funil"               element={<Funil />} />
+              <Route path="/webhook"             element={<Webhook />} />
+              <Route path="/funil"               element={<Navigate to="/webhook" replace />} />
             </Routes>
             </Suspense>
             </LimiteDeRota>
