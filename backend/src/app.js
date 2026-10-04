@@ -62,6 +62,9 @@ app.get('/healthz', (req, res) => res.json({ ok: true }));
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/oauth', require('./routes/oauthRoutes'));
 app.use('/meta', require('./routes/metaCallbacksRoutes'));
+// Funil: link rastreado (/r/:codigo) e webhook do bot — públicos, autenticados pelo código/token.
+const funilRotas = require('./routes/funilRoutes');
+app.use(funilRotas.publico);
 
 // ── Com login (JWT) ─────────────────────────────────────────────────────────
 app.use('/events',        auth, require('./routes/eventsRoutes'));
@@ -81,6 +84,7 @@ app.use('/loops',         auth, require('./routes/loopRoutes'));
 app.use('/insights',      auth, require('./routes/insightRoutes'));
 app.use('/analytics',     auth, require('./routes/analyticsRoutes'));
 app.use('/jobs',          auth, require('./routes/jobRoutes'));
+app.use('/funil',         auth, funilRotas.painel);
 app.use('/meta-apps',     auth, require('./routes/metaAppRoutes'));
 app.use('/convites',      auth, require('./routes/convitesRoutes'));
 app.use('/usuarios',      auth, auth.soAdmin, require('./routes/usuariosRoutes'));

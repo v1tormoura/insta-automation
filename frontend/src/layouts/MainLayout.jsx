@@ -147,6 +147,7 @@ const ic = (children, w = 18) => (
 );
 
 const ICONS = {
+  funil:     ic(<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>),
   download:  ic(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>),
   dashboard: ic(<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>),
   posts:     ic(<><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></>),
@@ -226,6 +227,7 @@ const NAV_GROUPS = [
       { to: '/metricas-perfis', mod: 'metricas', label: 'Perfis',            sub: 'Seguidores e curtidas',  icon: ICONS.perfis      },
       { to: '/ranking', mod: 'metricas',         label: 'Ranking',           sub: 'Posts do mês',           icon: ICONS.ranking     },
       { to: '/top-posts', mod: 'metricas',       label: 'Top Posts',         sub: 'Republique os melhores', icon: ICONS.topposts    },
+      { to: '/funil', mod: 'metricas',           label: 'Funil',             sub: 'Bot, cliques e vendas',  icon: ICONS.funil       },
     ],
   },
   {
