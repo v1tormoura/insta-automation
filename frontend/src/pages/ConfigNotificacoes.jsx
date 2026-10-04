@@ -93,20 +93,27 @@ const ENVIO = [
   { id: 'envioConcluido', rotulo: 'Envio concluído',      desc: 'Quando o pacote termina: quantas saíram e quantas falharam' },
 ];
 
+/** Avisos do Webhook: o bot de vendas contando o que aconteceu. */
+const WEBHOOK = [
+  { id: 'vendaWebhook',    rotulo: 'Venda',              desc: 'Pagamento aprovado no bot, com valor e a conta de onde veio' },
+  { id: 'checkoutWebhook', rotulo: 'Clicou em comprar',  desc: 'Checkout / PIX gerado — a pessoa ainda não pagou' },
+  { id: 'leadWebhook',     rotulo: 'Novo lead',          desc: 'Alguém deu start no bot' },
+];
+
 /** Outros avisos: para o admin, cadastro novo. */
 const OUTROS = [
   { id: 'novoCadastro',   rotulo: 'Novo cadastro',   desc: 'Só para o admin: alguém pediu acesso ao painel' },
 ];
 
 /** Todo aviso editável, por id — para achar o rótulo sem varrer as listas. */
-const TODOS = [...METRICAS, RESUMO, ...PUBLICACAO, ...ENVIO, ...OUTROS, ...SISTEMA];
+const TODOS = [...METRICAS, RESUMO, ...PUBLICACAO, ...ENVIO, ...WEBHOOK, ...OUTROS, ...SISTEMA];
 const PELO_ID = Object.fromEntries(TODOS.map(a => [a.id, a]));
 
 /** Um aviso do sistema não tem marcos nem interruptor. */
 const ehDoSistema = id => SISTEMA.some(a => a.id === id);
 
 /** Um aviso de publicação tem interruptor, mas não tem marco para configurar. */
-const ehDePublicacao = id => [...PUBLICACAO, ...ENVIO, ...OUTROS].some(a => a.id === id);
+const ehDePublicacao = id => [...PUBLICACAO, ...ENVIO, ...WEBHOOK, ...OUTROS].some(a => a.id === id);
 
 /** Quando cada aviso de publicação/envio sai — mostrado ao lado do editor. */
 const QUANDO = {
@@ -117,6 +124,9 @@ const QUANDO = {
   envioIniciado:  'Ao enviar pelo Postar, criar um Loop, iniciar uma Campanha ou mandar Stories em massa. Ex.: 2 contas, 120 reels.',
   envioConcluido: 'Quando o envio do Postar, a Campanha ou o lote de Stories termina (o Loop não termina — repete).',
   novoCadastro:   'Quando alguém se cadastra e espera aprovação. Só o admin recebe.',
+  vendaWebhook:    'Quando o bot avisa um pagamento aprovado (webhook). Ligado por padrão.',
+  checkoutWebhook: 'Quando o bot avisa que a pessoa gerou o pagamento (PIX/checkout) e ainda não pagou. Desligado por padrão.',
+  leadWebhook:     'A cada pessoa que entra no bot. Num bot movimentado são muitas — desligado por padrão.',
 };
 
 /**
@@ -183,6 +193,7 @@ export default function ConfigNotificacoes() {
            também, e duas listas da mesma coisa divergem na primeira variável
            nova — foi exatamente o que aconteceu com as sete do sistema. */
         exemplos: data.exemplos || {},
+        exemplosPorTipo: data.exemplosPorTipo || {},
         modelosPadrao: data.modelosPadrao || {},
       });
     } catch {
@@ -276,6 +287,7 @@ export default function ConfigNotificacoes() {
   const exemplo = useMemo(() => {
     const vars = {
       ...(cfg?.exemplos || {}),
+      ...(cfg?.exemplosPorTipo?.[metrica] || {}),
       /* A única que depende do aviso escolhido: o resto vem do servidor. */
       contentType: metrica === 'storyViews' ? 'Story' : 'Reel',
     };
@@ -292,7 +304,7 @@ export default function ConfigNotificacoes() {
       criadaEm: new Date().toISOString(),
       lidaEm: null,
     };
-  }, [modelo, metrica, cfg?.exemplos]);
+  }, [modelo, metrica, cfg?.exemplos, cfg?.exemplosPorTipo]);
 
   async function salvar() {
     if (invalidas.length) {
@@ -379,6 +391,7 @@ export default function ConfigNotificacoes() {
               { titulo: 'MARCOS DE AUDIÊNCIA', itens: [...METRICAS, RESUMO], comInterruptor: true },
               { titulo: 'PUBLICAÇÃO',          itens: PUBLICACAO,           comInterruptor: true },
               { titulo: 'ENVIOS',              itens: ENVIO,                comInterruptor: true },
+              { titulo: 'WEBHOOK',             itens: WEBHOOK,              comInterruptor: true },
               { titulo: 'OUTROS',              itens: OUTROS,               comInterruptor: true },
               { titulo: 'SISTEMA',             itens: SISTEMA,              comInterruptor: true },
             ].map(grupo => (
@@ -617,7 +630,7 @@ export default function ConfigNotificacoes() {
                   </>)}
 
                 {painel('Comportamento', <>
-                  {[...METRICAS, ...PUBLICACAO, ...ENVIO, ...OUTROS, ...SISTEMA].map(m => (
+                  {[...METRICAS, ...PUBLICACAO, ...ENVIO, ...WEBHOOK, ...OUTROS, ...SISTEMA].map(m => (
                     <label key={m.id} style={{
                       display: 'flex', alignItems: 'center', gap: 9, padding: '8px 0',
                       borderBottom: '1px solid var(--mf-border-subtle)', cursor: 'pointer',
@@ -703,7 +716,7 @@ export default function ConfigNotificacoes() {
                         mensagens para calibrar, saber QUAL chegou é metade da
                         informação — e um teste só de Stories nunca revelaria
                         um erro no de Alcance. */}
-                    {[...METRICAS, ...PUBLICACAO, ...ENVIO, ...OUTROS, ...SISTEMA].map(m => (
+                    {[...METRICAS, ...PUBLICACAO, ...ENVIO, ...WEBHOOK, ...OUTROS, ...SISTEMA].map(m => (
                       <button key={m.id} onClick={() => testarAviso(m.id, false)} disabled={!!testando}
                         className="mf-btn mf-btn--ghost"
                         style={{ width: '100%', justifyContent: 'space-between',

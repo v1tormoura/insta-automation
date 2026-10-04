@@ -54,27 +54,52 @@ publico.post('/funil/webhook/:token', express.json({ limit: '1mb' }), express.ur
     if (antes) { ev.codigo = antes.codigo; linkId = antes.linkId; }
   }
 
+  /* Nome e @ que não vieram neste evento (a compra costuma vir só com o id): os de antes. */
+  if (ev.lead && (!ev.nome || !ev.username)) {
+    const [quem] = await sql`
+      select max(nullif(nome, '')) as nome, max(nullif(username, '')) as username from funil_eventos
+      where usuario_id = ${usuarioId} and lead = ${ev.lead}`;
+    ev.nome = ev.nome || quem?.nome || '';
+    ev.username = ev.username || quem?.username || '';
+  }
+
   const [novo] = await sql`insert into funil_eventos ${sql({ usuarioId, linkId, ...ev, bruto: sql.json(corpo) })} returning id`;
   broadcast('funil', { etapa: ev.etapa }, usuarioId);
-  if (ev.etapa === 'comprou') avisarVenda(usuarioId, ev, linkId).catch(e => console.log(`[Funil] aviso: ${e.message}`));
+  avisar(usuarioId, ev, linkId).catch(e => console.log(`[Funil] aviso: ${e.message}`));
   res.json({ ok: true, id: novo.id, etapa: ev.etapa, codigo: ev.codigo || null });
 });
 
-async function avisarVenda(usuarioId, ev, linkId) {
+/* Etapa → aviso editável em Notificações (modelo, liga/desliga). */
+const AVISO_DA_ETAPA = { comprou: 'vendaWebhook', checkout: 'checkoutWebhook', entrou: 'leadWebhook' };
+
+async function avisar(usuarioId, ev, linkId) {
+  const tipo = AVISO_DA_ETAPA[ev.etapa];
+  if (!tipo) return null;
+  const cfg = await require('../services/smartActivity/thresholds').carregar(usuarioId).catch(() => null);
+  // `carregar` já mistura o padrão: venda ligada; lead e clique em comprar desligados.
+  if (!cfg?.ativos?.[tipo]) return null;
+
   const [l] = linkId ? await sql`
     select l.rotulo, a.username from funil_links l left join accounts a on a.id = l.account_id where l.id = ${linkId}` : [];
-  const quem = ev.nome || (ev.username ? `@${ev.username}` : 'Alguém');
-  const valor = ev.valor != null ? ` · R$ ${ev.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '';
-  const origem = l?.username ? ` — veio de @${l.username}` : l?.rotulo ? ` — veio de ${l.rotulo}` : '';
+  const t = require('../services/smartActivity/templates');
+  const modelo = t.modeloDe(tipo, cfg?.mensagens);
+  const vars = {
+    cliente: ev.nome || (ev.username ? `@${ev.username}` : 'Alguém'),
+    plano: ev.plano || 'o plano',
+    valor: ev.valor != null ? Number(ev.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'valor não informado',
+    origem: l?.username ? `@${l.username}` : (l?.rotulo || 'origem desconhecida'),
+    time: 'agora',
+  };
   const { notificacoes } = require('../repos');
   const nova = await notificacoes.insert({
-    usuarioId, eventType: 'funil', tema: 'success', prioridade: 'normal', username: l?.username || '',
-    titulo: 'Venda no funil 💰',
-    mensagem: `${quem} comprou${ev.plano ? ` ${ev.plano}` : ''}${valor}${origem}.`,
-    metadados: { funil: true },
+    usuarioId, eventType: 'funil', tema: modelo.tema, prioridade: 'normal', username: l?.username || '',
+    titulo: t.render(modelo.titulo, vars),
+    mensagem: t.render(modelo.mensagem, vars),
+    metadados: { funil: true, tipo },
   });
   require('../services/smartActivity/webPush').enviar(nova).catch(() => {});
   broadcast('notificacoes', { novas: 1 }, usuarioId);
+  return nova;
 }
 
 /* ── Painel ──────────────────────────────────────────────────────────────── */

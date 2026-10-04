@@ -66,6 +66,7 @@ router.get('/config', async (req, res) => {
          acompanha cada tecla, e uma ida ao servidor por caractere seria uma
          requisição a cada letra digitada. */
       exemplos: templates.EXEMPLOS,
+      exemplosPorTipo: templates.EXEMPLOS_POR_TIPO,
       modelosPadrao: templates.PADRAO,
     });
   } catch (err) {
@@ -159,6 +160,7 @@ function varsDeExemplo(tipo) {
   if (templates.TIPOS_DE_SISTEMA.includes(tipo)) {
     return { ...templates.EXEMPLOS };
   }
+  if (templates.EXEMPLOS_POR_TIPO[tipo]) return { ...templates.EXEMPLOS, ...templates.EXEMPLOS_POR_TIPO[tipo] };
   return {
     /* Por baixo: publicacoes/contas/viewsStories/porConta (resumo) e erro
        (erroPublicacao) — variáveis que `contexto()` não sabe montar porque

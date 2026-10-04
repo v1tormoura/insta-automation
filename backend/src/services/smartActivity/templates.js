@@ -57,12 +57,15 @@ const VARIAVEIS = Object.freeze({
   horas:         'Por quantas horas o problema durou',
 
   /* Envios (Postar, Loop, Campanha, Stories). */
-  origem:        'De onde saiu o envio: Postar, Loop, Campanha ou Stories',
+  origem:        'De onde saiu o envio (Postar, Loop, Campanha, Stories) — no webhook, de onde veio a pessoa (@conta ou link)',
   nome:          'Nome do envio',
   tipo:          'reels, fotos ou stories (no singular quando é um só)',
   publicadas:    'Publicações que saíram (no fim do envio)',
   falhas:        'Publicações que falharam (no fim do envio)',
   nomeCadastro:  'Nome de quem pediu acesso',
+  cliente:       'Nome de quem entrou/comprou no bot (ou o @, se não vier nome)',
+  plano:         'Plano ou produto que o bot informou',
+  valor:         'Valor da compra (R$ 29,90)',
   emailCadastro: 'E-mail de quem pediu acesso',
 });
 
@@ -95,6 +98,10 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   envioIniciado:  Object.freeze(['origem', 'nome', 'contas', 'publicacoes', 'tipo']),
   envioConcluido: Object.freeze(['origem', 'nome', 'contas', 'publicadas', 'falhas', 'tipo']),
   novoCadastro:   Object.freeze(['nomeCadastro', 'emailCadastro']),
+  /* Webhook do bot de vendas. */
+  vendaWebhook:   Object.freeze(['cliente', 'plano', 'valor', 'origem', 'time']),
+  checkoutWebhook: Object.freeze(['cliente', 'plano', 'valor', 'origem', 'time']),
+  leadWebhook:    Object.freeze(['cliente', 'origem', 'time']),
   cotaApi:        Object.freeze(['account', 'username', 'usado', 'limite', 'libera']),
 
   /* Avisos do vigia do sistema. */
@@ -184,6 +191,23 @@ const PADRAO = Object.freeze({
   novoCadastro: Object.freeze({
     titulo: 'Novo cadastro esperando aprovação',
     mensagem: '{{nomeCadastro}} ({{emailCadastro}}) pediu acesso. Aprove em Usuários.',
+    tema: 'info',
+  }),
+
+  /* ── Webhook do bot de vendas ─────────────────────────────────────── */
+  vendaWebhook: Object.freeze({
+    titulo: 'Venda no funil 💰',
+    mensagem: '{{cliente}} comprou {{plano}} · {{valor}} — veio de {{origem}}.',
+    tema: 'success',
+  }),
+  checkoutWebhook: Object.freeze({
+    titulo: 'Clicou em comprar 🛒',
+    mensagem: '{{cliente}} gerou o pagamento de {{plano}} · {{valor}} — veio de {{origem}}.',
+    tema: 'info',
+  }),
+  leadWebhook: Object.freeze({
+    titulo: 'Novo lead no bot 👋',
+    mensagem: '{{cliente}} entrou no bot — veio de {{origem}}.',
     tema: 'info',
   }),
 
@@ -360,7 +384,13 @@ const EXEMPLOS = Object.freeze({
   origem: 'Postar', nome: 'Post 29/09', tipo: 'reels',
   publicadas: '118', falhas: '2',
   nomeCadastro: 'Maria Souza', emailCadastro: 'maria@email.com',
+  cliente: 'Ana Lima', plano: 'VIP Mensal', valor: 'R$ 29,90',
 });
+
+/* Onde a mesma variável quer dizer outra coisa: no webhook, `origem` é a
+   conta de onde veio a pessoa, não "Postar". */
+const DO_WEBHOOK = Object.freeze({ origem: '@oliviapaganini' });
+const EXEMPLOS_POR_TIPO = Object.freeze({ vendaWebhook: DO_WEBHOOK, checkoutWebhook: DO_WEBHOOK, leadWebhook: DO_WEBHOOK });
 
 /**
  * Variáveis usadas pelo modelo que o sistema não conhece.
@@ -407,7 +437,7 @@ function modeloDe(metricType, mensagensDoPainel = {}) {
 }
 
 module.exports = {
-  VARIAVEIS, VARIAVEIS_POR_TIPO, TIPOS_DE_SISTEMA, PADRAO, EXEMPLOS,
+  VARIAVEIS, VARIAVEIS_POR_TIPO, TIPOS_DE_SISTEMA, PADRAO, EXEMPLOS, EXEMPLOS_POR_TIPO,
   formatarNumero, tempoRelativo, contexto, discretas, validar, render,
   modeloDe, variaveisDe,
 };

@@ -54,6 +54,11 @@ const PADRAO = Object.freeze({
     envioIniciado: true,
     envioConcluido: true,
     novoCadastro: true,
+    /* Webhook do bot: a venda avisa; lead e clique em comprar só se ligar
+       (num bot movimentado seriam dezenas por hora). */
+    vendaWebhook: true,
+    checkoutWebhook: false,
+    leadWebhook: false,
 
     /* Avisos do vigia do sistema (contas sem conectar, fila presa, erros
        do dia) — desligados por padrão. Desligado, a verificação nem roda. */

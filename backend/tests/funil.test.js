@@ -76,10 +76,25 @@ describe('ponta a ponta', () => {
 
     const parados = await (await pedir('/funil/leads?dias=7&etapa=checkout')).json();
     expect(parados.leads.map(l => l.nome)).toEqual(['Beto']);
-    const [{ n }] = await sql`select count(*)::int as n from notificacoes where usuario_id = ${banco.DONO_ID} and event_type = 'funil'`;
-    await new Promise(r => setTimeout(r, 200));
-    const [{ n: depois }] = await sql`select count(*)::int as n from notificacoes where usuario_id = ${banco.DONO_ID} and event_type = 'funil'`;
-    expect(Math.max(n, depois)).toBe(1);
+    await new Promise(r => setTimeout(r, 300));
+    // Só a venda avisa por padrão (lead e clique em comprar ficam desligados).
+    const avisos = await sql`select titulo, mensagem from notificacoes where usuario_id = ${banco.DONO_ID} and event_type = 'funil'`;
+    expect(avisos.map(a => [a.titulo, a.mensagem.replace(/\s/g, ' ')])).toEqual([['Venda no funil 💰', 'Ana comprou o plano · R$ 29,90 — veio de Bio da conta A.']]);
+  });
+
+  test('o texto editado em Notificações é o que sai', async () => {
+    await require('../src/repos/settings').gravar(`smartActivity:${banco.DONO_ID}`, {
+      ativos: { vendaWebhook: true, leadWebhook: true },
+      mensagens: { vendaWebhook: { titulo: 'Caiu venda!', mensagem: '{{valor}} de {{cliente}}' } },
+    });
+    await sql`delete from notificacoes where usuario_id = ${banco.DONO_ID}`;
+    const hook = corpo => pedir(`/funil/webhook/${token}`, { method: 'POST', body: JSON.stringify(corpo) });
+    await hook({ event: 'start', user_id: 9, first_name: 'Duda' });
+    await hook({ status: 'approved', user_id: 9, amount: 10 });
+    await new Promise(r => setTimeout(r, 300));
+    const avisos = await sql`select titulo, mensagem from notificacoes where usuario_id = ${banco.DONO_ID} and event_type = 'funil' order by criada_em`;
+    expect(avisos.map(a => a.titulo)).toEqual(['Novo lead no bot 👋', 'Caiu venda!']);
+    expect(avisos[1].mensagem.replace(/\s/g, ' ')).toBe('R$ 10,00 de Duda');
   });
 
   test('token errado: 404', async () => {
