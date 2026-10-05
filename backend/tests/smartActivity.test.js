@@ -594,27 +594,15 @@ describe('entrega única por varredura', () => {
     expect(enviados[0]).toBe(unico);
   });
 
-  test('vários marcos: UM push, com a quantidade e o maior', async () => {
+  test('vários marcos: sem push de resumo — os 3 maiores, cada um com o próprio texto', async () => {
     const enviados = [];
-    const criadas = [marco(5000, 'laura'), marco(12000, 'siqueira'), marco(3000, 'rosa'),
-      { eventType: 'resumoMarcos', username: 'siqueira', metadados: {} }];
+    const criadas = [marco(5000, 'laura'), marco(12000, 'siqueira'), marco(3000, 'rosa'), marco(800, 'bia')];
     await detector._entregarUmPush(criadas, CFG, { enviar: n => enviados.push(n) });
-    expect(enviados).toHaveLength(1);
-    expect(enviados[0].titulo).toBe('4 marcos nas suas contas 🚀');
-    expect(enviados[0].mensagem).toContain('@siqueira');
-    expect(enviados[0].mensagem).toContain('12.000');
-    // Id próprio por varredura: no service worker o `tag` vem daqui, e um id
-    // fixo faria este resumo substituir o da varredura anterior em silêncio.
-    expect(enviados[0].id).toMatch(/^varredura-\d+$/);
+    expect(enviados.map(n => n.username)).toEqual(['siqueira', 'laura', 'rosa']);
+    expect(enviados.every(n => criadas.includes(n))).toBe(true);
+    expect(enviados.some(n => /marcos nas suas contas/.test(n.titulo || ''))).toBe(false);
   });
 
-  test('o resumo do push respeita "não mostrar nome/valor"', async () => {
-    const enviados = [];
-    const cfgDiscreto = { ...CFG, privacidade: { mostrarNome: false, mostrarValor: false } };
-    await detector._entregarUmPush([marco(5000, 'laura'), marco(12000, 'siqueira')], cfgDiscreto, { enviar: n => enviados.push(n) });
-    expect(enviados[0].mensagem).not.toContain('siqueira');
-    expect(enviados[0].mensagem).not.toContain('12.000');
-  });
 
   test('a coalescência grava os cartões e entrega UM push só', async () => {
     const c = conta();

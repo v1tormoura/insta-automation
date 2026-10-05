@@ -227,9 +227,8 @@ async function semearConta(conta, cfg) {
  * ── O que muda
  *
  * A Central continua recebendo um cartão por marco — é o histórico, e é lá que
- * se vê qual reel foi. O CELULAR recebe um toque só: o marco, quando é um; um
- * resumo ("4 conteúdos passaram de marcos — o maior: @conta com 12 mil"),
- * quando são vários.
+ * se vê qual reel foi. O CELULAR recebe o aviso de cada marco, com o texto
+ * editável, até PUSH_POR_VARREDURA (os maiores) — sem push de resumo.
  *
  * O que isto NÃO conserta: a detecção continua de meia em meia hora. Um marco
  * atingido às 17:15 aparece às 17:39. Isso é limite da API de métricas do
@@ -245,39 +244,16 @@ async function _entregarUmPush(criadas, cfg, { enviar, usuarioId = criadas[0]?.u
     } catch { return; }
   }
 
-  if (criadas.length === 1) {
-    console.log('[SmartActivity] varredura: 1 aviso na Central, 1 push');
-    Promise.resolve(enviar(criadas[0])).catch(err => console.warn('[WebPush] envio falhou:', err.message));
-    return;
-  }
-  /* A linha existe para responder, do log, a pergunta que só o dono do
-     celular conseguia responder antes: "quantas vezes o aparelho tocou?". */
-  console.log(`[SmartActivity] varredura: ${criadas.length} avisos na Central, 1 push (resumo)`);
-
-  /* O maior valor dá o rosto do resumo: é o que a pessoa quer abrir primeiro.
-     `discretas` respeita "não mostrar nome/valor" na tela de bloqueio, igual
-     ao resto — esconder no cartão e revelar no push seria esconder pela
-     metade. */
-  const marcos = criadas.filter(n => n.eventType === 'milestone');
-  const maior = [...(marcos.length ? marcos : criadas)]
-    .sort((a, b) => (b.metadados?.valor || 0) - (a.metadados?.valor || 0))[0];
-  const vars = templates.discretas({
-    quantidade: String(criadas.length),
-    account: maior?.username ? `@${maior.username}` : 'uma conta',
-    maior: templates.formatarNumero(maior?.metadados?.valor || 0),
-  }, cfg?.privacidade || {});
-
-  Promise.resolve(enviar({
-    /* Id próprio: no service worker o `tag` vem daqui, e um id fixo faria o
-       resumo desta varredura SUBSTITUIR o da anterior sem avisar. */
-    id: `varredura-${Date.now()}`,
-    usuarioId,
-    titulo: `${vars.quantidade} marcos nas suas contas 🚀`,
-    mensagem: `O maior: ${vars.account} com ${vars.maior}. Abra a Central para ver todos.`,
-    tema: 'viral',
-    username: maior?.username || '',
-  })).catch(err => console.warn('[WebPush] envio falhou:', err.message));
+  /* Sem push de resumo ("3 marcos nas suas contas"): cada aviso vai com o
+     próprio texto (o editável), no máximo PUSH_POR_VARREDURA — os maiores.
+     O resto fica na Central. */
+  const ordem = [...criadas].sort((x, y) => (y.metadados?.valor || 0) - (x.metadados?.valor || 0));
+  const vao = ordem.slice(0, PUSH_POR_VARREDURA);
+  console.log(`[SmartActivity] varredura: ${criadas.length} aviso(s) na Central, ${vao.length} push`);
+  for (const n of vao) Promise.resolve(enviar(n)).catch(err => console.warn('[WebPush] envio falhou:', err.message));
 }
+
+const PUSH_POR_VARREDURA = 3;
 
 /* Quando o MESMO conteúdo cruza marco de views e de alcance na mesma
    varredura, só um aviso: o de views. São dois números do mesmo reel, e o

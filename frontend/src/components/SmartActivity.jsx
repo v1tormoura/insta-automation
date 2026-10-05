@@ -414,15 +414,8 @@ export function SmartActivityProvider({ children }) {
            depois de o app ficar fechado, e aí vinte pop-ups seguidos são a
            pior forma de contar. */
         setFila(f => [...f, ...[...novas].reverse()]);
+        // No máximo 3, cada um com o próprio texto; sem aviso de resumo — o resto fica na Central.
         novas.slice(0, MAX_AVISOS_DO_SISTEMA).forEach(n => notificacaoDoNavegador.mostrar(n));
-        if (novas.length > MAX_AVISOS_DO_SISTEMA) {
-          const resto = novas.length - MAX_AVISOS_DO_SISTEMA;
-          notificacaoDoNavegador.mostrar({
-            id: 'lote-' + Date.now(),
-            titulo: `+${resto} aviso${resto === 1 ? '' : 's'} na Central`,
-            mensagem: 'Abra o painel para ver todos.',
-          });
-        }
       }
     } catch { /* a Central some, o app segue */ }
   }, []);
