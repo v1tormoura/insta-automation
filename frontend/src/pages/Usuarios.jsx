@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import Segmentado from '../components/Segmentado';
@@ -79,6 +80,7 @@ export default function Usuarios() {
         recusar: `Cadastro de ${u.nome} recusado.`,
         bloquear: `${u.nome} bloqueado${d.pausados ? ` — ${d.pausados.envios} envio(s) e ${d.pausados.campanhas} campanha(s) pausados` : ''}.`,
         reativar: `${u.nome} reativado.`,
+        '2fa/desligar': `Dois fatores de ${u.nome} desligado — entra só com a senha.`,
       }[acao];
       toast.success(msg);
       await carregar();
@@ -109,7 +111,7 @@ export default function Usuarios() {
   const botoes = u => {
     const b = (acao, rotulo, classe = 'mf-btn--secondary') => (
       <button key={acao} type="button" className={`mf-btn ${classe}`} disabled={agindo === u.id}
-        onClick={() => (acao === 'bloquear' || acao === 'recusar' ? setConfirmar({ u, acao }) : agir(u, acao))}>
+        onClick={() => (['bloquear', 'recusar', '2fa/desligar'].includes(acao) ? setConfirmar({ u, acao }) : agir(u, acao))}>
         {rotulo}
       </button>
     );
@@ -120,6 +122,8 @@ export default function Usuarios() {
       u.status === 'recusado' && b('aprovar', 'Aprovar mesmo assim'),
       u.status === 'ativo' && b('bloquear', 'Bloquear', 'mf-btn--ghost'),
       u.status === 'bloqueado' && b('reativar', 'Reativar'),
+      u.doisFatores && b('2fa/desligar', 'Desligar 2FA', 'mf-btn--ghost'),
+      <Link key="atividade" to={`/atividade?usuario=${u.id}`} className="mf-btn mf-btn--ghost">Atividade</Link>,
       <button key="apagar" type="button" className="mf-btn mf-btn--danger" disabled={agindo === u.id}
         onClick={() => { setApagar(u); setDigitado(''); }}>Apagar</button>,
     ].filter(Boolean);
@@ -161,7 +165,7 @@ export default function Usuarios() {
                   <div style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <span>Cadastro: {data(u.criadoEm)}</span>
                     {u.status !== 'pendente' && <span>Último acesso: {data(u.ultimoLogin)}</span>}
-                    <span>{u.contas} conta(s) · {u.publicacoes} publicação(ões)</span>
+                    <span>{u.contas} conta(s) · {u.publicacoes} publicação(ões){u.doisFatores ? ' · 2FA ligado' : ''}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>{botoes(u)}</div>
@@ -173,11 +177,15 @@ export default function Usuarios() {
 
       <ConfirmModal
         open={!!confirmar}
-        title={confirmar?.acao === 'bloquear' ? `Bloquear ${confirmar?.u.nome}?` : `Recusar o cadastro de ${confirmar?.u.nome}?`}
-        message={confirmar?.acao === 'bloquear'
-          ? 'O acesso é cortado na hora, e os envios e campanhas dele são pausados. Dá para reativar depois.'
-          : 'A pessoa não vai conseguir entrar. Se mudar de ideia, dá para aprovar depois.'}
-        confirmLabel={confirmar?.acao === 'bloquear' ? 'Bloquear' : 'Recusar'}
+        title={{
+          bloquear: `Bloquear ${confirmar?.u.nome}?`,
+          '2fa/desligar': `Desligar o dois fatores de ${confirmar?.u.nome}?`,
+        }[confirmar?.acao] || `Recusar o cadastro de ${confirmar?.u.nome}?`}
+        message={{
+          bloquear: 'O acesso é cortado na hora, e os envios e campanhas dele são pausados. Dá para reativar depois.',
+          '2fa/desligar': 'Para quem perdeu o celular e os códigos de reserva. A pessoa passa a entrar só com a senha até ligar de novo em Minha Conta.',
+        }[confirmar?.acao] || 'A pessoa não vai conseguir entrar. Se mudar de ideia, dá para aprovar depois.'}
+        confirmLabel={{ bloquear: 'Bloquear', '2fa/desligar': 'Desligar' }[confirmar?.acao] || 'Recusar'}
         carregando={!!agindo}
         onConfirm={() => agir(confirmar.u, confirmar.acao)}
         onCancel={() => setConfirmar(null)}

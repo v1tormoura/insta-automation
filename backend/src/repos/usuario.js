@@ -58,7 +58,7 @@ async function mesclar(id, coluna, parcial) {
 /** Lista para a tela de Usuários, com o que cada um tem na plataforma. */
 async function listar({ status = null } = {}) {
   return sql`
-    select u.id, u.nome, u.email, u.papel, u.status, u.avatar, u.created_at, u.aprovado_em, u.ultimo_login,
+    select u.id, u.nome, u.email, u.papel, u.status, u.avatar, u.created_at, u.aprovado_em, u.ultimo_login, u.totp_ativo,
       (select count(*) from accounts a where a.usuario_id = u.id) as contas,
       (select count(*) from posts p where p.usuario_id = u.id and p.status = 'concluido') as publicacoes
     from usuarios u

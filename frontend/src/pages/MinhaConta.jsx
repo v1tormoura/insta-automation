@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  User, Camera, Lock, Bell, Palette, Save, Trash2, Check, Info,
+  User, Camera, Lock, Bell, Palette, Save, Trash2, Check, Info, ShieldCheck,
 } from 'lucide-react';
+import DoisFatores from '../components/DoisFatores';
 import api from '../services/api';
 import PageShell from '../components/PageShell';
 import Toast from '../components/Toast';
@@ -322,6 +323,11 @@ export default function MinhaConta() {
                 troque-a no <code>.env</code> do servidor e reinicie o backend.
               </div>
             )}
+          </Painel>
+
+          {/* ── Dois fatores ── */}
+          <Painel icone={<ShieldCheck size={13} />} titulo="Login em dois fatores">
+            <DoisFatores aviso={aviso} />
           </Painel>
 
           {/* ── Notificações ── */}

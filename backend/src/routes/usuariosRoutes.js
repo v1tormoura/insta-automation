@@ -26,7 +26,7 @@ function linha(u) {
   return {
     id: u.id, nome: u.nome, email: u.email, papel: u.papel, status: u.status, avatar: u.avatar || '',
     criadoEm: u.createdAt, aprovadoEm: u.aprovadoEm || null, ultimoLogin: u.ultimoLogin || null,
-    contas: u.contas ?? 0, publicacoes: u.publicacoes ?? 0,
+    contas: u.contas ?? 0, publicacoes: u.publicacoes ?? 0, doisFatores: !!u.totpAtivo,
   };
 }
 
@@ -97,6 +97,15 @@ router.post('/:id/bloquear', async (req, res) => {
 router.post('/:id/reativar', async (req, res) => {
   const u = await mudarStatus(req, res, ['bloqueado'], 'ativo');
   if (u) res.json({ usuario: linha(u) });
+});
+
+/** Para quem perdeu o celular e os códigos de reserva: o admin desliga o 2FA. */
+router.post('/:id/2fa/desligar', async (req, res) => {
+  const u = await alvo(req, res);
+  if (!u) return;
+  await usuarios.atualizar(u.id, { totpAtivo: false, totpSegredo: null, totpUltimoPasso: null, totpReserva: [], totpAtivadoEm: null });
+  console.log(`🔐 [Usuários] 2FA de ${u.email} desligado pelo admin`);
+  res.json({ ok: true });
 });
 
 /**

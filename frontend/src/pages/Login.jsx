@@ -87,6 +87,8 @@ const MODOS = {
                 sub: 'Recebemos o seu pedido. Assim que o administrador aprovar, é só entrar com o e-mail e a senha que você escolheu.' },
   esqueciOk:  { selo: 'Recuperar senha', titulo: 'Confira seu e-mail',
                 sub: 'Se este e-mail tiver cadastro, enviamos um link para criar uma senha nova. Ele vale por 1 hora — confira também o spam.' },
+  codigo:     { selo: 'Dois fatores', titulo: 'Código de verificação', sub: 'Abra o app autenticador e digite o código de 6 dígitos. Perdeu o celular? Use um código de reserva.',
+                botao: 'Confirmar', indo: 'Conferindo...' },
   redefinirOk: { selo: 'Recuperar senha', titulo: 'Senha alterada', sub: 'Pronto! Entre com a senha nova.' },
 };
 
@@ -104,6 +106,8 @@ export default function Login() {
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
   const [recuperacao, setRecuperacao] = useState(false);
+  const [desafio, setDesafio] = useState('');
+  const [codigoApp, setCodigoApp] = useState('');
   const navigate = useNavigate();
   const codigo = new URLSearchParams(location.search).get('codigo') || '';
 
@@ -117,6 +121,8 @@ export default function Login() {
     setError('');
     setPassword('');
     setConfirma('');
+    setCodigoApp('');
+    setDesafio('');
     const rota = para === 'cadastro' ? '/cadastro' : '/login';
     if (location.pathname !== rota) navigate(rota, { replace: true });
   }
@@ -132,6 +138,7 @@ export default function Login() {
       cadastro:  ['cadastro',  { nome, email: username, senha: password }],
       esqueci:   ['esqueci',   { email: username }],
       redefinir: ['redefinir', { codigo, senha: password }],
+      codigo:    ['2fa',       { desafio, codigo: codigoApp }],
     }[modo];
     setLoading(true);
     try {
@@ -141,8 +148,14 @@ export default function Login() {
         body:    JSON.stringify(pedido[1]),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Não foi possível concluir'); return; }
-      if (modo !== 'entrar') { setModo(`${modo}Ok`); return; }
+      if (!res.ok) {
+        // O desafio dura 5 min: vencido, volta para a senha.
+        if (data.code === 'DESAFIO_EXPIRADO') { trocar('entrar'); }
+        setError(data.error || 'Não foi possível concluir');
+        return;
+      }
+      if (data.precisa2fa) { setDesafio(data.desafio); setCodigoApp(''); setModo('codigo'); return; }
+      if (modo !== 'entrar' && modo !== 'codigo') { setModo(`${modo}Ok`); return; }
       setToken(data.token);
       setUsuario(data.usuario);
       navigate('/');
@@ -300,7 +313,15 @@ export default function Login() {
                   <Campo rotulo="NOME" icone={<UserIcon />} type="text" value={nome}
                     onChange={e => setNome(e.target.value)} placeholder="Seu nome" autoComplete="name" required />
                 )}
-                {modo !== 'redefinir' && (
+                {modo === 'codigo' && (
+                  <Campo
+                    rotulo="CÓDIGO" icone={<LockIcon />} type="text" value={codigoApp}
+                    onChange={e => setCodigoApp(e.target.value)} placeholder="123 456"
+                    inputMode="text" autoComplete="one-time-code" autoFocus required maxLength={12}
+                    data-codigo-2fa
+                  />
+                )}
+                {modo !== 'redefinir' && modo !== 'codigo' && (
                   <Campo
                     rotulo={modo === 'entrar' ? 'E-MAIL OU USUÁRIO' : 'E-MAIL'}
                     icone={modo === 'entrar' ? <UserIcon /> : <MailIcon />}
@@ -310,7 +331,7 @@ export default function Login() {
                     autoComplete={modo === 'entrar' ? 'username' : 'email'} autoFocus required
                   />
                 )}
-                {modo !== 'esqueci' && (
+                {modo !== 'esqueci' && modo !== 'codigo' && (
                   <div>
                     <Campo
                       rotulo={modo === 'redefinir' ? 'SENHA NOVA' : 'SENHA'} icone={<LockIcon />}

@@ -23,6 +23,7 @@ async function lerUsuario(req) {
   catch { return { erro: 'Token inválido ou expirado' }; }
   // Token da versão de usuário único (sem `sub`): entra de novo.
   if (!payload?.sub) return { erro: 'Sessão antiga — entre de novo' };
+  if (payload.tipo) return { erro: 'Token inválido ou expirado' }; // desafio do 2FA não é sessão
 
   const [u] = await sql`select id, papel, status, nome, email, avatar, sessoes_desde from usuarios where id = ${payload.sub}`;
   if (!u || u.status !== 'ativo') return { erro: 'Acesso não autorizado', code: 'ACESSO_REVOGADO' };

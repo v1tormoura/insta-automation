@@ -59,6 +59,10 @@ app.get('/', (req, res) => {
 });
 app.get('/healthz', (req, res) => res.json({ ok: true }));
 
+/* Registra o que cada usuário fez (POST/PUT/PATCH/DELETE que deram certo).
+   Antes das rotas: escuta o fim da resposta, quando o `auth` já leu o usuário. */
+app.use(require('./services/registroDeAtividade').middleware);
+
 app.use('/auth', require('./routes/authRoutes'));
 app.use('/oauth', require('./routes/oauthRoutes'));
 app.use('/meta', require('./routes/metaCallbacksRoutes'));
@@ -75,7 +79,9 @@ app.use('/campaigns',     auth, require('./routes/campaignRoutes'));
 app.use('/posts',         auth, require('./routes/postRoutes'));
 app.use('/legends',       auth, require('./routes/legendRoutes'));
 app.use('/notificacoes',  auth, require('./routes/notificacoesRoutes'));
+app.use('/conta/2fa',     auth, require('./routes/doisFatoresRoutes'));
 app.use('/conta',         auth, require('./routes/contaRoutes'));
+app.use('/atividade',     auth, require('./routes/atividadeRoutes'));
 app.use('/ai',            auth, require('./routes/aiRoutes'));
 app.use('/media',         auth, require('./routes/mediaRoutes'));
 app.use('/importar',      auth, require('./routes/importarRoutes'));

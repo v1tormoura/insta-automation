@@ -4,6 +4,7 @@
  * Entrada no painel e cadastro.
  *
  *   POST /auth/login     — admin (AUTH_USERNAME) ou e-mail de usuário aprovado
+ *   POST /auth/2fa       — 2º passo do login, para quem ligou os dois fatores
  *   POST /auth/cadastro  — cria o pedido de acesso, que espera o admin aprovar
  *   GET  /auth/me        — quem está logado
  *   GET  /auth/opcoes    — o que a tela de login pode oferecer (recuperar senha?)
@@ -17,6 +18,10 @@
  * Contra tentativa em série: depois de 8 erros seguidos para o mesmo login
  * (ou IP), 15 minutos de espera. A resposta de erro é a mesma para e-mail
  * inexistente e senha errada — não dá para descobrir quem tem cadastro.
+ *
+ * Dois fatores: a senha certa de quem ligou o 2FA não devolve a sessão, e sim
+ * um "desafio" de 5 minutos, assinado com OUTRA chave — não serve como sessão
+ * em lugar nenhum. A sessão só sai em /auth/2fa, com o código do app.
  */
 
 const crypto = require('crypto');
@@ -28,6 +33,8 @@ const config = require('../config');
 const usuarios = require('../repos/usuario');
 const senhas = require('../services/senhaDoPainel');
 const auth = require('../middleware/auth');
+const dois = require('../services/doisFatores');
+const atividade = require('../services/registroDeAtividade');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -65,6 +72,10 @@ const MENSAGEM_STATUS = {
   bloqueado: { code: 'CONTA_BLOQUEADA', error: 'Seu acesso foi bloqueado pelo administrador.' },
 };
 
+/* Chave própria do desafio: um desafio nunca passa no middleware de sessão. */
+const chaveDoDesafio = () => `${config.jwtSecret}:2fa`;
+const DESAFIO_VALIDADE = '5m';
+
 async function _entrarComoAdmin(senha) {
   try {
     const u = await usuarios.admin();
@@ -100,13 +111,53 @@ router.post('/login', async (req, res) => {
 
   if (!u) {
     errou(chaves);
+    const dono = login.toLowerCase() === config.authUsername.toLowerCase()
+      ? await usuarios.admin().catch(() => null) : await usuarios.porEmail(login).catch(() => null);
+    if (dono) atividade.registrar({ usuarioId: dono.id, acao: 'Tentativa de login com senha errada', req });
     return res.status(401).json({ code: 'CREDENCIAIS', error: 'E-mail ou senha incorretos' });
   }
   acertou(chaves);
   if (u.status !== 'ativo') return res.status(403).json(MENSAGEM_STATUS[u.status] || MENSAGEM_STATUS.bloqueado);
 
-  await usuarios.atualizar(u.id, { ultimoLogin: new Date() }).catch(() => {});
+  if (u.totpAtivo) {
+    const desafio = jwt.sign({ sub: u.id, tipo: '2fa' }, chaveDoDesafio(), { expiresIn: DESAFIO_VALIDADE });
+    return res.json({ precisa2fa: true, desafio });
+  }
+  await _entrou(u, req, 'Entrou no painel');
   res.json({ token: emitir(u), usuario: publico(u) });
+});
+
+async function _entrou(u, req, acao) {
+  await usuarios.atualizar(u.id, { ultimoLogin: new Date() }).catch(() => {});
+  await atividade.registrar({ usuarioId: u.id, acao, req });
+}
+
+/** 2º passo: o desafio do /login + o código do app (ou um de reserva). */
+router.post('/2fa', async (req, res) => {
+  let payload;
+  try { payload = jwt.verify(String(req.body?.desafio || ''), chaveDoDesafio()); }
+  catch { return res.status(401).json({ code: 'DESAFIO_EXPIRADO', error: 'O tempo para digitar o código acabou. Entre de novo.' }); }
+  if (payload?.tipo !== '2fa' || !payload.sub) return res.status(401).json({ code: 'DESAFIO_EXPIRADO', error: 'Entre de novo.' });
+
+  const chaves = [`2fa:${payload.sub}`, `ip:${req.ip}`];
+  if (bloqueado(chaves)) {
+    return res.status(429).json({ code: 'MUITAS_TENTATIVAS', error: 'Muitas tentativas. Aguarde 15 minutos e tente de novo.' });
+  }
+  const u = await usuarios.porId(payload.sub);
+  if (!u || u.status !== 'ativo') return res.status(403).json(MENSAGEM_STATUS[u?.status] || MENSAGEM_STATUS.bloqueado);
+  if (!u.totpAtivo) return res.status(401).json({ code: 'DESAFIO_EXPIRADO', error: 'Entre de novo.' });
+
+  const ok = require('./doisFatoresRoutes').conferirCodigo(u, req.body?.codigo);
+  if (!ok) {
+    errou(chaves);
+    atividade.registrar({ usuarioId: u.id, acao: 'Código de dois fatores errado no login', req });
+    return res.status(401).json({ code: 'CODIGO_ERRADO', error: 'Código incorreto.' });
+  }
+  acertou(chaves);
+  await usuarios.atualizar(u.id, ok.campos);
+  const restantes = ok.reserva ? ok.campos.totpReserva.length : null;
+  await _entrou(u, req, ok.reserva ? `Entrou com um código de reserva (sobram ${restantes})` : 'Entrou no painel (com dois fatores)');
+  res.json({ token: emitir(u), usuario: publico(u), ...(ok.reserva ? { reservaRestante: restantes } : {}) });
 });
 
 router.post('/cadastro', async (req, res) => {

@@ -100,6 +100,16 @@ precisam ser profissionais (Empresa ou Criador).
 - Com o app da Meta em modo de desenvolvimento, o usuário pede em **Contas →
   Convites** para a conta dele virar testadora; você vê o pedido e convida no
   painel da Meta.
+- **Login em dois fatores (2FA)**: cada um liga em **Minha Conta → Login em dois
+  fatores** (QR code no Google Authenticator/Authy + 8 códigos de reserva).
+  Usuário que perdeu o celular e os códigos: **Usuários → Desligar 2FA**.
+  Se for o próprio admin:
+  ```bash
+  cd /root/insta-nova && docker compose exec app node scripts/desligar-2fa.js admin
+  ```
+- **Atividade** (menu Sistema): logins, tentativas com senha/código errado e o que
+  cada um fez, com IP e aparelho. Cada usuário vê o próprio; o admin vê todos.
+  Guarda 90 dias.
 
 ## E-mail (recuperar senha)
 
