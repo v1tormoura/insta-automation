@@ -277,4 +277,31 @@ describe('as verificações leem o banco', () => {
     await banco.criarPost({ status: 'erro' });
     expect(await vigia.VERIFICACOES.erros(banco.DONO_ID)).toMatchObject({ vars: { errosHoje: 20 } });
   });
+
+  test('envios parados: tarefa vencida há 15+ min ou travada há 3h — só para o admin', async () => {
+    const { sql } = banco;
+    await sql`insert into queue_jobs ${sql({ name: 'job_round', runAt: new Date(Date.now() - 5 * 60_000) })}`;
+    expect(await vigia.VERIFICACOES.envioParado(banco.DONO_ID)).toBeNull();
+    await sql`insert into queue_jobs ${sql({ name: 'job_round', runAt: new Date(Date.now() - 30 * 60_000) })}`;
+    await sql`insert into queue_jobs ${sql({ name: 'story', status: 'running', lockedAt: new Date(Date.now() - 4 * 3600_000) })}`;
+    expect(await vigia.VERIFICACOES.envioParado(banco.DONO_ID)).toMatchObject({ vars: { tarefas: 2 }, prioridade: 'alta' });
+    const outro = await banco.criarUsuario();
+    expect(await vigia.VERIFICACOES.envioParado(outro.id)).toBeNull();
+  });
+
+  test('backup: falhou ou com mais de 36h; sem backup ligado, nada', async () => {
+    const fs = require('fs'); const os = require('os'); const path = require('path');
+    const rotas = require('../src/routes/backupsRoutes');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vb-'));
+    const lerUltimo = jest.spyOn(rotas, 'lerUltimo');
+    lerUltimo.mockReturnValue(null);
+    expect(await vigia.VERIFICACOES.backup(banco.DONO_ID)).toBeNull();
+    lerUltimo.mockReturnValue({ ok: true, quando: new Date(Date.now() - 3600_000).toISOString() });
+    expect(await vigia.VERIFICACOES.backup(banco.DONO_ID)).toBeNull();
+    lerUltimo.mockReturnValue({ ok: true, quando: new Date(Date.now() - 50 * 3600_000).toISOString() });
+    expect(await vigia.VERIFICACOES.backup(banco.DONO_ID)).toMatchObject({ vars: { situacao: 'o último foi há 50h' } });
+    lerUltimo.mockReturnValue({ ok: false, erro: 'pg_dump falhou', quando: new Date().toISOString() });
+    expect((await vigia.VERIFICACOES.backup(banco.DONO_ID)).vars.situacao).toMatch(/falhou \(pg_dump falhou\)/);
+    lerUltimo.mockRestore(); fs.rmSync(dir, { recursive: true, force: true });
+  });
 });

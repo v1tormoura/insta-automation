@@ -8,6 +8,8 @@
  *   sessoes — metade ou mais das contas sem conseguir publicar (token inválido)
  *   fila    — publicação "processando" há mais de uma hora
  *   erros   — 20 ou mais erros de publicação no dia
+ *   envioParado — (admin) tarefas da fila vencidas há 15+ min: o processador travou
+ *   backup  — (admin) o último ./backup.sh falhou ou tem mais de 36h
  *
  * Cada verificação devolve `null` (tudo bem) ou `{ vars, prioridade }`; o texto
  * vem dos modelos editáveis da Central (templates.PADRAO).
@@ -48,11 +50,46 @@ async function _erros(usuarioId) {
   return erros >= ERROS_PARA_ALERTAR ? { vars: { errosHoje: erros }, prioridade: 'normal' } : null;
 }
 
-const VERIFICACOES = Object.freeze({ sessoes: _sessoes, fila: _fila, erros: _erros });
+const FILA_ATRASADA_MS = 15 * 60 * 1000;
+const TAREFA_TRAVADA_MS = 3 * 60 * 60 * 1000;
+const BACKUP_ATRASADO_H = 36;
+
+async function _ehAdmin(usuarioId) {
+  const [u] = await sql`select papel from usuarios where id = ${usuarioId}`;
+  return u?.papel === 'admin';
+}
+
+/* A fila é do servidor inteiro, não de um usuário: só o admin é avisado. */
+async function _envioParado(usuarioId) {
+  if (!(await _ehAdmin(usuarioId))) return null;
+  const [{ atrasadas, travadas }] = await sql`
+    select count(*) filter (where status = 'queued' and run_at < ${new Date(Date.now() - FILA_ATRASADA_MS)}) as atrasadas,
+           count(*) filter (where status = 'running' and locked_at < ${new Date(Date.now() - TAREFA_TRAVADA_MS)}) as travadas
+    from queue_jobs`;
+  const n = Number(atrasadas) + Number(travadas);
+  return n ? { vars: { tarefas: n }, prioridade: 'alta' } : null;
+}
+
+/* O status que o ./backup.sh grava. Sem o arquivo, o backup não foi ligado — nada a vigiar. */
+async function _backup(usuarioId) {
+  if (!(await _ehAdmin(usuarioId))) return null;
+  const u = require('../routes/backupsRoutes').lerUltimo();
+  if (!u) return null;
+  const horas = Math.round((Date.now() - new Date(u.quando).getTime()) / 3.6e6);
+  if (u.ok && horas <= BACKUP_ATRASADO_H) return null;
+  return {
+    vars: { situacao: u.ok ? `o último foi há ${horas}h` : `o último falhou (${u.erro || 'veja o log'})` },
+    prioridade: 'alta',
+  };
+}
+
+const VERIFICACOES = Object.freeze({ sessoes: _sessoes, fila: _fila, erros: _erros, envioParado: _envioParado, backup: _backup });
 
 const NOMES = Object.freeze({
   sessoes: 'contas sem conectar',
   fila: 'fila de publicação',
+  envioParado: 'processamento dos envios',
+  backup: 'backup',
   erros: 'erros de publicação',
 });
 

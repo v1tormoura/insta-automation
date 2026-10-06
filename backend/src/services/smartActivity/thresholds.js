@@ -62,10 +62,13 @@ const PADRAO = Object.freeze({
 
     /* Avisos do vigia do sistema (contas sem conectar, fila presa, erros
        do dia) — desligados por padrão. Desligado, a verificação nem roda. */
-    sessoes: false,
-    fila: false,
+    /* Os que significam "parou": ligados. Erros do dia, só se pedir. */
+    sessoes: true,
+    fila: true,
     erros: false,
-    normalizado: false,
+    envioParado: true,
+    backup: true,
+    normalizado: true,
   }),
 
   /**
