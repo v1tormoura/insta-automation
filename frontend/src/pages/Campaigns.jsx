@@ -106,7 +106,7 @@ export default function Campaigns() {
     }
   }
 
-  useEffect(() => { carregar(); }, [pagina, status]);
+  useEffect(() => { carregar(); }, [pagina, status]); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   /* Tempo real. Uma campanha rodando muda de estado sozinha — publica, falha,
      agenda a próxima — e sem isto a tela ficava congelada no instante em que

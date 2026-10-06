@@ -88,7 +88,7 @@ export default function OAuthCallback() {
            janela que já sumiu, ninguém leria o motivo. */
         setTimeout(() => desfecho(`oauth=error&msg=${encodeURIComponent(msg)}`, { ok: false, erro: msg }), 3000);
       });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   return error ? (
     <TelaDeCarregamento erro titulo={isAuthenticated() || ehJanela() ? `${error} — redirecionando...` : error} />

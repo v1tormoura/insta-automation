@@ -29,7 +29,7 @@ function serieDiaria(linhas, dias, campo) {
     const d = new Date();
     d.setHours(12, 0, 0, 0);
     d.setDate(d.getDate() - i);
-    const dia = d.toLocaleDateString('en-CA');
+    const dia = require('../services/periodoDeMetricas').etiqueta(d);
     serie.push({ date: dia, label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }), [campo]: mapa[dia] || 0 });
   }
   return serie;
@@ -241,7 +241,7 @@ exports.getAccountStats = async (req, res) => {
       select distinct on (account_id) account_id,
         seguidores - first_value(seguidores) over (partition by account_id order by dia) as ganho
       from seguidores_do_dia
-      where usuario_id = ${uid} and dia >= ${trintaDias.toLocaleDateString('en-CA')}
+      where usuario_id = ${uid} and dia >= ${require('../services/periodoDeMetricas').etiqueta(trintaDias)}
       order by account_id, dia desc`,
   ]);
 

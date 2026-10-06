@@ -145,7 +145,7 @@ export default function CampaignPreview({ payload, onValidChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(payload), tentativa]);
 
-  const publicacoes = previa?.publications || [];
+  const publicacoes = useMemo(() => previa?.publications || [], [previa]);
 
   const comErro = useMemo(
     () => publicacoes.filter(p => (p.problemas || []).length),

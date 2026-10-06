@@ -226,7 +226,7 @@ export default function Accounts() {
     }
     else if (oauth === 'error') { showToast('error', 'Erro na conexão', params.get('msg') || 'Falha no OAuth'); }
     window.history.replaceState({}, '', '/accounts');
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   async function openOAuthConnect(account) {
     /* Sem App Meta cadastrado o servidor recusa o /oauth/url, e antes disso o

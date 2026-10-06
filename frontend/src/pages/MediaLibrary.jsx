@@ -67,7 +67,7 @@ export default function MediaLibrary() {
     finally { setPrimeiraCarga(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   function upload(rawFiles) {
     if (!rawFiles.length || uploading) return;
@@ -85,7 +85,7 @@ export default function MediaLibrary() {
   /* O fim do upload — na hora ou ao voltar para a Biblioteca. */
   useEffect(() => {
     if (!tarefaDeUpload || tarefaDeUpload.fase === 'rodando') return;
-    if (tarefaDeUpload.fase === 'ok') { load(); toast_('success', 'Upload concluído', tarefaDeUpload.mensagem); } // eslint-disable-line react-hooks/set-state-in-effect
+    if (tarefaDeUpload.fase === 'ok') { load(); toast_('success', 'Upload concluído', tarefaDeUpload.mensagem); }  
     else toast_('error', 'Erro', tarefaDeUpload.mensagem || 'Falha no upload.');
     consumir('biblioteca');
   }, [tarefaDeUpload]); // eslint-disable-line react-hooks/exhaustive-deps

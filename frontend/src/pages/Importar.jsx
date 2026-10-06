@@ -200,10 +200,10 @@ export default function Importar() {
     const fim = tarefa.fase === 'erro'
       ? { fim: true, importados: 0, erros: 1, detalhe: tarefa.mensagem, arquivos: [], destino: dest }
       : { fim: true, importados: d.importados || 0, erros: d.erros || 0, detalhe: d.detalhes?.[0] || '', arquivos: d.arquivos || [], destino: dest };
-    /* eslint-disable react-hooks/set-state-in-effect */
+     
     setResultado(fim);
     if (fim.importados) { setMarcados(new Set()); setMarcadosBib(new Set()); setArquivos([]); setUrl(''); }
-    /* eslint-enable react-hooks/set-state-in-effect */
+     
     const onde = dest === 'baixar' ? 'baixando no seu computador' : dest === 'ambos' ? 'na Biblioteca e baixando' : 'na Biblioteca';
     avisar(fim.erros ? (fim.importados ? 'warning' : 'error') : 'success', fim.importados ? 'Pronto' : 'Não deu certo',
       fim.importados

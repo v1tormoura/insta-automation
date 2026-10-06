@@ -62,7 +62,7 @@ export default function Ranking() {
     }
   }
 
-  useEffect(() => { load(); }, [metric, period]);
+  useEffect(() => { load(); }, [metric, period]); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   const maxVal = posts.length ? metricVal(posts[0], metric) || 1 : 1;
   const metricLabel = METRICS.find(m => m.key === metric)?.label || '';

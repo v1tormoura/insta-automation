@@ -26,7 +26,7 @@ const { sql } = require('../db');
  * todas as noites. `en-CA` porque o formato dele é exatamente `YYYY-MM-DD`.
  */
 function diaDe(quando = new Date()) {
-  return new Date(quando).toLocaleDateString('en-CA');
+  return require('./periodoDeMetricas').etiqueta(quando);
 }
 
 /** O dia anterior a uma etiqueta, como etiqueta. */

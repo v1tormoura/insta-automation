@@ -247,7 +247,7 @@ function MediaCard({ file, index, onRemove }) {
     };
     video.onerror = () => URL.revokeObjectURL(objectUrl);
     return () => { video.src = ''; URL.revokeObjectURL(objectUrl); };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   return (
     <div style={{
@@ -540,7 +540,7 @@ export default function Posts() {
 
   function goToPostPage(p) { setPostPage(p); load(p); }
   useServerEvents(['posts', 'accounts'], load);
-  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 30000); return () => clearInterval(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   async function retryPost(id) {
     try { setRetryingId(id); await api.post(`/posts/${id}/retry`); showToast('success', 'Reprocessando', 'Post adicionado à fila novamente.'); load(); }
@@ -667,7 +667,7 @@ export default function Posts() {
   useEffect(() => {
     if (!tarefaDeEnvio || tarefaDeEnvio.fase === 'rodando') return;
     if (tarefaDeEnvio.fase === 'ok') {
-      limparFormulario(); // eslint-disable-line react-hooks/set-state-in-effect
+      limparFormulario();  
       showToast('success', tarefaDeEnvio.mensagem || 'Posts enviados!', tarefaDeEnvio.dados?.detalhe || '');
       setPosted(true);
       setTimeout(() => setPosted(false), 2500);

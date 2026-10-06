@@ -25,9 +25,18 @@
 const PERIODOS = ['hoje', 'ontem', '7d', '30d', 'total'];
 const PADRAO = 'hoje';
 
-/** A etiqueta `YYYY-MM-DD` de uma data, no fuso do processo. */
+/**
+ * A etiqueta `YYYY-MM-DD` de uma data, no fuso do processo.
+ *
+ * Pelos campos locais do Date, e não por `toLocaleDateString`: o Intl guarda o
+ * fuso no primeiro uso e não acompanha uma mudança de `TZ` depois, enquanto
+ * `getDate`/`setDate` (usados em `inicioDoDia`) acompanham — as duas metades
+ * deste módulo discordariam sobre que dia é hoje.
+ */
 function etiqueta(d) {
-  return new Date(d).toLocaleDateString('en-CA');
+  const x = new Date(d);
+  const dois = n => String(n).padStart(2, '0');
+  return `${x.getFullYear()}-${dois(x.getMonth() + 1)}-${dois(x.getDate())}`;
 }
 
 /** Meia-noite LOCAL de uma etiqueta — o começo daquele dia de verdade. */

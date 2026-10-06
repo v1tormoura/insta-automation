@@ -54,7 +54,7 @@ export default function ComparativoDeConteudo({ period = '30d' }) {
     }).catch(e => setErro(e?.response?.data?.error || e.message));
   }, [period]);
 
-  useEffect(() => { setDados(null); carregar(); }, [carregar]); // eslint-disable-line react-hooks/set-state-in-effect
+  useEffect(() => { setDados(null); carregar(); }, [carregar]);  
 
   const grupos = useMemo(() => dados?.etiquetas || [], [dados]);
   const envios = useMemo(() => (dados?.envios || []).filter(e => e.jobId !== 'sem-envio'), [dados]);

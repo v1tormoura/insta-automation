@@ -35,7 +35,7 @@ export default function Performance() {
   const navigate = useNavigate();
   const accCacheRef = useRef({});
 
-  useEffect(() => { load(); }, [period]);
+  useEffect(() => { load(); }, [period]); // eslint-disable-line react-hooks/exhaustive-deps -- roda só quando estes mudam, de propósito
 
   async function load() {
     setLoading(true);
