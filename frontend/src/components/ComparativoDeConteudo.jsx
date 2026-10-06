@@ -28,6 +28,9 @@ const COLUNAS = [
   ['assistidoS', 'Assistido', v => (v == null ? '—' : `${v}s`)],
   ['sharesPor1k', 'Compart./1k', v => (v == null ? '—' : v)],
   ['savesPor1k', 'Salvos/1k', v => (v == null ? '—' : v)],
+  /* Do Webhook (venda atribuída ao último Reel da conta antes do lead). */
+  ['vendas', 'Vendas', v => (v == null ? '—' : v)],
+  ['receita', 'Receita', v => (v == null ? '—' : Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }))],
 ];
 
 export default function ComparativoDeConteudo({ period = '30d' }) {
@@ -36,9 +39,19 @@ export default function ComparativoDeConteudo({ period = '30d' }) {
   const [salvando, setSalvando] = useState(null);
 
   const carregar = useCallback(() => {
-    return api.get(`/analytics/alcance-por-envio?dias=${DIAS[period] || 30}`)
-      .then(r => { setDados(r.data); setErro(''); })
-      .catch(e => setErro(e?.response?.data?.error || e.message));
+    const dias = DIAS[period] || 30;
+    return Promise.all([
+      api.get(`/analytics/alcance-por-envio?dias=${dias}`),
+      api.get('/funil/por-conteudo', { params: { dias } }).catch(() => ({ data: null })),
+    ]).then(([a, v]) => {
+      /* Vendas e receita por etiqueta entram na mesma linha do grupo. */
+      const vendas = new Map((v.data?.porEtiqueta || []).map(e => [e.chave, e]));
+      const temVendas = !!v.data?.porEtiqueta?.length;
+      const etiquetas = (a.data?.etiquetas || []).map(g => ({
+        ...g, vendas: temVendas ? (vendas.get(g.rotulo)?.vendas || 0) : null, receita: temVendas ? (vendas.get(g.rotulo)?.receita || 0) : null,
+      }));
+      setDados({ ...a.data, etiquetas }); setErro('');
+    }).catch(e => setErro(e?.response?.data?.error || e.message));
   }, [period]);
 
   useEffect(() => { setDados(null); carregar(); }, [carregar]); // eslint-disable-line react-hooks/set-state-in-effect
@@ -57,9 +70,14 @@ export default function ComparativoDeConteudo({ period = '30d' }) {
     if (com.length < 2) return null;
     const [a, b] = [com[0], com[com.length - 1]];
     const x = a.reachMediano / Math.max(1, b.reachMediano);
-    return x >= 1.2
+    const alcance = x >= 1.2
       ? `“${a.rotulo}” alcança ${x.toFixed(1).replace('.', ',')}× mais que “${b.rotulo}” (mediana por reel).`
       : `“${a.rotulo}” e “${b.rotulo}” estão empatados no alcance — compare a retenção.`;
+    const real = v => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const vendeu = com.filter(g => g.receita != null).sort((p, q) => q.receita - p.receita);
+    return vendeu.length >= 2 && vendeu[0].receita > 0
+      ? `${alcance} Em vendas: “${vendeu[0].rotulo}” ${real(vendeu[0].receita)} × “${vendeu.at(-1).rotulo}” ${real(vendeu.at(-1).receita)}.`
+      : alcance;
   }, [grupos]);
 
   async function etiquetar(jobId, rotulo) {
@@ -94,7 +112,7 @@ export default function ComparativoDeConteudo({ period = '30d' }) {
           )}
 
           <div style={{ overflowX: 'auto', padding: '0 var(--mf-2)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 940 }}>
               <thead>
                 <tr>
                   <th style={{ ...th, textAlign: 'left' }}>Etiqueta</th>

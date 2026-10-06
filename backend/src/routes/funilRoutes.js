@@ -158,7 +158,7 @@ async function eventosDoPeriodo(usuarioId, dias) {
   const desde = new Date(Date.now() - dias * 86_400_000);
   return sql`
     select e.id, e.etapa, e.evento, e.lead, e.nome, e.username, e.email, e.telefone, e.valor, e.plano, e.codigo, e.criado_em,
-           e.link_id, l.rotulo as link_rotulo, a.username as conta
+           e.link_id, l.rotulo as link_rotulo, a.username as conta, l.account_id as conta_id
     from funil_eventos e
     left join funil_links l on l.id = e.link_id
     left join accounts a on a.id = l.account_id
@@ -175,11 +175,12 @@ function leadsDe(eventos) {
     if (e.etapa === 'clique' || e.etapa === 'outro') continue;
     const chave = e.lead || e.id;
     const l = m.get(chave) || { lead: e.lead, etapa: 'entrou', nome: '', username: '', email: '', telefone: '', plano: '', valor: null,
-      conta: '', origem: '', primeiro: e.criadoEm, ultimo: e.criadoEm, eventos: 0 };
+      conta: '', contaId: null, origem: '', primeiro: e.criadoEm, ultimo: e.criadoEm, eventos: 0 };
     if (funil.ORDEM[e.etapa] > funil.ORDEM[l.etapa]) l.etapa = e.etapa;
     for (const k of ['nome', 'username', 'email', 'telefone', 'plano']) if (e[k]) l[k] = e[k];
     if (e.etapa === 'comprou' && e.valor != null) l.valor = Number(e.valor);
     if (e.conta || e.linkRotulo) { l.conta = e.conta || ''; l.origem = e.conta ? `@${e.conta}` : e.linkRotulo; }
+    if (e.contaId && !l.contaId) l.contaId = String(e.contaId);
     l.ultimo = e.criadoEm; l.eventos++;
     m.set(chave, l);
   }
@@ -246,6 +247,27 @@ painel.get('/resumo', async (req, res) => {
     origens: [...porOrigem.values()].sort((a, b) => b.comprou - a.comprou || b.entrou - a.entrou || b.cliques - a.cliques),
     ultimoEvento: eventos.at(-1)?.criadoEm || null,
   });
+});
+
+/* Receita por Reel / envio / etiqueta — ver services/receitaPorConteudo.js. */
+painel.get('/por-conteudo', async (req, res) => {
+  const dias = diasDe(req.query);
+  const { atribuir, JANELA_H } = require('../services/receitaPorConteudo');
+  const leads = leadsDe(await eventosDoPeriodo(req.user.id, dias));
+  const desde = new Date(Date.now() - (dias * 24 + JANELA_H) * 3_600_000);
+  const pubs = await sql`
+    select m->>'accountId' as account_id, m->>'igMediaId' as ig_media_id, m->>'em' as em,
+           p.job_id, p.job_name, coalesce(j.rotulo, '') as rotulo
+    from posts p
+    cross join lateral jsonb_array_elements(p.midias_publicadas) m
+    left join jobs j on j.id = p.job_id
+    where p.usuario_id = ${req.user.id} and (m->>'em')::timestamptz >= ${desde}`;
+  const ids = [...new Set(pubs.map(p => p.igMediaId).filter(Boolean))];
+  const ins = ids.length ? await sql`
+    select ig_media_id, username, reach, video_views, permalink, thumbnail_url, caption from insights
+    where usuario_id = ${req.user.id} and ig_media_id = any(${ids})` : [];
+  const r = atribuir(leads, pubs.map(p => ({ ...p, accountId: p.accountId })), new Map(ins.map(i => [i.igMediaId, i])));
+  res.json({ dias, ...r });
 });
 
 painel.get('/leads', async (req, res) => {

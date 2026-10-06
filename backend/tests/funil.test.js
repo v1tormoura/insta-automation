@@ -82,6 +82,21 @@ describe('ponta a ponta', () => {
     expect(avisos.map(a => [a.titulo, a.mensagem.replace(/\s/g, ' ')])).toEqual([['Venda no funil 💰', 'Ana comprou o plano · R$ 29,90 — veio de Bio da conta A.']]);
   });
 
+  test('/por-conteudo: a venda vai para a última publicação da conta antes do lead', async () => {
+    const [conta] = await sql`insert into accounts ${sql({ usuarioId: banco.DONO_ID, username: 'contaa', igUserId: 'igA' })} returning id`;
+    const link = await (await pedir('/funil/links', { method: 'POST', body: JSON.stringify({ destino: 'https://t.me/bot', accountId: conta.id }) })).json();
+    const [job] = await sql`insert into jobs ${sql({ usuarioId: banco.DONO_ID, name: 'Lote X', rotulo: 'Original' })} returning id`;
+    const antes = new Date(Date.now() - 3_600_000).toISOString();
+    await sql`insert into posts ${sql({ usuarioId: banco.DONO_ID, media: 'x.mp4', jobId: job.id, jobName: 'Lote X',
+      midiasPublicadas: sql.json([{ accountId: conta.id, igMediaId: 'REEL9', em: antes }]) })}`;
+    const hook = corpo => pedir(`/funil/webhook/${token}`, { method: 'POST', body: JSON.stringify(corpo) });
+    await hook({ event: 'start', user_id: 77, first_name: 'Eva', start: link.codigo });
+    await hook({ status: 'approved', user_id: 77, amount: 40 });
+    const r = await (await pedir('/funil/por-conteudo?dias=7')).json();
+    expect(r.reels.find(x => x.igMediaId === 'REEL9')).toMatchObject({ vendas: 1, receita: 40, rotulo: 'Original', jobName: 'Lote X' });
+    expect(r.porEtiqueta.find(e => e.chave === 'Original').receita).toBe(40);
+  });
+
   test('o texto editado em Notificações é o que sai', async () => {
     await require('../src/repos/settings').gravar(`smartActivity:${banco.DONO_ID}`, {
       ativos: { vendaWebhook: true, leadWebhook: true },

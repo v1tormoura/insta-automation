@@ -116,6 +116,7 @@ export default function Webhook() {
   const [contas, setContas] = useState([]);
   const [novo, setNovo] = useState({ destino: '', accountId: '', rotulo: '' });
   const [eventos, setEventos] = useState([]);
+  const [conteudo, setConteudo] = useState(null);
   const [aberto, setAberto] = useState(null);
 
   const carregar = useCallback(() => {
@@ -123,6 +124,7 @@ export default function Webhook() {
     api.get('/funil/leads', { params: { dias, etapa: filtro } }).then(r => setLeads(r.data)).catch(() => setLeads({ leads: [], total: 0 }));
     api.get('/funil/eventos').then(r => setEventos(r.data.eventos || [])).catch(() => {});
     api.get('/funil/links').then(r => setLinks(r.data.links || [])).catch(() => {});
+    api.get('/funil/por-conteudo', { params: { dias } }).then(r => setConteudo(r.data)).catch(() => setConteudo(null));
   }, [dias, filtro]);
 
   useEffect(() => { carregar(); }, [carregar]);
@@ -239,6 +241,60 @@ export default function Webhook() {
               <ReceitaPorDia serie={resumo?.serie || []} />
             </Cartao>
           </div>
+
+          <Cartao titulo="Que Reel vendeu"
+            direita={<span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>
+              estimado · última publicação da conta antes da pessoa entrar (até {conteudo?.janelaH || 72}h)
+              {conteudo?.cobertura != null ? ` · ${conteudo.cobertura}% dos leads atribuídos` : ''}
+            </span>}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--mf-t-xs)', minWidth: 760 }} data-reels-que-venderam>
+                <thead>
+                  <tr style={{ color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-nano)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                    {['Reel', 'Envio / etiqueta', 'Alcance', 'Leads', 'Vendas', 'Receita', 'R$ / mil alcance'].map((t, i) => (
+                      <th key={t} style={{ textAlign: i > 1 ? 'right' : 'left', padding: '6px 10px', fontWeight: 700, whiteSpace: 'nowrap' }}>{t}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {!(conteudo?.reels?.length) && (
+                    <tr><td colSpan={7} style={{ padding: 'var(--mf-5)', textAlign: 'center', color: 'var(--mf-text-3)' }}>
+                      Nenhum lead atribuído a um Reel ainda. Precisa do link rastreado <strong>com a conta escolhida</strong> na bio, e de publicações feitas pelo Nexora.
+                    </td></tr>
+                  )}
+                  {(conteudo?.reels || []).slice(0, 15).map(r => (
+                    <tr key={r.igMediaId} style={{ borderTop: '1px solid var(--mf-border-subtle)', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ padding: 8 }}>
+                        <a href={r.permalink || undefined} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', minWidth: 0 }}>
+                          <span style={{ width: 34, height: 48, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--mf-surface-3)' }}>
+                            {r.thumbnailUrl && <img alt="" loading="lazy" src={`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/image-proxy?url=${encodeURIComponent(r.thumbnailUrl)}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                          </span>
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ display: 'block', fontWeight: 650, color: 'var(--mf-text)' }}>{r.username ? `@${r.username}` : 'conta'}</span>
+                            <span style={{ display: 'block', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>{quando(r.publicadoEm)}</span>
+                          </span>
+                        </a>
+                      </td>
+                      <td style={{ padding: 8, color: 'var(--mf-text-2)' }}>
+                        <div className="mf-trunc" style={{ maxWidth: 200 }}>{r.jobName || '—'}</div>
+                        {r.rotulo && <span style={{ fontSize: 'var(--mf-t-nano)', padding: '1px 7px', borderRadius: 'var(--mf-r-full)', background: 'var(--mf-surface-3)', color: 'var(--mf-text)' }}>{r.rotulo}</span>}
+                      </td>
+                      <td style={{ padding: 8, textAlign: 'right', color: 'var(--mf-text-2)' }}>{fmtNum(r.alcance)}</td>
+                      <td style={{ padding: 8, textAlign: 'right', color: 'var(--mf-text-2)' }}>{fmtNum(r.leads)}</td>
+                      <td style={{ padding: 8, textAlign: 'right', color: 'var(--mf-text-2)' }}>{fmtNum(r.vendas)}</td>
+                      <td style={{ padding: 8, textAlign: 'right', fontWeight: 800, color: 'var(--mf-text)' }}>{real(r.receita)}</td>
+                      <td style={{ padding: 8, textAlign: 'right', color: 'var(--mf-text-2)' }}>{r.receitaPor1k != null ? real(r.receitaPor1k) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {conteudo?.semAtribuicao?.leads > 0 && (
+              <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', marginTop: 8 }}>
+                Sem atribuição: {fmtNum(conteudo.semAtribuicao.leads)} lead(s), {fmtNum(conteudo.semAtribuicao.vendas)} venda(s), {real(conteudo.semAtribuicao.receita)} — entraram sem link de conta ou sem publicação nas {conteudo.janelaH}h anteriores.
+              </div>
+            )}
+          </Cartao>
 
           <Cartao titulo="De onde vem" direita={<span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>por conta / link rastreado</span>}>
             <div style={{ overflowX: 'auto' }}>
