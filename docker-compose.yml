@@ -23,6 +23,8 @@ services:
     volumes:
       # Biblioteca de mídia e arquivos processados. A Meta baixa daqui.
       - uploads:/app/uploads
+      # Os backups do ./backup.sh — só leitura: o painel mostra e deixa baixar.
+      - ./backups:/app/backups:ro
     # Só no localhost do servidor, para diagnóstico (curl). O público entra pelo web.
     # APP_PORT muda a porta local quando a 3000 já está em uso.
     ports:

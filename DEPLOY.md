@@ -158,13 +158,18 @@ Push no celular: as chaves são geradas sozinhas na primeira subida e ficam
 guardadas no banco — basta ativar em **Notificações** no painel. (Se preferir
 fixá-las no `.env`, `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` têm precedência.)
 
-**Backup**: o banco está no Supabase. A biblioteca de mídia fica no volume
-`insta-nova_uploads`:
+**Backup**: banco (Supabase) e mídias, todo dia às 03:15, guardando os 7 mais
+novos em `backups/`. Liga uma vez:
 
 ```bash
-docker run --rm -v insta-nova_uploads:/dados -v "$PWD":/backup alpine \
-  tar czf /backup/uploads-$(date +%F).tgz -C /dados .
+./instalar-backup-automatico.sh        # liga e já faz o primeiro
+./backup.sh                            # um backup na hora
+./restaurar-backup.sh banco  backups/banco-AAAA-MM-DD_HHMM.sql.gz
+./restaurar-backup.sh midias backups/midias-AAAA-MM-DD_HHMM.tgz
 ```
+
+O painel mostra o status e deixa baixar cada arquivo em **Sistema → Backups**
+(só admin). Baixe o do banco de vez em quando para fora da VPS.
 
 ## Problemas comuns
 

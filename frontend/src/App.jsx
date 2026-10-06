@@ -35,6 +35,7 @@ const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
 const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
 const Importar            = lazy(() => import('./pages/Importar'));
 const Webhook             = lazy(() => import('./pages/Webhook'));
+const Backups             = lazy(() => import('./pages/Backups'));
 const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
 import Login from './pages/Login';
 import Termos from './pages/Termos';
@@ -131,6 +132,7 @@ export default function App() {
               <Route path="/biblioteca"          element={<MediaLibrary />} />
               <Route path="/importar"            element={<Importar />} />
               <Route path="/webhook"             element={<Webhook />} />
+              <Route path="/backups"             element={<Backups />} />
               <Route path="/funil"               element={<Navigate to="/webhook" replace />} />
             </Routes>
             </Suspense>

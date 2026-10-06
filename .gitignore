@@ -25,3 +25,6 @@ npm-debug.log*
 
 # Uploads
 uploads/
+
+# Backups locais (./backup.sh)
+backups/
