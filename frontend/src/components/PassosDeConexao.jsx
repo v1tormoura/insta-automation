@@ -57,12 +57,13 @@ export default function PassosDeConexao({
   /* `usarSessao` (página guiada): o navegador já está logado na conta, então a
      autorização vai direto para "Permitir", sem pedir login. `outraConta`
      força o login para quem está logado na conta errada. */
-  /* No celular, sem `force_reauth` o link do Instagram é capturado pelo APP
-     (link universal) e a autorização sai do navegador onde o link foi colado.
-     Com ele, o Instagram mostra o login na própria página — por isso o atalho
-     da sessão aberta vale só no computador. */
+  /* Vale no celular também: o fluxo é entrar no Instagram numa guia, aceitar
+     o convite de testador e colar o link guiado NA MESMA guia — pedir login de
+     novo ali desfaz justamente o que a pessoa acabou de fazer. Se o celular
+     mandar o link para o app do Instagram, "Entrar com outra conta" força o
+     login na própria página da web. */
   const celular = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-  const manterSessao = usarSessao && !celular;
+  const manterSessao = usarSessao;
 
   async function autorizar({ outraConta = false } = {}) {
     setIndo(true);
@@ -145,6 +146,10 @@ export default function PassosDeConexao({
               color: 'var(--mf-mod)', fontWeight: 700, fontSize: 'inherit', textDecoration: 'underline' }}>
             Entrar com outra conta
           </button>
+          {celular && (<>
+            <br />
+            Abriu o app do Instagram em vez da página? Use <strong>Entrar com outra conta</strong>.
+          </>)}
         </>)}
         <br />
         Não encontrou o convite no Instagram? Peça ao administrador para te convidar como testador.
