@@ -422,6 +422,7 @@ function handlers() {
       broadcast('media', { action: 'importacao_fim', importados: r.importados.length, arquivos: arquivosDoFim(r.importados), erros: r.erros.length, detalhes: r.erros.slice(0, 5) }, usuarioId);
     },
     story: dados => require('./services/stories').processar(dados),
+    preparo_midia: dados => require('./services/preparoDeMidia').processar(dados),
     campanha_publicacao: ({ campaignPublicationId }) => executor.processarPublicacao(campaignPublicationId, {
       publicarNaConta: (conta, post) => publicarNaConta(conta, post),
       broadcast,

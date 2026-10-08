@@ -181,6 +181,14 @@ novos em `backups/`. Liga uma vez:
 O painel mostra o status e deixa baixar cada arquivo em **Sistema → Backups**
 (só admin). Baixe o do banco de vez em quando para fora da VPS.
 
+**Variações de Mídia** (menu Conteúdo → Variações): converte vídeos e fotos
+para 9:16, 4:5, 1:1 ou a proporção original, em lote, com o ffmpeg que já vem
+na imagem. Os resultados ficam em `uploads/preparos/` (fora do backup e fora
+do endereço público `/uploads`) e são apagados sozinhos em 24 h; o histórico
+fica 30 dias. Limites e validade: variáveis `PREPAROS_*` no `.env.example`.
+Processa 2 arquivos por vez — numa VPS com mais núcleos, suba
+`PREPAROS_CONCORRENCIA`.
+
 ## Problemas comuns
 
 | Sintoma | Causa e correção |

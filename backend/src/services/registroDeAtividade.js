@@ -60,6 +60,9 @@ const ACOES = [
   ['POST',   /^\/usuarios\/[^/]+\/2fa\/desligar$/,    'Desligou o 2FA de um usuário'],
   ['DELETE', /^\/usuarios\/[^/]+$/,                   'Apagou um usuário'],
   ['POST',   /^\/ai\//,                               'Gerou legendas com IA'],
+  ['POST',   /^\/preparos\/cancelar$/,                'Cancelou variações de mídia'],
+  ['DELETE', /^\/preparos\/?$/,                       'Excluiu variações de mídia'],
+  ['POST',   /^\/preparos\/(arquivos|zip)$/,          null], // um por arquivo: barulho
   /* Barulho: marcar notificação como lida, prévias, sincronizações de métrica. */
   ['*',      /^\/(notificacoes|events|insights|analytics)\b/, null],
   ['*',      /^\/(auth|conta\/2fa)\b/,                null], // registrados pela própria rota

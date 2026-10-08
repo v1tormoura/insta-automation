@@ -29,6 +29,7 @@ async function subir() {
   require('./services/vigiaDoSistema').iniciar();
   require('./services/smartActivity/detector').iniciarRelogioDoResumo();
   require('./jobs/limpezaDeArquivos').startLimpezaDeArquivos();
+  require('./services/preparoDeMidia').iniciarLimpeza();
   require('./jobs/resetDailyPosts')();
 
   const encerrar = sinal => {

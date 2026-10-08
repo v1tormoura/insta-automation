@@ -147,6 +147,7 @@ const ic = (children, w = 18) => (
 );
 
 const ICONS = {
+  variacoes: ic(<><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></>),
   atividade: ic(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4l2 2"/></>),
   backup:    ic(<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></>),
   webhook:   ic(<><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></>),
@@ -218,6 +219,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/biblioteca', mod: 'publicar',      label: 'Biblioteca',     sub: 'Mídias e pastas',     icon: ICONS.media       },
       { to: '/importar', mod: 'publicar',        label: 'Importar',       sub: 'Baixar das suas contas', icon: ICONS.download },
+      { to: '/variacoes', mod: 'publicar',       label: 'Variações',      sub: 'Formatos e conversão',   icon: ICONS.variacoes },
       { to: '/legends', mod: 'publicar',         label: 'Legendas',       sub: 'Textos salvos',       icon: ICONS.legends     },
     ],
   },

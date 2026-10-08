@@ -31,9 +31,10 @@ mv "$BANCO.tmp" "$BANCO"
 APP=$(docker compose ps -q app)
 [ -n "$APP" ] || falhou "o container app não está rodando"
 MIDIAS="$DESTINO/midias-$QUANDO.tgz"
-# processed/ e tmp/ são refeitos sozinhos — fora do backup para ele não inchar.
+# processed/, tmp/ e preparos/ (Variações de Mídia, expiram em 24 h) são refeitos
+# ou temporários — fora do backup para ele não inchar.
 docker run --rm --volumes-from "$APP" -v "$PWD/$DESTINO:/saida" alpine \
-  tar czf "/saida/$(basename "$MIDIAS").tmp" -C /app/uploads --exclude=./processed --exclude=./tmp . \
+  tar czf "/saida/$(basename "$MIDIAS").tmp" -C /app/uploads --exclude=./processed --exclude=./tmp --exclude=./preparos . \
   || falhou "não deu para empacotar as mídias"
 mv "$MIDIAS.tmp" "$MIDIAS"
 
