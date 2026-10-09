@@ -91,6 +91,30 @@ describe('peças puras', () => {
   });
 });
 
+describe('privacidade', () => {
+  test('a saída não leva localização, aparelho nem data do original', () => {
+    const entrada = path.join(DIR, 'celular.mov');
+    ff(['-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=30', '-t', '1', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+      '-metadata', 'com.apple.quicktime.location.ISO6709=-23.5505-046.6333/', '-metadata', 'com.apple.quicktime.model=iPhone 15 Pro',
+      '-metadata', 'creation_time=2026-10-01T15:30:00Z', '-movflags', 'use_metadata_tags', entrada]);
+    expect(fs.readFileSync(entrada).includes('iPhone 15 Pro')).toBe(true);
+    const saida = path.join(DIR, 'celular-saida.mp4');
+    const config = preparo.normalizarConfig({ formatos: ['9x16'] });
+    execFileSync(FFMPEG_BIN, preparo.argumentos({ entrada, saida, config, formato: '9x16', tipo: 'video', info: {} }));
+    const bytes = fs.readFileSync(saida);
+    for (const marca of ['iPhone', 'com.apple', '23.5505', '2026-10-01']) expect(bytes.includes(marca)).toBe(false);
+  });
+
+  test('a foto sai sem o bloco EXIF', async () => {
+    const saida = path.join(DIR, 'foto-saida.jpg');
+    const v = await preparo.validarArquivo(FOTO);
+    const config = preparo.normalizarConfig({ formatos: ['1x1'] });
+    execFileSync(FFMPEG_BIN, preparo.argumentos({ entrada: FOTO, saida, config, formato: '1x1', tipo: 'imagem', info: v.info }));
+    expect(fs.readFileSync(FOTO).includes('Exif')).toBe(true);
+    expect(fs.readFileSync(saida).includes('Exif')).toBe(false);
+  });
+});
+
 describe('API', () => {
   let servidor, BASE;
   beforeAll(async () => {
