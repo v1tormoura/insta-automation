@@ -149,7 +149,6 @@ const ic = (children, w = 18) => (
 const ICONS = {
   variacoes: ic(<><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></>),
   atividade: ic(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4l2 2"/></>),
-  backup:    ic(<><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></>),
   webhook:   ic(<><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></>),
   download:  ic(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>),
   dashboard: ic(<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>),
@@ -229,7 +228,6 @@ const NAV_GROUPS = [
     items: [
       { to: '/performance', mod: 'metricas',     label: 'Performance',       sub: 'Alcance e retenção',     icon: ICONS.performance },
       { to: '/metricas-perfis', mod: 'metricas', label: 'Perfis',            sub: 'Seguidores e curtidas',  icon: ICONS.perfis      },
-      { to: '/ranking', mod: 'metricas',         label: 'Ranking',           sub: 'Posts do mês',           icon: ICONS.ranking     },
       { to: '/top-posts', mod: 'metricas',       label: 'Top Posts',         sub: 'Republique os melhores', icon: ICONS.topposts    },
       { to: '/webhook', mod: 'metricas',         label: 'Webhook',           sub: 'Leads e vendas do bot',  icon: ICONS.webhook     },
     ],
@@ -249,7 +247,6 @@ const NAV_GROUPS = [
     items: [
       { to: '/usuarios', mod: 'sistema',              label: 'Usuários',    sub: 'Cadastros e acessos',        icon: ICONS.perfis, admin: true },
       { to: '/api-meta', mod: 'sistema',              label: 'API Meta',    sub: 'Apps Meta / OAuth',          icon: ICONS.apimeta, admin: true },
-      { to: '/backups', mod: 'sistema',               label: 'Backups',     sub: 'Banco e mídias, diário',     icon: ICONS.backup,  admin: true },
       { to: '/settings/notificacoes', mod: 'sistema', label: 'Notificações', sub: 'Quando e como avisar',      icon: ICONS.bell    },
       { to: '/minha-conta', mod: 'sistema',           label: 'Minha Conta', sub: 'Perfil, senha e aparência',  icon: ICONS.usuario },
       { to: '/logs', mod: 'sistema',                  label: 'Histórico',   sub: 'Logs de atividade',          icon: ICONS.logs    },

@@ -70,7 +70,6 @@ const SISTEMA = [
   { id: 'fila',        rotulo: 'Fila presa',         desc: 'Publicação em processamento há mais de 1h' },
   { id: 'erros',       rotulo: 'Erros do dia',       desc: 'Muitos erros de publicação no mesmo dia' },
   { id: 'envioParado', rotulo: 'Envios parados',     desc: 'Só admin: a fila parou de processar' },
-  { id: 'backup',      rotulo: 'Backup',             desc: 'Só admin: o backup falhou ou atrasou' },
   { id: 'normalizado', rotulo: 'Voltou ao normal',   desc: 'O aviso de que um problema passou' },
 ];
 
@@ -144,7 +143,6 @@ const GATILHO = {
   fila:    'Quando uma publicação fica em processamento por mais de 1 hora.',
   erros:   'Quando o dia acumula 20 erros de publicação ou mais.',
   envioParado: 'Quando há tarefa da fila vencida há 15 minutos ou travada há 3 horas — sinal de que o processador parou. Só o admin recebe.',
-  backup:  'Quando o último ./backup.sh falhou ou foi há mais de 36 horas. Só o admin recebe.',
   normalizado: 'Quando qualquer um dos avisos acima deixa de valer — o problema passou.',
 };
 

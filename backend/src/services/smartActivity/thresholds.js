@@ -67,7 +67,6 @@ const PADRAO = Object.freeze({
     fila: true,
     erros: false,
     envioParado: true,
-    backup: true,
     normalizado: true,
   }),
 

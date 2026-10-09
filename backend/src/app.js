@@ -97,7 +97,6 @@ app.use('/meta-apps',     auth, require('./routes/metaAppRoutes'));
 app.use('/convites',      auth, require('./routes/convitesRoutes'));
 app.use('/usuarios',      auth, auth.soAdmin, require('./routes/usuariosRoutes'));
 app.use('/preparos',      auth, require('./routes/preparosRoutes'));
-app.use('/backups',       auth, auth.soAdmin, require('./routes/backupsRoutes').router);
 
 app.use((req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 

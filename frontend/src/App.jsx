@@ -28,7 +28,6 @@ const CampaignDetail      = lazy(() => import('./pages/CampaignDetail'));
 import OAuthCallback from './pages/OAuthCallback';
 const ConectarGuiado      = lazy(() => import('./pages/ConectarGuiado'));
 const TopPosts            = lazy(() => import('./pages/TopPosts'));
-const Ranking             = lazy(() => import('./pages/Ranking'));
 const Performance         = lazy(() => import('./pages/Performance'));
 const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
 const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
@@ -36,7 +35,6 @@ const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
 const Importar            = lazy(() => import('./pages/Importar'));
 const Variacoes           = lazy(() => import('./pages/Variacoes'));
 const Webhook             = lazy(() => import('./pages/Webhook'));
-const Backups             = lazy(() => import('./pages/Backups'));
 const Atividade           = lazy(() => import('./pages/Atividade'));
 const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
 import Login from './pages/Login';
@@ -124,7 +122,7 @@ export default function App() {
               <Route path="/settings/notificacoes" element={<ConfigNotificacoes />} />
               <Route path="/campaigns/:id"  element={<CampaignDetail />} />
               <Route path="/top-posts"      element={<TopPosts />} />
-              <Route path="/ranking"        element={<Ranking />} />
+              <Route path="/ranking"        element={<Navigate to="/top-posts" replace />} />
               <Route path="/performance"    element={<Performance />} />
               <Route path="/metricas-perfis" element={<MetricasDosPerfis />} />
               <Route path="/minha-conta"    element={<MinhaConta />} />
@@ -135,7 +133,6 @@ export default function App() {
               <Route path="/importar"            element={<Importar />} />
               <Route path="/variacoes"           element={<Variacoes />} />
               <Route path="/webhook"             element={<Webhook />} />
-              <Route path="/backups"             element={<Backups />} />
               <Route path="/atividade"           element={<Atividade />} />
               <Route path="/funil"               element={<Navigate to="/webhook" replace />} />
             </Routes>

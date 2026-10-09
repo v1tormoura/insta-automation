@@ -178,8 +178,8 @@ novos em `backups/`. Liga uma vez:
 ./restaurar-backup.sh midias backups/midias-AAAA-MM-DD_HHMM.tgz
 ```
 
-O painel mostra o status e deixa baixar cada arquivo em **Sistema → Backups**
-(só admin). Baixe o do banco de vez em quando para fora da VPS.
+Baixe o do banco de vez em quando para fora da VPS (pasta `backups/`, por
+`scp` ou pelo gerenciador de arquivos do seu provedor).
 
 **Variações de Mídia** (menu Conteúdo → Variações): converte vídeos e fotos
 para 9:16, 4:5, 1:1 ou a proporção original, em lote, com o ffmpeg que já vem

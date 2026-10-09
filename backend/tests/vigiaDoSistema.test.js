@@ -288,20 +288,4 @@ describe('as verificações leem o banco', () => {
     const outro = await banco.criarUsuario();
     expect(await vigia.VERIFICACOES.envioParado(outro.id)).toBeNull();
   });
-
-  test('backup: falhou ou com mais de 36h; sem backup ligado, nada', async () => {
-    const fs = require('fs'); const os = require('os'); const path = require('path');
-    const rotas = require('../src/routes/backupsRoutes');
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vb-'));
-    const lerUltimo = jest.spyOn(rotas, 'lerUltimo');
-    lerUltimo.mockReturnValue(null);
-    expect(await vigia.VERIFICACOES.backup(banco.DONO_ID)).toBeNull();
-    lerUltimo.mockReturnValue({ ok: true, quando: new Date(Date.now() - 3600_000).toISOString() });
-    expect(await vigia.VERIFICACOES.backup(banco.DONO_ID)).toBeNull();
-    lerUltimo.mockReturnValue({ ok: true, quando: new Date(Date.now() - 50 * 3600_000).toISOString() });
-    expect(await vigia.VERIFICACOES.backup(banco.DONO_ID)).toMatchObject({ vars: { situacao: 'o último foi há 50h' } });
-    lerUltimo.mockReturnValue({ ok: false, erro: 'pg_dump falhou', quando: new Date().toISOString() });
-    expect((await vigia.VERIFICACOES.backup(banco.DONO_ID)).vars.situacao).toMatch(/falhou \(pg_dump falhou\)/);
-    lerUltimo.mockRestore(); fs.rmSync(dir, { recursive: true, force: true });
-  });
 });

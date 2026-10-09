@@ -68,7 +68,6 @@ const VARIAVEIS = Object.freeze({
   valor:         'Valor da compra (R$ 29,90)',
   emailCadastro: 'E-mail de quem pediu acesso',
   tarefas:       'Tarefas da fila atrasadas ou travadas',
-  situacao:      'O que houve com o backup (falhou / há quantas horas foi o último)',
 });
 
 /**
@@ -111,7 +110,6 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
   fila:    Object.freeze(['presas']),
   erros:   Object.freeze(['errosHoje']),
   envioParado: Object.freeze(['tarefas']),
-  backup:  Object.freeze(['situacao']),
 
   /* O aviso de que um problema passou. Um só modelo para os seis, porque a
      frase é a mesma e `{{aviso}}` já diz qual foi — seis modelos idênticos
@@ -120,7 +118,7 @@ const VARIAVEIS_POR_TIPO = Object.freeze({
 });
 
 /** Os tipos que vêm do vigia, e não de uma métrica do Instagram. */
-const TIPOS_DE_SISTEMA = Object.freeze(['sessoes', 'fila', 'erros', 'envioParado', 'backup', 'normalizado']);
+const TIPOS_DE_SISTEMA = Object.freeze(['sessoes', 'fila', 'erros', 'envioParado', 'normalizado']);
 
 /**
  * `{ nome: descrição }` das variáveis de um aviso — é o que o editor lista.
@@ -251,11 +249,6 @@ const PADRAO = Object.freeze({
     mensagem: '{{tarefas}} tarefa(s) da fila estão atrasadas ou travadas — nada está saindo. '
             + 'Na VPS: docker compose restart app (e veja docker compose logs app).',
     tema: 'danger',
-  }),
-  backup: Object.freeze({
-    titulo: 'Backup com problema 💾',
-    mensagem: 'O backup automático não está em dia: {{situacao}}. Veja em Sistema → Backups.',
-    tema: 'warning',
   }),
   normalizado: Object.freeze({
     titulo: 'Normalizado: {{aviso}}',
@@ -391,7 +384,7 @@ const EXEMPLOS = Object.freeze({
 
   erro: 'Tempo de conexão esgotado ao sair para o Instagram.',
   contasRuins: '5', contasTotal: '9',
-  presas: '2', errosHoje: '23', tarefas: '14', situacao: 'o último foi há 52h',
+  presas: '2', errosHoje: '23', tarefas: '14',
   aviso: 'fila de publicação', horas: '3',
   motivo: 'Token inválido — reconecte pela API.',
   usado: '50', limite: '50', libera: '14:35',

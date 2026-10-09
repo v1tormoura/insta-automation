@@ -9,7 +9,6 @@
  *   fila    — publicação "processando" há mais de uma hora
  *   erros   — 20 ou mais erros de publicação no dia
  *   envioParado — (admin) tarefas da fila vencidas há 15+ min: o processador travou
- *   backup  — (admin) o último ./backup.sh falhou ou tem mais de 36h
  *
  * Cada verificação devolve `null` (tudo bem) ou `{ vars, prioridade }`; o texto
  * vem dos modelos editáveis da Central (templates.PADRAO).
@@ -52,7 +51,6 @@ async function _erros(usuarioId) {
 
 const FILA_ATRASADA_MS = 15 * 60 * 1000;
 const TAREFA_TRAVADA_MS = 3 * 60 * 60 * 1000;
-const BACKUP_ATRASADO_H = 36;
 
 async function _ehAdmin(usuarioId) {
   const [u] = await sql`select papel from usuarios where id = ${usuarioId}`;
@@ -70,26 +68,12 @@ async function _envioParado(usuarioId) {
   return n ? { vars: { tarefas: n }, prioridade: 'alta' } : null;
 }
 
-/* O status que o ./backup.sh grava. Sem o arquivo, o backup não foi ligado — nada a vigiar. */
-async function _backup(usuarioId) {
-  if (!(await _ehAdmin(usuarioId))) return null;
-  const u = require('../routes/backupsRoutes').lerUltimo();
-  if (!u) return null;
-  const horas = Math.round((Date.now() - new Date(u.quando).getTime()) / 3.6e6);
-  if (u.ok && horas <= BACKUP_ATRASADO_H) return null;
-  return {
-    vars: { situacao: u.ok ? `o último foi há ${horas}h` : `o último falhou (${u.erro || 'veja o log'})` },
-    prioridade: 'alta',
-  };
-}
-
-const VERIFICACOES = Object.freeze({ sessoes: _sessoes, fila: _fila, erros: _erros, envioParado: _envioParado, backup: _backup });
+const VERIFICACOES = Object.freeze({ sessoes: _sessoes, fila: _fila, erros: _erros, envioParado: _envioParado });
 
 const NOMES = Object.freeze({
   sessoes: 'contas sem conectar',
   fila: 'fila de publicação',
   envioParado: 'processamento dos envios',
-  backup: 'backup',
   erros: 'erros de publicação',
 });
 

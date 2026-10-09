@@ -63,14 +63,15 @@ exports.getInsights = async (req, res) => {
     order by ${sql.unsafe(ORDENS[metric] || ORDENS.engagementScore)}
     limit ${Math.min(200, Math.max(1, Number(limit) || 50))}`;
 
-  const totals = insights.reduce((t, i) => ({
-    views: t.views + i.videoViews,
-    alcance: t.alcance + i.reach,
-    likes: t.likes + i.likeCount,
-    coments: t.coments + i.commentsCount,
-    saves: t.saves + i.savedCount,
-    shares: t.shares + i.shareCount,
-  }), { views: 0, alcance: 0, likes: 0, coments: 0, saves: 0, shares: 0 });
+  /* Totais do PERÍODO inteiro (mesmos filtros), não só dos `limit` listados:
+     os cartões dizem "últimos 30 dias" e precisam somar todos. */
+  const [t] = await sql`
+    select coalesce(sum(video_views), 0)::bigint as views, coalesce(sum(reach), 0)::bigint as alcance,
+           coalesce(sum(like_count), 0)::bigint as likes, coalesce(sum(comments_count), 0)::bigint as coments,
+           coalesce(sum(saved_count), 0)::bigint as saves, coalesce(sum(share_count), 0)::bigint as shares,
+           count(*)::int as posts
+    from insights where usuario_id = ${req.user.id} and posted_at >= ${since} ${porConta} ${porTipo}`;
+  const totals = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Number(v)]));
 
   res.json({ insights, totals, lastSync: insights[0]?.syncedAt || null, total: insights.length });
 };

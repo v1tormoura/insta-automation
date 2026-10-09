@@ -1,23 +1,12 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { RefreshCw, Send, X, ChevronDown, Flame, ExternalLink, CheckSquare, Square, Layers3, ImagePlus } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { RefreshCw, Send, X, ChevronDown, Flame, ExternalLink, Layers3, ImagePlus } from 'lucide-react';
+import PageShell from '../components/PageShell';
 import api from '../services/api';
 import { useServerEvents } from '../services/useServerEvents';
 import { EsqueletoGrade } from '../components/Estados';
 
 /* ── helpers ── */
 const fmt  = v => Number(v || 0).toLocaleString('pt-BR');
-const fmtK = v => { const n = Number(v||0); return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n); };
-
-/* Tempo médio assistido (reels). É o que mais pesa na distribuição: quem sai
-   no primeiro segundo diz ao Instagram que o vídeo não prende. */
-const segundos = ms => (Number.isFinite(Number(ms)) && ms !== null ? `${(Number(ms) / 1000).toFixed(1).replace('.', ',')}s` : '—');
-function leituraDaRetencao(ms) {
-  if (ms === null || ms === undefined || !Number.isFinite(Number(ms))) return null;
-  const s = Number(ms) / 1000;
-  if (s < 2) return { cor: 'var(--mf-danger-500)', texto: 'Prende pouco: a maioria sai nos primeiros segundos' };
-  if (s < 5) return { cor: 'var(--mf-warning-500)', texto: 'Retenção média: o começo segura, o resto não' };
-  return { cor: 'var(--mf-success-500)', texto: 'Boa retenção' };
-}
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const proxyImg = url => {
@@ -26,15 +15,8 @@ const proxyImg = url => {
   return `${API_BASE}/image-proxy?url=${encodeURIComponent(url)}`; // CDN URL — proxy
 };
 
-const METRICS  = ['Views','Alcance','Retenção','Likes','Coments','Saves','Shares'];
-const PERIODS  = ['7d','30d','90d','1a'];
-const TYPES    = ['Tudo','Reels','Carrossel','Foto'];
-
 const RANK_COLORS = ['var(--mf-mod-publicar)','var(--mf-info-500)','var(--mf-mod-contas)','var(--mf-success-500)','var(--mf-warning-500)','var(--mf-danger-500)'];
 
-function metricKey(m) {
-  return { Views:'views', Alcance:'alcance', 'Retenção':'retencao', Likes:'likes', Coments:'coments', Saves:'saves', Shares:'shares' }[m] || 'views';
-}
 function insightViews(ins) {
   return ins.videoViews || ins.impressions || 0;
 }
@@ -46,123 +28,7 @@ function mediaLabel(type) {
 }
 
 /* ── PostCard ── */
-function PostCard({ ins, rank, onRepublish, selectMode, isSelected, onToggle }) {
-  const [err, setErr] = useState(false);
-  const src = !err ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : null;
-  const color = RANK_COLORS[(rank - 1) % RANK_COLORS.length];
-  const fmtDate = d => {
-    if (!d) return '';
-    const dt = new Date(d);
-    return dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'2-digit' }).toUpperCase();
-  };
 
-  const views = insightViews(ins);
-  const metrics = [
-    { label:'VIEWS',   val: views            },
-    { label:'ALCANCE', val: ins.reach        },
-    { label:'LIKES',   val: ins.likeCount    },
-    { label:'COMENTS', val: ins.commentsCount},
-    { label:'SAVES',   val: ins.savedCount   },
-    { label:'SHARES',  val: ins.shareCount   },
-    ...(ins.avgWatchTimeMs != null ? [{ label:'ASSISTIDO', val: ins.avgWatchTimeMs, texto: segundos(ins.avgWatchTimeMs) }] : []),
-  ];
-  const retencao = leituraDaRetencao(ins.avgWatchTimeMs);
-
-  const handleClick = () => {
-    if (selectMode) onToggle(ins.id);
-  };
-
-  return (
-    <div
-      onClick={selectMode ? handleClick : undefined}
-      style={{
-        background:'var(--mf-surface-1)', border:`1px solid ${isSelected ? 'color-mix(in oklch, var(--mf-mod-contas) 60%, transparent)' : 'color-mix(in oklch, var(--mf-border-strong) 50%, transparent)'}`,
-        borderRadius: 'var(--mf-r-lg)', overflow:'hidden', display:'flex', flexDirection:'column',
-        cursor: selectMode ? 'pointer' : 'default',
-        boxShadow: isSelected ? '0 0 0 2px color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)' : 'none',
-        transition: 'border-color .15s, box-shadow .15s',
-      }}
-    >
-      {/* Thumbnail */}
-      <div style={{ position:'relative', aspectRatio:'9/16', background:'var(--mf-surface-1)', flexShrink:0 }}>
-        {src
-          ? <img src={src} alt="" onError={() => setErr(true)} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-          : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#1e3a5f' }}><Flame size={40} /></div>
-        }
-        <div style={{ position:'absolute', inset:0, background:'linear-gradient(to bottom,rgba(0,0,0,.35) 0%,transparent 40%,rgba(0,0,0,.65) 100%)' }} />
-        <div style={{ position:'absolute', top:8, left:8, background:'rgba(0,0,0,.65)', color:'var(--mf-text)', fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.08em', padding:'2px 4px', borderRadius: 'var(--mf-r-xs)' }}>
-          {mediaLabel(ins.mediaType)}
-        </div>
-
-        {/* Select checkbox OR rank badge */}
-        {selectMode
-          ? <div style={{ position:'absolute', top:8, right:8, background: isSelected ? 'var(--mf-mod, var(--mf-accent-500))' : 'rgba(0,0,0,.6)', color: isSelected ? 'var(--mf-primary-fg)' : 'oklch(1 0 0 / 0.86)', width:26, height:26, borderRadius: 'var(--mf-r-sm)', display:'flex', alignItems:'center', justifyContent:'center', border:`2px solid ${isSelected ? 'var(--mf-mod, var(--mf-accent-500))' : 'var(--mf-border-strong)'}`, transition:'all .15s' }}>
-              {isSelected ? <CheckSquare size={15} /> : <Square size={15} />}
-            </div>
-          : <div style={{ position:'absolute', top:8, right:8, background:color, color:'var(--mf-primary-fg)', fontSize: 'var(--mf-t-nano)', fontWeight:800, width:26, height:26, borderRadius: 'var(--mf-r-full)', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:`0 0 14px ${color}77` }}>
-              #{rank}
-            </div>
-        }
-
-        <div style={{ position:'absolute', bottom:8, left:8, right:8, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <span style={{ fontSize: 'var(--mf-t-micro)', color:'oklch(1 0 0)', textShadow:'0 1px 2px oklch(0 0 0 / 0.6)', fontWeight:600 }}>@{ins.username}</span>
-          {ins.permalink && !selectMode && (
-            <a href={ins.permalink} target="_blank" rel="noopener noreferrer" style={{ color:'oklch(1 0 0 / 0.86)', display:'flex' }}>
-              <ExternalLink size={12} />
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Card body */}
-      <div style={{ padding:'12px 12px', display:'flex', flexDirection:'column', gap:10, flex:1 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-nano)', color:'var(--mf-text-3)' }}>
-          <span style={{ width:6, height:6, borderRadius: 'var(--mf-r-full)', background:'var(--mf-mod, var(--mf-accent-500))', display:'inline-block', flexShrink:0 }} />
-          {fmtDate(ins.postedAt)}
-          <span style={{ marginLeft:'auto', fontSize: 'var(--mf-t-nano)', color:'var(--mf-border-strong)' }}>👁 {fmtK(views)}</span>
-        </div>
-
-        {ins.caption && (
-          <p style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-text-2)', lineHeight:1.5, display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden', margin:0 }}>
-            {ins.caption}
-          </p>
-        )}
-
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(55px,100%), 1fr))', gap:6 }}>
-          {metrics.map(({ label, val, texto }) => (
-            <div key={label} style={{ background:'var(--mf-surface-1)', borderRadius: 'var(--mf-r-sm)', padding:'4px 8px', textAlign:'center' }}>
-              <div style={{ fontSize: 'var(--mf-t-body)', fontWeight:700, color:'var(--mf-text)' }}>{texto ?? fmtK(val)}</div>
-              <div style={{ fontSize: 'var(--mf-t-nano)',  fontWeight:600, color:'#4a6a8a', letterSpacing:'.06em' }}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        {retencao && (
-          <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:'var(--mf-t-nano)', color:'var(--mf-text-2)', lineHeight:1.4 }}>
-            <span style={{ width:7, height:7, borderRadius:'var(--mf-r-full)', background: retencao.cor, flexShrink:0 }} />
-            {retencao.texto}
-          </div>
-        )}
-
-        {!selectMode && (
-          <button
-            onClick={() => onRepublish(ins)}
-            style={{
-              marginTop:'auto', width:'100%', padding:'8px', borderRadius: 'var(--mf-r-sm)', border:'none', cursor:'pointer',
-              background:'linear-gradient(135deg,color-mix(in oklch, var(--mf-mod-contas) 18%, transparent),color-mix(in oklch, var(--mf-primary-500) 18%, transparent))',
-              color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-xs)', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-              borderTop:'1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)',
-            }}
-          >
-            <Send size={13} /> Republicar em outras contas
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ── Single RepublishModal ── */
 function RepublishModal({ ins, onClose, accounts }) {
   const [selectedAccounts, setSelectedAccounts] = useState([]);
   const [postType, setPostType]   = useState(ins.mediaType === 'IMAGE' ? 'post' : 'reel');
@@ -647,303 +513,279 @@ function ErrorBox({ msg }) {
   return <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-danger-500)', background:'color-mix(in oklch, var(--mf-danger-500) 10%, transparent)', border:'1px solid color-mix(in oklch, var(--mf-danger-500) 30%, transparent)', borderRadius: 'var(--mf-r-sm)', padding:'8px 12px' }}>{msg}</div>;
 }
 
-/* ── Main page ── */
+/* ── Página ─────────────────────────────────────────────────────────────────
+   Os cartões somam o PERÍODO inteiro (o servidor agrega todos os posts do
+   período); a tabela lista os 50 melhores pela coluna escolhida. */
+
+const PERIODOS = [['7d', 'últimos 7 dias'], ['30d', 'últimos 30 dias'], ['90d', 'últimos 90 dias'], ['1a', 'último ano']];
+const TIPOS = [['all', 'Tudo'], ['reel', 'Reels'], ['carrossel', 'Carrossel'], ['foto', 'Fotos']];
+const COLUNAS = [
+  ['views', 'Views', ins => insightViews(ins)],
+  ['likes', 'Curtidas', ins => ins.likeCount],
+  ['coments', 'Comentários', ins => ins.commentsCount],
+];
+const tipoLegivel = t => ({ VIDEO: 'Reel', CAROUSEL_ALBUM: 'Carrossel', IMAGE: 'Foto' }[t] || 'Post');
+const dataCurta = d => (d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
+
+function Miniatura({ ins }) {
+  const [erro, setErro] = useState(false);
+  const src = !erro ? proxyImg(ins.thumbnailUrl || ins.mediaUrl) : '';
+  return (
+    <div style={{ width: 38, height: 38, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'var(--mf-surface-2)', display: 'grid', placeItems: 'center' }}>
+      {src ? <img src={src} alt="" loading="lazy" onError={() => setErro(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <Flame size={15} style={{ color: 'var(--mf-text-3)' }} />}
+    </div>
+  );
+}
+
+/* No celular a tabela vira lista: seis colunas não cabem em 390px. */
+function useEstreito(px = 720) {
+  const consulta = `(max-width: ${px}px)`;
+  const [estreito, setEstreito] = useState(() => typeof window !== 'undefined' && window.matchMedia(consulta).matches);
+  useEffect(() => {
+    const m = window.matchMedia(consulta);
+    const mudou = () => setEstreito(m.matches);
+    m.addEventListener('change', mudou);
+    return () => m.removeEventListener('change', mudou);
+  }, [consulta]);
+  return estreito;
+}
+
 export default function TopPosts() {
-  const [insights, setInsights]   = useState([]);
-  const [primeiraCarga, setPrimeiraCarga] = useState(true);
-  const [totals, setTotals]       = useState({});
-  const [lastSync, setLastSync]   = useState(null);
-  const [accounts, setAccounts]         = useState([]);
-  const [loopAccountIds, setLoopAccountIds] = useState([]); // IDs das contas em loops ativos
+  const estreito = useEstreito();
+  const [insights, setInsights] = useState([]);
+  const [totals, setTotals] = useState({});
+  const [lastSync, setLastSync] = useState(null);
+  const [carregou, setCarregou] = useState(false);
+  const [accounts, setAccounts] = useState([]);
 
-  const [metric, setMetric]       = useState('Views');
-  const [period, setPeriod]       = useState('30d');
-  const [type, setType]           = useState('Tudo');
+  const [period, setPeriod] = useState('30d');
+  const [tipo, setTipo] = useState('all');
   const [accountId, setAccountId] = useState('');
+  const [ordem, setOrdem] = useState('views');
 
-  const [syncing, setSyncing]             = useState(false);
-  const [nextSyncIn, setNextSyncIn]       = useState(null); // seconds until next auto-sync
-  const [republishIns, setRepublishIns]   = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [republishIns, setRepublishIns] = useState(null);
   const [bulkRepublish, setBulkRepublish] = useState(null);
-
-  // Multi-select state
-  const [selectMode, setSelectMode]   = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-
-  const loadRef = useRef(null);
+  const [selecionar, setSelecionar] = useState(false);
+  const [selecionados, setSelecionados] = useState(() => new Set());
 
   const load = useCallback(async () => {
     try {
-      const params = {
-        metric:    metricKey(metric),
-        period,
-        mediaType: type === 'Tudo' ? 'all' : type.toLowerCase(),
-        limit:     50,
-      };
-      if (accountId) {
-        params.accountId = accountId;
-      } else if (loopAccountIds.length) {
-        params.accountIds = loopAccountIds.join(',');
-      }
-      const res = await api.get('/insights', { params });
-      setInsights(res.data.insights || []);
-      setTotals(res.data.totals     || {});
-      setLastSync(res.data.lastSync);
+      const { data } = await api.get('/insights', {
+        params: { metric: ordem, period, mediaType: tipo, limit: 50, ...(accountId ? { accountId } : {}) },
+      });
+      setInsights(data.insights || []);
+      setTotals(data.totals || {});
+      setLastSync(data.lastSync);
     } catch { /* a tela mostra o estado vazio */ }
-    /* Só a primeira: `load` roda de novo a cada troca de métrica, período ou
-       conta, e trocar a grade por esqueleto a cada filtro faria a tela piscar
-       a cada clique. */
-    finally { setPrimeiraCarga(false); }
-  }, [metric, period, type, accountId, loopAccountIds]);
+    finally { setCarregou(true); }
+  }, [ordem, period, tipo, accountId]);
 
-  loadRef.current = load;
-
-  useEffect(() => { load(); }, [load]);
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; load(); }, [load]);
   useEffect(() => {
-    // Busca loops para saber quais contas estão na automação
-    Promise.all([
-      api.get('/accounts?limit=200'),
-      api.get('/loops?limit=200'),
-    ]).then(([accRes, loopRes]) => {
-      const allAccounts = accRes.data.accounts || [];
-      const loops = Array.isArray(loopRes.data) ? loopRes.data : (loopRes.data.loops || []);
-      const activeIds = new Set(loops.flatMap(l => (l.accounts || []).map(a => String(a.id || a))));
-      const activeAccounts = allAccounts.filter(a =>
-        activeIds.has(String(a.id)) && a.healthStatus !== 'banida'
-      );
-      const activeNonBannedIds = activeAccounts.map(a => String(a.id));
-      const allNonBannedIds = allAccounts.filter(a => a.healthStatus !== 'banida').map(a => String(a.id));
-      setAccounts(activeAccounts.length ? activeAccounts : allAccounts.filter(a => a.healthStatus !== 'banida'));
-      setLoopAccountIds(activeNonBannedIds.length ? activeNonBannedIds : allNonBannedIds);
-    }).catch(() => {
-      api.get('/accounts?limit=200').then(r => {
-        const all = r.data.accounts || [];
-        setAccounts(all.filter(a => a.healthStatus !== 'banida'));
-        setLoopAccountIds(all.filter(a => a.healthStatus !== 'banida').map(a => String(a.id)));
-      }).catch(() => {});
-    });
+    api.get('/accounts?limit=200')
+      .then(r => setAccounts((r.data.accounts || []).filter(a => a.healthStatus !== 'banida')))
+      .catch(() => {});
+    const t = setInterval(() => loadRef.current?.(), 60_000);
+    return () => clearInterval(t);
   }, []);
-  // Reload from DB every 15 s
-  useEffect(() => {
-    const id = setInterval(() => loadRef.current?.(), 15_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Auto-sync from Instagram API every 30 min + countdown display
-  useEffect(() => {
-    const INTERVAL = 30 * 60; // seconds
-    let remaining = INTERVAL;
-
-    const tick = setInterval(() => {
-      remaining -= 1;
-      setNextSyncIn(remaining);
-      if (remaining <= 0) {
-        remaining = INTERVAL;
-        setNextSyncIn(INTERVAL);
-        setSyncing(true);
-        api.post('/insights/sync')
-          .then(() => loadRef.current?.())
-          .catch(() => {})
-          .finally(() => setSyncing(false));
-      }
-    }, 1000);
-
-    setNextSyncIn(INTERVAL);
-    return () => clearInterval(tick);
-  }, []);
-
   useServerEvents(['insights', 'posts'], () => loadRef.current?.());
 
-  const handleSync = async () => {
+  async function sincronizar() {
     setSyncing(true);
-    try { await api.post('/insights/sync'); } catch { /* segue sem este dado */ }
+    try { await api.post('/insights/sync'); } catch { /* segue com o que já tem */ }
     await new Promise(r => setTimeout(r, 1500));
     await load();
     setSyncing(false);
-  };
+  }
 
-  const toggleSelectMode = () => {
-    setSelectMode(v => !v);
-    setSelectedIds(new Set());
-  };
+  const marcar = id => setSelecionados(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const sairDaSelecao = () => { setSelecionar(false); setSelecionados(new Set()); };
+  const periodoTexto = PERIODOS.find(p => p[0] === period)?.[1] || '';
+  const atualizado = lastSync ? new Date(lastSync).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
 
-  const toggleId = id => setSelectedIds(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-
-  const selectedInsights = useMemo(
-    () => insights.filter(ins => selectedIds.has(ins.id)),
-    [insights, selectedIds]
-  );
-
-  const isLive = lastSync && (Date.now() - new Date(lastSync).getTime()) < 5 * 60 * 1000;
-  const fmtLastSync = lastSync ? new Date(lastSync).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : null;
-
-  const totalMetrics = [
-    { label:'Views',   val: totals.views },
-    { label:'Alcance', val: totals.alcance },
-    { label:'Likes',   val: totals.likes },
-    { label:'Coments', val: totals.coments },
-    { label:'Saves',   val: totals.saves },
-    { label:'Shares',  val: totals.shares },
+  const cartoes = [
+    ['Views totais', totals.views, 'das mídias medidas'],
+    ['Curtidas totais', totals.likes, 'dados da API oficial'],
+    ['Comentários', totals.coments, 'dados da API oficial'],
+    ['Posts analisados', totals.posts, `publicados nos ${periodoTexto}`],
   ];
+  const th = { padding: '10px 12px', fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-3)', textAlign: 'left', whiteSpace: 'nowrap' };
+  const td = { padding: '10px 12px', borderTop: '1px solid var(--mf-border)', verticalAlign: 'middle' };
+  const num = { ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 'var(--mf-t-sm)' };
 
   return (
-    <div style={{ minHeight:'100vh', background:'transparent', padding:'0 0 80px' }}>
-      {/* Header */}
-      <div className="tp-inner-pad" style={{ marginBottom:24 }}>
-        <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight:700, letterSpacing:'.12em', color:'var(--mf-mod, var(--mf-accent-500))', marginBottom:6, display:'flex', alignItems:'center', gap:6 }}>
-          <Flame size={13} /> TOP POSTS <span style={{ color:'var(--mf-border-strong)' }}>•</span> INSIGHTS OFICIAIS
+    <PageShell icon={<Flame size={18} />} title="Top posts" accent="cyan"
+      subtitle="Acompanhe os posts com melhor desempenho e replique o que dá certo. Métricas pela API oficial da Meta, relidas a cada 30 minutos."
+      actions={(
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <select className="inp" aria-label="Período" value={period} onChange={e => setPeriod(e.target.value)} style={{ width: 'auto', padding: '6px 10px' }}>
+            {PERIODOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+          <button type="button" className="btn-ghost" onClick={sincronizar} disabled={syncing} title={atualizado ? `Última leitura: ${atualizado}` : 'Ler as métricas agora'}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <RefreshCw size={13} style={syncing ? { animation: 'spin .8s linear infinite' } : undefined} /> {syncing ? 'Atualizando…' : 'Atualizar'}
+          </button>
         </div>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-          <div>
-            <h1 style={{ margin:0, fontSize: 'var(--mf-t-display)', fontWeight:800, color:'var(--mf-text)', letterSpacing:'-.02em' }}>Posts com mais visualizações</h1>
-            <p style={{ margin:'6px 0 0', fontSize: 'var(--mf-t-sm)', color:'var(--mf-text-3)' }}>Dados vindos direto da API oficial do Instagram — atualiza a cada 30 min.</p>
+      )}>
+
+      <div data-top-cartoes style={{ display: 'grid', gap: 'var(--mf-3)', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 'var(--mf-4)' }}>
+        {cartoes.map(([rotulo, valor, sub]) => (
+          <div key={rotulo} className="mf-card" style={{ padding: 'var(--mf-4)' }}>
+            <div style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mf-text-3)' }}>{rotulo}</div>
+            <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-text)', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{carregou ? fmt(valor) : '—'}</div>
+            <div style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>{sub}</div>
           </div>
-          <div style={{ display:'flex', gap:10 }}>
-            <button
-              onClick={toggleSelectMode}
-              style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:`1px solid ${selectMode?'color-mix(in oklch, var(--mf-mod-contas) 50%, transparent)':'color-mix(in oklch, var(--mf-border-strong) 40%, transparent)'}`, background: selectMode?'color-mix(in oklch, var(--mf-mod-contas) 15%, transparent)':'color-mix(in oklch, var(--mf-border-strong) 10%, transparent)', color: selectMode?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', fontWeight:600, cursor:'pointer' }}>
-              <CheckSquare size={15} /> {selectMode ? 'Cancelar seleção' : 'Selecionar posts'}
-            </button>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              {nextSyncIn !== null && !syncing && (
-                <span style={{ fontSize: 'var(--mf-t-micro)', color:'var(--mf-border-strong)', whiteSpace:'nowrap' }}>
-                  auto em {Math.floor(nextSyncIn/60)}:{String(nextSyncIn%60).padStart(2,'0')}
-                </span>
-              )}
-              <button onClick={handleSync} disabled={syncing}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 30%, transparent)', background:'color-mix(in oklch, var(--mf-mod-contas) 10%, transparent)', color:'var(--mf-mod, var(--mf-accent-500))', fontSize: 'var(--mf-t-sm)', fontWeight:600, cursor: syncing?'not-allowed':'pointer', opacity: syncing?.7:1, whiteSpace:'nowrap' }}>
-                <RefreshCw size={15} style={{ animation: syncing?'spin 1s linear infinite':'none' }} /> {syncing ? 'Sincronizando…' : 'Sync'}
-              </button>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Filter bar */}
-      <div className="tp-hpad" style={{ marginBottom:12, display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
-        <div style={{ display:'flex', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
-          {METRICS.map(m => (
-            <button key={m} onClick={() => setMetric(m)}
-              style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer', letterSpacing:'.04em',
-                background: metric===m?'color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)':'transparent', color: metric===m?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-3)',
-                borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
-              {m}
-            </button>
-          ))}
-        </div>
-        <div style={{ display:'flex', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
-          {PERIODS.map(p => (
-            <button key={p} onClick={() => setPeriod(p)}
-              style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
-                background: period===p?'color-mix(in oklch, var(--mf-primary-500) 25%, transparent)':'transparent', color: period===p?'var(--mf-primary-300)':'var(--mf-text-3)',
-                borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
-              {p}
-            </button>
-          ))}
-        </div>
-        <div style={{ display:'flex', background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', overflow:'hidden' }}>
-          {TYPES.map(t => (
-            <button key={t} onClick={() => setType(t)}
-              style={{ padding:'8px 12px', fontSize: 'var(--mf-t-micro)', fontWeight:600, border:'none', cursor:'pointer',
-                background: type===t?'color-mix(in oklch, var(--mf-mod-publicar) 20%, transparent)':'transparent', color: type===t?'var(--mf-primary-500)':'var(--mf-text-3)',
-                borderRight:'1px solid color-mix(in oklch, var(--mf-border-strong) 25%, transparent)', outline:'none' }}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <div style={{ position:'relative', marginLeft:'auto' }}>
-          <select value={accountId} onChange={e => setAccountId(e.target.value)}
-            style={{ background:'var(--mf-surface-1)', border:'1px solid color-mix(in oklch, var(--mf-border-strong) 40%, transparent)', borderRadius: 'var(--mf-r-md)', color: accountId?'var(--mf-text)':'var(--mf-text-3)', fontSize: 'var(--mf-t-micro)', padding:'8px 24px 8px 12px', outline:'none', appearance:'none', cursor:'pointer', minWidth:140 }}>
+      <section className="mf-card" data-top-tabela style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: 'var(--mf-3) var(--mf-4)' }}>
+          <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 750, color: 'var(--mf-text)', flex: 1, minWidth: 160 }}>Os melhores posts</div>
+          <div style={{ display: 'flex', gap: 4 }} role="group" aria-label="Tipo">
+            {TIPOS.map(([v, t]) => (
+              <button key={v} type="button" onClick={() => setTipo(v)} aria-pressed={tipo === v}
+                style={{ padding: '5px 10px', borderRadius: 'var(--mf-r-full)', cursor: 'pointer', fontSize: 'var(--mf-t-micro)', fontWeight: 650,
+                  border: `1px solid ${tipo === v ? 'var(--mf-primary-500)' : 'var(--mf-border)'}`,
+                  background: tipo === v ? 'color-mix(in oklch, var(--mf-primary-500) 12%, transparent)' : 'transparent',
+                  color: tipo === v ? 'var(--mf-text)' : 'var(--mf-text-2)' }}>{t}</button>
+            ))}
+          </div>
+          <select className="inp" aria-label="Conta" value={accountId} onChange={e => setAccountId(e.target.value)} style={{ width: 'auto', padding: '5px 10px', fontSize: 'var(--mf-t-xs)' }}>
             <option value="">Todas as contas</option>
             {accounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}
           </select>
-          <ChevronDown size={11} style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--mf-text-3)', pointerEvents:'none' }} />
+          {estreito && (
+            <select className="inp" aria-label="Ordenar por" value={ordem} onChange={e => setOrdem(e.target.value)} style={{ width: 'auto', padding: '5px 10px', fontSize: 'var(--mf-t-xs)' }}>
+              {COLUNAS.map(([chave, rotulo]) => <option key={chave} value={chave}>Ordenar: {rotulo}</option>)}
+            </select>
+          )}
+          {insights.length > 0 && (
+            <button type="button" className="btn-ghost btn-sm" onClick={() => (selecionar ? sairDaSelecao() : setSelecionar(true))}>
+              {selecionar ? 'Cancelar seleção' : 'Selecionar'}
+            </button>
+          )}
         </div>
-      </div>
 
-      {/* Status bar */}
-      <div className="tp-hpad" style={{ marginBottom:20, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: 'var(--mf-t-micro)', fontWeight:700 }}>
-          <span style={{ width:7, height:7, borderRadius: 'var(--mf-r-full)', background: isLive?'#2bdc94':'var(--mf-warning-500)', boxShadow:`0 0 8px ${isLive?'#2bdc94':'var(--mf-warning-500)'}`, display:'inline-block' }} />
-          <span style={{ color: isLive?'#2bdc94':'var(--mf-warning-500)' }}>{isLive ? 'AO VIVO' : fmtLastSync ? `Sync ${fmtLastSync}` : 'AGUARDANDO SYNC'}</span>
+        {estreito ? (
+          <div data-top-lista>
+            {insights.map((ins, i) => (
+              <div key={ins.id} data-top-linha style={{ display: 'flex', gap: 10, padding: '10px var(--mf-4)', borderTop: '1px solid var(--mf-border)',
+                background: selecionados.has(ins.id) ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : undefined }}>
+                {selecionar && <input type="checkbox" checked={selecionados.has(ins.id)} onChange={() => marcar(ins.id)} aria-label={`Selecionar post ${i + 1}`} />}
+                <span style={{ width: 18, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', paddingTop: 10, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+                <Miniatura ins={ins} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)' }}>
+                    {(ins.caption || '').split('\n')[0] || <span style={{ color: 'var(--mf-text-3)', fontWeight: 500 }}>(sem legenda)</span>}
+                  </div>
+                  <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+                    @{ins.username} · {tipoLegivel(ins.mediaType)} · {dataCurta(ins.postedAt)}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 'var(--mf-t-xs)', fontVariantNumeric: 'tabular-nums', flexWrap: 'wrap' }}>
+                    {COLUNAS.map(([chave, rotulo, valor]) => (
+                      <span key={chave} style={{ color: ordem === chave ? 'var(--mf-text)' : 'var(--mf-text-2)', fontWeight: ordem === chave ? 800 : 500 }}>
+                        {fmt(valor(ins))} <span style={{ color: 'var(--mf-text-3)', fontWeight: 500 }}>{rotulo.toLowerCase()}</span>
+                      </span>
+                    ))}
+                    {ins.permalink && <a href={ins.permalink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mf-text-3)', whiteSpace: 'nowrap' }}>abrir <ExternalLink size={10} style={{ verticalAlign: -1 }} /></a>}
+                  </div>
+                </div>
+                <button type="button" className="btn-ghost btn-sm" aria-label="Republicar" onClick={() => setRepublishIns(ins)} style={{ alignSelf: 'center', display: 'inline-grid', placeItems: 'center', padding: 6 }}>
+                  <Send size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <thead>
+              <tr>
+                {selecionar && <th style={{ ...th, width: 36 }} />}
+                <th style={{ ...th, width: 44 }}>#</th>
+                <th style={th}>Post</th>
+                <th style={th}>Conta</th>
+                {COLUNAS.map(([chave, rotulo]) => (
+                  <th key={chave} style={{ ...th, textAlign: 'right' }}>
+                    <button type="button" onClick={() => setOrdem(chave)} title={`Ordenar por ${rotulo.toLowerCase()}`}
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
+                        color: ordem === chave ? 'var(--mf-text)' : 'var(--mf-text-3)' }}>
+                      {rotulo}{ordem === chave ? ' ↓' : ''}
+                    </button>
+                  </th>
+                ))}
+                <th style={{ ...th, width: 48 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {insights.map((ins, i) => (
+                <tr key={ins.id} data-top-linha style={{ background: selecionados.has(ins.id) ? 'color-mix(in oklch, var(--mf-primary-500) 8%, transparent)' : undefined }}>
+                  {selecionar && (
+                    <td style={td}><input type="checkbox" checked={selecionados.has(ins.id)} onChange={() => marcar(ins.id)} aria-label={`Selecionar post ${i + 1}`} /></td>
+                  )}
+                  <td style={{ ...td, color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', fontVariantNumeric: 'tabular-nums' }}>{i + 1}</td>
+                  <td style={td}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <Miniatura ins={ins} />
+                      <div style={{ minWidth: 0, maxWidth: 420 }}>
+                        <div className="mf-trunc" style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)' }}>
+                          {(ins.caption || '').split('\n')[0] || <span style={{ color: 'var(--mf-text-3)', fontWeight: 500 }}>(sem legenda)</span>}
+                        </div>
+                        <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+                          {tipoLegivel(ins.mediaType)} · {dataCurta(ins.postedAt)}
+                          {ins.permalink && (<> · <a href={ins.permalink} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', whiteSpace: 'nowrap' }}>abrir no Instagram <ExternalLink size={10} style={{ verticalAlign: -1 }} /></a></>)}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ ...td, fontSize: 'var(--mf-t-xs)', fontWeight: 650, color: 'var(--mf-text)', whiteSpace: 'nowrap' }}>@{ins.username}</td>
+                  {COLUNAS.map(([chave, , valor]) => (
+                    <td key={chave} style={{ ...num, fontWeight: ordem === chave ? 800 : 500, color: ordem === chave ? 'var(--mf-text)' : 'var(--mf-text-2)' }}>{fmt(valor(ins))}</td>
+                  ))}
+                  <td style={{ ...td, textAlign: 'right' }}>
+                    <button type="button" className="btn-ghost btn-sm" title="Republicar em outras contas" aria-label="Republicar" onClick={() => setRepublishIns(ins)}
+                      style={{ display: 'inline-grid', placeItems: 'center', padding: 6 }}>
+                      <Send size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div style={{ display:'flex', gap:14, fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', flexWrap:'wrap' }}>
-          {totalMetrics.map(({ label, val }) => (
-            <span key={label}>{label} <strong style={{ color: metric===label?'var(--mf-mod, var(--mf-accent-500))':'var(--mf-text-2)' }}>{fmt(val)}</strong></span>
-          ))}
-        </div>
-        <span style={{ marginLeft:'auto', fontSize: 'var(--mf-t-micro)', color:'var(--mf-border-strong)' }}>{insights.length} posts</span>
-      </div>
+        )}
 
-      {/* Grid */}
-      {primeiraCarga && insights.length === 0 ? (
-        <div className="tp-hpad"><EsqueletoGrade itens={8} minimo={200} /></div>
-      ) : insights.length === 0 ? (
-        <div style={{ padding:'60px 24px', textAlign:'center' }}>
-          <div style={{ fontSize: 'var(--mf-t-body)', color:'var(--mf-text-3)', marginBottom:8 }}>Nenhum post encontrado para o período selecionado.</div>
-          <div style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-border-strong)' }}>Clique em "Sincronizar" para importar dados das contas conectadas via API.</div>
-        </div>
-      ) : (
-        <div className="tp-hpad" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16 }}>
-          {insights.map((ins, i) => (
-            <PostCard
-              key={ins.id}
-              ins={ins}
-              rank={i+1}
-              onRepublish={setRepublishIns}
-              selectMode={selectMode}
-              isSelected={selectedIds.has(ins.id)}
-              onToggle={toggleId}
-            />
-          ))}
+        {carregou && !insights.length && (
+          <div style={{ padding: 'var(--mf-5)', textAlign: 'center', fontSize: 'var(--mf-t-sm)', color: 'var(--mf-text-3)' }}>
+            Nenhum post publicado nos {periodoTexto}{accountId ? ' nesta conta' : ''}. Clique em Atualizar para ler as métricas agora.
+          </div>
+        )}
+        {!carregou && <div style={{ padding: 'var(--mf-4)' }}><EsqueletoGrade /></div>}
+        {atualizado && (
+          <div style={{ padding: '8px var(--mf-4)', borderTop: '1px solid var(--mf-border)', fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)' }}>
+            Última leitura das métricas: {atualizado}
+          </div>
+        )}
+      </section>
+
+      {selecionar && selecionados.size > 0 && (
+        <div style={{ position: 'sticky', bottom: 16, marginTop: 'var(--mf-3)', display: 'flex', justifyContent: 'center' }}>
+          <button type="button" className="btn-primary" onClick={() => setBulkRepublish(insights.filter(x => selecionados.has(x.id)))}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Layers3 size={14} /> Republicar {selecionados.size} selecionado(s)
+          </button>
         </div>
       )}
 
-      {/* Sticky selection bar */}
-      {selectMode && selectedIds.size > 0 && (
-        <div style={{
-          position:'fixed', bottom:'calc(24px + env(safe-area-inset-bottom, 0px))', left:'50%', transform:'translateX(-50%)',
-          background:'rgba(8,20,44,.97)', border:'1px solid color-mix(in oklch, var(--mf-mod-contas) 40%, transparent)',
-          borderRadius: 'var(--mf-r-lg)', padding:'12px 16px', display:'flex', alignItems:'center', gap:12,
-          boxShadow:'0 8px 40px rgba(0,0,0,.5)', backdropFilter:'blur(12px)', zIndex:500,
-          maxWidth:'calc(100vw - 32px)', width:'max-content',
-        }}>
-          <span style={{ fontSize: 'var(--mf-t-sm)', color:'var(--mf-text)', fontWeight:600 }}>
-            <strong style={{ color:'var(--mf-mod, var(--mf-accent-500))' }}>{selectedIds.size}</strong> post{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}
-          </span>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            style={{ fontSize: 'var(--mf-t-xs)', color:'var(--mf-text-3)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-            Desmarcar tudo
-          </button>
-          <button
-            onClick={() => setBulkRepublish(selectedInsights)}
-            style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8, padding:'8px 16px', borderRadius: 'var(--mf-r-md)', border:'none', background:'linear-gradient(135deg,var(--mf-primary-500),var(--mf-primary-500))', color:'var(--mf-text)', fontSize: 'var(--mf-t-sm)', fontWeight:700, cursor:'pointer' }}>
-            <Layers3 size={14} /> Republicar {selectedIds.size} posts
-          </button>
-        </div>
-      )}
-
-      {/* Single republish modal */}
       {republishIns && (
         <RepublishModal ins={republishIns} accounts={accounts} onClose={() => setRepublishIns(null)} />
       )}
-
-      {/* Bulk republish modal */}
       {bulkRepublish && (
-        <BulkRepublishModal insArray={bulkRepublish} accounts={accounts} onClose={() => { setBulkRepublish(null); setSelectMode(false); setSelectedIds(new Set()); }} />
+        <BulkRepublishModal insArray={bulkRepublish} accounts={accounts} onClose={() => { setBulkRepublish(null); sairDaSelecao(); }} />
       )}
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--mf-border-strong) 50%, transparent); border-radius: 3px; }
-      `}</style>
-    </div>
+    </PageShell>
   );
 }
