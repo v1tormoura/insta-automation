@@ -162,7 +162,7 @@ describe('a marca d\'água', () => {
     const { job } = await postar(corpo({
       marcaDagua: JSON.stringify({ ativa: true, opacidade: 70, posicao: 'inferior', tamanho: 'grande' }),
     }));
-    expect(job.marcaDagua).toEqual({ ativa: true, opacidade: 70, posicao: 'inferior', tamanho: 'grande' });
+    expect(job.marcaDagua).toEqual({ ativa: true, opacidade: 70, posicao: 'inferior', tamanho: 'grande', arroba: true, logo: false, logoCanto: 'sup-dir', logoTamanho: 'medio', logoArquivo: '' });
   });
 
   test('desligada não grava campo nenhum', async () => {
@@ -187,7 +187,14 @@ describe('a marca d\'água', () => {
     const { job } = await postar(corpo({
       marcaDagua: JSON.stringify({ ativa: true, opacidade: 500, posicao: 'diagonal', tamanho: 'gigante' }),
     }));
-    expect(job.marcaDagua).toEqual({ ativa: true, opacidade: 100, posicao: 'centro', tamanho: 'pequena' });
+    expect(job.marcaDagua).toEqual({ ativa: true, opacidade: 100, posicao: 'centro', tamanho: 'pequena', arroba: true, logo: false, logoCanto: 'sup-dir', logoTamanho: 'medio', logoArquivo: '' });
+  });
+
+  test('o arquivo do logo não vem da tela; sem logo enviado, só logo vira nada', async () => {
+    const { job } = await postar(corpo({
+      marcaDagua: JSON.stringify({ ativa: true, arroba: false, logo: true, logoArquivo: 'logos/de-outra-pessoa.png' }),
+    }));
+    expect(job.marcaDagua).toBeNull();
   });
 });
 

@@ -45,6 +45,8 @@ const ACOES = [
   ['POST',   /^\/funil\/links$/,                      'Criou um link rastreado'],
   ['DELETE', /^\/funil\/links\/[^/]+$/,               'Apagou um link rastreado'],
   ['PUT',    /^\/conta\/senha$/,                      'Trocou a senha'],
+  ['POST',   /^\/conta\/logo$/,                       'Enviou um logo'],
+  ['DELETE', /^\/conta\/logo$/,                       'Removeu o logo'],
   ['PUT',    /^\/conta\/?$/,                          'Alterou os dados da conta'],
   ['POST',   /^\/usuarios\/[^/]+\/aprovar$/,          'Aprovou um usuário'],
   ['POST',   /^\/usuarios\/[^/]+\/recusar$/,          'Recusou um usuário'],
@@ -54,6 +56,7 @@ const ACOES = [
   ['DELETE', /^\/usuarios\/[^/]+$/,                   'Apagou um usuário'],
   ['POST',   /^\/ai\//,                               'Gerou legendas com IA'],
   ['POST',   /^\/preparos\/cancelar$/,                'Cancelou variações de mídia'],
+  ['POST',   /^\/preparos\/biblioteca$/,              'Mandou variações para a Biblioteca'],
   ['DELETE', /^\/preparos\/?$/,                       'Excluiu variações de mídia'],
   ['POST',   /^\/preparos\/(arquivos|zip)$/,          null], // um por arquivo: barulho
   /* Barulho: marcar notificação como lida, prévias, sincronizações de métrica. */

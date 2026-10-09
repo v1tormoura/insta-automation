@@ -34,8 +34,10 @@ describe('variações de mídia — contas da tela', () => {
   });
 
   test('resumo diz exatamente o que será feito', () => {
-    expect(resumoDaConfig(CONFIG_PADRAO)).toBe('9:16 (1080×1920) · cortando as bordas · qualidade alta');
-    const r = resumoDaConfig({ ...CONFIG_PADRAO, modo: 'avancado', formatos: ['original'], ajustes: { brilho: 5, contraste: 0, saturacao: -10, nitidez: 0 }, semAudio: true, formatoFoto: 'webp' });
+    expect(resumoDaConfig(CONFIG_PADRAO)).toBe('9:16 (1080×1920) · cortando as bordas · qualidade alta · vídeos sem as pausas (normal)');
+    expect(resumoDaConfig({ ...CONFIG_PADRAO, silencios: 'desligado', capa: { ativa: true, titulo: 'Dica' }, logo: { ativa: true } }))
+      .toBe('9:16 (1080×1920) · cortando as bordas · qualidade alta · + capa 9:16 com "Dica" · com o seu logo');
+    const r = resumoDaConfig({ ...CONFIG_PADRAO, silencios: 'desligado', modo: 'avancado', formatos: ['original'], ajustes: { brilho: 5, contraste: 0, saturacao: -10, nitidez: 0 }, semAudio: true, formatoFoto: 'webp' });
     expect(r).toBe('proporção original · qualidade alta · brilho +5%, saturação -10% · vídeo sem áudio · foto em WEBP');
     expect(filtroCss(CONFIG_PADRAO)).toBe('none');
     expect(resumoDaConfig({ ...CONFIG_PADRAO, modo: 'avancado', realce: true })).toContain('realce de qualidade (upscale)');

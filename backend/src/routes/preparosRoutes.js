@@ -11,6 +11,7 @@
  *   GET    /preparos/saidas/:id/miniatura miniatura de uma saída
  *   POST   /preparos/zip                  { saidas: [ids] } → { url } (vale 10 min)
  *   GET    /preparos/zip/:pedido          baixa o .zip
+ *   POST   /preparos/biblioteca           { saidas: [ids] } — copia para a Biblioteca (pasta "Variações")
  *   POST   /preparos/cancelar             { ids: [ids] }
  *   DELETE /preparos                      { ids: [ids] } — exclui (e cancela antes)
  *
@@ -48,11 +49,11 @@ function formatar(r) {
   return {
     id: r.id, lote: r.lote, nomeOriginal: r.nomeOriginal, tipo: r.tipo, bytes: Number(r.bytes) || 0,
     status: r.status, erro: r.erro || '', criadoEm: r.criadoEm, expiraEm: r.expiraEm, config: r.config,
-    info: { largura: r.info?.largura || 0, altura: r.info?.altura || 0, duracao: r.info?.duracao || 0 },
+    info: { largura: r.info?.largura || 0, altura: r.info?.altura || 0, duracao: r.info?.duracao || 0, silencios: r.info?.silencios || null },
     saidas: (r.saidas || []).map(s => ({
       id: s.id, formato: s.formato, rotulo: s.rotulo, nome: s.nome, ext: s.ext, bytes: s.bytes || 0,
       largura: s.largura || 0, altura: s.altura || 0, duracao: s.duracao || 0,
-      miniatura: !!s.miniatura, baixadoEm: s.baixadoEm || null, erro: s.erro || '',
+      miniatura: !!s.miniatura, baixadoEm: s.baixadoEm || null, erro: s.erro || '', naBiblioteca: !!s.naBiblioteca,
     })),
   };
 }
@@ -217,6 +218,13 @@ router.get('/zip/:pedido', async (req, res) => {
   }
   res.on('finish', () => preparo.marcarBaixadas(req.user.id, itens.map(s => s.saida.id)).catch(() => {}));
   zip.finalize();
+});
+
+router.post('/biblioteca', async (req, res) => {
+  const ids = idsDe(req.body?.saidas).slice(0, 200);
+  if (!ids.length) return res.status(400).json({ error: 'Escolha os arquivos.' });
+  const r = await preparo.enviarParaBiblioteca(req.user.id, ids);
+  res.json({ enviados: r.enviados.length, erros: r.erros.length });
 });
 
 router.post('/cancelar', async (req, res) => {

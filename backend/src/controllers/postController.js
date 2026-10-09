@@ -84,7 +84,7 @@ exports.createPost = async (req, res) => {
     ordemDasMidias,
     midiasAleatorias,
     sementeDaOrdem,
-    marcaDagua: lerMarcaDagua(req.body.marcaDagua),
+    marcaDagua: await require('../services/logoDoUsuario').resolverNaMarca(lerMarcaDagua(req.body.marcaDagua), req.user.id),
     legendaAleatoria: lerLegendaAleatoria(req.body.legendaAleatoria),
     capasPorConta: lerCapasPorConta(req.body.capasPorConta, arquivos.filter(f => f.fieldname === 'capas')),
     rodizioDeMidias: sim(req.body.rodizioDeMidias),

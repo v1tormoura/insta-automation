@@ -20,6 +20,11 @@ export const MARCA_PADRAO = {
   opacidade: 45,
   posicao: 'centro',
   tamanho: 'pequena',
+  /* O logo da pessoa no canto (Postar). Com `arroba: false`, só o logo. */
+  arroba: true,
+  logo: false,
+  logoCanto: 'sup-dir',
+  logoTamanho: 'medio',
 };
 
 /* ── O piso de opacidade ──────────────────────────────────────────────────

@@ -33,6 +33,8 @@
  * ali é marca escondida — as posições abaixo respeitam essa margem.
  */
 
+const fs = require('fs');
+const path = require('path');
 const { acharFonte } = require('./textoNoStory');
 const { normalizarArroba } = require('./arrobaDoInstagram');
 
@@ -75,6 +77,18 @@ const POSICOES = ['superior', 'centro', 'inferior'];
 const OPACIDADE_MIN = 20;
 const PADRAO = { ativa: false, opacidade: 45, posicao: 'centro', tamanho: 'pequena' };
 
+/* ── O logo ───────────────────────────────────────────────────────────────
+
+   A imagem que a pessoa enviou em Minha Conta/Variações (uploads/logos), num
+   canto, com a mesma opacidade da marca. Entra no MESMO filtro do @: o filtro
+   `movie` lê o PNG dentro da cadeia, então não há segunda entrada nem segunda
+   passada. O arquivo nunca vem da tela: o controller o resolve pelo usuário
+   logado (`logoArquivo`), e `lerDoCorpo` descarta o que vier no corpo. */
+const CANTOS = ['sup-esq', 'sup-dir', 'inf-esq', 'inf-dir'];
+const LOGO_FRACAO = { pequeno: 0.13, medio: 0.18, grande: 0.25 };   // da largura da mídia
+const LOGO_ARQUIVO = /^logos\/[0-9a-f-]{36}-[0-9a-f]{8}\.png$/;
+const UPLOADS = path.resolve(__dirname, '../../uploads');
+
 /**
  * Normaliza o que veio da tela ou do banco.
  *
@@ -105,6 +119,35 @@ function normalizar(bruto) {
     opacidade: Number.isFinite(opacidadeNum) ? Math.min(100, Math.max(OPACIDADE_MIN, Math.round(opacidadeNum))) : PADRAO.opacidade,
     posicao: POSICOES.includes(b.posicao) ? b.posicao : PADRAO.posicao,
     tamanho: Object.prototype.hasOwnProperty.call(TAMANHOS, b.tamanho) ? b.tamanho : PADRAO.tamanho,
+    /* O @ é o padrão (marca de sempre); quem usa só o logo desliga. */
+    arroba: b.arroba !== false,
+    logo: b.logo === true,
+    logoCanto: CANTOS.includes(b.logoCanto) ? b.logoCanto : 'sup-dir',
+    logoTamanho: Object.prototype.hasOwnProperty.call(LOGO_FRACAO, b.logoTamanho) ? b.logoTamanho : 'medio',
+    logoArquivo: typeof b.logoArquivo === 'string' && LOGO_ARQUIVO.test(b.logoArquivo) ? b.logoArquivo : '',
+  };
+}
+
+/**
+ * As duas peças do logo para uma cadeia de filtros: a fonte (`movie=…` já
+ * redimensionada e com a opacidade) e o `overlay` com a posição. Usado aqui e
+ * nas Variações de Mídia.
+ *
+ * @param {{arquivo: string, canto?: string, tamanho?: string, opacidade?: number}} logo — `arquivo` absoluto
+ */
+function partesDoLogo({ arquivo, canto = 'sup-dir', tamanho = 'medio', opacidade = 100 }, largura = LARGURA, altura = ALTURA) {
+  const w = Math.max(16, Math.round((largura * (LOGO_FRACAO[tamanho] || LOGO_FRACAO.medio)) / 2) * 2);
+  const margemX = Math.round(largura * 0.045);
+  const proporcao = (Number.isFinite(altura) && altura > 0 ? altura : ALTURA) / ALTURA;
+  const topo = Math.round(MARGEM_TOPO * proporcao);
+  const base = Math.round(MARGEM_BASE * proporcao);
+  const x = String(canto).endsWith('esq') ? String(margemX) : `main_w-overlay_w-${margemX}`;
+  const y = String(canto).startsWith('sup') ? String(topo) : `main_h-overlay_h-${base}`;
+  const alfa = (Math.min(100, Math.max(OPACIDADE_MIN, Number(opacidade) || 100)) / 100).toFixed(2);
+  const caminho = String(arquivo).replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, '');
+  return {
+    fonte: `movie='${caminho}',scale=${w}:-1,format=rgba,colorchannelmixer=aa=${alfa}`,
+    overlay: `overlay=${x}:${y}:format=auto`,
   };
 }
 
@@ -153,10 +196,24 @@ function alturaDe(posicao, corpo, altura = ALTURA) {
  * @param {string} [fonte] — caminho da fonte; descoberto no sistema se omitido
  * @returns {string|null}
  */
-function filtroDaMarca(config, username, fonte = acharFonte(), alturaDaMidia = ALTURA) {
+function filtroDaMarca(config, username, fonte = acharFonte(), alturaDaMidia = ALTURA, larguraDaMidia = LARGURA) {
   const c = normalizar(config);
   if (!c.ativa) return null;
 
+  const texto = c.arroba ? textoDaMarca(c, username, fonte, alturaDaMidia) : null;
+  const absLogo = c.logo && c.logoArquivo ? path.join(UPLOADS, c.logoArquivo) : '';
+  if (!absLogo || !fs.existsSync(absLogo)) return texto;
+
+  /* Com logo a cadeia ganha rótulos: o que vem antes (e o @, se houver) vira
+     [mfb], o PNG entra por `movie`, e o overlay junta os dois. `null` é o
+     filtro que não faz nada — segura o lugar quando não há @. */
+  const l = partesDoLogo({ arquivo: absLogo, canto: c.logoCanto, tamanho: c.logoTamanho, opacidade: c.opacidade },
+    larguraDaMidia, alturaDaMidia);
+  return `${texto || 'null'}[mfb];${l.fonte}[mfl];[mfb][mfl]${l.overlay}`;
+}
+
+/** O drawtext do @ (ou null). */
+function textoDaMarca(c, username, fonte, alturaDaMidia) {
   const arroba = normalizarArroba(username);
   if (!arroba) return null;
 
@@ -215,12 +272,13 @@ function lerDoCorpo(valor) {
   }
   if (!bruto || typeof bruto !== 'object') return null;
 
-  const c = normalizar(bruto);
-  return c.ativa ? c : null;
+  /* O arquivo do logo nunca vem da tela — o controller o resolve pelo usuário. */
+  const c = { ...normalizar(bruto), logoArquivo: '' };
+  return c.ativa && (c.arroba || c.logo) ? c : null;
 }
 
 module.exports = {
-  filtroDaMarca, normalizar, lerDoCorpo, alturaDe,
+  filtroDaMarca, normalizar, lerDoCorpo, alturaDe, partesDoLogo, CANTOS, LOGO_FRACAO,
   TAMANHOS, POSICOES, PADRAO, OPACIDADE_MIN,
   LARGURA, ALTURA, MARGEM_TOPO, MARGEM_BASE,
 };

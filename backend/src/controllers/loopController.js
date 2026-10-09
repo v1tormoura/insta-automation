@@ -99,7 +99,7 @@ exports.create = async (req, res) => {
     ordemDasMidias: 'selecao',
     midiasAleatorias,
     sementeDaOrdem,
-    marcaDagua: lerMarcaDagua(req.body.marcaDagua),
+    marcaDagua: await require('../services/logoDoUsuario').resolverNaMarca(lerMarcaDagua(req.body.marcaDagua), req.user.id),
     capasPorConta: lerCapasPorConta(req.body.capasPorConta),
     postType: ['post', 'reel', 'story'].includes(type) ? type : 'reel',
     caption: caption || '',

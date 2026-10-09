@@ -71,6 +71,18 @@ const FORMATOS_FOTO = ['jpg', 'png', 'webp'];
 const LARGURAS_ORIGINAL = [1080, 1440, 0]; // 0 = manter o tamanho
 const APLICAR_EM = ['tudo', 'video', 'imagem'];
 
+/* Corte de silêncios (vídeos de fala): o que conta como pausa. `ruido` é o
+   volume abaixo do qual é silêncio; `minimo`, quanto tempo calado conta como
+   pausa. `folga` fica de cada lado da fala para não comer o fim das palavras. */
+const SILENCIOS = {
+  suave:  { ruido: -35, minimo: 1.0,  folga: 0.20 },
+  normal: { ruido: -35, minimo: 0.6,  folga: 0.15 },
+  forte:  { ruido: -33, minimo: 0.35, folga: 0.10 },
+};
+const POSICOES_TITULO = ['topo', 'centro', 'base'];
+const CANTOS_LOGO = ['sup-esq', 'sup-dir', 'inf-esq', 'inf-dir'];
+const TAMANHOS_LOGO = ['pequeno', 'medio', 'grande'];
+
 const limitar = (v, min, max, padrao = 0) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : padrao;
@@ -108,6 +120,22 @@ function normalizarConfig(bruta = {}) {
       saturacao: Math.round(limitar(ajustes.saturacao, -50, 50)),
       nitidez: Math.round(limitar(ajustes.nitidez, 0, 100)),
     } : { brilho: 0, contraste: 0, saturacao: 0, nitidez: 0 },
+    /* Valem nos dois modos: são escolhas à parte, visíveis na tela. O corte de
+       silêncios vem LIGADO (normal) quando a tela não diz nada. */
+    silencios: c.silencios === 'desligado' ? 'desligado' : SILENCIOS[c.silencios] ? c.silencios : 'normal',
+    capa: {
+      ativa: c.capa?.ativa === true,
+      segundo: c.capa?.segundo === null || c.capa?.segundo === '' || c.capa?.segundo === undefined
+        ? null : limitar(c.capa.segundo, 0, LIMITES.duracaoS, null),
+      titulo: String(c.capa?.titulo || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90),
+      posicao: POSICOES_TITULO.includes(c.capa?.posicao) ? c.capa.posicao : 'centro',
+    },
+    logo: {
+      ativa: c.logo?.ativa === true,
+      canto: CANTOS_LOGO.includes(c.logo?.canto) ? c.logo.canto : 'sup-dir',
+      tamanho: TAMANHOS_LOGO.includes(c.logo?.tamanho) ? c.logo.tamanho : 'medio',
+      opacidade: Math.round(limitar(c.logo?.opacidade, 20, 100, 90)),
+    },
   };
 }
 
@@ -177,7 +205,7 @@ const FILTRO_ORIENTACAO = {
   2: 'hflip', 3: 'hflip,vflip', 4: 'vflip', 5: 'transpose=0', 6: 'transpose=1', 7: 'transpose=3', 8: 'transpose=2',
 };
 
-function rodar(bin, args, { timeoutMs = 60_000, aoIniciar } = {}) {
+function rodar(bin, args, { timeoutMs = 60_000, aoIniciar, saidaDeErro = false } = {}) {
   return new Promise((resolve, reject) => {
     const filho = execFile(bin, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, killSignal: 'SIGKILL' }, (err, stdout, stderr) => {
       if (err) {
@@ -188,7 +216,7 @@ function rodar(bin, args, { timeoutMs = 60_000, aoIniciar } = {}) {
         e.codigo = err.code;
         return reject(e);
       }
-      resolve(stdout);
+      resolve(saidaDeErro ? stderr : stdout);
     });
     aoIniciar?.(filho);
   });
@@ -302,9 +330,27 @@ function filtros(config, formato, { tipo, orientacao = 1 } = {}) {
 }
 
 /** Os argumentos do ffmpeg para uma saída. Pura: testável sem rodar nada. */
-function argumentos({ entrada, saida, config, formato, tipo, info = {} }) {
+/** Largura × altura da saída de um formato (para posicionar o logo). */
+function dimensoesDaSaida(config, formato, info = {}) {
+  const f = FORMATOS[formato];
+  if (f.largura) return { largura: f.largura, altura: f.altura };
+  const iw = Number(info.largura) || 1080, ih = Number(info.altura) || 1920;
+  const max = config.larguraOriginal;
+  const w = max && (config.realce || iw > max) ? max : iw;
+  return { largura: w, altura: Math.round((ih * w) / iw) };
+}
+
+function argumentos({ entrada, saida, config, formato, tipo, info = {}, logo = null }) {
   const q = QUALIDADES[config.qualidade];
   const f = filtros(config, formato, { tipo, orientacao: info.orientacao || 1 });
+  if (logo?.arquivo) {
+    /* O logo entra no fim da cadeia, pelo filtro `movie` (sem segunda entrada). */
+    const { largura, altura } = dimensoesDaSaida(config, formato, info);
+    const l = require('./marcaDagua').partesDoLogo({ arquivo: logo.arquivo, canto: logo.canto, tamanho: logo.tamanho, opacidade: logo.opacidade }, largura, altura);
+    const base = f.complexo ? f.complexo.replace(/\[v\]$/, '[mfb]') : `[0:v]${f.simples}[mfb]`;
+    f.complexo = `${base};${l.fonte}[mfl];[mfb][mfl]${l.overlay}[v]`;
+    delete f.simples;
+  }
   const args = ['-hide_banner', '-v', 'error', '-y'];
   if (tipo === 'imagem') args.push('-noautorotate');
   if (tipo === 'video' && config.trecho.inicio > 0) args.push('-ss', String(config.trecho.inicio));
@@ -318,7 +364,9 @@ function argumentos({ entrada, saida, config, formato, tipo, info = {} }) {
 
   if (tipo === 'video') {
     if (!config.semAudio) args.push('-map', '0:a:0?');
-    args.push('-c:v', 'libx264', '-profile:v', 'high', '-crf', String(q.crf), '-preset', q.preset, '-threads', '2');
+    /* -pix_fmt na saída: depois do logo (overlay com transparência) a imagem
+       chega em formato com alfa, que o H.264 não aceita. */
+    args.push('-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', String(q.crf), '-preset', q.preset, '-threads', '2');
     if (info.fps > 60) args.push('-r', '60');
     if (config.semAudio) args.push('-an');
     else args.push('-c:a', 'aac', '-b:a', q.audio, '-ar', '44100', '-ac', '2');
@@ -335,6 +383,141 @@ function argumentos({ entrada, saida, config, formato, tipo, info = {} }) {
 }
 
 const extensaoDe = (tipo, config) => (tipo === 'video' ? 'mp4' : config.formatoFoto);
+
+/* ── Corte de silêncios ─────────────────────────────────────────────────── */
+
+/** O trecho escolhido, como argumentos de entrada (-ss antes do -i; -t depois). */
+function argsDoTrecho(config, duracao) {
+  const antes = config.trecho.inicio > 0 ? ['-ss', String(config.trecho.inicio)] : [];
+  const fim = config.trecho.fim;
+  const depois = fim !== null && fim > config.trecho.inicio
+    ? ['-t', String(Math.round((Math.min(fim, duracao || fim) - config.trecho.inicio) * 1000) / 1000)] : [];
+  return { antes, depois };
+}
+
+/**
+ * As pausas do áudio (`silencedetect`), em segundos a partir do início do
+ * trecho: [{ inicio, fim }]. Pausa até o fim do arquivo fecha em `duracao`.
+ */
+function lerSilencios(saidaDoFfmpeg, duracao) {
+  const pausas = [];
+  let aberta = null;
+  for (const linha of String(saidaDoFfmpeg).split('\n')) {
+    const ini = linha.match(/silence_start:\s*(-?[\d.]+)/);
+    if (ini) { aberta = Math.max(0, Number(ini[1])); continue; }
+    const fim = linha.match(/silence_end:\s*([\d.]+)/);
+    if (fim && aberta !== null) { pausas.push({ inicio: aberta, fim: Number(fim[1]) }); aberta = null; }
+  }
+  if (aberta !== null && duracao > aberta) pausas.push({ inicio: aberta, fim: duracao });
+  return pausas;
+}
+
+/**
+ * O que FICA depois de tirar as pausas: [{ inicio, fim }] na ordem. Cada pausa
+ * perde `folga` de cada lado (a respiração antes e depois da palavra fica).
+ * `null` quando quase nada sairia — não vale recodificar por meio segundo.
+ */
+function trechosDeFala(pausas, duracao, { folga = 0.15, minimoRemovido = 0.4, maxTrechos = 150 } = {}) {
+  let cortes = pausas
+    .map(p => ({ inicio: p.inicio <= 0.01 ? 0 : p.inicio + folga, fim: p.fim >= duracao - 0.01 ? duracao : p.fim - folga }))
+    .filter(p => p.fim - p.inicio >= 0.1);
+  if (cortes.length >= maxTrechos) {
+    // Pausas demais: ficam as maiores (cada uma vira um trecho no filtro).
+    cortes = [...cortes].sort((a, b) => (b.fim - b.inicio) - (a.fim - a.inicio)).slice(0, maxTrechos - 1).sort((a, b) => a.inicio - b.inicio);
+  }
+  const removido = cortes.reduce((s, c) => s + (c.fim - c.inicio), 0);
+  if (removido < minimoRemovido) return null;
+  const fica = [];
+  let cursor = 0;
+  for (const c of cortes) {
+    if (c.inicio - cursor >= 0.05) fica.push({ inicio: cursor, fim: c.inicio });
+    cursor = Math.max(cursor, c.fim);
+  }
+  if (duracao - cursor >= 0.05) fica.push({ inicio: cursor, fim: duracao });
+  if (!fica.length) return null; // o vídeo inteiro é silêncio: não corta nada
+  return { trechos: fica, removido: Math.round(removido * 10) / 10 };
+}
+
+/** O filtro que junta os trechos de fala (vídeo e áudio cortados juntos). */
+function grafoDosTrechos(trechos) {
+  const n = trechos.length;
+  const r = x => Math.round(x * 1000) / 1000;
+  const v = trechos.map((_, i) => `[v${i}]`).join(''), a = trechos.map((_, i) => `[a${i}]`).join('');
+  const partes = [`[0:v]split=${n}${v}`, `[0:a]asplit=${n}${a}`];
+  trechos.forEach((t, i) => {
+    partes.push(`[v${i}]trim=start=${r(t.inicio)}:end=${r(t.fim)},setpts=PTS-STARTPTS[vt${i}]`);
+    partes.push(`[a${i}]atrim=start=${r(t.inicio)}:end=${r(t.fim)},asetpts=PTS-STARTPTS[at${i}]`);
+  });
+  partes.push(`${trechos.map((_, i) => `[vt${i}][at${i}]`).join('')}concat=n=${n}:v=1:a=1[vc][ac]`);
+  return partes.join(';');
+}
+
+/**
+ * Gera `destino` só com a fala (e já no trecho escolhido). Devolve
+ * { removido, cortes } ou null quando não havia pausa que valesse cortar.
+ */
+async function cortarSilencios({ entrada, destino, config, info, aoIniciar }) {
+  const p = SILENCIOS[config.silencios];
+  if (!p || !info.temAudio) return null;
+  const { antes, depois } = argsDoTrecho(config, info.duracao);
+  const duracao = Math.max(0.1, (config.trecho.fim ?? info.duracao) - config.trecho.inicio);
+  const deteccao = await rodar(FFMPEG_BIN, ['-hide_banner', '-nostats', ...antes, '-i', entrada, ...depois,
+    '-vn', '-af', `silencedetect=noise=${p.ruido}dB:d=${p.minimo}`, '-f', 'null', '-'],
+  { timeoutMs: 60_000 + duracao * 2000, aoIniciar, saidaDeErro: true });
+  const fala = trechosDeFala(lerSilencios(deteccao, duracao), duracao, { folga: p.folga });
+  if (!fala) return null;
+  await rodar(FFMPEG_BIN, ['-hide_banner', '-v', 'error', '-y', ...antes, '-i', entrada, ...depois,
+    '-filter_complex', grafoDosTrechos(fala.trechos), '-map', '[vc]', '-map', '[ac]',
+    // Intermediário quase sem perda: os formatos são gerados a partir dele.
+    '-c:v', 'libx264', '-crf', '14', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-threads', '2',
+    '-c:a', 'aac', '-b:a', '256k', '-ar', '48000', '-map_metadata', '-1', destino],
+  { timeoutMs: 120_000 + duracao * 10_000, aoIniciar });
+  return { removido: fala.removido, cortes: fala.trechos.length - 1 };
+}
+
+/* ── Capa ───────────────────────────────────────────────────────────────── */
+
+/** Quebra o título em linhas de até `max` caracteres, sem cortar palavra. */
+function linhasDoTitulo(titulo, max = 16, maxLinhas = 4) {
+  const linhas = [];
+  for (const palavra of String(titulo || '').split(' ').filter(Boolean)) {
+    const atual = linhas[linhas.length - 1];
+    if (atual !== undefined && (atual + ' ' + palavra).length <= max) linhas[linhas.length - 1] = `${atual} ${palavra}`;
+    else linhas.push(palavra.slice(0, max * 2));
+  }
+  return linhas.slice(0, maxLinhas);
+}
+
+/**
+ * A capa 1080×1920 (JPG) a partir de um quadro do vídeo, com o título por
+ * cima (uma linha por drawtext, centralizada; o texto vai por arquivo, então
+ * nada do que a pessoa digitou vira sintaxe do filtro).
+ */
+async function gerarCapa({ entrada, destino, dir, config, duracao, aoIniciar }) {
+  const capa = config.capa;
+  const t = Math.min(Math.max(0, capa.segundo ?? Math.min(1, duracao * 0.1)), Math.max(0, duracao - 0.05));
+  const filtrosCapa = ['scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos', 'crop=1080:1920'];
+  const linhas = linhasDoTitulo(capa.titulo);
+  const fonte = linhas.length ? require('./textoNoStory').acharFonte() : null;
+  if (linhas.length && fonte) {
+    const corpo = 96, entre = Math.round(corpo * 1.2), total = linhas.length * entre;
+    const topo = capa.posicao === 'topo' ? 300 : capa.posicao === 'base' ? 1920 - 430 - total : Math.round((1920 - total) / 2);
+    const esc = s => String(s).replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, '');
+    linhas.forEach((linha, i) => {
+      const arq = path.join(dir, `titulo-${i}.txt`);
+      fs.writeFileSync(arq, linha);
+      filtrosCapa.push(`drawtext=fontfile='${esc(fonte)}':textfile='${esc(arq)}':fontsize=${corpo}:fontcolor=white`
+        + `:borderw=6:bordercolor=black@0.85:x=(w-text_w)/2:y=${topo + i * entre}`);
+    });
+  }
+  try {
+    await rodar(FFMPEG_BIN, ['-hide_banner', '-v', 'error', '-y', '-ss', String(Math.round(t * 1000) / 1000), '-i', entrada,
+      '-frames:v', '1', '-vf', filtrosCapa.join(','), '-q:v', '2', '-map_metadata', '-1', destino],
+    { timeoutMs: 60_000, aoIniciar });
+  } finally {
+    linhas.forEach((_, i) => fs.rmSync(path.join(dir, `titulo-${i}.txt`), { force: true }));
+  }
+}
 
 /* ── Concorrência e cancelamento ────────────────────────────────────────── */
 
@@ -429,30 +612,61 @@ async function _processar(id) {
   let r = await porId(id);
   if (!r || !['aguardando', 'processando'].includes(r.status)) return;
   const dir = pastaDe(r.usuarioId, r.id);
-  const entrada = path.join(dir, `original.${r.info.ext}`);
-  if (!fs.existsSync(entrada)) {
+  const original = path.join(dir, `original.${r.info.ext}`);
+  if (!fs.existsSync(original)) {
     await atualizar(id, { status: 'erro', erro: 'O arquivo enviado não está mais no servidor. Envie de novo.' });
     return avisar(r.usuarioId, { id, status: 'erro' });
   }
   const config = normalizarConfig(r.config);
+  const video = r.tipo === 'video';
+  const fazCapa = video && config.capa.ativa;
+  const total = config.formatos.length + (fazCapa ? 1 : 0);
   const saidas = [];
   r = await atualizar(id, { status: 'processando', erro: '', saidas: sql.json([]), tentativas: (r.tentativas || 0) + 1 });
-  avisar(r.usuarioId, { id, status: 'processando', feitas: 0, total: config.formatos.length });
+  avisar(r.usuarioId, { id, status: 'processando', feitas: 0, total });
+  const cancelado = async () => { const a = await porId(id); return !a || a.status === 'cancelado'; };
+  const registrar = filho => _emAndamento.set(id, filho);
 
+  /* O logo da pessoa (Minha Conta / esta tela), se ela pediu e tem um. */
+  const logoRel = config.logo.ativa ? await require('./logoDoUsuario').ler(r.usuarioId) : null;
+  const logo = logoRel ? { ...config.logo, arquivo: require('./logoDoUsuario').absoluto(logoRel) } : null;
+
+  /* 1. Pausas fora (vídeo com fala). Os formatos saem do vídeo já cortado — e
+        já no trecho escolhido, então o trecho não se aplica de novo. */
+  let entrada = original, configDosFormatos = config, infoDosFormatos = r.info;
+  const cortado = path.join(dir, 'sem-pausas.mp4');
+  if (video && config.silencios !== 'desligado') {
+    try {
+      const corte = await cortarSilencios({ entrada: original, destino: cortado, config, info: r.info, aoIniciar: registrar });
+      if (corte) {
+        entrada = cortado;
+        configDosFormatos = { ...config, trecho: { inicio: 0, fim: null } };
+        const sonda = await sondar(cortado).catch(() => null);
+        infoDosFormatos = { ...r.info, ...(sonda ? { duracao: sonda.duracao, fps: sonda.fps } : {}) };
+        r = await atualizar(id, { info: sql.json({ ...r.info, silencios: corte }) });
+      }
+    } catch (err) {
+      if (err.cancelado) return;
+      // Sem o corte o vídeo sai inteiro — melhor que não sair.
+      console.log(`⚠️  [Variações] ${id} corte de pausas falhou: ${err.message}`);
+    } finally { _emAndamento.delete(id); }
+    if (await cancelado()) return;
+  }
+
+  /* 2. Um arquivo por formato. */
   for (const [i, formato] of config.formatos.entries()) {
-    const atual = await porId(id);
-    if (!atual || atual.status === 'cancelado') return;
+    if (await cancelado()) return;
     const saidaId = crypto.randomUUID();
     const ext = extensaoDe(r.tipo, config);
     const arquivo = path.join(dir, `${saidaId}.${ext}`);
-    const args = argumentos({ entrada, saida: arquivo, config, formato, tipo: r.tipo, info: r.info });
-    const duracao = r.tipo === 'video' ? Math.max(0.1, (config.trecho.fim ?? r.info.duracao) - config.trecho.inicio) : 0;
-    const timeoutMs = r.tipo === 'video' ? 120_000 + Math.ceil(duracao * 10_000) : 90_000;
+    const args = argumentos({ entrada, saida: arquivo, config: configDosFormatos, formato, tipo: r.tipo, info: infoDosFormatos, logo });
+    const duracao = video ? Math.max(0.1, (configDosFormatos.trecho.fim ?? infoDosFormatos.duracao) - configDosFormatos.trecho.inicio) : 0;
+    const timeoutMs = video ? 120_000 + Math.ceil(duracao * 10_000) : 90_000;
 
     let erro = null;
     for (let tentativa = 1; tentativa <= 2; tentativa++) {
       try {
-        await rodar(FFMPEG_BIN, args, { timeoutMs, aoIniciar: filho => _emAndamento.set(id, filho) });
+        await rodar(FFMPEG_BIN, args, { timeoutMs, aoIniciar: registrar });
         erro = null;
         break;
       } catch (err) {
@@ -474,23 +688,42 @@ async function _processar(id) {
         const info = await sondar(arquivo);
         Object.assign(item, { bytes: fs.statSync(arquivo).size, largura: info.largura, altura: info.altura, duracao: info.duracao });
       } catch { item.bytes = fs.existsSync(arquivo) ? fs.statSync(arquivo).size : 0; }
-      if (r.tipo === 'video') {
+      if (video) {
         const mini = path.join(dir, `${saidaId}.mini.jpg`);
         if (await require('./miniaturaDeVideo').gerarMiniatura(arquivo, mini)) item.miniatura = true;
       }
     }
     saidas.push(item);
     await atualizar(id, { saidas: sql.json(saidas) });
-    avisar(r.usuarioId, { id, status: 'processando', feitas: i + 1, total: config.formatos.length });
+    avisar(r.usuarioId, { id, status: 'processando', feitas: i + 1, total });
+  }
+
+  /* 3. A capa (opcional), do vídeo já cortado. */
+  if (fazCapa && !(await cancelado())) {
+    const saidaId = crypto.randomUUID();
+    const arquivo = path.join(dir, `${saidaId}.jpg`);
+    const item = { id: saidaId, formato: 'capa', rotulo: 'Capa 9:16', ext: 'jpg', nome: `${nomeBase(r.nomeOriginal)} - capa.jpg` };
+    try {
+      await gerarCapa({ entrada, destino: arquivo, dir, config, duracao: infoDosFormatos.duracao || 1, aoIniciar: registrar });
+      Object.assign(item, { bytes: fs.statSync(arquivo).size, largura: 1080, altura: 1920 });
+    } catch (err) {
+      if (err.cancelado) return;
+      fs.rmSync(arquivo, { force: true });
+      item.erro = 'Não foi possível gerar a capa.';
+      console.log(`⚠️  [Variações] ${id} capa: ${err.message}`);
+    } finally { _emAndamento.delete(id); }
+    saidas.push(item);
+    await atualizar(id, { saidas: sql.json(saidas) });
+    avisar(r.usuarioId, { id, status: 'processando', feitas: total, total });
   }
 
   const ok = saidas.filter(s => !s.erro).length;
-  const final = await porId(id);
-  if (!final || final.status === 'cancelado') return;
-  fs.rmSync(entrada, { force: true }); // o original não é mais necessário
+  if (await cancelado()) return;
+  fs.rmSync(original, { force: true }); // o original (e o intermediário) não são mais necessários
+  fs.rmSync(cortado, { force: true });
   await atualizar(id, {
     status: ok ? 'concluido' : 'erro',
-    erro: ok === saidas.length ? '' : ok ? `${saidas.length - ok} de ${saidas.length} formato(s) falharam.` : 'Nenhum formato pôde ser gerado.',
+    erro: ok === saidas.length ? '' : ok ? `${saidas.length - ok} de ${saidas.length} arquivo(s) falharam.` : 'Nenhum formato pôde ser gerado.',
   });
   avisar(r.usuarioId, { id, status: ok ? 'concluido' : 'erro' });
 }
@@ -596,6 +829,46 @@ function iniciarLimpeza() {
   _timer = setInterval(rodarLimpeza, 15 * 60_000);
 }
 
+/**
+ * Copia saídas prontas para a Biblioteca (pasta "Variações"), de onde o Postar
+ * as usa — inclusive a capa, no seletor de capa. A cópia é da Biblioteca: não
+ * expira junto com o resultado.
+ * @returns {Promise<{enviados: object[], erros: string[]}>}
+ */
+async function enviarParaBiblioteca(usuarioId, saidaIds) {
+  const { media } = require('../repos');
+  const enviados = [], erros = [];
+  const marcadas = new Set();
+  for (const saidaId of saidaIds) {
+    const s = await saidaDoUsuario(usuarioId, saidaId);
+    if (!s) { erros.push(`${saidaId}: não encontrado ou expirado`); continue; }
+    const nome = `variacao_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${s.saida.ext}`;
+    fs.copyFileSync(s.caminho, path.join(UPLOADS, nome));
+    const video = s.saida.ext === 'mp4';
+    const item = await media.de(usuarioId).insert({
+      filename: nome, originalName: s.saida.nome, path: nome, url: `/uploads/${nome}`,
+      mimeType: { mp4: 'video/mp4', jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }[s.saida.ext] || 'application/octet-stream',
+      size: fs.statSync(path.join(UPLOADS, nome)).size, type: video ? 'video' : 'image', folder: 'Variações',
+    });
+    if (video) require('./miniaturaDeVideo').garantirMiniatura(UPLOADS, nome).catch(() => {});
+    enviados.push(item);
+    marcadas.add(saidaId);
+  }
+  /* Marca na saída, para a tela mostrar "na Biblioteca ✓". */
+  if (marcadas.size) {
+    const linhas = await sql`
+      select id, saidas from preparos_de_midia where usuario_id = ${usuarioId} and exists (
+        select 1 from jsonb_array_elements(saidas) s where s->>'id' = any(${[...marcadas]}))`;
+    for (const l of linhas) {
+      await sql`update preparos_de_midia set saidas = ${sql.json(l.saidas.map(s => (marcadas.has(s.id) ? { ...s, naBiblioteca: true } : s)))} where id = ${l.id}`;
+    }
+  }
+  if (enviados.length) {
+    try { require('../events/broadcaster').broadcast('media', { action: 'adicionadas', n: enviados.length }, usuarioId); } catch { /* sem SSE */ }
+  }
+  return { enviados, erros };
+}
+
 let _ffmpegOk = null;
 function ffmpegDisponivel() {
   if (_ffmpegOk === null) {
@@ -609,5 +882,6 @@ module.exports = {
   LIMITES, FORMATOS, ENQUADRAMENTOS, QUALIDADES, FORMATOS_FOTO, LARGURAS_ORIGINAL, PASTA,
   normalizarConfig, tipoPeloConteudo, orientacaoExif, validarArquivo, sondar, filtros, argumentos, nomeBase,
   conferirCota, criar, processar, cancelar, excluir, saidaDoUsuario, marcarBaixadas, limpar, iniciarLimpeza,
+  lerSilencios, trechosDeFala, grafoDosTrechos, linhasDoTitulo, dimensoesDaSaida, enviarParaBiblioteca,
   ffmpegDisponivel, porId,
 };

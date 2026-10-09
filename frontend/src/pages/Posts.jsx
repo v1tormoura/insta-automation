@@ -15,6 +15,7 @@ import { useCotas, diasPelaCota } from '../services/useCotas';
 import TituloDeCartao from '../components/TituloDeCartao';
 import { MARCA_PADRAO } from '../services/marcaDagua';
 import ChaveDeOpcao from '../components/ChaveDeOpcao';
+import LogoNoVideo, { useLogo } from '../components/LogoNoVideo';
 import { getCTASuffix, setCTASuffix, applyCTASuffix } from '../services/captionSuffix';
 import { EsqueletoLista } from '../components/Estados';
 import { rodar, useTarefa, consumir } from '../services/tarefas';
@@ -393,6 +394,7 @@ export default function Posts() {
   const [rodizioDeMidias, setRodizioDeMidias] = useState(false);
   const [loopInfinito,    setLoopInfinito]    = useState(false);
   const [marcaDagua,      setMarcaDagua]      = useState(MARCA_PADRAO);
+  const [logoSalvo,       setLogoSalvo]       = useLogo();
 
   /* ── Configurações de envio ───────────────────────────────────────────────
      `postsPor24h` NÃO fica no job: ele é gravado em `Account.dailyPostLimit`,
@@ -1065,6 +1067,24 @@ export default function Posts() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* ── Logo no vídeo ─────────────────────────────────────────
+                O logo da pessoa no canto de cada vídeo e foto deste envio.
+                Vai como marca d'água (só o logo, sem o @): o servidor o
+                desenha na conversão de cada conta — marcaDagua.js. */}
+            <div className="mf-card" data-logo-postar>
+              <div style={cardHdStyle}>
+                <TituloDeCartao icone="marca">Logo no vídeo</TituloDeCartao>
+                <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)' }}>Opcional — aplica a todos</span>
+              </div>
+              <div style={cardBodyStyle}>
+                <LogoNoVideo
+                  logo={logoSalvo} setLogo={setLogoSalvo}
+                  valor={{ ativa: marcaDagua.ativa && marcaDagua.logo, canto: marcaDagua.logoCanto, tamanho: marcaDagua.logoTamanho, opacidade: marcaDagua.logo ? marcaDagua.opacidade : 90 }}
+                  onChange={v => setMarcaDagua({ ...MARCA_PADRAO, ativa: v.ativa, arroba: false, logo: v.ativa, logoCanto: v.canto, logoTamanho: v.tamanho, opacidade: v.opacidade })}
+                />
               </div>
             </div>
 

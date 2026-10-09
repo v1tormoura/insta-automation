@@ -9,7 +9,10 @@ da Meta** (API do Instagram com login do Instagram).
 - **Loop** — republica uma lista de mídias em ciclo.
 - **Stories** — imagem ou vídeo 9:16, com texto queimado na imagem.
 - **Variações de Mídia** — converte vídeos e fotos para 9:16, 4:5, 1:1 em lote
-  (enquadramento, qualidade, trecho, ajustes, upscale), sem metadados.
+  (enquadramento, qualidade, trecho, ajustes, upscale), sem metadados; corta as
+  pausas da fala, gera capa com título e aplica o seu logo. Os resultados vão
+  para a Biblioteca com um clique.
+- **Logo** — o seu logo no canto dos vídeos e fotos, no Postar e nas Variações.
 - **Webhook** — leads, cliques e vendas do bot de vendas, com receita por Reel.
 - **Métricas** — alcance, visualizações, público e top posts por conta.
 - **Contas** — conexão por OAuth, saúde do token e renovação automática.

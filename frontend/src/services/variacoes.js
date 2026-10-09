@@ -21,7 +21,23 @@ export const CONFIG_PADRAO = {
   realce: false,
   trecho: { inicio: 0, fim: null },
   ajustes: { brilho: 0, contraste: 0, saturacao: 0, nitidez: 0 },
+  /* Ligado por padrão: vídeo de fala sem as pausas. */
+  silencios: 'normal',
+  capa: { ativa: false, segundo: null, titulo: '', posicao: 'centro' },
+  logo: { ativa: false, canto: 'sup-dir', tamanho: 'medio', opacidade: 90 },
 };
+
+export const SILENCIOS = [
+  { value: 'desligado', label: 'Desligado', texto: 'O vídeo sai com todas as pausas.' },
+  { value: 'suave', label: 'Suave', texto: 'Tira só as pausas longas (mais de 1 segundo).' },
+  { value: 'normal', label: 'Normal', texto: 'Tira as pausas de mais de 0,6 s entre as frases.' },
+  { value: 'forte', label: 'Forte', texto: 'Tira até as pausas curtas (0,35 s) — ritmo bem acelerado.' },
+];
+export const CANTOS_LOGO = [
+  { value: 'sup-esq', label: '↖' }, { value: 'sup-dir', label: '↗' },
+  { value: 'inf-esq', label: '↙' }, { value: 'inf-dir', label: '↘' },
+];
+export const FRACAO_LOGO = { pequeno: 0.13, medio: 0.18, grande: 0.25 }; // espelha marcaDagua.js
 
 const EXT_VIDEO = /\.(mp4|mov|m4v)$/i;
 const EXT_FOTO = /\.(jpe?g|png|webp)$/i;
@@ -68,9 +84,13 @@ export function estimarSegundos(itens, config) {
   const n = Math.max(1, config.formatos.length);
   const fator = (FATOR[config.qualidade] || 0.9) * (config.enquadramento === 'desfoque' ? 1.4 : 1)
     * (config.modo === 'avancado' && config.realce ? 1.3 : 1);
+  /* O corte de pausas lê o áudio e gera um intermediário antes dos formatos. */
+  const extraPausas = config.silencios && config.silencios !== 'desligado' ? 0.6 : 0;
   let total = 0;
   for (const it of itens) {
-    total += it.tipo === 'video' ? (3 + duracaoUtil(it.duracao || 30, config) * fator) * n : 1.5 * n;
+    total += it.tipo === 'video'
+      ? (3 + duracaoUtil(it.duracao || 30, config) * fator) * n + duracaoUtil(it.duracao || 30, config) * extraPausas
+      : 1.5 * n;
   }
   return Math.round(total / 2); // 2 arquivos ao mesmo tempo no servidor
 }
@@ -95,6 +115,9 @@ export function resumoDaConfig(config) {
   partes.push(fmts.map(f => (f.largura ? `${f.proporcao} (${f.largura}×${f.altura})` : 'proporção original')).join(' + '));
   if (fmts.some(f => f.largura)) partes.push({ cortar: 'cortando as bordas', barras: 'com barras pretas', desfoque: 'com fundo desfocado' }[config.enquadramento]);
   partes.push(`qualidade ${config.qualidade === 'media' ? 'média' : config.qualidade}`);
+  if (config.silencios && config.silencios !== 'desligado') partes.push(`vídeos sem as pausas (${config.silencios})`);
+  if (config.capa?.ativa) partes.push(`+ capa 9:16${config.capa.titulo ? ` com "${config.capa.titulo}"` : ''}`);
+  if (config.logo?.ativa) partes.push('com o seu logo');
   if (config.modo === 'avancado') {
     const a = config.ajustes || {};
     const sinal = v => (v > 0 ? `+${v}` : `${v}`);

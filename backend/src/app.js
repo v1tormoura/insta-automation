@@ -81,6 +81,7 @@ app.use('/posts',         auth, require('./routes/postRoutes'));
 app.use('/legends',       auth, require('./routes/legendRoutes'));
 app.use('/notificacoes',  auth, require('./routes/notificacoesRoutes'));
 app.use('/conta/2fa',     auth, require('./routes/doisFatoresRoutes'));
+app.use('/conta/logo',    auth, require('./routes/logoRoutes'));
 app.use('/conta',         auth, require('./routes/contaRoutes'));
 app.use('/atividade',     auth, require('./routes/atividadeRoutes'));
 app.use('/ai',            auth, require('./routes/aiRoutes'));

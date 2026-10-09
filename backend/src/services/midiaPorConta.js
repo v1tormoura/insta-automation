@@ -164,7 +164,8 @@ async function marcarImagem(absoluto, post, account, opcoes = {}) {
   /* As posições superior e inferior da marca são calculadas sobre a altura da
      mídia — numa imagem quadrada, a altura do reel as jogaria para fora. */
   const { filtroDaMarca } = require('./marcaDagua');
-  const filtro = filtroDaMarca(config, account.username, undefined, await alturaDaImagem(absoluto));
+  const { altura, largura } = await dimensoesDaImagem(absoluto);
+  const filtro = filtroDaMarca(config, account.username, undefined, altura, largura);
   if (!filtro) return null;
 
   const ext = path.extname(absoluto) || '.jpg';
@@ -188,14 +189,15 @@ async function marcarImagem(absoluto, post, account, opcoes = {}) {
   }
 }
 
-/** A altura da imagem, para a marca cair dentro dela. */
-async function alturaDaImagem(absoluto) {
+/** Altura e largura da imagem, para a marca (e o logo) caírem dentro dela. */
+async function dimensoesDaImagem(absoluto) {
   try {
     const meta = await probeVideo(absoluto);
-    const h = meta?.streams?.find(s => s.codec_type === 'video')?.height;
-    return Number.isFinite(h) && h > 0 ? h : null;
+    const v = meta?.streams?.find(s => s.codec_type === 'video');
+    const ok = n => (Number.isFinite(n) && n > 0 ? n : undefined);
+    return { altura: ok(v?.height), largura: ok(v?.width) };
   } catch {
-    return null;
+    return {};
   }
 }
 

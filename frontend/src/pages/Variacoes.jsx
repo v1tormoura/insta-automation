@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Layers, Upload, X, Download, FolderDown, Film, Image as ImageIcon, ChevronDown, ChevronRight,
-  Trash2, Ban, RotateCcw, AlertTriangle, Check, Clock,
+  Trash2, Ban, RotateCcw, AlertTriangle, Check, Clock, Library,
 } from 'lucide-react';
+import LogoNoVideo, { useLogo } from '../components/LogoNoVideo';
 import PageShell from '../components/PageShell';
 import Segmentado from '../components/Segmentado';
 import ConfirmModal from '../components/ConfirmModal';
@@ -15,14 +16,14 @@ import { useTarefa, consumir } from '../services/tarefas';
 import { enviar, cancelar as cancelarEnvio, cancelarTodos, limparFinalizados, useEnvios } from '../services/envioDeVariacoes';
 import {
   FORMATOS, CONFIG_PADRAO, tipoLocal, problemaLocal, estimarSegundos, tempoLegivel, tamanho,
-  resumoDaConfig, filtroCss, selecionarIntervalo, validadeRestante,
+  resumoDaConfig, filtroCss, selecionarIntervalo, validadeRestante, SILENCIOS, FRACAO_LOGO,
 } from '../services/variacoes';
 
 /**
  * Variações de Mídia — converter e preparar vídeos e fotos para os formatos do
  * Instagram, em lote. Cada formato escolhido vira um arquivo; tudo o que muda
- * é escolhido aqui e escrito no resumo antes de começar. Nada entra na
- * Biblioteca: os resultados são baixados e expiram.
+ * é escolhido aqui e escrito no resumo antes de começar. Os resultados são
+ * baixados (e expiram) ou mandados para a Biblioteca, de onde o Postar os usa.
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -34,7 +35,11 @@ const POR_PAGINA = 20;
 function lerConfig() {
   try {
     const salvo = JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null');
-    return salvo ? { ...CONFIG_PADRAO, ...salvo, trecho: { ...CONFIG_PADRAO.trecho, ...salvo.trecho }, ajustes: { ...CONFIG_PADRAO.ajustes, ...salvo.ajustes } } : CONFIG_PADRAO;
+    return salvo ? {
+      ...CONFIG_PADRAO, ...salvo,
+      trecho: { ...CONFIG_PADRAO.trecho, ...salvo.trecho }, ajustes: { ...CONFIG_PADRAO.ajustes, ...salvo.ajustes },
+      capa: { ...CONFIG_PADRAO.capa, ...salvo.capa }, logo: { ...CONFIG_PADRAO.logo, ...salvo.logo },
+    } : CONFIG_PADRAO;
   } catch { return CONFIG_PADRAO; }
 }
 
@@ -66,6 +71,7 @@ export default function Variacoes() {
   const [arrastando, setArrastando] = useState(false);
   const entradaRef = useRef(null);
   const envios = useEnvios();
+  const [logo, setLogo] = useLogo();
   const tarefa = useTarefa('variacoes');
 
   const [aba, setAba] = useState('seus');
@@ -190,6 +196,13 @@ export default function Variacoes() {
     try { await fn(); } catch (e) { avisar('error', 'Não deu certo', e.response?.data?.error || e.message); } finally { setOcupado(''); }
   }
 
+  const paraBiblioteca = ids => acao('biblioteca', async () => {
+    if (!ids.length) return;
+    const { data } = await api.post('/preparos/biblioteca', { saidas: ids });
+    avisar('success', `${data.enviados} arquivo(s) na Biblioteca`, 'Pasta "Variações" — já dá para escolher no Postar.');
+    carregar();
+  });
+
   const baixarSaidas = ids => acao('baixar', async () => {
     if (!ids.length) return;
     if (ids.length === 1) baixarArquivo(linkSaida(ids[0]));
@@ -256,7 +269,7 @@ export default function Variacoes() {
         <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 750, color: 'var(--mf-text)' }}>Gerar variações</div>
         <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', marginTop: 4, lineHeight: 1.6, maxWidth: 760 }}>
           Solte vídeos, fotos ou os dois juntos. Cada <b>formato</b> escolhido vira um arquivo pronto para o Instagram, com as mudanças que você definir abaixo.
-          {' '}<b>Nada entra na Biblioteca</b> — você baixa os prontos, e eles somem em {limites.validadeH || 24} horas.
+          {' '}Você baixa os prontos (eles somem em {limites.validadeH || 24} horas) ou manda para a <b>Biblioteca</b>, para usar no Postar.
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--mf-4)', marginTop: 'var(--mf-4)' }}>
@@ -315,6 +328,47 @@ export default function Variacoes() {
             </div>
           </div>
         )}
+
+        <div data-pausas style={{ marginTop: 'var(--mf-4)' }}>
+          <div style={rotulo}>Pausas da fala (vídeos com áudio)</div>
+          <div style={{ display: 'flex' }}>
+            <Segmentado rotulo="Corte de pausas" valor={config.silencios} onChange={v => muda({ silencios: v })}
+              opcoes={SILENCIOS.map(s => ({ value: s.value, label: s.label }))} />
+          </div>
+          <div style={{ ...nota, marginTop: 4 }}>
+            {SILENCIOS.find(s => s.value === config.silencios)?.texto} Corta só o silêncio entre as frases — "éé" e "hmm" ficam.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 'var(--mf-4)', display: 'grid', gap: 'var(--mf-4)', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', alignItems: 'start' }}>
+          <div data-capa style={{ padding: 'var(--mf-3)', borderRadius: 'var(--mf-r-lg)', border: '1px solid var(--mf-border)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)', cursor: 'pointer' }}>
+              <input type="checkbox" data-gerar-capa checked={config.capa.ativa} onChange={e => muda({ capa: { ...config.capa, ativa: e.target.checked } })} />
+              Gerar capa 9:16 de cada vídeo
+            </label>
+            {config.capa.ativa && (
+              <div style={{ display: 'grid', gap: 'var(--mf-2)', marginTop: 'var(--mf-3)' }}>
+                <input className="inp" maxLength={90} placeholder="Título na capa (opcional)" value={config.capa.titulo} data-titulo-capa
+                  onChange={e => muda({ capa: { ...config.capa, titulo: e.target.value } })} />
+                <div style={{ display: 'flex', gap: 'var(--mf-3)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Segmentado rotulo="Posição do título" valor={config.capa.posicao} onChange={v => muda({ capa: { ...config.capa, posicao: v } })}
+                    opcoes={[{ value: 'topo', label: 'Topo' }, { value: 'centro', label: 'Centro' }, { value: 'base', label: 'Base' }]} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)' }}>
+                    Quadro em
+                    <input className="inp" type="number" min={0} step={0.5} placeholder="auto" value={config.capa.segundo ?? ''} style={{ width: 80 }}
+                      onChange={e => muda({ capa: { ...config.capa, segundo: e.target.value === '' ? null : Math.max(0, Number(e.target.value)) } })} />
+                    s
+                  </label>
+                </div>
+                <div style={nota}>A capa sai junto com os resultados. Mande para a Biblioteca para escolher no Postar.</div>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: 'var(--mf-3)', borderRadius: 'var(--mf-r-lg)', border: '1px solid var(--mf-border)' }}>
+            <div style={{ fontSize: 'var(--mf-t-sm)', fontWeight: 650, color: 'var(--mf-text)', marginBottom: 'var(--mf-2)' }}>Logo</div>
+            <LogoNoVideo valor={config.logo} onChange={v => muda({ logo: v })} logo={logo} setLogo={setLogo} />
+          </div>
+        </div>
 
         {avancado && (
           <div data-avancado style={{ marginTop: 'var(--mf-4)', padding: 'var(--mf-3)', borderRadius: 'var(--mf-r-lg)', background: 'var(--mf-surface-2)', display: 'grid', gap: 'var(--mf-4)',
@@ -429,7 +483,7 @@ export default function Variacoes() {
                 <Layers size={14} /> Gerar {validos.length * config.formatos.length} resultado(s)
               </button>
             </div>
-            {itemPrevia && !itemPrevia.problema && <Previa key={itemPrevia.chave} item={itemPrevia} config={config} />}
+            {itemPrevia && !itemPrevia.problema && <Previa key={itemPrevia.chave} item={itemPrevia} config={config} logoUrl={logo?.url && config.logo.ativa ? `${API_URL}${logo.url}` : null} />}
           </div>
         )}
 
@@ -487,6 +541,11 @@ export default function Variacoes() {
               onClick={() => baixarUmPorUm(saidasSelecionadas.map(s => s.id))} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               Baixar selecionados ({saidasSelecionadas.length})
             </button>
+            <button type="button" className="btn-ghost" data-para-biblioteca disabled={!saidasSelecionadas.length || !!ocupado}
+              onClick={() => paraBiblioteca(saidasSelecionadas.map(s => s.id))} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="Copia para a Biblioteca (pasta Variações) — aí dá para usar no Postar, inclusive a capa">
+              <Library size={14} /> Mandar para a Biblioteca
+            </button>
             <span style={{ flex: 1 }} />
             {podePasta && (
               <button type="button" style={{ ...linkBtn, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 'var(--mf-t-xs)' }}
@@ -515,7 +574,7 @@ export default function Variacoes() {
           {itens.map(i => (
             <LinhaResultado key={i.id} item={i} marcado={selecao.has(i.id)} onMarcar={e => marcar(i.id, e)}
               aberto={abertos.has(i.id)} onAbrir={() => setAbertos(s => { const n = new Set(s); if (n.has(i.id)) n.delete(i.id); else n.add(i.id); return n; })}
-              onBaixar={() => baixarSaidas(saidasProntas(i).map(s => s.id))} onVer={s => setVerSaida({ ...s, tipo: i.tipo })} ocupado={!!ocupado} />
+              onBaixar={() => baixarSaidas(saidasProntas(i).map(s => s.id))} onVer={s => setVerSaida({ ...s, tipo: s.ext === 'mp4' ? 'video' : 'imagem' })} ocupado={!!ocupado} />
           ))}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 'var(--mf-3) var(--mf-4)', ...nota }}>
@@ -582,7 +641,7 @@ export default function Variacoes() {
 }
 
 /* ── Pré-visualização aproximada (no navegador, antes de enviar) ── */
-function Previa({ item, config }) {
+function Previa({ item, config, logoUrl }) {
   const [semVideo, setSemVideo] = useState(false);
   const filtro = filtroCss(config);
   const proporcaoOriginal = item.largura && item.altura ? item.largura / item.altura : 9 / 16;
@@ -611,6 +670,14 @@ function Previa({ item, config }) {
                     {config.enquadramento === 'desfoque' && midia({ ...cheio, objectFit: 'cover', filter: 'blur(8px)', transform: 'scale(1.1)' })}
                     {midia({ ...cheio, objectFit: 'contain' })}
                   </>)}
+                {logoUrl && (() => {
+                  /* Mesma conta do servidor (marcaDagua.partesDoLogo), em proporção. */
+                  const c = config.logo.canto;
+                  const w = Math.round(largura * (FRACAO_LOGO[config.logo.tamanho] || FRACAO_LOGO.medio));
+                  const h = Math.round(largura / proporcao);
+                  const pos = { [c.endsWith('esq') ? 'left' : 'right']: Math.round(largura * 0.045), [c.startsWith('sup') ? 'top' : 'bottom']: Math.round(h * (c.startsWith('sup') ? 150 : 270) / 1920) };
+                  return <img src={logoUrl} alt="" style={{ position: 'absolute', width: w, opacity: config.logo.opacidade / 100, ...pos }} />;
+                })()}
               </div>
               <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4 }}>{f.largura ? f.proporcao : 'original'}</div>
             </div>
@@ -627,7 +694,7 @@ const COR = { concluido: 'var(--mf-success-500)', processando: 'var(--mf-primary
 
 function LinhaResultado({ item, marcado, onMarcar, aberto, onAbrir, onBaixar, onVer, ocupado }) {
   const prontas = item.saidas.filter(s => !s.erro);
-  const total = item.config?.formatos?.length || prontas.length;
+  const total = (item.config?.formatos?.length || prontas.length) + (item.tipo === 'video' && item.config?.capa?.ativa ? 1 : 0);
   const todasBaixadas = prontas.length > 0 && prontas.every(s => s.baixadoEm);
   const capa = prontas[0];
   const estado = {
@@ -642,6 +709,7 @@ function LinhaResultado({ item, marcado, onMarcar, aberto, onAbrir, onBaixar, on
     item.status === 'concluido' || prontas.length ? `${prontas.length} variação(ões)` : '',
     prontas.length ? `${tamanho(item.bytes)} → ${tamanho(prontas.reduce((s, x) => s + x.bytes, 0))}` : tamanho(item.bytes),
     item.status === 'concluido' ? validadeRestante(item.expiraEm) : '',
+    item.info?.silencios ? `−${String(item.info.silencios.removido).replace('.', ',')} s de pausas` : '',
     item.config?.modo === 'avancado' ? 'Avançado' : 'Rápido',
   ].filter(Boolean).join(' · ');
 
@@ -685,6 +753,7 @@ function LinhaResultado({ item, marcado, onMarcar, aberto, onAbrir, onBaixar, on
                   <span style={nota}>{s.largura}×{s.altura} · {tamanho(s.bytes)}{item.tipo === 'video' && s.duracao ? ` · ${Math.round(s.duracao)} s` : ''}</span>
                   <button type="button" style={linkBtn} onClick={() => onVer(s)}>ver</button>
                   <a href={linkSaida(s.id)} style={{ ...linkBtn, color: 'var(--mf-primary-500)', textDecoration: 'none' }}>{s.baixadoEm ? 'baixado ✓' : 'baixar'}</a>
+                  {s.naBiblioteca && <span style={{ ...nota, color: 'var(--mf-success-500)' }}>na Biblioteca ✓</span>}
                 </>)}
             </div>
           ))}
