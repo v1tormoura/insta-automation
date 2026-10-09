@@ -17,8 +17,6 @@ const clients = new Map(); // res → usuarioId
 
 function addClient(res, usuarioId) { clients.set(res, String(usuarioId || '')); }
 function removeClient(res) { clients.delete(res); }
-function clientCount() { return clients.size; }
-
 function escrever(mensagem, usuarioId = null) {
   for (const [res, dono] of clients) {
     if (usuarioId !== null && dono !== String(usuarioId)) continue;
@@ -39,4 +37,4 @@ function broadcast(event, data = {}, usuarioId) {
 
 setInterval(() => { if (clients.size) escrever(': keepalive\n\n'); }, 25_000).unref();
 
-module.exports = { addClient, removeClient, broadcast, clientCount };
+module.exports = { addClient, removeClient, broadcast };

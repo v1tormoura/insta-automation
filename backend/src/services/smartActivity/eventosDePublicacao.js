@@ -101,7 +101,7 @@ function notificarContaCaiu({ conta, motivo } = {}) {
   });
 }
 
-/* ── Envios (Postar, Loop, Campanha, Stories) ─────────────────────────────
+/* ── Envios (Postar, Loop, Stories) ─────────────────────────────
    Sobre o pacote inteiro, não sobre uma conta: vão direto para o dono. */
 
 async function _avisarUsuario(eventType, usuarioId, { vars = {}, prioridade = 'normal', metadados = {} } = {}) {

@@ -29,13 +29,6 @@ function diaDe(quando = new Date()) {
   return require('./periodoDeMetricas').etiqueta(quando);
 }
 
-/** O dia anterior a uma etiqueta, como etiqueta. */
-function diaAnterior(dia) {
-  const d = new Date(`${dia}T12:00:00`);   // meio-dia evita a borda do fuso
-  d.setDate(d.getDate() - 1);
-  return diaDe(d);
-}
-
 /**
  * Grava o ponto de hoje para uma conta e calcula quantos entraram.
  *
@@ -125,4 +118,4 @@ async function novosNoPeriodo(de, ate, accountIds) {
   }
 }
 
-module.exports = { registrar, novosNoPeriodo, diaDe, diaAnterior };
+module.exports = { registrar, novosNoPeriodo, diaDe };

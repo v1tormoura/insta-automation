@@ -25,7 +25,7 @@ import { urlDoAvatar } from '../utils/avatar';
  *                                   aparecia em lugar nenhum
  *
  * Os dois primeiros foram elos que faltavam. A interface veio depois deles, na
- * ordem certa: um seletor de campanha sem o vínculo no banco seria um controle
+ * ordem certa: um seletor de envio sem o vínculo no banco seria um controle
  * que não filtra nada.
  *
  * ── Sobre a coluna de views

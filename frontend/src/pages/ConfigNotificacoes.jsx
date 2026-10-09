@@ -88,7 +88,7 @@ const PUBLICACAO = [
   { id: 'contaCaiu',      rotulo: 'Conta caiu',        desc: 'Verificação pedida pelo Instagram, token inválido ou banimento — de qualquer origem' },
 ];
 
-/** Os avisos de ENVIO: sobre o pacote inteiro (Postar, Loop, Campanha, Stories). */
+/** Os avisos de ENVIO: sobre o pacote inteiro (Postar, Loop, Stories). */
 const ENVIO = [
   { id: 'envioIniciado',  rotulo: 'Publicações enviadas', desc: 'Ao enviar um pacote: quantas contas e quantas publicações' },
   { id: 'envioConcluido', rotulo: 'Envio concluído',      desc: 'Quando o pacote termina: quantas saíram e quantas falharam' },
@@ -122,8 +122,8 @@ const QUANDO = {
   erroPublicacao: 'A cada tentativa de publicação que falha, com o motivo do erro.',
   cotaApi:        'Quando a conta atinge o limite de publicações da API nas últimas 24h. Uma vez a cada 20h por conta.',
   contaCaiu:      'Quando a conta para: token inválido, verificação pedida pelo Instagram ou banimento. Uma vez a cada 6h por conta.',
-  envioIniciado:  'Ao enviar pelo Postar, criar um Loop, iniciar uma Campanha ou mandar Stories em massa. Ex.: 2 contas, 120 reels.',
-  envioConcluido: 'Quando o envio do Postar, a Campanha ou o lote de Stories termina (o Loop não termina — repete).',
+  envioIniciado:  'Ao enviar pelo Postar, criar um Loop ou mandar Stories em massa. Ex.: 2 contas, 120 reels.',
+  envioConcluido: 'Quando o envio do Postar ou o lote de Stories termina (o Loop não termina — repete).',
   novoCadastro:   'Quando alguém se cadastra e espera aprovação. Só o admin recebe.',
   vendaWebhook:    'Quando o bot avisa um pagamento aprovado (webhook). Ligado por padrão.',
   checkoutWebhook: 'Quando o bot avisa que a pessoa gerou o pagamento (PIX/checkout) e ainda não pagou. Desligado por padrão.',

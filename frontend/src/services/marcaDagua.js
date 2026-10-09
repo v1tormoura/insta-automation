@@ -4,9 +4,9 @@
  * Só o vocabulário: o padrão e as opções. O desenho acontece no servidor, com
  * ffmpeg, e o texto é o @ de cada conta — resolvido lá, na hora de publicar.
  *
- * Ficam num módulo próprio por duas razões. A primeira é que três telas usam os
- * mesmos valores (Postar, Loop e campanha), e um padrão diferente em cada uma
- * viraria três comportamentos para a mesma opção. A segunda é mecânica: exportar
+ * Ficam num módulo próprio por duas razões. A primeira é que duas telas usam os
+ * mesmos valores (Postar e Loop), e um padrão diferente em cada uma viraria dois
+ * comportamentos para a mesma opção. A segunda é mecânica: exportar
  * constante do mesmo arquivo de um componente quebra o fast refresh do Vite, e o
  * lint aponta.
  *

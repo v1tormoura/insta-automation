@@ -132,7 +132,7 @@ export function EsqueletoGrade({ itens = 8, minimo = 124 }) {
   );
 }
 
-/** Lista de cartões — contas, loops, campanhas. */
+/** Lista de cartões — contas e loops. */
 export function EsqueletoLista({ itens = 4 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--mf-3)' }}>

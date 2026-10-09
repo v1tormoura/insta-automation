@@ -4,7 +4,7 @@
 
 const { sql } = require('../db');
 const { comContas } = require('../repos');
-const { somarFilas, porStatus, contarJobs } = require('./contagemDaFila');
+const { somarFilas, contarJobs } = require('./contagemDaFila');
 
 const FUSO = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
 const ATIVOS = ['queued', 'running', 'waiting_interval'];
@@ -116,7 +116,7 @@ exports.getDashboard = async (req, res) => {
   const trintaDias = diasAtras(30);
 
   const [
-    contas, [contagem], campanhaPorStatus, ativos,
+    contas, [contagem], ativos,
     avulsosProximos, diarios, errosDiarios, engajamento,
   ] = await Promise.all([
     sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, last_post_date, created_at, updated_at
@@ -131,8 +131,6 @@ exports.getDashboard = async (req, res) => {
         count(*) filter (where status = 'pendente' and job_id is null) as pendentes,
         count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as erros_hoje
       from posts where usuario_id = ${uid}`,
-    sql`select status, count(*) as n from campaign_publications
-        where usuario_id = ${uid} and status in ('pending', 'scheduled', 'processing') group by status`,
     enviosAtivos(uid),
     sql`select * from posts where usuario_id = ${uid} and status in ('agendado', 'pendente', 'processando') and job_id is null
         order by scheduled_at asc nulls last limit 200`,
@@ -151,7 +149,6 @@ exports.getDashboard = async (req, res) => {
   const fila = somarFilas(
     { agendados: contagem.agendados, processando: contagem.processando, pendentes: contagem.pendentes },
     { rodando, enfileirados },
-    porStatus(campanhaPorStatus),
   );
 
   await comContas(avulsosProximos);
@@ -176,7 +173,7 @@ exports.getDashboard = async (req, res) => {
     pendingPosts: fila.pendentes,
     successRate: finalizados > 0 ? Math.round((contagem.concluidos / finalizados) * 100) : 100,
 
-    // O contador de cada conta: soma avulso, envio, loop, campanha e story.
+    // O contador de cada conta: soma avulso, envio, loop e story.
     postsToday: contas.reduce((soma, a) => soma + hojeDaConta(a), 0),
     errorsToday: contagem.errosHoje,
     dailyPostLimit: comLimite.reduce((soma, a) => soma + a.dailyPostLimit, 0),

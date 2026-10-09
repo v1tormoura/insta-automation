@@ -4,8 +4,8 @@
  * Biblioteca de mídia — upload e listagem, contra o banco.
  *
  * O que estes testes protegem: o upload aceitava só o campo 'media' e respondia
- * 200 com zero arquivos criados quando o nome era outro — foi assim que o
- * upload do wizard de campanha "não funcionava" sem erro nenhum na tela. E a
+ * 200 com zero arquivos criados quando o nome era outro — o upload "não
+ * funcionava" sem erro nenhum na tela. E a
  * busca precisa tratar a entrada como texto, senão um '%' ou '(' digitado
  * vira padrão e a busca mente.
  */

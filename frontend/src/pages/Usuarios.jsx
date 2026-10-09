@@ -13,7 +13,7 @@ import { useServerEvents } from '../services/useServerEvents';
  * Usuários da plataforma — só o admin chega aqui.
  *
  * Quem se cadastra entra como "pendente" e só acessa depois de aprovado.
- * Bloquear corta o acesso na hora e pausa os envios e campanhas da pessoa;
+ * Bloquear corta o acesso na hora e pausa os envios da pessoa;
  * apagar leva tudo dela e pede o e-mail digitado, porque não tem volta.
  */
 
@@ -78,7 +78,7 @@ export default function Usuarios() {
       const msg = {
         aprovar: `${u.nome} aprovado — já pode entrar.`,
         recusar: `Cadastro de ${u.nome} recusado.`,
-        bloquear: `${u.nome} bloqueado${d.pausados ? ` — ${d.pausados.envios} envio(s) e ${d.pausados.campanhas} campanha(s) pausados` : ''}.`,
+        bloquear: `${u.nome} bloqueado${d.pausados?.envios ? ` — ${d.pausados.envios} envio(s) pausado(s)` : ''}.`,
         reativar: `${u.nome} reativado.`,
         '2fa/desligar': `Dois fatores de ${u.nome} desligado — entra só com a senha.`,
       }[acao];
@@ -182,7 +182,7 @@ export default function Usuarios() {
           '2fa/desligar': `Desligar o dois fatores de ${confirmar?.u.nome}?`,
         }[confirmar?.acao] || `Recusar o cadastro de ${confirmar?.u.nome}?`}
         message={{
-          bloquear: 'O acesso é cortado na hora, e os envios e campanhas dele são pausados. Dá para reativar depois.',
+          bloquear: 'O acesso é cortado na hora, e os envios dele são pausados. Dá para reativar depois.',
           '2fa/desligar': 'Para quem perdeu o celular e os códigos de reserva. A pessoa passa a entrar só com a senha até ligar de novo em Minha Conta.',
         }[confirmar?.acao] || 'A pessoa não vai conseguir entrar. Se mudar de ideia, dá para aprovar depois.'}
         confirmLabel={{ bloquear: 'Bloquear', '2fa/desligar': 'Desligar' }[confirmar?.acao] || 'Recusar'}
@@ -197,7 +197,7 @@ export default function Usuarios() {
           <div className="modal" style={{ width: 'min(440px,100%)' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 8px', color: 'var(--mf-text)' }}>Apagar {apagar.nome}?</h3>
             <p style={{ margin: '0 0 12px', color: 'var(--mf-text-2)', fontSize: 'var(--mf-t-sm)', lineHeight: 1.6 }}>
-              Sai tudo dele: contas conectadas, envios, campanhas, biblioteca e métricas. <strong>Não tem volta.</strong>
+              Sai tudo dele: contas conectadas, envios, biblioteca e métricas. <strong>Não tem volta.</strong>
             </p>
             <label style={{ display: 'block', color: 'var(--mf-text-3)', fontSize: 'var(--mf-t-xs)', marginBottom: 6 }}>
               Digite <strong style={{ color: 'var(--mf-text)' }}>{apagar.email}</strong> para confirmar

@@ -7,8 +7,6 @@
  *   job_round ............ uma rodada de um envio (Postar e Loop)
  *   post ................. reprocessar um post avulso (botão "tentar de novo")
  *   comentario_fixado .... o comentário 2 min depois da publicação
- *   campanha_publicacao .. uma publicação de campanha
- *   campanha_comentario .. o comentário de uma publicação de campanha
  *
  * Toda publicação passa por `publicarNaConta`: trava a conta (uma publicação
  * por vez), respeita ritmo e cota da API, grava o resultado e decide a saúde
@@ -390,7 +388,6 @@ async function processarComentarioFixado({ accountId, mediaId, texto }) {
 const arquivosDoFim = itens => itens.slice(0, 200).map(i => ({ id: i.id, nome: i.originalName, url: i.url, tipo: i.type, tamanho: i.size }));
 
 function handlers() {
-  const executor = require('./services/campaignExecutor');
   return {
     job_round: processarRodada,
     post: processarPost,
@@ -423,14 +420,6 @@ function handlers() {
     },
     story: dados => require('./services/stories').processar(dados),
     preparo_midia: dados => require('./services/preparoDeMidia').processar(dados),
-    campanha_publicacao: ({ campaignPublicationId }) => executor.processarPublicacao(campaignPublicationId, {
-      publicarNaConta: (conta, post) => publicarNaConta(conta, post),
-      broadcast,
-    }),
-    campanha_comentario: ({ campaignCommentId }) => executor.processarComentario(campaignCommentId, {
-      comentarNaConta: async (conta, { mediaId, text }) => ({ commentId: await graph.comentar(conta, mediaId, text), mediaId }),
-      broadcast,
-    }),
   };
 }
 
@@ -452,13 +441,11 @@ async function recuperar() {
     await agendarRodada(id, 0);
     console.log(`♻️  [Envio] ${id} sem rodada na fila — reagendado`);
   }
-  await require('./jobs/campaignRecovery').recuperarCampanhas().catch(e => console.log('[Campanha] recuperação:', e.message));
 }
 
 async function iniciarWorker() {
   await recuperar();
   setInterval(() => accounts.destravarVencidas().catch(() => {}), 60_000);
-  setInterval(() => require('./jobs/campaignRecovery').recuperarCampanhas().catch(() => {}), 5 * 60_000);
   await fila.iniciar(handlers(), { concorrencia: Number(process.env.WORKER_CONCURRENCY) || 5 });
 }
 

@@ -17,7 +17,7 @@ export default defineConfig({
           groups: [
             /* clsx é usada pelo painel E pelo recharts: sem grupo próprio ela
                cairia em "graficos" e a tela inicial baixaria os gráficos. */
-            { name: 'utils', test: /node_modules[\\/](clsx|tailwind-merge|class-variance-authority)[\\/]/, priority: 30 },
+            { name: 'utils', test: /node_modules[\\/](clsx|tailwind-merge)[\\/]/, priority: 30 },
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom)[\\/]/, priority: 20 },
             { name: 'motion', test: /node_modules[\\/](framer-motion|motion-dom|motion-utils)[\\/]/, priority: 15 },
             { name: 'graficos', test: /node_modules[\\/](recharts|d3-[^/\\]+|victory-vendor|recharts-scale|lodash)[\\/]/, priority: 15 },

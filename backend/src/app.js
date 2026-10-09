@@ -21,7 +21,7 @@ app.use(cors({
   origin: (origin, cb) => cb(null, !origin || config.frontendUrls.some(o => origin === o || origin.startsWith(o))),
   credentials: true,
 }));
-// O corpo da campanha cresce com os conteúdos e as legendas por conta; 100 KB não bastam.
+// Legendas em lote e as configurações de envio e do Loop passam dos 100 KB padrão.
 app.use(express.json({ limit: '10mb' }));
 
 // ── Públicas ────────────────────────────────────────────────────────────────
@@ -77,7 +77,6 @@ app.use('/events',        auth, require('./routes/eventsRoutes'));
 app.use('/dashboard',     auth, require('./routes/dashboardRoutes'));
 app.use('/health',        auth, require('./routes/healthRoutes'));
 app.use('/accounts',      auth, require('./routes/accountRoutes'));
-app.use('/campaigns',     auth, require('./routes/campaignRoutes'));
 app.use('/posts',         auth, require('./routes/postRoutes'));
 app.use('/legends',       auth, require('./routes/legendRoutes'));
 app.use('/notificacoes',  auth, require('./routes/notificacoesRoutes'));

@@ -6,7 +6,7 @@
  *   GET    /usuarios?status=       lista (pendentes primeiro), com contas e publicações
  *   POST   /usuarios/:id/aprovar   pendente/recusado → ativo
  *   POST   /usuarios/:id/recusar   pendente → recusado
- *   POST   /usuarios/:id/bloquear  ativo → bloqueado; pausa envios e campanhas dele
+ *   POST   /usuarios/:id/bloquear  ativo → bloqueado; pausa os envios dele
  *   POST   /usuarios/:id/reativar  bloqueado → ativo (o que foi pausado continua pausado)
  *   DELETE /usuarios/:id           apaga o usuário e tudo que é dele
  *
@@ -51,7 +51,7 @@ async function mudarStatus(req, res, de, para, extra = {}) {
   return novo;
 }
 
-/** Tira de circulação o trabalho de um usuário: envios e campanhas pausados, fila limpa. */
+/** Tira de circulação o trabalho de um usuário: envios pausados, fila limpa. */
 async function pausarTudo(usuarioId) {
   const envios = await sql`
     update jobs set status = 'paused'
@@ -61,14 +61,8 @@ async function pausarTudo(usuarioId) {
     await sql`delete from queue_jobs where status = 'queued' and name = 'job_round'
               and data->>'jobId' = any(${envios.map(e => e.id)})`;
   }
-  const campanhas = await sql`
-    update campaigns set status = 'paused'
-    where usuario_id = ${usuarioId} and status in ('scheduled', 'running')
-    returning id`;
-  const executor = require('../services/campaignExecutor');
-  for (const c of campanhas) await executor.pausarCampanha(c.id).catch(() => {});
   await sql`delete from queue_jobs where status = 'queued' and name = 'story' and data->>'usuarioId' = ${usuarioId}`;
-  return { envios: envios.length, campanhas: campanhas.length };
+  return { envios: envios.length };
 }
 
 router.get('/', async (req, res) => {
@@ -109,7 +103,7 @@ router.post('/:id/2fa/desligar', async (req, res) => {
 });
 
 /**
- * Apaga o usuário. As linhas dele saem em cascata (contas, envios, campanhas,
+ * Apaga o usuário. As linhas dele saem em cascata (contas, envios,
  * métricas…); os arquivos da biblioteca saem do disco.
  */
 router.delete('/:id', async (req, res) => {

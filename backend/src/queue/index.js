@@ -14,7 +14,7 @@
  *   iniciar(handlers) — processa em segundo plano, até `concorrencia` por vez.
  *
  * Trabalho concluído (ou que falhou) sai da tabela: o histórico que importa já
- * está em posts, jobs e campanhas. Na subida, o que ficou em 'running' é órfão
+ * está em posts e jobs. Na subida, o que ficou em 'running' é órfão
  * de um processo que morreu, e volta para a fila.
  */
 

@@ -21,10 +21,7 @@ const Health              = lazy(() => import('./pages/Health'));
 const Stories             = lazy(() => import('./pages/Stories'));
 const Loop                = lazy(() => import('./pages/Loop'));
 const JobManager          = lazy(() => import('./pages/JobManager'));
-const Campaigns           = lazy(() => import('./pages/Campaigns'));
-const CampaignWizard      = lazy(() => import('./pages/CampaignWizard'));
 const ConfigNotificacoes  = lazy(() => import('./pages/ConfigNotificacoes'));
-const CampaignDetail      = lazy(() => import('./pages/CampaignDetail'));
 import OAuthCallback from './pages/OAuthCallback';
 const ConectarGuiado      = lazy(() => import('./pages/ConectarGuiado'));
 const TopPosts            = lazy(() => import('./pages/TopPosts'));
@@ -116,11 +113,8 @@ export default function App() {
               <Route path="/stories"      element={<Stories />} />
               <Route path="/loop"         element={<Loop />} />
               <Route path="/jobs"         element={<JobManager />} />
-              {/* /campaigns/nova antes de /campaigns/:id — senão "nova" seria lido como id */}
-              <Route path="/campaigns"      element={<Campaigns />} />
-              <Route path="/campaigns/nova" element={<CampaignWizard />} />
+              <Route path="/campaigns/*"    element={<Navigate to="/" replace />} />
               <Route path="/settings/notificacoes" element={<ConfigNotificacoes />} />
-              <Route path="/campaigns/:id"  element={<CampaignDetail />} />
               <Route path="/top-posts"      element={<TopPosts />} />
               <Route path="/ranking"        element={<Navigate to="/top-posts" replace />} />
               <Route path="/performance"    element={<Performance />} />

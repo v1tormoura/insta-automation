@@ -34,7 +34,9 @@ const { sql } = require('../db');
 const { FFMPEG_BIN } = require('./ffmpegBin');
 
 const UPLOADS = path.resolve(__dirname, '../../uploads');
-const PASTA = path.join(UPLOADS, 'preparos');
+/* PREPAROS_DIR: os testes usam uma pasta própria — a limpeza de órfãos apagaria
+   os arquivos de quem estiver usando o painel na mesma máquina. */
+const PASTA = process.env.PREPAROS_DIR ? path.resolve(process.env.PREPAROS_DIR) : path.join(UPLOADS, 'preparos');
 const FFPROBE_BIN = process.env.FFPROBE_PATH || (FFMPEG_BIN.endsWith('ffmpeg') ? FFMPEG_BIN.replace(/ffmpeg$/, 'ffprobe') : 'ffprobe');
 
 const num = (v, padrao) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : padrao);

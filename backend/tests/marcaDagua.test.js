@@ -228,7 +228,7 @@ describe('a marca fica dentro da área que o Instagram deixa livre', () => {
 });
 
 describe('a configuração vinda do corpo da requisição', () => {
-  test('aceita objeto (Loop e campanha enviam JSON)', () => {
+  test('aceita objeto (o Loop envia JSON)', () => {
     expect(lerDoCorpo({ ativa: true, opacidade: 70 })).toMatchObject({ ativa: true, opacidade: 70 });
   });
 
@@ -283,11 +283,10 @@ describe('o texto nunca vem do job', () => {
     expect(vp).toMatch(/if \(marca\) suffix \+= `-m\$\{/);
   });
 
-  test('a marca desce do job e da campanha para o post', () => {
-    /* Um campo que existe nos dois schemas e nunca é copiado é o defeito mais
-       barato de cometer aqui: a tela salva, e nada aparece no vídeo. */
+  test('a marca desce do job para o post', () => {
+    /* Um campo que existe no envio e nunca é copiado é o defeito mais barato
+       de cometer aqui: a tela salva, e nada aparece no vídeo. */
     expect(ler('../src/worker.js')).toContain('job.marcaDagua?.ativa');
-    expect(ler('../src/services/campaignExecutor.js')).toContain('campanha.settings?.marcaDagua?.ativa');
   });
 });
 

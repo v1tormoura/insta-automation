@@ -20,11 +20,6 @@ function isVideo(file) {
   return name.endsWith('.mp4') || name.endsWith('.mov') || name.endsWith('.webm') || name.endsWith('.avi') || name.endsWith('.mkv');
 }
 
-function isImage(file) {
-  const name = file.toLowerCase();
-  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp');
-}
-
 /**
  * Analisa o vídeo de entrada e retorna metadados.
  */
@@ -156,5 +151,4 @@ module.exports = {
   probeVideo,
   jpegParaInstagram,
   isVideo,
-  isImage,
 };

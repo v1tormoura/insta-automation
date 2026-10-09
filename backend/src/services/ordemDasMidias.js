@@ -22,7 +22,7 @@
  * ── O que este módulo NÃO decide
  *
  * Quando cada mídia sai. Isso é do intervalo e do ritmo por conta
- * (`ritmoHumano.js`, `ritmoDaConta.js`). Aqui é só a ordem da fila.
+ * (`ritmoDaConta.js`). Aqui é só a ordem da fila.
  */
 
 const crypto = require('crypto');

@@ -207,7 +207,6 @@ const NAV_GROUPS = [
       { to: '/posts', mod: 'publicar',         label: 'Postar',       sub: 'Criar e agendar',        icon: ICONS.posts     },
       { to: '/loop', mod: 'publicar',          label: 'Loop',         sub: 'Ciclos contínuos',       icon: ICONS.loop      },
       { to: '/stories', mod: 'publicar',       label: 'Stories',      sub: 'Publicar em massa',      icon: ICONS.stories   },
-      { to: '/campaigns', mod: 'campanhas',    label: 'Campanhas',    sub: 'Distribuição planejada', icon: ICONS.ranking   },
       { to: '/jobs', mod: 'jobs',              label: 'Execuções',    sub: 'Lotes em andamento',     icon: ICONS.jobs      },
       { to: '/scheduler', mod: 'jobs',         label: 'Agendamentos', sub: 'Calendário de posts',    icon: ICONS.scheduler },
     ],

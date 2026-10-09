@@ -5,7 +5,6 @@
  *
  * Sai na fila, 2 minutos depois da publicação, na mídia que a PRÓPRIA
  * publicação devolveu — nunca na "mais recente da conta", que pode ser outra.
- * O mesmo desenho da campanha: um caminho só para os dois.
  */
 
 /* Quanto depois da publicação o comentário sai. Dois minutos porque a mídia

@@ -262,7 +262,6 @@ describe('isolamento entre usuários', () => {
     ['/posts/fila', d => d.itens],
     ['/jobs', d => d],
     ['/loops', d => d],
-    ['/campaigns', d => d.campaigns],
     ['/notificacoes', d => d.itens],
     ['/health', d => d.accounts],
   ])('%s: a Bia não vê nada da Ana', async (rota, lista) => {
@@ -270,7 +269,7 @@ describe('isolamento entre usuários', () => {
     const daBia = await api('GET', rota, { token: bia.token });
     expect(daBia.status).toBe(200);
     expect(lista(daBia.dados)).toHaveLength(0);
-    if (!['/jobs', '/loops', '/campaigns'].includes(rota)) expect(lista(daAna.dados).length).toBeGreaterThan(0);
+    if (!['/jobs', '/loops'].includes(rota)) expect(lista(daAna.dados).length).toBeGreaterThan(0);
   });
 
   test('painel e métricas da Bia não somam as contas da Ana', async () => {
@@ -298,21 +297,6 @@ describe('isolamento entre usuários', () => {
     }, { status(c) { resposta = { code: c }; return this; }, json(c) { resposta = { ...resposta, corpo: c }; return this; } });
     expect(resposta.code).toBe(400);
     expect(await sql`select id from jobs`).toHaveLength(0);
-  });
-
-  test('a Bia não monta campanha com a conta nem com a mídia da Ana', async () => {
-    const minhaMidia = await banco.criarMidia({ usuarioId: bia.id, filename: 'bia.mp4' });
-    const r = await api('POST', '/campaigns', { token: bia.token, corpo: {
-      name: 'x', accountIds: [contaDaAna.id], contentIds: [minhaMidia.id],
-    } });
-    expect(r.status).toBe(404);
-    expect(r.dados.code).toBe('ACCOUNT_NOT_FOUND');
-
-    const minhaConta = await banco.criarConta({ usuarioId: bia.id, username: 'loja_da_bia' });
-    const r2 = await api('POST', '/campaigns', { token: bia.token, corpo: {
-      name: 'x', accountIds: [minhaConta.id], contentIds: [midiaDaAna.id],
-    } });
-    expect(r2.dados.code).toBe('CONTENT_NOT_FOUND');
   });
 
   test('a conta do Instagram já conectada por um não pode ser presa por outro', async () => {

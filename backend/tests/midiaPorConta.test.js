@@ -104,8 +104,7 @@ describe('todos os caminhos de publicação passam por aqui', () => {
     expect(trecho.indexOf('} finally {')).toBeLessThan(trecho.indexOf('apagar(gerados)'));
   });
 
-  test('Postar, Loop e campanha usam o mesmo publicador', () => {
-    expect(worker).toMatch(/publicarNaConta:\s*\(conta, post\) => publicarNaConta\(conta, post\)/);
+  test('Postar e Loop usam o mesmo publicador', () => {
     expect(worker).toContain('const { mediaId, permalink } = await publicar(conta, postDaConta);');
   });
 });

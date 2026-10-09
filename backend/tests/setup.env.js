@@ -16,6 +16,8 @@ process.env.TZ = 'America/Sao_Paulo';
    teste (TEST_DATABASE_URL para apontar outro). */
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgres://postgres@127.0.0.1:54329/insta_test';
 process.env.JEST = '1';
+/* Variações de Mídia numa pasta só dos testes (ver preparoDeMidia.js). */
+process.env.PREPAROS_DIR = require('path').join(require('os').tmpdir(), `preparos-teste-${process.pid}`);
 
 /* A janela de publicação (8h–22h por padrão) usa o relógio de verdade: sem
    isto, os testes que publicam falhariam só por rodar de madrugada. O teste

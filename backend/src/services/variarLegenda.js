@@ -5,7 +5,7 @@
  *
  * ── O problema
  *
- * A mesma campanha manda a MESMA legenda para N contas. Legenda idêntica em
+ * O mesmo envio manda a MESMA legenda para N contas. Legenda idêntica em
  * várias contas, no mesmo intervalo, é um dos sinais mais fáceis de o Instagram
  * casar — não precisa olhar o vídeo, basta comparar o texto. O hash único por
  * publicação já cuida dos bytes do vídeo ([[project_dois_429]] não, mas

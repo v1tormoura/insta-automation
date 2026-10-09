@@ -5,7 +5,7 @@
  *
  * ── Por que existe ──────────────────────────────────────────────────────────
  * Escrever legenda para dezenas de combinações conta × conteúdo é o gargalo
- * manual da campanha. Aqui o modelo devolve N variações prontas; quem edita
+ * manual. Aqui o modelo devolve N variações prontas; quem edita
  * continua sendo o usuário — nada é publicado direto.
  *
  * ── Decisões ────────────────────────────────────────────────────────────────
@@ -13,9 +13,8 @@
  *   torcer: o schema é validado pela própria API, então não há parse defensivo
  *   de texto solto nem sugestão perdida por uma vírgula a mais.
  *
- * • As marcações do templateResolver ({username}, {campaign}…) entram no prompt
- *   como vocabulário permitido. Sem isso o modelo escreveria "@seuperfil" em
- *   texto puro e a legenda sairia igual em todas as contas.
+ * • Sem marcações entre chaves ({username}…): a legenda do Postar e do Loop é
+ *   publicada exatamente como escrita, e uma marcação sairia como texto literal.
  *
  * • Sem chave configurada, `disponivel()` devolve false e a rota responde 503
  *   com instrução — em vez de estourar um erro cru na tela do usuário.
@@ -23,12 +22,8 @@
 
 const MODELO = 'claude-opus-5';
 
-// Marcações que o templateResolver sabe resolver na publicação. Manter em
-// sincronia com VARIAVEIS em templateResolver.js: uma marcação inventada aqui
-// sairia publicada como texto literal.
-const MARCACOES = [
-  '{username}', '{name}', '{campaign}', '{content}', '{date}', '{time}',
-];
+// Nenhuma marcação é substituída na publicação da legenda (só no comentário).
+const MARCACOES = [];
 
 const TONS = {
   neutro:      'natural e direto, sem exageros',
@@ -109,8 +104,8 @@ const SISTEMA = [
   '• Nunca invente dados concretos (preço, prazo, número de clientes, resultado)',
   '  que não estejam no briefing — texto publicitário falso gera problema real',
   '  para quem publica.',
-  `• Marcações disponíveis, que serão substituídas na publicação: ${MARCACOES.join(', ')}.`,
-  '  Use-as quando personalizarem de verdade; não force nenhuma.',
+  '• Não use marcações entre chaves ({username}, {nome}…): a legenda é publicada',
+  '  exatamente como escrita.',
   '• O campo "gancho" descreve o ângulo em até 6 palavras — é rótulo de escolha,',
   '  não parte da legenda.',
 ].join('\n');

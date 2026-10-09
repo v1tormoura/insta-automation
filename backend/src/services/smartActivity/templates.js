@@ -56,8 +56,8 @@ const VARIAVEIS = Object.freeze({
   aviso:         'Nome do aviso que voltou ao normal',
   horas:         'Por quantas horas o problema durou',
 
-  /* Envios (Postar, Loop, Campanha, Stories). */
-  origem:        'De onde saiu o envio (Postar, Loop, Campanha, Stories) — no webhook, de onde veio a pessoa (@conta ou link)',
+  /* Envios (Postar, Loop, Stories). */
+  origem:        'De onde saiu o envio (Postar, Loop, Stories) — no webhook, de onde veio a pessoa (@conta ou link)',
   nome:          'Nome do envio',
   tipo:          'reels, fotos ou stories (no singular quando é um só)',
   publicadas:    'Publicações que saíram (no fim do envio)',

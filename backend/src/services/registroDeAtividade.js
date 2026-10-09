@@ -2,7 +2,7 @@
 
 /**
  * Registro de atividade — o que cada usuário fez no painel, com hora, IP e
- * aparelho. Responde "quem apagou essa campanha?" e "alguém entrou na minha
+ * aparelho. Responde "quem apagou esse envio?" e "alguém entrou na minha
  * conta?".
  *
  * Duas fontes:
@@ -28,13 +28,6 @@ const ACOES = [
   ['PATCH',  /^\/posts\/[^/]+\/cancel$/,              'Cancelou um envio'],
   ['POST',   /^\/posts\/[^/]+\/retry$/,               'Tentou de novo um envio'],
   ['DELETE', /^\/posts\/[^/]+$/,                      'Apagou um envio'],
-  ['POST',   /^\/campaigns\/?$/,                      'Criou uma campanha'],
-  ['POST',   /^\/campaigns\/[^/]+\/start$/,           'Iniciou uma campanha'],
-  ['POST',   /^\/campaigns\/[^/]+\/pause$/,           'Pausou uma campanha'],
-  ['POST',   /^\/campaigns\/[^/]+\/resume$/,          'Retomou uma campanha'],
-  ['POST',   /^\/campaigns\/[^/]+\/cancel$/,          'Cancelou uma campanha'],
-  ['DELETE', /^\/campaigns\/[^/]+$/,                  'Apagou uma campanha'],
-  ['POST',   /^\/campaigns\/preview$/,                null],
   ['DELETE', /^\/accounts\/[^/]+$/,                   'Removeu uma conta do Instagram'],
   ['POST',   /^\/accounts\/(sync-all|[^/]+\/sync)$/,  'Atualizou contas do Instagram'],
   ['POST',   /^\/media\/upload$/,                     'Enviou mídias para a biblioteca'],

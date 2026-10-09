@@ -53,7 +53,7 @@ describe('TOTP', () => {
 describe('descrição das ações', () => {
   test('ações conhecidas em português, barulho fica de fora', () => {
     expect(atividade.descrever('POST', '/posts')).toBe('Mandou publicar');
-    expect(atividade.descrever('DELETE', '/campaigns/abc')).toBe('Apagou uma campanha');
+    expect(atividade.descrever('DELETE', '/loops/abc')).toBe('Apagou um loop');
     expect(atividade.descrever('PATCH', '/notificacoes/1/lida')).toBeNull();
     expect(atividade.descrever('POST', '/rota-nova')).toBe('Fez algo em rota-nova');
   });

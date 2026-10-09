@@ -8,8 +8,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
  * Só apresentação: recebe as contas, o que já foi escolhido para cada uma e
  * três ações (escolher da biblioteca, enviar arquivo, limpar). Quem monta o
  * formulário decide onde a escolha é guardada — no Postar é nome de arquivo
- * (e às vezes um File ainda não enviado), na Campanha é o id da Media. O
- * componente não sabe nem precisa saber.
+ * (e às vezes um File ainda não enviado). O componente não sabe nem precisa saber.
  *
  * Lista, não grade: o que se lê aqui é "@conta → capa", um par por linha, e
  * a coluna do @ precisa de largura para nomes longos. A miniatura é vertical

@@ -11,7 +11,6 @@
  *   o Post não guardava o job          → a informação existia no Job e nunca
  *                                        descia para cá
  *   o Post não guardava o `igMediaId`  → a publicação SEMPRE devolveu esse id
- *                                        (a campanha já o usava para comentar)
  *                                        e `Insight` já guardava `videoViews`
  *                                        por mídia. Os dois lados existiam sem
  *                                        nada no meio.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../../services/api';
+import api from '../services/api';
 
 /**
  * Geração de legenda por IA.
@@ -24,7 +24,7 @@ const TONS = [
 
 export default function AiCaptionModal({
   aberta,
-  contexto = '',        // nome da campanha/conteúdo, para pré-preencher o briefing
+  contexto = '',        // nome do conteúdo, para pré-preencher o briefing
   textoAtual = '',      // usado como referência de estilo, quando existir
   onAplicar,            // (texto) => void
   onFechar,
@@ -111,8 +111,7 @@ export default function AiCaptionModal({
         ) : (
           <>
             <p style={{ margin: '0 0 14px', fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.6 }}>
-              Descreva o post. As marcações do painel ({'{username}'}, {'{campaign}'}) podem
-              aparecer no texto e são substituídas na publicação.
+              Descreva o post. As sugestões saem prontas para publicar, exatamente como escritas.
             </p>
 
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>

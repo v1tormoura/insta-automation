@@ -1,82 +1,35 @@
 'use strict';
 
 /**
- * A fila do painel, e as postagens de hoje.
+ * A fila do painel: publicações avulsas + envios (Postar e Loop).
  *
- * ── O que motivou
- *
- * Subir uma campanha com trinta publicações não mudava nada na fila do painel:
- * ele somava `Post` e `Job` e não olhava para `CampaignPublication`, onde as
- * publicações planejadas vivem até a hora de executar.
- *
- * Do lado, a tela de Campanhas mostrava as trinta. Dois números do mesmo
- * produto discordando é pior que um número ausente — um deles está mentindo e
- * não dá para saber qual.
- *
- * ── Por que estes testes existem
- *
- * A soma morava no meio de um `Promise.all` de quinze consultas. Ninguém
- * revisa uma aritmética escondida ali, e foi assim que uma das três origens
- * ficou de fora sem que nada acusasse.
+ * A soma morava no meio de um `Promise.all` de consultas. Ninguém revisa uma
+ * aritmética escondida ali — por isso ela é uma função com testes.
  */
 
-const { somarFilas, porStatus } =
-  require('../src/controllers/contagemDaFila');
+const { somarFilas } = require('../src/controllers/contagemDaFila');
 
-describe('a fila soma as três origens', () => {
-  test('publicação avulsa, lote e campanha', () => {
+describe('a fila soma as duas origens', () => {
+  test('publicação avulsa e lote', () => {
     const r = somarFilas(
       { agendados: 2, processando: 1, pendentes: 3 },
       { rodando: 2, enfileirados: 5 },
-      { scheduled: 30, processing: 1, pending: 7 },
     );
-    expect(r).toEqual({ agendados: 32, processando: 4, pendentes: 15 });
-  });
-
-  test('a campanha sozinha aparece na fila', () => {
-    /* O caso do relato: nenhuma publicação avulsa, nenhum lote, e uma campanha
-       recém-subida. Antes isto dava zero em tudo. */
-    const r = somarFilas({}, {}, { scheduled: 28, pending: 2 });
-    expect(r.agendados).toBe(28);
-    expect(r.pendentes).toBe(2);
+    expect(r).toEqual({ agendados: 2, processando: 3, pendentes: 8 });
   });
 
   test('origem ausente conta zero, não quebra', () => {
-    /* O agrupamento por status devolve só os status que existem. Um painel que
-       lança porque ninguém agendou nada seria pior que um número errado. */
     expect(somarFilas()).toEqual({ agendados: 0, processando: 0, pendentes: 0 });
-    expect(somarFilas(null, undefined, {})).toEqual(
-      { agendados: 0, processando: 0, pendentes: 0 });
+    expect(somarFilas(null, undefined)).toEqual({ agendados: 0, processando: 0, pendentes: 0 });
   });
 
   test('valor inválido não contamina a soma', () => {
-    /* `undefined` numa soma vira NaN, e NaN na tela é pior que zero: some do
-       gráfico, quebra comparações, e não diz que veio de um campo ausente. */
+    /* `undefined` numa soma vira NaN, e NaN na tela é pior que zero. */
     const r = somarFilas(
       { agendados: undefined, processando: null, pendentes: 'x' },
       { rodando: -3, enfileirados: 4 },
-      {},
     );
     expect(r).toEqual({ agendados: 0, processando: 0, pendentes: 4 });
-  });
-});
-
-describe('agrupamento por status', () => {
-  test('converte a saída do group by', () => {
-    expect(porStatus([{ status: 'scheduled', n: 28 }, { status: 'pending', n: 2 }]))
-      .toEqual({ scheduled: 28, pending: 2 });
-  });
-
-  test('agregado vazio ou com falha vira objeto vazio', () => {
-    /* O `.catch(() => [])` da consulta entrega array vazio quando o banco
-       tropeça. O painel precisa continuar de pé com os outros números. */
-    for (const v of [[], null, undefined, 'não é lista']) {
-      expect(porStatus(v)).toEqual({});
-    }
-  });
-
-  test('linha sem status é descartada', () => {
-    expect(porStatus([{ n: 5 }, { status: 'pending', n: 2 }])).toEqual({ pending: 2 });
   });
 });
 

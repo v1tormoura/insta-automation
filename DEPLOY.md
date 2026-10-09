@@ -92,10 +92,10 @@ precisam ser profissionais (Empresa ou Criador).
 - **Outras pessoas**: em `https://DOMAIN/cadastro` (ou "Criar conta" no login)
   pedem acesso com nome, e-mail e senha. O pedido fica **pendente** e você recebe
   um aviso; aprove em **Sistema → Usuários**.
-- Cada usuário tem as próprias contas, envios, campanhas, biblioteca, legendas e
+- Cada usuário tem as próprias contas, envios, biblioteca, legendas e
   métricas — ninguém vê o que é do outro. O app da Meta é um só (o do admin) e
   todos conectam por ele.
-- **Bloquear** corta o acesso na hora e pausa os envios e campanhas da pessoa.
+- **Bloquear** corta o acesso na hora e pausa os envios da pessoa.
   **Apagar** remove o usuário e tudo que é dele (pede o e-mail para confirmar).
 - Com o app da Meta em modo de desenvolvimento, o usuário pede em **Contas →
   Convites** para a conta dele virar testadora; você vê o pedido e convida no

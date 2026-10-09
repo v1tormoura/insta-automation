@@ -3,7 +3,7 @@ import api from '../services/api';
 import PageShell from '../components/PageShell';
 import Toast from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
-import AiCaptionModal from '../components/campaign/AiCaptionModal';
+import AiCaptionModal from '../components/AiCaptionModal';
 import { EsqueletoGrade } from '../components/Estados';
 import { Vazio } from '../components/Estados';
 import './Legends.css';

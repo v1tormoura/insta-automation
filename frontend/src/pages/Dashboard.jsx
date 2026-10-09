@@ -921,7 +921,7 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [loadStats, loadInsights, loadLoops]);
 
-  useServerEvents(['posts','accounts','jobs','campaigns','stories','insights'], () => {
+  useServerEvents(['posts','accounts','jobs','stories','insights'], () => {
     loadRef.current?.(); loadStats(); loadInsights(); loadLoops();
   });
 

@@ -8,9 +8,10 @@ da Meta** (API do Instagram com login do Instagram).
   comentário fixado.
 - **Loop** — republica uma lista de mídias em ciclo.
 - **Stories** — imagem ou vídeo 9:16, com texto queimado na imagem.
-- **Campanhas** — plano conta × conteúdo com legendas e comentários por nível,
-  prévia, pausa, retomada e reprocessamento individual.
-- **Métricas** — alcance, visualizações, público e ranking por conta e por post.
+- **Variações de Mídia** — converte vídeos e fotos para 9:16, 4:5, 1:1 em lote
+  (enquadramento, qualidade, trecho, ajustes, upscale), sem metadados.
+- **Webhook** — leads, cliques e vendas do bot de vendas, com receita por Reel.
+- **Métricas** — alcance, visualizações, público e top posts por conta.
 - **Contas** — conexão por OAuth, saúde do token e renovação automática.
 - **Usuários** — cadastro com aprovação do admin; cada usuário vê só o que é dele.
 

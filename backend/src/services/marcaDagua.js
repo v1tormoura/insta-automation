@@ -197,8 +197,8 @@ function filtroDaMarca(config, username, fonte = acharFonte(), alturaDaMidia = A
  * A configuração que chegou no corpo da requisição, ou `null`.
  *
  * O Postar envia como `multipart/form-data` (por causa dos arquivos), e ali
- * todo campo é texto — o objeto chega como JSON numa string. O Loop e a
- * campanha enviam JSON e o objeto chega pronto. Aceitar as duas formas num só
+ * todo campo é texto — o objeto chega como JSON numa string. O Loop envia
+ * JSON e o objeto chega pronto. Aceitar as duas formas num só
  * lugar evita cada controller inventar o seu parse, que é como se acumulam três
  * comportamentos diferentes para a mesma opção.
  *
