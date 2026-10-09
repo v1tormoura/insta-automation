@@ -384,40 +384,11 @@ async function processarComentarioFixado({ accountId, mediaId, texto }) {
   }
 }
 
-/** O que a tela precisa para oferecer o download de cada arquivo pronto. */
-const arquivosDoFim = itens => itens.slice(0, 200).map(i => ({ id: i.id, nome: i.originalName, url: i.url, tipo: i.type, tamanho: i.size }));
-
 function handlers() {
   return {
     job_round: processarRodada,
     post: processarPost,
     comentario_fixado: processarComentarioFixado,
-    importar_url: async ({ usuarioId, url, qualidade, formato, formatoFoto, ia, pasta }) => {
-      let r;
-      try {
-        const contas = await accounts.de(usuarioId).findMany();
-        r = await require('./services/importarDoInstagram').importarUrl({ usuarioId, contas, url, qualidade, formato, formatoFoto, ia, pasta });
-      } catch (err) {
-        r = { importados: [], erros: [err.message] };
-      }
-      broadcast('media', { action: 'importacao_fim', importados: r.importados.length, arquivos: arquivosDoFim(r.importados), erros: r.erros.length, detalhes: r.erros.slice(0, 5) }, usuarioId);
-    },
-    converter_midias: async ({ usuarioId, ids, qualidade, formato, formatoFoto, ia, pasta, substituir }) => {
-      const r = await require('./services/importarDoInstagram').converterDaBiblioteca({
-        usuarioId, ids, qualidade, formato, formatoFoto, ia, pasta, substituir,
-        aoProgredir: p => broadcast('media', { action: 'importacao', ...p }, usuarioId),
-      });
-      broadcast('media', { action: 'importacao_fim', importados: r.importados.length, arquivos: arquivosDoFim(r.importados), erros: r.erros.length, detalhes: r.erros.slice(0, 5) }, usuarioId);
-    },
-    importar_midias: async ({ usuarioId, accountId, ids, qualidade, formato, formatoFoto, ia, pasta }) => {
-      const conta = await accounts.findById(accountId);
-      if (!conta || conta.usuarioId !== usuarioId) return;
-      const r = await require('./services/importarDoInstagram').importar({
-        usuarioId, conta, ids, qualidade, formato, formatoFoto, ia, pasta,
-        aoProgredir: p => broadcast('media', { action: 'importacao', ...p }, usuarioId),
-      });
-      broadcast('media', { action: 'importacao_fim', importados: r.importados.length, arquivos: arquivosDoFim(r.importados), erros: r.erros.length, detalhes: r.erros.slice(0, 5) }, usuarioId);
-    },
     story: dados => require('./services/stories').processar(dados),
     preparo_midia: dados => require('./services/preparoDeMidia').processar(dados),
   };

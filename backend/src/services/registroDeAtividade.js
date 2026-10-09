@@ -32,7 +32,6 @@ const ACOES = [
   ['POST',   /^\/accounts\/(sync-all|[^/]+\/sync)$/,  'Atualizou contas do Instagram'],
   ['POST',   /^\/media\/upload$/,                     'Enviou mídias para a biblioteca'],
   ['DELETE', /^\/media\//,                            'Apagou da biblioteca'],
-  ['POST',   /^\/importar\/?$/,                       'Importou Reels'],
   ['POST',   /^\/api\/stories\/?$/,                   'Publicou stories'],
   ['POST',   /^\/loops\/?$/,                          'Criou um loop'],
   ['POST',   /^\/loops\/[^/]+\/toggle$/,              'Ligou/desligou um loop'],

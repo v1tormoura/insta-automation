@@ -272,7 +272,7 @@ async function validarArquivo(arquivo, { aplicarEm = 'tudo' } = {}) {
 const par = n => Math.max(2, Math.round(n / 2) * 2);
 
 /*
- * Realce de qualidade (upscale), o mesmo do Importar, na ordem que importa:
+ * Realce de qualidade (upscale), na ordem que importa:
  *   1. hqdn3d  — tira o ruído e os blocos da compressão ANTES de ampliar
  *                (ampliado, o ruído vira mancha e a nitidez o realçaria);
  *   2. lanczos — o redimensionamento passa a usar Lanczos (mais nítido que o bicúbico);

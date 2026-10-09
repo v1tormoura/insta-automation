@@ -1,31 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, Check, AlertTriangle } from 'lucide-react';
-import { useTarefas, obter, progredir, concluir } from '../services/tarefas';
-import { useServerEvents } from '../services/useServerEvents';
-import { baixarTodos } from '../services/downloads';
+import { useTarefas } from '../services/tarefas';
 
-/**
- * O que está rodando em segundo plano, visível em qualquer tela — e o ouvinte
- * da importação, que precisa estar SEMPRE montado: o progresso chega pelo SSE
- * e, se só a tela do Importar escutasse, sair dela perderia o fim (e os
- * downloads do destino "Baixar").
- */
+/** O que está rodando em segundo plano (envios do Postar, Variações…), visível em qualquer tela. */
 export default function IndicadorDeTarefas() {
   const tarefas = useTarefas();
   const { pathname } = useLocation();
   const navegar = useNavigate();
-
-  useServerEvents(['media'], d => {
-    const t = obter('importar');
-    if (!t || t.fase !== 'rodando' || !t.dados?.servidor) return;
-    if (d?.action === 'importacao') progredir('importar', { feitas: d.feitas, total: d.total, etapa: 'Processando' });
-    if (d?.action === 'importacao_fim') {
-      const arquivos = d.arquivos || [];
-      concluir('importar', { dados: { importados: d.importados, erros: d.erros, detalhes: d.detalhes || [], arquivos } });
-      const destino = t.dados.destino;
-      if (destino && destino !== 'biblioteca' && arquivos.length) baixarTodos(arquivos, destino === 'baixar');
-    }
-  });
 
   // A própria tela mostra o seu progresso; aqui só o que está em outra tela.
   const visiveis = tarefas.filter(t => !t.consumida && t.rota !== pathname);

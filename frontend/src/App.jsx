@@ -29,7 +29,6 @@ const Performance         = lazy(() => import('./pages/Performance'));
 const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
 const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
 const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
-const Importar            = lazy(() => import('./pages/Importar'));
 const Variacoes           = lazy(() => import('./pages/Variacoes'));
 const Webhook             = lazy(() => import('./pages/Webhook'));
 const Atividade           = lazy(() => import('./pages/Atividade'));
@@ -124,7 +123,7 @@ export default function App() {
               <Route path="/usuarios"       element={<SoAdmin><Usuarios /></SoAdmin>} />
               <Route path="/oauth-contas"   element={<OAuthAccounts />} />
               <Route path="/biblioteca"          element={<MediaLibrary />} />
-              <Route path="/importar"            element={<Importar />} />
+              <Route path="/importar"            element={<Navigate to="/variacoes" replace />} />
               <Route path="/variacoes"           element={<Variacoes />} />
               <Route path="/webhook"             element={<Webhook />} />
               <Route path="/atividade"           element={<Atividade />} />

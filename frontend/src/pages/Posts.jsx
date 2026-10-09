@@ -175,29 +175,25 @@ function rotuloDeIntervalo(min) {
 
 /* ── Quando começar ────────────────────────────────────────────────────────
 
-   Cada atalho calcula a data na hora do clique, não na montagem da tela: a
-   página fica aberta por muito tempo enquanto se escolhe mídia e conta, e
-   "Hoje 19h" calculado no carregamento poderia já ter passado quando o botão
-   for clicado.
-
-   "Hoje 19h" depois das 19h vira amanhã às 19h. Agendar para o passado faria o
-   BullMQ disparar tudo de imediato — que é o oposto do que o botão promete. */
+   "Daqui 1h" e "Daqui X horas" são contados a partir do clique em Publicar,
+   não de quando a opção foi escolhida: a tela fica aberta enquanto se escolhe
+   mídia e conta, e "daqui 3 horas" precisa valer a partir do envio. */
 const INICIOS = [
-  { id: 'agora',    rotulo: 'Agora',       quando: () => null },
-  { id: 'em1h',     rotulo: 'Em 1h',       quando: () => new Date(Date.now() + 3_600_000) },
-  { id: 'hoje19',   rotulo: 'Hoje 19h',    quando: () => proximaHora(19) },
-  { id: 'amanha09', rotulo: 'Amanhã 09h',  quando: () => proximaHora(9, 1) },
-  { id: 'escolher', rotulo: 'Escolher',    quando: () => null },
+  { id: 'agora',    rotulo: 'Agora' },
+  { id: 'em1h',     rotulo: 'Daqui 1h' },
+  { id: 'emHoras',  rotulo: 'Daqui X horas' },
+  { id: 'escolher', rotulo: 'Escolher' },
 ];
+const HORAS_DEPOIS = [2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36, 48];
 
-/** A próxima ocorrência daquela hora; passa para o dia seguinte se já passou. */
-function proximaHora(hora, somarDias = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + somarDias);
-  d.setHours(hora, 0, 0, 0);
-  if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
-  return d;
+/** Quando o envio começa (Date) — ou null para "agora". */
+function inicioDoEnvio(id, horas, escolhido) {
+  if (id === 'em1h') return new Date(Date.now() + 3_600_000);
+  if (id === 'emHoras') return new Date(Date.now() + Math.max(1, Number(horas) || 1) * 3_600_000);
+  if (id === 'escolher' && escolhido) return new Date(escolhido);
+  return null;
 }
+const horaCurta = d => d.toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', '');
 
 /**
  * Data no formato que `<input type="datetime-local">` aceita.
@@ -407,6 +403,8 @@ export default function Posts() {
   const [aquecimento,     setAquecimento]     = useState(false);
   const [postsPor24h,     setPostsPor24h]     = useState(10);
   const [inicioEscolhido, setInicioEscolhido] = useState('agora');
+  const [horasDepois,     setHorasDepois]     = useState(3);
+  const inicio = inicioDoEnvio(inicioEscolhido, horasDepois, scheduledAt);
   const [intervaloProprio, setIntervaloProprio] = useState(false);
 
   const DRAFT_POSTS_KEY = 'posts_form_draft_v1';
@@ -631,8 +629,10 @@ export default function Posts() {
        `dailyPostLimit` das contas — cada uma mantém o seu. */
     if (marcaDagua.ativa) form.append('marcaDagua', JSON.stringify(marcaDagua));
     if (ctaComment.trim())    form.append('ctaComment', ctaComment);
-    if (scheduledAt) form.append('scheduledAt', new Date(scheduledAt).toISOString());
-    const mensagemDoFim = scheduledAt ? 'Posts agendados!' : loopInfinito ? 'Loop infinito iniciado!' : 'Posts enviados!';
+    /* Recalculado agora, no clique: "daqui 1h" conta a partir do envio. */
+    const comeca = inicioDoEnvio(inicioEscolhido, horasDepois, scheduledAt);
+    if (comeca) form.append('scheduledAt', comeca.toISOString());
+    const mensagemDoFim = comeca ? 'Posts agendados!' : loopInfinito ? 'Loop infinito iniciado!' : 'Posts enviados!';
     /* Loop infinito não tem total: ele volta ao começo quando as mídias
        acabam, então anunciar um número seria anunciar um fim que não vem. */
     const detalheDoFim = loopInfinito
@@ -711,7 +711,7 @@ export default function Posts() {
         ) : posted ? (
           <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Publicado!</>
         ) : (
-          scheduledAt ? 'Agendar' : 'Publicar agora'
+          inicio ? 'Agendar' : 'Publicar agora'
         )}
       </button>
     </>
@@ -1326,26 +1326,32 @@ export default function Posts() {
                 </Campo>
 
                 <Campo rotulo="Início" icone={CalendarClock}
-                  ajuda={scheduledAt
-                    ? `Começa em ${new Date(scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.`
-                    : 'Começa assim que você publicar.'}>
-                  <Opcoes
+                  ajuda={inicio
+                    ? `Começa em ${inicio.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${inicioEscolhido === 'escolher' ? '' : ' (contado a partir de quando você publicar)'}.`
+                    : inicioEscolhido === 'escolher' ? 'Escolha a data e a hora.' : 'Começa assim que você publicar.'}>
+                  <Opcoes colunas={2}
                     opcoes={INICIOS.map(i => {
-                      const q = i.quando();
-                      const sub = i.id === 'agora' ? 'Imediato' : i.id === 'escolher' ? 'Data e hora' : q
-                        ? q.toLocaleString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', '')
-                        : '';
-                      return [i.id, i.rotulo, sub, i.id === 'escolher'];
+                      const sub = i.id === 'agora' ? 'Imediato'
+                        : i.id === 'em1h' ? horaCurta(inicioDoEnvio('em1h'))
+                        : i.id === 'emHoras' ? (inicioEscolhido === 'emHoras' ? `${horasDepois}h · ${horaCurta(inicioDoEnvio('emHoras', horasDepois))}` : 'Escolher no menu')
+                        : 'Data e hora';
+                      return [i.id, i.id === 'emHoras' && inicioEscolhido === 'emHoras' ? `Daqui ${horasDepois}h` : i.rotulo, sub];
                     })}
                     atual={inicioEscolhido}
                     onEscolher={id => {
                       setInicioEscolhido(id);
-                      const quando = INICIOS.find(i => i.id === id)?.quando?.();
-                      setScheduledAt(quando ? paraCampoLocal(quando) : '');
+                      if (id !== 'escolher') setScheduledAt('');
                     }}
                   />
+                  {inicioEscolhido === 'emHoras' && (
+                    <select className="inp" data-horas-depois aria-label="Daqui quantas horas" style={{ marginTop: 8, height: 42 }}
+                      value={horasDepois} onChange={e => setHorasDepois(Number(e.target.value))}>
+                      {HORAS_DEPOIS.map(h => <option key={h} value={h}>Daqui {h} horas</option>)}
+                    </select>
+                  )}
                   {inicioEscolhido === 'escolher' && (
                     <input className="inp" type="datetime-local" style={{ marginTop: 8, height: 42 }}
+                      min={paraCampoLocal(new Date())}
                       value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
                   )}
                 </Campo>
@@ -1437,11 +1443,11 @@ export default function Posts() {
                   ) : (
                     <>
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                        {scheduledAt
+                        {inicio
                           ? <><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></>
                           : <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}
                       </svg>
-                      {scheduledAt ? 'Agendar postagens' : 'Publicar agora'}
+                      {inicio ? 'Agendar postagens' : 'Publicar agora'}
                     </>
                   )}
                 </button>
