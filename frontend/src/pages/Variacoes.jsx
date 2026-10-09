@@ -346,6 +346,15 @@ export default function Variacoes() {
                 </div>
                 <div style={nota}>Vazio no fim = até o final do vídeo. Vale para todos os vídeos deste envio.</div>
               </div>
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', cursor: 'pointer' }}>
+                  <input type="checkbox" data-realce checked={config.realce} onChange={e => muda({ realce: e.target.checked })} /> Realce de qualidade (upscale)
+                </label>
+                <div style={{ ...nota, marginLeft: 24 }}>
+                  Para vídeos e fotos em resolução baixa: tira o ruído da compressão, amplia com Lanczos e reforça a nitidez.
+                  No "Original", amplia até a largura escolhida. Não inventa detalhe e deixa o processamento ~30% mais lento.
+                </div>
+              </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', cursor: 'pointer' }}>
                 <input type="checkbox" checked={config.semAudio} onChange={e => muda({ semAudio: e.target.checked })} /> Remover o áudio dos vídeos
               </label>

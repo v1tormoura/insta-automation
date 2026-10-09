@@ -91,6 +91,28 @@ describe('peças puras', () => {
   });
 });
 
+describe('realce de qualidade (upscale)', () => {
+  test('só no avançado; desruído antes, Lanczos na escala, nitidez depois', () => {
+    expect(preparo.normalizarConfig({ modo: 'rapido', realce: true }).realce).toBe(false);
+    const cfg = preparo.normalizarConfig({ modo: 'avancado', realce: true, formatos: ['9x16'] });
+    const vf = preparo.filtros(cfg, '9x16', { tipo: 'video' }).simples;
+    expect(vf.indexOf('hqdn3d')).toBeLessThan(vf.indexOf('flags=lanczos'));
+    expect(vf.indexOf('flags=lanczos')).toBeLessThan(vf.indexOf('cas='));
+    expect(preparo.filtros(preparo.normalizarConfig({ formatos: ['9x16'] }), '9x16', { tipo: 'video' }).simples).not.toMatch(/hqdn3d|lanczos|cas=/);
+  });
+
+  test('no "Original", amplia uma foto pequena até a largura escolhida', async () => {
+    const saida = path.join(DIR, 'ampliada.jpg');
+    const v = await preparo.validarArquivo(FOTO); // 320×240 girada → 240×320
+    const config = preparo.normalizarConfig({ modo: 'avancado', realce: true, formatos: ['original'], larguraOriginal: 1080 });
+    execFileSync(FFMPEG_BIN, preparo.argumentos({ entrada: FOTO, saida, config, formato: 'original', tipo: 'imagem', info: v.info }));
+    expect((await preparo.sondar(saida))).toMatchObject({ largura: 1080, altura: 1440 });
+    const sem = preparo.normalizarConfig({ modo: 'avancado', formatos: ['original'], larguraOriginal: 1080 });
+    execFileSync(FFMPEG_BIN, preparo.argumentos({ entrada: FOTO, saida, config: sem, formato: 'original', tipo: 'imagem', info: v.info }));
+    expect((await preparo.sondar(saida))).toMatchObject({ largura: 240, altura: 320 });
+  });
+});
+
 describe('privacidade', () => {
   test('a saída não leva localização, aparelho nem data do original', () => {
     const entrada = path.join(DIR, 'celular.mov');

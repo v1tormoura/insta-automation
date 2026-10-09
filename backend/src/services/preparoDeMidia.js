@@ -95,6 +95,7 @@ function normalizarConfig(bruta = {}) {
     formatoFoto: avancado && FORMATOS_FOTO.includes(c.formatoFoto) ? c.formatoFoto : 'jpg',
     larguraOriginal: avancado && LARGURAS_ORIGINAL.includes(Number(c.larguraOriginal)) ? Number(c.larguraOriginal) : 1080,
     semAudio: avancado && c.semAudio === true,
+    realce: avancado && c.realce === true,
     trecho: avancado ? {
       inicio: limitar(trecho.inicio, 0, LIMITES.duracaoS, 0),
       fim: trecho.fim === null || trecho.fim === '' || trecho.fim === undefined ? null : limitar(trecho.fim, 0, LIMITES.duracaoS, null),
@@ -240,13 +241,29 @@ async function validarArquivo(arquivo, { aplicarEm = 'tudo' } = {}) {
 
 const par = n => Math.max(2, Math.round(n / 2) * 2);
 
+/*
+ * Realce de qualidade (upscale), o mesmo do Importar, na ordem que importa:
+ *   1. hqdn3d  — tira o ruído e os blocos da compressão ANTES de ampliar
+ *                (ampliado, o ruído vira mancha e a nitidez o realçaria);
+ *   2. lanczos — o redimensionamento passa a usar Lanczos (mais nítido que o bicúbico);
+ *   3. cas     — nitidez adaptativa: reforça borda sem estourar o que já é nítido.
+ * Não inventa detalhe (isso só IA faz), mas vídeo e foto pequenos ampliados
+ * ficam visivelmente mais limpos.
+ */
+const REALCE_ANTES = 'hqdn3d=1.5:1.5:4:4';
+const REALCE_DEPOIS = 'cas=0.6';
+
 /** Filtros de vídeo (string do -vf ou do -filter_complex) para um formato. */
 function filtros(config, formato, { tipo, orientacao = 1 } = {}) {
   const f = FORMATOS[formato];
+  const realce = config.realce === true;
+  const lanczos = realce ? ':flags=lanczos' : '';
   const antes = [];
   if (tipo === 'imagem' && FILTRO_ORIENTACAO[orientacao]) antes.push(FILTRO_ORIENTACAO[orientacao]);
+  if (realce) antes.push(REALCE_ANTES);
 
   const depois = [];
+  if (realce) depois.push(REALCE_DEPOIS);
   const { brilho, contraste, saturacao, nitidez } = config.ajustes;
   if (brilho || contraste || saturacao) {
     depois.push(`eq=brightness=${(brilho / 100).toFixed(3)}:contrast=${(1 + contraste / 100).toFixed(3)}:saturation=${(1 + saturacao / 100).toFixed(3)}`);
@@ -260,22 +277,24 @@ function filtros(config, formato, { tipo, orientacao = 1 } = {}) {
 
   if (!f.largura) {
     const max = config.larguraOriginal;
-    /* Mantém a proporção; só reduz (nunca amplia) e deixa par para o H.264. */
-    const escala = max ? `scale='min(iw,${max})':-2` : 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+    /* Mantém a proporção e deixa par para o H.264. Sem realce só reduz; com
+       realce a largura escolhida vale também para AMPLIAR o que é menor. */
+    const escala = !max ? `scale=trunc(iw/2)*2:trunc(ih/2)*2${lanczos}`
+      : realce ? `scale=${max}:-2${lanczos}` : `scale='min(iw,${max})':-2`;
     return { simples: `${pre}${escala},${pos}` };
   }
   const W = f.largura, H = f.altura;
   if (config.enquadramento === 'cortar') {
-    return { simples: `${pre}scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},${pos}` };
+    return { simples: `${pre}scale=${W}:${H}:force_original_aspect_ratio=increase${lanczos},crop=${W}:${H},${pos}` };
   }
   if (config.enquadramento === 'barras') {
-    return { simples: `${pre}scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,${pos}` };
+    return { simples: `${pre}scale=${W}:${H}:force_original_aspect_ratio=decrease${lanczos},pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=black,${pos}` };
   }
   // desfoque: a própria imagem, ampliada e desfocada, preenche o fundo.
   return {
     complexo: `[0:v]${pre}split=2[a][b];`
       + `[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20:2[fundo];`
-      + `[b]scale=${W}:${H}:force_original_aspect_ratio=decrease[frente];`
+      + `[b]scale=${W}:${H}:force_original_aspect_ratio=decrease${lanczos}[frente];`
       + `[fundo][frente]overlay=(W-w)/2:(H-h)/2,${pos}[v]`,
   };
 }

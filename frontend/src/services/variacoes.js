@@ -18,6 +18,7 @@ export const CONFIG_PADRAO = {
   formatoFoto: 'jpg',
   larguraOriginal: 1080,
   semAudio: false,
+  realce: false,
   trecho: { inicio: 0, fim: null },
   ajustes: { brilho: 0, contraste: 0, saturacao: 0, nitidez: 0 },
 };
@@ -65,7 +66,8 @@ const FATOR = { alta: 0.9, media: 0.7, leve: 0.4 }; // segundos de processamento
  */
 export function estimarSegundos(itens, config) {
   const n = Math.max(1, config.formatos.length);
-  const fator = (FATOR[config.qualidade] || 0.9) * (config.enquadramento === 'desfoque' ? 1.4 : 1);
+  const fator = (FATOR[config.qualidade] || 0.9) * (config.enquadramento === 'desfoque' ? 1.4 : 1)
+    * (config.modo === 'avancado' && config.realce ? 1.3 : 1);
   let total = 0;
   for (const it of itens) {
     total += it.tipo === 'video' ? (3 + duracaoUtil(it.duracao || 30, config) * fator) * n : 1.5 * n;
@@ -100,6 +102,7 @@ export function resumoDaConfig(config) {
       a.brilho && `brilho ${sinal(a.brilho)}%`, a.contraste && `contraste ${sinal(a.contraste)}%`,
       a.saturacao && `saturação ${sinal(a.saturacao)}%`, a.nitidez && `nitidez ${a.nitidez}%`,
     ].filter(Boolean);
+    if (config.realce) partes.push('realce de qualidade (upscale)');
     if (ajustes.length) partes.push(ajustes.join(', '));
     const t = config.trecho || {};
     if ((Number(t.inicio) || 0) > 0 || (t.fim != null && t.fim !== '')) partes.push(`vídeo de ${Number(t.inicio) || 0}s até ${t.fim == null || t.fim === '' ? 'o fim' : `${t.fim}s`}`);

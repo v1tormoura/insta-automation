@@ -38,6 +38,8 @@ describe('variações de mídia — contas da tela', () => {
     const r = resumoDaConfig({ ...CONFIG_PADRAO, modo: 'avancado', formatos: ['original'], ajustes: { brilho: 5, contraste: 0, saturacao: -10, nitidez: 0 }, semAudio: true, formatoFoto: 'webp' });
     expect(r).toBe('proporção original · qualidade alta · brilho +5%, saturação -10% · vídeo sem áudio · foto em WEBP');
     expect(filtroCss(CONFIG_PADRAO)).toBe('none');
+    expect(resumoDaConfig({ ...CONFIG_PADRAO, modo: 'avancado', realce: true })).toContain('realce de qualidade (upscale)');
+    expect(resumoDaConfig({ ...CONFIG_PADRAO, modo: 'rapido', realce: true })).not.toContain('realce');
   });
 
   test('Shift+clique marca o intervalo nos dois sentidos', () => {
