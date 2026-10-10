@@ -25,6 +25,9 @@ export function assetToDTO(row: AssetRow, repos: Repositories): AssetDTO {
   const meta = parseJson<MetadataInspection>(row.metadata_json);
   const byCategory: AssetDTO['metadataSummary']['byCategory'] = {};
   for (const i of meta?.items ?? []) byCategory[i.category] = (byCategory[i.category] ?? 0) + 1;
+  // Imagem com orientação EXIF que o decodificador não aplica (PNG/WEBP): exibida girada.
+  const o = meta?.orientation ?? null;
+  const swap = row.kind === 'image' && !!info && !info.decoderRotation && o !== null && o >= 5;
   const dupes =
     row.status === 'ready' ? repos.assetsByHash(row.session_id, row.sha256).filter((a) => a.id !== row.id).map((a) => a.id) : [];
   return {
@@ -39,8 +42,8 @@ export function assetToDTO(row: AssetRow, repos: Repositories): AssetDTO {
     createdAt: row.created_at,
     container: row.container,
     durationSec: info?.durationSec ?? null,
-    width: info?.displayWidth ?? null,
-    height: info?.displayHeight ?? null,
+    width: (swap ? info?.displayHeight : info?.displayWidth) ?? null,
+    height: (swap ? info?.displayWidth : info?.displayHeight) ?? null,
     fps: info?.fps ?? null,
     videoCodec: info?.videoCodec ?? null,
     audioCodec: info?.audioCodec ?? null,

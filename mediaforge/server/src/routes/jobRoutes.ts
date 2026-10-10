@@ -216,7 +216,7 @@ export async function jobRoutes(app: FastifyInstance, deps: Deps) {
   app.get('/api/previews/:name', async (req, reply) => {
     const s = await session(deps, req, reply);
     const name = (req.params as { name: string }).name;
-    if (!/^[A-Za-z0-9_-]{8,64}\.(mp4|jpg)$/.test(name)) throw new HttpError(400, 'invalid-id', 'Nome inválido.');
+    if (!/^[A-Za-z0-9_-]{8,64}\.(mp4|webm|jpg)$/.test(name)) throw new HttpError(400, 'invalid-id', 'Nome inválido.');
     return sendSessionFile(reply, ctx.storage.file(s.id, 'previews', name), { contentType: mimeOf(name) });
   });
 }

@@ -85,6 +85,11 @@ export interface MediaInfo {
   hasAlpha: boolean;
   /** Número de quadros quando é imagem animada/vídeo curto (quando conhecido). */
   frames?: number | null;
+  /**
+   * Rotação que o próprio decodificador aplica ao quadro (ex.: orientação EXIF de
+   * JPEG no FFmpeg 6+). Quando presente, o FFmpeg já gira a imagem sozinho.
+   */
+  decoderRotation?: number | null;
 }
 
 export interface AssetDTO {

@@ -69,7 +69,8 @@ export interface PlanContext {
   fontFileName: string;
   resolveAsset: (id: string) => PlanAsset | undefined;
   segment?: PlanSegment | null;
-  preview?: { maxSeconds: number; offset: number } | null;
+  /** Prévia curta e reduzida; WebM/VP9 para navegadores sem H.264. */
+  preview?: { maxSeconds: number; offset: number; container?: 'mp4' | 'webm' } | null;
 }
 
 export interface ExpectedOutput {
@@ -160,6 +161,24 @@ class Graph {
 
 const simple = (filter: string): FilterStep => ({ kind: 'simple', filter });
 
+/**
+ * Orientação EXIF que precisamos aplicar com filtros. Se o decodificador do
+ * FFmpeg já aplica (JPEG no FFmpeg 6+), devolve null para não girar duas vezes.
+ */
+export function manualOrientation(a: Pick<PlanAsset, 'info' | 'metadata'>): number | null {
+  if (a.info.decoderRotation) return null;
+  const o = a.metadata?.orientation ?? null;
+  return o && o > 1 ? o : null;
+}
+
+/** Dimensões de exibição de uma imagem considerando a orientação manual. */
+function orientedSize(a: Pick<PlanAsset, 'info' | 'metadata'>): { w: number; h: number } {
+  const o = manualOrientation(a);
+  const w = a.info.displayWidth ?? 2;
+  const h = a.info.displayHeight ?? 2;
+  return o !== null && o >= 5 ? { w: h, h: w } : { w, h };
+}
+
 function parseSettings(raw: unknown): ProcessingSettings {
   const r = processingSettingsSchema.safeParse(raw);
   if (!r.success) {
@@ -243,12 +262,8 @@ function planImage(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   if (e.audioTrack) skipped.push({ label: 'Trilha de áudio', reason: 'Imagens não têm áudio.' });
   if (e.subtitles) skipped.push({ label: 'Legendas', reason: 'Disponível apenas para vídeos.' });
 
-  const orientation = asset.metadata?.orientation ?? null;
-  const rotated = orientation !== null && orientation >= 5;
-  const srcW = info.displayWidth ?? 0;
-  const srcH = info.displayHeight ?? 0;
-  const dispW = rotated ? srcH : srcW;
-  const dispH = rotated ? srcW : srcH;
+  const orientation = manualOrientation(asset);
+  const { w: dispW, h: dispH } = orientedSize(asset);
   const geo = computeGeometry(dispW, dispH, s.geometry);
   const eq = eqFilter(s.color);
   const hasTexts = e.texts.length > 0;
@@ -307,6 +322,12 @@ function planImage(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   if (orient.length) {
     steps.push(...orient.map(simple));
     operations.push({ id: 'orientation', label: 'Orientação aplicada', detail: `EXIF ${orientation}: rotação gravada nos pixels` });
+  } else if (info.decoderRotation && asset.metadata?.orientation && asset.metadata.orientation > 1) {
+    operations.push({
+      id: 'orientation',
+      label: 'Orientação aplicada',
+      detail: `EXIF ${asset.metadata.orientation}: rotação aplicada pelo decodificador e gravada nos pixels`,
+    });
   }
   if (geometryChange) {
     steps.push(...geo.steps);
@@ -429,7 +450,7 @@ function colorOperation(s: ProcessingSettings): OperationRecord {
 
 function requireAsset(ctx: PlanContext, id: string, kinds: AssetKind[], label: string): PlanAsset {
   const a = ctx.resolveAsset(id);
-  if (!a) throw new PlanError([`${label}: arquivo auxiliar não encontrado nesta sessão (importe-o novamente).`]);
+  if (!a) throw new PlanError([`${label}: nenhum arquivo selecionado, ou o arquivo não está nesta sessão.`]);
   if (!kinds.includes(a.kind)) throw new PlanError([`${label}: "${a.name}" não é do tipo esperado (${kinds.join(' ou ')}).`]);
   return a;
 }
@@ -448,7 +469,7 @@ function addOverlay(
 ): string {
   const ow = even(W * o.scale);
   const margin = Math.round(Math.min(W, H) * o.margin);
-  const steps = [...orientationFilters(a.metadata?.orientation), `scale=${ow}:-2:flags=lanczos`, 'format=rgba'];
+  const steps = [...orientationFilters(manualOrientation(a)), `scale=${ow}:-2:flags=lanczos`, 'format=rgba'];
   if (o.opacity < 1) steps.push(`colorchannelmixer=aa=${num(o.opacity, 3)}`);
   const lg = g.label('ov');
   g.add(`${inputLabel}${steps.join(',')}${lg}`);
@@ -495,7 +516,7 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     if (requested !== 'original') skipped.push({ label: `Formato ${requested.toUpperCase()}`, reason: 'Formato de imagem não se aplica a vídeos; mantido o contêiner de vídeo.' });
     if (!src) warnings.push(`${asset.ext.toUpperCase()} não é contêiner de saída; o vídeo será gravado em MP4.`);
   }
-  if (preview) container = 'mp4';
+  if (preview) container = preview.container ?? 'mp4';
 
   // Corte (trim + divisão em partes)
   let start = s.trim.start ?? 0;
@@ -624,10 +645,8 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   ): { v: string; a: string | null } => {
     if (a.kind === 'image') {
       const idx = addInput(['-loop', '1', '-framerate', num(F2, 3), '-t', num(dur, 3)], a.path);
-      const o = a.metadata?.orientation ?? null;
-      const rot = o !== null && o >= 5;
-      const iw = rot ? a.info.displayHeight ?? 2 : a.info.displayWidth ?? 2;
-      const ih = rot ? a.info.displayWidth ?? 2 : a.info.displayHeight ?? 2;
+      const o = manualOrientation(a);
+      const { w: iw, h: ih } = orientedSize(a);
       const steps: FilterStep[] = [
         ...orientationFilters(o).map(simple),
         ...contentSteps(iw, ih, s.geometry, false).filter(
@@ -702,7 +721,7 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   // Codecs
   let vCodec: VideoCodec | 'copy';
   const vChoice = s.video.codec;
-  if (preview) vCodec = 'h264';
+  if (preview) vCodec = container === 'webm' ? 'vp9' : 'h264';
   // Automático: corte/divisão recodifica para os pontos de corte serem exatos
   // (cópia só corta em quadros-chave). Cópia com corte só quando pedida explicitamente.
   else if (vChoice === 'auto')
@@ -720,7 +739,7 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   let aCodec: AudioCodec | 'copy' | null = null;
   if (hasAudioOut) {
     const aChoice = s.audio.codec;
-    if (preview) aCodec = 'aac';
+    if (preview) aCodec = container === 'webm' ? 'opus' : 'aac';
     else if (aChoice === 'auto') aCodec = !audioFiltersNeeded && canCopyAudio(info.audioCodec, container) ? 'copy' : defaultAudioCodec(container);
     else if (aChoice === 'copy') {
       if (audioFiltersNeeded) errors.push('Cópia do fluxo de áudio é impossível com os ajustes de áudio selecionados; escolha um codec.');

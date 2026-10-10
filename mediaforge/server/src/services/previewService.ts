@@ -14,6 +14,8 @@ export const previewRequestSchema = z.object({
   assetId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
   settings: z.unknown(),
   offset: z.number().min(0).max(86_400).default(0),
+  /** Contêiner da prévia de vídeo: WebM/VP9 para navegadores sem H.264. */
+  container: z.enum(['mp4', 'webm']).default('mp4'),
 });
 
 export class PreviewBusyError extends Error {}
@@ -63,7 +65,7 @@ export class PreviewService {
           const r = repos.asset(sessionId, aid);
           return r ? toPlanAsset(this.ctx, r) : undefined;
         },
-        preview: { maxSeconds: config.limits.previewMaxSeconds, offset: req.offset },
+        preview: { maxSeconds: config.limits.previewMaxSeconds, offset: req.offset, container: req.container },
       });
       if (!plan.args) throw new PlanError(['Prévia indisponível para esta configuração.']);
       await fsp.mkdir(dir, { recursive: true });

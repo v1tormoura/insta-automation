@@ -110,7 +110,7 @@ export function videoEncodeArgs(tools: MediaTools, o: VideoEncodeOptions): strin
       else args.push('-crf', String(crf));
       break;
     case 'vp9':
-      args.push('-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-row-mt', '1', '-deadline', 'good', '-cpu-used', o.preview ? '8' : VPX_CPU[speed]);
+      args.push('-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-row-mt', '1', '-deadline', o.preview ? 'realtime' : 'good', '-cpu-used', o.preview ? '8' : VPX_CPU[speed]);
       if (o.rateControl === 'bitrate' && !o.preview) args.push('-b:v', br(o.bitrateKbps));
       else args.push('-crf', String(crf), '-b:v', '0');
       break;

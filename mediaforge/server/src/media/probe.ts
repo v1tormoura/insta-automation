@@ -77,7 +77,7 @@ function streamRotation(s: FfprobeStream): number {
 const ALPHA_PIX = /^(rgba|bgra|argb|abgr|ya8|ya16|yuva|gbrap|rgba64|bgra64|pal8)/;
 const IMAGE_FORMATS = /(image2|_pipe|^gif$|webp|png|mjpeg)/;
 
-export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number): MediaInfo {
+export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number, decoderRotation: number | null = null): MediaInfo {
   const streams: MediaStreamInfo[] = (raw.streams ?? []).map((s) => {
     const type = (['video', 'audio', 'subtitle', 'data', 'attachment'] as const).find((t) => t === s.codec_type) ?? 'unknown';
     const out: MediaStreamInfo = {
@@ -107,7 +107,7 @@ export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number): MediaInfo
 
   const video = streams.find((s) => s.type === 'video' && !s.attachedPic && (s.width ?? 0) > 0);
   const audio = streams.find((s) => s.type === 'audio');
-  const rotation = video?.rotation ?? 0;
+  const rotation = video?.rotation || decoderRotation || 0;
   const swap = Math.abs(rotation) % 180 === 90;
   const formatName = raw.format?.format_name ?? 'desconhecido';
   const rawVideo = (raw.streams ?? []).find((s) => s.index === video?.index);
@@ -129,6 +129,7 @@ export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number): MediaInfo
     audioCodec: audio?.codec ?? null,
     hasAlpha: !!video?.pixFmt && ALPHA_PIX.test(video.pixFmt),
     frames: num(rawVideo?.nb_frames),
+    decoderRotation,
   };
 }
 
@@ -161,5 +162,28 @@ export async function probeFile(tools: MediaTools, file: string, timeoutMs = 60_
   if (!raw.format || !raw.streams || raw.streams.length === 0) {
     throw new ProbeError('Nenhum fluxo de mídia reconhecido no arquivo.');
   }
-  return { info: normalizeProbe(raw, stat.size), raw };
+  const isImage = IMAGE_FORMATS.test(raw.format.format_name ?? '');
+  const decoderRotation = isImage ? await frameRotation(tools, file) : null;
+  return { info: normalizeProbe(raw, stat.size, decoderRotation), raw };
+}
+
+/**
+ * Rotação exportada pelo decodificador no primeiro quadro (dado lateral do
+ * quadro, não do fluxo). O FFmpeg 6+ faz isso com a orientação EXIF de JPEG e
+ * gira a imagem automaticamente; PNG/WEBP não. Só consultado para imagens.
+ */
+async function frameRotation(tools: MediaTools, file: string): Promise<number | null> {
+  const r = await runProcess(
+    tools.ffprobe.path,
+    ['-v', 'error', '-read_intervals', '%+#1', '-select_streams', 'v:0', '-show_entries', 'frame_side_data=rotation', '-of', 'json', file],
+    { collectStdoutBytes: 1024 * 1024, timeoutMs: 30_000 },
+  );
+  if (r.code !== 0) return null;
+  try {
+    const j = JSON.parse(r.stdout) as { frames?: Array<{ side_data_list?: Array<{ rotation?: number }> }> };
+    for (const sd of j.frames?.[0]?.side_data_list ?? []) if (typeof sd.rotation === 'number' && sd.rotation !== 0) return sd.rotation;
+  } catch {
+    return null;
+  }
+  return null;
 }
