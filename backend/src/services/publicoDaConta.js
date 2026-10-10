@@ -27,6 +27,8 @@
  * por conta é o suficiente para a tela poder ser recarregada à vontade.
  */
 
+const { linhas, pedir } = require('./demografiaDaMeta');
+
 const MINIMO_SEGUIDORES = 100;
 
 /* Quantos dias cada timeframe cobre — para as métricas que usam since/until
@@ -46,18 +48,20 @@ function _get(igUserId, token, params) {
   return require('./instagramAPI').get(`/${igUserId}/insights`, params, token);
 }
 
+/** Linhas da Meta (já sem o período) em `[{ chave, valor }]`, do maior para o menor. */
+function emLista(ls) {
+  return ls
+    .map(l => ({ chave: l.valores.join(' / '), valor: l.valor }))
+    .filter(x => x.chave)
+    .sort((a, b) => b.valor - a.valor);
+}
+
 /**
  * Lê um `total_value.breakdowns[0].results[]` em `[{ chave, valor }]`.
  * Função pura, exportada para o teste cobrir o formato da Graph sem rede.
  */
 function interpretar(resposta) {
-  const d = resposta?.data?.[0];
-  const b = d?.total_value?.breakdowns?.[0];
-  if (!b || !Array.isArray(b.results)) return [];
-  return b.results
-    .map(r => ({ chave: (r.dimension_values || []).join(' / '), valor: Number(r.value) || 0 }))
-    .filter(x => x.chave)
-    .sort((a, b) => b.valor - a.valor);
+  return emLista(linhas(resposta));
 }
 
 /** Percentuais sobre o total, mantendo a ordem. */
@@ -126,8 +130,8 @@ async function alcancePorTipoDeConta(account, dias) {
  *
  * @returns {{ username, followers, disponivel, motivo, timeframe, alcancados: {genero, paises, idades} | null, engajados: {...}|null }}
  */
-async function buscarPublico(account, timeframe = 'last_30_days') {
-  const tf = PERIODOS.includes(timeframe) ? timeframe : 'last_30_days';
+async function buscarPublico(account, timeframe = 'this_month') {
+  const tf = PERIODOS.includes(timeframe) ? timeframe : 'this_month';
   const base = { username: account.username, followers: Number(account.followers) || 0, timeframe: tf };
 
   if (!account.accessToken || !account.igUserId) {
@@ -138,10 +142,13 @@ async function buscarPublico(account, timeframe = 'last_30_days') {
   const c = _cache.get(chave);
   if (c && Date.now() - c.em < CACHE_MS) return { ...base, ...c.dados };
 
-  const token = account.accessToken;
-  const pede = (metric, breakdown) => _get(account.igUserId, token, {
-    metric, period: 'lifetime', timeframe: tf, breakdown, metric_type: 'total_value',
-  }).then(interpretar).catch(() => []);
+  /* Erro da Meta não vira "sem dados" calado: a tela mostra a mensagem. E o
+     período que valeu vai na resposta — a Meta pode ter trocado o pedido. */
+  const erros = [];
+  let periodoUsado = null;
+  const pede = (metric, breakdown) => pedir(account, metric, breakdown, tf)
+    .then(r => { periodoUsado = periodoUsado || r.timeframe; return emLista(r.linhas); })
+    .catch(err => { erros.push(err.message); return []; });
 
   const [gA, pA, iA, gE, pE, porTipo] = await Promise.all([
     pede('reached_audience_demographics', 'gender'),
@@ -168,12 +175,16 @@ async function buscarPublico(account, timeframe = 'last_30_days') {
         disponivel: false,
         /* Vazio sem erro = o Meta reteve. O número de seguidores é o que a
            pessoa consegue mudar; por isso vai junto. */
-        motivo: base.followers < MINIMO_SEGUIDORES ? 'poucos_seguidores' : 'sem_dados_no_periodo',
+        motivo: erros.length ? 'erro_da_meta'
+          : base.followers < MINIMO_SEGUIDORES ? 'poucos_seguidores' : 'sem_dados_no_periodo',
+        ...(erros.length ? { erro: erros[0] } : {}),
         alcancados: null,
         engajados: null,
       };
+  if (periodoUsado) dados.timeframe = periodoUsado;
 
-  _cache.set(chave, { em: Date.now(), dados });
+  // Erro não fica guardado: a próxima abertura da tela tenta de novo.
+  if (!erros.length || dados.disponivel) _cache.set(chave, { em: Date.now(), dados });
   return { ...base, ...dados };
 }
 

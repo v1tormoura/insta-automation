@@ -11,13 +11,19 @@
  *   seguidores  → follower_demographics          (quem segue)
  *
  * A cidade vem como "Cidade, Estado (state)"; aqui ela é somada no estado.
- * Números reais da Meta, sem estimativa. Contas com menos de 100 seguidores
- * não têm demografia — a Meta recusa, e elas entram como "sem dados".
+ * Números reais da Meta, sem estimativa. O formato da resposta e o período
+ * que a Meta aceita estão em demografiaDaMeta.js.
  *
- * Cache de 6 h por conta e recorte: a Meta só atualiza isso uma vez por dia.
+ * Cada conta volta com a sua situação — no mapa, poucos seguidores, sem
+ * público no Brasil no mês, ou o erro exato da Meta. Antes tudo isso aparecia
+ * como "menos de 100 seguidores", e um defeito de leitura passou meses por
+ * falta de audiência.
+ *
+ * Cache por conta e recorte: 6 h com dados (a Meta atualiza uma vez por dia),
+ * 30 min sem dados (a conta pode passar da linha), erro não fica guardado.
  */
 
-const { get } = require('./instagramAPI');
+const demografia = require('./demografiaDaMeta');
 
 const METRICAS = Object.freeze({
   alcancados: 'reached_audience_demographics',
@@ -26,6 +32,8 @@ const METRICAS = Object.freeze({
 });
 
 const CACHE_MS = 6 * 60 * 60 * 1000;
+const CACHE_VAZIO_MS = 30 * 60 * 1000;
+const MINIMO_SEGUIDORES = 100;
 const _cache = new Map();
 
 const sem = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -48,28 +56,38 @@ function ufDaCidade(rotulo) {
   return UF[sem(estado)] || null;
 }
 
-/** Soma por estado as linhas `{dimension_values: [cidade], value}` da Meta. */
+/**
+ * A cidade de uma linha da Meta: o valor que for "Cidade, Estado". Não depende
+ * da posição — o período ("THIS_MONTH") pode vir antes dela.
+ */
+function cidadeDa(valores = []) {
+  return valores.find(v => ufDaCidade(v)) || valores.find(v => String(v).includes(',')) || valores[valores.length - 1] || '';
+}
+
+/** Soma por estado as linhas `{dimension_values: [..., cidade], value}` da Meta. */
 function somarPorEstado(resultados = []) {
   const porUf = {};
   for (const r of resultados) {
-    const uf = ufDaCidade(r?.dimension_values?.[0]);
+    const uf = ufDaCidade(cidadeDa(demografia.semPeriodo(r)));
     const v = Number(r?.value) || 0;
     if (uf && v > 0) porUf[uf] = (porUf[uf] || 0) + v;
   }
   return porUf;
 }
 
+/** `{ porUf, cidades }` da conta: `cidades` é quantas a Meta devolveu (no Brasil ou fora). */
 async function _daConta(conta, metrica) {
   const chave = `${conta.id}:${metrica}`;
   const c = _cache.get(chave);
-  if (c && Date.now() - c.em < CACHE_MS) return c.valor;
-  const d = await get(`/${conta.igUserId}/insights`, {
-    metric: METRICAS[metrica], period: 'lifetime', metric_type: 'total_value',
-    breakdown: 'city', timeframe: 'this_month',
-  }, conta.accessToken);
-  const resultados = d?.data?.[0]?.total_value?.breakdowns?.[0]?.results || [];
-  const valor = somarPorEstado(resultados);
-  _cache.set(chave, { em: Date.now(), valor });
+  if (c && Date.now() - c.em < c.validade) return c.valor;
+  const { linhas } = await demografia.pedir(conta, METRICAS[metrica], 'city', 'this_month');
+  const porUf = {};
+  for (const l of linhas) {
+    const uf = ufDaCidade(cidadeDa(l.valores));
+    if (uf && l.valor > 0) porUf[uf] = (porUf[uf] || 0) + l.valor;
+  }
+  const valor = { porUf, cidades: linhas.length };
+  _cache.set(chave, { em: Date.now(), valor, validade: Object.keys(porUf).length ? CACHE_MS : CACHE_VAZIO_MS });
   return valor;
 }
 
@@ -80,21 +98,34 @@ async function _daConta(conta, metrica) {
 async function doUsuario(contas, metrica = 'alcancados') {
   if (!METRICAS[metrica]) metrica = 'alcancados';
   const estados = {};
-  let comDados = 0, semDados = 0;
+  const situacoes = [];
   const conectadas = contas.filter(c => c.accessToken && c.igUserId && c.status !== 'banida');
   await Promise.all(conectadas.map(async conta => {
+    const quem = { username: conta.username, seguidores: Number(conta.followers) || 0 };
     try {
-      const porUf = await _daConta(conta, metrica);
-      if (!Object.keys(porUf).length) { semDados++; return; }
-      comDados++;
-      for (const [uf, v] of Object.entries(porUf)) estados[uf] = (estados[uf] || 0) + v;
+      const { porUf, cidades } = await _daConta(conta, metrica);
+      if (Object.keys(porUf).length) {
+        situacoes.push({ ...quem, situacao: 'ok' });
+        for (const [uf, v] of Object.entries(porUf)) estados[uf] = (estados[uf] || 0) + v;
+      } else if (cidades) {
+        situacoes.push({ ...quem, situacao: 'fora_do_brasil' });
+      } else {
+        situacoes.push({ ...quem, situacao: quem.seguidores < MINIMO_SEGUIDORES ? 'poucos_seguidores' : 'sem_dados' });
+      }
     } catch (err) {
-      semDados++;
+      situacoes.push({ ...quem, situacao: 'erro', erro: err.message });
       console.log(`[Audiência] @${conta.username}: ${err.message}`);
     }
   }));
+  situacoes.sort((a, b) => b.seguidores - a.seguidores);
   const total = Object.values(estados).reduce((a, b) => a + b, 0);
-  return { metrica, estados, total, contasComDados: comDados, contasSemDados: semDados, atualizadoEm: new Date().toISOString() };
+  const comDados = situacoes.filter(s => s.situacao === 'ok').length;
+  return {
+    metrica, estados, total,
+    contasComDados: comDados, contasSemDados: situacoes.length - comDados,
+    contas: situacoes,
+    atualizadoEm: new Date().toISOString(),
+  };
 }
 
-module.exports = { doUsuario, somarPorEstado, ufDaCidade, METRICAS, _cache };
+module.exports = { doUsuario, somarPorEstado, ufDaCidade, cidadeDa, METRICAS, MINIMO_SEGUIDORES, _cache };

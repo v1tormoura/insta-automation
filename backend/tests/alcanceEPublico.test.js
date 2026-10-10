@@ -169,3 +169,34 @@ describe('público — o formato da Graph', () => {
     expect(MINIMO_SEGUIDORES).toBe(100);
   });
 });
+
+describe('demografia — período antes do recorte e período recusado', () => {
+  const { pedir, semPeriodo } = require('../src/services/demografiaDaMeta');
+  const resposta = corpo => ({ ok: !corpo.error, status: corpo.error ? 400 : 200, text: async () => JSON.stringify(corpo) });
+
+  test('o período sai da chave: "F", não "THIS_MONTH / F"', () => {
+    const l = interpretar({ data: [{ total_value: { breakdowns: [{
+      dimension_keys: ['timeframe', 'gender'],
+      results: [{ dimension_values: ['THIS_MONTH', 'M'], value: 3 }, { dimension_values: ['THIS_MONTH', 'F'], value: 9 }],
+    }] } }] });
+    expect(l).toEqual([{ chave: 'F', valor: 9 }, { chave: 'M', valor: 3 }]);
+    expect(rotularGenero(l).map(x => x.rotulo)).toEqual(['Mulheres', 'Homens']);
+    // Sem dimension_keys, o período é reconhecido pelo formato.
+    expect(semPeriodo({ dimension_values: ['LAST_30_DAYS', 'BR'] })).toEqual(['BR']);
+  });
+
+  test('período recusado pela Meta (v20+) cai no mais próximo aceito, e diz qual valeu', async () => {
+    global.fetch = jest.fn(async url => (new URL(url).searchParams.get('timeframe') === 'last_30_days'
+      ? resposta({ error: { message: 'Invalid parameter', code: 100 } })
+      : resposta({ data: [{ total_value: { breakdowns: [{ dimension_keys: ['timeframe', 'country'], results: [{ dimension_values: ['THIS_MONTH', 'BR'], value: 70 }] }] } }] })));
+    const r = await pedir({ igUserId: '1', accessToken: 't' }, 'reached_audience_demographics', 'country', 'last_30_days');
+    expect(r.timeframe).toBe('this_month');
+    expect(r.linhas).toEqual([{ valores: ['BR'], valor: 70 }]);
+  });
+
+  test('erro que não é de parâmetro sobe sem outras tentativas', async () => {
+    global.fetch = jest.fn(async () => resposta({ error: { message: 'Token expirado', code: 190 } }));
+    await expect(pedir({ igUserId: '1', accessToken: 't' }, 'reached_audience_demographics', 'city', 'this_month')).rejects.toThrow('Token expirado');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});

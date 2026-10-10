@@ -20,7 +20,9 @@ const avatarSrc = av => !av ? '' : av.startsWith('http') ? `${API_BASE}/image-pr
 const fmt = n => !n ? '0' : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
 const mono = { fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', fontFamily: 'var(--mf-mono)', textTransform: 'uppercase', letterSpacing: '.04em' };
 
-const PERIODOS = [['this_week', 'esta semana'], ['last_30_days', '30 dias'], ['last_90_days', '90 dias']];
+/* Desde a v20 da API, a Meta só entrega gênero, país e idade por semana ou
+   por mês — 30 e 90 dias voltavam erro e a tela ficava vazia. */
+const PERIODOS = [['this_week', 'esta semana'], ['this_month', 'este mês']];
 const PAIS = { BR: 'Brasil', US: 'Estados Unidos', PT: 'Portugal', AR: 'Argentina', MX: 'México', CO: 'Colômbia', ES: 'Espanha', IT: 'Itália', FR: 'França', DE: 'Alemanha', GB: 'Reino Unido', CL: 'Chile', PE: 'Peru', PY: 'Paraguai', UY: 'Uruguai', JP: 'Japão', IN: 'Índia', AO: 'Angola', MZ: 'Moçambique' };
 
 /* Dois tons de um azul só: identidade pelo rótulo, não pela cor. */
@@ -109,7 +111,7 @@ function Bloco({ dados }) {
 }
 
 export default function PublicoDosReels() {
-  const [timeframe, setTimeframe] = useState('last_30_days');
+  const [timeframe, setTimeframe] = useState('this_month');
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState('');
 
@@ -147,6 +149,10 @@ export default function PublicoDosReels() {
               <div style={{ ...mono, marginBottom: 8 }}>todas as contas com dados ({dados.agregado.contas}) · quem foi alcançado</div>
               <Bloco dados={dados.agregado} />
             </div>
+          ) : contas.some(c => c.followers >= minimo) ? (
+            <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.6, padding: '4px 0' }}>
+              Nenhuma conta trouxe gênero, país e idade neste período. O motivo de cada uma está abaixo.
+            </div>
           ) : (
             <div style={{ fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-3)', lineHeight: 1.6, padding: '4px 0' }}>
               O Instagram <strong style={{ color: 'var(--mf-text-2)' }}>só libera gênero, país e idade a partir de ~{minimo} seguidores</strong> por conta. Abaixo disso a API devolve vazio — não é erro, é a regra deles. Esta seção acende sozinha quando uma conta passar da linha.
@@ -168,7 +174,9 @@ export default function PublicoDosReels() {
                     <span style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', textAlign: 'right', lineHeight: 1.4, maxWidth: 260 }}>
                       {c.motivo === 'poucos_seguidores'
                         ? <>gênero, país e idade: faltam <strong style={{ color: 'var(--mf-text-2)' }}>{Math.max(0, minimo - c.followers)}</strong> seguidores para o Instagram liberar</>
-                        : c.motivo === 'sem_token' ? 'conta sem token da API' : 'sem dados no período'}
+                        : c.motivo === 'sem_token' ? 'conta sem token da API'
+                        : c.motivo === 'erro_da_meta' ? <>a Meta recusou: <strong style={{ color: 'var(--mf-text-2)' }}>{c.erro}</strong></>
+                        : 'a Meta não devolveu público neste período'}
                     </span>
                   )}
                 </div>

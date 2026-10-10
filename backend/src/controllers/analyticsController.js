@@ -31,12 +31,13 @@ exports.getAlcancePorEnvio = async (req, res) => {
   res.json({ dias, ...agruparPorEnvio(insights, posts) });
 };
 
-/** GET /analytics/publico?timeframe=last_30_days — gênero, país e idade de quem os reels alcançaram. */
+/** GET /analytics/publico?timeframe=this_month — gênero, país e idade de quem os reels alcançaram. */
 exports.getPublico = async (req, res) => {
   const contas = (await accounts.de(req.user.id).findMany()).filter(c => c.accessToken && c.igUserId);
   const lista = await Promise.all(contas.map(c => publicoDaConta.buscarPublico(c, req.query.timeframe)));
   res.json({
-    timeframe: lista[0]?.timeframe || 'last_30_days',
+    // O período que a Meta aceitou (pode não ser o pedido — ver demografiaDaMeta.js).
+    timeframe: (lista.find(p => p.disponivel) || lista[0])?.timeframe || 'this_month',
     minimoSeguidores: publicoDaConta.MINIMO_SEGUIDORES,
     contas: lista.map((p, i) => ({ ...p, avatar: contas[i].avatar || '' })),
     agregado: publicoDaConta.agregar(lista),
