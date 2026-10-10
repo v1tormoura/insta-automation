@@ -68,6 +68,10 @@ const QUALIDADES = {
   leve:  { crf: 27, preset: 'veryfast', jpg: 7, webp: 70, audio: '128k' },
 };
 const FORMATOS_FOTO = ['jpg', 'png', 'webp'];
+/* Upscale: quanto a saída cresce sobre a base de 1080 do formato (9:16 em 4K =
+   2160×3840). Só com o realce ligado — sem ele a resolução é a do formato. */
+const RESOLUCOES = { padrao: 1, 2160: 2, 4320: 4 };
+const MODOS_IA = ['rapida', 'maxima'];
 const LARGURAS_ORIGINAL = [1080, 1440, 0]; // 0 = manter o tamanho
 const APLICAR_EM = ['tudo', 'video', 'imagem'];
 
@@ -110,6 +114,9 @@ function normalizarConfig(bruta = {}) {
     larguraOriginal: avancado && LARGURAS_ORIGINAL.includes(Number(c.larguraOriginal)) ? Number(c.larguraOriginal) : 1080,
     semAudio: avancado && c.semAudio === true,
     realce: avancado && c.realce === true,
+    resolucao: avancado && c.realce === true && RESOLUCOES[c.resolucao] ? String(c.resolucao) : 'padrao',
+    /* IA nas fotos (Real-ESRGAN): vale à parte do realce, que é do ffmpeg. */
+    ia: avancado && MODOS_IA.includes(c.ia) ? c.ia : 'desligado',
     trecho: avancado ? {
       inicio: limitar(trecho.inicio, 0, LIMITES.duracaoS, 0),
       fim: trecho.fim === null || trecho.fim === '' || trecho.fim === undefined ? null : limitar(trecho.fim, 0, LIMITES.duracaoS, null),
@@ -275,13 +282,32 @@ const par = n => Math.max(2, Math.round(n / 2) * 2);
  * Realce de qualidade (upscale), na ordem que importa:
  *   1. hqdn3d  — tira o ruído e os blocos da compressão ANTES de ampliar
  *                (ampliado, o ruído vira mancha e a nitidez o realçaria);
- *   2. lanczos — o redimensionamento passa a usar Lanczos (mais nítido que o bicúbico);
- *   3. cas     — nitidez adaptativa: reforça borda sem estourar o que já é nítido.
- * Não inventa detalhe (isso só IA faz), mas vídeo e foto pequenos ampliados
- * ficam visivelmente mais limpos.
+ *   2. lanczos — o redimensionamento passa a usar Lanczos (mais nítido que o bicúbico),
+ *                até a resolução escolhida (1080, 4K ou 8K);
+ *   3. cas     — nitidez adaptativa: reforça borda sem estourar o que já é nítido;
+ *   4. eq      — um leve realce de contraste e cor.
+ * E o vídeo sai com mais qualidade de codificação (ver qualidadeDoVideo): o
+ * realce não pode ser comido pela compressão. Não inventa detalhe (isso só a
+ * IA das fotos faz), mas o resultado fica visivelmente mais limpo e definido.
  */
 const REALCE_ANTES = 'hqdn3d=1.5:1.5:4:4';
-const REALCE_DEPOIS = 'cas=0.6';
+const REALCE_DEPOIS = 'cas=0.7,eq=contrast=1.04:saturation=1.08';
+
+/** Quantas vezes a base de 1080 do formato (1 sem upscale para 4K/8K). */
+const fatorDe = config => (config.realce ? RESOLUCOES[config.resolucao] || 1 : 1);
+
+/** Codificação do vídeo: com realce, mais qualidade; em 8K, rápido o bastante para caber no tempo. */
+function qualidadeDoVideo(config) {
+  const q = QUALIDADES[config.qualidade];
+  if (!config.realce) return { crf: q.crf, preset: q.preset, threads: '2', extra: [] };
+  const fator = fatorDe(config);
+  return {
+    crf: Math.min(q.crf, 17),
+    preset: fator >= 4 ? 'veryfast' : 'medium',
+    threads: fator >= 2 ? '4' : '2',
+    extra: fator >= 4 ? ['-x264-params', 'level=6.2'] : [],
+  };
+}
 
 /** Filtros de vídeo (string do -vf ou do -filter_complex) para um formato. */
 function filtros(config, formato, { tipo, orientacao = 1 } = {}) {
@@ -305,15 +331,19 @@ function filtros(config, formato, { tipo, orientacao = 1 } = {}) {
   const pre = antes.length ? `${antes.join(',')},` : '';
   const pos = depois.join(',');
 
+  const fator = fatorDe(config);
   if (!f.largura) {
     const max = config.larguraOriginal;
     /* Mantém a proporção e deixa par para o H.264. Sem realce só reduz; com
-       realce a largura escolhida vale também para AMPLIAR o que é menor. */
-    const escala = !max ? `scale=trunc(iw/2)*2:trunc(ih/2)*2${lanczos}`
-      : realce ? `scale=${max}:-2${lanczos}` : `scale='min(iw,${max})':-2`;
+       realce a largura escolhida vale também para AMPLIAR o que é menor. Em
+       4K/8K, o MENOR lado vai a 2160/4320 (vale para vertical e horizontal). */
+    const alvo = 1080 * fator;
+    const escala = fator > 1 ? `scale='if(gt(iw,ih),-2,${alvo})':'if(gt(iw,ih),${alvo},-2)'${lanczos}`
+      : !max ? `scale=trunc(iw/2)*2:trunc(ih/2)*2${lanczos}`
+        : realce ? `scale=${max}:-2${lanczos}` : `scale='min(iw,${max})':-2`;
     return { simples: `${pre}${escala},${pos}` };
   }
-  const W = f.largura, H = f.altura;
+  const W = f.largura * fator, H = f.altura * fator;
   if (config.enquadramento === 'cortar') {
     return { simples: `${pre}scale=${W}:${H}:force_original_aspect_ratio=increase${lanczos},crop=${W}:${H},${pos}` };
   }
@@ -329,17 +359,45 @@ function filtros(config, formato, { tipo, orientacao = 1 } = {}) {
   };
 }
 
-/** Os argumentos do ffmpeg para uma saída. Pura: testável sem rodar nada. */
+/**
+ * O menor lado que a foto melhorada pela IA precisa ter para nenhum formato
+ * escolhido precisar ampliá-la de novo (o ffmpeg só reduz ou recorta depois).
+ */
+function alvoDaIA(config, info = {}) {
+  const deitada = [5, 6, 7, 8].includes(info.orientacao);
+  const iw = Number(deitada ? info.altura : info.largura) || 1080;
+  const ih = Number(deitada ? info.largura : info.altura) || 1080;
+  const menor = Math.min(iw, ih);
+  const fator = fatorDe(config);
+  const precisa = config.formatos.map(formato => {
+    const f = FORMATOS[formato];
+    if (!f.largura) {
+      if (fator > 1) return 1080 * fator;
+      return config.larguraOriginal ? (menor * config.larguraOriginal) / iw : menor;
+    }
+    const W = f.largura * fator, H = f.altura * fator;
+    const s = config.enquadramento === 'barras' ? Math.min(W / iw, H / ih) : Math.max(W / iw, H / ih);
+    return menor * s;
+  });
+  return par(Math.max(...precisa, 2));
+}
+
 /** Largura × altura da saída de um formato (para posicionar o logo). */
 function dimensoesDaSaida(config, formato, info = {}) {
   const f = FORMATOS[formato];
-  if (f.largura) return { largura: f.largura, altura: f.altura };
+  const fator = fatorDe(config);
+  if (f.largura) return { largura: f.largura * fator, altura: f.altura * fator };
   const iw = Number(info.largura) || 1080, ih = Number(info.altura) || 1920;
+  if (fator > 1) {
+    const alvo = 1080 * fator;
+    return iw > ih ? { largura: par((iw * alvo) / ih), altura: alvo } : { largura: alvo, altura: par((ih * alvo) / iw) };
+  }
   const max = config.larguraOriginal;
   const w = max && (config.realce || iw > max) ? max : iw;
   return { largura: w, altura: Math.round((ih * w) / iw) };
 }
 
+/** Os argumentos do ffmpeg para uma saída. Pura: testável sem rodar nada. */
 function argumentos({ entrada, saida, config, formato, tipo, info = {}, logo = null }) {
   const q = QUALIDADES[config.qualidade];
   const f = filtros(config, formato, { tipo, orientacao: info.orientacao || 1 });
@@ -366,7 +424,8 @@ function argumentos({ entrada, saida, config, formato, tipo, info = {}, logo = n
     if (!config.semAudio) args.push('-map', '0:a:0?');
     /* -pix_fmt na saída: depois do logo (overlay com transparência) a imagem
        chega em formato com alfa, que o H.264 não aceita. */
-    args.push('-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', String(q.crf), '-preset', q.preset, '-threads', '2');
+    const cod = qualidadeDoVideo(config);
+    args.push('-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', String(cod.crf), '-preset', cod.preset, '-threads', cod.threads, ...cod.extra);
     if (info.fps > 60) args.push('-r', '60');
     if (config.semAudio) args.push('-an');
     else args.push('-c:a', 'aac', '-b:a', q.audio, '-ar', '44100', '-ac', '2');
@@ -653,6 +712,33 @@ async function _processar(id) {
     if (await cancelado()) return;
   }
 
+  /* 1b. Foto com IA (Real-ESRGAN): a rede reconstrói a foto e os formatos
+         saem dela. Falhou ou não está instalada: os formatos saem do original
+         e a tela diz por quê. A orientação do original continua valendo — a
+         IA lê os pixels como estão no arquivo. */
+  const melhorada = path.join(dir, 'ia.png');
+  if (!video && config.ia !== 'desligado') {
+    const ia = require('./upscaleIA');
+    let resultado;
+    if (!ia.disponivel()) {
+      resultado = { usada: false, motivo: 'A IA não está instalada neste servidor.' };
+    } else {
+      try {
+        await ia.melhorar(original, melhorada, config.ia, alvoDaIA(config, r.info), { aoIniciar: registrar });
+        const sonda = await sondar(melhorada);
+        entrada = melhorada;
+        infoDosFormatos = { ...r.info, largura: sonda.largura, altura: sonda.altura };
+        resultado = { usada: true, modelo: config.ia, largura: sonda.largura, altura: sonda.altura };
+      } catch (err) {
+        if (err.cancelado || await cancelado()) return;
+        resultado = { usada: false, motivo: err.message };
+        console.log(`⚠️  [Variações] ${id} IA: ${err.message}`);
+      } finally { _emAndamento.delete(id); }
+    }
+    r = await atualizar(id, { info: sql.json({ ...r.info, ia: resultado }) });
+    if (await cancelado()) return;
+  }
+
   /* 2. Um arquivo por formato. */
   for (const [i, formato] of config.formatos.entries()) {
     if (await cancelado()) return;
@@ -661,7 +747,9 @@ async function _processar(id) {
     const arquivo = path.join(dir, `${saidaId}.${ext}`);
     const args = argumentos({ entrada, saida: arquivo, config: configDosFormatos, formato, tipo: r.tipo, info: infoDosFormatos, logo });
     const duracao = video ? Math.max(0.1, (configDosFormatos.trecho.fim ?? infoDosFormatos.duracao) - configDosFormatos.trecho.inicio) : 0;
-    const timeoutMs = video ? 120_000 + Math.ceil(duracao * 10_000) : 90_000;
+    // 4K tem 4x os pixels de 1080; 8K, 16x — o tempo-limite acompanha.
+    const pixels = fatorDe(configDosFormatos) ** 2;
+    const timeoutMs = video ? 120_000 + Math.ceil(duracao * 10_000 * pixels) : 90_000 * pixels;
 
     let erro = null;
     for (let tentativa = 1; tentativa <= 2; tentativa++) {
@@ -721,6 +809,7 @@ async function _processar(id) {
   if (await cancelado()) return;
   fs.rmSync(original, { force: true }); // o original (e o intermediário) não são mais necessários
   fs.rmSync(cortado, { force: true });
+  fs.rmSync(melhorada, { force: true });
   await atualizar(id, {
     status: ok ? 'concluido' : 'erro',
     erro: ok === saidas.length ? '' : ok ? `${saidas.length - ok} de ${saidas.length} arquivo(s) falharam.` : 'Nenhum formato pôde ser gerado.',
@@ -879,9 +968,9 @@ function ffmpegDisponivel() {
 }
 
 module.exports = {
-  LIMITES, FORMATOS, ENQUADRAMENTOS, QUALIDADES, FORMATOS_FOTO, LARGURAS_ORIGINAL, PASTA,
+  LIMITES, FORMATOS, ENQUADRAMENTOS, QUALIDADES, FORMATOS_FOTO, LARGURAS_ORIGINAL, RESOLUCOES, MODOS_IA, PASTA,
   normalizarConfig, tipoPeloConteudo, orientacaoExif, validarArquivo, sondar, filtros, argumentos, nomeBase,
   conferirCota, criar, processar, cancelar, excluir, saidaDoUsuario, marcarBaixadas, limpar, iniciarLimpeza,
-  lerSilencios, trechosDeFala, grafoDosTrechos, linhasDoTitulo, dimensoesDaSaida, enviarParaBiblioteca,
+  lerSilencios, trechosDeFala, grafoDosTrechos, linhasDoTitulo, dimensoesDaSaida, qualidadeDoVideo, alvoDaIA, enviarParaBiblioteca,
   ffmpegDisponivel, porId,
 };

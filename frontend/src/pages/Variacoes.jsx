@@ -16,7 +16,7 @@ import { useTarefa, consumir } from '../services/tarefas';
 import { enviar, cancelar as cancelarEnvio, cancelarTodos, limparFinalizados, useEnvios } from '../services/envioDeVariacoes';
 import {
   FORMATOS, CONFIG_PADRAO, tipoLocal, problemaLocal, estimarSegundos, tempoLegivel, tamanho,
-  resumoDaConfig, filtroCss, selecionarIntervalo, validadeRestante, SILENCIOS, FRACAO_LOGO,
+  resumoDaConfig, filtroCss, selecionarIntervalo, validadeRestante, SILENCIOS, FRACAO_LOGO, RESOLUCOES, MODOS_IA,
 } from '../services/variacoes';
 
 /**
@@ -405,8 +405,31 @@ export default function Variacoes() {
                   <input type="checkbox" data-realce checked={config.realce} onChange={e => muda({ realce: e.target.checked })} /> Realce de qualidade (upscale)
                 </label>
                 <div style={{ ...nota, marginLeft: 24 }}>
-                  Para vídeos e fotos em resolução baixa: tira o ruído da compressão, amplia com Lanczos e reforça a nitidez.
-                  No "Original", amplia até a largura escolhida. Não inventa detalhe e deixa o processamento ~30% mais lento.
+                  Tira o ruído e os blocos da compressão, amplia com Lanczos, aplica nitidez adaptativa e um leve realce de cor,
+                  e o vídeo sai com mais qualidade de codificação. Fica mais limpo e definido, mas não cria detalhe que não existe no original.
+                </div>
+                {config.realce && (
+                  <div data-resolucao style={{ marginLeft: 24, marginTop: 8 }}>
+                    <div style={rotulo}>Resolução</div>
+                    <Segmentado rotulo="Resolução do upscale" valor={config.resolucao} onChange={v => muda({ resolucao: v })}
+                      opcoes={RESOLUCOES.map(r => ({ value: r.value, label: r.label }))} />
+                    <div style={nota}>
+                      {config.resolucao === 'padrao'
+                        ? 'Full HD: o tamanho do formato (9:16 = 1080×1920). Em vídeo já 1080p, só realça.'
+                        : `${RESOLUCOES.find(r => r.value === config.resolucao)?.label}: ${config.resolucao === '2160' ? '2160×3840' : '4320×7680'} no 9:16. Leva alguns minutos por vídeo e serve para baixar — o Reels aceita até 1920 px, então ao postar o Nexora reduz para 1080×1920 sozinho.`}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div data-ia>
+                <div style={rotulo}>Melhorar fotos com IA</div>
+                <Segmentado rotulo="Melhorar fotos com IA" valor={config.ia} onChange={v => muda({ ia: v })}
+                  opcoes={MODOS_IA.map(m => ({ value: m.value, label: m.label }))} />
+                <div style={nota}>
+                  {servidor && servidor.ia === false
+                    ? 'A IA não está instalada neste servidor — atualize com o deploy. Sem ela, as fotos saem do original.'
+                    : 'Real-ESRGAN: tira os blocos da compressão e reconstrói bordas e texturas. Só para fotos (em vídeo levaria horas). A máxima é um pouco melhor, mas bem mais lenta.'}
+                  {config.ia !== 'desligado' && ` ${MODOS_IA.find(m => m.value === config.ia)?.label}: ${MODOS_IA.find(m => m.value === config.ia)?.texto}.`}
                 </div>
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--mf-t-xs)', color: 'var(--mf-text-2)', cursor: 'pointer' }}>
@@ -710,6 +733,7 @@ function LinhaResultado({ item, marcado, onMarcar, aberto, onAbrir, onBaixar, on
     prontas.length ? `${tamanho(item.bytes)} → ${tamanho(prontas.reduce((s, x) => s + x.bytes, 0))}` : tamanho(item.bytes),
     item.status === 'concluido' ? validadeRestante(item.expiraEm) : '',
     item.info?.silencios ? `−${String(item.info.silencios.removido).replace('.', ',')} s de pausas` : '',
+    item.info?.ia ? (item.info.ia.usada ? `melhorada com IA (${item.info.ia.modelo === 'maxima' ? 'máxima' : 'rápida'})` : `IA não aplicada: ${item.info.ia.motivo}`) : '',
     item.config?.modo === 'avancado' ? 'Avançado' : 'Rápido',
   ].filter(Boolean).join(' · ');
 

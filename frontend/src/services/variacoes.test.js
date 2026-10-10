@@ -44,6 +44,25 @@ describe('variações de mídia — contas da tela', () => {
     expect(resumoDaConfig({ ...CONFIG_PADRAO, modo: 'rapido', realce: true })).not.toContain('realce');
   });
 
+  test('upscale em 4K/8K e IA nas fotos aparecem no resumo e no tempo', () => {
+    const k4 = { ...CONFIG_PADRAO, silencios: 'desligado', modo: 'avancado', realce: true, resolucao: '2160' };
+    expect(resumoDaConfig(k4)).toContain('9:16 (2160×3840)');
+    expect(resumoDaConfig(k4)).toContain('realce de qualidade (upscale em 4K)');
+    // 4K só vale com o realce ligado e no avançado.
+    expect(resumoDaConfig({ ...k4, realce: false })).toContain('9:16 (1080×1920)');
+    expect(resumoDaConfig({ ...k4, modo: 'rapido' })).toContain('9:16 (1080×1920)');
+    expect(resumoDaConfig({ ...k4, formatos: ['original'], resolucao: '4320' })).toContain('proporção original (menor lado 4320)');
+    expect(resumoDaConfig({ ...CONFIG_PADRAO, modo: 'avancado', ia: 'maxima' })).toContain('fotos melhoradas com IA máxima');
+    expect(resumoDaConfig({ ...CONFIG_PADRAO, modo: 'rapido', ia: 'maxima' })).not.toContain('IA');
+
+    const video = [{ tipo: 'video', duracao: 30 }];
+    const fullHd = estimarSegundos(video, { ...k4, resolucao: 'padrao' });
+    expect(estimarSegundos(video, k4)).toBeGreaterThan(fullHd * 3);
+    const foto = [{ tipo: 'imagem' }];
+    expect(estimarSegundos(foto, { ...CONFIG_PADRAO, modo: 'avancado', ia: 'maxima' }))
+      .toBeGreaterThan(estimarSegundos(foto, { ...CONFIG_PADRAO, modo: 'avancado', ia: 'rapida' }));
+  });
+
   test('Shift+clique marca o intervalo nos dois sentidos', () => {
     const ordem = ['a', 'b', 'c', 'd'];
     expect([...selecionarIntervalo(new Set(), ordem, 'd', 'b', true)].sort()).toEqual(['b', 'c', 'd']);

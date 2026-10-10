@@ -101,6 +101,54 @@ describe('realce de qualidade (upscale)', () => {
     expect(preparo.filtros(preparo.normalizarConfig({ formatos: ['9x16'] }), '9x16', { tipo: 'video' }).simples).not.toMatch(/hqdn3d|lanczos|cas=/);
   });
 
+  test('receita completa: limpa, amplia, dá nitidez e um leve realce de cor', () => {
+    const vf = preparo.filtros(preparo.normalizarConfig({ modo: 'avancado', realce: true }), '9x16', { tipo: 'video' }).simples;
+    expect(vf).toContain('cas=0.7,eq=contrast=1.04:saturation=1.08');
+  });
+
+  test('4K e 8K: só com o realce ligado e no avançado', () => {
+    expect(preparo.normalizarConfig({ modo: 'avancado', realce: true, resolucao: '2160' }).resolucao).toBe('2160');
+    expect(preparo.normalizarConfig({ modo: 'avancado', realce: false, resolucao: '2160' }).resolucao).toBe('padrao');
+    expect(preparo.normalizarConfig({ modo: 'rapido', realce: true, resolucao: '4320' }).resolucao).toBe('padrao');
+    expect(preparo.normalizarConfig({ modo: 'avancado', realce: true, resolucao: '9999' }).resolucao).toBe('padrao');
+  });
+
+  test('4K multiplica o formato; 8K também; "Original" vai pelo menor lado', () => {
+    const k4 = preparo.normalizarConfig({ modo: 'avancado', realce: true, resolucao: '2160' });
+    expect(preparo.filtros(k4, '9x16', { tipo: 'video' }).simples).toContain('scale=2160:3840:force_original_aspect_ratio=increase:flags=lanczos,crop=2160:3840');
+    expect(preparo.filtros(k4, '4x5', { tipo: 'video' }).simples).toContain('crop=2160:2700');
+    const k8 = preparo.normalizarConfig({ modo: 'avancado', realce: true, resolucao: '4320' });
+    expect(preparo.filtros(k8, '1x1', { tipo: 'video' }).simples).toContain('crop=4320:4320');
+    expect(preparo.filtros(k4, 'original', { tipo: 'video' }).simples).toContain("scale='if(gt(iw,ih),-2,2160)':'if(gt(iw,ih),2160,-2)':flags=lanczos");
+    expect(preparo.dimensoesDaSaida(k4, '9x16')).toEqual({ largura: 2160, altura: 3840 });
+    expect(preparo.dimensoesDaSaida(k4, 'original', { largura: 1280, altura: 720 })).toEqual({ largura: 3840, altura: 2160 });
+  });
+
+  test('com realce o vídeo sai com mais qualidade; 8K ganha o nível do H.264 que cabe', () => {
+    const sem = preparo.qualidadeDoVideo(preparo.normalizarConfig({ modo: 'avancado' }));
+    expect(sem).toEqual({ crf: 18, preset: 'faster', threads: '2', extra: [] });
+    expect(preparo.qualidadeDoVideo(preparo.normalizarConfig({ modo: 'avancado', realce: true }))).toMatchObject({ crf: 17, preset: 'medium' });
+    expect(preparo.qualidadeDoVideo(preparo.normalizarConfig({ modo: 'avancado', realce: true, qualidade: 'leve' })).crf).toBe(17);
+    const oito = preparo.normalizarConfig({ modo: 'avancado', realce: true, resolucao: '4320' });
+    expect(preparo.qualidadeDoVideo(oito)).toEqual({ crf: 17, preset: 'veryfast', threads: '4', extra: ['-x264-params', 'level=6.2'] });
+    expect(preparo.argumentos({ entrada: 'a', saida: 'b', config: oito, formato: '9x16', tipo: 'video' }).join(' ')).toContain('-x264-params level=6.2');
+  });
+
+  test('IA das fotos: só no avançado; o alvo cobre o maior formato pedido', () => {
+    expect(preparo.normalizarConfig({ modo: 'rapido', ia: 'rapida' }).ia).toBe('desligado');
+    expect(preparo.normalizarConfig({ modo: 'avancado', ia: 'maxima' }).ia).toBe('maxima');
+    expect(preparo.normalizarConfig({ modo: 'avancado', ia: 'turbo' }).ia).toBe('desligado');
+    const foto = { largura: 640, altura: 480 }; // deitada
+    // 9:16 recortado de uma foto deitada: a altura precisa chegar a 1920 → menor lado 1920.
+    expect(preparo.alvoDaIA(preparo.normalizarConfig({ modo: 'avancado', formatos: ['9x16'] }), foto)).toBe(1920);
+    expect(preparo.alvoDaIA(preparo.normalizarConfig({ modo: 'avancado', formatos: ['1x1'] }), foto)).toBe(1080);
+    expect(preparo.alvoDaIA(preparo.normalizarConfig({ modo: 'avancado', realce: true, resolucao: '2160', formatos: ['1x1'] }), foto)).toBe(2160);
+    // EXIF girado 90°: a foto é em pé (480×640, 3:4) — para cobrir 1080×1920, a altura vai a 1920 e o menor lado a 1440.
+    expect(preparo.alvoDaIA(preparo.normalizarConfig({ modo: 'avancado', formatos: ['9x16'] }), { ...foto, orientacao: 6 })).toBe(1440);
+    // Com barras, cabe inteira: 1080 de largura basta.
+    expect(preparo.alvoDaIA(preparo.normalizarConfig({ modo: 'avancado', formatos: ['9x16'], enquadramento: 'barras' }), { ...foto, orientacao: 6 })).toBe(1080);
+  });
+
   test('no "Original", amplia uma foto pequena até a largura escolhida', async () => {
     const saida = path.join(DIR, 'ampliada.jpg');
     const v = await preparo.validarArquivo(FOTO); // 320×240 girada → 240×320

@@ -49,7 +49,7 @@ function formatar(r) {
   return {
     id: r.id, lote: r.lote, nomeOriginal: r.nomeOriginal, tipo: r.tipo, bytes: Number(r.bytes) || 0,
     status: r.status, erro: r.erro || '', criadoEm: r.criadoEm, expiraEm: r.expiraEm, config: r.config,
-    info: { largura: r.info?.largura || 0, altura: r.info?.altura || 0, duracao: r.info?.duracao || 0, silencios: r.info?.silencios || null },
+    info: { largura: r.info?.largura || 0, altura: r.info?.altura || 0, duracao: r.info?.duracao || 0, silencios: r.info?.silencios || null, ia: r.info?.ia || null },
     saidas: (r.saidas || []).map(s => ({
       id: s.id, formato: s.formato, rotulo: s.rotulo, nome: s.nome, ext: s.ext, bytes: s.bytes || 0,
       largura: s.largura || 0, altura: s.altura || 0, duracao: s.duracao || 0,
@@ -62,6 +62,8 @@ router.get('/config', (_req, res) => {
   const L = preparo.LIMITES;
   res.json({
     ffmpeg: preparo.ffmpegDisponivel(),
+    // A IA das fotos (Real-ESRGAN) é opcional no servidor: a tela avisa quando falta.
+    ia: require('../services/upscaleIA').disponivel(),
     limites: { videoMb: L.videoMb, imagemMb: L.imagemMb, duracaoS: L.duracaoS, naFila: L.naFila, validadeH: L.validadeH },
     formatos: Object.entries(preparo.FORMATOS).map(([id, f]) => ({ id, rotulo: f.rotulo, largura: f.largura, altura: f.altura })),
   });

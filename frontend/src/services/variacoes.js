@@ -19,6 +19,9 @@ export const CONFIG_PADRAO = {
   larguraOriginal: 1080,
   semAudio: false,
   realce: false,
+  /* Upscale até 4K/8K (com o realce) e IA nas fotos — só no avançado. */
+  resolucao: 'padrao',
+  ia: 'desligado',
   trecho: { inicio: 0, fim: null },
   ajustes: { brilho: 0, contraste: 0, saturacao: 0, nitidez: 0 },
   /* Ligado por padrão: vídeo de fala sem as pausas. */
@@ -38,6 +41,23 @@ export const CANTOS_LOGO = [
   { value: 'inf-esq', label: '↙' }, { value: 'inf-dir', label: '↘' },
 ];
 export const FRACAO_LOGO = { pequeno: 0.13, medio: 0.18, grande: 0.25 }; // espelha marcaDagua.js
+
+/* Resolução do upscale: quantas vezes a base de 1080 do formato (espelha preparoDeMidia.js). */
+export const RESOLUCOES = [
+  { value: 'padrao', label: 'Full HD', fator: 1 },
+  { value: '2160', label: '4K', fator: 2 },
+  { value: '4320', label: '8K', fator: 4 },
+];
+export const MODOS_IA = [
+  { value: 'desligado', label: 'Desligada' },
+  { value: 'rapida', label: 'IA rápida', texto: 'segundos por foto' },
+  { value: 'maxima', label: 'IA máxima', texto: 'minutos por foto' },
+];
+/** Quantas vezes a base de 1080 a saída terá (1 sem realce). */
+export function fatorDaResolucao(config) {
+  if (config.modo !== 'avancado' || !config.realce) return 1;
+  return RESOLUCOES.find(r => r.value === config.resolucao)?.fator || 1;
+}
 
 const EXT_VIDEO = /\.(mp4|mov|m4v)$/i;
 const EXT_FOTO = /\.(jpe?g|png|webp)$/i;
@@ -80,19 +100,23 @@ const FATOR = { alta: 0.9, media: 0.7, leve: 0.4 }; // segundos de processamento
  * Estimativa grosseira do tempo de processamento, em segundos. É uma ordem de
  * grandeza (o servidor processa 2 por vez, e a máquina varia) — a tela diz isso.
  */
+const SEGUNDOS_IA = { rapida: 15, maxima: 120 }; // por foto; a IA faz uma de cada vez no servidor
+
 export function estimarSegundos(itens, config) {
   const n = Math.max(1, config.formatos.length);
+  const k = fatorDaResolucao(config);
+  /* Realce: codificação mais caprichada (~2x); 4K tem 4x os pixels, 8K 16x. */
   const fator = (FATOR[config.qualidade] || 0.9) * (config.enquadramento === 'desfoque' ? 1.4 : 1)
-    * (config.modo === 'avancado' && config.realce ? 1.3 : 1);
+    * (config.modo === 'avancado' && config.realce ? 2 * k * k : 1);
+  const ia = config.modo === 'avancado' ? SEGUNDOS_IA[config.ia] || 0 : 0;
   /* O corte de pausas lê o áudio e gera um intermediário antes dos formatos. */
   const extraPausas = config.silencios && config.silencios !== 'desligado' ? 0.6 : 0;
-  let total = 0;
+  let total = 0, daIA = 0;
   for (const it of itens) {
-    total += it.tipo === 'video'
-      ? (3 + duracaoUtil(it.duracao || 30, config) * fator) * n + duracaoUtil(it.duracao || 30, config) * extraPausas
-      : 1.5 * n;
+    if (it.tipo === 'video') total += (3 + duracaoUtil(it.duracao || 30, config) * fator) * n + duracaoUtil(it.duracao || 30, config) * extraPausas;
+    else { total += 1.5 * n * k * k; daIA += ia; }
   }
-  return Math.round(total / 2); // 2 arquivos ao mesmo tempo no servidor
+  return Math.round(total / 2 + daIA); // 2 arquivos ao mesmo tempo no servidor; a IA, um de cada vez
 }
 
 export function tempoLegivel(seg) {
@@ -112,7 +136,9 @@ export function tamanho(bytes) {
 export function resumoDaConfig(config) {
   const partes = [];
   const fmts = config.formatos.map(id => FORMATOS.find(f => f.id === id)).filter(Boolean);
-  partes.push(fmts.map(f => (f.largura ? `${f.proporcao} (${f.largura}×${f.altura})` : 'proporção original')).join(' + '));
+  const k = fatorDaResolucao(config);
+  partes.push(fmts.map(f => (f.largura ? `${f.proporcao} (${f.largura * k}×${f.altura * k})`
+    : k > 1 ? `proporção original (menor lado ${1080 * k})` : 'proporção original')).join(' + '));
   if (fmts.some(f => f.largura)) partes.push({ cortar: 'cortando as bordas', barras: 'com barras pretas', desfoque: 'com fundo desfocado' }[config.enquadramento]);
   partes.push(`qualidade ${config.qualidade === 'media' ? 'média' : config.qualidade}`);
   if (config.silencios && config.silencios !== 'desligado') partes.push(`vídeos sem as pausas (${config.silencios})`);
@@ -125,7 +151,8 @@ export function resumoDaConfig(config) {
       a.brilho && `brilho ${sinal(a.brilho)}%`, a.contraste && `contraste ${sinal(a.contraste)}%`,
       a.saturacao && `saturação ${sinal(a.saturacao)}%`, a.nitidez && `nitidez ${a.nitidez}%`,
     ].filter(Boolean);
-    if (config.realce) partes.push('realce de qualidade (upscale)');
+    if (config.realce) partes.push(`realce de qualidade (upscale${k > 1 ? ` em ${RESOLUCOES.find(r => r.fator === k).label}` : ''})`);
+    if (config.ia && config.ia !== 'desligado') partes.push(`fotos melhoradas com ${MODOS_IA.find(m => m.value === config.ia)?.label || 'IA'}`);
     if (ajustes.length) partes.push(ajustes.join(', '));
     const t = config.trecho || {};
     if ((Number(t.inicio) || 0) > 0 || (t.fim != null && t.fim !== '')) partes.push(`vídeo de ${Number(t.inicio) || 0}s até ${t.fim == null || t.fim === '' ? 'o fim' : `${t.fim}s`}`);

@@ -157,6 +157,56 @@ describe('API', () => {
   }
   const caminho = async s => (await preparo.saidaDoUsuario(usuarioId, s.id)).caminho;
 
+  test('upscale 4K: o vídeo sai 2160×3840, realçado', async () => {
+    const item = await processar(FALA, { modo: 'avancado', formatos: ['9x16'], silencios: 'desligado', realce: true, resolucao: '2160' });
+    expect(item.status).toBe('concluido');
+    expect(await sondar(await caminho(item.saidas[0]))).toMatchObject({ largura: 2160, altura: 3840 });
+  }, 120_000);
+
+  describe('fotos com IA', () => {
+    const ia = require('../src/services/upscaleIA');
+    const original = { disponivel: ia.disponivel, melhorar: ia.melhorar };
+    afterEach(() => Object.assign(ia, original));
+    const FOTO_PEQ = path.join(DIR, 'foto-peq.jpg');
+    beforeAll(() => ff(['-f', 'lavfi', '-i', 'testsrc=size=320x240', '-frames:v', '1', FOTO_PEQ]));
+
+    test('sem a IA instalada: os formatos saem do original e a tela diz por quê', async () => {
+      ia.disponivel = () => false;
+      const item = await processar(FOTO_PEQ, { modo: 'avancado', formatos: ['1x1'], ia: 'rapida' });
+      expect(item.status).toBe('concluido');
+      expect(item.info.ia).toEqual({ usada: false, motivo: 'A IA não está instalada neste servidor.' });
+    });
+
+    test('a IA falhando não derruba a foto', async () => {
+      ia.disponivel = () => true;
+      ia.melhorar = async () => { throw new Error('o upscale com IA falhou'); };
+      const item = await processar(FOTO_PEQ, { modo: 'avancado', formatos: ['1x1'], ia: 'rapida' });
+      expect(item.status).toBe('concluido');
+      expect(item.info.ia).toMatchObject({ usada: false, motivo: 'o upscale com IA falhou' });
+    });
+
+    test('a foto melhorada é a que vira os formatos', async () => {
+      ia.disponivel = () => true;
+      let alvo;
+      ia.melhorar = async (origem, destino, modelo, a) => {
+        alvo = a;
+        // A "IA" do teste: a foto ampliada e toda vermelha, para saber de onde a saída veio.
+        ff(['-f', 'lavfi', '-i', `color=red:size=${a}x${a}`, '-frames:v', '1', destino]);
+      };
+      const item = await processar(FOTO_PEQ, { modo: 'avancado', formatos: ['1x1'], ia: 'maxima' });
+      expect(alvo).toBe(1080);
+      expect(item.info.ia).toEqual({ usada: true, modelo: 'maxima', largura: 1080, altura: 1080 });
+      const [r, g, b] = cor(await caminho(item.saidas[0]), 500, 500);
+      expect(r).toBeGreaterThan(200); expect(g).toBeLessThan(60); expect(b).toBeLessThan(60);
+    });
+
+    (ia.disponivel() ? test : test.skip)('Real-ESRGAN de verdade (quando instalado)', async () => {
+      const item = await processar(FOTO_PEQ, { modo: 'avancado', formatos: ['1x1'], ia: 'rapida' });
+      expect(item.info.ia).toMatchObject({ usada: true, modelo: 'rapida' });
+      expect(await sondar(await caminho(item.saidas[0]))).toMatchObject({ largura: 1080, altura: 1080 });
+    }, 600_000);
+  });
+
   test('corte de silêncios: tira as duas pausas e mantém a fala; capa 1080×1920', async () => {
     const item = await processar(FALA, { formatos: ['9x16'], capa: { ativa: true, titulo: 'Três dicas rápidas', posicao: 'topo' } });
     expect(item.status).toBe('concluido');
