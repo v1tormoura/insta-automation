@@ -246,7 +246,7 @@ afterAll(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 async function load(id: string, file: string, kind: AssetKind, ext: string, name = path.basename(file)): Promise<PlanAsset> {
   const probe = await probeFile(tools, file);
   // normalizeProbe é puro: o mesmo JSON precisa dar o mesmo resultado
-  expect(normalizeProbe(probe.raw, probe.info.sizeBytes)).toEqual(probe.info);
+  expect(normalizeProbe(probe.raw, probe.info.sizeBytes, probe.info.decoderRotation ?? null)).toEqual(probe.info);
   const metadata = kind === 'video' || kind === 'image' ? await inspectMetadata(file, kind, ext, probe) : null;
   const a: PlanAsset = { id, name, kind, ext, path: file, info: probe.info, metadata };
   assets.set(id, a);
@@ -268,6 +268,27 @@ const argAfter = (p: ProcessingPlan, flag: string) => {
   const i = p.args!.indexOf(flag);
   return i >= 0 ? p.args![i + 1] : undefined;
 };
+/**
+ * Executa os argumentos do plano como o executor faria (diretório próprio com
+ * textos, cópias e fonte) e devolve o caminho da saída.
+ */
+function runPlan(p: ProcessingPlan): string {
+  const dir = fs.mkdtempSync(path.join(tmpDir, 'run-'));
+  for (const f of p.textFiles) fs.writeFileSync(path.join(dir, f.name), f.content, 'utf8');
+  for (const f of p.copyFiles) fs.copyFileSync(f.from, path.join(dir, f.to));
+  if (p.needsFont) {
+    const font = path.join(__dirname, '..', '..', 'assets', 'fonts', 'DejaVuSans-Bold.ttf');
+    fs.copyFileSync(font, path.join(dir, 'font.ttf'));
+    fs.mkdirSync(path.join(dir, 'fonts'));
+    fs.copyFileSync(font, path.join(dir, 'fonts', 'DejaVuSans-Bold.ttf'));
+  }
+  const args = p.args!.filter((a, i, l) => a !== '-progress' && l[i - 1] !== '-progress');
+  execFileSync('ffmpeg', args, { cwd: dir, stdio: 'pipe', timeout: 240_000 });
+  const out = path.join(dir, p.outputFile);
+  expect(fs.statSync(out).size).toBeGreaterThan(0);
+  return out;
+}
+
 function planError(fn: () => unknown): PlanError {
   try {
     fn();
@@ -532,6 +553,15 @@ describe('buildPlan — injeção: texto do usuário nunca entra nos argumentos/
     expect(p.expected.durationSec).toBeCloseTo(1 + 2 + 2 / 3 + 1 + 1, 2);
     expect(p.expected).toMatchObject({ width: 720, height: 1280, fps: 25, audioCodec: 'aac' });
     expect(p.auxiliaryAssetIds.sort()).toEqual(['evilLogo01', 'photoJpg01', 'sceneMp401', 'subsSrt001', 'trackMp301'].sort());
+
+    // O grafo com texto hostil roda de verdade no FFmpeg e produz o que o plano promete.
+    const out = runPlan(p);
+    const probe = ffprobe(out);
+    const v = probe.streams.find((x: { codec_type: string }) => x.codec_type === 'video');
+    const a = probe.streams.find((x: { codec_type: string }) => x.codec_type === 'audio');
+    expect([v.codec_name, v.width, v.height]).toEqual(['h264', 720, 1280]);
+    expect(a?.codec_name).toBe('aac');
+    expect(Math.abs(Number(probe.format.duration) - p.expected.durationSec!)).toBeLessThan(0.25);
   });
 
   it('fuzz: configurações aleatórias válidas geram grafos só com números e palavras conhecidas', () => {
@@ -602,10 +632,15 @@ describe('buildPlan — imagens', () => {
     expect({ strategy: p.strategy, width: p.expected.width, height: p.expected.height }).toEqual({ strategy: 'image-lossless', width: 401, height: 301 });
   });
 
-  it('imagem com transformação → recodificação com orientação EXIF aplicada primeiro', () => {
-    const p = buildPlan(A('photoJpg01'), { mode: 'custom', color: { brightness: 20 } }, ctx());
+  it('imagem com transformação → recodificação com a orientação EXIF aplicada exatamente uma vez', () => {
+    const photo = A('photoJpg01');
+    const p = buildPlan(photo, { mode: 'custom', color: { brightness: 20 } }, ctx());
     expect(p.strategy).toBe('image-encode');
-    expect(graphOf(p).startsWith('[0:v]transpose=1,eq=brightness=0.06:contrast=1:saturation=1')).toBe(true);
+    const g = graphOf(p);
+    expect(g).toContain('eq=brightness=0.06:contrast=1:saturation=1');
+    // Ou o decodificador do FFmpeg gira (decoderRotation), ou o plano gira com transpose — nunca os dois.
+    const manual = /transpose=1/.test(g);
+    expect(manual !== !!photo.info.decoderRotation, `transpose no grafo=${manual}, decoderRotation=${photo.info.decoderRotation}`).toBe(true);
     expect(p.expected).toMatchObject({ container: 'jpg', videoCodec: 'mjpeg', width: 300, height: 400 });
     expect(argAfter(p, '-map_metadata')).toBe('-1');
     expect(argAfter(p, '-frames:v')).toBe('1');
@@ -613,7 +648,22 @@ describe('buildPlan — imagens', () => {
     expect(p.operations.map((o) => o.id)).toEqual(expect.arrayContaining(['orientation', 'color', 'metadata', 'image-codec']));
     const sq = buildPlan(A('photoJpg01'), { mode: 'custom', geometry: { aspect: '1:1' } }, ctx());
     expect(sq.expected).toMatchObject({ width: 300, height: 300 });
-    expect(graphOf(sq).startsWith('[0:v]transpose=1,')).toBe(true);
+  });
+
+  it('JPEG com orientação 6 convertido para PNG: pixels girados 90° uma única vez (execução real do plano)', () => {
+    const p = buildPlan(A('photoJpg01'), { mode: 'quick', output: { format: 'png' } }, ctx());
+    expect(p.strategy).toBe('image-encode');
+    expect(p.expected).toMatchObject({ container: 'png', width: 300, height: 400 });
+    const out = runPlan(p);
+    const probe = ffprobe(out);
+    expect([probe.streams[0].width, probe.streams[0].height]).toEqual([300, 400]);
+    // Referência: pixels crus (sem rotação automática) + 90° horário = orientação EXIF 6
+    const ref = path.join(tmpDir, 'ref-orient6.png');
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-autorotate', '0', '-i', fx('photo.jpg'), '-vf', 'transpose=1', '-frames:v', '1', ref]);
+    const md5 = (f: string) => execFileSync('ffmpeg', ['-v', 'error', '-autorotate', '0', '-i', f, '-map', '0:v:0', '-f', 'md5', '-'], { encoding: 'utf8' }).trim();
+    expect(md5(out)).toBe(md5(ref));
+    // e a saída não carrega orientação EXIF (senão giraria de novo)
+    expect(fs.readFileSync(out).includes(Buffer.from('Exif'))).toBe(false);
   });
 
   it('PNG com transparência → JPG: fundo branco, conversão registrada', () => {

@@ -77,6 +77,10 @@ beforeAll(async () => {
   enqueue('640x480 keep', () => A['rotated.mp4']!, { mode: 'custom', video: fast, geometry: { resolution: 'custom', width: 640, height: 480, keepAspect: true } });
   enqueue('640x480 exato', () => A['rotated.mp4']!, { mode: 'custom', video: fast, geometry: { resolution: 'custom', width: 640, height: 480, keepAspect: false } });
   enqueue('corte de área', plain, { mode: 'custom', video: fast, geometry: { crop: { x: 0.5, y: 0, w: 0.5, h: 1 } } });
+  enqueue('barras vermelhas', plain, { mode: 'custom', video: fast, geometry: { aspect: '1:1', fit: 'pad', padColor: '#FF0000' } });
+  enqueue('fundo desfocado', plain, { mode: 'custom', video: fast, geometry: { aspect: '9:16', fit: 'blur' } });
+  enqueue('trim cópia', plain, { mode: 'custom', video: { codec: 'copy' }, audio: { codec: 'copy' }, trim: { start: 0.7, end: 1.6 } });
+  enqueue('trim + partes', plain, { mode: 'custom', video: fast, trim: { start: 0.5, end: 1.5 }, segmentation: { mode: 'count', value: 2 } });
   // Tempo
   enqueue('trim', plain, { mode: 'custom', video: fast, trim: { start: 0.5, end: 1.5 } });
   enqueue('2x', plain, { mode: 'custom', video: fast, speed: 2 });
@@ -235,7 +239,49 @@ describe('modo personalizado: geometria', () => {
   }, T);
 });
 
+describe('modo personalizado: barras e fundo', () => {
+  it('barras com cor personalizada (#FF0000) em 1:1 → 320×320 com faixas vermelhas', async () => {
+    const [o] = await done('barras vermelhas', 'mp4');
+    const v = mainStreams(o!.file).v;
+    expect([v.width, v.height]).toEqual([320, 320]);
+    const bar = frameStats(o!.file, 1, '320:30:0:4');
+    const content = frameStats(o!.file, 1, '320:200:0:60');
+    expect(bar.vavg).toBeGreaterThan(200); // Cr alto = vermelho
+    expect(bar.ymax - bar.ymin).toBeLessThan(15); // faixa lisa
+    expect(content.vavg).toBeLessThan(bar.vavg - 40);
+  }, T);
+
+  it('fundo desfocado em 9:16 → 320×568, faixas preenchidas por imagem (não pretas)', async () => {
+    const [o] = await done('fundo desfocado', 'mp4');
+    const v = mainStreams(o!.file).v;
+    expect([v.width, v.height]).toEqual([320, 568]);
+    const top = frameStats(o!.file, 1, '320:150:0:0');
+    expect(top.yavg).toBeGreaterThan(30);
+    expect(top.ymax - top.ymin).toBeGreaterThan(10);
+    expect(o!.job.report!.operations.some((op) => op.id === 'blur-pad')).toBe(true);
+  }, T);
+});
+
 describe('modo personalizado: tempo', () => {
+  it('corte com cópia de fluxo explícita: conclui, avisa sobre quadros-chave e começa num quadro-chave', async () => {
+    const [o] = await done('trim cópia', 'mp4');
+    expect(o!.job.report!.strategy).toBe('stream-copy');
+    expect(o!.job.report!.warnings.join(' ')).toMatch(/quadros-chave/);
+    const d = decodedDuration(o!.file, 'v');
+    // Quadros-chave a cada 0,5 s na fixture: o trecho real cobre ao menos 0,7–1,6.
+    expect(d).toBeGreaterThanOrEqual(0.85);
+    expect(d).toBeLessThan(1.6);
+    expect(decodeErrors(o!.file)).toEqual([]);
+  }, T);
+
+  it('corte + divisão: 0,5–1,5 s em 2 partes de 0,5 s', async () => {
+    const parts = await done('trim + partes', 'mp4');
+    expect(parts).toHaveLength(2);
+    for (const p of parts) expect(Math.abs(decodedDuration(p.file, 'v') - 0.5)).toBeLessThan(0.08);
+    expect(psnr(parts[0]!.file, fx('plain.mp4'), { ssB: 0.5 })).toBeGreaterThan(30);
+    expect(psnr(parts[1]!.file, fx('plain.mp4'), { ssB: 1 })).toBeGreaterThan(30);
+  }, T);
+
   it('corte 0,5–1,5 s → ~1 s começando no quadro de 0,5 s', async () => {
     const [o] = await done('trim', 'mp4');
     const { duration, a } = mainStreams(o!.file);
@@ -346,4 +392,51 @@ describe('modo personalizado: cor e codificação', () => {
     expect(decodeErrors(o!.file)).toEqual([]);
     expect(psnr(o!.file, fx('plain.mp4'), { ssA: 1, ssB: 1 })).toBeGreaterThan(26);
   }, T);
+});
+
+describe('validação do plano (sem criar tarefas)', () => {
+  const plan = (assetId: string, settings: unknown) => c.post('/api/plan', { assetIds: [assetId], scope: 'common', settings });
+  const msgs = (r: { data: any }) => (r.data.errors ?? []).map((e: any) => e.message).join(' | ');
+
+  it('combinações de codec × contêiner incompatíveis são recusadas com o motivo', async () => {
+    const id = A['plain.mp4']!.id;
+    const cases: Array<[unknown, RegExp]> = [
+      [{ mode: 'custom', output: { format: 'mov' }, audio: { codec: 'opus' } }, /Opus não é compatível com MOV/],
+      [{ mode: 'custom', output: { format: 'webm' }, audio: { codec: 'aac' } }, /AAC não é compatível com WebM/],
+      [{ mode: 'custom', output: { format: 'webm' }, video: { codec: 'h264' } }, /H\.264 não é compatível com WebM/],
+      [{ mode: 'custom', video: { codec: 'copy' }, geometry: { aspect: '1:1' } }, /Cópia do fluxo de vídeo é impossível/],
+      [{ mode: 'custom', audio: { codec: 'copy', volume: 0.5 } }, /Cópia do fluxo de áudio é impossível/],
+      [{ mode: 'custom', trim: { start: 1, end: 1.05 } }, /curto demais/],
+      [{ mode: 'editorial', fade: { in: 2, out: 2 } }, /transições.*excedem/i],
+    ];
+    for (const [settings, re] of cases) {
+      const r = await plan(id, settings);
+      expect(r.status).toBe(200);
+      expect(r.data.ok, JSON.stringify(settings)).toBe(false);
+      expect(msgs(r), JSON.stringify(settings)).toMatch(re);
+    }
+  });
+
+  it('ajustes que não se aplicam aparecem como não aplicados (imagem com velocidade; vídeo pedido como JPG)', async () => {
+    const img = await plan(A['photo.jpg']!.id, { mode: 'custom', speed: 2, trim: { start: 0, end: 1 } });
+    expect(img.data.ok).toBe(true);
+    const sk = img.data.jobs[0].skipped.map((x: any) => x.label);
+    expect(sk).toContain('Velocidade');
+    expect(sk).toContain('Corte temporal');
+    const vid = await plan(A['plain.mp4']!.id, { mode: 'quick', output: { format: 'jpg' } });
+    expect(vid.data.ok).toBe(true);
+    expect(vid.data.jobs[0].skipped.map((x: any) => x.label)).toContain('Formato JPG');
+    expect(vid.data.jobs[0].outputFormat).toBe('mp4');
+  });
+
+  it('o plano prevê dimensões/duração que batem com o que é produzido', async () => {
+    const r = await plan(A['plain.mp4']!.id, { mode: 'custom', geometry: { aspect: '9:16', resolution: '1080', fit: 'crop' }, speed: 2 });
+    expect(r.data.ok).toBe(true);
+    const e = r.data.jobs[0].expected;
+    expect([e.width, e.height]).toEqual([1080, 1920]);
+    expect(e.durationSec).toBeCloseTo(1, 2);
+    expect(e.hasAudio).toBe(true);
+    const up = await plan(A['plain.mp4']!.id, { mode: 'custom', geometry: { resolution: '2160' } });
+    expect(up.data.jobs[0].warnings.join(' ')).toMatch(/Ampliação/);
+  });
 });

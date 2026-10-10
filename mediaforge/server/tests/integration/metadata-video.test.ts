@@ -323,8 +323,10 @@ describe('outros contêineres e estruturas', () => {
     expect(job!.report!.strategy).toBe('stream-copy');
     const { format, v, a } = mainStreams(out.file);
     expect(format.format_name).toMatch(/matroska/);
-    const keys = [...Object.keys(tagsOf(format)), ...Object.keys(tagsOf(v)), ...Object.keys(tagsOf(a))];
-    expect(keys.filter((k) => /title|artist|date|encoder/i.test(k))).toEqual([]);
+    const all = { ...tagsOf(v), ...tagsOf(a), ...tagsOf(format) };
+    // O Matroska exige WritingApp: com +bitexact o muxer grava só "Lavf", sem versão.
+    const leaked = Object.entries(all).filter(([k, val]) => /title|artist|date|encoder/i.test(k) && !(k === 'encoder' && val === 'Lavf'));
+    expect(leaked).toEqual([]);
     for (const n of ['Filme confidencial', 'Fulano Secreto', '2023-01-01', 'Faixa da camera X', 'Lavf60', 'Lavc60.31.102 libx264']) {
       expect(fs.readFileSync(mkv).includes(n), `fixture contém ${n}`).toBe(true);
       expect(out.body.includes(n), `saída contém "${n}"`).toBe(false);
@@ -336,18 +338,23 @@ describe('outros contêineres e estruturas', () => {
     expect(m.verdict).toBe('comprovado');
   });
 
-  it('MP4 com capítulos: removidos com "Tags do contêiner"; mantidos quando nada é pedido', async () => {
+  it('MP4 com capítulos: removidos (com títulos) quando "Tags do contêiner" é pedida', async () => {
     expect(chaptersOf(chapters)).toHaveLength(2);
     const [rm] = await c.processOk(A.chapters!.id, { mode: 'quick', metadata: { remove: ALL } });
     const outRm = await output(rm!, 'mp4');
     expect(chaptersOf(outRm.file)).toEqual([]);
     expect(outRm.body.includes('Capitulo secreto')).toBe(false);
     expect(rm!.report!.metadata.verdict).toBe('comprovado');
+  });
 
-    const [keep] = await c.processOk(A.chapters!.id, { mode: 'quick', metadata: { remove: NONE } });
+  it('MP4 com capítulos mantidos por escolha: tarefa conclui, capítulos com títulos e arquivo sem erro de leitura', async () => {
+    const ids = await c.batch([A.chapters!.id], { mode: 'quick', metadata: { remove: NONE } });
+    const [keep] = await c.waitJobs(ids);
+    expect(keep!.status, `${keep!.error}`).toBe('completed');
     const outKeep = await output(keep!, 'mp4');
     const ch = chaptersOf(outKeep.file);
     expect(ch.map((x: any) => x.tags?.title)).toEqual(['Capitulo secreto um', 'Capitulo secreto dois']);
+    expect(decodeErrors(outKeep.file)).toEqual([]);
   });
 
   it('MP4 estilo Android: título (©nam) e localização binária (loci) removidos', async () => {
@@ -355,7 +362,8 @@ describe('outros contêineres e estruturas', () => {
     const [job] = await c.processOk(A.android!.id, { mode: 'quick', metadata: { remove: ALL } });
     const out = await output(job!, 'mp4');
     const paths = mp4BoxPaths(out.body);
-    expect(paths.filter((p) => /loci|ilst|©nam|\xA9nam/.test(p))).toEqual([]);
+    // (um "ilst" vazio, sem filhos, é só estrutura do muxer)
+    expect(paths.filter((p) => /loci|ilst\/|©nam|\xA9nam/.test(p))).toEqual([]);
     expect(out.body.includes('Torre secreta')).toBe(false);
     expect(Object.keys(tagsOf(mainStreams(out.file).format)).filter((k) => /location|title/.test(k))).toEqual([]);
     expect(job!.report!.metadata.verdict).toBe('comprovado');
