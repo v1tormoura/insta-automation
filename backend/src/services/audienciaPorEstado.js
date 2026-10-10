@@ -109,8 +109,12 @@ async function doUsuario(contas, metrica = 'alcancados') {
         for (const [uf, v] of Object.entries(porUf)) estados[uf] = (estados[uf] || 0) + v;
       } else if (cidades) {
         situacoes.push({ ...quem, situacao: 'fora_do_brasil' });
+      } else if (quem.seguidores < MINIMO_SEGUIDORES) {
+        situacoes.push({ ...quem, situacao: 'poucos_seguidores' });
       } else {
-        situacoes.push({ ...quem, situacao: quem.seguidores < MINIMO_SEGUIDORES ? 'poucos_seguidores' : 'sem_dados' });
+        // Vazio sem erro: a Meta reteve. O total do mês mostra se foi por público pequeno.
+        const noMes = await demografia.totalDoMes(conta, METRICAS[metrica]);
+        situacoes.push({ ...quem, situacao: 'sem_dados', ...(noMes !== null ? { noMes } : {}) });
       }
     } catch (err) {
       situacoes.push({ ...quem, situacao: 'erro', erro: err.message });

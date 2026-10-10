@@ -26,11 +26,24 @@ const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 const SITUACAO = {
   poucos_seguidores: 'menos de 100 seguidores (a Meta não libera)',
   fora_do_brasil: 'público deste mês fora do Brasil',
-  sem_dados: 'a Meta não devolveu cidades este mês',
+  sem_dados: 'a Meta ainda não liberou as cidades este mês',
   erro: 'a Meta recusou',
 };
+const NO_MES = { alcancados: 'contas alcançadas', engajados: 'contas engajadas' };
 
-function ForaDoMapa({ contas }) {
+/**
+ * A Meta esconde as cidades quando o público do mês é pequeno (abaixo de ~100
+ * pessoas) e devolve vazio, sem erro. Com o total do mês da conta, a tela diz
+ * qual dos dois casos é — em vez de deixar parecer defeito.
+ */
+function textoDaSituacao(c, recorte) {
+  if (c.situacao !== 'sem_dados' || c.noMes == null || !NO_MES[recorte]) return SITUACAO[c.situacao] || c.situacao;
+  return c.noMes < 100
+    ? `só ${fmt(c.noMes)} ${NO_MES[recorte]} este mês — a Meta libera as cidades a partir de ~100`
+    : `${fmt(c.noMes)} ${NO_MES[recorte]} este mês, mas a Meta ainda não liberou as cidades (ela esconde cidades com poucas pessoas)`;
+}
+
+function ForaDoMapa({ contas, recorte }) {
   const fora = (contas || []).filter(c => c.situacao !== 'ok');
   if (!fora.length) return null;
   return (
@@ -40,7 +53,7 @@ function ForaDoMapa({ contas }) {
       </div>
       {fora.slice(0, 8).map(c => (
         <div key={c.username} title={c.erro || ''} style={{ fontSize: 'var(--mf-t-micro)', color: 'var(--mf-text-3)', lineHeight: 1.4 }}>
-          <strong style={{ color: 'var(--mf-text-2)' }}>@{c.username}</strong> · {SITUACAO[c.situacao] || c.situacao}
+          <strong style={{ color: 'var(--mf-text-2)' }}>@{c.username}</strong> · {textoDaSituacao(c, recorte)}
           {c.erro && <span style={{ color: 'var(--mf-danger-500)' }}>: {c.erro}</span>}
         </div>
       ))}
@@ -56,7 +69,7 @@ function motivoDoVazio(contas) {
   const partes = [
     conta('poucos_seguidores') && `${plural(conta('poucos_seguidores'), 'conta tem', 'contas têm')} menos de 100 seguidores`,
     conta('fora_do_brasil') && `${plural(conta('fora_do_brasil'), 'conta teve', 'contas tiveram')} público fora do Brasil`,
-    conta('sem_dados') && `${plural(conta('sem_dados'), 'conta ficou', 'contas ficaram')} sem cidades da Meta este mês`,
+    conta('sem_dados') && `${plural(conta('sem_dados'), 'conta ainda não teve', 'contas ainda não tiveram')} as cidades liberadas pela Meta este mês (veja ao lado)`,
     conta('erro') && `${plural(conta('erro'), 'conta deu', 'contas deram')} erro na Meta (veja ao lado)`,
   ].filter(Boolean);
   return `Sem dados ainda: ${partes.join(' · ')}.`;
@@ -203,7 +216,7 @@ export default function MapaDeAudiencia() {
               </div>
             ))}
           </div>
-          <ForaDoMapa contas={dados?.contas} />
+          <ForaDoMapa contas={dados?.contas} recorte={recorte} />
         </div>
       </div>
       <style>{`@media (max-width: 720px) { .mapa-audiencia__grade { grid-template-columns: 1fr !important; } .mapa-audiencia__grade > div + div { border-left: none !important; border-top: 1px solid var(--mf-border); } }`}</style>

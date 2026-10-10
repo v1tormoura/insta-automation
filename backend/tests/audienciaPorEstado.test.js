@@ -81,6 +81,20 @@ describe('com o período antes da cidade (formato real da Meta)', () => {
     expect(global.fetch.mock.calls.filter(([u]) => String(u).includes('/5/'))).toHaveLength(1);
   });
 
+  test('cidades retidas pela Meta: a conta vem com o total do mês, para a tela explicar', async () => {
+    global.fetch = jest.fn(async url => {
+      const u = new URL(String(url));
+      if (u.searchParams.get('metric') === 'reach') {
+        expect(u.searchParams.get('period')).toBe('day');
+        expect(Number(u.searchParams.get('until')) - Number(u.searchParams.get('since'))).toBeLessThanOrEqual(30 * 86400);
+        return resposta({ data: [{ name: 'reach', total_value: { value: 63 } }] });
+      }
+      return resposta({ data: [] });
+    });
+    const r = await a.doUsuario([{ id: 'z', username: 'andreza', followers: 4200, igUserId: '7', accessToken: 't' }]);
+    expect(r.contas).toEqual([{ username: 'andreza', seguidores: 4200, situacao: 'sem_dados', noMes: 63 }]);
+  });
+
   test('erro não fica guardado; dado fica', async () => {
     let falha = true;
     global.fetch = jest.fn(async () => (falha

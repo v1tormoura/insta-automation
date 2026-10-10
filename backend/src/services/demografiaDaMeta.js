@@ -82,4 +82,35 @@ async function pedir(conta, metrica, breakdown, timeframe = 'this_month') {
   throw ultimo;
 }
 
-module.exports = { pedir, linhas, semPeriodo, EH_PERIODO, ALTERNATIVAS };
+/* A Meta esconde a demografia quando o público do recorte é pequeno (abaixo
+   de ~100 pessoas) e devolve lista vazia, sem erro. Para a tela dizer isso
+   com o número da conta, e não com uma frase vaga, lê-se o total do mês. */
+const TOTAL_DO_RECORTE = Object.freeze({
+  reached_audience_demographics: 'reach',
+  engaged_audience_demographics: 'accounts_engaged',
+});
+
+/**
+ * Quantas contas o perfil alcançou (ou engajou) desde o dia 1º do mês.
+ * `null` quando a Meta não responde — a tela então não afirma número nenhum.
+ */
+async function totalDoMes(conta, metrica, agora = new Date()) {
+  const metric = TOTAL_DO_RECORTE[metrica];
+  if (!metric) return null;
+  const inicioDoMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  // A Graph recusa janela de mais de 30 dias em period=day.
+  const since = Math.max(inicioDoMes.getTime(), agora.getTime() - 30 * 86_400_000 + 60_000);
+  try {
+    const { get } = require('./instagramAPI');
+    const r = await get(`/${conta.igUserId}/insights`, {
+      metric, period: 'day', metric_type: 'total_value',
+      since: Math.floor(since / 1000), until: Math.floor(agora.getTime() / 1000),
+    }, conta.accessToken);
+    const v = Number(r?.data?.[0]?.total_value?.value);
+    return Number.isFinite(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { pedir, linhas, semPeriodo, totalDoMes, EH_PERIODO, ALTERNATIVAS };
