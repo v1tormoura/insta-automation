@@ -1,0 +1,29 @@
+{
+  "name": "mediaforge",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MediaForge — plataforma local de processamento, limpeza de metadados e versões editoriais de vídeos e imagens (FFmpeg/FFprobe).",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,cyan \"npm run dev -w @mediaforge/server\" \"npm run dev -w @mediaforge/web\"",
+    "build": "npm run build -w @mediaforge/web && npm run build -w @mediaforge/server",
+    "start": "npm run start -w @mediaforge/server",
+    "doctor": "npm run doctor -w @mediaforge/server",
+    "typecheck": "npm run typecheck -w @mediaforge/shared && npm run typecheck -w @mediaforge/server && npm run typecheck -w @mediaforge/web",
+    "test": "npm run test -w @mediaforge/server && npm run test -w @mediaforge/web",
+    "test:e2e": "npm run test:e2e -w @mediaforge/web"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.6",
+    "typescript": "5.9.3"
+  }
+}

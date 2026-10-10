@@ -1,0 +1,12 @@
+node_modules/
+dist/
+# Dados de execução: sessões, uploads, saídas, banco SQLite
+data/
+server/data/
+# Ambiente local
+.env
+# Relatórios de testes
+web/playwright-report/
+web/test-results/
+coverage/
+*.log
