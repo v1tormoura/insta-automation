@@ -25,6 +25,8 @@ const { podePublicar } = require('./services/ritmoDaConta');
 const traduzirErro = require('./utils/traduzirErro');
 const avisos = require('./services/smartActivity/eventosDePublicacao');
 
+const { emParalelo } = require('./utils/emParalelo');
+
 const delay = ms => new Promise(r => setTimeout(r, ms));
 const ESPERA_DA_TRAVA_MS = 5 * 60 * 1000;
 const PISO_INTERVALO_MS = 60_000;
@@ -36,12 +38,6 @@ const ESTADOS_ATIVOS = ['queued', 'running', 'waiting_interval'];
 const PUBLICACOES_SIMULTANEAS = Math.max(1, Number(process.env.PUBLICACOES_SIMULTANEAS) || 5);
 const INTERVALO_MINIMO_DA_CONTA_MS = 60_000;
 
-/** Roda `fn` sobre os itens com no máximo `limite` ao mesmo tempo, na ordem. */
-async function emParalelo(itens, limite, fn) {
-  let proximo = 0;
-  const trabalhador = async () => { while (proximo < itens.length) { const i = proximo++; await fn(itens[i], i); } };
-  await Promise.all(Array.from({ length: Math.min(limite, itens.length) }, trabalhador));
-}
 
 function mesmoDia(data) {
   if (!data) return false;

@@ -96,26 +96,34 @@ async function novosNoPeriodo(de, ate, accountIds) {
     const linhas = await sql`
       select account_id, novos from seguidores_do_dia
       where account_id = any(${ids.map(String)}::uuid[]) and dia >= ${de} and dia <= ${ate}`;
-
-    /* Só os dias com `novos` numérico entram na soma. Dia com `null` é o
-       primeiro registro daquela conta: não há ganho a somar, e tratá-lo como
-       zero afirmaria que a conta não cresceu naquele dia. */
-    let novos = 0;
-    let medidos = 0;
-    for (const l of linhas) {
-      if (typeof l.novos === 'number') { novos += l.novos; medidos++; }
-    }
-
-    const comSerie = new Set(linhas.map(l => String(l.accountId))).size;
-    return {
-      novos,
-      comHistorico: medidos > 0,
-      contasSemHistorico: Math.max(0, ids.length - comSerie),
-    };
+    return resumirNovos(linhas, ids);
   } catch (err) {
     console.log(`⚠️ [SerieSeguidores] período: ${err.message}`);
     return { novos: 0, comHistorico: false, contasSemHistorico: ids.length };
   }
 }
 
-module.exports = { registrar, novosNoPeriodo, diaDe };
+/** A soma de `novosNoPeriodo` a partir das linhas já lidas de `seguidores_do_dia`. */
+function resumirNovos(linhas, accountIds) {
+  const ids = new Set((accountIds || []).filter(Boolean).map(String));
+  if (!ids.size) return { novos: 0, comHistorico: false, contasSemHistorico: 0 };
+  const dasContas = linhas.filter(l => ids.has(String(l.accountId)));
+
+  /* Só os dias com `novos` numérico entram na soma. Dia com `null` é o
+     primeiro registro daquela conta: não há ganho a somar, e tratá-lo como
+     zero afirmaria que a conta não cresceu naquele dia. */
+  let novos = 0;
+  let medidos = 0;
+  for (const l of dasContas) {
+    if (typeof l.novos === 'number') { novos += l.novos; medidos++; }
+  }
+
+  const comSerie = new Set(dasContas.map(l => String(l.accountId))).size;
+  return {
+    novos,
+    comHistorico: medidos > 0,
+    contasSemHistorico: Math.max(0, ids.size - comSerie),
+  };
+}
+
+module.exports = { registrar, novosNoPeriodo, resumirNovos, diaDe };

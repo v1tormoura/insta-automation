@@ -1,6 +1,6 @@
 import './App.css';
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import './design/avisos.css';
@@ -11,34 +11,79 @@ import { LimiteDeRota } from './components/LimiteDeErro';
    dia 19: a pessoa esperava o bundle inteiro baixar para ver o
    painel. Login e as páginas públicas ficam no bundle principal: são a
    primeira coisa que aparece, e são pequenas. */
-const Dashboard           = lazy(() => import('./pages/Dashboard'));
-const Accounts            = lazy(() => import('./pages/Accounts'));
-const Posts               = lazy(() => import('./pages/Posts'));
-const Scheduler           = lazy(() => import('./pages/Scheduler'));
-const Logs                = lazy(() => import('./pages/Logs'));
-const Legends             = lazy(() => import('./pages/Legends'));
-const Health              = lazy(() => import('./pages/Health'));
-const Stories             = lazy(() => import('./pages/Stories'));
-const Loop                = lazy(() => import('./pages/Loop'));
-const JobManager          = lazy(() => import('./pages/JobManager'));
-const ConfigNotificacoes  = lazy(() => import('./pages/ConfigNotificacoes'));
+const telas = {
+  Dashboard: () => import('./pages/Dashboard'),
+  Accounts: () => import('./pages/Accounts'),
+  Posts: () => import('./pages/Posts'),
+  Scheduler: () => import('./pages/Scheduler'),
+  Logs: () => import('./pages/Logs'),
+  Legends: () => import('./pages/Legends'),
+  Health: () => import('./pages/Health'),
+  Stories: () => import('./pages/Stories'),
+  Loop: () => import('./pages/Loop'),
+  JobManager: () => import('./pages/JobManager'),
+  ConfigNotificacoes: () => import('./pages/ConfigNotificacoes'),
+  ConectarGuiado: () => import('./pages/ConectarGuiado'),
+  TopPosts: () => import('./pages/TopPosts'),
+  Performance: () => import('./pages/Performance'),
+  MetricasDosPerfis: () => import('./pages/MetricasDosPerfis'),
+  MinhaConta: () => import('./pages/MinhaConta'),
+  MediaLibrary: () => import('./pages/MediaLibrary'),
+  Variacoes: () => import('./pages/Variacoes'),
+  Webhook: () => import('./pages/Webhook'),
+  Atividade: () => import('./pages/Atividade'),
+  OAuthAccounts: () => import('./pages/OAuthAccounts'),
+  ApiMeta: () => import('./pages/ApiMeta'),
+  Usuarios: () => import('./pages/Usuarios'),
+};
+
+const Dashboard = lazy(telas.Dashboard);
+const Accounts = lazy(telas.Accounts);
+const Posts = lazy(telas.Posts);
+const Scheduler = lazy(telas.Scheduler);
+const Logs = lazy(telas.Logs);
+const Legends = lazy(telas.Legends);
+const Health = lazy(telas.Health);
+const Stories = lazy(telas.Stories);
+const Loop = lazy(telas.Loop);
+const JobManager = lazy(telas.JobManager);
+const ConfigNotificacoes = lazy(telas.ConfigNotificacoes);
 import OAuthCallback from './pages/OAuthCallback';
-const ConectarGuiado      = lazy(() => import('./pages/ConectarGuiado'));
-const TopPosts            = lazy(() => import('./pages/TopPosts'));
-const Performance         = lazy(() => import('./pages/Performance'));
-const MetricasDosPerfis   = lazy(() => import('./pages/MetricasDosPerfis'));
-const MinhaConta          = lazy(() => import('./pages/MinhaConta'));
-const MediaLibrary        = lazy(() => import('./pages/MediaLibrary'));
-const Variacoes           = lazy(() => import('./pages/Variacoes'));
-const Webhook             = lazy(() => import('./pages/Webhook'));
-const Atividade           = lazy(() => import('./pages/Atividade'));
-const OAuthAccounts       = lazy(() => import('./pages/OAuthAccounts'));
+const ConectarGuiado = lazy(telas.ConectarGuiado);
+const TopPosts = lazy(telas.TopPosts);
+const Performance = lazy(telas.Performance);
+const MetricasDosPerfis = lazy(telas.MetricasDosPerfis);
+const MinhaConta = lazy(telas.MinhaConta);
+const MediaLibrary = lazy(telas.MediaLibrary);
+const Variacoes = lazy(telas.Variacoes);
+const Webhook = lazy(telas.Webhook);
+const Atividade = lazy(telas.Atividade);
+const OAuthAccounts = lazy(telas.OAuthAccounts);
 import Login from './pages/Login';
 import Termos from './pages/Termos';
 import Privacidade from './pages/Privacidade';
-const ApiMeta             = lazy(() => import('./pages/ApiMeta'));
-const Usuarios            = lazy(() => import('./pages/Usuarios'));
+const ApiMeta = lazy(telas.ApiMeta);
+const Usuarios = lazy(telas.Usuarios);
 import { isAuthenticated, isAdmin } from './services/auth';
+
+/* Depois que a primeira tela aparece, as outras são baixadas em segundo
+   plano, uma de cada vez. Assim, clicar no menu não espera a rede: o pedaço
+   da tela já está no navegador. Quem pediu economia de dados fica de fora. */
+function useBaixarTelasEmSegundoPlano() {
+  useEffect(() => {
+    if (!isAuthenticated() || navigator.connection?.saveData) return undefined;
+    let cancelado = false;
+    const baixar = async () => {
+      for (const carregar of Object.values(telas)) {
+        if (cancelado) return;
+        await carregar().catch(() => {});
+      }
+    };
+    const quandoOcioso = window.requestIdleCallback || (fn => setTimeout(fn, 1500));
+    const id = quandoOcioso(baixar, { timeout: 4000 });
+    return () => { cancelado = true; (window.cancelIdleCallback || clearTimeout)(id); };
+  }, []);
+}
 
 /* O que aparece entre clicar no menu e o pedaço da tela chegar. Discreto de
    propósito: em conexão boa dura menos de 200 ms e nem se nota. */
@@ -60,6 +105,7 @@ function SoAdmin({ children }) {
 }
 
 export default function App() {
+  useBaixarTelasEmSegundoPlano();
   return (
     <>
     {/* `data-mf` dá aos avisos os tokens do tema; `contents` não cria caixa. */}

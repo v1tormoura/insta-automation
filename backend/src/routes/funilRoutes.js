@@ -253,20 +253,26 @@ painel.get('/resumo', async (req, res) => {
 painel.get('/por-conteudo', async (req, res) => {
   const dias = diasDe(req.query);
   const { atribuir, JANELA_H } = require('../services/receitaPorConteudo');
-  const leads = leadsDe(await eventosDoPeriodo(req.user.id, dias));
   const desde = new Date(Date.now() - (dias * 24 + JANELA_H) * 3_600_000);
-  const pubs = await sql`
-    select m->>'accountId' as account_id, m->>'igMediaId' as ig_media_id, m->>'em' as em,
-           p.job_id, p.job_name, coalesce(j.rotulo, '') as rotulo
-    from posts p
-    cross join lateral jsonb_array_elements(p.midias_publicadas) m
-    left join jobs j on j.id = p.job_id
-    where p.usuario_id = ${req.user.id} and (m->>'em')::timestamptz >= ${desde}`;
-  const ids = [...new Set(pubs.map(p => p.igMediaId).filter(Boolean))];
-  const ins = ids.length ? await sql`
-    select ig_media_id, username, reach, video_views, permalink, thumbnail_url, caption from insights
-    where usuario_id = ${req.user.id} and ig_media_id = any(${ids})` : [];
-  const r = atribuir(leads, pubs.map(p => ({ ...p, accountId: p.accountId })), new Map(ins.map(i => [i.igMediaId, i])));
+  /* As três leituras saem juntas: as métricas vêm das mídias do mesmo
+     período por subconsulta, sem esperar a lista de publicações. */
+  const [eventos, pubs, ins] = await Promise.all([
+    eventosDoPeriodo(req.user.id, dias),
+    sql`
+      select m->>'accountId' as account_id, m->>'igMediaId' as ig_media_id, m->>'em' as em,
+             p.job_id, p.job_name, coalesce(j.rotulo, '') as rotulo
+      from posts p
+      cross join lateral jsonb_array_elements(p.midias_publicadas) m
+      left join jobs j on j.id = p.job_id
+      where p.usuario_id = ${req.user.id} and (m->>'em')::timestamptz >= ${desde}`,
+    sql`
+      select ig_media_id, username, reach, video_views, permalink, thumbnail_url, caption from insights
+      where usuario_id = ${req.user.id} and ig_media_id in (
+        select m->>'igMediaId'
+        from posts p cross join lateral jsonb_array_elements(p.midias_publicadas) m
+        where p.usuario_id = ${req.user.id} and (m->>'em')::timestamptz >= ${desde})`,
+  ]);
+  const r = atribuir(leadsDe(eventos), pubs.map(p => ({ ...p, accountId: p.accountId })), new Map(ins.map(i => [i.igMediaId, i])));
   res.json({ dias, ...r });
 });
 

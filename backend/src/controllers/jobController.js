@@ -3,7 +3,7 @@
 /** Envios (Postar e Loop): listar, pausar, retomar, cancelar, reexecutar, apagar. */
 
 const { sql, ehUuid } = require('../db');
-const { jobs, comContas } = require('../repos');
+const { jobs, accounts, comContas, anexarContas } = require('../repos');
 const { agendarRodada } = require('../worker');
 const fila = require('../queue');
 const { broadcast } = require('../events/broadcaster');
@@ -19,12 +19,15 @@ async function buscar(req, res) {
 
 exports.list = async (req, res) => {
   const { type, status } = req.query;
-  const lista = await sql`
-    select * from jobs where usuario_id = ${req.user.id}
-    ${type ? sql`and type = ${String(type)}` : sql``}
-    ${status ? sql`and status = ${String(status)}` : sql``}
-    order by created_at desc limit 100`;
-  res.json(await comContas(lista));
+  const [lista, contas] = await Promise.all([
+    sql`
+      select * from jobs where usuario_id = ${req.user.id}
+      ${type ? sql`and type = ${String(type)}` : sql``}
+      ${status ? sql`and status = ${String(status)}` : sql``}
+      order by created_at desc limit 100`,
+    accounts.de(req.user.id).findMany(),
+  ]);
+  res.json(anexarContas(lista, contas));
 };
 
 exports.get = async (req, res) => {

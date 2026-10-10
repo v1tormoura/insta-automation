@@ -16,17 +16,18 @@ const RUINS = ['banida', 'token_invalido'];
 exports.getAlcancePorEnvio = async (req, res) => {
   const dias = Math.min(365, Math.max(1, parseInt(req.query.dias, 10) || 30));
   const desde = new Date(Date.now() - dias * 86_400_000);
-  const insights = await sql`
-    select * from insights
+  /* As duas leituras juntas: os posts vêm pelas mídias do mesmo filtro, por subconsulta. */
+  const reels = sql`
+    from insights
     where usuario_id = ${req.user.id} and posted_at >= ${desde} and media_type in ('VIDEO', 'REELS', 'REEL')`;
-  const ids = insights.map(i => i.igMediaId).filter(Boolean);
-  const posts = ids.length
-    ? await sql`
-        select p.ig_media_id, p.midias_publicadas, p.job_id, p.job_name, p.duracao_ms, coalesce(j.rotulo, '') as job_rotulo
-        from posts p left join jobs j on j.id = p.job_id
-        where p.usuario_id = ${req.user.id} and (p.ig_media_id = any(${ids})
-           or exists (select 1 from jsonb_array_elements(p.midias_publicadas) m where m->>'igMediaId' = any(${ids})))`
-    : [];
+  const [insights, posts] = await Promise.all([
+    sql`select * ${reels}`,
+    sql`
+      select p.ig_media_id, p.midias_publicadas, p.job_id, p.job_name, p.duracao_ms, coalesce(j.rotulo, '') as job_rotulo
+      from posts p left join jobs j on j.id = p.job_id
+      where p.usuario_id = ${req.user.id} and (p.ig_media_id in (select ig_media_id ${reels})
+         or exists (select 1 from jsonb_array_elements(p.midias_publicadas) m where m->>'igMediaId' in (select ig_media_id ${reels})))`,
+  ]);
   res.json({ dias, ...agruparPorEnvio(insights, posts) });
 };
 
@@ -48,9 +49,27 @@ exports.getPublico = async (req, res) => {
  */
 exports.getMetricasDosPerfis = async (req, res) => {
   const p = periodo.resolver(req.query);
-  const contas = await sql`
-    select id, username, avatar, followers, last_sync from accounts
-    where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`;
+  /* Uma leva só: as métricas e a série vêm das contas boas por subconsulta,
+     em vez de esperar a lista de contas para depois pedir o resto. */
+  const boas = sql`select id from accounts where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`;
+  const noPeriodo = p.desde && p.ate ? sql`and posted_at >= ${p.desde} and posted_at < ${p.ate}` : sql``;
+  const [contas, porConta, linhasDaSerie] = await Promise.all([
+    sql`
+      select id, username, avatar, followers, last_sync from accounts
+      where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`,
+    sql`
+      select account_id,
+        coalesce(sum(like_count) filter (where media_type <> 'STORY'), 0) as curtidas,
+        coalesce(sum(video_views) filter (where media_type <> 'STORY'), 0) as views_posts,
+        coalesce(sum(video_views) filter (where media_type = 'STORY'), 0) as views_stories,
+        max(synced_at) as sincronizado
+      from insights where account_id in (${boas}) ${noPeriodo}
+      group by account_id`,
+    sql`
+      select account_id, novos from seguidores_do_dia
+      where account_id in (${boas}) and dia >= ${p.diaDe || '0000-01-01'} and dia <= ${p.diaAte || '9999-12-31'}`
+      .catch(err => { console.log(`⚠️ [SerieSeguidores] período: ${err.message}`); return null; }),
+  ]);
 
   const vazio = {
     periodo: p.periodo, rotulo: p.rotulo, de: p.diaDe, ate: p.diaAte,
@@ -60,19 +79,9 @@ exports.getMetricasDosPerfis = async (req, res) => {
   if (!contas.length) return res.json(vazio);
 
   const ids = contas.map(c => c.id);
-  const noPeriodo = p.desde && p.ate ? sql`and posted_at >= ${p.desde} and posted_at < ${p.ate}` : sql``;
-
-  const [porConta, ganho] = await Promise.all([
-    sql`
-      select account_id,
-        coalesce(sum(like_count) filter (where media_type <> 'STORY'), 0) as curtidas,
-        coalesce(sum(video_views) filter (where media_type <> 'STORY'), 0) as views_posts,
-        coalesce(sum(video_views) filter (where media_type = 'STORY'), 0) as views_stories,
-        max(synced_at) as sincronizado
-      from insights where account_id = any(${ids}::uuid[]) ${noPeriodo}
-      group by account_id`,
-    serie.novosNoPeriodo(p.diaDe || '0000-01-01', p.diaAte || '9999-12-31', ids),
-  ]);
+  const ganho = linhasDaSerie
+    ? serie.resumirNovos(linhasDaSerie, ids)
+    : { novos: 0, comHistorico: false, contasSemHistorico: ids.length };
   const mapa = new Map(porConta.map(r => [r.accountId, r]));
   const somar = campo => porConta.reduce((t, r) => t + (r[campo] || 0), 0);
 
@@ -136,30 +145,32 @@ exports.getGlobalMetrics = async (req, res) => {
   const since = new Date(Date.now() - days * 86_400_000);
   const periodLabel = `Últimos ${days} dias`;
 
-  const contas = await sql`
-    select id, username, name, avatar, followers, health_status, account_type, posts_today
-    from accounts where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`;
+  /* Uma leva só: as métricas vêm das contas boas por subconsulta, sem
+     esperar a lista de contas. */
+  const boas = sql`select id from accounts where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`;
+  const ORDEM = sql`video_views desc, impressions desc, reach desc, engagement_score desc`;
+
+  // STORY fica fora do feed: senão um story com muita audiência viraria o "melhor post".
+  const [contas, [totais], [melhor], porConta, [stories]] = await Promise.all([
+    sql`
+      select id, username, name, avatar, followers, health_status, account_type, posts_today
+      from accounts where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`,
+    sql`select coalesce(sum(reach), 0) as reach, coalesce(sum(impressions), 0) as impressions, coalesce(sum(video_views), 0) as views
+        from insights where account_id in (${boas}) and posted_at >= ${since} and media_type <> 'STORY'`,
+    sql`select * from insights where account_id in (${boas}) and posted_at >= ${since} and media_type <> 'STORY'
+        order by ${ORDEM} limit 1`,
+    sql`select distinct on (account_id) * from insights
+        where account_id in (${boas}) and posted_at >= ${since} and media_type <> 'STORY'
+        order by account_id, ${ORDEM}`,
+    sql`select coalesce(sum(impressions), 0) as views from insights
+        where account_id in (${boas}) and posted_at >= ${since} and media_type = 'STORY'`,
+  ]);
   if (!contas.length) {
     return res.json({
       connectedAccountsCount: 0, totalFollowers: 0, totalReach: 0, totalStoryViews: 0, totalViews: 0,
       bestPost: null, bestPostByAccount: [], accounts: [], period, periodLabel, updatedAt: new Date(),
     });
   }
-  const ids = contas.map(c => c.id);
-  const ORDEM = sql`video_views desc, impressions desc, reach desc, engagement_score desc`;
-
-  // STORY fica fora do feed: senão um story com muita audiência viraria o "melhor post".
-  const [[totais], [melhor], porConta, [stories]] = await Promise.all([
-    sql`select coalesce(sum(reach), 0) as reach, coalesce(sum(impressions), 0) as impressions, coalesce(sum(video_views), 0) as views
-        from insights where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type <> 'STORY'`,
-    sql`select * from insights where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type <> 'STORY'
-        order by ${ORDEM} limit 1`,
-    sql`select distinct on (account_id) * from insights
-        where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type <> 'STORY'
-        order by account_id, ${ORDEM}`,
-    sql`select coalesce(sum(impressions), 0) as views from insights
-        where account_id = any(${ids}::uuid[]) and posted_at >= ${since} and media_type = 'STORY'`,
-  ]);
 
   const contaPorId = new Map(contas.map(c => [c.id, c]));
   const melhorPorConta = new Map(porConta.map(p => [p.accountId, p]));

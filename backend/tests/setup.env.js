@@ -16,6 +16,10 @@ process.env.TZ = 'America/Sao_Paulo';
    teste (TEST_DATABASE_URL para apontar outro). */
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgres://postgres@127.0.0.1:54329/insta_test';
 process.env.JEST = '1';
+/* Em produção a conexão ociosa fica aberta (ver src/db). Aqui, os módulos
+   recarregados por `jest.resetModules` abrem conexões que ninguém fecha: sem
+   o prazo, o Jest terminaria os testes e ficaria parado esperando por elas. */
+process.env.DATABASE_IDLE_TIMEOUT = '1';
 /* Variações de Mídia numa pasta só dos testes (ver preparoDeMidia.js). */
 process.env.PREPAROS_DIR = require('path').join(require('os').tmpdir(), `preparos-teste-${process.pid}`);
 

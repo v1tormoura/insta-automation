@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { sql, ehUuid } = require('../db');
-const { jobs, posts, comContas, accounts } = require('../repos');
+const { jobs, posts, comContas, anexarContas, accounts } = require('../repos');
 const fila = require('../queue');
 const filaDePostagens = require('../services/filaDePostagens');
 const { agendarRodada } = require('../worker');
@@ -114,12 +114,13 @@ exports.getPosts = async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
   const meus = posts.de(req.user.id);
-  const [lista, total] = await Promise.all([
+  const [lista, total, contas] = await Promise.all([
     meus.findMany({}, { orderBy: 'updated_at desc', limit, offset: (page - 1) * limit }),
     meus.count(),
+    accounts.de(req.user.id).findMany(),
   ]);
   res.json({
-    posts: await comContas(lista),
+    posts: anexarContas(lista, contas),
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   });
 };
@@ -129,7 +130,9 @@ exports.filaDePostagens = async (req, res) => {
   const onde = sql`usuario_id = ${req.user.id} and ${filaDePostagens.ondeSql(sql, filaDePostagens.montarConsulta(req.query))}`;
   const { pagina, porPagina, pular } = filaDePostagens.montarPaginacao(req.query);
 
-  const [lista, [{ total }], envios] = await Promise.all([
+  /* Uma leva só (a tela é atualizada a cada evento da fila): as views saem
+     da mesma página de posts por subconsulta, em vez de esperar a lista. */
+  const [lista, [{ total }], envios, contas, metricas] = await Promise.all([
     sql`select * from posts where ${onde}
         order by scheduled_at desc nulls last, created_at desc
         limit ${porPagina} offset ${pular}`,
@@ -137,9 +140,19 @@ exports.filaDePostagens = async (req, res) => {
     sql`select job_id as id, max(job_name) as nome, max(created_at) as quando
         from posts where job_id is not null and usuario_id = ${req.user.id}
         group by job_id order by quando desc limit 50`,
+    accounts.de(req.user.id).findMany(),
+    sql`select ig_media_id, video_views, reach from insights
+        where ig_media_id in (
+          select ig_media_id from (
+            select ig_media_id from posts where ${onde}
+            order by scheduled_at desc nulls last, created_at desc
+            limit ${porPagina} offset ${pular}) pagina)`.catch(err => err),
   ]);
-  await comContas(lista, ['id', 'username', 'avatar']);
-  const views = await filaDePostagens.viewsPorMidia(lista);
+  anexarContas(lista, contas, ['id', 'username', 'avatar']);
+  const views = await filaDePostagens.viewsPorMidia(lista, async () => {
+    if (metricas instanceof Error) throw metricas;
+    return metricas;
+  });
 
   res.json({
     itens: lista.map(p => filaDePostagens.montarLinha(p, views)),

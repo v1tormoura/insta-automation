@@ -2,14 +2,15 @@
 
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const { sql } = require('../db');
+const usuarios = require('../repos/usuario');
 
 /**
  * O usuário ATIVO por trás do JWT da requisição — no header Authorization ou
  * em ?token= (EventSource não manda header).
  *
- * Relido a cada requisição (uma consulta por chave primária): bloquear alguém
- * no painel corta o acesso na hora, sem esperar o token de 30 dias vencer.
+ * Conferido a cada requisição (com uma cópia de poucos segundos em memória,
+ * esquecida a cada alteração do usuário): bloquear alguém no painel corta o
+ * acesso na hora, sem esperar o token de 30 dias vencer.
  *
  * @returns {Promise<{usuario?: object, erro?: string, code?: string}>}
  */
@@ -25,14 +26,14 @@ async function lerUsuario(req) {
   if (!payload?.sub) return { erro: 'Sessão antiga — entre de novo' };
   if (payload.tipo) return { erro: 'Token inválido ou expirado' }; // desafio do 2FA não é sessão
 
-  const [u] = await sql`select id, papel, status, nome, email, avatar, sessoes_desde from usuarios where id = ${payload.sub}`;
+  const u = await usuarios.paraSessao(payload.sub);
   if (!u || u.status !== 'ativo') return { erro: 'Acesso não autorizado', code: 'ACESSO_REVOGADO' };
   // Senha redefinida pelo link: o que foi emitido antes deixa de valer.
-  if (u.sessoesDesde && payload.iat * 1000 < new Date(u.sessoesDesde).getTime() - 1000) {
+  const { sessoesDesde, ...usuario } = u;
+  if (sessoesDesde && payload.iat * 1000 < new Date(sessoesDesde).getTime() - 1000) {
     return { erro: 'Sua senha foi redefinida — entre de novo', code: 'SESSAO_ENCERRADA' };
   }
-  delete u.sessoesDesde;
-  return { usuario: u };
+  return { usuario };
 }
 
 /** Exige login. `req.user` = { id, papel, status, nome, email, avatar }. */

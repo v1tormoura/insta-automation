@@ -18,6 +18,7 @@ async function limpar() {
   const tabelas = await sql`
     select tablename from pg_tables where schemaname = 'public' and tablename <> 'schema_migrations'`;
   if (tabelas.length) await sql.unsafe(`truncate ${tabelas.map(t => `"${t.tablename}"`).join(', ')} cascade`);
+  require('../../src/repos/usuario').esquecer();
   await dono();
 }
 

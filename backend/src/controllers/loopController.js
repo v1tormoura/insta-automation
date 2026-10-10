@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { sql, ehUuid } = require('../db');
-const { jobs, comContas, accounts } = require('../repos');
+const { jobs, comContas, anexarContas, accounts } = require('../repos');
 const { agendarRodada } = require('../worker');
 const fila = require('../queue');
 const { broadcast } = require('../events/broadcaster');
@@ -68,8 +68,11 @@ exports.uploadMedia = async (req, res) => {
 };
 
 exports.list = async (req, res) => {
-  const lista = await sql`select * from jobs where type = 'loop' and usuario_id = ${req.user.id} order by created_at desc`;
-  await comContas(lista);
+  const [lista, contas] = await Promise.all([
+    sql`select * from jobs where type = 'loop' and usuario_id = ${req.user.id} order by created_at desc`,
+    accounts.de(req.user.id).findMany(),
+  ]);
+  anexarContas(lista, contas);
   res.json(lista.map(jobToLoop));
 };
 

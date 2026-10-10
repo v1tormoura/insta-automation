@@ -17,8 +17,17 @@ const RESUMO_DA_CONTA = ['id', 'username', 'name', 'avatar', 'healthStatus', 'ac
  */
 async function comContas(rows, campos = RESUMO_DA_CONTA) {
   const lista = Array.isArray(rows) ? rows : [rows];
-  const ids = lista.flatMap(r => r?.accountIds || []);
-  const contas = await accounts.porIds(ids);
+  return anexarContas(rows, await accounts.porIds(lista.flatMap(r => r?.accountIds || [])), campos);
+}
+
+/**
+ * O mesmo que `comContas`, com as contas já lidas — as rotas mais usadas
+ * buscam as contas do usuário junto das outras consultas (`accounts.de(uid).findMany()`
+ * no mesmo Promise.all) e economizam uma ida ao banco, que longe da VPS é o
+ * que mais pesa no tempo da tela.
+ */
+function anexarContas(rows, contas, campos = RESUMO_DA_CONTA) {
+  const lista = Array.isArray(rows) ? rows : [rows];
   const porId = new Map(contas.map(c => {
     const resumo = {};
     for (const k of campos) resumo[k] = c[k];
@@ -35,6 +44,7 @@ module.exports = {
   sql,
   accounts,
   comContas,
+  anexarContas,
   convites: tabela('convites_de_acesso'),
   insights: tabela('insights'),
   jobs: tabela('jobs'),

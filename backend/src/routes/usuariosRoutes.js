@@ -115,7 +115,7 @@ router.delete('/:id', async (req, res) => {
 
   await pausarTudo(u.id);
   const midias = await sql`select filename from media where usuario_id = ${u.id} and filename not like '\\_\\_folder\\_%'`;
-  await sql`delete from usuarios where id = ${u.id}`;
+  await usuarios.remover(u.id);
 
   const { nomeDaMiniatura } = require('../services/miniaturaDeVideo');
   const apagar = rel => {

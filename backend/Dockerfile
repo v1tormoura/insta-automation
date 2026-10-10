@@ -18,7 +18,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY scripts ./scripts
-RUN mkdir -p uploads && chown -R node:node /app
+# Só a pasta de uploads é escrita pelo app. Um `chown -R /app` aqui regravava
+# o node_modules inteiro numa camada nova a cada deploy — tempo e disco à toa.
+RUN mkdir -p uploads && chown node:node uploads
 USER node
 
 EXPOSE 3000

@@ -111,22 +111,24 @@ router.post('/arquivos', (req, res) => {
 router.get('/', async (req, res) => {
   const porPagina = Math.min(100, Math.max(5, Number(req.query.porPagina) || 20));
   const pagina = Math.max(1, Number(req.query.pagina) || 1);
-  const [{ total }] = await sql`
-    select count(*)::int as total from preparos_de_midia where usuario_id = ${req.user.id} and status <> 'expirado'`;
-  const linhas = await sql`
-    select * from preparos_de_midia where usuario_id = ${req.user.id} and status <> 'expirado'
-    order by criado_em desc, nome_original limit ${porPagina} offset ${(pagina - 1) * porPagina}`;
-  /* "Baixar o último envio": todas as saídas prontas do lote mais recente. */
-  const [ultimo] = await sql`
-    select lote from preparos_de_midia where usuario_id = ${req.user.id} and status <> 'expirado'
-    order by criado_em desc limit 1`;
+  /* Uma leva só — a tela recarrega a cada arquivo que termina. O lote mais
+     recente vem por subconsulta em vez de esperar a lista. */
+  const [[{ total }], linhas, doLote] = await Promise.all([
+    sql`select count(*)::int as total from preparos_de_midia where usuario_id = ${req.user.id} and status <> 'expirado'`,
+    sql`
+      select * from preparos_de_midia where usuario_id = ${req.user.id} and status <> 'expirado'
+      order by criado_em desc, nome_original limit ${porPagina} offset ${(pagina - 1) * porPagina}`,
+    /* "Baixar o último envio": todas as saídas prontas do lote mais recente. */
+    sql`
+      select lote, saidas, status from preparos_de_midia
+      where usuario_id = ${req.user.id} and status <> 'expirado' and lote = (
+        select lote from preparos_de_midia where usuario_id = ${req.user.id} and status <> 'expirado'
+        order by criado_em desc limit 1)`,
+  ]);
   let ultimoLote = null;
-  if (ultimo) {
-    const doLote = await sql`
-      select saidas, status from preparos_de_midia
-      where usuario_id = ${req.user.id} and lote = ${ultimo.lote} and status <> 'expirado'`;
+  if (doLote.length) {
     const prontas = doLote.flatMap(l => (l.saidas || []).filter(s => !s.erro).map(s => s.id));
-    ultimoLote = { lote: ultimo.lote, saidas: prontas, emAndamento: doLote.filter(l => ['aguardando', 'processando'].includes(l.status)).length };
+    ultimoLote = { lote: doLote[0].lote, saidas: prontas, emAndamento: doLote.filter(l => ['aguardando', 'processando'].includes(l.status)).length };
   }
   res.json({ itens: linhas.map(formatar), total, pagina, porPagina, ultimoLote, validadeH: preparo.LIMITES.validadeH });
 });

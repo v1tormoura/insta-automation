@@ -19,6 +19,24 @@ www.{$DOMAIN} {
 	# O painel (React): qualquer rota desconhecida cai no index.html.
 	handle {
 		root * /srv
+
+		# Os arquivos de /assets têm um hash no nome e nunca mudam: o navegador
+		# guarda por um ano e não pergunta de novo. Sem isto, cada tela aberta
+		# conferia cada pedaço do painel com o servidor, uma ida e volta a mais.
+		# (`file`: só o que existe — um pedaço de versão antiga, já apagado,
+		# não pode ficar guardado por um ano.)
+		@imutaveis {
+			path /assets/*
+			file
+		}
+		header @imutaveis Cache-Control "public, max-age=31536000, immutable"
+
+		# O resto (index.html, sw.js, ícones, fontes): sempre conferido. É o que
+		# faz uma atualização aparecer no próximo carregamento, sem esperar o
+		# cache do navegador vencer.
+		@conferidos not path /assets/*
+		header @conferidos Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}

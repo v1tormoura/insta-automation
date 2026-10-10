@@ -199,6 +199,7 @@ Processa 2 arquivos por vez — numa VPS com mais núcleos, suba
 | Navegador: erro de certificado | O DNS ainda não aponta para a VPS, ou a porta 80 está bloqueada no firewall. |
 | Meta: "redirect_uri inválido" | A URI no app da Meta tem que ser `https://DOMAIN/oauth-callback`, idêntica. |
 | Log: `[ffmpeg] … NÃO ENCONTRADO` | `docker compose build --no-cache app && docker compose up -d`. |
+| Painel lento para abrir as telas | Veja quanto custa cada consulta: `docker compose logs app \| grep "ida e volta"`. Acima de ~60 ms, o banco está longe da VPS — crie o projeto do Supabase na mesma região da VPS (ou o mais perto possível). |
 
 ## Desenvolvimento local
 

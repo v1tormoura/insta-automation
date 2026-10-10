@@ -18,6 +18,7 @@ const graph = require('./instagramAPI');
 const avatarLocal = require('./avatarLocal');
 const verificacao = require('./verificacaoDoInstagram');
 const { broadcast } = require('../events/broadcaster');
+const { emParalelo } = require('../utils/emParalelo');
 
 const RENOVAR_ANTES_MS = 15 * 24 * 60 * 60 * 1000;
 const INTERVALO_MS = 5 * 60 * 1000;
@@ -148,8 +149,8 @@ async function sincronizar(conta) {
 let _rodando = false;
 
 /**
- * Sincroniza as contas conectadas, uma de cada vez — todas (o ciclo do
- * servidor) ou só as de um usuário (o botão "Sincronizar todas").
+ * Sincroniza as contas conectadas — todas (o ciclo do servidor, uma de cada
+ * vez) ou só as de um usuário (o botão "Sincronizar todas", várias juntas).
  */
 async function sincronizarTodas(usuarioId = null) {
   if (_rodando && !usuarioId) return;
@@ -160,11 +161,13 @@ async function sincronizarTodas(usuarioId = null) {
       where access_token <> '' and ig_user_id <> '' and status <> 'banida' and is_busy = false
         ${usuarioId ? sql`and usuario_id = ${usuarioId}` : sql``}
       order by last_sync nulls first`;
-    for (const { id } of lista) {
+    /* O botão ("Sincronizar todas") faz 4 contas ao mesmo tempo, sem pausa —
+       quem clicou está esperando. O ciclo do servidor segue sem pressa. */
+    await emParalelo(lista, usuarioId ? 4 : 1, async ({ id }) => {
       const conta = await accounts.findById(id);
       if (conta && !conta.isBusy) await sincronizar(conta).catch(e => console.log(`⚠️ [Contas] ${e.message}`));
-      await delay(1500);
-    }
+      if (!usuarioId) await delay(1500);
+    });
     for (const dono of new Set(lista.map(c => c.usuarioId))) {
       broadcast('accounts', { action: 'synced', count: lista.filter(c => c.usuarioId === dono).length }, dono);
     }

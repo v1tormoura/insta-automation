@@ -12,8 +12,27 @@ config.validar();
 const { sql } = require('./db');
 const { migrar } = require('./db/migrate');
 
+/**
+ * Quanto custa uma ida e volta ao banco, no log da subida. É o número que
+ * decide a velocidade do painel: cada consulta em sequência paga isto inteiro.
+ */
+async function medirBanco() {
+  const tempos = [];
+  for (let i = 0; i < 5; i++) {
+    const t0 = process.hrtime.bigint();
+    await sql`select 1`;
+    tempos.push(Number(process.hrtime.bigint() - t0) / 1e6);
+  }
+  const ms = Math.round(tempos.sort((a, b) => a - b)[2]);
+  console.log(`🗄️  [DB] ida e volta ao banco: ${ms} ms`);
+  if (ms > 60) {
+    console.log('⚠️  [DB] o banco está longe da VPS — VPS e banco na mesma região (ou o Postgres na própria VPS) deixam cada tela mais rápida');
+  }
+}
+
 async function subir() {
   await migrar(sql);
+  await medirBanco().catch(() => {});
 
   // Push no celular sem ninguém gerar chave à mão (ver webPush.prepararChaves).
   await require('./services/smartActivity/webPush').prepararChaves()

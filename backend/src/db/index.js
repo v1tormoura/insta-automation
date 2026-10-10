@@ -21,7 +21,13 @@ const local = /@(localhost|127\.0\.0\.1|db)(:|\/)/.test(url);
 const sql = postgres(url, {
   ssl: local ? false : 'require',
   max: Number(process.env.DATABASE_POOL_MAX) || 10,
-  idle_timeout: 30,
+  /* Conexão aberta fica aberta. Com o Supabase longe da VPS, abrir uma de novo
+     custa várias idas e voltas (TCP, TLS, senha) e ainda perde as consultas já
+     preparadas nela, que o driver precisa descrever outra vez — era isso que
+     deixava a primeira tela depois de uma pausa lenta. (Os testes fecham as
+     ociosas em 1 s — ver tests/setup.env.js.) */
+  idle_timeout: Number(process.env.DATABASE_IDLE_TIMEOUT) || 0,
+  max_lifetime: 6 * 60 * 60,
   connect_timeout: 15,
   // O pooler de transação do Supabase (porta 6543) não aceita prepared statements.
   prepare: !/:6543\//.test(url),

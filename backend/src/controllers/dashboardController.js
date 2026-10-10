@@ -3,7 +3,7 @@
 /** Painel: números da operação, fila, próximas publicações e postagens ao vivo. */
 
 const { sql } = require('../db');
-const { comContas } = require('../repos');
+const { accounts, anexarContas } = require('../repos');
 const { somarFilas, contarJobs } = require('./contagemDaFila');
 
 const FUSO = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo';
@@ -55,10 +55,11 @@ function porDia(uid, status, desde) {
     group by 1`;
 }
 
-/** Envios ativos cujas contas não estão todas banidas ou apagadas. */
-async function enviosAtivos(uid) {
-  const lista = await sql`select * from jobs where usuario_id = ${uid} and status = any(${ATIVOS})`;
-  await comContas(lista, ['id', 'username', 'avatar', 'healthStatus']);
+const jobsAtivos = uid => sql`select * from jobs where usuario_id = ${uid} and status = any(${ATIVOS})`;
+
+/** Envios ativos cujas contas não estão todas banidas ou apagadas (`contas`: as do usuário, já lidas). */
+function enviosAtivos(lista, contas) {
+  anexarContas(lista, contas, ['id', 'username', 'avatar', 'healthStatus']);
   return lista.filter(j => j.accounts.some(a => a.healthStatus !== 'banida'));
 }
 
@@ -105,22 +106,19 @@ function enviosComoProximos(lista) {
   return itens;
 }
 
-async function bancoResponde() {
-  try { await sql`select 1`; return true; } catch { return false; }
-}
-
 exports.getDashboard = async (req, res) => {
   const uid = req.user.id;
   const hoje = inicioDoDia();
   const seteDias = diasAtras(7);
   const trintaDias = diasAtras(30);
 
+  /* Tudo numa leva só: com o banco longe da VPS, cada consulta em sequência
+     somava uma ida e volta inteira ao tempo da tela. */
   const [
-    contas, [contagem], ativos,
+    contas, [contagem], jobs,
     avulsosProximos, diarios, errosDiarios, engajamento,
   ] = await Promise.all([
-    sql`select id, health_status, access_token, ig_user_id, daily_post_limit, posts_today, last_post_date, created_at, updated_at
-        from accounts where usuario_id = ${uid}`,
+    accounts.de(uid).findMany(),
     sql`
       select count(*) as total,
         count(*) filter (where status = 'concluido') as concluidos,
@@ -131,7 +129,7 @@ exports.getDashboard = async (req, res) => {
         count(*) filter (where status = 'pendente' and job_id is null) as pendentes,
         count(*) filter (where status = 'erro' and updated_at >= ${hoje}) as erros_hoje
       from posts where usuario_id = ${uid}`,
-    enviosAtivos(uid),
+    jobsAtivos(uid),
     sql`select * from posts where usuario_id = ${uid} and status in ('agendado', 'pendente', 'processando') and job_id is null
         order by scheduled_at asc nulls last limit 200`,
     publicadasPorDia(uid, diasAtras(90)),
@@ -145,13 +143,14 @@ exports.getDashboard = async (req, res) => {
       group by i.account_id order by total_views desc limit 10`,
   ]);
 
+  const ativos = enviosAtivos(jobs, contas);
   const { rodando, enfileirados } = contarJobs(ativos);
   const fila = somarFilas(
     { agendados: contagem.agendados, processando: contagem.processando, pendentes: contagem.pendentes },
     { rodando, enfileirados },
   );
 
-  await comContas(avulsosProximos);
+  anexarContas(avulsosProximos, contas);
   const upcomingPosts = [...avulsosProximos, ...enviosComoProximos(ativos)]
     .sort((a, b) => new Date(a.scheduledAt || 0) - new Date(b.scheduledAt || 0))
     .slice(0, 200);
@@ -160,7 +159,6 @@ exports.getDashboard = async (req, res) => {
   const comLimite = contas.filter(a => a.dailyPostLimit && a.dailyPostLimit < 999999);
   const criadas = desde => contas.filter(a => new Date(a.createdAt) >= desde).length;
   const comProblema = desde => contas.filter(a => PROBLEMAS.includes(a.healthStatus) && (!desde || new Date(a.updatedAt) >= desde)).length;
-  const banco = await bancoResponde();
 
   res.json({
     totalAccounts: contas.length,
@@ -201,7 +199,8 @@ exports.getDashboard = async (req, res) => {
       totalPosts: r.totalPosts,
     })),
 
-    system: { backend: true, banco, worker: banco },
+    // Chegar aqui já é o banco respondendo: as consultas acima teriam falhado.
+    system: { backend: true, banco: true, worker: true },
   });
 };
 
@@ -280,7 +279,7 @@ exports.getLivePosts = async (req, res) => {
   const umaHora = new Date(Date.now() - 3_600_000);
   const campos = ['id', 'username', 'avatar'];
 
-  const [processando, naFila, erros, concluidos, ativos] = await Promise.all([
+  const [processando, naFila, erros, concluidos, jobs, contas] = await Promise.all([
     sql`select * from posts where usuario_id = ${uid} and status = 'processando' order by updated_at desc limit 10`,
     sql`select * from posts where usuario_id = ${uid} and status in ('pendente', 'agendado')
         order by scheduled_at asc nulls last, created_at asc limit 30`,
@@ -288,9 +287,11 @@ exports.getLivePosts = async (req, res) => {
         order by updated_at desc limit 15`,
     sql`select * from posts where usuario_id = ${uid} and status in ('concluido', 'parcial') and updated_at >= ${umaHora}
         order by updated_at desc limit 15`,
-    enviosAtivos(uid),
+    jobsAtivos(uid),
+    accounts.de(uid).findMany(),
   ]);
-  await comContas([...processando, ...naFila, ...erros, ...concluidos], campos);
+  anexarContas([...processando, ...naFila, ...erros, ...concluidos], contas, campos);
+  const ativos = enviosAtivos(jobs, contas);
 
   // Envio rodando só entra se nenhum post dele já estiver na lista — senão a
   // mesma publicação aparecia duas vezes (o post e o envio).

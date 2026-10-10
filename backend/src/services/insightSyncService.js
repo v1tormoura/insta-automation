@@ -13,9 +13,15 @@ const { sql } = require('../db');
 const { accounts } = require('../repos');
 const graph = require('./instagramAPI');
 const { broadcast } = require('../events/broadcaster');
+const { emParalelo } = require('../utils/emParalelo');
 
 const INSIGHTS_DIR = path.resolve(__dirname, '../../uploads/insights');
 const LOTE_DE_MINIATURAS = 8;
+/* Quantas mídias de uma conta são lidas ao mesmo tempo, e quantas contas.
+   Uma de cada vez, 200 mídias levavam minutos por conta — e o botão
+   "Atualizar" parecia não fazer nada. */
+const MIDIAS_SIMULTANEAS = Math.max(1, Number(process.env.INSIGHTS_MIDIAS_SIMULTANEAS) || 6);
+const CONTAS_SIMULTANEAS = Math.max(1, Number(process.env.INSIGHTS_CONTAS_SIMULTANEAS) || 3);
 
 let _running = false;
 const _contasRodando = new Set();
@@ -76,6 +82,23 @@ async function tempoAssistido(mediaId, token) {
   }
 }
 
+/** Grava (ou atualiza) as métricas de várias mídias numa consulta só. */
+function gravarLote(linhas) {
+  return sql`
+    insert into insights ${sql(linhas)}
+    on conflict (ig_media_id) do update set
+      account_id = excluded.account_id, username = excluded.username, media_type = excluded.media_type,
+      media_url = excluded.media_url, thumbnail_url = excluded.thumbnail_url, permalink = excluded.permalink,
+      caption = excluded.caption, posted_at = excluded.posted_at, like_count = excluded.like_count,
+      comments_count = excluded.comments_count, share_count = excluded.share_count,
+      saved_count = excluded.saved_count, reach = excluded.reach, impressions = excluded.impressions,
+      video_views = excluded.video_views, total_interactions = excluded.total_interactions,
+      engagement_score = excluded.engagement_score,
+      avg_watch_time_ms = coalesce(excluded.avg_watch_time_ms, insights.avg_watch_time_ms),
+      total_watch_time_ms = coalesce(excluded.total_watch_time_ms, insights.total_watch_time_ms),
+      synced_at = excluded.synced_at`;
+}
+
 async function syncAccountInsights(conta) {
   if (!conta.accessToken || !conta.igUserId) return { skipped: true, reason: 'no_token' };
   if (conta.healthStatus === 'banida') return { skipped: true, reason: 'banned' };
@@ -99,15 +122,19 @@ async function syncAccountInsights(conta) {
       return { error: err.message };
     }
 
+    // A paginação pode repetir uma mídia; repetida no mesmo lote, a gravação falharia.
+    midias = [...new Map(midias.map(m => [m.id, m])).values()];
     const agora = new Date();
     const miniaturas = [];
-    let synced = 0;
+    const linhas = [];
 
-    for (const media of midias) {
+    await emParalelo(midias, MIDIAS_SIMULTANEAS, async media => {
       try {
         const tipo = media.media_type || 'IMAGE';
-        const m = await metricasDaMidia(media.id, tipo, token);
-        const tempo = tipo === 'VIDEO' ? await tempoAssistido(media.id, token) : { media: null, total: null };
+        const [m, tempo] = await Promise.all([
+          metricasDaMidia(media.id, tipo, token),
+          tipo === 'VIDEO' ? tempoAssistido(media.id, token) : { media: null, total: null },
+        ]);
 
         const likeCount = Math.max(media.like_count || 0, m.likes || 0);
         const commentsCount = Math.max(media.comments_count || 0, m.comments || 0);
@@ -123,41 +150,49 @@ async function syncAccountInsights(conta) {
         const cdnThumb = media.thumbnail_url || media.media_url || '';
         const temLocal = fs.existsSync(path.join(INSIGHTS_DIR, `${media.id}.jpg`));
 
-        await sql`
-          insert into insights ${sql({
-            accountId: conta.id, username: conta.username, igMediaId: media.id,
-            mediaType: tipo, mediaUrl: media.media_url || media.thumbnail_url || '',
-            thumbnailUrl: temLocal ? `/uploads/insights/${media.id}.jpg` : cdnThumb,
-            permalink: media.permalink || '', caption: media.caption || '',
-            postedAt: media.timestamp ? new Date(media.timestamp) : null,
-            likeCount, commentsCount, shareCount, savedCount, reach, impressions, videoViews,
-            totalInteractions, engagementScore,
-            avgWatchTimeMs: tempo.media, totalWatchTimeMs: tempo.total, syncedAt: agora,
-          })}
-          on conflict (ig_media_id) do update set
-            account_id = excluded.account_id, username = excluded.username, media_type = excluded.media_type,
-            media_url = excluded.media_url, thumbnail_url = excluded.thumbnail_url, permalink = excluded.permalink,
-            caption = excluded.caption, posted_at = excluded.posted_at, like_count = excluded.like_count,
-            comments_count = excluded.comments_count, share_count = excluded.share_count,
-            saved_count = excluded.saved_count, reach = excluded.reach, impressions = excluded.impressions,
-            video_views = excluded.video_views, total_interactions = excluded.total_interactions,
-            engagement_score = excluded.engagement_score,
-            avg_watch_time_ms = coalesce(excluded.avg_watch_time_ms, insights.avg_watch_time_ms),
-            total_watch_time_ms = coalesce(excluded.total_watch_time_ms, insights.total_watch_time_ms),
-            synced_at = excluded.synced_at`;
-
+        linhas.push({
+          accountId: conta.id, username: conta.username, igMediaId: media.id,
+          mediaType: tipo, mediaUrl: media.media_url || media.thumbnail_url || '',
+          thumbnailUrl: temLocal ? `/uploads/insights/${media.id}.jpg` : cdnThumb,
+          permalink: media.permalink || '', caption: media.caption || '',
+          postedAt: media.timestamp ? new Date(media.timestamp) : null,
+          likeCount, commentsCount, shareCount, savedCount, reach, impressions, videoViews,
+          totalInteractions, engagementScore,
+          avgWatchTimeMs: tempo.media, totalWatchTimeMs: tempo.total, syncedAt: agora,
+        });
         if (!temLocal && cdnThumb) miniaturas.push({ cdnThumb, id: media.id });
-        synced++;
       } catch (err) {
         console.warn(`[InsightSync] ${media.id}: ${err.message}`);
       }
+    });
+
+    /* Uma gravação por lote em vez de uma por mídia: com o banco longe da
+       VPS, 200 gravações em sequência eram 200 idas e voltas. */
+    let synced = 0;
+    for (let i = 0; i < linhas.length; i += 100) {
+      const lote = linhas.slice(i, i + 100);
+      try {
+        await gravarLote(lote);
+        synced += lote.length;
+      } catch (err) {
+        // Uma linha ruim não leva o lote junto: grava uma a uma.
+        console.warn(`[InsightSync] @${conta.username} gravação em lote: ${err.message}`);
+        for (const linha of lote) {
+          try { await gravarLote([linha]); synced++; } catch (e) { console.warn(`[InsightSync] ${linha.igMediaId}: ${e.message}`); }
+        }
+      }
     }
 
-    for (let i = 0; i < miniaturas.length; i += LOTE_DE_MINIATURAS) {
-      await Promise.all(miniaturas.slice(i, i + LOTE_DE_MINIATURAS).map(async ({ cdnThumb, id }) => {
-        const local = await baixarMiniatura(cdnThumb, id);
-        if (local) await sql`update insights set thumbnail_url = ${local} where ig_media_id = ${id}`.catch(() => {});
-      }));
+    const baixadas = [];
+    await emParalelo(miniaturas, LOTE_DE_MINIATURAS, async ({ cdnThumb, id }) => {
+      const local = await baixarMiniatura(cdnThumb, id);
+      if (local) baixadas.push({ id, local });
+    });
+    if (baixadas.length) {
+      await sql`
+        update insights set thumbnail_url = v.local
+        from unnest(${baixadas.map(b => String(b.id))}::text[], ${baixadas.map(b => b.local)}::text[]) as v(id, local)
+        where insights.ig_media_id = v.id`.catch(() => {});
     }
 
     console.log(`[InsightSync] @${conta.username} — ${synced}/${midias.length} posts atualizados`);
@@ -174,9 +209,9 @@ async function syncAllInsights(usuarioId = null) {
   const results = [];
   try {
     const contas = (await accounts.findMany(usuarioId ? { usuarioId } : {})).filter(c => c.accessToken && c.igUserId);
-    for (const conta of contas) {
+    await emParalelo(contas, CONTAS_SIMULTANEAS, async conta => {
       results.push({ username: conta.username, ...(await syncAccountInsights(conta)) });
-    }
+    });
     for (const dono of new Set(contas.map(c => c.usuarioId))) {
       broadcast('insights', { action: 'synced', count: contas.filter(c => c.usuarioId === dono).length }, dono);
     }

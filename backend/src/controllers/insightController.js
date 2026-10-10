@@ -58,19 +58,18 @@ exports.getInsights = async (req, res) => {
     : sql`and account_id not in (select id from accounts where health_status = 'banida' and usuario_id = ${req.user.id})`;
   const porTipo = TIPOS[mediaType] ? sql`and media_type = ${TIPOS[mediaType]}` : sql``;
 
-  const insights = await sql`
+  /* Totais do PERÍODO inteiro (mesmos filtros), não só dos `limit` listados:
+     os cartões dizem "últimos 30 dias" e precisam somar todos. As duas
+     consultas saem juntas. */
+  const [insights, [t]] = await Promise.all([sql`
     select * from insights where usuario_id = ${req.user.id} and posted_at >= ${since} ${porConta} ${porTipo}
     order by ${sql.unsafe(ORDENS[metric] || ORDENS.engagementScore)}
-    limit ${Math.min(200, Math.max(1, Number(limit) || 50))}`;
-
-  /* Totais do PERÍODO inteiro (mesmos filtros), não só dos `limit` listados:
-     os cartões dizem "últimos 30 dias" e precisam somar todos. */
-  const [t] = await sql`
+    limit ${Math.min(200, Math.max(1, Number(limit) || 50))}`, sql`
     select coalesce(sum(video_views), 0)::bigint as views, coalesce(sum(reach), 0)::bigint as alcance,
            coalesce(sum(like_count), 0)::bigint as likes, coalesce(sum(comments_count), 0)::bigint as coments,
            coalesce(sum(saved_count), 0)::bigint as saves, coalesce(sum(share_count), 0)::bigint as shares,
            count(*)::int as posts
-    from insights where usuario_id = ${req.user.id} and posted_at >= ${since} ${porConta} ${porTipo}`;
+    from insights where usuario_id = ${req.user.id} and posted_at >= ${since} ${porConta} ${porTipo}`]);
   const totals = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Number(v)]));
 
   res.json({ insights, totals, lastSync: insights[0]?.syncedAt || null, total: insights.length });

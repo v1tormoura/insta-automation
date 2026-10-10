@@ -11,6 +11,7 @@
 const { sql } = require('../db');
 const { accounts } = require('../repos');
 const graph = require('./instagramAPI');
+const { emParalelo } = require('../utils/emParalelo');
 
 let _rodando = false;
 
@@ -31,18 +32,20 @@ async function _metricasGraph(storyId, token) {
 
 async function _coletar(conta) {
   const lista = await graph.get(`/${conta.igUserId}/stories`, { fields: 'id,media_type,media_url,thumbnail_url,permalink,timestamp' }, conta.accessToken);
-  const stories = [];
-  for (const item of lista.data || []) {
+  const itens = lista.data || [];
+  const stories = new Array(itens.length);
+  // Vários stories ao mesmo tempo; a ordem da lista é mantida.
+  await emParalelo(itens, 6, async (item, i) => {
     const m = await _metricasGraph(item.id, conta.accessToken);
     const vistos = m.impressions ?? m.views ?? m.reach ?? null;
-    stories.push({
+    stories[i] = {
       story_id: String(item.id),
       taken_at: item.timestamp ? Math.floor(new Date(item.timestamp).getTime() / 1000) : null,
       thumbnail_url: item.thumbnail_url || item.media_url || '',
       permalink: item.permalink || '',
       viewers: typeof vistos === 'number' ? vistos : null,
-    });
-  }
+    };
+  });
   return stories;
 }
 
@@ -77,12 +80,12 @@ async function syncAccountStoryInsights(conta) {
   try {
     const stories = await _coletar(conta);
     let gravados = 0, viewers = 0;
-    for (const story of stories) {
+    await Promise.all(stories.map(async story => {
       if (await _gravar(conta, story)) {
         gravados++;
         viewers += Number(story.viewers) || 0;
       }
-    }
+    }));
     if (stories.length) {
       console.log(`[StoryInsights] @${conta.username} — ${gravados}/${stories.length} story(s) com audiência, ${viewers} visualizações`);
     }
@@ -99,13 +102,13 @@ async function syncAllStoryInsights(usuarioId = null) {
   try {
     const contas = (await accounts.findMany(usuarioId ? { usuarioId } : {})).filter(c => c.accessToken && c.igUserId);
     let gravados = 0, viewers = 0, ativos = 0, erros = 0;
-    for (const conta of contas) {
+    await emParalelo(contas, 3, async conta => {
       const r = await syncAccountStoryInsights(conta);
       gravados += r.gravados || 0;
       viewers += r.viewers || 0;
       ativos += r.stories || 0;
       if (r.error) erros++;
-    }
+    });
 
     // Marcos de story: a audiência vive 24h e sobe rápido.
     try {

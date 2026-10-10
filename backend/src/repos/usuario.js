@@ -43,6 +43,7 @@ async function criar({ nome, email, senhaHash }) {
 
 async function atualizar(id, campos) {
   const [u] = await sql`update usuarios set ${sql(campos)} where id = ${id} returning *`;
+  esquecer(id);
   return u || null;
 }
 
@@ -52,7 +53,38 @@ async function mesclar(id, coluna, parcial) {
   const [u] = await sql`
     update usuarios set ${sql(coluna)} = ${sql(coluna)} || ${sql.json(parcial)}
     where id = ${id} returning *`;
+  esquecer(id);
   return u || null;
+}
+
+/*
+ * O usuário por trás do token, lido em TODA requisição autenticada.
+ *
+ * Com o banco longe da VPS, cada consulta custa uma ida e volta inteira — e
+ * esta vinha antes de qualquer outra. Fica em memória por alguns segundos;
+ * toda alteração passa por `atualizar`/`mesclar`/`remover`, que esquecem a
+ * cópia na hora: bloquear alguém continua cortando o acesso no mesmo instante.
+ */
+const SESSAO_MS = 30_000;
+const sessoes = new Map(); // id → { u, ate }
+
+/** Sem id, esquece todos (os testes esvaziam a tabela entre um caso e outro). */
+function esquecer(id) {
+  if (id === undefined) sessoes.clear(); else sessoes.delete(id);
+}
+
+async function paraSessao(id) {
+  const guardado = sessoes.get(id);
+  if (guardado && guardado.ate > Date.now()) return guardado.u;
+  const [u] = await sql`select id, papel, status, nome, email, avatar, sessoes_desde from usuarios where id = ${id}`;
+  if (sessoes.size >= 5000) sessoes.clear();
+  sessoes.set(id, { u: u || null, ate: Date.now() + SESSAO_MS });
+  return u || null;
+}
+
+async function remover(id) {
+  await sql`delete from usuarios where id = ${id}`;
+  esquecer(id);
 }
 
 /** Lista para a tela de Usuários, com o que cada um tem na plataforma. */
@@ -71,4 +103,4 @@ async function contarPendentes() {
   return n;
 }
 
-module.exports = { STATUS, admin, porId, porEmail, criar, atualizar, mesclar, listar, contarPendentes };
+module.exports = { STATUS, admin, porId, porEmail, criar, atualizar, mesclar, remover, paraSessao, esquecer, listar, contarPendentes };
