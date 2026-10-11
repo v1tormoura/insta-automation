@@ -23,8 +23,8 @@ Como executar: veja o [README](../README.md) (`npm install`, `npm run build`, `n
 - Envio múltiplo por clique ou arrastar-e-soltar, com progresso por arquivo.
 - Tipo detectado pelos bytes (não pela extensão); executáveis, ZIP, PDF e scripts recusados; extensão divergente aceita
   pelo conteúdo com aviso.
-- FFprobe + teste de decodificação (miniatura) na importação; arquivos corrompidos ficam registrados como inválidos com o
-  motivo, sem os bytes.
+- FFprobe + teste de decodificação na importação (imagens são decodificadas por inteiro; vídeos geram miniatura);
+  arquivos corrompidos ficam registrados como inválidos com o motivo, sem os bytes.
 - Limites de tamanho, duração, resolução e quantidade; SHA-256 calculado em streaming; detecção de arquivos idênticos.
 - Lista com miniatura, nome, tamanho, formato, duração, resolução, codecs, estado, GPS/campos sensíveis e duplicatas.
 - Detalhe com fluxos e todos os metadados por categoria (valores sensíveis ocultos até revelar).
@@ -41,7 +41,12 @@ Como executar: veja o [README](../README.md) (`npm install`, `npm run build`, `n
   opacidade/tempo, trilha de áudio (substituir ou mixar, repetição), transições de entrada/saída, perfis editoriais
   predefinidos.
 - **Lote**: perfil comum ou configuração individual por arquivo; vários perfis de exportação por arquivo; contador de
-  quantidade (arquivos × perfis × partes); perfis salvos reutilizáveis entre sessões.
+  quantidade (arquivos × perfis × partes, calculado como o servidor: perfil salvo usa as próprias configurações);
+  perfis salvos reutilizáveis entre sessões. Um perfil embutido que muda proporção/resolução/fps, marcado no modo
+  Rápido, é processado no modo Personalizado — e o plano avisa.
+- **Cortes exatos**: início/fim e divisão em partes alinhados à grade de quadros (primeiro quadro em/depois do instante;
+  partes vizinhas sem quadro repetido nem perdido); mudança de velocidade escolhe os quadros com taxa constante
+  (2× = um sim, um não desde o primeiro; 0,5× = cada quadro duas vezes).
 - **Validar plano** (lista exata das operações e erros antes de criar tarefas) e **pré-visualização real** (trecho curto
   renderizado pelo FFmpeg com as configurações atuais).
 
@@ -51,14 +56,27 @@ Como executar: veja o [README](../README.md) (`npm install`, `npm run build`, `n
 - Progresso real (`-progress` do FFmpeg) individual e geral; fases preparando/processando/validando/finalizando.
 - Cancelamento de pendentes e em execução; retentativas automáticas limitadas; repetição manual; uma falha não afeta as
   demais; registro de início, término e duração.
-- Recuperação após queda e encerramento ordenado sem perder tarefas.
+- Recuperação após queda e encerramento ordenado sem perder tarefas (SIGINT, SIGTERM, SIGHUP e, no Windows, SIGBREAK).
+- Bloqueio exclusivo do diretório de dados; a porta é aberta antes de recuperar a fila, então uma segunda instância
+  não interfere na primeira.
+- Cancelamento respeitado até o último instante (uma tarefa cancelada na finalização não termina "concluída").
 
 ### Metadados
 - Inspeção de contêiner, fluxos, dados laterais, capítulos, fluxos extras (telemetria/GPS, capas, legendas), caixas MP4
   proprietárias, SEI do encoder; EXIF/XMP/IPTC/ICC/comentários/dados extras em imagens.
 - Remoção seletiva por 9 categorias + preservação de orientação e perfil de cor.
-- Verificação após o processamento: nova inspeção, comparação campo a campo, busca dos valores removidos nos bytes da
-  saída, veredito honesto (comprovado / parcial / não comprovado / nada a remover / não solicitado).
+- Verificação após o processamento: nova inspeção, comparação campo a campo (pelo valor completo, não pelo texto
+  encurtado da tela), busca dos valores removidos nos bytes da saída, veredito honesto (comprovado / parcial / não
+  comprovado / nada a remover / não solicitado).
+- Campos mantidos por escolha são regravados com o valor completo; capítulos mantidos conservam os títulos; caixas de
+  `udta` que o FFmpeg não regrava (ex.: `loci`) são reinseridas byte a byte (com correção dos deslocamentos quando o
+  índice fica no início); textos/data/XMP de PNG são reinseridos em PNG recodificado. O que não puder ser regravado
+  aparece como aviso no relatório — nunca some em silêncio.
+- Assinatura do codificador gravada dentro dos quadros de áudio AAC (`Lavc…`, típica de arquivos já processados pelo
+  FFmpeg) é detectada; com o áudio copiado ela permanece e o veredito fica "parcial", com aviso explicando que só sai
+  recodificando o áudio.
+- Vídeo com matriz de rotação e "Orientação da mídia" desmarcada: na cópia, a matriz é removida (`-display_rotation`,
+  FFmpeg 6+) com aviso; na recodificação, a rotação é gravada nos pixels.
 
 ### Validação, integridade e exportação
 - Validação de cada saída: formato real, codecs, resolução, duração, fps, áudio, taxa de bits e decodificação completa.
@@ -66,11 +84,20 @@ Como executar: veja o [README](../README.md) (`npm install`, `npm run build`, `n
   idênticas; reconferência antes de download e de ZIP. O relatório separa integridade técnica de similaridade.
 - Resultados com visualização, download individual, relatório (JSON) e exportação ZIP organizada (`videos/`,
   `imagens/`, `relatorios/`, `RELATORIO.txt`, `relatorio.json`, `SHA256SUMS.txt`) com valores sensíveis mascarados.
+- O ZIP confere o SHA-256 de todas as saídas antes de enviar o primeiro byte e recalcula durante o envio: se um arquivo
+  mudar no meio, o download é interrompido (nunca um ZIP "válido" com conteúdo não verificado). Cada arquivo só é
+  aberto na sua vez e tudo é fechado se o download for cancelado.
+- Na interface, o download individual é conferido antes; uma falha (arquivo ausente ou alterado) aparece como aviso.
 
 ### Segurança
-- Sessões isoladas (cookie httpOnly/SameSite, hash do token), chave de acesso opcional, verificação de origem,
-  cabeçalhos de segurança, caminhos confinados à sessão, nomes saneados, argumentos de processo sem shell, textos do
-  usuário fora do filtergraph, logs sem nomes de arquivo nem valores de metadados, limpeza automática configurável.
+- Sessões isoladas (cookie httpOnly/SameSite, hash do token), chave de acesso opcional (mínimo 16 caracteres, bloqueio
+  de 15 min após 10 tentativas erradas), verificação de origem (`Origin`/`Sec-Fetch-Site`), lista de hosts permitidos
+  contra DNS rebinding, cabeçalhos de segurança, caminhos confinados à sessão, nomes saneados (controles de direção de
+  texto, nomes reservados do Windows, limite em unidades UTF-16 e bytes UTF-8), argumentos de processo sem shell,
+  textos do usuário fora do filtergraph, logs sem nomes de arquivo nem valores de metadados, limpeza automática.
+- Lote limitado antes de montar os planos (arquivos × perfis × partes não pode virar milhões de planos).
+- Movimentação de saídas sem sobrescrever e tolerante a sistemas sem links (FAT/exFAT) e a arquivos presos por
+  antivírus no Windows.
 
 ## Resultados dos testes
 
@@ -85,7 +112,12 @@ _Seção preenchida com a execução final (ver abaixo)._
   projeto, ela não entra na comparação; o relatório informa explicitamente esse limite e a busca de bytes cobre os
   valores conhecidos.
 - **XMP/IPTC**: são removidos ou mantidos por inteiro (não há edição campo a campo desses pacotes). Em imagens
-  recodificadas, XMP/IPTC preservados não são reinseridos (EXIF e ICC são).
+  recodificadas, XMP/IPTC preservados só são reinseridos de PNG para PNG; nos demais casos o relatório avisa a perda
+  (EXIF e ICC são sempre reinseridos).
+- **Assinatura `Lavc` no áudio copiado**: não há como removê-la sem recodificar o áudio; o relatório marca a remoção de
+  "Software" como não comprovada e explica como resolver.
+- **Valores de metadados muito longos**: campos mantidos por escolha com mais de 8 000 caracteres (ou que estourariam o
+  limite de linha de comando do Windows) não são regravados; aparecem em "não aplicado" no relatório.
 - **WEBP recodificado**: metadados preservados não são reinseridos em WEBP gerado pelo FFmpeg (aviso no relatório).
 - **MakerNote e miniatura EXIF**: descartados sempre que o EXIF é reescrito (offsets internos não são portáveis).
 - **Cópia de fluxos com corte**: só quando o usuário escolhe "copiar" explicitamente; os cortes se alinham a quadros-chave

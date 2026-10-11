@@ -139,7 +139,8 @@ Copie `.env.example` para `.env` (na pasta `mediaforge/`) e ajuste. Principais o
 | Variável | Padrão | Descrição |
 | --- | --- | --- |
 | `HOST` / `PORT` | `127.0.0.1` / `5310` | Endereço do servidor. Mantenha `127.0.0.1` para uso local. |
-| `ACCESS_KEY` | vazio | Exige chave para iniciar sessão (use se expor na rede). |
+| `ACCESS_KEY` | vazio | Exige chave (mínimo 16 caracteres) para iniciar sessão; 10 tentativas erradas bloqueiam o IP por 15 min. |
+| `ALLOWED_HOSTS` | vazio | Nomes de host extras aceitos (além de `localhost` e endereços IP), separados por vírgula. |
 | `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | Binários do FFmpeg. |
 | `DATA_DIR` | `./data` | Banco SQLite, uploads, saídas e temporários. |
 | `MAX_UPLOAD_MB`, `MAX_DURATION_SEC`, `MAX_RESOLUTION` | 4096 / 10800 / 8192 | Limites por arquivo. |
@@ -195,7 +196,13 @@ mediaforge/
 - **Limites** de tamanho, duração, resolução, tarefas, concorrência, tempo por tarefa e memória livre.
 - **Logs sem dados pessoais**: os logs registram identificadores, não nomes de arquivo nem valores de metadados.
   Relatórios exportados no ZIP mascaram valores sensíveis da origem.
-- Cabeçalhos de segurança (CSP, `X-Frame-Options`, `nosniff`) e recusa de requisições de outras origens.
+- Cabeçalhos de segurança (CSP, `X-Frame-Options`, `nosniff`) e recusa de requisições de outras origens
+  (`Origin`/`Sec-Fetch-Site`).
+- **Proteção contra DNS rebinding**: o servidor só responde a cabeçalhos `Host` de `localhost`, endereços IP, o `HOST`
+  configurado e os nomes de `ALLOWED_HOSTS`.
+- **Uma instância por diretório de dados**: um bloqueio do sistema operacional sobre `DATA_DIR/instance.lock` impede
+  que uma segunda instância (ex.: duplo clique no iniciador) apague temporários ou pegue tarefas da primeira. O
+  bloqueio é liberado automaticamente se o processo cair.
 
 ## Decisões técnicas
 

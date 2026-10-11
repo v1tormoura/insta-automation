@@ -31,6 +31,7 @@
 
 ```
 DATA_DIR/
+├── instance.lock            # bloqueio exclusivo (SQLite EXCLUSIVE): uma instância por diretório de dados
 ├── mediaforge.db            # SQLite (WAL): sessions, assets, batches, jobs, profiles, history, app_settings, exports
 └── sessions/<sessão>/
     ├── uploads/<id>.<ext>   # originais, nomeados pelo id (nunca pelo nome enviado)
@@ -51,14 +52,18 @@ DATA_DIR/
 - **Concorrência**: ajustável em tempo real (persistida); não inicia tarefas se a memória livre estiver abaixo de
   `MIN_FREE_MEMORY_MB`. Cada FFmpeg roda com prioridade reduzida (`PROCESS_NICE`) e `FFMPEG_THREADS`.
 - **Cancelamento**: pendente → `canceled` imediato; em execução → `AbortController` mata o FFmpeg, remove o diretório
-  temporário e descarta saídas parciais. Atualizações finais usam `UPDATE … WHERE status IN (…)` para não sobrescrever
-  um cancelamento concorrente.
+  temporário e descarta saídas parciais. Um cancelamento que chega durante a finalização é conferido logo antes da
+  gravação final (sem `await` entre a conferência e o `UPDATE`): a saída é descartada e a tarefa termina `canceled`.
+  Atualizações finais usam `UPDATE … WHERE status IN (…)` para não sobrescrever um cancelamento concorrente.
 - **Retentativas**: falhas transitórias (FFmpeg com erro, tempo esgotado, erro inesperado) voltam à fila até
   `JOB_MAX_ATTEMPTS`; falhas determinísticas (configuração inválida, origem alterada, validação reprovada) não.
   "Repetir" na interface zera as tentativas.
 - **Recuperação**: na inicialização, tarefas `running` (queda do processo) voltam para a fila ou viram `failed` se já
-  esgotaram as tentativas. Encerramento ordenado (`SIGINT/SIGTERM`) devolve as tarefas em execução à fila sem gastar
-  tentativa.
+  esgotaram as tentativas. Encerramento ordenado (`SIGINT/SIGTERM/SIGHUP`, e `SIGBREAK` no Windows) devolve as tarefas
+  em execução à fila sem gastar tentativa.
+- **Instância única**: `buildApp` obtém o bloqueio de `DATA_DIR/instance.lock` antes de abrir o banco; o processo abre
+  a porta antes de limpar temporários e recuperar a fila. Uma segunda instância falha sem efeitos colaterais; o
+  sistema operacional libera o bloqueio se o processo cair.
 - Uma falha nunca interrompe as demais tarefas do lote.
 
 ## Planejador (FFmpeg)
@@ -112,7 +117,8 @@ descarta a saída.
 
 SHA-256 da entrada na importação, novamente antes de processar (detecta alteração), conferência da entrada depois
 (tamanho/data ou novo hash), SHA-256 da saída, detecção de saídas idênticas na sessão, e reconferência antes de cada
-download e de cada exportação ZIP. O relatório separa explicitamente **integridade técnica** de **similaridade de
+download e de cada exportação ZIP. No ZIP, o SHA-256 de cada arquivo é recalculado também durante o envio; uma
+divergência interrompe o download. O relatório separa explicitamente **integridade técnica** de **similaridade de
 conteúdo**.
 
 ## API (resumo)
@@ -130,7 +136,7 @@ conteúdo**.
 | POST | `/api/batches/:id/cancel`, `/retry` | Cancelar / repetir falhas |
 | GET | `/api/jobs`, `/api/jobs/:id` | Tarefas / detalhe com relatório |
 | POST | `/api/jobs/:id/cancel`, `/retry`; `/api/jobs/cancel-pending`, `/clear-finished` | Controle |
-| GET | `/api/jobs/:id/output`, `/download`, `/report`, `/thumbnail` | Resultado (Range), download verificado, relatório |
+| GET | `/api/jobs/:id/output`, `/download`, `/verify`, `/report`, `/thumbnail` | Resultado (Range), download verificado, conferência prévia, relatório |
 | POST/GET | `/api/exports`, `/api/exports/:id` | Preparar (verifica) / baixar ZIP |
 | POST/GET | `/api/preview`, `/api/previews/:name` | Prévia real |
 | GET/POST/PUT/DELETE | `/api/profiles` | Perfis salvos |
