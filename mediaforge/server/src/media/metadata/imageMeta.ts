@@ -2,7 +2,7 @@ import type { MetadataItem, MetadataSettings } from '@mediaforge/shared';
 import { classifyKey, type ItemCategory } from './categories';
 import { exifTagInfo } from './exifTags';
 import { assembleIcc, exifSegment, iccSegments, JPEG_SIGNATURES, parseJpeg, rebuildJpeg, segmentType } from './jpeg';
-import { iccDescription, photoshopItems, xmpItems } from './packets';
+import { iccDescription, iptcItems, photoshopItems, xmpItems, xmpShouldRemove } from './packets';
 import { chunkBytes, decodeIccp, decodeTextChunk, iccpChunk, parsePng, PNG_IMAGE_CHUNKS, rebuildPng, type PngText } from './png';
 import {
   buildTiff,
@@ -28,9 +28,21 @@ interface OtherBlock {
   sensitive: boolean;
 }
 
+interface RawProfile {
+  keyword: string;
+  kind: 'exif' | 'xmp' | 'iptc' | 'other';
+  tiff: TiffData | null;
+  xmp: string | null;
+  iptc: Buffer | null;
+}
+
 export interface ImageBlocks {
   format: ImageContainer;
   exif: TiffData | null;
+  /** Blocos EXIF além do primeiro (JPEG/PNG/WEBP podem ter vários): nunca ignorados. */
+  extraExif: Array<TiffData | null>;
+  /** Perfis brutos do ImageMagick em PNG ("Raw profile type exif/xmp/iptc"). */
+  rawProfiles: RawProfile[];
   xmp: string[];
   photoshop: Buffer[];
   icc: Buffer | null;
@@ -64,10 +76,40 @@ function tryTiff(data: Buffer, warnings: string[]): TiffData | null {
 
 const APP_NAMES: Record<number, string> = { 0xec: 'APP12 (Ducky)', 0xe3: 'APP3', 0xe4: 'APP4', 0xe5: 'APP5', 0xe6: 'APP6', 0xe7: 'APP7', 0xe8: 'APP8', 0xe9: 'APP9', 0xea: 'APP10', 0xeb: 'APP11', 0xef: 'APP15' };
 
+/**
+ * "Raw profile type exif|xmp|iptc" (ImageMagick): o perfil vem em hexadecimal
+ * dentro de um chunk de texto: "\n<tipo>\n   <tamanho>\n<hex…>".
+ */
+function decodeRawProfile(text: string): Buffer | null {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 3) return null;
+  const hex = lines.slice(2).join('').replace(/[^0-9a-fA-F]/g, '');
+  if (hex.length < 2) return null;
+  return Buffer.from(hex.length % 2 ? hex.slice(0, -1) : hex, 'hex');
+}
+
+function rawProfile(t: PngText, warnings: string[]): RawProfile | null {
+  const m = t.keyword.toLowerCase().match(/^raw profile type (\w+)/);
+  if (!m) return null;
+  const type = m[1]!;
+  const data = decodeRawProfile(t.text);
+  const base: RawProfile = { keyword: t.keyword, kind: 'other', tiff: null, xmp: null, iptc: null };
+  if (!data) return base;
+  if (type === 'exif' || type === 'app1') {
+    const tiffData = data.subarray(0, 6).toString('latin1') === 'Exif\0\0' ? data.subarray(6) : data;
+    return { ...base, kind: 'exif', tiff: tryTiff(Buffer.from(tiffData), warnings) };
+  }
+  if (type === 'xmp') return { ...base, kind: 'xmp', xmp: data.toString('utf8') };
+  if (type === 'iptc' || type === '8bim') return { ...base, kind: 'iptc', iptc: data };
+  return base;
+}
+
 export function readImageBlocks(buf: Buffer, format: ImageContainer): ImageBlocks {
   const b: ImageBlocks = {
     format,
     exif: null,
+    extraExif: [],
+    rawProfiles: [],
     xmp: [],
     photoshop: [],
     icc: null,
@@ -79,13 +121,19 @@ export function readImageBlocks(buf: Buffer, format: ImageContainer): ImageBlock
     orientation: null,
     warnings: [],
   };
+  let exifSeen = 0;
+  const addExif = (data: Buffer) => {
+    const parsed = tryTiff(data, b.warnings);
+    if (exifSeen++ === 0) b.exif = parsed;
+    else b.extraExif.push(parsed);
+  };
   if (format === 'jpeg') {
     const s = parseJpeg(buf);
     const iccParts: Buffer[] = [];
     s.items.forEach((item, i) => {
       if (item.kind !== 'segment') return;
       const t = segmentType(item);
-      if (t === 'exif' && !b.exif) b.exif = tryTiff(item.payload.subarray(6), b.warnings);
+      if (t === 'exif') addExif(item.payload.subarray(6));
       else if (t === 'xmp') b.xmp.push(item.payload.subarray(JPEG_SIGNATURES.xmp.length).toString('utf8'));
       else if (t === 'xmp-ext') b.others.push({ id: `jpeg:xmp-ext:${i}`, label: 'XMP estendido', size: item.payload.length, category: 'custom', sensitive: true });
       else if (t === 'icc') iccParts.push(item.payload);
@@ -107,12 +155,15 @@ export function readImageBlocks(buf: Buffer, format: ImageContainer): ImageBlock
   } else if (format === 'png') {
     const s = parsePng(buf);
     for (const c of s.chunks) {
-      if (c.type === 'eXIf' && !b.exif) b.exif = tryTiff(c.data, b.warnings);
+      if (c.type === 'eXIf') addExif(c.data);
       else if (c.type === 'tEXt' || c.type === 'zTXt' || c.type === 'iTXt') {
         const t = decodeTextChunk(c);
         if (t?.keyword === 'XML:com.adobe.xmp') b.xmp.push(t.text);
-        else if (t) b.pngTexts.push(t);
-        else b.warnings.push(`Chunk ${c.type} ilegível.`);
+        else if (t) {
+          b.pngTexts.push(t);
+          const raw = rawProfile(t, b.warnings);
+          if (raw) b.rawProfiles.push(raw);
+        } else b.warnings.push(`Chunk ${c.type} ilegível.`);
       } else if (c.type === 'iCCP') b.icc = decodeIccp(c);
       else if (c.type === 'tIME' && c.data.length >= 7) {
         const d = c.data;
@@ -123,7 +174,7 @@ export function readImageBlocks(buf: Buffer, format: ImageContainer): ImageBlock
     b.trailingBytes = s.trailing.length;
   } else {
     for (const c of parseWebp(buf)) {
-      if (c.fourcc === 'EXIF' && !b.exif) b.exif = tryTiff(webpExifTiff(c.data), b.warnings);
+      if (c.fourcc === 'EXIF') addExif(webpExifTiff(c.data));
       else if (c.fourcc === 'XMP ') b.xmp.push(c.data.toString('utf8'));
       else if (c.fourcc === 'ICCP') b.icc = Buffer.from(c.data);
       else if (!['VP8 ', 'VP8L', 'VP8X', 'ALPH', 'ANIM', 'ANMF'].includes(c.fourcc))
@@ -148,36 +199,60 @@ function pngTextCategory(keyword: string): { category: ItemCategory; sensitive: 
 /** Lista todos os campos de metadados encontrados nos blocos da imagem. */
 export function imageItems(b: ImageBlocks): MetadataItem[] {
   const items: MetadataItem[] = [];
-  if (b.exif) {
+  const pushExif = (t: TiffData, prefix: string, suffix: string) => {
     for (const ifd of IFDS) {
-      for (const e of b.exif[ifd]) {
+      for (const e of t[ifd]) {
         const info = exifTagInfo(ifd, e.tag);
         items.push({
-          id: `exif:${ifd}:${e.tag}`,
+          id: `${prefix}:${ifd}:${e.tag}`,
           scope: 'exif',
-          location: IFD_LABEL[ifd],
+          location: IFD_LABEL[ifd] + suffix,
           key: info.name,
-          value: decodeEntry(e, b.exif.order).slice(0, 300),
+          value: decodeEntry(e, t.order).slice(0, 300),
           category: info.category,
           sensitive: info.sensitive,
           removable: true,
-          note: e.tag === TAG_ORIENTATION ? 'Necessário para exibir a imagem na posição correta.' : undefined,
+          note: e.tag === TAG_ORIENTATION && !suffix ? 'Necessário para exibir a imagem na posição correta.' : undefined,
         });
       }
     }
-    if (b.exif.ifd1.length)
+    if (t.ifd1.length)
       items.push({
-        id: 'exif:ifd1',
+        id: `${prefix}:ifd1`,
         scope: 'exif',
-        location: IFD_LABEL.ifd1,
+        location: IFD_LABEL.ifd1 + suffix,
         key: 'Miniatura embutida',
-        value: b.exif.thumbnail ? `<${b.exif.thumbnail.length} bytes>` : `${b.exif.ifd1.length} campos`,
+        value: t.thumbnail ? `<${t.thumbnail.length} bytes>` : `${t.ifd1.length} campos`,
         category: 'custom',
         sensitive: true,
         removable: true,
         note: 'Pode mostrar a imagem original antes de cortes.',
       });
-  }
+    if (t.skipped > 0)
+      items.push({
+        id: `${prefix}:nao-interpretados`,
+        scope: 'exif',
+        location: 'EXIF' + suffix,
+        key: 'Campos não interpretados',
+        value: `${t.skipped} campo(s)`,
+        category: 'custom',
+        sensitive: true,
+        removable: true,
+        note: 'Tipo desconhecido, truncados ou grandes demais; descartados quando o EXIF é reescrito.',
+      });
+  };
+  if (b.exif) pushExif(b.exif, 'exif', '');
+  b.extraExif.forEach((t, n) => {
+    if (t) pushExif(t, `exif${n + 2}`, ` (bloco extra ${n + 2})`);
+    else
+      items.push({ id: `exif${n + 2}:ilegivel`, scope: 'exif', location: `EXIF (bloco extra ${n + 2})`, key: 'Bloco EXIF ilegível', value: '<ilegível>', category: 'custom', sensitive: true, removable: true });
+  });
+  b.rawProfiles.forEach((r, n) => {
+    const loc = ` (PNG "${r.keyword}")`;
+    if (r.kind === 'exif' && r.tiff) pushExif(r.tiff, `rawexif${n}`, loc);
+    if (r.kind === 'xmp' && r.xmp) items.push(...xmpItems(r.xmp, `XMP${loc}`, `rawxmp${n}`));
+    if (r.kind === 'iptc' && r.iptc) items.push(...(r.iptc.indexOf('8BIM') >= 0 ? photoshopItems(r.iptc, `IPTC${loc}`, `rawiptc${n}`) : iptcItems(r.iptc, `IPTC${loc}`, `rawiptc${n}`)));
+  });
   b.xmp.forEach((x, i) => items.push(...xmpItems(x, 'XMP', `xmp${i}`)));
   b.photoshop.forEach((p, i) => items.push(...photoshopItems(p, 'Photoshop/IPTC', `ps${i}`)));
   if (b.icc)
@@ -251,7 +326,11 @@ export function rebuildExif(t: TiffData, meta: MetadataSettings, opts: { keepOri
   >;
   const removedCount = IFDS.reduce((s, ifd) => s + t[ifd].length - kept[ifd].length, 0);
   const thumbKept = !meta.remove.custom;
-  if (removedCount === 0 && (t.ifd1.length === 0 || thumbKept)) return { tiff: 'unchanged', notes };
+  const anyRequested = Object.values(meta.remove).some(Boolean);
+  // Campos que o leitor não entendeu podem conter qualquer coisa: com remoção pedida, reescreve só o que foi entendido.
+  const opaque = t.skipped > 0 && anyRequested;
+  if (removedCount === 0 && (t.ifd1.length === 0 || thumbKept) && !opaque) return { tiff: 'unchanged', notes };
+  if (opaque) notes.push(`${t.skipped} campo(s) EXIF não interpretado(s) descartado(s).`);
 
   if (kept.exif.some((e) => e.tag === TAG_MAKERNOTE)) {
     kept.exif = kept.exif.filter((e) => e.tag !== TAG_MAKERNOTE);
@@ -281,9 +360,30 @@ export function rebuildExif(t: TiffData, meta: MetadataSettings, opts: { keepOri
 }
 
 function xmpRemovable(xml: string, meta: MetadataSettings): boolean {
-  const items = xmpItems(xml, 'XMP', 'x');
-  if (items.length === 0) return meta.remove.custom;
-  return items.some((i) => i.category !== 'technical' && meta.remove[i.category]);
+  return xmpShouldRemove(xml, meta.remove);
+}
+
+/** Perfil bruto do ImageMagick sai se contiver categoria pedida, ou se não pôde ser lido e há remoção pedida. */
+function rawProfileRemovable(t: PngText, meta: MetadataSettings): boolean {
+  const any = Object.values(meta.remove).some(Boolean);
+  const raw = rawProfile(t, []);
+  if (!raw || raw.kind === 'other') return meta.remove.custom;
+  if (raw.kind === 'xmp') return raw.xmp ? xmpShouldRemove(raw.xmp, meta.remove) : any;
+  if (raw.kind === 'iptc') {
+    if (!raw.iptc) return any;
+    const items = raw.iptc.indexOf('8BIM') >= 0 ? photoshopItems(raw.iptc, 'IPTC', 'r') : iptcItems(raw.iptc, 'IPTC', 'r');
+    return items.length === 0 ? any : items.some((i) => i.category !== 'technical' && meta.remove[i.category]);
+  }
+  const tiff = raw.tiff;
+  if (!tiff) return any;
+  if (tiff.skipped > 0 && any) return true;
+  if (tiff.ifd1.length && meta.remove.custom) return true;
+  return IFDS.some((ifd) =>
+    tiff[ifd].some((e) => {
+      const info = exifTagInfo(ifd, e.tag);
+      return info.category !== 'technical' && meta.remove[info.category];
+    }),
+  );
 }
 
 function photoshopRemovable(data: Buffer, meta: MetadataSettings): boolean {
@@ -306,6 +406,16 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
   const actions: string[] = [];
   const warnings: string[] = [];
   const keepIcc = meta.preserveColorProfile;
+  const anyRemoval = Object.values(meta.remove).some(Boolean);
+  let extraExifRemoved = 0;
+  /** Blocos EXIF além do primeiro: mantidos só se nenhuma categoria for removida. */
+  const keepExtraExif = () => {
+    if (anyRemoval) extraExifRemoved++;
+    return !anyRemoval;
+  };
+  const extraNote = () => {
+    if (extraExifRemoved) actions.push(`${extraExifRemoved} bloco(s) EXIF adicional(is) removido(s).`);
+  };
   const exifDecision = (data: Buffer | null) => {
     if (!data) return null;
     let t: TiffData;
@@ -343,7 +453,7 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
           case 'image':
             return true;
           case 'exif':
-            return decision?.tiff === 'unchanged';
+            return item === exifItem ? decision?.tiff === 'unchanged' : keepExtraExif();
           case 'xmp': {
             const keep = !xmpRemovable(item.payload.subarray(JPEG_SIGNATURES.xmp.length).toString('utf8'), meta);
             if (!keep) actions.push('Pacote XMP removido.');
@@ -373,6 +483,7 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
       !meta.remove.custom,
     );
     if (removedComments) actions.push(`${removedComments} comentário(s) COM removido(s).`);
+    extraNote();
     if (meta.remove.custom && s.trailing.length) actions.push(`Dados após o fim da imagem removidos (${s.trailing.length} bytes).`);
     return { buffer: out, actions: [...new Set(actions)], warnings };
   }
@@ -384,7 +495,7 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
     const insert: Buffer[] = [];
     if (decision && decision.tiff && decision.tiff !== 'unchanged') insert.push(chunkBytes('eXIf', decision.tiff));
     const out = rebuildPng(buf, s, (c) => {
-      if (c.type === 'eXIf') return decision?.tiff === 'unchanged';
+      if (c.type === 'eXIf') return c === exifChunk ? decision?.tiff === 'unchanged' : keepExtraExif();
       if (c.type === 'iCCP') {
         if (!keepIcc) actions.push('Perfil ICC removido (a pedido).');
         return keepIcc;
@@ -401,6 +512,11 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
           if (!keep) actions.push('Pacote XMP removido.');
           return keep;
         }
+        if (/^raw profile type /i.test(t.keyword)) {
+          const keep = !rawProfileRemovable(t, meta);
+          if (!keep) actions.push(`Perfil bruto PNG "${t.keyword}" removido.`);
+          return keep;
+        }
         const cat = pngTextCategory(t.keyword);
         const keep = cat.category === 'technical' || !meta.remove[cat.category];
         if (!keep) actions.push(`Texto PNG "${t.keyword}" removido.`);
@@ -409,6 +525,7 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
       if (meta.remove.custom) actions.push(`Chunk ${c.type} removido.`);
       return !meta.remove.custom;
     }, insert);
+    extraNote();
     const withTrailing = !meta.remove.custom && s.trailing.length ? Buffer.concat([out, s.trailing]) : out;
     if (meta.remove.custom && s.trailing.length) actions.push(`Dados após o IEND removidos (${s.trailing.length} bytes).`);
     return { buffer: withTrailing, actions: [...new Set(actions)], warnings };
@@ -418,10 +535,10 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
   const exifChunk = chunks.find((c) => c.fourcc === 'EXIF');
   const decision = exifDecision(exifChunk ? webpExifTiff(exifChunk.data) : null);
   const working = chunks.map((c) =>
-    c.fourcc === 'EXIF' && decision && decision.tiff && decision.tiff !== 'unchanged' ? { fourcc: 'EXIF', data: decision.tiff } : c,
+    c === exifChunk && decision && decision.tiff && decision.tiff !== 'unchanged' ? { fourcc: 'EXIF', data: decision.tiff, first: true } : { ...c, first: c === exifChunk },
   );
   const out = rebuildWebp(working, (c) => {
-    if (c.fourcc === 'EXIF') return decision?.tiff !== null;
+    if (c.fourcc === 'EXIF') return (c as { first?: boolean }).first ? decision?.tiff !== null : keepExtraExif();
     if (c.fourcc === 'XMP ') {
       const keep = !xmpRemovable(c.data.toString('utf8'), meta);
       if (!keep) actions.push('Pacote XMP removido.');
@@ -430,6 +547,7 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
     if (c.fourcc === 'ICCP') return keepIcc;
     return !meta.remove.custom;
   });
+  extraNote();
   return { buffer: out, actions: [...new Set(actions)], warnings };
 }
 
@@ -457,7 +575,8 @@ export function injectImageMetadata(buf: Buffer, format: ImageContainer, data: {
     const insert: Buffer[] = [];
     if (data.icc) insert.push(iccpChunk(data.icc));
     if (data.exif) insert.push(chunkBytes('eXIf', data.exif));
-    const out = rebuildPng(buf, s, (c) => !(data.icc && c.type === 'sRGB') && c.type !== 'eXIf' && c.type !== 'iCCP', insert);
+    // Com iCCP reinserido, o sRGB gerado pelo codificador conflitaria (a especificação PNG proíbe os dois).
+    const out = rebuildPng(buf, s, (c) => c.type !== 'eXIf' && c.type !== 'iCCP', insert, data.icc ? new Set(['sRGB']) : undefined);
     if (data.exif) actions.push('Campos EXIF preservados reinseridos.');
     if (data.icc) actions.push('Perfil ICC preservado reinserido.');
     return { buffer: out, actions, warnings };

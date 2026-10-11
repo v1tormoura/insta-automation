@@ -475,6 +475,16 @@ describe('buildPlan — vídeo', () => {
       graph: '',
     });
   });
+
+  it('vídeo de dimensões ímpares recodificado (cor) é arredondado para pares e a operação aparece no relatório', () => {
+    const p = buildPlan(A('oddMp40001'), { mode: 'custom', color: { brightness: 10 } }, ctx());
+    expect(p.strategy).toBe('re-encode');
+    expect([p.expected.width, p.expected.height]).toEqual([322, 242]);
+    expect(graphOf(p)).toContain('scale=322:242');
+    expect(p.operations.find((o) => o.id === 'even-dimensions')?.detail).toMatch(/321×241 → 322×242/);
+    const out = runPlan(p);
+    expect(dims(out)).toEqual([322, 242]);
+  });
 });
 
 // ── Injeção pelo texto do usuário ─────────────────────────────────────────
@@ -634,6 +644,16 @@ describe('buildPlan — imagens', () => {
     const p = buildPlan(A('oddJpeg001'), { mode: 'quick' }, ctx());
     expect({ strategy: p.strategy, width: p.expected.width, height: p.expected.height }).toEqual({ strategy: 'image-lossless', width: 401, height: 301 });
   });
+
+  for (const fmt of ['jpg', 'png', 'webp'] as const) {
+    it(`imagem ímpar (401×301) recodificada para ${fmt} mantém as dimensões ímpares (sem arredondamento desnecessário)`, () => {
+      const p = buildPlan(A('oddJpeg001'), { mode: 'custom', output: { format: fmt }, color: { brightness: 10 } }, ctx());
+      expect(p.strategy).toBe('image-encode');
+      expect([p.expected.width, p.expected.height]).toEqual([401, 301]);
+      expect(p.operations.some((o) => o.id === 'even-dimensions' || o.id === 'resize')).toBe(false);
+      expect(dims(runPlan(p))).toEqual([401, 301]);
+    });
+  }
 
   it('imagem com transformação → recodificação com a orientação EXIF aplicada exatamente uma vez', () => {
     const photo = A('photoJpg01');

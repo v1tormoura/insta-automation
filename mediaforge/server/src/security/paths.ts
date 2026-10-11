@@ -10,7 +10,8 @@ export class PathEscapeError extends Error {
 /** Verdadeiro se `target` estiver dentro de `base` (ou for o próprio `base`). */
 export function isInside(base: string, target: string): boolean {
   const rel = path.relative(path.resolve(base), path.resolve(target));
-  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  // "..config" é um nome legítimo; só ".." ou "../…" saem do diretório.
+  return rel === '' || (rel !== '..' && !rel.startsWith('..' + path.sep) && !path.isAbsolute(rel));
 }
 
 /**

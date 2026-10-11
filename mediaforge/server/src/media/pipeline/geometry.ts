@@ -13,6 +13,11 @@ export interface GeometryResult {
   operations: OperationRecord[];
   warnings: string[];
   changed: boolean;
+  /**
+   * A única mudança é arredondar dimensões ímpares para pares (exigência dos
+   * codificadores de vídeo 4:2:0). Não justifica recodificar por si só.
+   */
+  parityOnly: boolean;
 }
 
 export const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
@@ -103,8 +108,13 @@ export function computeGeometry(srcW: number, srcH: number, g: GeometrySettings)
   const ax = f3(g.anchorX);
   const ay = f3(g.anchorY);
 
+  const parityOnly = !g.crop && g.resolution === 'original' && g.aspect === 'original' && sizeChanged;
+
   if (!aspectChanged) {
-    if (sizeChanged) {
+    if (parityOnly) {
+      steps.push({ kind: 'simple', filter: `scale=${tw}:${th}:flags=lanczos` });
+      operations.push({ id: 'even-dimensions', label: 'Ajuste para dimensões pares', detail: `${cw}×${ch} → ${tw}×${th} (exigido pelo codificador de vídeo)` });
+    } else if (sizeChanged) {
       steps.push({ kind: 'simple', filter: `scale=${tw}:${th}:flags=lanczos` });
       operations.push({ id: 'resize', label: 'Redimensionamento', detail: `${cw}×${ch} → ${tw}×${th}` });
     }
@@ -154,7 +164,7 @@ export function computeGeometry(srcW: number, srcH: number, g: GeometrySettings)
   }
   const changed = steps.length > 0;
   if (changed) steps.push({ kind: 'simple', filter: 'setsar=1' });
-  return { width: tw, height: th, steps, operations, warnings, changed };
+  return { width: tw, height: th, steps, operations, warnings, changed, parityOnly };
 }
 
 /** Filtros que aplicam a orientação EXIF (1–8) aos pixels. */

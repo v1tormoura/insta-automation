@@ -25,9 +25,15 @@ export interface TiffData {
   ifd1: TiffEntry[];
   thumbnail: Buffer | null;
   warnings: string[];
+  /** Entradas que existiam mas não foram lidas (tipo desconhecido, fora dos limites, orçamento): o bloco não foi entendido por inteiro. */
+  skipped: number;
 }
 
-export const TYPE_SIZE: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8, 13: 4 };
+/** Tamanho por elemento de cada tipo TIFF/EXIF (129 = UTF-8, introduzido no EXIF 3.0). */
+export const TYPE_SIZE: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8, 13: 4, 129: 1 };
+/** Limites de leitura: EXIF real raramente passa de algumas centenas de campos e de 1 MiB por campo. */
+const MAX_ENTRIES_PER_IFD = 512;
+const MAX_FIELD_BYTES = 1024 * 1024;
 
 export const TAG_EXIF_IFD = 0x8769;
 export const TAG_GPS_IFD = 0x8825;
@@ -62,6 +68,11 @@ export function parseTiff(input: Buffer): TiffData {
 
   const warnings: string[] = [];
   const visited = new Set<number>();
+  let skipped = 0;
+  // Orçamento total de bytes de valores: num bloco legítimo os valores não se
+  // sobrepõem, então a soma não passa do tamanho do bloco. Sem isso, mil
+  // campos apontando para o mesmo trecho multiplicariam o uso de memória.
+  let budget = buf.length + 64 * 1024;
 
   const readIfd = (offset: number, name: string): { entries: TiffEntry[]; next: number } => {
     if (offset === 0) return { entries: [], next: 0 };
@@ -78,8 +89,9 @@ export function parseTiff(input: Buffer): TiffData {
       warnings.push(`IFD ${name} fora dos limites.`);
       return { entries: [], next: 0 };
     }
-    if (count > 1000) {
+    if (count > MAX_ENTRIES_PER_IFD) {
       warnings.push(`IFD ${name} com ${count} entradas; ignorado.`);
+      skipped += count;
       return { entries: [], next: 0 };
     }
     for (let i = 0; i < count; i++) {
@@ -91,25 +103,37 @@ export function parseTiff(input: Buffer): TiffData {
         const size = (TYPE_SIZE[type] ?? 0) * cnt;
         if (!TYPE_SIZE[type]) {
           warnings.push(`Campo 0x${tag.toString(16)} com tipo desconhecido ${type}; ignorado.`);
+          skipped++;
           continue;
         }
-        if (size > 4 * 1024 * 1024) {
+        if (size > MAX_FIELD_BYTES || size > budget) {
           warnings.push(`Campo 0x${tag.toString(16)} grande demais; ignorado.`);
+          skipped++;
           continue;
         }
         let value: Buffer;
-        if (size <= 4) value = Buffer.from(buf.subarray(e + 8, e + 8 + size));
-        else {
+        if (size <= 4) {
+          if (e + 8 + size > buf.length) {
+            warnings.push(`Campo 0x${tag.toString(16)} truncado no fim do bloco; ignorado.`);
+            skipped++;
+            continue;
+          }
+          value = buf.subarray(e + 8, e + 8 + size);
+        } else {
           const vo = r.u32(e + 8);
           if (vo + size > buf.length) {
             warnings.push(`Campo 0x${tag.toString(16)} aponta para fora do bloco; ignorado.`);
+            skipped++;
             continue;
           }
-          value = Buffer.from(buf.subarray(vo, vo + size));
+          // Vista (sem cópia): os bytes só são copiados se o EXIF for reescrito.
+          value = buf.subarray(vo, vo + size);
         }
+        budget -= size;
         entries.push({ tag, type, count: cnt, value });
       } catch {
         warnings.push(`Entrada ${i} do IFD ${name} ilegível.`);
+        skipped++;
       }
     }
     let next = 0;
@@ -148,19 +172,24 @@ export function parseTiff(input: Buffer): TiffData {
     ifd1: ifd1.entries,
     thumbnail,
     warnings,
+    skipped,
   };
 }
 
 /** Converte o valor bruto em texto legível. */
-export function decodeEntry(e: TiffEntry, order: ByteOrder): string {
+export function decodeEntry(entry: TiffEntry, order: ByteOrder): string {
   const le = order === 'LE';
+  // Só o início importa para exibição; protege contra campos enormes.
+  const e: TiffEntry = { ...entry, value: entry.value.subarray(0, 4096) };
   const nums = (size: number, read: (o: number) => number) => {
     const out: number[] = [];
-    for (let i = 0; i < e.count && i < 64; i++) out.push(read(i * size));
+    const max = Math.min(e.count, Math.floor(e.value.length / size), 64);
+    for (let i = 0; i < max; i++) out.push(read(i * size));
     return out;
   };
   switch (e.type) {
     case 2:
+    case 129:
       return e.value.toString('utf8').replace(/\0+$/g, '').replace(/\0/g, ' ').trim();
     case 3:
       return nums(2, (o) => (le ? e.value.readUInt16LE(o) : e.value.readUInt16BE(o))).join(', ');
@@ -175,7 +204,7 @@ export function decodeEntry(e: TiffEntry, order: ByteOrder): string {
     case 10: {
       const signed = e.type === 10;
       const parts: string[] = [];
-      for (let i = 0; i < e.count && i < 16; i++) {
+      for (let i = 0; i < Math.min(e.count, Math.floor(e.value.length / 8), 16); i++) {
         const o = i * 8;
         const n = signed ? (le ? e.value.readInt32LE(o) : e.value.readInt32BE(o)) : le ? e.value.readUInt32LE(o) : e.value.readUInt32BE(o);
         const d = signed ? (le ? e.value.readInt32LE(o + 4) : e.value.readInt32BE(o + 4)) : le ? e.value.readUInt32LE(o + 4) : e.value.readUInt32BE(o + 4);
@@ -192,7 +221,12 @@ export function decodeEntry(e: TiffEntry, order: ByteOrder): string {
       if (e.tag === 0x9286 && e.value.length >= 8) {
         const charset = e.value.toString('latin1', 0, 8).replace(/\0+$/, '');
         const body = e.value.subarray(8);
-        const text = charset.startsWith('UNICODE') ? body.toString('utf16le') : body.toString('utf8');
+        let text: string;
+        if (charset.startsWith('UNICODE')) {
+          const even = Buffer.from(body.subarray(0, body.length - (body.length % 2)));
+          if (!le) even.swap16(); // UCS-2 na ordem de bytes do TIFF
+          text = even.toString('utf16le');
+        } else text = body.toString('utf8');
         return text.replace(/\0/g, '').trim();
       }
       if (e.tag >= 0x9c9b && e.tag <= 0x9c9f) return e.value.toString('utf16le').replace(/\0/g, '').trim();

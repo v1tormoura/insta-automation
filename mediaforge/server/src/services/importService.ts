@@ -146,7 +146,7 @@ export class ImportService {
       if (kind === 'video' || kind === 'image') {
         try {
           await makeThumbnail(this.ctx.tools, stage, storage.file(sessionId, 'thumbs', thumbName), info, {
-            orientation: info.decoderRotation ? null : metadata.orientation,
+            orientation: info.decoderRotation != null ? null : metadata.orientation,
           });
           thumb = thumbName;
         } catch (err) {

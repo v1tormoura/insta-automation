@@ -180,8 +180,14 @@ async function frameRotation(tools: MediaTools, file: string): Promise<number | 
   );
   if (r.code !== 0) return null;
   try {
-    const j = JSON.parse(r.stdout) as { frames?: Array<{ side_data_list?: Array<{ rotation?: number }> }> };
-    for (const sd of j.frames?.[0]?.side_data_list ?? []) if (typeof sd.rotation === 'number' && sd.rotation !== 0) return sd.rotation;
+    const j = JSON.parse(r.stdout) as { frames?: Array<{ side_data_list?: Array<{ side_data_type?: string; rotation?: number }> }> };
+    for (const sd of j.frames?.[0]?.side_data_list ?? []) {
+      // A orientação EXIF 4 (espelhamento vertical) vira uma matriz com rotação 0:
+      // a presença da matriz já indica que o decodificador transforma os pixels.
+      if (/display ?matrix/i.test(sd.side_data_type ?? '') || typeof sd.rotation === 'number') {
+        return typeof sd.rotation === 'number' ? sd.rotation : 0;
+      }
+    }
   } catch {
     return null;
   }

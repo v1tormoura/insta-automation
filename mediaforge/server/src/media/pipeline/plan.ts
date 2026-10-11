@@ -166,7 +166,7 @@ const simple = (filter: string): FilterStep => ({ kind: 'simple', filter });
  * FFmpeg já aplica (JPEG no FFmpeg 6+), devolve null para não girar duas vezes.
  */
 export function manualOrientation(a: Pick<PlanAsset, 'info' | 'metadata'>): number | null {
-  if (a.info.decoderRotation) return null;
+  if (a.info.decoderRotation != null) return null;
   const o = a.metadata?.orientation ?? null;
   return o && o > 1 ? o : null;
 }
@@ -271,7 +271,8 @@ function planImage(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   if (hasTexts && !ctx.tools.capabilities.drawtext) errors.push('O FFmpeg instalado não tem o filtro drawtext (textos).');
 
   // Geometria "original" sem mudança real não exige recodificação.
-  const geometryChange = geo.changed && (geo.width !== even(dispW) || geo.height !== even(dispH) || s.geometry.crop !== null || geo.operations.length > 0);
+  // Imagens não precisam de dimensões pares: o arredondamento sozinho não conta.
+  const geometryChange = geo.changed && !geo.parityOnly;
   const transforms = geometryChange || !!eq || hasTexts || hasOverlays;
   const container = imageContainerOf(asset.ext);
   const lossless = !transforms && format === srcFormat && container !== null && !ctx.preview;
@@ -322,7 +323,7 @@ function planImage(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   if (orient.length) {
     steps.push(...orient.map(simple));
     operations.push({ id: 'orientation', label: 'Orientação aplicada', detail: `EXIF ${orientation}: rotação gravada nos pixels` });
-  } else if (info.decoderRotation && asset.metadata?.orientation && asset.metadata.orientation > 1) {
+  } else if (info.decoderRotation != null && asset.metadata?.orientation && asset.metadata.orientation > 1) {
     operations.push({
       id: 'orientation',
       label: 'Orientação aplicada',
@@ -535,9 +536,11 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   const mainDur = Math.max(0, end - start) / s.speed;
 
   // Geometria
-  const geo = computeGeometry(info.displayWidth ?? vStream.width ?? 2, info.displayHeight ?? vStream.height ?? 2, s.geometry);
-  const W = geo.width;
-  const H = geo.height;
+  const srcDispW = info.displayWidth ?? vStream.width ?? 2;
+  const srcDispH = info.displayHeight ?? vStream.height ?? 2;
+  let geo = computeGeometry(srcDispW, srcDispH, s.geometry);
+  let W = geo.width;
+  let H = geo.height;
   const eq = eqFilter(s.color);
   const fpsRequested = s.video.fps !== 'original' ? Number(s.video.fps) : null;
   const concat = !!(e.intro || e.outro || e.scenes.length);
@@ -715,7 +718,8 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
   const anySegmentAudio = segments.some((x) => x.role === 'main' ? keepMainAudio : x.role === 'scene' && s.audio.mode === 'keep');
   const hasAudioOut = !!trackAsset || (concat ? s.audio.mode === 'keep' && (keepMainAudio || anySegmentAudio) : keepMainAudio);
 
-  const videoFiltersNeeded = geo.changed || !!eq || s.speed !== 1 || fpsRequested !== null || concat || hasTexts || e.overlays.length > 0 || !!e.subtitles || fades || !!preview;
+  // Arredondar dimensões ímpares só é necessário se o vídeo for recodificado.
+  const videoFiltersNeeded = (geo.changed && !geo.parityOnly) || !!eq || s.speed !== 1 || fpsRequested !== null || concat || hasTexts || e.overlays.length > 0 || !!e.subtitles || fades || !!preview;
   const audioFiltersNeeded = hasAudioOut && (s.audio.volume !== 1 || s.speed !== 1 || !!trackAsset || concat || fades);
 
   // Codecs
@@ -731,6 +735,11 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     else if (!canCopyVideo(info.videoCodec, container)) errors.push(`O codec ${info.videoCodec} não pode ser copiado para ${CONTAINER_LABEL[container]}.`);
     vCodec = 'copy';
   } else vCodec = vChoice;
+  if (vCodec === 'copy' && geo.parityOnly) {
+    geo = { ...geo, width: srcDispW, height: srcDispH, steps: [], operations: [], warnings: [], changed: false, parityOnly: false };
+    W = geo.width;
+    H = geo.height;
+  }
   if (vCodec !== 'copy') {
     if (!videoCodecAllowed(vCodec, container)) errors.push(`${VIDEO_CODEC_LABEL[vCodec]} não é compatível com ${CONTAINER_LABEL[container]}.`);
     if (!encoderAvailable(tools, vCodec)) errors.push(`O FFmpeg instalado não tem encoder para ${VIDEO_CODEC_LABEL[vCodec]}.`);

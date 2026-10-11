@@ -57,7 +57,7 @@ const CONTAINER_CATALOG_KEYS = new Set([
 ]);
 
 const RE_GPS = /(location|gps|iso6709|©xyz|\bxyz\b|latitude|longitude|altitude|coordinat|geotag|\bgeo\b|loci|city|country|sublocation|province|state\/province)/i;
-const RE_DATES = /(creation_?time|creationdate|create_?date|date_?time|datetime|\bdate\b|\bday\b|©day|modif|timestamp|offsettime|subsectime|time_?created|date_?created|_utc)/i;
+const RE_DATES = /(creation_?time|creationdate|create_?date|date_?time|datetime|(?:^|[_\W])dates?(?:[_\W]|$)|\bday\b|©day|modif|timestamp|offsettime|subsectime|time_?created|date_?created|_utc)/i;
 const RE_DEVICE =
   /(\bmake\b|model|manufacturer|camera|lens|serial|device|\bbody\b|owner|firmware|hostcomputer|android\.version|com\.android|com\.apple\.quicktime\.(make|model)|©mak|©mod|exposure|fnumber|aperture|\biso|focal|flash|whitebalance|metering|shutter|brightnessvalue|scenetype|sensing|digitalzoom|gaincontrol|makernote)/i;
 const RE_SOFTWARE =

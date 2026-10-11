@@ -1,5 +1,6 @@
 import type { MetadataComparison, MetadataItem, MetadataSettings } from '@mediaforge/shared';
 import { METADATA_CATEGORY_LABELS } from '@mediaforge/shared';
+import { isMuxerDefault } from './categories';
 
 /** Valores com tamanho suficiente para busca nos bytes da saída. */
 export function searchableValue(item: MetadataItem): string | null {
@@ -75,8 +76,11 @@ export function compareMetadata(
       unverified.push({ ...item, reason: 'Ainda presente na saída com o mesmo valor' });
     } else if (residualFound.has(item.id)) {
       unverified.push({ ...item, reason: 'O valor ainda foi encontrado nos bytes do arquivo de saída' });
-    } else if (out) {
+    } else if (out && (out.category === 'technical' || isMuxerDefault(out.key, out.value))) {
+      // Trocado por um valor técnico padrão do formato (ex.: handler_name "VideoHandler").
       removed.push({ ...item, how: 'substituido', requested: true, value: item.value, note: `Agora: ${out.value}` });
+    } else if (out) {
+      unverified.push({ ...item, reason: 'O campo continua presente na saída com outro valor (não técnico)' });
     } else {
       removed.push({ ...item, how: 'ausente', requested: true });
     }

@@ -526,9 +526,31 @@ describe('rebuildExif (reescrita seletiva)', () => {
       Buffer.concat([Buffer.from([72, 0, 0, 0, 1, 0, 0, 0]), artist]),
     );
     const t = parseTiff(tiff);
-    expect(t.ifd0.map((e) => e.tag)).toEqual([0x011a]);
+    // O tipo 129 é lido como texto UTF-8 e classificado normalmente.
+    expect(t.ifd0.map((e) => e.tag)).toEqual([0x011a, 0x013b]);
+    expect(decodeEntry(t.ifd0[1]!, t.order)).toBe('Fulano de Tal UTF8');
     const r = rebuildExif(t, meta('all'), { keepOrientation: true });
     const kept = r.tiff === 'unchanged' ? tiff : r.tiff;
     expect(kept === null || !kept.includes(Buffer.from('Fulano de Tal')), `decisão: ${r.tiff === 'unchanged' ? 'unchanged' : 'reescrito'}`).toBe(true);
+  });
+
+  it('campos de tipo realmente desconhecido não deixam o bloco ser mantido "inalterado" quando há remoção pedida', () => {
+    const secret = Buffer.from('SEGREDO-TIPO-200\0', 'utf8');
+    const tiff = handTiff(
+      [
+        [0x011a, 5, 1, 38],
+        [0xc000, 200, secret.length, 46], // tipo 200: inexistente
+      ],
+      Buffer.concat([Buffer.from([72, 0, 0, 0, 1, 0, 0, 0]), secret]),
+    );
+    const t = parseTiff(tiff);
+    expect(t.skipped).toBe(1);
+    const onlyGps = { ...meta('none'), remove: { ...meta('none').remove, gps: true } };
+    const r = rebuildExif(t, onlyGps, { keepOrientation: true });
+    expect(r.tiff).not.toBe('unchanged');
+    const out = r.tiff === 'unchanged' || r.tiff === null ? Buffer.alloc(0) : r.tiff;
+    expect(out.includes(Buffer.from('SEGREDO'))).toBe(false);
+    // Sem nenhuma categoria marcada, o bloco original é mantido como está.
+    expect(rebuildExif(t, meta('none'), { keepOrientation: true }).tiff).toBe('unchanged');
   });
 });

@@ -97,13 +97,20 @@ export function textChunk(keyword: string, text: string): Buffer {
 }
 
 /** Reconstrói o PNG mantendo os chunks aprovados e inserindo novos depois do IHDR. */
-export function rebuildPng(buf: Buffer, s: PngStructure, keep: (c: PngChunk) => boolean, insertAfterIhdr: Buffer[] = []): Buffer {
+export function rebuildPng(
+  buf: Buffer,
+  s: PngStructure,
+  keep: (c: PngChunk) => boolean,
+  insertAfterIhdr: Buffer[] = [],
+  exclude: Set<string> = new Set(),
+): Buffer {
   const parts: Buffer[] = [PNG_SIGNATURE];
   for (const c of s.chunks) {
     if (c.type === 'IHDR') {
       parts.push(buf.subarray(c.start, c.end), ...insertAfterIhdr);
       continue;
     }
+    if (exclude.has(c.type)) continue;
     if (PNG_IMAGE_CHUNKS.has(c.type) || keep(c)) parts.push(buf.subarray(c.start, c.end));
   }
   return Buffer.concat(parts);
