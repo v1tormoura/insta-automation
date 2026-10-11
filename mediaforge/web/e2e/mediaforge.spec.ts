@@ -57,7 +57,10 @@ test.describe('MediaForge — fluxos completos pela interface', () => {
     // Relatório: remoção comprovada, cópia de fluxos e nota de integridade
     await card.getByTestId('report-btn').click();
     const report = page.getByTestId('report-drawer');
-    await expect(report.getByText('Remoção comprovada')).toBeVisible();
+    // A fixture foi gerada pelo FFmpeg: o AAC copiado carrega "Lavc…" nos próprios quadros.
+    // O veredito honesto é "em parte", com o aviso de como resolver.
+    await expect(report.getByText('Remoção comprovada em parte', { exact: true })).toBeVisible();
+    await expect(report.getByText(/recodificando o áudio/).first()).toBeVisible();
     await expect(report.getByText('Cópia de fluxos (sem recodificar)')).toBeVisible();
     await report.getByRole('radio', { name: 'Integridade' }).click();
     await expect(report.getByText('Integridade técnica ≠ similaridade de conteúdo.')).toBeVisible();
@@ -124,6 +127,40 @@ test.describe('MediaForge — fluxos completos pela interface', () => {
     expect(zip.subarray(0, 2).toString()).toBe('PK');
     const listing = zip.toString('latin1');
     for (const name of ['RELATORIO.txt', 'relatorio.json', 'SHA256SUMS.txt', '/videos/', '/relatorios/']) expect(listing).toContain(name);
+  });
+
+  test('acessibilidade: modal aceita digitação contínua, prende o Tab e os campos têm rótulo', async ({ page }) => {
+    await freshSession(page);
+    await importFiles(page, [fx('plain.mp4')], 1);
+
+    // Salvar perfil: o texto inteiro entra mesmo com re-renderizações (eventos em tempo real).
+    await page.getByTestId('save-profile').click();
+    const dialog = page.getByRole('dialog', { name: 'Salvar perfil' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Nome do perfil').click();
+    await page.keyboard.type('Perfil digitado no teclado', { delay: 15 });
+    await expect(dialog.getByLabel('Nome do perfil')).toHaveValue('Perfil digitado no teclado');
+
+    // Tab circula dentro do diálogo (nunca chega aos controles atrás do fundo escuro).
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('Tab');
+      expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
+    }
+    await dialog.getByTestId('confirm-save-profile').click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Perfil digitado no teclado', exact: true })).toBeVisible();
+
+    // Rótulos associados aos campos (leitores de tela e getByLabel).
+    await page.getByTestId('mode-custom').click();
+    await page.getByTestId('tab-tempo').click();
+    await expect(page.getByLabel('Início', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Fim', { exact: true })).toBeVisible();
+
+    // Escolher o arquivo em foco pelo teclado (configuração individual).
+    const focusBtn = page.getByRole('button', { name: 'Editar plain.mp4' });
+    await focusBtn.focus();
+    await page.keyboard.press('Enter');
+    await expect(focusBtn).toHaveAttribute('aria-current', 'true');
   });
 
   test('fila: concorrência ajustável e cancelamento de tarefa em execução', async ({ page }) => {
