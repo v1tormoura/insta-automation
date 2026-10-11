@@ -47,6 +47,13 @@ beforeAll(async () => {
   enqueue('volume 0.5', 'plain.mp4', { mode: 'custom', video: fast, audio: { volume: 0.5 } });
   enqueue('volume 2', 'plain.mp4', { mode: 'custom', video: fast, audio: { volume: 2 } });
   enqueue('manter sem áudio', 'noaudio.mp4', { mode: 'quick' });
+  enqueue('volume 0', 'plain.mp4', { mode: 'custom', video: fast, audio: { volume: 0 } });
+  enqueue('mix sem original', 'noaudio.mp4', { mode: 'editorial', video: fast, editorial: { audioTrack: { assetId: id('track.mp3'), mode: 'mix' } } });
+  enqueue('texto com janela', 'plain.mp4', {
+    mode: 'editorial',
+    video: fast,
+    editorial: { texts: [{ text: 'XYZ', position: 'center', size: 15, start: 0.5, end: 1.0, box: true, boxColor: '#FF0000', boxOpacity: 1 }] },
+  });
   enqueue('trilha', 'plain.mp4', { mode: 'editorial', video: fast, editorial: { audioTrack: { assetId: id('track.mp3'), mode: 'replace' } } });
   enqueue('mix', 'plain.mp4', {
     mode: 'editorial',
@@ -111,6 +118,23 @@ describe('áudio', () => {
     const sk = o.job.report!.skipped;
     expect(sk.some((s) => s.label === 'Áudio' && /não tem faixa de áudio/i.test(s.reason))).toBe(true);
     expect(o.job.validationStatus).toBe('passed');
+  }, T);
+
+  it('volume 0 → faixa de áudio presente, porém silenciosa', async () => {
+    const o = await done('volume 0');
+    expect(mainStreams(o.file).a).toBeDefined();
+    expect(volumeDb(o.file)).toBeLessThan(-80);
+    expect(Math.abs(decodedDuration(o.file, 'a') - 2)).toBeLessThan(0.1);
+  }, T);
+
+  it('mixagem pedida num vídeo sem áudio → a trilha entra sozinha e o relatório avisa', async () => {
+    const o = await done('mix sem original');
+    const { a } = mainStreams(o.file);
+    expect(a).toBeDefined();
+    expect(volumeDb(o.file, { band: 330 })).toBeGreaterThan(AUDIBLE);
+    expect(Math.abs(decodedDuration(o.file, 'a') - 2)).toBeLessThan(0.1);
+    expect(o.job.report!.warnings.join(' ')).toMatch(/não tem áudio a mixar/);
+    expect(o.job.report!.operations.some((op) => op.id === 'audio-track' && /substituída/.test(op.label))).toBe(true);
   }, T);
 
   it('trilha substituta (track.mp3) → áudio da trilha (330 Hz) com a duração do vídeo', async () => {
@@ -201,6 +225,13 @@ describe('editorial completo', () => {
     expect(logo.vavg).toBeGreaterThan(left.vavg + 30); // vermelho → Cr alto
   });
 
+  it('transição de saída escurece o fim (encerramento) até quase preto', () => {
+    const mid = frameStats(o.file, 6.0);
+    const end = frameStats(o.file, 6.95);
+    expect(mid.yavg).toBeGreaterThan(40);
+    expect(end.yavg).toBeLessThan(mid.yavg * 0.35);
+  });
+
   it('o áudio original só soa no trecho principal (1,5–3,5 s); abertura e cena em silêncio', () => {
     expect(volumeDb(o.file, { ss: 0.4, t: 0.9 })).toBeLessThan(SILENCE);
     expect(volumeDb(o.file, { ss: 2, t: 1 })).toBeGreaterThan(AUDIBLE);
@@ -223,13 +254,29 @@ describe('editorial completo', () => {
   });
 });
 
+describe('texto com intervalo de exibição', () => {
+  it('a caixa vermelha do texto aparece só entre 0,5 s e 1,0 s', async () => {
+    const o = await done('texto com janela');
+    const center = '40:20:140:110';
+    const during = frameStats(o.file, 0.75, center);
+    const before = frameStats(o.file, 0.2, center);
+    const after = frameStats(o.file, 1.5, center);
+    expect(during.vavg).toBeGreaterThan(200); // Cr alto = vermelho
+    expect(before.vavg).toBeLessThan(during.vavg - 40);
+    expect(after.vavg).toBeLessThan(during.vavg - 40);
+    expect(o.job.report!.operations.find((op) => op.id === 'text-0')?.detail).toBe('"XYZ" — center, 00:00:00.500 até 00:00:01.000');
+  }, T);
+});
+
 describe('referências inválidas', () => {
   async function counts() {
     return { jobs: (await c.get('/api/jobs')).data.length, batches: (await c.get('/api/batches')).data.length };
   }
   const editorialWith = (editorial: unknown) => ({ mode: 'editorial', editorial });
 
-  it('asset inexistente → 422 sem criar tarefas nem lote', async () => {
+  const MISSING = 'nenhum arquivo selecionado, ou o arquivo não está nesta sessão.';
+
+  it('asset inexistente → 422 sem criar tarefas nem lote, com a mensagem do recurso', async () => {
     const before = await counts();
     const r = await c.post('/api/batches', {
       assetIds: [A['plain.mp4']!.id],
@@ -238,10 +285,43 @@ describe('referências inválidas', () => {
     });
     expect(r.status).toBe(422);
     expect(r.data.error.code).toBe('invalid-batch');
-    expect(JSON.stringify(r.data.error.details)).toMatch(/Elemento gráfico/);
+    expect(r.data.error.details).toEqual([{ assetId: A['plain.mp4']!.id, assetName: 'plain.mp4', message: `Elemento gráfico: ${MISSING}` }]);
     expect(await counts()).toEqual(before);
     const plan = await c.post('/api/plan', { assetIds: [A['plain.mp4']!.id], scope: 'common', settings: editorialWith({ overlays: [{ assetId: 'naoexiste12345' }] }) });
+    expect(plan.status).toBe(200);
     expect(plan.data.ok).toBe(false);
+    expect(plan.data.jobs).toEqual([]);
+  });
+
+  it('cada recurso auxiliar ausente é nomeado na mensagem (abertura, encerramento, cena, trilha, legenda, logotipo em imagem)', async () => {
+    const ghost = 'fantasma1234567';
+    const cases: Array<[string, unknown, string]> = [
+      [A['plain.mp4']!.id, { intro: { type: 'asset', assetId: ghost } }, 'Abertura'],
+      [A['plain.mp4']!.id, { outro: { type: 'asset', assetId: ghost } }, 'Encerramento'],
+      [A['plain.mp4']!.id, { scenes: [{ assetId: A['scene.mp4']!.id }, { assetId: ghost }] }, 'Cena 2'],
+      [A['plain.mp4']!.id, { audioTrack: { assetId: ghost } }, 'Trilha de áudio'],
+      [A['plain.mp4']!.id, { subtitles: { assetId: ghost } }, 'Legendas'],
+      [A['photo.jpg']!.id, { overlays: [{ assetId: ghost }] }, 'Elemento gráfico'],
+    ];
+    const before = await counts();
+    for (const [assetId, editorial, label] of cases) {
+      const plan = await c.post('/api/plan', { assetIds: [assetId], scope: 'common', settings: editorialWith(editorial) });
+      expect(plan.status, label).toBe(200);
+      expect(plan.data.ok, label).toBe(false);
+      expect(plan.data.errors.map((e: any) => e.message), label).toEqual([`${label}: ${MISSING}`]);
+      const r = await c.post('/api/batches', { assetIds: [assetId], scope: 'common', settings: editorialWith(editorial) });
+      expect(r.status, label).toBe(422);
+      expect(r.data.error.details.map((e: any) => e.message), label).toEqual([`${label}: ${MISSING}`]);
+    }
+    expect(await counts()).toEqual(before);
+  });
+
+  it('asset removido da sessão depois de importado também é recusado como ausente', async () => {
+    const [tmp] = await c.importOk({ path: fx('logo.png'), name: 'logo-temporario.png' });
+    expect((await c.json('DELETE', `/api/assets/${tmp!.id}`)).status).toBe(200);
+    const r = await c.post('/api/batches', { assetIds: [A['plain.mp4']!.id], scope: 'common', settings: editorialWith({ overlays: [{ assetId: tmp!.id }] }) });
+    expect(r.status).toBe(422);
+    expect(r.data.error.details.map((e: any) => e.message)).toEqual([`Elemento gráfico: ${MISSING}`]);
   });
 
   it('asset de OUTRA sessão não pode ser usado como trilha/logotipo', async () => {
@@ -343,8 +423,82 @@ describe('prévia (POST /api/preview)', () => {
     expect(psnr(file, fx('photo.jpg'), { filterB: 'transpose=1,eq=brightness=0.06', rawA: true })).toBeGreaterThan(25);
   }, T);
 
+  it('vídeo com container "webm": VP9 + Opus em WebM real, começando no deslocamento pedido', async () => {
+    const before = (await c.get('/api/jobs')).data.length;
+    const r = await c.post('/api/preview', { assetId: A['plain.mp4']!.id, settings: { mode: 'custom', color: { brightness: 10 } }, offset: 1, container: 'webm' });
+    expect(r.status, JSON.stringify(r.data)).toBe(200);
+    expect(r.data.url).toMatch(/^\/api\/previews\/[A-Za-z0-9_-]+\.webm$/);
+    expect(r.data.kind).toBe('video');
+    const f = await c.download(r.data.url);
+    expect(f.status).toBe(200);
+    expect(f.headers.get('content-type')).toMatch(/^video\/webm/);
+    expect([...f.body.subarray(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3]); // EBML
+    expect(f.body.subarray(0, 64).includes('webm')).toBe(true); // DocType
+    const file = tmpFile(f.body, 'webm');
+    const { v, a, format } = mainStreams(file);
+    expect(format.format_name).toMatch(/webm/);
+    expect(v.codec_name).toBe('vp9');
+    expect(a?.codec_name).toBe('opus');
+    expect([v.width, v.height]).toEqual([320, 240]);
+    expect([r.data.width, r.data.height]).toEqual([320, 240]);
+    // Plano: min(8 s, 2 s − 1 s) = 1 s.
+    expect(Math.abs(decodedDuration(file, 'v') - 1)).toBeLessThan(0.1);
+    expect(decodeErrors(file)).toEqual([]);
+    const at1 = psnr(file, fx('plain.mp4'), { ssB: 1 });
+    const at0 = psnr(file, fx('plain.mp4'));
+    expect(at1).toBeGreaterThan(at0 + 3);
+    expect((await c.get('/api/jobs')).data.length).toBe(before);
+    // Os dados do arquivo não carregam metadados de software (+bitexact na prévia).
+    expect(f.body.includes('Lavf6')).toBe(false);
+  }, T);
+
+  it('prévia MP4 por padrão (sem container) e deslocamento além do fim é limitado aos últimos 0,5 s', async () => {
+    const r = await c.post('/api/preview', { assetId: A['plain.mp4']!.id, settings: { mode: 'quick' }, offset: 100 });
+    expect(r.status, JSON.stringify(r.data)).toBe(200);
+    expect(r.data.url).toMatch(/\.mp4$/);
+    const file = tmpFile((await c.download(r.data.url)).body, 'mp4');
+    const { v } = mainStreams(file);
+    expect(v.codec_name).toBe('h264');
+    expect(Math.abs(decodedDuration(file, 'v') - 0.5)).toBeLessThan(0.1);
+    const at15 = psnr(file, fx('plain.mp4'), { ssB: 1.5 });
+    expect(at15).toBeGreaterThan(psnr(file, fx('plain.mp4')) + 3);
+  }, T);
+
+  it('imagem com container "webm" continua devolvendo JPG', async () => {
+    const r = await c.post('/api/preview', { assetId: A['photo.jpg']!.id, settings: { mode: 'quick' }, offset: 0, container: 'webm' });
+    expect(r.status, JSON.stringify(r.data)).toBe(200);
+    expect(r.data.kind).toBe('image');
+    expect(r.data.url).toMatch(/\.jpg$/);
+    const f = await c.download(r.data.url);
+    expect(f.headers.get('content-type')).toMatch(/^image\/jpeg/);
+    expect(mainStreams(tmpFile(f.body, 'jpg')).v.codec_name).toBe('mjpeg');
+  }, T);
+
+  it('container inválido, áudio/legenda como alvo e arquivo de outra sessão são recusados', async () => {
+    const bad = await c.post('/api/preview', { assetId: A['plain.mp4']!.id, settings: { mode: 'quick' }, offset: 0, container: 'avi' });
+    expect(bad.status).toBe(400);
+    expect(bad.data.error.code).toBe('invalid-request');
+    const audio = await c.post('/api/preview', { assetId: A['track.mp3']!.id, settings: { mode: 'quick' }, offset: 0 });
+    expect(audio.status).toBe(422);
+    const other = new Client(srv.base);
+    const [foreign] = await other.importOk(fx('noaudio.mp4'));
+    const r = await c.post('/api/preview', { assetId: foreign!.id, settings: { mode: 'quick' }, offset: 0 });
+    expect(r.status).toBe(422);
+    expect(r.data.error.message).toMatch(/não encontrado/);
+  });
+
   it('nome de prévia forjado é recusado (sem travessia de diretório)', async () => {
     expect((await c.download('/api/previews/..%2F..%2Fmediaforge.db')).status).toBe(400);
     expect((await c.download('/api/previews/naoexiste123.mp4')).status).toBe(404);
+    expect((await c.download('/api/previews/naoexiste123.webm')).status).toBe(404);
+    expect((await c.download('/api/previews/naoexiste123.png')).status).toBe(400);
+  });
+
+  it('a prévia de uma sessão não é acessível por outra', async () => {
+    const r = await c.post('/api/preview', { assetId: A['photo.jpg']!.id, settings: { mode: 'quick' }, offset: 0 });
+    expect(r.status).toBe(200);
+    expect((await c.download(r.data.url)).status).toBe(200);
+    const other = new Client(srv.base);
+    expect((await other.download(r.data.url)).status).toBe(404);
   });
 });

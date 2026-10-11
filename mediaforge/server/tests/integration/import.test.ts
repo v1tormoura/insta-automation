@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { AssetDetailDTO, AssetDTO } from '@mediaforge/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '../helpers/client';
 import { fx } from '../helpers/fixtures';
-import { listFiles, mainStreams, psnr, rotationOf, sessionArea, sessionId, sha256 } from '../helpers/inspecaoMidia';
+import { decodeErrors, listFiles, mainStreams, makeReference, psnr, rotationOf, sessionArea, sessionId, sha256 } from '../helpers/inspecaoMidia';
 import { ffprobe, tmpFile } from '../helpers/media';
 import { startServer, type TestServer } from '../helpers/server';
 
@@ -101,7 +102,14 @@ describe('importação múltipla num único envio', () => {
     const pv = photoDetail.info!.streams.find((s) => s.index === photoDetail.info!.videoIndex)!;
     expect([pv.width, pv.height]).toEqual([400, 300]);
     expect(photoDetail.metadata!.orientation).toBe(6);
+    // O decodificador JPEG do FFmpeg 6.1 aplica a orientação sozinho (dado lateral do quadro).
+    expect(Math.abs(photoDetail.info!.decoderRotation ?? 0)).toBe(90);
+    expect([photoDetail.info!.displayWidth, photoDetail.info!.displayHeight]).toEqual([300, 400]);
     expect([photo.width, photo.height]).toEqual([300, 400]);
+    // PNG/WEBP sem orientação: nada de rotação do decodificador.
+    const pngDetail = (await c().get<AssetDetailDTO>(`/api/assets/${byName.get('graphic.png')!.id}`)).data;
+    expect(pngDetail.info!.decoderRotation ?? null).toBeNull();
+    expect(rotDetail.info!.decoderRotation ?? null).toBeNull(); // vídeo: rotação vem da matriz do fluxo
 
     const iphone = byName.get('iphone.mov')!;
     expect([iphone.width, iphone.height]).toEqual([640, 360]);
@@ -232,6 +240,50 @@ describe('arquivos inválidos', () => {
   });
 });
 
+describe('arquivos truncados', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-truncados-'));
+  const truncate = (src: string, name: string, fraction: number) => {
+    const buf = fs.readFileSync(src);
+    const p = path.join(dir, name);
+    fs.writeFileSync(p, buf.subarray(0, Math.floor(buf.length * fraction)));
+    return p;
+  };
+
+  it('JPEG cortado ao meio (o decodificador acusa erro) não é aceito como pronto', async () => {
+    const p = truncate(fx('base.jpg'), 'cortada.jpg', 0.6);
+    // Prova independente de que o arquivo está quebrado: o FFmpeg reclama ao decodificar.
+    expect(decodeErrors(p).length).toBeGreaterThan(0);
+    const c = new Client(srv.base);
+    const { data } = await c.upload([{ path: p }]);
+    const r = data.results[0]!;
+    expect(r.ok, `aceito como "${r.asset?.status}" apesar de erro de decodificação`).toBe(false);
+    expect(r.asset!.status).toBe('invalid');
+    expect(r.error).toMatch(/corromp|decodific/i);
+  });
+
+  it('MP4 com metade dos dados: a tarefa falha na validação e nenhuma saída sobra', async () => {
+    const fast = makeReference(['-i', fx('plain.mp4'), '-c', 'copy', '-movflags', '+faststart'], 'mp4');
+    const p = truncate(fast, 'metade.mp4', 0.5);
+    const c = new Client(srv.base);
+    const { data } = await c.upload([{ path: p }]);
+    const r = data.results[0]!;
+    if (!r.ok) {
+      // Recusar na importação também é um resultado correto.
+      expect(r.asset!.status).toBe('invalid');
+      return;
+    }
+    const ids = await c.batch([r.asset!.id], { mode: 'quick' });
+    const [job] = await c.waitJobs(ids);
+    expect(job!.status).toBe('failed');
+    expect(job!.output).toBeNull();
+    expect(job!.error).toMatch(/Validação|FFmpeg|decodific/i);
+    const sid = await sessionId(c);
+    expect(listFiles(sessionArea(srv.dataDir, sid, 'outputs'))).toEqual([]);
+    expect(listFiles(sessionArea(srv.dataDir, sid, 'tmp'))).toEqual([]);
+    expect((await c.download(`/api/jobs/${job!.id}/download`)).status).toBeGreaterThanOrEqual(400);
+  });
+});
+
 describe('nomes de arquivo maliciosos', () => {
   let c: Client;
   let sid: string;
@@ -290,6 +342,24 @@ describe('nomes de arquivo maliciosos', () => {
     const stored = fs.readdirSync(sessionArea(srv.dataDir, sid, 'uploads'));
     for (const r of data.results) expect(stored).toContain(`${r.asset!.id}.mp4`);
     expect(listFiles(srv.dataDir).filter((f) => /evil|windows|oculto|barras/.test(f))).toEqual([]);
+  });
+});
+
+describe('requisições de envio malformadas', () => {
+  it('sem multipart → 400; multipart sem arquivos → 400; nada é registrado', async () => {
+    const c = new Client(srv.base);
+    const notMultipart = await c.post('/api/assets', { files: [] });
+    expect(notMultipart.status).toBe(400);
+    expect(notMultipart.data.error.code).toBe('multipart-required');
+    const form = new FormData();
+    form.append('campo', 'só texto');
+    const res = await c.raw('POST', '/api/assets', { body: form });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error.code).toBe('no-files');
+    expect((await c.get<AssetDTO[]>('/api/assets')).data).toEqual([]);
+    const sid = await sessionId(c);
+    expect(listFiles(sessionArea(srv.dataDir, sid, 'uploads'))).toEqual([]);
+    expect(listFiles(sessionArea(srv.dataDir, sid, 'tmp'))).toEqual([]);
   });
 });
 

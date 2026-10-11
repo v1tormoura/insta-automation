@@ -1,4 +1,8 @@
-import type { AssetDTO } from '@mediaforge/shared';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import type { AssetDetailDTO, AssetDTO } from '@mediaforge/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, type JobDetail } from '../helpers/client';
 import { fx } from '../helpers/fixtures';
@@ -10,12 +14,14 @@ import {
   mainStreams,
   makeReference,
   parseTiffTags,
+  pixelMd5,
   pngChunks,
   psnr,
   rotationOf,
   sha256,
   volumeDb,
 } from '../helpers/inspecaoMidia';
+import { decodedAudioSeconds, seq, sourceFrameIndices } from '../helpers/integracaoMidiaQuadros';
 import { frameMd5, meanLuma, tmpFile } from '../helpers/media';
 import { startServer, type TestServer } from '../helpers/server';
 
@@ -55,12 +61,44 @@ async function done(key: string, ext: string) {
 
 const fast = { speed: 'fast' as const };
 
+/**
+ * PNG com orientação EXIF 6 num chunk eXIf (TIFF escrito à mão). O decodificador
+ * PNG do FFmpeg 6.1 NÃO aplica essa orientação: o MediaForge precisa girar os
+ * pixels por conta própria (caminho de "orientação manual").
+ */
+function pngWithOrientation6(): string {
+  const src = fs.readFileSync(fx('base.png'));
+  const tiff = Buffer.alloc(8 + 2 + 12 + 4);
+  tiff.write('II', 0, 'latin1');
+  tiff.writeUInt16LE(42, 2);
+  tiff.writeUInt32LE(8, 4);
+  tiff.writeUInt16LE(1, 8); // uma entrada
+  tiff.writeUInt16LE(0x0112, 10); // Orientation
+  tiff.writeUInt16LE(3, 12); // SHORT
+  tiff.writeUInt32LE(1, 14);
+  tiff.writeUInt16LE(6, 18);
+  tiff.writeUInt32LE(0, 22); // sem próximo IFD
+  const head = Buffer.alloc(8);
+  head.writeUInt32BE(tiff.length, 0);
+  head.write('eXIf', 4, 'latin1');
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(zlib.crc32(tiff, zlib.crc32(Buffer.from('eXIf', 'latin1'))) >>> 0);
+  const ihdrEnd = 8 + 12 + src.readUInt32BE(8);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-png-orient-'));
+  const out = path.join(dir, 'girada.png');
+  fs.writeFileSync(out, Buffer.concat([src.subarray(0, ihdrEnd), head, tiff, crc, src.subarray(ihdrEnd)]));
+  return out;
+}
+let pngOriented: string;
+
 beforeAll(async () => {
   srv = await startServer();
   c = new Client(srv.base);
   const names = ['iphone.mov', 'plain.mp4', 'photo.jpg', 'graphic.png', 'rotated.mp4'];
   const assets = await c.importOk(...names.map((n) => fx(n)));
   names.forEach((n, i) => (A[n] = assets[i]!));
+  pngOriented = pngWithOrientation6();
+  A['girada.png'] = (await c.importOk({ path: pngOriented, name: 'girada.png' }))[0]!;
   const plain = () => A['plain.mp4']!;
 
   // Conversões de formato
@@ -70,12 +108,16 @@ beforeAll(async () => {
   enqueue('jpg→png', () => A['photo.jpg']!, { mode: 'quick', output: { format: 'png' } });
   enqueue('png→jpg', () => A['graphic.png']!, { mode: 'quick', output: { format: 'jpg' } });
   enqueue('png→webp', () => A['graphic.png']!, { mode: 'quick', output: { format: 'webp' } });
+  enqueue('jpg→webp', () => A['photo.jpg']!, { mode: 'quick', output: { format: 'webp' } });
+  enqueue('png girada→jpg', () => A['girada.png']!, { mode: 'quick', output: { format: 'jpg' } });
+  enqueue('png girada limpeza', () => A['girada.png']!, { mode: 'quick' });
   enqueue('jpg 1:1', () => A['photo.jpg']!, { mode: 'custom', geometry: { aspect: '1:1', resolution: 'custom', width: 200, height: 200 } });
   // Geometria
   enqueue('9:16', plain, { mode: 'custom', video: fast, geometry: { aspect: '9:16', resolution: '1080', fit: 'crop' } });
   enqueue('4:5 pad', plain, { mode: 'custom', video: fast, geometry: { aspect: '4:5', resolution: '1080', fit: 'pad' } });
   enqueue('640x480 keep', () => A['rotated.mp4']!, { mode: 'custom', video: fast, geometry: { resolution: 'custom', width: 640, height: 480, keepAspect: true } });
   enqueue('640x480 exato', () => A['rotated.mp4']!, { mode: 'custom', video: fast, geometry: { resolution: 'custom', width: 640, height: 480, keepAspect: false } });
+  enqueue('1:1 âncora esquerda', plain, { mode: 'custom', video: fast, geometry: { aspect: '1:1', fit: 'crop', anchorX: 0 } });
   enqueue('corte de área', plain, { mode: 'custom', video: fast, geometry: { crop: { x: 0.5, y: 0, w: 0.5, h: 1 } } });
   enqueue('barras vermelhas', plain, { mode: 'custom', video: fast, geometry: { aspect: '1:1', fit: 'pad', padColor: '#FF0000' } });
   enqueue('fundo desfocado', plain, { mode: 'custom', video: fast, geometry: { aspect: '9:16', fit: 'blur' } });
@@ -83,6 +125,10 @@ beforeAll(async () => {
   enqueue('trim + partes', plain, { mode: 'custom', video: fast, trim: { start: 0.5, end: 1.5 }, segmentation: { mode: 'count', value: 2 } });
   // Tempo
   enqueue('trim', plain, { mode: 'custom', video: fast, trim: { start: 0.5, end: 1.5 } });
+  // Corte fora de quadro-chave (a fixture tem quadros-chave a cada 0,5 s) com codec "auto".
+  enqueue('trim auto 0.7', plain, { mode: 'custom', video: fast, trim: { start: 0.7, end: 1.6 } });
+  enqueue('trim 2x', plain, { mode: 'custom', video: fast, trim: { start: 0.5, end: 1.5 }, speed: 2 });
+  enqueue('partes 3', plain, { mode: 'custom', video: fast, segmentation: { mode: 'count', value: 3 } });
   enqueue('2x', plain, { mode: 'custom', video: fast, speed: 2 });
   enqueue('0.5x', plain, { mode: 'custom', video: fast, speed: 0.5 });
   enqueue('24fps', plain, { mode: 'custom', video: { ...fast, fps: '24' } });
@@ -170,6 +216,61 @@ describe('conversão de formato', () => {
     expect(Math.abs(a - alphaMean(fx('graphic.png')))).toBeLessThan(4);
     expect(a).toBeLessThan(200); // continua translúcido
   }, T);
+
+  it('JPG (EXIF 6) → WEBP: 300×400 com a imagem na posição de exibição', async () => {
+    const [o] = await done('jpg→webp', 'webp');
+    const v = mainStreams(o!.file).v;
+    expect(v.codec_name).toBe('webp');
+    expect([v.width, v.height]).toEqual([300, 400]);
+    expect([o!.job.output!.width, o!.job.output!.height]).toEqual([300, 400]);
+    const right = psnr(o!.file, fx('photo.jpg'), { filterB: 'transpose=1', rawA: true });
+    const wrong = psnr(o!.file, fx('photo.jpg'), { filterB: 'transpose=2', rawA: true });
+    expect(right).toBeGreaterThan(30);
+    expect(right).toBeGreaterThan(wrong + 5);
+    // Nada de EXIF de orientação sobrando nos bytes (os pixels já estão girados).
+    expect(o!.body.includes(Buffer.from('EXIF'))).toBe(false);
+  }, T);
+});
+
+describe('PNG com orientação EXIF que o decodificador NÃO aplica (orientação manual)', () => {
+  it('a importação registra a orientação e o DTO mostra as dimensões de exibição (100×200); miniatura em retrato', async () => {
+    const a = A['girada.png']!;
+    const d = (await c.get<AssetDetailDTO>(`/api/assets/${a.id}`)).data;
+    expect(d.metadata!.orientation).toBe(6);
+    expect(d.info!.decoderRotation ?? null).toBeNull();
+    const st = d.info!.streams.find((s) => s.index === d.info!.videoIndex)!;
+    expect([st.width, st.height]).toEqual([200, 100]); // armazenado
+    expect([a.width, a.height]).toEqual([100, 200]); // exibido
+    const th = await c.download(a.thumbnailUrl!);
+    expect(th.status).toBe(200);
+    const tv = mainStreams(tmpFile(th.body, 'jpg')).v;
+    expect(tv.height).toBeGreaterThan(tv.width);
+  });
+
+  it('PNG girado → JPG: transposição aplicada uma única vez (100×200), alfa achatado em branco', async () => {
+    const [o] = await done('png girada→jpg', 'jpg');
+    const v = mainStreams(o!.file).v;
+    expect([v.width, v.height]).toEqual([100, 200]);
+    const flat = (t: string) =>
+      makeReference(['-f', 'lavfi', '-i', 'color=c=white:s=200x100', '-i', pngOriented, '-filter_complex', `[0][1]overlay=format=auto,${t}`, '-frames:v', '1'], 'png');
+    const right = psnr(o!.file, flat('transpose=1'));
+    const wrong = psnr(o!.file, flat('transpose=2'));
+    expect(right).toBeGreaterThan(30);
+    expect(right).toBeGreaterThan(wrong + 5);
+    expect(o!.job.report!.operations.some((op) => op.id === 'orientation')).toBe(true);
+    // Pixels girados: a saída não pode carregar orientação ≠ 1 (giraria de novo no visualizador).
+    expect(o!.body.includes(Buffer.from('Exif\0\0'))).toBe(false);
+  }, T);
+
+  it('limpeza sem perdas mantém o eXIf com orientação 6 e os mesmos pixels', async () => {
+    const [o] = await done('png girada limpeza', 'png');
+    expect(o!.job.report!.strategy).toBe('image-lossless');
+    const exif = pngChunks(o!.body).chunks.find((x) => x.type === 'eXIf');
+    expect(exif).toBeDefined();
+    expect(parseTiffTags(exif!.data).ifd0.get(0x0112)?.value).toBe(6);
+    expect(pixelMd5(o!.file, 'rgba')).toBe(pixelMd5(pngOriented, 'rgba'));
+    expect([o!.job.output!.width, o!.job.output!.height]).toEqual([200, 100]);
+  }, T);
 });
 
 describe('modo personalizado: geometria', () => {
@@ -228,6 +329,16 @@ describe('modo personalizado: geometria', () => {
     expect([v.width, v.height]).toEqual([640, 480]);
   }, T);
 
+  it('1:1 por recorte com âncora à esquerda → 240×240 com a parte esquerda do quadro', async () => {
+    const [o] = await done('1:1 âncora esquerda', 'mp4');
+    const v = mainStreams(o!.file).v;
+    expect([v.width, v.height]).toEqual([240, 240]);
+    const left = psnr(o!.file, fx('plain.mp4'), { ssA: 1, ssB: 1, filterB: 'crop=240:240:0:0' });
+    const center = psnr(o!.file, fx('plain.mp4'), { ssA: 1, ssB: 1, filterB: 'crop=240:240:40:0' });
+    expect(left).toBeGreaterThan(30);
+    expect(left).toBeGreaterThan(center + 5);
+  }, T);
+
   it('corte de área (metade direita) → 160×240 com o conteúdo da metade direita', async () => {
     const [o] = await done('corte de área', 'mp4');
     const v = mainStreams(o!.file).v;
@@ -278,8 +389,11 @@ describe('modo personalizado: tempo', () => {
     const parts = await done('trim + partes', 'mp4');
     expect(parts).toHaveLength(2);
     for (const p of parts) expect(Math.abs(decodedDuration(p.file, 'v') - 0.5)).toBeLessThan(0.08);
-    expect(psnr(parts[0]!.file, fx('plain.mp4'), { ssB: 0.5 })).toBeGreaterThan(30);
-    expect(psnr(parts[1]!.file, fx('plain.mp4'), { ssB: 1 })).toBeGreaterThan(30);
+    expect(psnr(parts[0]!.file, fx('plain.mp4'), { ssB: 0.5 })).toBeGreaterThan(25);
+    expect(psnr(parts[1]!.file, fx('plain.mp4'), { ssB: 1 })).toBeGreaterThan(25);
+    // 0,5–1,5 s = quadros 15..44; partes 15..29 e 30..44.
+    expect(sourceFrameIndices(parts[0]!.file, fx('plain.mp4'))).toEqual(seq(15, 15));
+    expect(sourceFrameIndices(parts[1]!.file, fx('plain.mp4'))).toEqual(seq(30, 15));
   }, T);
 
   it('corte 0,5–1,5 s → ~1 s começando no quadro de 0,5 s', async () => {
@@ -293,6 +407,37 @@ describe('modo personalizado: tempo', () => {
     expect(at05).toBeGreaterThan(30);
     expect(at05).toBeGreaterThan(at0 + 3);
     expect(o!.job.report!.operations.some((op) => op.id === 'trim')).toBe(true);
+    // Codec "auto" com corte: recodifica (cortes exatos), sem aviso de quadros-chave.
+    expect(o!.job.report!.strategy).toBe('re-encode');
+    expect(o!.job.report!.warnings.join(' ')).not.toMatch(/quadros-chave/);
+  }, T);
+
+  it('corte fora de quadro-chave (0,7–1,6 s) com codec "auto" é exato: 0,9 s começando no quadro de 0,7 s', async () => {
+    const [o] = await done('trim auto 0.7', 'mp4');
+    const r = o!.job.report!;
+    expect(r.strategy).toBe('re-encode');
+    expect(r.warnings.join(' ')).not.toMatch(/quadros-chave/);
+    expect(Math.abs(decodedDuration(o!.file, 'v') - 0.9)).toBeLessThan(0.07);
+    // O áudio é copiado: a lista de edição descarta o pré-rolo, o decodificado tem 0,9 s.
+    expect(Math.abs(decodedAudioSeconds(o!.file) - 0.9)).toBeLessThan(0.03);
+    // Exatamente os quadros 21..47 da fonte (0,7 s a 1,567 s a 30 fps), sem repetição.
+    expect(sourceFrameIndices(o!.file, fx('plain.mp4'))).toEqual(seq(21, 27));
+    const at07 = psnr(o!.file, fx('plain.mp4'), { ssB: 0.7 });
+    const at05 = psnr(o!.file, fx('plain.mp4'), { ssB: 0.5 }); // onde uma cópia começaria
+    expect(at07).toBeGreaterThan(25);
+    expect(at07).toBeGreaterThan(at05 + 5);
+    expect(o!.job.validationStatus).toBe('passed');
+  }, T);
+
+  it('corte 0,5–1,5 s + velocidade 2× → 0,5 s (corte aplicado antes da aceleração)', async () => {
+    const [o] = await done('trim 2x', 'mp4');
+    const ids = o!.job.report!.operations.map((op) => op.id);
+    expect(ids).toContain('trim');
+    expect(ids).toContain('speed');
+    expect(Math.abs(decodedDuration(o!.file, 'a') - 0.5)).toBeLessThan(0.08);
+    // 0,5–1,5 s a 2× = quadros 15, 17, …, 43 (um sim, um não, desde o primeiro quadro).
+    const idx = sourceFrameIndices(o!.file, fx('plain.mp4'));
+    expect(idx, `quadros da fonte na saída: ${idx.join(' ')}`).toEqual(seq(15, 15, 2));
   }, T);
 
   it('velocidade 2× → metade da duração (vídeo e áudio)', async () => {
@@ -304,11 +449,20 @@ describe('modo personalizado: tempo', () => {
     expect(volumeDb(o!.file, { band: 660 })).toBeGreaterThan(volumeDb(o!.file, { band: 1320 }) + 10);
   }, T);
 
+  it('velocidade 2× acelera desde o primeiro quadro: quadros 0, 2, 4, …, 58 da fonte', async () => {
+    const [o] = await done('2x', 'mp4');
+    const idx = sourceFrameIndices(o!.file, fx('plain.mp4'));
+    expect(idx, `quadros da fonte na saída: ${idx.join(' ')}`).toEqual(seq(0, 30, 2));
+  }, T);
+
   it('velocidade 0,5× → dobro da duração (vídeo e áudio)', async () => {
     const [o] = await done('0.5x', 'mp4');
     expect(Math.abs(decodedDuration(o!.file, 'v') - 4)).toBeLessThan(0.15);
     expect(Math.abs(decodedDuration(o!.file, 'a') - 4)).toBeLessThan(0.15);
     expect(volumeDb(o!.file, { band: 660 })).toBeGreaterThan(volumeDb(o!.file, { band: 330 }) + 10);
+    // Câmera lenta: cada quadro da fonte aparece duas vezes, em ordem.
+    const idx = sourceFrameIndices(o!.file, fx('plain.mp4'));
+    expect(idx, `quadros da fonte na saída: ${idx.join(' ')}`).toEqual(seq(0, 60).flatMap((i) => [i, i]));
   }, T);
 
   it('fps 24 → r_frame_rate 24/1 e ~48 quadros em 2 s', async () => {
@@ -327,6 +481,24 @@ describe('modo personalizado: tempo', () => {
     expect(psnr(parts[1]!.file, fx('plain.mp4'), { ssB: 1 })).toBeGreaterThan(30);
     expect(psnr(parts[0]!.file, fx('plain.mp4'))).toBeGreaterThan(30);
     expect(parts[0]!.job.output!.name).not.toBe(parts[1]!.job.output!.name);
+    for (const p of parts) expect(p.job.report!.strategy).toBe('re-encode');
+    // Fronteira em 1 s (quadro 30): partes 0..29 e 30..59.
+    expect(sourceFrameIndices(parts[0]!.file, fx('plain.mp4'))).toEqual(seq(0, 30));
+    expect(sourceFrameIndices(parts[1]!.file, fx('plain.mp4'))).toEqual(seq(30, 30));
+  }, T);
+
+  it('divisão em 3 partes (fronteiras fora de quadro-chave): nenhum quadro perdido nem repetido', async () => {
+    const parts = await done('partes 3', 'mp4');
+    expect(parts).toHaveLength(3);
+    expect(parts.map((p) => p.job.label)).toEqual(['Personalizado · parte 1/3', 'Personalizado · parte 2/3', 'Personalizado · parte 3/3']);
+    for (const p of parts) {
+      expect(p.job.report!.strategy).toBe('re-encode');
+      expect(Math.abs(decodedDuration(p.file, 'v') - 2 / 3)).toBeLessThan(0.07);
+      expect(mainStreams(p.file).a).toBeDefined();
+    }
+    // Juntas, as partes precisam ser exatamente os 60 quadros da fonte, em ordem e sem repetição.
+    const idx = parts.map((p) => sourceFrameIndices(p.file, fx('plain.mp4')));
+    expect(idx.flat(), `quadros por parte: ${idx.map((x) => `[${x.join(' ')}]`).join(' ')}`).toEqual(seq(0, 60));
   }, T);
 
   it('divisão por duração (1,5 s) em vídeo de 2 s → partes de 1,5 s e 0,5 s', async () => {
@@ -335,6 +507,7 @@ describe('modo personalizado: tempo', () => {
     const d = parts.map((p) => decodedDuration(p.file, 'v'));
     expect(Math.abs(d[0]! - 1.5)).toBeLessThan(0.1);
     expect(Math.abs(d[1]! - 0.5)).toBeLessThan(0.1);
+    expect([...sourceFrameIndices(parts[0]!.file, fx('plain.mp4')), ...sourceFrameIndices(parts[1]!.file, fx('plain.mp4'))]).toEqual(seq(0, 60));
   }, T);
 
   it('corte com início além da duração é recusado no plano (422, sem tarefa)', async () => {

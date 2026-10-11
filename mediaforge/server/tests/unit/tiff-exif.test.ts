@@ -1,5 +1,6 @@
 import { metadataSettingsSchema, type MetadataSettings } from '@mediaforge/shared';
 import { describe, expect, it } from 'vitest';
+import { exifTagInfo } from '../../src/media/metadata/exifTags';
 import { rebuildExif } from '../../src/media/metadata/imageMeta';
 import {
   asciiEntry,
@@ -128,6 +129,38 @@ describe('parseTiff / buildTiff — ida e volta', () => {
     const t = parseTiff(tiff);
     expect(t.warnings).toEqual([]);
     expect(t.exif.map((e) => e.tag)).toEqual([0x9003]);
+  });
+
+  it('IFDs e valores fora da entrada começam em deslocamento par (alinhamento de palavra exigido pelo TIFF)', () => {
+    for (const order of ['LE', 'BE'] as const) {
+      const src = sentinelTiff(order);
+      // valores de tamanho ímpar forçam preenchimento entre blocos
+      src.ifd0.push(undefinedEntry(0x9997, Buffer.from('abcde')), asciiEntry(0x010e, 'xyz12'));
+      src.exif.push(undefinedEntry(0xa420, Buffer.from('IMAGEM-UNICA-7')));
+      const tiff = buildTiff({ order, ...src });
+      const le = order === 'LE';
+      const u16 = (o: number) => (le ? tiff.readUInt16LE(o) : tiff.readUInt16BE(o));
+      const u32 = (o: number) => (le ? tiff.readUInt32LE(o) : tiff.readUInt32BE(o));
+      const offsets: number[] = [];
+      const walk = (at: number) => {
+        offsets.push(at);
+        const n = u16(at);
+        for (let i = 0; i < n; i++) {
+          const e = at + 2 + i * 12;
+          const tag = u16(e);
+          const size = ({ 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1 } as Record<number, number>)[u16(e + 2)]! * u32(e + 4);
+          if (tag === 0x8769 || tag === 0x8825 || tag === 0xa005) walk(u32(e + 8));
+          else if (size > 4) {
+            const vo = u32(e + 8);
+            offsets.push(vo);
+            expect(vo + size, `valor da tag 0x${tag.toString(16)} cabe no bloco`).toBeLessThanOrEqual(tiff.length);
+          }
+        }
+      };
+      walk(u32(4));
+      expect(offsets.length).toBeGreaterThan(20);
+      for (const o of offsets) expect(o % 2, `deslocamento ${o} (${order})`).toBe(0);
+    }
   });
 
   it('lê a miniatura do IFD1', () => {
@@ -296,11 +329,16 @@ describe('parseTiff — estruturas malformadas não travam nem lançam erros ine
       const c = Buffer.from(tiff);
       const flips = 1 + Math.floor(rnd() * 8);
       for (let j = 0; j < flips; j++) c[4 + Math.floor(rnd() * (c.length - 4))] = Math.floor(rnd() * 256);
+      let p: TiffData;
       try {
-        parseTiff(c);
+        p = parseTiff(c);
       } catch (err) {
         expect(err).toBeInstanceOf(TiffParseError);
+        continue;
       }
+      // Tudo que o parser devolve pode ser exibido (a inspeção chama decodeEntry em cada campo).
+      for (const ifd of ['ifd0', 'exif', 'gps', 'interop', 'ifd1'] as const)
+        for (const e of p[ifd]) expect(() => decodeEntry(e, p.order), `#${i} ${ifd} 0x${e.tag.toString(16)}`).not.toThrow();
     }
     expect(Date.now() - t0).toBeLessThan(20_000);
   });
@@ -354,6 +392,39 @@ describe('orientação', () => {
   });
 });
 
+describe('exifTagInfo (classificação dos campos EXIF)', () => {
+  it('nomes, categorias e sensibilidade por IFD', () => {
+    const info = (ifd: 'ifd0' | 'exif' | 'gps' | 'interop' | 'ifd1', tag: number) => {
+      const i = exifTagInfo(ifd, tag);
+      return [i.name, i.category, i.sensitive];
+    };
+    expect(info('ifd0', 0x010f)).toEqual(['Make', 'device', true]);
+    expect(info('ifd0', 0x0110)).toEqual(['Model', 'device', true]);
+    expect(info('ifd0', 0x0131)).toEqual(['Software', 'software', true]);
+    expect(info('ifd0', 0x0132)).toEqual(['DateTime', 'dates', true]);
+    expect(info('ifd0', 0x013b)).toEqual(['Artist', 'descriptive', true]);
+    expect(info('ifd0', 0x0112)).toEqual(['Orientation', 'technical', false]);
+    expect(info('ifd0', 0x9c9d)).toEqual(['XPAuthor', 'descriptive', true]);
+    expect(info('exif', 0x927c)).toEqual(['MakerNote', 'device', true]);
+    expect(info('exif', 0x829a)).toEqual(['ExposureTime', 'device', false]);
+    expect(info('exif', 0xa431)).toEqual(['BodySerialNumber', 'device', true]);
+    expect(info('exif', 0xa430)).toEqual(['CameraOwnerName', 'device', true]);
+    expect(info('exif', 0xa420)).toEqual(['ImageUniqueID', 'custom', true]);
+    expect(info('exif', 0x9286)).toEqual(['UserComment', 'descriptive', true]);
+    // Qualquer campo do IFD de GPS é localização, inclusive tags desconhecidas
+    expect(info('gps', 0x0002)).toEqual(['GPSLatitude', 'gps', true]);
+    expect(info('gps', 0x001d)).toEqual(['GPSDateStamp', 'gps', true]);
+    expect(info('gps', 0x7777)).toEqual(['GPS 0x7777', 'gps', true]);
+    expect(info('interop', 0x0001)).toEqual(['Interop 0x0001', 'technical', false]);
+    expect(info('ifd1', 0x0201)).toEqual(['Miniatura 0x0201', 'custom', true]);
+    // Campo do EXIF gravado no IFD0 (e vice-versa) ainda é reconhecido
+    expect(info('ifd0', 0x9003)).toEqual(['DateTimeOriginal', 'dates', true]);
+    expect(info('exif', 0x0110)).toEqual(['Model', 'device', true]);
+    // Desconhecido: personalizado e sensível (na dúvida, remove)
+    expect(info('ifd0', 0xbeef)).toEqual(['Tag 0xbeef', 'custom', true]);
+  });
+});
+
 describe('rebuildExif (reescrita seletiva)', () => {
   const thumb = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('MINIATURA-ORIGINAL-SEM-CORTE'), Buffer.from([0xff, 0xd9])]);
 
@@ -403,6 +474,22 @@ describe('rebuildExif (reescrita seletiva)', () => {
   it('remover tudo sem preservar orientação remove o EXIF inteiro mesmo com orientação 6', () => {
     const r = rebuildExif(parseTiff(buildTiff({ order: 'BE', ...sentinelTiff('BE', 6) })), meta('all'), { keepOrientation: false });
     expect(r.tiff).toBeNull();
+  });
+
+  it('remoção seletiva sem preservar a orientação: tira a orientação e a categoria pedida, mantém o resto', () => {
+    const src = sentinelTiff('LE', 6);
+    const r = rebuildExif(parseTiff(buildTiff({ order: 'LE', ...src })), meta({ software: true }), { keepOrientation: false });
+    const o = parseTiff(r.tiff as Buffer);
+    expect(orientationOf(o)).toBeNull();
+    expect(o.ifd0.some((e) => e.tag === TAG_ORIENTATION || e.tag === 0x0131)).toBe(false);
+    sameEntries(o.ifd0, src.ifd0.filter((e) => e.tag !== TAG_ORIENTATION && e.tag !== 0x0131));
+    sameEntries(o.gps, src.gps);
+    // nenhuma categoria + sem orientação: a orientação é o único campo removido (ex.: reinserção após recodificar)
+    const k = rebuildExif(parseTiff(buildTiff({ order: 'BE', ...sentinelTiff('BE', 8) })), meta('none'), { keepOrientation: false });
+    const ko = parseTiff(k.tiff as Buffer);
+    expect(orientationOf(ko)).toBeNull();
+    expect(ko.ifd0.length).toBe(src.ifd0.length - 1);
+    expect(ko.gps.length).toBe(5);
   });
 
   it('nenhuma categoria selecionada mantém o bloco original (incluindo MakerNote e miniatura)', () => {

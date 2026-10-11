@@ -1,13 +1,16 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { geometrySettingsSchema, type AssetKind, type GeometrySettings } from '@mediaforge/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { injectImageMetadata } from '../../src/media/metadata/imageMeta';
 import { inspectMetadata } from '../../src/media/metadata/inspect';
+import { chunkBytes, parsePng, rebuildPng } from '../../src/media/metadata/png';
+import { orientationOnlyTiff } from '../../src/media/metadata/tiff';
 import { assColor, atempoChain, drawtextFilter, enableExpr, eqFilter, ffColor, num } from '../../src/media/pipeline/filters';
 import { computeGeometry, orientationFilters } from '../../src/media/pipeline/geometry';
-import { buildPlan, PlanError, type PlanAsset, type PlanContext, type ProcessingPlan } from '../../src/media/pipeline/plan';
+import { buildPlan, manualOrientation, PlanError, type PlanAsset, type PlanContext, type ProcessingPlan } from '../../src/media/pipeline/plan';
 import { normalizeProbe, probeFile } from '../../src/media/probe';
 import { MediaTools } from '../../src/media/tools';
 import { fx, SENSITIVE } from '../helpers/fixtures';
@@ -686,5 +689,215 @@ describe('buildPlan — imagens', () => {
     expect(p.textFiles).toEqual([{ name: 'text-0.txt', content: EVIL }]);
     assertSafeGraph(p);
     expect(p.needsFont).toBe(true);
+  });
+});
+
+// ── Orientação EXIF: decodificador × filtros manuais ──────────────────────
+
+/** Transformação de referência (independente do produto) de cada orientação EXIF. */
+const EXIF_REF: Record<number, string> = {
+  1: 'null',
+  2: 'hflip',
+  3: 'hflip,vflip',
+  4: 'vflip',
+  5: 'transpose=cclock_flip',
+  6: 'transpose=clock',
+  7: 'transpose=clock_flip',
+  8: 'transpose=cclock',
+};
+/** MD5 dos pixels RGB sem rotação automática. */
+const rgbMd5 = (file: string) =>
+  execFileSync('ffmpeg', ['-v', 'error', '-autorotate', '0', '-i', file, '-map', '0:v:0', '-pix_fmt', 'rgb24', '-f', 'md5', '-'], { encoding: 'utf8' }).trim();
+/** PSNR da luminância entre duas imagens de mesmas dimensões (Infinity se idênticas). */
+function lumaPsnr(a: string, b: string): number {
+  const r = spawnSync(
+    'ffmpeg',
+    ['-v', 'info', '-autorotate', '0', '-i', a, '-autorotate', '0', '-i', b, '-lavfi', '[0:v]format=gray[x];[1:v]format=gray[y];[x][y]psnr', '-f', 'null', '-'],
+    { encoding: 'utf8' },
+  );
+  const m = String(r.stderr).match(/average:(inf|[\d.]+)/);
+  if (!m) throw new Error(`psnr sem resultado: ${String(r.stderr).slice(-300)}`);
+  return m[1] === 'inf' ? Number.POSITIVE_INFINITY : Number(m[1]);
+}
+const dims = (file: string) => {
+  const v = ffprobe(file).streams[0];
+  return [v.width as number, v.height as number];
+};
+
+describe('manualOrientation e orientação aplicada exatamente uma vez', () => {
+  beforeAll(async () => {
+    const baseJpg = fs.readFileSync(fx('base.jpg'));
+    const opaquePng = path.join(tmpDir, 'opaco.png');
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=160x120,format=rgb24', '-frames:v', '1', opaquePng]);
+    const basePng = fs.readFileSync(opaquePng);
+    for (let o = 1; o <= 8; o++) {
+      const jpg = path.join(tmpDir, `orient${o}.jpg`);
+      fs.writeFileSync(jpg, injectImageMetadata(baseJpg, 'jpeg', { exif: orientationOnlyTiff(o, 'BE'), icc: null }).buffer);
+      await load(`orientJpg${o}0`, jpg, 'image', 'jpg');
+      const png = path.join(tmpDir, `orient${o}.png`);
+      fs.writeFileSync(png, rebuildPng(basePng, parsePng(basePng), () => true, [chunkBytes('eXIf', orientationOnlyTiff(o, 'LE'))]));
+      await load(`orientPng${o}0`, png, 'image', 'png');
+    }
+  });
+
+  it('regra: decodificador que já gira → null; sem rotação do decodificador → orientação do EXIF (> 1)', () => {
+    const photo = A('photoJpg01');
+    expect(photo.info.decoderRotation).not.toBeNull(); // FFmpeg 6.1 aplica o EXIF do JPEG
+    expect(photo.metadata?.orientation).toBe(6);
+    expect(manualOrientation(photo)).toBeNull();
+    const png6 = A('orientPng60');
+    expect(png6.info.decoderRotation).toBeNull(); // PNG: o decodificador ignora o eXIf
+    expect(png6.metadata?.orientation).toBe(6);
+    expect(manualOrientation(png6)).toBe(6);
+    // Casos sintéticos
+    const synth = (decoderRotation: number | null, orientation: number | null) =>
+      manualOrientation({ info: { ...photo.info, decoderRotation }, metadata: photo.metadata ? { ...photo.metadata, orientation } : null });
+    expect(synth(-90, 6)).toBeNull();
+    expect(synth(null, 6)).toBe(6);
+    expect(synth(null, 1)).toBeNull();
+    expect(synth(null, null)).toBeNull();
+    expect(manualOrientation({ info: { ...photo.info, decoderRotation: null }, metadata: null })).toBeNull();
+    // A imagem de exibição já considera a rotação do decodificador
+    expect([photo.info.displayWidth, photo.info.displayHeight]).toEqual([300, 400]);
+    expect([png6.info.displayWidth, png6.info.displayHeight]).toEqual([160, 120]);
+  });
+
+  it('PNG com EXIF 6 → JPG: transpose no grafo, dimensões trocadas e pixels girados 90° (execução real)', () => {
+    const p = buildPlan(A('orientPng60'), { mode: 'quick', output: { format: 'jpg' }, image: { quality: 100 } }, ctx());
+    expect(p.strategy).toBe('image-encode');
+    expect(graphOf(p)).toContain('transpose=1');
+    expect(p.expected).toMatchObject({ width: 120, height: 160 });
+    expect(p.operations.find((o) => o.id === 'orientation')?.detail).toMatch(/EXIF 6/);
+    const out = runPlan(p);
+    expect(dims(out)).toEqual([120, 160]);
+    expect(fs.readFileSync(out).includes(Buffer.from('Exif\0\0'))).toBe(false); // reinserção é feita pelo executor, não pelo FFmpeg
+  });
+
+  for (let o = 1; o <= 8; o++) {
+    it(`JPEG com orientação EXIF ${o} → PNG: pixels transformados exatamente uma vez (decodificador + plano)`, () => {
+      const a = A(`orientJpg${o}0`);
+      const p = buildPlan(a, { mode: 'quick', output: { format: 'png' } }, ctx());
+      const out = runPlan(p);
+      const ref = path.join(tmpDir, `ref-jpg-${o}.png`);
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-autorotate', '0', '-i', a.path, '-vf', EXIF_REF[o]!, '-frames:v', '1', ref]);
+      const swapped = o >= 5;
+      expect(dims(out)).toEqual(swapped ? [300, 400] : [400, 300]);
+      expect([p.expected.width, p.expected.height]).toEqual(swapped ? [300, 400] : [400, 300]);
+      expect(rgbMd5(out), `orientação ${o}: decoderRotation=${a.info.decoderRotation}, grafo="${graphOf(p)}"`).toBe(rgbMd5(ref));
+    });
+  }
+
+  for (let o = 1; o <= 8; o++) {
+    it(`PNG com orientação EXIF ${o} → JPG: filtros manuais corretos (PSNR contra a referência)`, () => {
+      const a = A(`orientPng${o}0`);
+      expect(manualOrientation(a)).toBe(o > 1 ? o : null);
+      const p = buildPlan(a, { mode: 'quick', output: { format: 'jpg' }, image: { quality: 100 } }, ctx());
+      const out = runPlan(p);
+      const ref = path.join(tmpDir, `ref-png-${o}.png`);
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', a.path, '-vf', EXIF_REF[o]!, '-frames:v', '1', ref]);
+      expect(dims(out)).toEqual(o >= 5 ? [120, 160] : [160, 120]);
+      const good = lumaPsnr(out, ref);
+      expect(good, `PSNR contra a referência (orientação ${o})`).toBeGreaterThan(35);
+      if (o >= 2 && o <= 4) {
+        // Controle negativo: a imagem sem transformação é bem diferente da saída.
+        expect(lumaPsnr(out, a.path)).toBeLessThan(good - 10);
+      }
+    });
+  }
+});
+
+// ── Prévia, recursos auxiliares e divisão em partes ───────────────────────
+
+describe('buildPlan — prévia', () => {
+  const none = { gps: false, dates: false, device: false, descriptive: false, software: false, custom: false, container: false, streams: false };
+
+  it('contêiner mp4 (padrão): H.264/AAC, sem metadados preservados, janela -ss/-t no fim', () => {
+    const p = buildPlan(A('iphoneMov01'), { mode: 'quick', metadata: { remove: none } }, ctx({ preview: { maxSeconds: 2, offset: 0.5 } }));
+    expect(p.strategy).toBe('re-encode');
+    expect(p.expected).toMatchObject({ kind: 'video', container: 'mp4', videoCodec: 'h264', audioCodec: 'aac', width: 640, height: 360 });
+    expect(p.expected.durationSec).toBeCloseTo(2, 6);
+    expect(argAfter(p, '-f')).toBe('mp4');
+    expect(p.args!.at(-1)).toBe('output.mp4');
+    expect(p.args).not.toContain('-metadata');
+    for (const s of [SENSITIVE.videoModel, SENSITIVE.videoComment, SENSITIVE.videoIso6709]) expect(p.args!.some((a) => a.includes(s)), s).toBe(false);
+    expect(p.args).toContain('+bitexact');
+    expect(p.args!.slice(-7)).toEqual(['-ss', '0.5', '-t', '2', '-f', 'mp4', 'output.mp4']);
+  });
+
+  it('contêiner webm: VP9/Opus; a prévia roda de verdade e o ffprobe confirma codecs e duração', () => {
+    const p = buildPlan(A('plainMp401'), { mode: 'quick', video: { codec: 'copy' } }, ctx({ preview: { maxSeconds: 1.5, offset: 0, container: 'webm' } }));
+    expect(p.expected).toMatchObject({ container: 'webm', videoCodec: 'vp9', audioCodec: 'opus', width: 320, height: 240 });
+    expect(argAfter(p, '-c:v')).toBe('libvpx-vp9');
+    expect(argAfter(p, '-c:a')).toBe('libopus');
+    expect(argAfter(p, '-f')).toBe('webm');
+    expect(p.args!.at(-1)).toBe('output.webm');
+    const out = runPlan(p);
+    const probe = ffprobe(out);
+    const v = probe.streams.find((x: { codec_type: string }) => x.codec_type === 'video');
+    const a = probe.streams.find((x: { codec_type: string }) => x.codec_type === 'audio');
+    expect([v.codec_name, v.width, v.height, a?.codec_name]).toEqual(['vp9', 320, 240, 'opus']);
+    expect(Math.abs(Number(probe.format.duration) - 1.5)).toBeLessThan(0.2);
+  });
+
+  it('prévia de imagem: sempre JPEG recodificado, sem reinserção de metadados', () => {
+    const p = buildPlan(A('graphicPng'), { mode: 'quick' }, ctx({ preview: { maxSeconds: 3, offset: 0 } }));
+    expect(p.strategy).toBe('image-encode');
+    expect(p.outputFile).toBe('output.jpg');
+    expect(p.reinjectImageMetadata).toBe(false);
+    expect(p.expected).toMatchObject({ container: 'jpg', width: 200, height: 100 });
+  });
+});
+
+describe('buildPlan — recursos auxiliares', () => {
+  const miss = (editorial: Record<string, unknown>) =>
+    planError(() => buildPlan(A('plainMp401'), { mode: 'editorial', editorial }, ctx())).messages.join(' ');
+  const absent = 'naoExiste0001';
+
+  it('recurso ausente da sessão: mensagem "<rótulo>: nenhum arquivo selecionado, ou o arquivo não está nesta sessão."', () => {
+    const tail = 'nenhum arquivo selecionado, ou o arquivo não está nesta sessão.';
+    expect(miss({ overlays: [{ assetId: absent }] })).toBe(`Elemento gráfico: ${tail}`);
+    expect(miss({ subtitles: { assetId: absent } })).toBe(`Legendas: ${tail}`);
+    expect(miss({ audioTrack: { assetId: absent } })).toBe(`Trilha de áudio: ${tail}`);
+    expect(miss({ scenes: [{ assetId: absent }] })).toBe(`Cena 1: ${tail}`);
+    expect(miss({ intro: { type: 'asset', assetId: absent } })).toBe(`Abertura: ${tail}`);
+    expect(miss({ outro: { type: 'asset', assetId: absent } })).toBe(`Encerramento: ${tail}`);
+  });
+
+  it('recurso do tipo errado é recusado com o nome do arquivo', () => {
+    expect(miss({ subtitles: { assetId: 'plainMp401' } })).toMatch(/^Legendas: "plain\.mp4" não é do tipo esperado \(subtitle\)/);
+    expect(miss({ overlays: [{ assetId: 'trackMp301' }] })).toMatch(/^Elemento gráfico: "track\.mp3" não é do tipo esperado \(image\)/);
+    expect(miss({ audioTrack: { assetId: 'subsSrt001' } })).toMatch(/^Trilha de áudio: "legendas\.srt" não é do tipo esperado/);
+    // vídeo sem áudio como trilha
+    expect(miss({ audioTrack: { assetId: 'noAudio001' } })).toMatch(/não tem fluxo de áudio/);
+  });
+
+  it('id com formato inválido é barrado na validação das configurações', () => {
+    expect(miss({ overlays: [{ assetId: '../../etc/passwd' }] })).toMatch(/editorial\.overlays\.0\.assetId: Identificador de arquivo inválido/);
+  });
+});
+
+describe('buildPlan — divisão em partes', () => {
+  it('automático recodifica cada parte (corte exato); cópia explícita corta em quadros-chave com aviso', () => {
+    const segment = { start: 1, end: 2, index: 2, count: 3 };
+    const auto = buildPlan(A('iphoneMov01'), { mode: 'custom' }, ctx({ segment }));
+    expect(auto.strategy).toBe('re-encode');
+    expect(auto.expected).toMatchObject({ keyframeAligned: false });
+    expect(auto.expected.durationSec).toBeCloseTo(1, 6);
+    const i = auto.args!.indexOf('-i');
+    expect(auto.args!.slice(i - 4, i)).toEqual(['-ss', '1', '-t', '1']);
+    expect(auto.operations.find((o) => o.id === 'segment')?.detail).toMatch(/parte 2 de 3/);
+    expect(auto.warnings.join(' ')).not.toMatch(/quadros-chave/);
+
+    const copy = buildPlan(A('iphoneMov01'), { mode: 'custom', video: { codec: 'copy' }, audio: { codec: 'copy' } }, ctx({ segment }));
+    expect(copy.strategy).toBe('stream-copy');
+    expect(copy.expected.keyframeAligned).toBe(true);
+    expect(copy.warnings.join(' ')).toMatch(/quadros-chave/);
+  });
+
+  it('a parte executada tem a duração pedida (recodificação exata)', () => {
+    const p = buildPlan(A('iphoneMov01'), { mode: 'custom' }, ctx({ segment: { start: 0.4, end: 1.6, index: 1, count: 2 } }));
+    const out = runPlan(p);
+    const v = ffprobe(out).streams.find((x: { codec_type: string }) => x.codec_type === 'video');
+    expect(Math.abs(Number(v.duration) - 1.2)).toBeLessThan(0.1);
   });
 });

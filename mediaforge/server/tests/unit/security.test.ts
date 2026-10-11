@@ -11,6 +11,9 @@ import { fx } from '../helpers/fixtures';
 const FORBIDDEN = /[\u0000-\u001F\u007F-\u009F<>:"/\\|?*\u202E\u202D]/;
 const RESERVED_STEM = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i;
 
+/** UTF-16 bem formado (sem substitutos isolados). Equivale a String#isWellFormed, ausente no lib ES2023. */
+const wellFormed = (s: string) => !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s);
+
 /** Gerador pseudoaleatório determinístico (mulberry32) para fuzz reproduzível. */
 function prng(seed: number) {
   let a = seed >>> 0;
@@ -55,6 +58,14 @@ describe('sanitizeDisplayName', () => {
     expect(sanitizeDisplayName('a\u202Db\u200Ec\u200Fd.txt')).toBe('abcd.txt');
   });
 
+  it('remove também os demais controles bidirecionais (RLE/LRE/PDF U+202A–U+202C, isolados U+2066–U+2069, ALM U+061C)', () => {
+    // Com RLE (U+202B) ou RLI (U+2067) "foto‫jpg.exe" é exibido como "fotoexe.jpg": mesma classe de spoofing do U+202E.
+    for (const ctl of ['‪', '‫', '‬', '⁦', '⁧', '⁨', '⁩', '؜']) {
+      const out = sanitizeDisplayName(`foto${ctl}jpg.exe`);
+      expect(out, `U+${ctl.codePointAt(0)!.toString(16).toUpperCase()}`).toBe('fotojpg.exe');
+    }
+  });
+
   it('substitui caracteres proibidos em nomes de arquivo por "_"', () => {
     expect(sanitizeDisplayName('a<b>c:d"e|f?g*h.mp4')).toBe('a_b_c_d_e_f_g_h.mp4');
   });
@@ -74,6 +85,14 @@ describe('sanitizeDisplayName', () => {
     for (const n of ['NUL.tar.gz', 'con.backup.mp4', 'COM1.final.mov']) {
       const out = sanitizeDisplayName(n);
       expect(out.split('.')[0], `${n} → ${out}`).not.toMatch(RESERVED_STEM);
+    }
+  });
+
+  it('COM¹/COM²/LPT³ (dígitos sobrescritos ISO-8859-1) também são nomes reservados no Windows', () => {
+    // Documentação da Microsoft: "Windows recognizes the 8-bit ISO/IEC 8859-1 superscript digits ¹, ², and ³ as digits".
+    for (const n of ['COM¹.mp4', 'com²', 'LPT³.jpg']) {
+      const out = sanitizeDisplayName(n);
+      expect(out.replace(/\.[^.]*$/, ''), `${n} → ${out}`).not.toMatch(/^(com|lpt)[¹²³]$/i);
     }
   });
 
@@ -109,11 +128,20 @@ describe('sanitizeDisplayName', () => {
     expect(weird.length).toBe(180);
   });
 
+  it('o verificador de UTF-16 usado nos testes distingue pares válidos de substitutos isolados', () => {
+    expect(wellFormed('a😀b𠀀')).toBe(true);
+    expect(wellFormed('a\uD83D')).toBe(false);
+    expect(wellFormed('\uDE00b')).toBe(false);
+    expect(wellFormed('😀'.slice(0, 1))).toBe(false);
+    // Um nome curto com emojis passa intacto (não há corte).
+    expect(sanitizeDisplayName('😀 festa 🎉.mp4')).toBe('😀 festa 🎉.mp4');
+  });
+
   it('truncamento de nome longo com emojis não quebra pares substitutos (UTF-16 bem formado)', () => {
     // 1 + 100 emojis (200 unidades) + ".mp4": o corte em 176 cai no meio de um par.
     const out = sanitizeDisplayName('a' + '😀'.repeat(100) + '.mp4');
     expect(out.length).toBeLessThanOrEqual(180);
-    expect(out.isWellFormed()).toBe(true);
+    expect(wellFormed(out)).toBe(true);
     expect(() => encodeURIComponent(out)).not.toThrow();
   });
 
@@ -169,9 +197,9 @@ describe('outputStem', () => {
   it('corte em 80 não quebra letras fora do BMP (ex.: CJK Ext. B / letras matemáticas)', () => {
     // '𠀀' (U+20000) é \p{L} e ocupa 2 unidades UTF-16: o corte em 80 cai no meio de um par.
     const out = outputStem('x' + '𠀀'.repeat(60) + '.mp4');
-    expect(out.isWellFormed()).toBe(true);
+    expect(wellFormed(out)).toBe(true);
     const out2 = outputStem('y' + '𝐀'.repeat(60));
-    expect(out2.isWellFormed()).toBe(true);
+    expect(wellFormed(out2)).toBe(true);
   });
 });
 

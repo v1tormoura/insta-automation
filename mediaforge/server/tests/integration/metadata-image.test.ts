@@ -67,7 +67,7 @@ describe('photo.jpg, modo rápido (limpeza total, mesmo formato)', () => {
   let out: { body: Buffer; file: string };
 
   beforeAll(async () => {
-    [job] = await c.processOk(photo.id, { mode: 'quick' });
+    job = (await c.processOk(photo.id, { mode: 'quick' }))[0]!;
     out = await output(job, 'jpg');
   });
 
@@ -130,7 +130,7 @@ describe('photo.jpg, remoção seletiva (só GPS)', () => {
   let out: { body: Buffer; file: string };
 
   beforeAll(async () => {
-    [job] = await c.processOk(photo.id, { mode: 'quick', metadata: { remove: ONLY_GPS } });
+    job = (await c.processOk(photo.id, { mode: 'quick', metadata: { remove: ONLY_GPS } }))[0]!;
     out = await output(job, 'jpg');
   });
 
@@ -177,7 +177,7 @@ describe('graphic.png, modo rápido', () => {
   let out: { body: Buffer; file: string };
 
   beforeAll(async () => {
-    [job] = await c.processOk(graphic.id, { mode: 'quick' });
+    job = (await c.processOk(graphic.id, { mode: 'quick' }))[0]!;
     out = await output(job, 'png');
   });
 

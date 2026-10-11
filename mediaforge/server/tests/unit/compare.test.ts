@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { classifyKey, isMuxerDefault, normalizeKey } from '../../src/media/metadata/categories';
 import { compareMetadata, requestedFor, residualPatterns, searchableValue } from '../../src/media/metadata/compare';
 import { cleanImage, imageItems, readImageBlocks } from '../../src/media/metadata/imageMeta';
+import { exifSegment, parseJpeg, rebuildJpeg } from '../../src/media/metadata/jpeg';
+import { asciiEntry, buildTiff, rationalEntry } from '../../src/media/metadata/tiff';
 import { fx, SENSITIVE } from '../helpers/fixtures';
 
 const ALL_FALSE = { gps: false, dates: false, device: false, descriptive: false, software: false, custom: false, container: false, streams: false, embedded: false };
@@ -103,6 +105,14 @@ describe('classifyKey', () => {
       expect(classifyKey(key, scope)).toEqual({ category, sensitive });
     });
   }
+
+  it('chaves de data com sublinhado (Matroska DATE_RECORDED/DATE_ENCODED/DATE_DIGITIZED, creation_date) são datas sensíveis', () => {
+    // O FFmpeg expõe as tags oficiais do Matroska como estão; "\bdate\b" não casa com "date_recorded".
+    for (const key of ['DATE_RECORDED', 'DATE_ENCODED', 'DATE_DIGITIZED', 'creation_date']) {
+      expect(classifyKey(key, 'format'), key).toEqual({ category: 'dates', sensitive: true });
+      expect(classifyKey(key, 'stream'), `${key} (fluxo)`).toEqual({ category: 'dates', sensitive: true });
+    }
+  });
 
   it('normalizeKey: minúsculas, sem sufixo de idioma e sem espaços', () => {
     expect(normalizeKey('Title-eng')).toBe('title');
@@ -296,6 +306,28 @@ describe('verificação de ponta a ponta com a limpeza real de imagem', () => {
     const r = check(photo, m);
     expect(r.verdict).toBe('nao-comprovado');
     expect(r.unverified.length).toBe(before.filter((i) => requestedFor(i, m)).length);
+  });
+
+  it('JPEG com um segundo bloco EXIF: a verificação não pode atestar sucesso se o modelo/GPS seguem nos bytes', () => {
+    const base = fs.readFileSync(fx('base.jpg'));
+    const benign = buildTiff({ order: 'BE', ifd0: [rationalEntry(0x011a, [[72, 1]], 'BE')] });
+    const secret = buildTiff({
+      order: 'BE',
+      ifd0: [asciiEntry(0x0110, 'ModeloOcultoNoSegundoBloco')],
+      gps: [asciiEntry(0x0001, 'S'), asciiEntry(0x001b, 'GPSOCULTO-SEGUNDO-BLOCO')],
+    });
+    const src = rebuildJpeg(base, parseJpeg(base), () => true, [exifSegment(benign), exifSegment(secret)], false);
+    const m = meta('all');
+    const out = cleanImage(src, 'jpeg', m).buffer;
+    const b = imageItems(readImageBlocks(src, 'jpeg'));
+    const a = imageItems(readImageBlocks(out, 'jpeg'));
+    const residual = new Set(residualPatterns(b, m).filter((p) => out.includes(p.pattern)).map((p) => p.itemId));
+    const r = compareMetadata(b, a, m, residual);
+    const leaked = ['ModeloOcultoNoSegundoBloco', 'GPSOCULTO-SEGUNDO-BLOCO'].filter((s) => out.includes(Buffer.from(s)));
+    expect(
+      leaked.length === 0 || (r.verdict !== 'comprovado' && r.verdict !== 'nada-a-remover'),
+      `veredito "${r.verdict}" com ${leaked.join(', ')} ainda na saída`,
+    ).toBe(true);
   });
 
   it('a busca nos bytes pega o que a inspeção não vê (saída com metadados, mas lista vazia)', () => {

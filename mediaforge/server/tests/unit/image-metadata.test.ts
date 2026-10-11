@@ -389,6 +389,51 @@ describe('cleanImage — seletivo', () => {
     expect(jpegImageData(r.buffer).equals(jpegImageData(PHOTO))).toBe(true);
   });
 
+  it('IPTC (Photoshop APP13): inspeção lista cidade/autor/data; o segmento sai só quando uma categoria contida é pedida', () => {
+    const rec = (dataset: number, value: string) => {
+      const v = Buffer.from(value, 'utf8');
+      const h = Buffer.from([0x1c, 0x02, dataset, 0, 0]);
+      h.writeUInt16BE(v.length, 3);
+      return Buffer.concat([h, v]);
+    };
+    const iptc = Buffer.concat([rec(0, '\0\x04'), rec(90, 'CidadeIPTCSecreta'), rec(80, 'Fotógrafo Secreto'), rec(55, '20230714')]);
+    const pad = iptc.length % 2 ? Buffer.from([0]) : Buffer.alloc(0);
+    const res = Buffer.concat([Buffer.from('8BIM', 'latin1'), Buffer.from([0x04, 0x04, 0, 0]), u32be(iptc.length), iptc, pad]);
+    const src = withJpegSegments(BASE_JPG, [segmentBytes(0xed, Buffer.concat([Buffer.from('Photoshop 3.0\0', 'latin1'), res]))]);
+
+    const m = byId(imageItems(readImageBlocks(src, 'jpeg')));
+    expect(m.get('ps0:iptc:City')).toMatchObject({ value: 'CidadeIPTCSecreta', category: 'gps', sensitive: true });
+    expect(m.get('ps0:iptc:By-line')).toMatchObject({ value: 'Fotógrafo Secreto', category: 'descriptive' });
+    expect(m.get('ps0:iptc:DateCreated')).toMatchObject({ value: '20230714', category: 'dates' });
+
+    // Pedir só "software": nada do IPTC é software → segmento mantido intacto
+    const keep = cleanImage(src, 'jpeg', meta({ software: true })).buffer;
+    expect(keep.equals(src)).toBe(true);
+    // Pedir só GPS: o segmento inteiro sai (com a cidade e o autor)
+    const r = cleanImage(src, 'jpeg', meta({ gps: true }));
+    for (const s of ['CidadeIPTCSecreta', 'Fotógrafo Secreto', 'Photoshop 3.0']) expect(has(r.buffer, s), s).toBe(false);
+    expect(r.actions.join(' ')).toMatch(/Photoshop\/IPTC/);
+    expect(jpegImageData(r.buffer).equals(jpegImageData(BASE_JPG))).toBe(true);
+    expect(md5(r.buffer, 'jpg')).toBe(frameMd5(fx('base.jpg')));
+  });
+
+  it('WEBP estendido, só GPS: EXIF reescrito sem GPS (modelo fica), XMP sem GPS mantido, flags e pixels corretos', () => {
+    const src = extendedWebp({ exif: secretTiff('LE'), xmp: xmpPacket('dc:creator="Autora Secreta"') });
+    const r = cleanImage(src, 'webp', meta({ gps: true }));
+    const chunks = parseWebp(r.buffer);
+    expect(chunks.map((c) => c.fourcc)).toEqual(['VP8X', 'VP8 ', 'EXIF', 'XMP ']);
+    const t = parseTiff(chunks[2]!.data);
+    expect(t.gps).toEqual([]);
+    expect(t.ifd0.find((e) => e.tag === 0x0110)?.value.toString('latin1')).toBe('ModeloSecretoXYZ\0');
+    expect(t.exif.map((e) => e.tag)).toEqual([0x9003]);
+    for (const s of ['GPSPROCSECRETO']) expect(has(r.buffer, s), s).toBe(false);
+    expect(has(r.buffer, 'Autora Secreta')).toBe(true);
+    const flags = chunks[0]!.data[0]!;
+    expect([flags & 0x20, flags & 0x08, flags & 0x04]).toEqual([0, 0x08, 0x04]);
+    expect(r.buffer.readUInt32LE(4)).toBe(r.buffer.length - 8);
+    expect(md5(r.buffer, 'webp')).toBe(frameMd5(fx('image.webp')));
+  });
+
   it('perfil ICC do JPEG (2 segmentos APP2) é mantido ou removido conforme preserveColorProfile', () => {
     const icc = fakeIcc('Perfil Grande', 70_000);
     const iccSegs = injectImageMetadata(BASE_JPG, 'jpeg', { exif: null, icc }).buffer;
@@ -432,6 +477,16 @@ describe('cleanImage — casos adversariais', () => {
     const out = cleanImage(src, 'jpeg', meta('all')).buffer;
     expect(has(out, '23,33.2058S')).toBe(false);
     expect(has(out, '46,38.9463W')).toBe(false);
+  });
+
+  it('XMP com o GPS dentro de CDATA (XML válido) não esconde a coordenada da limpeza', () => {
+    const xml =
+      `<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">` +
+      `<rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" xmlns:exif="http://ns.adobe.com/exif/1.0/" tiff:Orientation="1">` +
+      `<exif:GPSLatitude><![CDATA[23,33.2058S]]></exif:GPSLatitude></rdf:Description></rdf:RDF></x:xmpmeta>`;
+    const src = withJpegSegments(BASE_JPG, [xmpSegment(xml)]);
+    const out = cleanImage(src, 'jpeg', meta('all')).buffer;
+    expect(has(out, '23,33.2058S'), 'coordenada em CDATA sobreviveu à limpeza total').toBe(false);
   });
 
   it('XMP com referência numérica inválida (&#99999999;) não derruba inspeção nem limpeza', () => {

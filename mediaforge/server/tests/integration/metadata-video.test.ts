@@ -46,7 +46,7 @@ describe('iphone.mov, modo rápido, todas as categorias + SEI', () => {
   let out: { body: Buffer; file: string };
 
   beforeAll(async () => {
-    [job] = await c.processOk(iphone.id, { mode: 'quick', metadata: { remove: ALL } });
+    job = (await c.processOk(iphone.id, { mode: 'quick', metadata: { remove: ALL } }))[0]!;
     out = await output(job, 'mov');
   });
 
@@ -159,7 +159,7 @@ describe('iphone.mov, remoção seletiva (só GPS)', () => {
   let out: { body: Buffer; file: string };
 
   beforeAll(async () => {
-    [job] = await c.processOk(iphone.id, { mode: 'quick', metadata: { remove: { ...NONE, gps: true } } });
+    job = (await c.processOk(iphone.id, { mode: 'quick', metadata: { remove: { ...NONE, gps: true } } }))[0]!;
     out = await output(job, 'mov');
   });
 
@@ -201,7 +201,7 @@ describe('iphone.mov, nenhuma categoria selecionada', () => {
   let out: { body: Buffer; file: string };
 
   beforeAll(async () => {
-    [job] = await c.processOk(iphone.id, { mode: 'quick', metadata: { remove: NONE } });
+    job = (await c.processOk(iphone.id, { mode: 'quick', metadata: { remove: NONE } }))[0]!;
     out = await output(job, 'mov');
   });
 
