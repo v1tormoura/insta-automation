@@ -7,9 +7,9 @@ import { Checkbox, Select } from '../../components/ui/controls';
 import { Badge, EmptyState } from '../../components/ui/feedback';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/toast';
-import { api, triggerDownload } from '../../lib/api';
+import { api, downloadVerified, triggerDownload } from '../../lib/api';
 import { formatBytes, formatDuration, formatFps, formatResolution } from '../../lib/format';
-import { removeJob, useBatches, useJobs } from '../../lib/queries';
+import { keys, queryClient, removeJob, useBatches, useJobs } from '../../lib/queries';
 import { ReportDrawer } from './ReportDrawer';
 
 function ResultCard({ job, selected, onToggle, onOpen, onReport }: { job: JobDTO; selected: boolean; onToggle: () => void; onOpen: () => void; onReport: () => void }) {
@@ -55,7 +55,18 @@ function ResultCard({ job, selected, onToggle, onOpen, onReport }: { job: JobDTO
           </Badge>
         </div>
         <div className="mt-auto flex items-center gap-1 pt-1">
-          <Button size="xs" variant="primary" icon={Download} onClick={() => triggerDownload(o.downloadUrl)} data-testid="download-btn">
+          <Button
+            size="xs"
+            variant="primary"
+            icon={Download}
+            onClick={() =>
+              downloadVerified(job.id, o.downloadUrl).catch((err) => {
+                toast.error(err, 'Download recusado: o arquivo não confere com o resultado validado');
+                void queryClient.invalidateQueries({ queryKey: keys.jobs });
+              })
+            }
+            data-testid="download-btn"
+          >
             Baixar
           </Button>
           <Button size="xs" variant="subtle" icon={FileText} onClick={onReport} data-testid="report-btn">

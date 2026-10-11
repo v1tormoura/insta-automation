@@ -62,6 +62,9 @@ export function removeAsset(id: string) {
 export function applyBatch(batch: BatchDTO) {
   queryClient.setQueryData<BatchDTO[]>(keys.batches, (l) => upsert(l, batch, true));
 }
+export function removeBatch(id: string) {
+  queryClient.setQueryData<BatchDTO[]>(keys.batches, (l) => (l ?? []).filter((b) => b.id !== id));
+}
 export function applyHistory(entry: HistoryEntryDTO) {
   queryClient.setQueryData<HistoryEntryDTO[]>(keys.history, (l) => upsert(l, entry, true).slice(0, 300));
 }

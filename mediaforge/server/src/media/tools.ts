@@ -27,6 +27,7 @@ export class MediaTools {
     webp: false,
     drawtext: false,
     textAlign: false,
+    displayRotation: false,
     subtitles: false,
     filterUnits: false,
   };
@@ -47,14 +48,14 @@ export class MediaTools {
     this.ffprobe = await this.version(this.ffprobe.path, 'ffprobe');
     if (!this.ffmpeg.available) return;
 
-    const list = async (flag: string) => {
-      const r = await runProcess(this.ffmpeg.path, ['-hide_banner', flag], {
+    const list = async (...flags: string[]) => {
+      const r = await runProcess(this.ffmpeg.path, ['-hide_banner', ...flags], {
         collectStdoutBytes: 4 * 1024 * 1024,
         timeoutMs: 20_000,
       });
       return r.code === 0 ? r.stdout : '';
     };
-    const [encoders, filters, bsfs] = await Promise.all([list('-encoders'), list('-filters'), list('-bsfs')]);
+    const [encoders, filters, bsfs, longHelp] = await Promise.all([list('-encoders'), list('-filters'), list('-bsfs'), list('-h', 'long')]);
     const drawtextHelp = /\sdrawtext\s/.test(filters)
       ? (await runProcess(this.ffmpeg.path, ['-hide_banner', '-h', 'filter=drawtext'], { collectStdoutBytes: 256 * 1024, timeoutMs: 15_000 })).stdout
       : '';
@@ -75,6 +76,7 @@ export class MediaTools {
       textAlign: /^\s*text_align\s/m.test(drawtextHelp),
       subtitles: hasFilter('subtitles'),
       filterUnits: /^\s*filter_units\s*$/m.test(bsfs),
+      displayRotation: /^-display_rotation\s/m.test(longHelp),
     };
   }
 

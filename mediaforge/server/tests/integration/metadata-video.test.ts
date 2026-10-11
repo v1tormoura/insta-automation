@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { AssetDetailDTO, AssetDTO, MetadataItem } from '@mediaforge/shared';
+import type { AssetDetailDTO, AssetDTO, MetadataComparison, MetadataItem } from '@mediaforge/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, type JobDetail } from '../helpers/client';
 import { fx, SENSITIVE } from '../helpers/fixtures';
@@ -38,6 +38,16 @@ async function output(job: JobDetail, ext: string) {
   expect(job.report!.integrity.inputUnchangedAfterProcessing).toBe(true);
   return { body: r.body, file: tmpFile(r.body, ext) };
 }
+
+/**
+ * As fixtures são geradas pelo FFmpeg: o AAC delas carrega "Lavc<versão>" dentro dos
+ * quadros. Com o áudio copiado, essa assinatura não sai — o veredito honesto é
+ * "parcial", com ela como único item não comprovado.
+ */
+const expectOnlyAudioSignaturePending = (m: MetadataComparison) => {
+  expect(m.unverified.map((u) => u.id)).toEqual(['bitstream:audio-lavc']);
+  expect(m.verdict).toBe('parcial');
+};
 
 const tagsOf = (o: any) => ({ ...(o?.tags ?? {}) }) as Record<string, string>;
 
@@ -122,15 +132,15 @@ describe('iphone.mov, modo rápido, todas as categorias + SEI', () => {
     expect(decodeErrors(out.file)).toEqual([]);
   });
 
-  it('relatório: veredito "comprovado" e listas removed/preserved coerentes', () => {
+  it('relatório: só a assinatura Lavc do áudio copiado fica pendente; listas removed/preserved coerentes', () => {
     const m = job.report!.metadata;
-    expect(m.verdict).toBe('comprovado');
-    expect(m.unverified).toEqual([]);
+    expectOnlyAudioSignaturePending(m);
+    expect(job.report!.warnings.join(' ')).toMatch(/recodificando o áudio/);
     const removedIds = new Set(m.removed.map((i) => i.id));
     const preservedIds = new Set(m.preserved.map((i) => i.id));
     for (const id of removedIds) expect(preservedIds.has(id), id).toBe(false);
     // Tudo o que não é técnico na entrada foi removido a pedido.
-    for (const item of iphoneItems.filter((i) => i.category !== 'technical')) {
+    for (const item of iphoneItems.filter((i) => i.category !== 'technical' && i.id !== 'bitstream:audio-lavc')) {
       expect(removedIds.has(item.id), `${item.id} deveria estar em removed`).toBe(true);
     }
     for (const r of m.removed.filter((i) => i.category !== 'technical')) expect(r.requested, r.id).toBe(true);
@@ -230,15 +240,16 @@ describe('vídeo recodificado com limpeza total', () => {
       mode: 'custom',
       geometry: { resolution: 'custom', width: 320, height: 180, keepAspect: true },
       video: { speed: 'fast' },
+      audio: { codec: 'aac' },
       metadata: { remove: ALL },
     });
     const out = await output(job!, 'mov');
     expect(job!.report!.strategy).toBe('re-encode');
     const { v, format } = mainStreams(out.file);
     expect([v.width, v.height]).toEqual([320, 180]);
-    // (o áudio AAC é copiado: a assinatura "Lavc" dele é tratada no teste específico acima)
+    // Áudio recodificado com +bitexact: nem a assinatura "Lavc" do AAC sobra.
     expect(job!.report!.command).toContain('libx264');
-    for (const n of [SENSITIVE.videoModel, SENSITIVE.videoComment, '+37.7749', 'com.apple.quicktime', 'x264 - core', 'Lavf']) {
+    for (const n of [SENSITIVE.videoModel, SENSITIVE.videoComment, '+37.7749', 'com.apple.quicktime', 'x264 - core', 'Lavf', 'Lavc6']) {
       expect(out.body.includes(n), `saída contém "${n}"`).toBe(false);
     }
     expect(Object.keys(tagsOf(format)).sort()).toEqual(['compatible_brands', 'major_brand', 'minor_version']);
@@ -334,8 +345,7 @@ describe('outros contêineres e estruturas', () => {
     expect(tagsOf(a).language ?? 'und').not.toBe('por');
     // Tags técnicas que o muxer Matroska sempre regrava (DURATION) não podem derrubar o veredito.
     const m = job!.report!.metadata;
-    expect(m.unverified.map((u) => `${u.id}: ${u.reason}`)).toEqual([]);
-    expect(m.verdict).toBe('comprovado');
+    expectOnlyAudioSignaturePending(m);
   });
 
   it('MP4 com capítulos: removidos (com títulos) quando "Tags do contêiner" é pedida', async () => {
@@ -344,7 +354,7 @@ describe('outros contêineres e estruturas', () => {
     const outRm = await output(rm!, 'mp4');
     expect(chaptersOf(outRm.file)).toEqual([]);
     expect(outRm.body.includes('Capitulo secreto')).toBe(false);
-    expect(rm!.report!.metadata.verdict).toBe('comprovado');
+    expectOnlyAudioSignaturePending(rm!.report!.metadata);
   });
 
   it('MP4 com capítulos mantidos por escolha: tarefa conclui, capítulos com títulos e arquivo sem erro de leitura', async () => {
@@ -366,7 +376,7 @@ describe('outros contêineres e estruturas', () => {
     expect(paths.filter((p) => /loci|ilst\/|©nam|\xA9nam/.test(p))).toEqual([]);
     expect(out.body.includes('Torre secreta')).toBe(false);
     expect(Object.keys(tagsOf(mainStreams(out.file).format)).filter((k) => /location|title/.test(k))).toEqual([]);
-    expect(job!.report!.metadata.verdict).toBe('comprovado');
+    expectOnlyAudioSignaturePending(job!.report!.metadata);
     expect(frameMd5(out.file)).toBe(frameMd5(android));
   });
 });

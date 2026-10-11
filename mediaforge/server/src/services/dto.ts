@@ -11,6 +11,12 @@ import type {
 } from '@mediaforge/shared';
 import type { AssetRow, BatchRow, HistoryRow, JobRow, ProfileRow, Repositories } from '../db/repositories';
 
+/** Valores completos ficam no servidor; a interface recebe só o texto de exibição. */
+function stripRaw(m: MetadataInspection | null): MetadataInspection | null {
+  if (!m) return m;
+  return { ...m, items: m.items.map(({ raw: _raw, ...rest }) => rest) };
+}
+
 export function parseJson<T>(s: string | null | undefined): T | null {
   if (!s) return null;
   try {
@@ -64,7 +70,7 @@ export function assetToDetailDTO(row: AssetRow, repos: Repositories): AssetDetai
   return {
     ...assetToDTO(row, repos),
     info: parseJson<MediaInfo>(row.info_json),
-    metadata: parseJson<MetadataInspection>(row.metadata_json),
+    metadata: stripRaw(parseJson<MetadataInspection>(row.metadata_json)),
   };
 }
 

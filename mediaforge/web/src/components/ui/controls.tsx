@@ -1,21 +1,38 @@
 import clsx from 'clsx';
 import { RotateCcw } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { createContext, useContext, useId, type ReactNode } from 'react';
 
 const ctl =
   'h-7.5 w-full min-w-0 rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 px-2 text-[12.5px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-accent/40 focus:border-accent disabled:opacity-50';
 
+/**
+ * Id do rótulo do <Field> mais próximo: os controles dentro dele usam
+ * aria-labelledby (vale para mais de um controle no mesmo campo, sem ids
+ * duplicados), a menos que recebam aria-label próprio.
+ */
+const FieldLabelContext = createContext<string | undefined>(undefined);
+const useFieldLabel = (ariaLabel: string | undefined) => {
+  const labelId = useContext(FieldLabelContext);
+  return ariaLabel ? { 'aria-label': ariaLabel } : labelId ? { 'aria-labelledby': labelId } : {};
+};
+
 export function Field({ label, hint, children, className, htmlFor, right }: { label: ReactNode; hint?: ReactNode; children: ReactNode; className?: string; htmlFor?: string; right?: ReactNode }) {
+  const labelId = useId();
+  const hintId = useId();
   return (
     <div className={clsx('flex min-w-0 flex-col gap-1', className)}>
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={htmlFor} className="text-[11.5px] font-medium text-ink-2">
+        <label id={labelId} htmlFor={htmlFor} className="text-[11.5px] font-medium text-ink-2">
           {label}
         </label>
         {right}
       </div>
-      {children}
-      {hint && <p className="text-[11px] leading-snug text-ink-3">{hint}</p>}
+      <FieldLabelContext.Provider value={labelId}>{children}</FieldLabelContext.Provider>
+      {hint && (
+        <p id={hintId} className="text-[11px] leading-snug text-ink-3">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
@@ -37,11 +54,12 @@ export function Select<T extends string>({
   testId?: string;
   ariaLabel?: string;
 }) {
+  const labelProps = useFieldLabel(ariaLabel);
   return (
     <select
       id={id}
       data-testid={testId}
-      aria-label={ariaLabel}
+      {...labelProps}
       className={clsx(ctl, 'cursor-pointer pr-6')}
       value={value}
       disabled={disabled}
@@ -83,12 +101,13 @@ export function NumberInput({
   allowEmpty?: boolean;
   ariaLabel?: string;
 }) {
+  const labelProps = useFieldLabel(ariaLabel);
   return (
     <div className="relative">
       <input
         id={id}
         data-testid={testId}
-        aria-label={ariaLabel}
+        {...labelProps}
         type="number"
         inputMode="decimal"
         className={clsx(ctl, 'tabular', suffix && 'pr-8')}
@@ -223,14 +242,16 @@ export function Checkbox({ checked, onChange, label, disabled, indeterminate, ar
 }
 
 export function TextInput({ value, onChange, placeholder, maxLength, id, testId, ariaLabel }: { value: string; onChange: (v: string) => void; placeholder?: string; maxLength?: number; id?: string; testId?: string; ariaLabel?: string }) {
-  return <input id={id} data-testid={testId} aria-label={ariaLabel} className={ctl} value={value} maxLength={maxLength} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
+  const labelProps = useFieldLabel(ariaLabel);
+  return <input id={id} data-testid={testId} {...labelProps} className={ctl} value={value} maxLength={maxLength} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
 }
 
 export function TextArea({ value, onChange, placeholder, maxLength, rows = 2, testId, ariaLabel }: { value: string; onChange: (v: string) => void; placeholder?: string; maxLength?: number; rows?: number; testId?: string; ariaLabel?: string }) {
+  const labelProps = useFieldLabel(ariaLabel);
   return (
     <textarea
       data-testid={testId}
-      aria-label={ariaLabel}
+      {...labelProps}
       className={clsx(ctl, 'h-auto resize-y py-1.5 leading-snug')}
       rows={rows}
       value={value}
@@ -242,11 +263,12 @@ export function TextArea({ value, onChange, placeholder, maxLength, rows = 2, te
 }
 
 export function ColorInput({ value, onChange, ariaLabel }: { value: string; onChange: (v: string) => void; ariaLabel?: string }) {
+  const labelProps = useFieldLabel(ariaLabel);
   return (
     <div className="flex items-center gap-1.5">
       <input
         type="color"
-        aria-label={ariaLabel}
+        {...labelProps}
         value={value}
         onChange={(e) => onChange(e.target.value.toUpperCase())}
         className="h-7.5 w-9 cursor-pointer rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 p-0.5"
@@ -271,8 +293,9 @@ export function Segmented<T extends string>({
   className?: string;
   testId?: string;
 }) {
+  const labelProps = useFieldLabel(undefined);
   return (
-    <div role="radiogroup" data-testid={testId} className={clsx('inline-flex rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 p-0.5', className)}>
+    <div role="radiogroup" data-testid={testId} {...labelProps} className={clsx('inline-flex rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 p-0.5', className)}>
       {options.map((o) => (
         <button
           key={o.value}

@@ -1,12 +1,23 @@
 import fsp from 'node:fs/promises';
 import type { AssetKind, MetadataInspection, MetadataItem } from '@mediaforge/shared';
 import { readHead } from '../hashing';
+import { runProcess } from '../process';
 import type { ProbeResult } from '../probe';
 import { classifyKey, isMuxerDefault, normalizeKey, type ItemCategory } from './categories';
 import { imageContainerOf, imageItems, readImageBlocks } from './imageMeta';
 import { isKnownTopLevel, scanMp4Boxes, XMP_UUID } from './mp4boxes';
 
 const MAX_IMAGE_BYTES = 256 * 1024 * 1024;
+
+/** Limite do valor completo guardado para preservação (cabe na linha de comando do Windows). */
+export const MAX_RAW_VALUE_CHARS = 8000;
+
+/** Valor para exibição (até 300 caracteres) + valor completo quando foi encurtado. */
+function displayValue(value: unknown): Pick<MetadataItem, 'value' | 'truncated' | 'raw'> {
+  const full = String(value);
+  if (full.length <= 300) return { value: full };
+  return { value: full.slice(0, 300), truncated: true, ...(full.length <= MAX_RAW_VALUE_CHARS ? { raw: full } : {}) };
+}
 
 /** Assinaturas de encoders gravadas dentro do bitstream (SEI user data). */
 export const BITSTREAM_SIGNATURES: Array<{ id: string; label: string; pattern: Buffer }> = [
@@ -47,7 +58,29 @@ const STREAM_TYPE_LABEL: Record<string, string> = {
  * proprietárias e assinaturas no bitstream (vídeo) ou EXIF/XMP/IPTC/ICC,
  * comentários e blocos extras (imagem).
  */
-export async function inspectMetadata(file: string, kind: AssetKind, ext: string, probe: ProbeResult): Promise<MetadataInspection> {
+/**
+ * Assinatura "Lavc<versão>" que o codificador AAC do FFmpeg grava num elemento
+ * de preenchimento dos primeiros quadros de áudio. Lê só os pacotes do fluxo
+ * de áudio (cópia dos primeiros pacotes), para não confundir com a tag
+ * "encoder" do contêiner.
+ */
+async function audioEncoderSignature(ffmpegPath: string, file: string, audioIndex: number): Promise<string | null> {
+  const r = await runProcess(
+    ffmpegPath,
+    ['-hide_banner', '-nostdin', '-v', 'error', '-i', file, '-map', `0:${audioIndex}`, '-c', 'copy', '-frames:a', '4', '-f', 'data', '-'],
+    { collectStdoutBytes: 512 * 1024, timeoutMs: 30_000 },
+  ).catch(() => null);
+  if (!r || r.code !== 0) return null;
+  return /Lavc\d+\.\d+\.\d+/.exec(r.stdout)?.[0] ?? null;
+}
+
+export async function inspectMetadata(
+  file: string,
+  kind: AssetKind,
+  ext: string,
+  probe: ProbeResult,
+  opts: { ffmpegPath?: string } = {},
+): Promise<MetadataInspection> {
   const items: MetadataItem[] = [];
   const warnings: string[] = [];
   let orientation: number | null = null;
@@ -81,7 +114,7 @@ export async function inspectMetadata(file: string, kind: AssetKind, ext: string
       scope: 'container',
       location: 'Contêiner',
       key,
-      value: String(value).slice(0, 300),
+      ...displayValue(value),
       category: c.category,
       sensitive: c.sensitive,
       removable: c.category !== 'technical',
@@ -103,7 +136,7 @@ export async function inspectMetadata(file: string, kind: AssetKind, ext: string
         scope: 'stream',
         location,
         key,
-        value: String(value).slice(0, 300),
+        ...displayValue(value),
         category: c.category,
         sensitive: c.sensitive,
         removable: c.category !== 'technical',
@@ -238,6 +271,23 @@ export async function inspectMetadata(file: string, kind: AssetKind, ext: string
         sensitive: false,
         removable: true,
         note: 'Removível sem recodificar com a opção "Dados no bitstream (SEI)".',
+      });
+    }
+  }
+
+  if ((kind === 'video' || kind === 'audio') && info.audioIndex !== null && opts.ffmpegPath) {
+    const sig = await audioEncoderSignature(opts.ffmpegPath, file, info.audioIndex);
+    if (sig) {
+      items.push({
+        id: 'bitstream:audio-lavc',
+        scope: 'bitstream',
+        location: 'Dentro do fluxo de áudio',
+        key: 'Assinatura do codificador de áudio',
+        value: `${sig}…`,
+        category: 'software',
+        sensitive: true,
+        removable: true,
+        note: 'Gravada nos próprios quadros de áudio: só sai recodificando o áudio (cópia de fluxo a mantém).',
       });
     }
   }

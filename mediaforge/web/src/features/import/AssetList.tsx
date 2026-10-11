@@ -128,9 +128,20 @@ export function AssetList({ assets, onDetails }: { assets: AssetDTO[]; onDetails
                 ) : null}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] font-medium text-ink" title={a.name}>
+                {/* Botão real: escolher o arquivo em foco (configuração individual) também pelo teclado. */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ws.setFocus(a.id);
+                  }}
+                  aria-current={focused ? 'true' : undefined}
+                  aria-label={`Editar ${a.name}`}
+                  title={a.name}
+                  className="block max-w-full truncate rounded text-left text-[12.5px] font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
                   {a.name}
-                </p>
+                </button>
                 <p className="tabular mt-0.5 truncate text-[11px] text-ink-3">
                   {a.status === 'invalid' ? 'Recusado' : KIND_LABEL[a.kind]} · {a.ext.toUpperCase() || '?'} · {formatBytes(a.size)}
                   {a.width ? ` · ${formatResolution(a.width, a.height)}` : ''}

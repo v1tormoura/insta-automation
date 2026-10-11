@@ -129,14 +129,23 @@ export async function jobRoutes(app: FastifyInstance, deps: Deps) {
     if (j.output_thumb) await fsp.rm(ctx.storage.file(sid, 'thumbs', j.output_thumb), { force: true });
   };
 
+  /** Atualiza (ou remove) os lotes afetados por remoções de tarefas. */
+  const publishBatches = (sid: string, batchIds: Iterable<string>) => {
+    ctx.repos.deleteEmptyBatches(sid);
+    for (const id of new Set(batchIds)) {
+      const b = ctx.repos.batch(sid, id);
+      ctx.events.publish(sid, b ? { type: 'batch', batch: batchToDTO(b, ctx.repos) } : { type: 'batch-removed', batchId: id });
+    }
+  };
+
   app.delete('/api/jobs/:id', async (req, reply) => {
     const s = await session(deps, req, reply);
     const j = requireJob(s.id, idParam(req));
     if (j.status === 'queued' || j.status === 'running') throw new HttpError(409, 'job-active', 'Cancele a tarefa antes de removê-la.');
     await removeJobFiles(s.id, j);
     ctx.repos.deleteJob(s.id, j.id);
-    ctx.repos.deleteEmptyBatches(s.id);
     ctx.events.publish(s.id, { type: 'job-removed', jobId: j.id });
+    publishBatches(s.id, [j.batch_id]);
     return { ok: true };
   });
 
@@ -145,15 +154,17 @@ export async function jobRoutes(app: FastifyInstance, deps: Deps) {
     const s = await session(deps, req, reply);
     const { includeCompleted } = z.object({ includeCompleted: z.boolean().default(false) }).parse(req.body ?? {});
     let n = 0;
+    const touched: string[] = [];
     for (const j of ctx.repos.jobs(s.id)) {
       if (j.status === 'failed' || j.status === 'canceled' || (includeCompleted && j.status === 'completed')) {
         await removeJobFiles(s.id, j);
         ctx.repos.deleteJob(s.id, j.id);
         ctx.events.publish(s.id, { type: 'job-removed', jobId: j.id });
+        touched.push(j.batch_id);
         n++;
       }
     }
-    ctx.repos.deleteEmptyBatches(s.id);
+    publishBatches(s.id, touched);
     return { removed: n };
   });
 
@@ -163,6 +174,14 @@ export async function jobRoutes(app: FastifyInstance, deps: Deps) {
     const j = requireJob(s.id, idParam(req));
     const { path } = await deps.exports.verifyOutput(j, false);
     return sendSessionFile(reply, path, { disposition: 'inline', downloadName: j.output_name!, contentType: mimeOf(j.output_name!) });
+  });
+
+  /** Conferência prévia (a interface chama antes de baixar, para mostrar o erro). */
+  app.get('/api/jobs/:id/verify', async (req, reply) => {
+    const s = await session(deps, req, reply);
+    const j = requireJob(s.id, idParam(req));
+    const { size } = await deps.exports.verifyOutput(j, true);
+    return { ok: true, size, sha256: j.output_sha256 };
   });
 
   /** Download individual: confere existência, tamanho e SHA-256 antes de enviar. */

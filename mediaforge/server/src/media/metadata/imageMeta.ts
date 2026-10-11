@@ -556,10 +556,15 @@ export function cleanImage(buf: Buffer, format: ImageContainer, meta: MetadataSe
  * (que não grava metadados). WEBP simples não comporta inserção sem
  * reestruturar o arquivo; nesse caso nada é inserido e um aviso é emitido.
  */
-export function injectImageMetadata(buf: Buffer, format: ImageContainer, data: { exif: Buffer | null; icc: Buffer | null }): CleanResult {
+export function injectImageMetadata(
+  buf: Buffer,
+  format: ImageContainer,
+  data: { exif: Buffer | null; icc: Buffer | null; pngChunks?: Buffer[] },
+): CleanResult {
   const actions: string[] = [];
   const warnings: string[] = [];
-  if (!data.exif && !data.icc) return { buffer: buf, actions, warnings };
+  const extra = format === 'png' ? data.pngChunks ?? [] : [];
+  if (!data.exif && !data.icc && extra.length === 0) return { buffer: buf, actions, warnings };
   if (format === 'jpeg') {
     const s = parseJpeg(buf);
     const insert: Buffer[] = [];
@@ -575,10 +580,12 @@ export function injectImageMetadata(buf: Buffer, format: ImageContainer, data: {
     const insert: Buffer[] = [];
     if (data.icc) insert.push(iccpChunk(data.icc));
     if (data.exif) insert.push(chunkBytes('eXIf', data.exif));
+    insert.push(...extra);
     // Com iCCP reinserido, o sRGB gerado pelo codificador conflitaria (a especificação PNG proíbe os dois).
     const out = rebuildPng(buf, s, (c) => c.type !== 'eXIf' && c.type !== 'iCCP', insert, data.icc ? new Set(['sRGB']) : undefined);
     if (data.exif) actions.push('Campos EXIF preservados reinseridos.');
     if (data.icc) actions.push('Perfil ICC preservado reinserido.');
+    if (extra.length) actions.push(`${extra.length} bloco(s) PNG preservado(s) (textos, data, XMP) reinserido(s) byte a byte.`);
     return { buffer: out, actions, warnings };
   }
   warnings.push('Saída WEBP: metadados preservados não foram reinseridos (o codificador gera WEBP simples).');

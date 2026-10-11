@@ -1,8 +1,8 @@
-import { defaultSettings, type AssetDTO, type ProcessingSettings } from '@mediaforge/shared';
+import { EXPORT_PROFILES, defaultSettings, type AssetDTO, type ProcessingSettings } from '@mediaforge/shared';
 import { describe, expect, it } from 'vitest';
 import { formatBytes, formatDuration, formatPercent } from '../../lib/format';
 import { keptRegion } from '../settings/sections/FramingSection';
-import { buildBatchRequest, countOutputs, partsFor } from './batchRequest';
+import { buildBatchRequest, countOutputs, knownProfiles, partsFor, settingsForProfile, type ProfileCatalog } from './batchRequest';
 
 const asset = (over: Partial<AssetDTO>): AssetDTO =>
   ({
@@ -59,10 +59,40 @@ describe('quantidade de saídas (mesma regra do servidor)', () => {
   it('imagens geram uma saída por perfil', () => {
     expect(partsFor(asset({ kind: 'image', durationSec: null }), custom((s) => (s.segmentation = { mode: 'count', value: 5 })))).toBe(1);
   });
+  const catalog = (saved: ProfileCatalog['saved'] = []): ProfileCatalog => ({ exportProfiles: EXPORT_PROFILES, saved });
+
   it('total = arquivos × perfis × partes', () => {
     const s = custom((x) => (x.segmentation = { mode: 'count', value: 2 }));
-    const r = countOutputs([asset({ id: 'aaaaaaaa' }), asset({ id: 'bbbbbbbb', kind: 'image' })], () => s, ['vertical-9x16', 'feed-4x5']);
+    const r = countOutputs([asset({ id: 'aaaaaaaa' }), asset({ id: 'bbbbbbbb', kind: 'image' })], () => s, ['vertical-9x16', 'feed-4x5'], catalog());
     expect(r).toEqual({ files: 2, profiles: 2, total: 2 * 2 + 1 * 2, withParts: true });
+  });
+
+  it('perfil salvo usa as próprias configurações (sem divisão) — mesma conta do servidor', () => {
+    const s = custom((x) => (x.segmentation = { mode: 'count', value: 4 }));
+    const savedQuick = { id: 'perfil01', settings: defaultSettings('quick') };
+    const r = countOutputs([asset({})], () => s, ['saved:perfil01', 'vertical-9x16'], catalog([savedQuick]));
+    expect(r.total).toBe(1 + 4);
+  });
+
+  it('perfis inexistentes (salvo excluído, id desconhecido) são ignorados e podados', () => {
+    const s = defaultSettings('quick');
+    const ids = ['saved:apagado', 'nao-existe', 'feed-4x5'];
+    expect(knownProfiles(ids, catalog())).toEqual(['feed-4x5']);
+    expect(countOutputs([asset({})], () => s, ids, catalog())).toMatchObject({ profiles: 1, total: 1 });
+  });
+
+  it('perfil com proporção no modo Rápido passa a Personalizado sem reativar ajustes ocultos', () => {
+    const quick = defaultSettings('quick');
+    quick.segmentation = { mode: 'count', value: 5 }; // oculto no modo Rápido
+    quick.color.brightness = 40;
+    const v = settingsForProfile(quick, 'vertical-9x16', catalog())!;
+    expect(v.mode).toBe('custom');
+    expect(v.geometry.aspect).toBe('9:16');
+    expect(v.segmentation.mode).toBe('none');
+    expect(v.color.brightness).toBe(0);
+    expect(partsFor(asset({}), v)).toBe(1);
+    // Perfil sem geometria continua no modo Rápido
+    expect(settingsForProfile(quick, 'original-limpo', catalog())!.mode).toBe('quick');
   });
 });
 

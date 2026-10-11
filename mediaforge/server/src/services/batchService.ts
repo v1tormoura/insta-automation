@@ -1,5 +1,5 @@
 import {
-  deepMerge,
+  applyExportProfile,
   EXPORT_PROFILES,
   processingSettingsSchema,
   type BatchRequest,
@@ -65,7 +65,7 @@ export function computeSegments(durationSec: number | null, s: ProcessingSetting
   for (let i = 0; i < count; i++) {
     const a = start + i * partLen;
     const b = Math.min(end, start + (i + 1) * partLen);
-    if (b - a >= 0.1) out.push({ start: Number(a.toFixed(3)), end: Number(b.toFixed(3)), index: i + 1, count });
+    if (b - a >= 0.1) out.push({ start: Number(a.toFixed(6)), end: Number(b.toFixed(6)), index: i + 1, count });
   }
   return out.map((p) => ({ ...p, count: out.length }));
 }
@@ -74,7 +74,10 @@ export class BatchService {
   constructor(private ctx: AppContext) {}
 
   /** Resolve perfis (embutidos ou salvos) em pares nome + configurações. */
-  private resolveProfiles(base: ProcessingSettings, ids: string[] | undefined): Array<{ name: string | null; settings: unknown }> {
+  private resolveProfiles(
+    base: ProcessingSettings,
+    ids: string[] | undefined,
+  ): Array<{ name: string | null; settings: unknown; note?: string }> {
     if (!ids || ids.length === 0) return [{ name: null, settings: base }];
     return ids.map((id) => {
       if (id.startsWith('saved:')) {
@@ -84,20 +87,39 @@ export class BatchService {
       }
       const p = EXPORT_PROFILES.find((x) => x.id === id);
       if (!p) throw new BatchError([{ assetId: null, assetName: null, message: `Perfil de exportação desconhecido: ${id}.` }]);
-      return { name: p.name, settings: deepMerge(base, p.patch) };
+      const { settings, promoted } = applyExportProfile(base, p.patch);
+      return promoted
+        ? {
+            name: p.name,
+            settings,
+            note: `Perfil "${p.name}": o modo Rápido não altera proporção, resolução nem taxa de quadros; este perfil foi processado no modo Personalizado.`,
+          }
+        : { name: p.name, settings };
     });
   }
 
-  private expand(sessionId: string, req: z.infer<typeof batchRequestSchema>): { items: Expanded[]; errors: PlanResponse['errors'] } {
+  /**
+   * Expande arquivos × perfis × partes em tarefas. Para assim que o total passa
+   * do permitido (por lote e por sessão), sem montar os planos restantes:
+   * 1000 arquivos × 20 perfis × 100 partes não pode virar 2 milhões de planos.
+   */
+  private expand(
+    sessionId: string,
+    req: z.infer<typeof batchRequestSchema>,
+  ): { items: Expanded[]; errors: PlanResponse['errors']; overflow: boolean } {
     const { repos, tools, config } = this.ctx;
     const errors: PlanResponse['errors'] = [];
     const items: Expanded[] = [];
+    const cap = Math.max(0, Math.min(config.limits.maxJobsPerBatch, config.limits.maxJobsPerSession - repos.countJobs(sessionId)));
+    let overflow = false;
     const ids = [...new Set(req.assetIds)];
+    const profileIds = req.profiles ? [...new Set(req.profiles)] : undefined;
     const resolveAsset = (id: string) => {
       const row = repos.asset(sessionId, id);
       return row ? toPlanAsset(this.ctx, row) : undefined;
     };
     for (const id of ids) {
+      if (overflow) break;
       const asset = repos.asset(sessionId, id);
       if (!asset) {
         errors.push({ assetId: id, assetName: null, message: 'Arquivo não encontrado nesta sessão.' });
@@ -118,9 +140,9 @@ export class BatchService {
         });
         continue;
       }
-      let profiles: Array<{ name: string | null; settings: unknown }>;
+      let profiles: Array<{ name: string | null; settings: unknown; note?: string }>;
       try {
-        profiles = this.resolveProfiles(parsed.data, req.profiles);
+        profiles = this.resolveProfiles(parsed.data, profileIds);
       } catch (err) {
         if (err instanceof BatchError) {
           errors.push(...err.errors);
@@ -129,6 +151,7 @@ export class BatchService {
         throw err;
       }
       for (const prof of profiles) {
+        if (overflow) break;
         const ps = processingSettingsSchema.safeParse(prof.settings);
         if (!ps.success) {
           errors.push({ assetId: id, assetName: asset.original_name, message: `Perfil ${prof.name}: configuração inválida.` });
@@ -142,6 +165,10 @@ export class BatchService {
           continue;
         }
         for (const segment of segments) {
+          if (items.length >= cap) {
+            overflow = true;
+            break;
+          }
           try {
             const plan = buildPlan(planAsset, ps.data, {
               tools,
@@ -173,7 +200,7 @@ export class BatchService {
                 },
                 operations: plan.operations,
                 skipped: plan.skipped,
-                warnings: plan.warnings,
+                warnings: prof.note ? [prof.note, ...plan.warnings] : plan.warnings,
               },
             });
           } catch (err) {
@@ -184,30 +211,30 @@ export class BatchService {
         }
       }
     }
-    return { items, errors };
+    return { items, errors, overflow };
   }
 
   plan(sessionId: string, body: unknown): PlanResponse {
     const req = batchRequestSchema.parse(body);
-    const { items, errors } = this.expand(sessionId, req);
-    const limitErr = this.limitError(sessionId, items.length);
+    const { items, errors, overflow } = this.expand(sessionId, req);
+    const limitErr = this.limitError(sessionId, items.length, overflow);
     if (limitErr) errors.push({ assetId: null, assetName: null, message: limitErr });
     return { ok: errors.length === 0 && items.length > 0, jobs: items.map((i) => i.preview), errors };
   }
 
-  private limitError(sessionId: string, count: number): string | null {
+  private limitError(sessionId: string, count: number, overflow: boolean): string | null {
     const l = this.ctx.config.limits;
-    if (count > l.maxJobsPerBatch) return `O lote geraria ${count} tarefas (máximo ${l.maxJobsPerBatch} por lote).`;
-    const total = this.ctx.repos.countJobs(sessionId) + count;
-    if (total > l.maxJobsPerSession) return `Limite de ${l.maxJobsPerSession} tarefas por sessão atingido. Remova tarefas concluídas.`;
-    return null;
+    if (!overflow) return null;
+    if (count >= l.maxJobsPerBatch) return `O lote geraria mais de ${l.maxJobsPerBatch} tarefas (máximo por lote). Selecione menos arquivos, perfis ou partes.`;
+    const used = this.ctx.repos.countJobs(sessionId);
+    return `Limite de ${l.maxJobsPerSession} tarefas por sessão atingido (${used} já existem). Remova tarefas concluídas.`;
   }
 
   create(sessionId: string, body: unknown) {
     const { repos } = this.ctx;
     const req = batchRequestSchema.parse(body);
-    const { items, errors } = this.expand(sessionId, req);
-    const limitErr = this.limitError(sessionId, items.length);
+    const { items, errors, overflow } = this.expand(sessionId, req);
+    const limitErr = this.limitError(sessionId, items.length, overflow);
     if (limitErr) errors.push({ assetId: null, assetName: null, message: limitErr });
     if (errors.length || items.length === 0) {
       throw new BatchError(errors.length ? errors : [{ assetId: null, assetName: null, message: 'Nenhuma tarefa a criar.' }]);

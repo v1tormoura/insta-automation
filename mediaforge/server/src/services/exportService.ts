@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
+import { Transform, type PassThrough } from 'node:stream';
 import type { JobReport } from '@mediaforge/shared';
 import { STRATEGY_LABELS } from '@mediaforge/shared';
 import yazl from 'yazl';
@@ -145,27 +147,95 @@ export class ExportService {
     return { id, count: jobs.length, totalBytes: total, url: `/api/exports/${id}` };
   }
 
-  /** Monta o ZIP em streaming (sem copiar os vídeos para outro lugar). */
+  /**
+   * Monta o ZIP em streaming (sem copiar os vídeos para outro lugar).
+   * Antes de enviar qualquer byte, confere o SHA-256 de todas as saídas; durante
+   * o envio, recalcula o hash de cada arquivo e interrompe o download se o
+   * conteúdo divergir do registrado (o cliente recebe um ZIP com erro, nunca um
+   * ZIP "válido" com conteúdo não verificado). Cada arquivo só é aberto na sua
+   * vez e tudo é fechado se o cliente desistir.
+   */
   async stream(sessionId: string, exportId: string): Promise<{ stream: NodeJS.ReadableStream; filename: string }> {
     const { repos } = this.ctx;
     const rec = repos.exportById(sessionId, exportId);
     if (!rec) throw new ExportError('Exportação não encontrada ou expirada.');
-    const jobs = repos.jobsByIds(sessionId, JSON.parse(rec.job_ids_json) as string[]);
+    const ids = JSON.parse(rec.job_ids_json) as string[];
+    const jobs = repos.jobsByIds(sessionId, ids);
+    if (jobs.length !== new Set(ids).size) {
+      throw new ExportError('Alguns resultados desta exportação foram removidos. Prepare a exportação novamente.');
+    }
+    const files = new Map<string, string>();
+    const problems: string[] = [];
+    for (const job of jobs) {
+      try {
+        files.set(job.id, (await this.verifyOutput(job, true)).path);
+      } catch (err) {
+        problems.push((err as Error).message);
+      }
+    }
+    if (problems.length) throw new ExportError('Verificação dos arquivos falhou; nada foi exportado.', problems);
+
     const created = new Date();
     const stamp = created.toISOString().slice(0, 16).replace(/[:T]/g, '-');
     const root = `mediaforge-${stamp}`;
     const zip = new yazl.ZipFile();
+    const out = zip.outputStream as PassThrough;
+    const active = new Set<NodeJS.ReadableStream & { destroy(err?: Error): void }>();
+    let done = false;
+    const abort = (err?: Error) => {
+      if (done) return;
+      done = true;
+      for (const st of active) st.destroy();
+      active.clear();
+      if (err) {
+        this.ctx.log.warn({ exportId, err: err.message }, 'exportação interrompida');
+        out.destroy(err);
+      }
+    };
+    zip.on('error', (err: Error) => abort(err));
+    out.on('end', () => {
+      done = true;
+    });
+    // Cliente desistiu (ou Fastify destruiu a resposta): fecha o que estiver aberto.
+    out.on('close', () => abort());
+
     const entries: Array<{ job: JobRow; report: JobReport | null; path: string }> = [];
     const used = new Set<string>();
     for (const job of jobs) {
-      const { path: file } = await this.verifyOutput(job, false);
+      const file = files.get(job.id)!;
       const folder = job.output_kind === 'image' ? 'imagens' : 'videos';
       let name = job.output_name!;
       let n = 2;
       while (used.has(`${folder}/${name}`)) name = job.output_name!.replace(/(\.[^.]+)$/, `-${n++}$1`);
       used.add(`${folder}/${name}`);
       const zipPath = `${root}/${folder}/${name}`;
-      zip.addReadStream(fs.createReadStream(file), zipPath, { compress: false, mtime: new Date(job.finished_at ?? Date.now()) });
+      const expected = job.output_sha256;
+      zip.addReadStreamLazy(zipPath, { compress: false, mtime: new Date(job.finished_at ?? Date.now()), size: job.output_size ?? undefined }, (cb) => {
+        if (done) return; // download abandonado: não abre mais nada
+        const src = fs.createReadStream(file);
+        const hash = createHash('sha256');
+        const check = new Transform({
+          transform(chunk: Buffer, _enc, next) {
+            hash.update(chunk);
+            next(null, chunk);
+          },
+          flush(next) {
+            const got = hash.digest('hex');
+            if (got !== expected) next(new ExportError(`Arquivo alterado durante a exportação (SHA-256 diferente): ${job.output_name}`));
+            else next();
+          },
+        });
+        active.add(src);
+        active.add(check);
+        src.on('error', (err) => abort(err));
+        check.on('error', (err) => abort(err));
+        check.on('end', () => {
+          active.delete(src);
+          active.delete(check);
+        });
+        src.pipe(check);
+        cb(null, check);
+      });
       const report = parseJson<JobReport>(job.report_json);
       if (report) {
         zip.addBuffer(Buffer.from(JSON.stringify(maskReport(report), null, 2), 'utf8'), `${root}/relatorios/${name}.json`, { compress: true });

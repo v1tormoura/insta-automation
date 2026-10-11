@@ -37,6 +37,13 @@ export interface MetadataItem {
   /** Pode ser removido sem destruir a mídia. */
   removable: boolean;
   note?: string;
+  /** `value` foi encurtado para exibição. */
+  truncated?: boolean;
+  /**
+   * Valor completo (só no servidor, até 8 000 caracteres) para preservar e
+   * comparar sem cortes; não é enviado à interface.
+   */
+  raw?: string;
 }
 
 export interface MetadataInspection {
@@ -290,6 +297,8 @@ export interface EncoderAvailability {
   drawtext: boolean;
   /** drawtext com text_align (alinhamento de várias linhas; FFmpeg 6.1+). */
   textAlign: boolean;
+  /** Opção -display_rotation (FFmpeg 6+): remove a matriz de rotação sem recodificar. */
+  displayRotation?: boolean;
   subtitles: boolean;
   filterUnits: boolean;
 }
@@ -368,6 +377,7 @@ export type ServerEvent =
   | { type: 'asset'; asset: AssetDTO }
   | { type: 'asset-removed'; assetId: string }
   | { type: 'batch'; batch: BatchDTO }
+  | { type: 'batch-removed'; batchId: string }
   | { type: 'history'; entry: HistoryEntryDTO }
   | { type: 'queue'; queue: SystemInfoDTO['queue'] }
   | { type: 'session-reset' };

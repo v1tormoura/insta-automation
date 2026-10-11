@@ -8,8 +8,19 @@ import { session, type Deps } from './deps';
 
 export const APP_VERSION = '1.0.0';
 
+/** Tentativas erradas de chave de acesso por IP (janela deslizante simples). */
+const LOGIN_MAX_FAILURES = 10;
+const LOGIN_WINDOW_MS = 15 * 60_000;
+
 export async function sessionRoutes(app: FastifyInstance, deps: Deps) {
   const { ctx } = deps;
+  const failures = new Map<string, { count: number; resetAt: number }>();
+  const failureEntry = (ip: string, now: number) => {
+    const e = failures.get(ip);
+    if (e && e.resetAt > now) return e;
+    if (e) failures.delete(ip);
+    return null;
+  };
 
   const sessionDTO = async (id: string): Promise<SessionDTO> => {
     const row = ctx.repos.sessionById(id)!;
@@ -35,8 +46,24 @@ export async function sessionRoutes(app: FastifyInstance, deps: Deps) {
   /** Inicia uma sessão (com chave de acesso, quando configurada). */
   app.post('/api/session', async (req, reply) => {
     const body = z.object({ accessKey: z.string().max(500).optional() }).parse(req.body ?? {});
-    if (ctx.config.accessKey && !safeEqual(body.accessKey ?? '', ctx.config.accessKey)) {
-      throw new HttpError(401, 'auth-failed', 'Chave de acesso incorreta.');
+    if (ctx.config.accessKey) {
+      const now = Date.now();
+      const entry = failureEntry(req.ip, now);
+      if (entry && entry.count >= LOGIN_MAX_FAILURES) {
+        const wait = Math.ceil((entry.resetAt - now) / 60_000);
+        reply.header('Retry-After', String(Math.ceil((entry.resetAt - now) / 1000)));
+        throw new HttpError(429, 'auth-locked', `Muitas tentativas com chave incorreta. Tente novamente em ${wait} min.`);
+      }
+      if (!safeEqual(body.accessKey ?? '', ctx.config.accessKey)) {
+        if (entry) entry.count++;
+        else {
+          if (failures.size > 10_000) for (const [ip, e] of failures) if (e.resetAt <= now) failures.delete(ip);
+          if (failures.size <= 10_000) failures.set(req.ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+        }
+        ctx.log.warn('tentativa de sessão com chave de acesso incorreta');
+        throw new HttpError(401, 'auth-failed', 'Chave de acesso incorreta.');
+      }
+      failures.delete(req.ip);
     }
     const existing = deps.sessions.current(req);
     if (existing) return sessionDTO(existing.id);

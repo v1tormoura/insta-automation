@@ -43,11 +43,7 @@ export function App() {
           <Panel title="Importar e arquivos" icon={FolderInput} subtitle={`${assets.length} arquivo(s) na sessão`} testId="import-panel">
             <div className="flex flex-col gap-3">
               <DropZone
-                onImported={(ids) => {
-                  const fresh = ids.filter((id) => !ws.selected.includes(id));
-                  ws.setSelected([...ws.selected, ...fresh]);
-                  if (!ws.focusAssetId && ids[0]) ws.setFocus(ids[0]);
-                }}
+                onImported={ws.addSelected}
               />
               <AssetList assets={assets} onDetails={setDetails} />
             </div>

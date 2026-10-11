@@ -81,10 +81,33 @@ function JobRow({ job, now }: { job: JobDTO; now: number }) {
   );
 }
 
+/**
+ * Contagens e progresso do lote calculados a partir das tarefas em cache, que
+ * recebem cada evento de progresso (o DTO do lote só muda nas transições).
+ */
+export function batchStats(jobs: JobDTO[]) {
+  const counts = { total: jobs.length, queued: 0, running: 0, completed: 0, failed: 0, canceled: 0 };
+  let sum = 0;
+  for (const j of jobs) {
+    counts[j.status]++;
+    sum += j.status === 'queued' ? 0 : j.status === 'running' ? j.progress : 1;
+  }
+  return { counts, progress: jobs.length ? sum / jobs.length : 0 };
+}
+
 function BatchCard({ batch, jobs, now, defaultOpen }: { batch: BatchDTO; jobs: JobDTO[]; now: number; defaultOpen: boolean }) {
   const toast = useToast();
   const [open, setOpen] = useState(defaultOpen);
-  const active = batch.counts.queued + batch.counts.running > 0;
+  const { counts, progress } = useMemo(() => batchStats(jobs), [jobs]);
+  const active = counts.queued + counts.running > 0;
+  const retry = async () => {
+    try {
+      const r = await api.retryBatch(batch.id);
+      toast.push(r.retried ? 'info' : 'warning', r.retried ? `${r.retried} tarefa(s) enviada(s) de novo para a fila` : 'Nenhuma tarefa com erro para repetir neste lote.');
+    } catch (e) {
+      toast.error(e);
+    }
+  };
   useEffect(() => {
     if (active) setOpen(true);
   }, [active]);
@@ -97,9 +120,9 @@ function BatchCard({ batch, jobs, now, defaultOpen }: { batch: BatchDTO; jobs: J
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12px] font-semibold text-ink-2">{batch.label}</p>
           <p className="tabular text-[10.5px] text-ink-3">
-            {formatTime(batch.createdAt)} · {batch.counts.completed}/{batch.counts.total} concluídas
-            {batch.counts.failed ? ` · ${batch.counts.failed} com erro` : ''}
-            {batch.counts.canceled ? ` · ${batch.counts.canceled} canceladas` : ''}
+            {formatTime(batch.createdAt)} · {counts.completed}/{counts.total} concluídas
+            {counts.failed ? ` · ${counts.failed} com erro` : ''}
+            {counts.canceled ? ` · ${counts.canceled} canceladas` : ''}
           </p>
         </div>
         {active && (
@@ -107,14 +130,14 @@ function BatchCard({ batch, jobs, now, defaultOpen }: { batch: BatchDTO; jobs: J
             Cancelar
           </Button>
         )}
-        {batch.counts.failed > 0 && (
-          <Button size="xs" variant="ghost" icon={RotateCcw} onClick={() => api.retryBatch(batch.id).catch((e) => toast.error(e))}>
+        {counts.failed > 0 && (
+          <Button size="xs" variant="ghost" icon={RotateCcw} onClick={() => void retry()}>
             Repetir erros
           </Button>
         )}
       </div>
       <div className="px-2.5 pb-2">
-        <ProgressBar value={batch.progress} tone={batch.counts.failed ? 'warn' : active ? 'accent' : 'ok'} label={`Progresso do lote ${batch.label}`} />
+        <ProgressBar value={progress} tone={counts.failed ? 'warn' : active ? 'accent' : 'ok'} label={`Progresso do lote ${batch.label}`} />
       </div>
       {open && (
         <ul className="flex flex-col gap-1.5 px-2.5 pb-2.5">
@@ -147,7 +170,7 @@ export function QueuePanel() {
   const sortedBatches = useMemo(() => [...batches].filter((b) => byBatch.has(b.id)).sort((a, b) => b.createdAt - a.createdAt), [batches, byBatch]);
 
   // Progresso geral: lotes com trabalho pendente (ou o último lote, se nada estiver ativo).
-  const activeBatches = sortedBatches.filter((b) => b.counts.queued + b.counts.running > 0);
+  const activeBatches = sortedBatches.filter((b) => (byBatch.get(b.id) ?? []).some((j) => j.status === 'queued' || j.status === 'running'));
   const scope = activeBatches.length ? activeBatches : sortedBatches.slice(0, 1);
   const scopeJobs = scope.flatMap((b) => byBatch.get(b.id) ?? []);
   const overall = scopeJobs.length ? scopeJobs.reduce((s, j) => s + (j.status === 'queued' ? 0 : j.status === 'running' ? j.progress : 1), 0) / scopeJobs.length : 0;

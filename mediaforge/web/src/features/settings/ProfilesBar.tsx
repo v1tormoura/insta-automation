@@ -2,7 +2,7 @@ import { deepMerge, processingSettingsSchema, type AssetDTO } from '@mediaforge/
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Bookmark, BookmarkPlus, Check, Download, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, IconButton } from '../../components/ui/Button';
 import { Field, TextInput } from '../../components/ui/controls';
 import { Modal } from '../../components/ui/Modal';
@@ -11,7 +11,7 @@ import { useToast } from '../../components/ui/toast';
 import { api } from '../../lib/api';
 import { keys, usePresets, useProfiles } from '../../lib/queries';
 import { useWorkspace } from '../../state/workspace';
-import { countOutputs } from '../process/batchRequest';
+import { countOutputs, knownProfiles, type ProfileCatalog } from '../process/batchRequest';
 
 function Chip({ active, onClick, title, children, testId }: { active: boolean; onClick: () => void; title?: string; children: React.ReactNode; testId?: string }) {
   return (
@@ -32,6 +32,24 @@ function Chip({ active, onClick, title, children, testId }: { active: boolean; o
   );
 }
 
+const EMPTY_CATALOG: ProfileCatalog = { exportProfiles: [], saved: [] };
+
+/**
+ * Catálogo de perfis (embutidos + salvos) quando ambos carregaram. Perfis
+ * marcados que deixaram de existir (ex.: excluídos em outra aba) saem do lote.
+ */
+export function useProfileCatalog(): ProfileCatalog | null {
+  const ws = useWorkspace();
+  const { data: presets } = usePresets();
+  const { data: saved } = useProfiles();
+  const catalog = useMemo(() => (presets && saved ? { exportProfiles: presets.exportProfiles, saved } : null), [presets, saved]);
+  const stale = catalog ? ws.profiles.length !== knownProfiles(ws.profiles, catalog).length : false;
+  useEffect(() => {
+    if (catalog && stale) ws.setProfiles(knownProfiles(ws.profiles, catalog));
+  }, [catalog, stale, ws]);
+  return catalog;
+}
+
 export function ProfilesBar({ selectedAssets }: { selectedAssets: AssetDTO[] }) {
   const ws = useWorkspace();
   const { data: presets } = usePresets();
@@ -42,9 +60,9 @@ export function ProfilesBar({ selectedAssets }: { selectedAssets: AssetDTO[] }) 
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const count = countOutputs(selectedAssets, ws.settingsFor, ws.profiles);
-  const validSaved = new Set((saved ?? []).map((p) => `saved:${p.id}`));
-  const activeProfiles = ws.profiles.filter((p) => !p.startsWith('saved:') || validSaved.has(p));
+  const catalog = useProfileCatalog();
+  const count = countOutputs(selectedAssets, ws.settingsFor, ws.profiles, catalog ?? EMPTY_CATALOG);
+  const activeProfiles = catalog ? knownProfiles(ws.profiles, catalog) : ws.profiles;
 
   const save = async () => {
     setBusy(true);

@@ -420,7 +420,9 @@ describe('buildPlan — vídeo', () => {
     expect(p.expected.durationSec).toBeCloseTo(1, 6);
     expect(p.progressDuration).toBeCloseTo(1, 6);
     const i = p.args!.indexOf('-i');
-    expect(p.args!.slice(i - 4, i)).toEqual(['-ss', '0.5', '-t', '2']);
+    // 25 fps: 0,5 s cai entre quadros → começa no quadro de 0,52 s (primeiro em/depois do instante);
+    // -ss meio milissegundo antes dele e -t terminando logo antes do quadro seguinte ao último.
+    expect(p.args!.slice(i - 4, i)).toEqual(['-ss', '0.5195', '-t', '1.99975']);
     const g = graphOf(p);
     expect(g).toContain('setpts=PTS/2');
     expect(g).toContain('atempo=2');
@@ -904,7 +906,7 @@ describe('buildPlan — divisão em partes', () => {
     expect(auto.expected).toMatchObject({ keyframeAligned: false });
     expect(auto.expected.durationSec).toBeCloseTo(1, 6);
     const i = auto.args!.indexOf('-i');
-    expect(auto.args!.slice(i - 4, i)).toEqual(['-ss', '1', '-t', '1']);
+    expect(auto.args!.slice(i - 4, i)).toEqual(['-ss', '0.9995', '-t', '0.99975']);
     expect(auto.operations.find((o) => o.id === 'segment')?.detail).toMatch(/parte 2 de 3/);
     expect(auto.warnings.join(' ')).not.toMatch(/quadros-chave/);
 

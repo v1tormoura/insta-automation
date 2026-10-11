@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import net from 'node:net';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
@@ -26,6 +27,7 @@ import { ExportError, ExportService } from './services/exportService';
 import { ImportService } from './services/importService';
 import { PreviewBusyError, PreviewService } from './services/previewService';
 import { Storage } from './services/storage';
+import { acquireDataDirLock, type DataDirLock } from './services/dataDirLock';
 
 z.config(z.locales.ptBR());
 
@@ -33,7 +35,11 @@ export interface MediaForgeApp {
   app: FastifyInstance;
   ctx: AppContext;
   deps: Deps;
-  /** Detecta FFmpeg, recupera a fila e inicia os serviços de fundo. */
+  /** Bloqueio exclusivo do DATA_DIR (liberado em stop()). */
+  lock: DataDirLock;
+  /** Detecta FFmpeg/FFprobe (sem efeitos no diretório de dados). */
+  detectTools(): Promise<void>;
+  /** Detecta FFmpeg (se ainda não detectado), recupera a fila e inicia os serviços de fundo. */
   start(): Promise<void>;
   stop(): Promise<void>;
 }
@@ -51,7 +57,44 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
+/**
+ * Proteção contra DNS rebinding: só aceita cabeçalhos Host de loopback, endereços
+ * IP literais (não podem ser "religados" por DNS), o HOST configurado e os nomes
+ * de ALLOWED_HOSTS. A porta não importa (o proxy do Vite em desenvolvimento usa outra).
+ */
+export function hostAllowed(config: Pick<AppConfig, 'host' | 'allowedHosts'>, hostHeader: string | undefined): boolean {
+  if (!hostHeader || hostHeader.length > 300) return false;
+  let hostname: string;
+  try {
+    const u = new URL(`http://${hostHeader}`);
+    if (u.username || u.password || u.pathname !== '/' || u.search || u.hash) return false;
+    hostname = u.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  } catch {
+    return false;
+  }
+  if (hostname === 'localhost' || net.isIP(hostname)) return true;
+  const configured = config.host.toLowerCase().replace(/^\[|\]$/g, '');
+  if (hostname === configured) return true;
+  return config.allowedHosts.includes(hostname);
+}
+
 export async function buildApp(config: AppConfig, opts: { tools?: MediaTools; logger?: boolean } = {}): Promise<MediaForgeApp> {
+  // Antes de qualquer efeito: duas instâncias no mesmo DATA_DIR apagariam os
+  // temporários e reivindicariam as tarefas uma da outra.
+  const lock = acquireDataDirLock(config.dataDir);
+  try {
+    return await buildAppLocked(config, opts, lock);
+  } catch (err) {
+    lock.release();
+    throw err;
+  }
+}
+
+async function buildAppLocked(
+  config: AppConfig,
+  opts: { tools?: MediaTools; logger?: boolean },
+  lock: DataDirLock,
+): Promise<MediaForgeApp> {
   const app = Fastify({
     logger:
       opts.logger === false
@@ -122,7 +165,11 @@ export async function buildApp(config: AppConfig, opts: { tools?: MediaTools; lo
 
   // Proteção contra requisições de outros sites (CSRF): a origem precisa ser este servidor.
   app.addHook('onRequest', async (req) => {
+    if (!hostAllowed(config, req.headers.host)) {
+      throw new HttpError(403, 'bad-host', 'Nome de host não permitido. Acesse por localhost/IP ou inclua o nome em ALLOWED_HOSTS.');
+    }
     if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+    if (req.headers['sec-fetch-site'] === 'cross-site') throw new HttpError(403, 'bad-origin', 'Requisição de outra origem recusada.');
     const origin = req.headers.origin;
     if (!origin) return;
     let host: string;
@@ -162,24 +209,42 @@ export async function buildApp(config: AppConfig, opts: { tools?: MediaTools; lo
   });
 
   let started = false;
+  let stopped = false;
+  let detected = false;
+  const detectTools = async () => {
+    await tools.detect();
+    detected = true;
+    if (!tools.ready) app.log.error({ ffmpeg: tools.ffmpeg.error, ffprobe: tools.ffprobe.error }, 'FFmpeg/FFprobe indisponíveis');
+    else app.log.info({ ffmpeg: tools.ffmpeg.version, capabilities: tools.capabilities }, 'FFmpeg detectado');
+  };
   return {
     app,
     ctx,
     deps,
+    lock,
+    detectTools,
     async start() {
-      await tools.detect();
-      if (!tools.ready) app.log.error({ ffmpeg: tools.ffmpeg.error, ffprobe: tools.ffprobe.error }, 'FFmpeg/FFprobe indisponíveis');
-      else app.log.info({ ffmpeg: tools.ffmpeg.version, capabilities: tools.capabilities }, 'FFmpeg detectado');
+      const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host.toLowerCase());
+      if (!loopback && !config.accessKey) {
+        app.log.warn({ host: config.host }, 'servidor acessível pela rede sem ACCESS_KEY: qualquer pessoa na rede pode usar o MediaForge');
+      }
+      if (!detected) await detectTools();
       await deps.cleanup.run();
       ctx.queue.start();
       deps.cleanup.start();
       started = true;
     },
     async stop() {
-      deps.cleanup.stop();
-      if (started) await ctx.queue.stop();
-      await app.close();
-      db.close();
+      if (stopped) return;
+      stopped = true;
+      try {
+        deps.cleanup.stop();
+        if (started) await ctx.queue.stop();
+        await app.close();
+      } finally {
+        db.close();
+        lock.release();
+      }
     },
   };
 }

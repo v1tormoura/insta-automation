@@ -9,12 +9,21 @@ const signed = (v: number) => (v > 0 ? `+${v}` : String(v));
 export function TimeColorSection({ focus }: { focus: AssetDTO | undefined }) {
   const ws = useWorkspace();
   const s = ws.activeSettings;
-  const dur = focus?.kind === 'video' ? focus.durationSec : null;
+  const focusDur = focus?.kind === 'video' ? focus.durationSec : null;
+  // No perfil comum o trecho vale para todos os arquivos: o limite não pode vir
+  // do arquivo em foco (o servidor ajusta o fim à duração de cada vídeo).
+  const dur = ws.editingIndividual ? focusDur : null;
   const editorial = s.mode === 'editorial';
   return (
     <div className="flex flex-col gap-5">
       <section>
-        <SectionTitle hint={dur ? `Duração de "${focus!.name}": ${formatDuration(dur)}. Deixe em branco para usar o início/fim do vídeo.` : 'Deixe em branco para usar o início/fim do vídeo. Não se aplica a imagens.'}>
+        <SectionTitle
+          hint={
+            dur
+              ? `Duração de "${focus!.name}": ${formatDuration(dur)}. Deixe em branco para usar o início/fim do vídeo.`
+              : 'Vale para todos os vídeos selecionados; um fim além da duração usa o fim de cada vídeo. Deixe em branco para usar o início/fim. Não se aplica a imagens.'
+          }
+        >
           Trecho (início e fim)
         </SectionTitle>
         <div className="grid gap-3 sm:grid-cols-2">

@@ -24,6 +24,8 @@ export interface Workspace extends PersistedState {
   editingIndividual: boolean;
   toggleSelected(id: string): void;
   setSelected(ids: string[]): void;
+  /** Acrescenta à seleção atual (sem desfazer mudanças feitas enquanto um envio rodava). */
+  addSelected(ids: string[]): void;
   setFocus(id: string | null): void;
   setScope(scope: Scope): void;
   setMode(mode: ProcessingMode): void;
@@ -119,6 +121,12 @@ export function WorkspaceProvider({ sessionId, children }: { sessionId: string; 
       toggleSelected: (id) =>
         setState((s) => ({ ...s, selected: s.selected.includes(id) ? s.selected.filter((x) => x !== id) : [...s.selected, id] })),
       setSelected: (ids) => setState((s) => ({ ...s, selected: ids })),
+      addSelected: (ids) =>
+        setState((s) => ({
+          ...s,
+          selected: [...new Set([...s.selected, ...ids])],
+          focusAssetId: s.focusAssetId ?? ids[0] ?? null,
+        })),
       setFocus: (id) => setState((s) => ({ ...s, focusAssetId: id })),
       setScope: (scope) => setState((s) => ({ ...s, scope })),
       setMode: (mode) =>

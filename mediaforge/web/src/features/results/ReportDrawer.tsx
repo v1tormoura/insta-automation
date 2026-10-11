@@ -7,7 +7,8 @@ import { Segmented } from '../../components/ui/controls';
 import { Badge, KeyValue, Spinner, type Tone } from '../../components/ui/feedback';
 import { Modal } from '../../components/ui/Modal';
 import { SectionTitle } from '../../components/ui/Panel';
-import { triggerDownload } from '../../lib/api';
+import { useToast } from '../../components/ui/toast';
+import { downloadVerified, triggerDownload } from '../../lib/api';
 import { formatBytes, formatDuration, formatFps, formatMs, formatResolution } from '../../lib/format';
 import { useJobDetail } from '../../lib/queries';
 import { NoteList, OperationList } from '../process/PlanView';
@@ -83,6 +84,7 @@ function CompareTable({ r }: { r: JobReport }) {
 }
 
 export function ReportDrawer({ jobId, onClose }: { jobId: string | null; onClose: () => void }) {
+  const toast = useToast();
   const { data: job, isLoading } = useJobDetail(jobId);
   const [tab, setTab] = useState<Tab>('resumo');
   const [reveal, setReveal] = useState(false);
@@ -103,7 +105,14 @@ export function ReportDrawer({ jobId, onClose }: { jobId: string | null; onClose
               Baixar relatório (JSON)
             </Button>
             {job.output && (
-              <Button size="sm" variant="primary" icon={Download} onClick={() => triggerDownload(job.output!.downloadUrl)}>
+              <Button
+                size="sm"
+                variant="primary"
+                icon={Download}
+                onClick={() =>
+                  downloadVerified(job.id, job.output!.downloadUrl).catch((err) => toast.error(err, 'Download recusado: o arquivo não confere com o resultado validado'))
+                }
+              >
                 Baixar arquivo
               </Button>
             )}

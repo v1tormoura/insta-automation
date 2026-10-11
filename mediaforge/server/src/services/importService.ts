@@ -7,6 +7,7 @@ import type { AssetKind, MediaInfo, MetadataInspection } from '@mediaforge/share
 import type { AppContext } from '../context';
 import type { AssetRow } from '../db/repositories';
 import { inspectMetadata } from '../media/metadata/inspect';
+import { decodeCheck } from '../media/validation';
 import { probeFile, ProbeError, type ProbeResult } from '../media/probe';
 import { runProcess } from '../media/process';
 import { isRejection, sniffFile, type SniffResult } from '../media/signature';
@@ -138,9 +139,19 @@ export class ImportService {
       const thumbName = `${id}.jpg`;
       let metadata: MetadataInspection = { items: [], warnings: [], orientation: null };
       if (kind === 'video' || kind === 'image' || kind === 'audio') {
-        metadata = await inspectMetadata(stage, kind, sniff.ext, probe);
+        metadata = await inspectMetadata(stage, kind, sniff.ext, probe, { ffmpegPath: this.ctx.tools.ffmpeg.path });
       }
       metadata.warnings.unshift(...warnings);
+
+      // Imagens são pequenas: decodifica por inteiro. Um JPEG cortado gera
+      // miniatura (o decodificador completa com cinza), mas acusa erro aqui.
+      if (kind === 'image') {
+        const dec = await decodeCheck(this.ctx.tools, stage, 'image', 'full', null);
+        if (!dec.ok) {
+          await cleanup();
+          return recordInvalid(`Imagem corrompida: o decodificador acusou erro (${dec.errors[0] ?? 'erro desconhecido'}).`.slice(0, 400), size, sha256);
+        }
+      }
 
       let thumb: string | null = null;
       if (kind === 'video' || kind === 'image') {

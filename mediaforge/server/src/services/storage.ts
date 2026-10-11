@@ -88,23 +88,23 @@ export class Storage {
       try {
         // link() falha com EEXIST se o destino existir: nunca sobrescreve.
         await fsp.link(src, dest);
-        await fsp.unlink(src);
-        return name;
       } catch (err) {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === 'EEXIST') continue;
-        if (code === 'EXDEV' || code === 'EPERM' || code === 'ENOTSUP' || code === 'EOPNOTSUPP') {
-          try {
-            await fsp.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
-            await fsp.unlink(src);
-            return name;
-          } catch (e2) {
-            if ((e2 as NodeJS.ErrnoException).code === 'EEXIST') continue;
-            throw e2;
-          }
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') continue;
+        // Sistemas de arquivos sem links (FAT/exFAT, alguns compartilhamentos de
+        // rede, Windows com permissões restritas): cópia exclusiva.
+        try {
+          await fsp.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
+        } catch (e2) {
+          if ((e2 as NodeJS.ErrnoException).code === 'EEXIST') continue;
+          await fsp.rm(dest, { force: true }).catch(() => undefined);
+          throw e2;
         }
-        throw err;
       }
+      // O destino já está completo. Se a origem não puder ser apagada agora
+      // (ex.: antivírus segurando o arquivo no Windows), ela fica no diretório
+      // temporário da tarefa, que é removido depois — o nome final não muda.
+      await fsp.unlink(src).catch(() => undefined);
+      return name;
     }
     throw new Error('Não foi possível gerar um nome de arquivo único');
   }

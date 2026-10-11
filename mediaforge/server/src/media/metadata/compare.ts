@@ -50,10 +50,22 @@ export function compareMetadata(
   const preserved: MetadataComparison['preserved'] = [];
   const unverified: MetadataComparison['unverified'] = [];
 
-  for (const item of before) {
+  /** Igualdade pelo valor completo quando disponível (o de exibição é encurtado). */
+  const same = (a: MetadataItem, b: MetadataItem) =>
+    a.truncated || b.truncated ? a.raw !== undefined && b.raw !== undefined && a.raw === b.raw : a.value === b.value;
+  /** Sem os valores completos (o relatório guarda só o texto de exibição). */
+  const lean = <T extends MetadataItem>(i: T): T => {
+    if (i.raw === undefined) return i;
+    const { raw: _raw, ...rest } = i;
+    return rest as T;
+  };
+
+  for (const rawItem of before) {
+    const item = lean(rawItem);
     const requested = requestedFor(item, meta);
-    const out = afterById.get(item.id);
-    if (out) matched.add(out.id);
+    const outFull = afterById.get(item.id);
+    const out = outFull ? lean(outFull) : undefined;
+    if (outFull) matched.add(outFull.id);
 
     if (item.category === 'technical') {
       if (out) preserved.push({ ...item, reason: 'Campo técnico do formato' });
@@ -65,14 +77,18 @@ export function compareMetadata(
         preserved.push({
           ...item,
           value: out.value,
-          reason: out.value === item.value ? 'Mantido por escolha' : 'Mantido por escolha (valor regravado pelo processamento)',
+          reason: same(rawItem, outFull!)
+            ? 'Mantido por escolha'
+            : item.truncated
+              ? 'Mantido por escolha (valor longo: não foi possível confirmar que ficou idêntico)'
+              : 'Mantido por escolha (valor regravado pelo processamento)',
         });
       } else {
         removed.push({ ...item, how: 'ausente', requested: false });
       }
       continue;
     }
-    if (out && out.value === item.value) {
+    if (out && (same(rawItem, outFull!) || out.value === item.value)) {
       unverified.push({ ...item, reason: 'Ainda presente na saída com o mesmo valor' });
     } else if (residualFound.has(item.id)) {
       unverified.push({ ...item, reason: 'O valor ainda foi encontrado nos bytes do arquivo de saída' });
@@ -86,7 +102,7 @@ export function compareMetadata(
     }
   }
 
-  const added = after.filter((i) => !matched.has(i.id));
+  const added = after.filter((i) => !matched.has(i.id)).map(lean);
 
   const requestedItems = before.filter((i) => requestedFor(i, meta));
   const anyCategory = !!meta && Object.values(meta.remove).some(Boolean);

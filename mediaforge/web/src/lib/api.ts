@@ -139,6 +139,7 @@ export const api = {
   cancelPending: () => request<{ canceled: number }>('POST', '/api/jobs/cancel-pending'),
   clearFinished: (includeCompleted: boolean) => request<{ removed: number }>('POST', '/api/jobs/clear-finished', { includeCompleted }),
 
+  verifyJob: (id: string) => request<{ ok: true; size: number; sha256: string }>('GET', `/api/jobs/${id}/verify`),
   prepareExport: (jobIds: string[] | null) =>
     request<{ id: string; url: string; count: number; totalBytes: number }>('POST', '/api/exports', { jobIds }),
   preview: (assetId: string, settings: ProcessingSettings, offset = 0, container: 'mp4' | 'webm' = 'mp4') =>
@@ -159,6 +160,16 @@ export function supportsH264(): boolean {
   } catch {
     return true;
   }
+}
+
+/**
+ * Confere a saída no servidor (existência, tamanho, SHA-256) e só então baixa.
+ * Se a conferência falhar, o erro é lançado para a interface mostrar — em vez
+ * de um download quebrado sem explicação.
+ */
+export async function downloadVerified(jobId: string, url: string) {
+  await api.verifyJob(jobId);
+  triggerDownload(url);
 }
 
 /** Dispara o download do navegador para uma URL da API (mesma origem, com cookie). */

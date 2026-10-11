@@ -15,6 +15,9 @@ export function normalizeKey(key: string): string {
 /** Campos estruturais escritos por qualquer muxer MP4/MOV; não identificam origem. */
 const STRUCTURAL_FORMAT_KEYS = new Set(['major_brand', 'minor_version', 'compatible_brands']);
 
+/** Valores medidos do próprio fluxo (duração, contagens), regravados por qualquer muxer. */
+const MUXER_STREAM_STATS = new Set(['duration', 'number_of_frames', 'number_of_bytes', 'bps']);
+
 /** Tags técnicas de fluxo. */
 const STREAM_TECH_KEYS = new Set([
   'handler_name',
@@ -73,6 +76,8 @@ const RE_DESCRIPTIVE =
 export function classifyKey(key: string, scope: 'format' | 'stream' | 'exif' | 'xmp' | 'iptc' | 'png' | 'other'): Classification {
   const k = normalizeKey(key);
   if (scope === 'format' && STRUCTURAL_FORMAT_KEYS.has(k)) return { category: 'technical', sensitive: false };
+  // Estatísticas que o muxer Matroska recalcula e regrava a cada gravação.
+  if (scope === 'stream' && MUXER_STREAM_STATS.has(k)) return { category: 'technical', sensitive: false };
   if (RE_GPS.test(k)) return { category: 'gps', sensitive: true };
   if (scope === 'stream' && STREAM_TECH_KEYS.has(k)) return { category: 'streams', sensitive: false };
   if (RE_DEVICE.test(k)) return { category: 'device', sensitive: !/(exposure|fnumber|aperture|\biso|focal|flash|whitebalance|metering|shutter|brightness|scene|sensing|zoom|gain)/i.test(k) };
@@ -94,5 +99,8 @@ export function isMuxerDefault(key: string, value: string): boolean {
   if (k === 'handler_name') return ['VideoHandler', 'SoundHandler', 'DataHandler', 'SubtitleHandler'].includes(v);
   if (k === 'vendor_id') return v === '[0][0][0][0]' || v === 'FFMP';
   if (k === 'language') return v === 'und';
+  // Com +bitexact o FFmpeg grava só o nome genérico, sem versão ("Lavf", "Lavc libx264"):
+  // o Matroska exige o campo e o MOV guarda o nome do codificador na descrição da amostra.
+  if (k === 'encoder') return /^(Lavf|Lavc)( [a-z0-9_-]+)?$/i.test(v);
   return false;
 }

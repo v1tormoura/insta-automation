@@ -46,7 +46,9 @@ const envSchema = z.object({
   CLEANUP_INTERVAL_MIN: z.coerce.number().min(0.05).max(24 * 60).default(30),
   PREVIEW_MAX_SECONDS: int(1, 60).default(8),
 
-  ACCESS_KEY: z.string().optional(),
+  ACCESS_KEY: z.string().min(16, 'use pelo menos 16 caracteres (de preferência aleatórios)').max(500).optional(),
+  /** Nomes de host extras aceitos no cabeçalho Host (separados por vírgula). */
+  ALLOWED_HOSTS: z.string().default(''),
   COOKIE_SECURE: bool.default(false),
   SERVE_WEB: bool.default(true),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -105,6 +107,9 @@ export function loadConfig(overrides: Record<string, string | number | boolean |
     sessionTtlMs: env.SESSION_TTL_HOURS * 3600 * 1000,
     cleanupIntervalMs: env.CLEANUP_INTERVAL_MIN * 60 * 1000,
     accessKey: env.ACCESS_KEY ?? null,
+    allowedHosts: env.ALLOWED_HOSTS.split(',')
+      .map((h) => h.trim().toLowerCase().replace(/^\[|\]$/g, ''))
+      .filter(Boolean),
     cookieSecure: env.COOKIE_SECURE,
     serveWeb: env.SERVE_WEB,
     logLevel: env.LOG_LEVEL,

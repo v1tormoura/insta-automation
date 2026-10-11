@@ -345,6 +345,30 @@ export function deepMerge<T>(base: T, patch: unknown): T {
   return out as T;
 }
 
+/** Verdadeiro se o patch define algo que o modo Rápido descarta (proporção, fps, corte…). */
+export function touchesQuickResets(patch: unknown): boolean {
+  if (!patch || typeof patch !== 'object') return false;
+  const p = patch as Record<string, unknown>;
+  if (['geometry', 'trim', 'color', 'speed', 'fade', 'editorial', 'segmentation'].some((k) => p[k] !== undefined)) return true;
+  const video = p.video as Record<string, unknown> | undefined;
+  const audio = p.audio as Record<string, unknown> | undefined;
+  return video?.fps !== undefined || audio?.volume !== undefined;
+}
+
+/**
+ * Aplica um perfil de exportação embutido sobre as configurações atuais (regra
+ * única para servidor e interface). No modo Rápido, um perfil que muda
+ * proporção/resolução/fps passa ao modo Personalizado — partindo das
+ * configurações efetivas do modo Rápido, para não reativar ajustes ocultos.
+ */
+export function applyExportProfile(base: ProcessingSettings, patch: unknown): { settings: ProcessingSettings; promoted: boolean } {
+  if (base.mode === 'quick' && touchesQuickResets(patch)) {
+    const merged = deepMerge(effectiveSettings(base), patch);
+    return { settings: { ...merged, mode: 'custom' }, promoted: true };
+  }
+  return { settings: deepMerge(base, patch), promoted: false };
+}
+
 /** Ids de arquivos auxiliares referenciados pelas configurações editoriais. */
 export function referencedAssetIds(s: ProcessingSettings): string[] {
   const ids = new Set<string>();

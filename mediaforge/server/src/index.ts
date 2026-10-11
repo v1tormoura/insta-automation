@@ -6,8 +6,17 @@ import { loadConfig } from './config';
 async function main() {
   const config = loadConfig();
   const mf = await buildApp(config);
+  await mf.detectTools();
+  try {
+    // Primeiro a porta: se estiver ocupada, nada é limpo nem reivindicado.
+    await mf.app.listen({ host: config.host, port: config.port });
+  } catch (err) {
+    await mf.stop().catch(() => undefined);
+    throw (err as NodeJS.ErrnoException).code === 'EADDRINUSE'
+      ? new Error(`A porta ${config.port} já está em uso (outra instância do MediaForge ou outro programa). Ajuste PORT no .env.`)
+      : err;
+  }
   await mf.start();
-  await mf.app.listen({ host: config.host, port: config.port });
   mf.app.log.info(`MediaForge pronto em http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`);
 
   let closing = false;
@@ -22,6 +31,9 @@ async function main() {
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  // Terminal fechado (Linux/macOS) e Ctrl+Break / janela do console fechada (Windows).
+  process.on('SIGHUP', () => void shutdown('SIGHUP'));
+  if (process.platform === 'win32') process.on('SIGBREAK', () => void shutdown('SIGBREAK'));
 }
 
 main().catch((err) => {

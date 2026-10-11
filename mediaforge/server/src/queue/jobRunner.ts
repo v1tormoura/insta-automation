@@ -4,7 +4,9 @@ import type { JobPhase, JobReport, MediaInfo, MetadataInspection, ProcessingSett
 import type { AppContext } from '../context';
 import type { AssetRow, JobRow } from '../db/repositories';
 import { hashAndScan } from '../media/hashing';
-import { compareMetadata, residualPatterns } from '../media/metadata/compare';
+import { compareMetadata, requestedFor, residualPatterns } from '../media/metadata/compare';
+import { parsePng, PNG_IMAGE_CHUNKS } from '../media/metadata/png';
+import { reinjectUdtaBoxes } from '../media/metadata/mp4inject';
 import { cleanImage, imageContainerOf, injectImageMetadata, readImageBlocks, rebuildExif } from '../media/metadata/imageMeta';
 import { inspectMetadata } from '../media/metadata/inspect';
 import { buildTiff, parseTiff, TAG_MAKERNOTE } from '../media/metadata/tiff';
@@ -184,6 +186,17 @@ export class JobRunner {
         actions.push(...injected.actions);
         warnings.push(...injected.warnings);
       }
+      // MP4/MOV: caixas de udta mantidas por escolha que o FFmpeg não regrava.
+      if (plan.expected.kind === 'video' && (plan.outputExt === 'mp4' || plan.outputExt === 'mov')) {
+        const keepTypes = (planAsset.metadata?.items ?? [])
+          .filter((i) => i.scope === 'box' && /^box:moov\/udta\/[^/:]{4}$/.test(i.id) && !requestedFor(i, plan.settings.metadata))
+          .map((i) => i.id.slice('box:moov/udta/'.length));
+        if (keepTypes.length) {
+          const r = await reinjectUdtaBoxes(inputPath, outPath, keepTypes);
+          if (r.inserted.length) actions.push(`Caixa(s) de udta mantida(s) por escolha reinserida(s) byte a byte: ${r.inserted.join(', ')}.`);
+          warnings.push(...r.warnings);
+        }
+      }
       checkAbort();
 
       // ── Validação ──
@@ -192,7 +205,7 @@ export class JobRunner {
       checkAbort();
       setFraction(0.5);
       const outInspection = validation.probe
-        ? await inspectMetadata(outPath, plan.expected.kind, plan.outputExt, validation.probe)
+        ? await inspectMetadata(outPath, plan.expected.kind, plan.outputExt, validation.probe, { ffmpegPath: tools.ffmpeg.path })
         : { items: [], warnings: [], orientation: null };
       const beforeItems = planAsset.metadata?.items ?? [];
       const patterns = residualPatterns(beforeItems, plan.settings.metadata);
@@ -203,6 +216,14 @@ export class JobRunner {
       checkAbort();
       const residual = new Set([...scan.found].map((i) => patterns[i]!.itemId));
       const comparison = compareMetadata(beforeItems, outInspection.items, plan.settings.metadata, residual, actions);
+      // Campos que o usuário mandou manter e que não chegaram à saída: nunca em silêncio.
+      const lost = comparison.removed.filter((r) => !r.requested && r.category !== 'technical');
+      if (lost.length) {
+        const names = [...new Set(lost.map((r) => r.key))];
+        warnings.push(
+          `${lost.length} campo(s) de metadados mantidos por escolha não puderam ser reinseridos na saída: ${names.slice(0, 8).join(', ')}${names.length > 8 ? '…' : ''}.`,
+        );
+      }
 
       // Entrada intacta depois do processamento?
       const statAfter = await fsp.stat(inputPath).catch(() => null);
@@ -302,6 +323,13 @@ export class JobRunner {
           log.warn({ err: (err as Error).message }, 'miniatura da saída falhou');
         }
       }
+      if (signal.aborted) {
+        // Cancelada (ou encerramento) durante a finalização: descarta a saída.
+        await fsp.rm(storage.file(sid, 'outputs', finalName), { force: true });
+        if (thumb) await fsp.rm(storage.file(sid, 'thumbs', thumb), { force: true });
+        checkAbort();
+      }
+      // Daqui até a gravação não há await: um cancelamento não pode se intercalar.
       const finishedAt = Date.now();
       report.job.finishedAt = new Date(finishedAt).toISOString();
       report.job.durationMs = finishedAt - (job.started_at ?? finishedAt);
@@ -347,7 +375,8 @@ export class JobRunner {
     const srcContainer = imageContainerOf(inputExt);
     const outContainer = imageContainerOf(plan.outputExt);
     if (!srcContainer || !outContainer) return { actions: [] as string[], warnings: [] as string[] };
-    const blocks = readImageBlocks(await fsp.readFile(inputPath), srcContainer);
+    const srcBuf = await fsp.readFile(inputPath);
+    const blocks = readImageBlocks(srcBuf, srcContainer);
     let exif: Buffer | null = null;
     if (blocks.exif) {
       const r = rebuildExif(blocks.exif, plan.settings.metadata, { keepOrientation: false });
@@ -366,7 +395,17 @@ export class JobRunner {
       }
     }
     const icc = plan.settings.metadata.preserveColorProfile ? blocks.icc : null;
-    const result = injectImageMetadata(await fsp.readFile(outPath), outContainer, { exif, icc });
+    // PNG → PNG: os demais blocos mantidos por escolha (textos, tIME, XMP) são
+    // os que a própria limpeza sem perdas manteria, copiados byte a byte.
+    let pngChunks: Buffer[] = [];
+    if (srcContainer === 'png' && outContainer === 'png') {
+      const cleaned = cleanImage(srcBuf, 'png', plan.settings.metadata).buffer;
+      const parsed = parsePng(cleaned);
+      pngChunks = parsed.chunks
+        .filter((c) => !PNG_IMAGE_CHUNKS.has(c.type) && c.type !== 'eXIf' && c.type !== 'iCCP')
+        .map((c) => cleaned.subarray(c.start, c.end));
+    }
+    const result = injectImageMetadata(await fsp.readFile(outPath), outContainer, { exif, icc, pngChunks });
     if (result.actions.length) await fsp.writeFile(outPath, result.buffer);
     return result;
   }

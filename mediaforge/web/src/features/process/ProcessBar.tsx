@@ -10,7 +10,8 @@ import { api, ApiError, supportsH264, type PreviewResult } from '../../lib/api';
 import { formatDuration, formatResolution } from '../../lib/format';
 import { applyBatch, applyJob, useSystem } from '../../lib/queries';
 import { useWorkspace } from '../../state/workspace';
-import { buildBatchRequest, countOutputs } from './batchRequest';
+import { useProfileCatalog } from '../settings/ProfilesBar';
+import { buildBatchRequest, countOutputs, knownProfiles } from './batchRequest';
 import { NoteList, OperationList, PlanJobCard } from './PlanView';
 
 export function ProcessBar({ selectedAssets, focus, onProcessed }: { selectedAssets: AssetDTO[]; focus: AssetDTO | undefined; onProcessed: () => void }) {
@@ -26,8 +27,10 @@ export function ProcessBar({ selectedAssets, focus, onProcessed }: { selectedAss
   const [offset, setOffset] = useState(0);
 
   const ids = selectedAssets.map((a) => a.id);
-  const count = countOutputs(selectedAssets, ws.settingsFor, ws.profiles);
-  const request = () => buildBatchRequest(ids, ws.scope, ws.settings, ws.perAsset, ws.profiles);
+  const catalog = useProfileCatalog();
+  const profiles = catalog ? knownProfiles(ws.profiles, catalog) : ws.profiles;
+  const count = countOutputs(selectedAssets, ws.settingsFor, profiles, catalog ?? { exportProfiles: [], saved: [] });
+  const request = () => buildBatchRequest(ids, ws.scope, ws.settings, ws.perAsset, profiles);
   const ready = !!system?.ffmpeg.available && ids.length > 0;
 
   const validate = async () => {

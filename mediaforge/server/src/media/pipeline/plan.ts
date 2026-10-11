@@ -531,6 +531,17 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     start = ctx.segment.start;
     end = ctx.segment.end;
   }
+  // Fronteiras alinhadas à grade de quadros: o corte começa exatamente num
+  // quadro e partes vizinhas compartilham o mesmo instante (nenhum quadro
+  // repetido nem perdido entre elas).
+  const gridFps = info.fps && info.fps > 0 && info.fps <= 240 ? info.fps : null;
+  if (gridFps) {
+    // Primeiro quadro em/depois do instante (tolerância de 1% de quadro para
+    // valores já alinhados, como 2/3 s escrito 0,666667).
+    const snap = (t: number) => Math.ceil(t * gridFps - 0.01) / gridFps;
+    start = snap(start);
+    if (duration > 0 && end < duration - 0.0005) end = Math.min(snap(end), duration);
+  }
   if (end - start < 0.1 && duration > 0) errors.push('O trecho selecionado é curto demais (mínimo 0,1 s).');
   const trimmed = start > 0.0005 || (duration > 0 && end < duration - 0.0005);
   const mainDur = Math.max(0, end - start) / s.speed;
@@ -573,8 +584,12 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     return inputs.length - 1;
   };
   const mainInputOpts: string[] = [];
-  if (start > 0.0005) mainInputOpts.push('-ss', num(start, 3));
-  if (duration > 0 && end < duration - 0.0005) mainInputOpts.push('-t', num(end - start, 3));
+  // -ss meio milissegundo antes do quadro inicial (que fica, sem ambiguidade de
+  // arredondamento). O FFmpeg conta o -t a partir do primeiro quadro mantido:
+  // terminar 0,25 ms antes do quadro seguinte exclui exatamente esse quadro.
+  const SEEK_EPS = 0.0005;
+  if (start > 0.0005) mainInputOpts.push('-ss', num(Math.max(0, start - SEEK_EPS), 6));
+  if (duration > 0 && end < duration - 0.0005) mainInputOpts.push('-t', num(end - start - SEEK_EPS / 2, 6));
   const mainIdx = addInput(mainInputOpts, asset.path);
 
   const contentSteps = (srcW: number, srcH: number, g0: typeof s.geometry, isMain: boolean): FilterStep[] => {
@@ -735,6 +750,20 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     else if (!canCopyVideo(info.videoCodec, container)) errors.push(`O codec ${info.videoCodec} não pode ser copiado para ${CONTAINER_LABEL[container]}.`);
     vCodec = 'copy';
   } else vCodec = vChoice;
+  // Orientação de vídeo: ao recodificar, o FFmpeg grava a rotação nos pixels
+  // (sem matriz). Na cópia, "não preservar" remove a matriz sem girar os pixels.
+  const rotation = vStream.rotation ?? 0;
+  if (!s.metadata.preserveOrientation && rotation % 360 !== 0 && vCodec === 'copy' && !preview) {
+    if (tools.capabilities.displayRotation) {
+      inputs[mainIdx]!.unshift(`-display_rotation:${info.videoIndex}`, '0');
+      operations.push({ id: 'orientation', label: 'Orientação', detail: `Matriz de rotação (${rotation}°) removida a pedido, sem girar os pixels` });
+      warnings.push('A rotação do vídeo foi removida a pedido; sem recodificar, o vídeo pode aparecer deitado.');
+    } else {
+      skipped.push({ label: 'Remover orientação', reason: 'O FFmpeg instalado não tem a opção -display_rotation; a matriz de rotação foi mantida (recodifique para gravar a rotação nos pixels).' });
+    }
+  } else if (rotation % 360 !== 0 && vCodec !== 'copy' && !preview) {
+    operations.push({ id: 'orientation', label: 'Orientação', detail: `Rotação de ${rotation}° gravada nos pixels; a saída não tem matriz de rotação` });
+  }
   if (vCodec === 'copy' && geo.parityOnly) {
     geo = { ...geo, width: srcDispW, height: srcDispH, steps: [], operations: [], warnings: [], changed: false, parityOnly: false };
     W = geo.width;
@@ -782,7 +811,12 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     });
   } else {
     const steps = contentSteps(0, 0, s.geometry, true);
+    // Depois do -ss, o primeiro quadro começa em zero (sem preenchimento no início).
+    if (vCodec !== 'copy' && start > 0.0005) steps.unshift(simple('setpts=PTS-STARTPTS'));
     if (fpsRequested) steps.push(simple(`fps=${num(fpsRequested, 3)}`));
+    // Velocidade: a taxa de saída é a da fonte; o filtro fps escolhe os quadros
+    // (2× = um sim, um não desde o primeiro; 0,5× = cada quadro duas vezes).
+    else if (s.speed !== 1 && info.fps) steps.push(simple(`fps=${num(info.fps, 6)}`));
     vOut = g.apply(`[${mainIdx}:${info.videoIndex}]`, steps);
     if (keepMainAudio && !(trackAsset && track!.mode === 'replace')) {
       const af = audioPrep(false, true);
@@ -943,24 +977,50 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
 
   // Metadados: descarta tudo e regrava só o que foi preservado por escolha.
   const meta = s.metadata;
-  args.push('-map_metadata', '-1');
-  const chaptersKept = !meta.remove.container && !trimmed && !concat && s.speed === 1;
+  const chaptersKept = !meta.remove.container && !trimmed && !concat && s.speed === 1 && !preview;
+  // "-map_metadata -1" também apaga os títulos dos capítulos (e o muxer MP4
+  // grava uma referência de capítulo quebrada): com capítulos mantidos, só as
+  // tags globais e de fluxo são descartadas.
+  if (chaptersKept) args.push('-map_metadata:g', '-1', '-map_metadata:s', '-1');
+  else args.push('-map_metadata', '-1');
   args.push('-map_chapters', chaptersKept ? String(mainIdx) : '-1');
   let customTags = false;
   if (asset.metadata && !preview) {
+    // Valores completos (nunca o texto encurtado da exibição). A linha de comando
+    // do Windows tem ~32 mil caracteres: acima do orçamento, o campo não é
+    // regravado e isso aparece no relatório.
+    let budget = 20_000;
+    const preserved = (item: (typeof asset.metadata.items)[number]): string | null => {
+      const full = item.raw ?? (item.truncated ? null : item.value);
+      if (full === null || full.length > budget) {
+        skipped.push({ label: `Metadado preservado "${item.key}"`, reason: 'Valor longo demais para regravar com segurança; o campo não foi copiado para a saída.' });
+        return null;
+      }
+      budget -= full.length;
+      return full;
+    };
     for (const item of asset.metadata.items) {
       if (item.category === 'technical' || meta.remove[item.category]) continue;
       if (item.scope === 'container') {
         if (normalizeKey(item.key) === 'encoder' && !meta.remove.software) continue; // o muxer regrava
-        args.push('-metadata', `${item.key}=${item.value}`);
+        const v = preserved(item);
+        if (v === null) continue;
+        args.push('-metadata', `${item.key}=${v}`);
         if (!STANDARD_MP4_TAGS.has(normalizeKey(item.key))) customTags = true;
       } else if (item.scope === 'stream' && (item.id.startsWith('st:v:') || item.id.startsWith('st:a:'))) {
         const k = normalizeKey(item.key);
         if (k === 'encoder' || k === 'duration' || k.startsWith('_statistics') || k === 'number_of_frames' || k === 'number_of_bytes' || k === 'bps') continue;
         if (item.id.startsWith('st:a:') && !aOut) continue;
-        args.push(`-metadata:s:${item.id.startsWith('st:v:') ? 'v' : 'a'}:0`, `${item.key}=${item.value}`);
+        const v = preserved(item);
+        if (v === null) continue;
+        args.push(`-metadata:s:${item.id.startsWith('st:v:') ? 'v' : 'a'}:0`, `${item.key}=${v}`);
       }
     }
+  }
+  if (meta.remove.software && aCodec === 'copy' && !preview && asset.metadata?.items.some((i) => i.id === 'bitstream:audio-lavc')) {
+    warnings.push(
+      'O áudio será copiado com a assinatura do codificador gravada dentro dos próprios quadros (Lavc…); ela só sai recodificando o áudio (modo Personalizado, codec de áudio AAC ou Opus). A remoção de "Software" ficará como não comprovada.',
+    );
   }
   if (meta.remove.software || preview) {
     args.push('-fflags', '+bitexact');
