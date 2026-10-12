@@ -101,7 +101,34 @@ Como executar: veja o [README](../README.md) (`npm install`, `npm run build`, `n
 
 ## Resultados dos testes
 
-_Seção preenchida com a execução final (ver abaixo)._
+Execução final em 12/10/2026, Linux (Node 22.22, FFmpeg 6.1.1, Chromium do Playwright 1.56.1). Todas as mídias de
+teste são geradas pelo FFmpeg na hora; as verificações conferem bytes, SHA-256, quadros decodificados, PSNR,
+`ffprobe` e o sistema de arquivos — nunca apenas a existência de um arquivo.
+
+| Suíte | Arquivos | Testes | Resultado |
+| --- | --- | --- | --- |
+| Servidor — unidade (`server/tests/unit`) | 6 | 294 | 294 aprovados |
+| Servidor — integração com FFmpeg real (`server/tests/integration`) | 12 | 219 | 219 aprovados |
+| Interface — unidade (`web`, Vitest) | 1 | 12 | 12 aprovados |
+| Ponta a ponta no navegador (`web/e2e`, Playwright) | 1 | 8 | 8 aprovados |
+| Typecheck (`tsc` de servidor + testes, interface) | — | — | sem erros |
+| Build de produção (`npm run build`) + teste de fumaça | — | — | ok (`/api/health`, interface servida, `Host` estranho → 403, encerramento com aba aberta em ~1,3 s) |
+
+O que as suítes de integração cobrem, entre outros pontos:
+- **Importação**: tipo real pelos bytes, arquivos truncados/corrompidos recusados, nomes maliciosos, limites.
+- **Metadados de vídeo e imagem**: remoção por categoria comprovada nos bytes, campos mantidos regravados com o valor
+  completo, capítulos, caixas `udta` (inclusive com índice no início), XMP em `udta` com GPS não reinserido, PNG
+  recodificado sem chunks dependentes do IDAT antigo, assinatura `Lavc` no áudio copiado relatada.
+- **Conversão e tempo**: cortes, partes e velocidade conferidos quadro a quadro contra a fonte (sem quadro repetido
+  nem perdido), sincronia em fonte VFR com lacuna, taxa fracionária exata.
+- **Fila e recuperação**: concorrência, cancelamento (inclusive na finalização), isolamento de falhas, retentativas,
+  reinício com o mesmo diretório, bloqueio contra segunda instância.
+- **Integridade e exportação**: SHA-256 do relatório = bytes baixados, adulteração detectada no download e no ZIP,
+  `SHA256SUMS.txt` conferido entrada a entrada, descritores fechados após downloads abortados.
+- **Segurança e sessões**: `Host`/`Origin`/`Sec-Fetch-Site`, chave de acesso e limite de tentativas (com e sem proxy),
+  isolamento entre sessões, limite de lote contando planos com erro.
+- **Perfis e limpeza**: perfis salvos e embutidos (promoção do modo Rápido), expiração de sessões, eventos em tempo
+  real ao remover tarefas.
 
 ## Limitações conhecidas
 
@@ -126,4 +153,14 @@ _Seção preenchida com a execução final (ver abaixo)._
   a prévia muda para WebM/VP9 automaticamente.
 - **Memória/CPU**: não há limite rígido de memória por processo (não é portável entre Windows e Linux); o controle é feito
   por concorrência, threads, prioridade, tempo limite e memória livre mínima para iniciar tarefas.
-- **Rede**: pensado para uso local (`127.0.0.1`). Para expor na rede, defina `ACCESS_KEY` e use HTTPS na frente.
+- **Rede**: pensado para uso local (`127.0.0.1`). Para expor na rede, defina `ACCESS_KEY` e use HTTPS na frente; com
+  proxy reverso, defina `TRUST_PROXY` para o limite de tentativas valer por cliente. Clientes atrás de um mesmo NAT
+  dividem esse limite (quem já tem sessão não é afetado).
+- **Fontes VFR**: cortes e divisão em fontes de cadência variável não são alinhados a uma grade de quadros (não há grade
+  única); o corte cai no primeiro quadro a partir do instante e o início pode repetir um quadro por uma fração de
+  segundo para manter a sincronia com o áudio.
+- **Vídeo que começa depois do contêiner** (ex.: MKV/MPEG-TS com o vídeo deslocado em relação ao áudio): na divisão em
+  partes, a fronteira da 1ª parte é contada a partir do 1º quadro de vídeo e pode repetir alguns quadros na parte
+  seguinte.
+- **Caixas proprietárias opacas em `udta`** (ex.: `smta`, `SDLN`, `MUID`): como podem conter qualquer dado, só são
+  reinseridas quando nenhuma categoria sensível foi marcada para remoção; caso contrário, o relatório avisa.

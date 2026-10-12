@@ -141,6 +141,7 @@ Copie `.env.example` para `.env` (na pasta `mediaforge/`) e ajuste. Principais o
 | `HOST` / `PORT` | `127.0.0.1` / `5310` | Endereço do servidor. Mantenha `127.0.0.1` para uso local. |
 | `ACCESS_KEY` | vazio | Exige chave (mínimo 16 caracteres) para iniciar sessão; 10 tentativas erradas bloqueiam o IP por 15 min. |
 | `ALLOWED_HOSTS` | vazio | Nomes de host extras aceitos (além de `localhost` e endereços IP), separados por vírgula. |
+| `TRUST_PROXY` | `false` | Atrás de proxy reverso: `true` (ou IPs dos proxies) para o limite de tentativas valer por cliente. |
 | `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | Binários do FFmpeg. |
 | `DATA_DIR` | `./data` | Banco SQLite, uploads, saídas e temporários. |
 | `MAX_UPLOAD_MB`, `MAX_DURATION_SEC`, `MAX_RESOLUTION` | 4096 / 10800 / 8192 | Limites por arquivo. |
