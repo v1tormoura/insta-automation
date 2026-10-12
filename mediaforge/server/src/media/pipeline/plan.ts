@@ -1,7 +1,10 @@
 import {
   effectiveSettings,
+  frameGridFps,
   METADATA_CATEGORY_LABELS,
   processingSettingsSchema,
+  rateValue,
+  snapToFrame,
   type AssetKind,
   type ImageFormat,
   type JobReport,
@@ -9,6 +12,7 @@ import {
   type MetadataInspection,
   type OperationRecord,
   type ProcessingSettings,
+  type Segment as SplitSegment,
   type SegmentSource,
   type VideoContainer,
 } from '@mediaforge/shared';
@@ -56,12 +60,7 @@ export interface PlanAsset {
   metadata: MetadataInspection | null;
 }
 
-export interface PlanSegment {
-  start: number;
-  end: number;
-  index: number;
-  count: number;
-}
+export type PlanSegment = SplitSegment;
 
 export interface PlanContext {
   tools: MediaTools;
@@ -531,16 +530,13 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     start = ctx.segment.start;
     end = ctx.segment.end;
   }
-  // Fronteiras alinhadas à grade de quadros: o corte começa exatamente num
-  // quadro e partes vizinhas compartilham o mesmo instante (nenhum quadro
-  // repetido nem perdido entre elas).
-  const gridFps = info.fps && info.fps > 0 && info.fps <= 240 ? info.fps : null;
+  // Fronteiras alinhadas à grade de quadros (fontes de cadência constante, taxa
+  // exata): o corte começa exatamente num quadro e partes vizinhas compartilham
+  // o mesmo instante (nenhum quadro repetido nem perdido entre elas).
+  const gridFps = frameGridFps(info);
   if (gridFps) {
-    // Primeiro quadro em/depois do instante (tolerância de 1% de quadro para
-    // valores já alinhados, como 2/3 s escrito 0,666667).
-    const snap = (t: number) => Math.ceil(t * gridFps - 0.01) / gridFps;
-    start = snap(start);
-    if (duration > 0 && end < duration - 0.0005) end = Math.min(snap(end), duration);
+    start = snapToFrame(start, gridFps);
+    if (duration > 0 && end < duration - 0.0005) end = Math.min(snapToFrame(end, gridFps), duration);
   }
   if (end - start < 0.1 && duration > 0) errors.push('O trecho selecionado é curto demais (mínimo 0,1 s).');
   const trimmed = start > 0.0005 || (duration > 0 && end < duration - 0.0005);
@@ -811,12 +807,16 @@ function planVideo(asset: PlanAsset, s: ProcessingSettings, ctx: PlanContext): P
     });
   } else {
     const steps = contentSteps(0, 0, s.geometry, true);
-    // Depois do -ss, o primeiro quadro começa em zero (sem preenchimento no início).
-    if (vCodec !== 'copy' && start > 0.0005) steps.unshift(simple('setpts=PTS-STARTPTS'));
+    // Sem "setpts=PTS-STARTPTS": vídeo e áudio mantêm a mesma referência do -ss
+    // (numa fonte VFR com lacuna, puxar só o vídeo para zero dessincronizaria).
     if (fpsRequested) steps.push(simple(`fps=${num(fpsRequested, 3)}`));
-    // Velocidade: a taxa de saída é a da fonte; o filtro fps escolhe os quadros
-    // (2× = um sim, um não desde o primeiro; 0,5× = cada quadro duas vezes).
-    else if (s.speed !== 1 && info.fps) steps.push(simple(`fps=${num(info.fps, 6)}`));
+    // Velocidade: a taxa de saída é a da fonte (fração exata quando conhecida); o
+    // filtro fps escolhe os quadros (2× = um sim, um não desde o primeiro; 0,5× =
+    // cada quadro duas vezes).
+    else if (s.speed !== 1 && (info.frameRateExact || info.fps)) {
+      const rate = info.frameRateExact && rateValue(info.frameRateExact) ? info.frameRateExact : num(info.fps!, 6);
+      steps.push(simple(`fps=${rate}`));
+    }
     vOut = g.apply(`[${mainIdx}:${info.videoIndex}]`, steps);
     if (keepMainAudio && !(trackAsset && track!.mode === 'replace')) {
       const af = audioPrep(false, true);

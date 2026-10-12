@@ -504,6 +504,35 @@ describe('chave de acesso (ACCESS_KEY)', () => {
       expect(again.status).toBe(429);
     });
   });
+
+  describe('atrás de proxy reverso (TRUST_PROXY)', () => {
+    const wrong = (i: number) => `errada-proxy-${i}-0123456789abcdef`;
+    const viaProxy = (ip: string) => ({ headers: { 'x-forwarded-for': ip } });
+
+    it('com TRUST_PROXY=true o bloqueio vale por cliente real (X-Forwarded-For), não para o proxy inteiro', async () => {
+      const px = await startServer({ ACCESS_KEY: KEY, TRUST_PROXY: 'true' });
+      try {
+        for (let i = 1; i <= 10; i++) expect((await login(px, wrong(i), viaProxy('203.0.113.7'))).status).toBe(401);
+        expect((await login(px, KEY, viaProxy('203.0.113.7'))).status).toBe(429);
+        // Outro cliente atrás do mesmo proxy entra normalmente.
+        const other = await login(px, KEY, viaProxy('198.51.100.20'));
+        expect(other.status, other.text).toBe(200);
+      } finally {
+        await px.close();
+      }
+    });
+
+    it('sem TRUST_PROXY o cabeçalho X-Forwarded-For é ignorado (não serve para escapar do bloqueio)', async () => {
+      const np = await startServer({ ACCESS_KEY: KEY });
+      try {
+        for (let i = 1; i <= 10; i++) expect((await login(np, wrong(i), viaProxy(`192.0.2.${i}`))).status).toBe(401);
+        const spoof = await login(np, KEY, viaProxy('192.0.2.200'));
+        expect(spoof.status, 'trocar o X-Forwarded-For não pode zerar o bloqueio').toBe(429);
+      } finally {
+        await np.close();
+      }
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -924,6 +953,26 @@ describe('lote limitado (regressão)', () => {
     expect(listFiles(sessionArea(bl.dataDir, sid, 'tmp'))).toEqual([]);
     const hist = (await c.get<Array<{ message: string }>>('/api/history')).data;
     expect(hist.some((h) => /Lote criado/.test(h.message))).toBe(false);
+  });
+
+  it('planos que FALHAM também contam para o limite: a expansão para cedo e a resposta não cresce sem limite', async () => {
+    // Transições de 5 s em partes de ~0,2 s: todo plano falha. 3 arquivos × 2 perfis × 10 partes
+    // seriam 60 tentativas; com o limite 4, o servidor para na 5ª.
+    const failing = {
+      assetIds: videos.map((v) => v.id),
+      scope: 'common',
+      settings: { mode: 'editorial', fade: { in: 5, out: 5 }, segmentation: { mode: 'count', value: 10 } },
+      profiles: PROFILES,
+    };
+    const plan = await c.post('/api/plan', failing);
+    expect(plan.status).toBe(200);
+    expect(plan.data.ok).toBe(false);
+    expect(plan.data.jobs).toEqual([]);
+    const msgs: string[] = plan.data.errors.map((e: any) => e.message);
+    expect(msgs.filter((m) => /transições/i.test(m)).length).toBe(4);
+    expect(msgs.at(-1)).toBe('O lote geraria mais de 4 tarefas (máximo por lote). Selecione menos arquivos, perfis ou partes.');
+    expect(msgs).toHaveLength(5);
+    expect(await jobCount()).toBe(0);
   });
 
   it('exatamente 4 tarefas (2 arquivos × 2 perfis) cabem no lote e são processadas de verdade', async () => {

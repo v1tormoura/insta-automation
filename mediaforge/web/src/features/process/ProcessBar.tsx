@@ -29,7 +29,7 @@ export function ProcessBar({ selectedAssets, focus, onProcessed }: { selectedAss
   const ids = selectedAssets.map((a) => a.id);
   const catalog = useProfileCatalog();
   const profiles = catalog ? knownProfiles(ws.profiles, catalog) : ws.profiles;
-  const count = countOutputs(selectedAssets, ws.settingsFor, profiles, catalog ?? { exportProfiles: [], saved: [] });
+  const count = countOutputs(selectedAssets, ws.settingsFor, profiles, catalog);
   const request = () => buildBatchRequest(ids, ws.scope, ws.settings, ws.perAsset, profiles);
   const ready = !!system?.ffmpeg.available && ids.length > 0;
 

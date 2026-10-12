@@ -47,6 +47,12 @@ const envSchema = z.object({
   PREVIEW_MAX_SECONDS: int(1, 60).default(8),
 
   ACCESS_KEY: z.string().min(16, 'use pelo menos 16 caracteres (de preferência aleatórios)').max(500).optional(),
+  /**
+   * Atrás de um proxy reverso (HTTPS): "true" confia no X-Forwarded-For, ou uma
+   * lista de IPs/CIDRs dos proxies. Sem isso, todos os clientes parecem vir do
+   * proxy (e dividem o limite de tentativas da chave de acesso).
+   */
+  TRUST_PROXY: z.string().default('false'),
   /** Nomes de host extras aceitos no cabeçalho Host (separados por vírgula). */
   ALLOWED_HOSTS: z.string().default(''),
   COOKIE_SECURE: bool.default(false),
@@ -55,6 +61,13 @@ const envSchema = z.object({
 });
 
 export type AppConfig = ReturnType<typeof loadConfig>;
+
+function parseTrustProxy(v: string): boolean | string[] {
+  const t = v.trim().toLowerCase();
+  if (['', '0', 'false', 'no', 'nao', 'não', 'off'].includes(t)) return false;
+  if (['1', 'true', 'yes', 'sim', 'on'].includes(t)) return true;
+  return v.split(',').map((x) => x.trim()).filter(Boolean);
+}
 
 /** Carrega `.env` da raiz do projeto (se existir) e valida as variáveis. */
 export function loadConfig(overrides: Record<string, string | number | boolean | undefined> = {}) {
@@ -107,6 +120,7 @@ export function loadConfig(overrides: Record<string, string | number | boolean |
     sessionTtlMs: env.SESSION_TTL_HOURS * 3600 * 1000,
     cleanupIntervalMs: env.CLEANUP_INTERVAL_MIN * 60 * 1000,
     accessKey: env.ACCESS_KEY ?? null,
+    trustProxy: parseTrustProxy(env.TRUST_PROXY),
     allowedHosts: env.ALLOWED_HOSTS.split(',')
       .map((h) => h.trim().toLowerCase().replace(/^\[|\]$/g, ''))
       .filter(Boolean),

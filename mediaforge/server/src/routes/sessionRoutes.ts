@@ -130,6 +130,14 @@ export async function sessionRoutes(app: FastifyInstance, deps: Deps) {
     return ctx.repos.history(s.id).map(historyToDTO);
   });
 
+  // Conexões SSE abertas: encerradas antes do fechamento do servidor, senão
+  // app.close() espera por elas (uma aba aberta travaria o desligamento).
+  const streams = new Set<import('node:http').ServerResponse>();
+  app.addHook('preClose', async () => {
+    for (const res of streams) res.end();
+    streams.clear();
+  });
+
   /** Eventos em tempo real (Server-Sent Events). */
   app.get('/api/events', async (req, reply) => {
     const s = await session(deps, req, reply);
@@ -146,9 +154,11 @@ export async function sessionRoutes(app: FastifyInstance, deps: Deps) {
     send({ type: 'queue', queue: ctx.queue.stats() });
     const unsubscribe = ctx.events.subscribe(s.id, send);
     const ping = setInterval(() => res.write(': ping\n\n'), 20_000);
+    streams.add(res);
     req.raw.on('close', () => {
       clearInterval(ping);
       unsubscribe();
+      streams.delete(res);
     });
   });
 }

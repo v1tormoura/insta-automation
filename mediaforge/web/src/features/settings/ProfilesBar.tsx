@@ -32,8 +32,6 @@ function Chip({ active, onClick, title, children, testId }: { active: boolean; o
   );
 }
 
-const EMPTY_CATALOG: ProfileCatalog = { exportProfiles: [], saved: [] };
-
 /**
  * Catálogo de perfis (embutidos + salvos) quando ambos carregaram. Perfis
  * marcados que deixaram de existir (ex.: excluídos em outra aba) saem do lote.
@@ -61,7 +59,7 @@ export function ProfilesBar({ selectedAssets }: { selectedAssets: AssetDTO[] }) 
   const [busy, setBusy] = useState(false);
 
   const catalog = useProfileCatalog();
-  const count = countOutputs(selectedAssets, ws.settingsFor, ws.profiles, catalog ?? EMPTY_CATALOG);
+  const count = countOutputs(selectedAssets, ws.settingsFor, ws.profiles, catalog);
   const activeProfiles = catalog ? knownProfiles(ws.profiles, catalog) : ws.profiles;
 
   const save = async () => {

@@ -1,14 +1,17 @@
-import { applyExportProfile, type AssetDTO, type BatchRequest, type BuiltinProfile, type ProcessingSettings, type SavedProfileDTO } from '@mediaforge/shared';
+import { applyExportProfile, computeSegments, rateValue, SegmentationError, type AssetDTO, type BatchRequest, type BuiltinProfile, type ProcessingSettings, type SavedProfileDTO } from '@mediaforge/shared';
 
-/** Partes geradas pela divisão (mesma regra do servidor). */
+/**
+ * Partes geradas pela divisão — o mesmo algoritmo do servidor (grade de
+ * quadros, resto curto somado à parte anterior). Divisão impossível → 0.
+ */
 export function partsFor(asset: AssetDTO, s: ProcessingSettings): number {
-  if (asset.kind !== 'video' || s.mode === 'quick' || s.segmentation.mode === 'none' || !asset.durationSec) return 1;
-  const start = s.trim.start ?? 0;
-  const end = Math.min(s.trim.end ?? asset.durationSec, asset.durationSec);
-  const len = end - start;
-  if (len <= 0) return 1;
-  if (s.segmentation.mode === 'count') return Math.max(1, Math.min(100, Math.round(s.segmentation.value)));
-  return Math.ceil(len / Math.max(1, s.segmentation.value) - 1e-9);
+  if (asset.kind !== 'video') return 1;
+  try {
+    return computeSegments(asset.durationSec, rateValue(asset.frameRateExact ?? null), s)?.length ?? 1;
+  } catch (err) {
+    if (err instanceof SegmentationError) return 0;
+    throw err;
+  }
 }
 
 export interface OutputCount {
@@ -25,7 +28,8 @@ export interface ProfileCatalog {
 }
 
 /** Configurações que o servidor usará para um perfil (null se o perfil não existir mais). */
-export function settingsForProfile(base: ProcessingSettings, profileId: string, catalog: ProfileCatalog): ProcessingSettings | null {
+export function settingsForProfile(base: ProcessingSettings, profileId: string, catalog: ProfileCatalog | null): ProcessingSettings | null {
+  if (!catalog) return null;
   if (profileId.startsWith('saved:')) return catalog.saved.find((p) => `saved:${p.id}` === profileId)?.settings ?? null;
   const p = catalog.exportProfiles.find((x) => x.id === profileId);
   return p ? applyExportProfile(base, p.patch).settings : null;
@@ -47,9 +51,11 @@ export function countOutputs(
   assets: AssetDTO[],
   settingsFor: (id: string) => ProcessingSettings,
   profiles: string[],
-  catalog: ProfileCatalog,
+  catalog: ProfileCatalog | null,
 ): OutputCount {
-  const active = knownProfiles(profiles, catalog);
+  // Catálogo ainda carregando (ou indisponível): conta os perfis como estão, com
+  // as configurações atuais — o lote enviado leva os mesmos ids.
+  const active = catalog ? knownProfiles(profiles, catalog) : profiles;
   let total = 0;
   let withParts = false;
   for (const a of assets) {

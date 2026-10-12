@@ -1,6 +1,9 @@
 import {
   applyExportProfile,
+  computeSegments,
   EXPORT_PROFILES,
+  frameGridFps,
+  SegmentationError,
   processingSettingsSchema,
   type BatchRequest,
   type PlanJobPreview,
@@ -44,31 +47,7 @@ export class BatchError extends Error {
   }
 }
 
-/** Divide o trecho em partes iguais (por quantidade) ou de duração fixa. */
-export function computeSegments(durationSec: number | null, s: ProcessingSettings): PlanSegment[] | null {
-  if (s.mode === 'quick' || s.segmentation.mode === 'none' || !durationSec) return null;
-  const start = s.trim.start ?? 0;
-  const end = Math.min(s.trim.end ?? durationSec, durationSec);
-  const len = end - start;
-  if (len <= 0) return null;
-  let count: number;
-  let partLen: number;
-  if (s.segmentation.mode === 'count') {
-    count = Math.max(1, Math.min(100, Math.round(s.segmentation.value)));
-    partLen = len / count;
-  } else {
-    partLen = Math.max(1, s.segmentation.value);
-    count = Math.ceil(len / partLen - 1e-9);
-    if (count > 100) throw new PlanError([`A divisão geraria ${count} partes (máximo 100). Aumente a duração de cada parte.`]);
-  }
-  const out: PlanSegment[] = [];
-  for (let i = 0; i < count; i++) {
-    const a = start + i * partLen;
-    const b = Math.min(end, start + (i + 1) * partLen);
-    if (b - a >= 0.1) out.push({ start: Number(a.toFixed(6)), end: Number(b.toFixed(6)), index: i + 1, count });
-  }
-  return out.map((p) => ({ ...p, count: out.length }));
-}
+const MAX_REPORTED_ERRORS = 50;
 
 export class BatchService {
   constructor(private ctx: AppContext) {}
@@ -112,6 +91,9 @@ export class BatchService {
     const items: Expanded[] = [];
     const cap = Math.max(0, Math.min(config.limits.maxJobsPerBatch, config.limits.maxJobsPerSession - repos.countJobs(sessionId)));
     let overflow = false;
+    // Conta TENTATIVAS (planos válidos ou com erro): configurações inválidas em
+    // 1000 arquivos × 20 perfis × 100 partes também não podem virar milhões de planos.
+    let attempted = 0;
     const ids = [...new Set(req.assetIds)];
     const profileIds = req.profiles ? [...new Set(req.profiles)] : undefined;
     const resolveAsset = (id: string) => {
@@ -159,16 +141,18 @@ export class BatchService {
         }
         let segments: Array<PlanSegment | null>;
         try {
-          segments = (asset.kind === 'video' ? computeSegments(planAsset.info.durationSec, ps.data) : null) ?? [null];
+          segments = (asset.kind === 'video' ? computeSegments(planAsset.info.durationSec, frameGridFps(planAsset.info), ps.data) : null) ?? [null];
         } catch (err) {
-          errors.push({ assetId: id, assetName: asset.original_name, message: (err as Error).message });
+          if (!(err instanceof SegmentationError)) throw err;
+          errors.push({ assetId: id, assetName: asset.original_name, message: err.message });
           continue;
         }
         for (const segment of segments) {
-          if (items.length >= cap) {
+          if (attempted >= cap) {
             overflow = true;
             break;
           }
+          attempted++;
           try {
             const plan = buildPlan(planAsset, ps.data, {
               tools,
@@ -211,6 +195,12 @@ export class BatchService {
         }
       }
     }
+    // Resposta enxuta: os primeiros erros e um resumo do restante.
+    if (errors.length > MAX_REPORTED_ERRORS) {
+      const extra = errors.length - MAX_REPORTED_ERRORS;
+      errors.splice(MAX_REPORTED_ERRORS);
+      errors.push({ assetId: null, assetName: null, message: `…e mais ${extra} erro(s) semelhante(s).` });
+    }
     return { items, errors, overflow };
   }
 
@@ -222,11 +212,13 @@ export class BatchService {
     return { ok: errors.length === 0 && items.length > 0, jobs: items.map((i) => i.preview), errors };
   }
 
-  private limitError(sessionId: string, count: number, overflow: boolean): string | null {
+  private limitError(sessionId: string, _count: number, overflow: boolean): string | null {
     const l = this.ctx.config.limits;
     if (!overflow) return null;
-    if (count >= l.maxJobsPerBatch) return `O lote geraria mais de ${l.maxJobsPerBatch} tarefas (máximo por lote). Selecione menos arquivos, perfis ou partes.`;
     const used = this.ctx.repos.countJobs(sessionId);
+    if (l.maxJobsPerSession - used >= l.maxJobsPerBatch) {
+      return `O lote geraria mais de ${l.maxJobsPerBatch} tarefas (máximo por lote). Selecione menos arquivos, perfis ou partes.`;
+    }
     return `Limite de ${l.maxJobsPerSession} tarefas por sessão atingido (${used} já existem). Remova tarefas concluídas.`;
   }
 

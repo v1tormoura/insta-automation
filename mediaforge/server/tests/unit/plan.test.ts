@@ -923,3 +923,58 @@ describe('buildPlan — divisão em partes', () => {
     expect(Math.abs(Number(v.duration) - 1.2)).toBeLessThan(0.1);
   });
 });
+
+// ── Fontes VFR e taxas fracionárias (regressões da revisão) ──────────────
+
+describe('corte em fonte VFR com lacuna: vídeo e áudio continuam sincronizados', () => {
+  it('trecho 3–6 s de um vídeo sem quadros entre 2 e 4 s: o vídeo NÃO é puxado para o início', async () => {
+    const src = path.join(tmpDir, 'vfr-gap.mp4');
+    execFileSync('ffmpeg', [
+      '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=128x72:r=30:d=6', '-f', 'lavfi', '-i', 'sine=f=440:d=6',
+      '-vf', "select='not(between(t,2,4))'", '-fps_mode', 'vfr', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', src,
+    ]);
+    const a = await load('vfrGap01', src, 'video', 'mp4');
+    expect(a.info.constantFrameRate).toBe(false);
+    const p = buildPlan(a, { mode: 'custom', trim: { start: 3, end: 6 } }, ctx());
+    expect(graphOf(p)).not.toContain('STARTPTS');
+    const out = runPlan(p);
+    const streams = ffprobe(out).streams;
+    const v = streams.find((x: any) => x.codec_type === 'video');
+    const au = streams.find((x: any) => x.codec_type === 'audio');
+    // Sincronizado: o vídeo cobre os mesmos 3 s do áudio (a lacuna 3–4 s é preenchida
+    // com o primeiro quadro). Puxar só o vídeo para zero deixaria ~2 s de vídeo.
+    expect(Number(au.duration)).toBeCloseTo(3, 0);
+    expect(Math.abs(Number(v.duration) - Number(au.duration))).toBeLessThan(0.15);
+  });
+});
+
+describe('divisão com taxa fracionária exata (30000/1001)', () => {
+  it('a grade usa a fração exata: partes vizinhas compartilham a fronteira em vídeos longos', async () => {
+    const { computeSegments, snapToFrame, rateValue } = await import('@mediaforge/shared');
+    const fps = rateValue('30000/1001')!;
+    const frames = 17983;
+    const duration = frames / fps;
+    const s = (await import('@mediaforge/shared')).processingSettingsSchema.parse({ mode: 'custom', segmentation: { mode: 'duration', value: 60 } });
+    const parts = computeSegments(duration, fps, s)!;
+    // Índice do 1º quadro de cada trecho (como o FFmpeg: primeiro quadro em/depois do instante).
+    const firstFrame = (t: number) => Math.round(snapToFrame(t, fps) * fps);
+    let total = 0;
+    for (const [i, part] of parts.entries()) {
+      const n = firstFrame(part.end) - firstFrame(part.start);
+      total += i === parts.length - 1 ? frames - firstFrame(part.start) : n;
+      if (i > 0) expect(part.start).toBe(parts[i - 1]!.end);
+      // Fronteira exatamente num quadro (sem o erro de 29,97 arredondado).
+      expect(Math.abs(part.start * fps - Math.round(part.start * fps))).toBeLessThan(1e-6);
+    }
+    expect(total).toBe(frames);
+  });
+
+  it('resto final mais curto que 0,1 s vai para a parte anterior (nada é descartado)', async () => {
+    const { computeSegments, processingSettingsSchema } = await import('@mediaforge/shared');
+    const s = processingSettingsSchema.parse({ mode: 'custom', segmentation: { mode: 'duration', value: 10 } });
+    const parts = computeSegments(30.03, 30000 / 1001, s)!;
+    expect(parts).toHaveLength(3);
+    expect(parts.at(-1)!.end).toBeCloseTo(30.03, 6);
+    expect(parts.every((p) => p.end - p.start >= 0.1)).toBe(true);
+  });
+});

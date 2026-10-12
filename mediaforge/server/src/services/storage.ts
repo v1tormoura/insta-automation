@@ -96,7 +96,9 @@ export class Storage {
           await fsp.copyFile(src, dest, fs.constants.COPYFILE_EXCL);
         } catch (e2) {
           if ((e2 as NodeJS.ErrnoException).code === 'EEXIST') continue;
-          await fsp.rm(dest, { force: true }).catch(() => undefined);
+          // Nunca apagar `dest` aqui: a falha pode vir da origem (antes de o destino
+          // ser criado) e `dest` pode ser a saída de outra tarefa. A cópia exclusiva
+          // da libuv/CopyFileW já remove o destino parcial que ela mesma criou.
           throw e2;
         }
       }

@@ -63,6 +63,10 @@ export interface MediaStreamInfo {
   height?: number;
   pixFmt?: string | null;
   fps?: number | null;
+  /** Taxa exata como fração do FFprobe ("30000/1001"), sem arredondamento. */
+  frameRate?: string | null;
+  /** r_frame_rate igual a avg_frame_rate: cadência constante. */
+  constantFrameRate?: boolean;
   sampleRate?: number | null;
   channels?: number | null;
   bitrate?: number | null;
@@ -87,6 +91,10 @@ export interface MediaInfo {
   displayHeight: number | null;
   rotation: number;
   fps: number | null;
+  /** Taxa exata do vídeo principal ("30000/1001"); ausente em registros antigos. */
+  frameRateExact?: string | null;
+  /** Cadência constante (fontes VFR não são alinhadas a uma grade de quadros). */
+  constantFrameRate?: boolean;
   videoCodec: string | null;
   audioCodec: string | null;
   hasAlpha: boolean;
@@ -114,6 +122,8 @@ export interface AssetDTO {
   width: number | null;
   height: number | null;
   fps: number | null;
+  /** Taxa exata quando a cadência é constante (para alinhar cortes como o servidor). */
+  frameRateExact?: string | null;
   videoCodec: string | null;
   audioCodec: string | null;
   hasAudio: boolean;

@@ -74,6 +74,21 @@ describe('quantidade de saídas (mesma regra do servidor)', () => {
     expect(r.total).toBe(1 + 4);
   });
 
+  it('mesma divisão do servidor: resto curto vai para a parte anterior; partes curtas demais → 0 saídas', () => {
+    // 30,03 s (900 quadros a 29,97) em partes de 10 s: 3 partes, a última com 10,03 s.
+    const v = asset({ durationSec: 900 / (30000 / 1001), frameRateExact: '30000/1001' });
+    expect(partsFor(v, custom((x) => (x.segmentation = { mode: 'duration', value: 10 })))).toBe(3);
+    // 3 s em 100 partes = 0,03 s cada: o servidor recusa; a interface não promete 100 saídas.
+    expect(partsFor(asset({ durationSec: 3 }), custom((x) => (x.segmentation = { mode: 'count', value: 100 })))).toBe(0);
+    // Mais de 100 partes por duração também é recusado.
+    expect(partsFor(asset({ durationSec: 600 }), custom((x) => (x.segmentation = { mode: 'duration', value: 1 })))).toBe(0);
+  });
+
+  it('catálogo ainda carregando: perfis marcados contam como estão (o lote leva os mesmos ids)', () => {
+    const s = defaultSettings('quick');
+    expect(countOutputs([asset({ kind: 'image', durationSec: null })], () => s, ['vertical-9x16', 'feed-4x5'], null)).toMatchObject({ profiles: 2, total: 2 });
+  });
+
   it('perfis inexistentes (salvo excluído, id desconhecido) são ignorados e podados', () => {
     const s = defaultSettings('quick');
     const ids = ['saved:apagado', 'nao-existe', 'feed-4x5'];

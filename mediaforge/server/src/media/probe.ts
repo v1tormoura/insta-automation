@@ -57,6 +57,15 @@ function num(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Fração do FFprobe ("30000/1001") validada, ou null. */
+export function exactRate(rate?: string): { text: string; value: number } | null {
+  if (!rate || !/^\d+(\/\d+)?$/.test(rate)) return null;
+  const [a, b = 1] = rate.split('/').map(Number);
+  if (!a || !b) return null;
+  const value = a / b;
+  return value > 0 && value < 1000 ? { text: b === 1 ? String(a) : `${a}/${b}`, value } : null;
+}
+
 export function parseRate(rate?: string): number | null {
   if (!rate || rate === '0/0') return null;
   const [a, b] = rate.split('/').map(Number);
@@ -94,6 +103,10 @@ export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number, decoderRot
       out.height = s.height;
       out.pixFmt = s.pix_fmt ?? null;
       out.fps = parseRate(s.avg_frame_rate) ?? parseRate(s.r_frame_rate);
+      const r = exactRate(s.r_frame_rate);
+      const avg = exactRate(s.avg_frame_rate);
+      out.frameRate = (r ?? avg)?.text ?? null;
+      out.constantFrameRate = !!r && !!avg && Math.abs(r.value - avg.value) < 1e-9;
       out.rotation = streamRotation(s);
       out.attachedPic = s.disposition?.attached_pic === 1;
       out.colorTransfer = s.color_transfer ?? null;
@@ -125,6 +138,8 @@ export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number, decoderRot
     displayHeight: video ? (swap ? video.width! : video.height!) : null,
     rotation,
     fps: video?.fps ?? null,
+    frameRateExact: video?.frameRate ?? null,
+    constantFrameRate: video?.constantFrameRate ?? false,
     videoCodec: video?.codec ?? null,
     audioCodec: audio?.codec ?? null,
     hasAlpha: !!video?.pixFmt && ALPHA_PIX.test(video.pixFmt),

@@ -51,6 +51,7 @@ export function assetToDTO(row: AssetRow, repos: Repositories): AssetDTO {
     width: (swap ? info?.displayHeight : info?.displayWidth) ?? null,
     height: (swap ? info?.displayWidth : info?.displayHeight) ?? null,
     fps: info?.fps ?? null,
+    frameRateExact: info?.constantFrameRate ? info.frameRateExact ?? null : null,
     videoCodec: info?.videoCodec ?? null,
     audioCodec: info?.audioCodec ?? null,
     hasAudio: info?.audioIndex !== null && info?.audioIndex !== undefined,

@@ -105,7 +105,7 @@ async function buildAppLocked(
           },
     logController: new LogController({ disableRequestLogging: true }),
     bodyLimit: 2 * 1024 * 1024,
-    trustProxy: false,
+    trustProxy: config.trustProxy,
   });
 
   const db = new Database(config.dbFile);
