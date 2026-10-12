@@ -8,9 +8,9 @@
 const banco = require('./helpers/banco');
 const { getGlobalMetrics } = require('../src/controllers/analyticsController');
 
-async function pedir() {
+async function pedir(period = '30d') {
   const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
-  await getGlobalMetrics(await banco.req({ query: { period: '30d', force: 'true' } }), res);
+  await getGlobalMetrics(await banco.req({ query: { ...(period ? { period } : {}), force: 'true' } }), res);
   return res.json.mock.calls[0][0];
 }
 const insight = campos => banco.sql`insert into insights ${banco.sql({ igMediaId: `m${Math.random()}`, postedAt: new Date(), ...campos })}`;
@@ -45,4 +45,17 @@ test('soma só as contas em serviço e calcula o período', async () => {
   // O story com muita audiência não vira o "melhor post".
   expect(r.bestPost).toEqual(expect.objectContaining({ username: 'conta1', igMediaId: 'media_123', videoViews: 120000 }));
   expect(r.bestPostByAccount.find(b => b.username === 'conta2').hasPost).toBe(false);
+});
+
+test('"Hoje" (o padrão) conta só o que foi publicado desde a meia-noite', async () => {
+  const c = await banco.criarConta({ username: 'conta1', followers: 100 });
+  const meiaNoite = new Date(new Date().setHours(0, 0, 0, 0));
+  await insight({ accountId: c.id, mediaType: 'VIDEO', videoViews: 300, postedAt: new Date(meiaNoite.getTime() + 60_000) });
+  await insight({ accountId: c.id, mediaType: 'VIDEO', videoViews: 5000, postedAt: new Date(meiaNoite.getTime() - 60_000) }); // ontem
+
+  const hoje = await pedir('hoje');
+  expect(hoje).toMatchObject({ period: 'hoje', periodLabel: 'Hoje', totalViews: 300 });
+  expect(await pedir(null)).toMatchObject({ period: 'hoje', totalViews: 300 }); // sem período = hoje
+  expect(await pedir('7d')).toMatchObject({ periodLabel: 'Últimos 7 dias', totalViews: 5300 });
+  expect((await pedir('inventado')).period).toBe('hoje');
 });

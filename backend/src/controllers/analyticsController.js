@@ -135,16 +135,21 @@ function melhorPost(p, conta) {
   };
 }
 
-/** GET /analytics/global-metrics?period=30d&force=true (cache de 60s). */
+/* Os períodos do painel. "hoje" (o padrão) vale desde a meia-noite, no fuso do
+   servidor; os outros são janelas corridas até agora. */
+const DIAS_DO_PERIODO = { '7d': 7, '30d': 30, '90d': 90, '1a': 365 };
+
+/** GET /analytics/global-metrics?period=hoje&force=true (cache de 60s). */
 exports.getGlobalMetrics = async (req, res) => {
-  const { period = '30d', force = false } = req.query;
+  const { force = false } = req.query;
+  const period = req.query.period === 'hoje' || DIAS_DO_PERIODO[req.query.period] ? req.query.period : 'hoje';
   const chave = `${req.user.id}:${period}`;
   const guardado = _cache.get(chave);
   if (!force && guardado && Date.now() < guardado.expiresAt) return res.json(guardado.data);
 
-  const days = { '7d': 7, '30d': 30, '90d': 90, '1a': 365 }[period] || 30;
-  const since = new Date(Date.now() - days * 86_400_000);
-  const periodLabel = `Últimos ${days} dias`;
+  const days = DIAS_DO_PERIODO[period];
+  const since = days ? new Date(Date.now() - days * 86_400_000) : new Date(new Date().setHours(0, 0, 0, 0));
+  const periodLabel = days ? `Últimos ${days} dias` : 'Hoje';
 
   /* Uma leva só: as métricas vêm das contas boas por subconsulta, sem
      esperar a lista de contas. */

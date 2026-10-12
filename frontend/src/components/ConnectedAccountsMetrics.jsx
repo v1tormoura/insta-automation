@@ -38,7 +38,7 @@ export default function ConnectedAccountsMetrics() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [period, setPeriod] = useState('30d');
+  const [period, setPeriod] = useState('hoje');
   const [showAccountsDetail, setShowAccountsDetail] = useState(false);
   const [coletandoStories, setColetandoStories] = useState(false);
   const [atualizadoEm, setAtualizadoEm] = useState(null);
@@ -188,7 +188,7 @@ export default function ConnectedAccountsMetrics() {
             Métricas Globais · Contas Conectadas
           </h2>
           <span style={{ fontSize: 'var(--mf-t-nano)', fontFamily: 'var(--mf-mono)', padding: '2px 8px', borderRadius: 'var(--mf-r-sm)', background: 'color-mix(in oklch, var(--mf-mod-contas) 8%, transparent)', color: 'var(--mf-mod, var(--mf-accent-500))', border: '1px solid color-mix(in oklch, var(--mf-mod-contas) 20%, transparent)' }}>
-            {d.periodLabel || 'Últimos 30 dias'}
+            {d.periodLabel || 'Hoje'}
           </span>
           {/* Diz que o painel se atualiza sozinho. Sem isso o usuário fica
               clicando em atualizar por não ter como saber que não precisa. */}
@@ -217,6 +217,7 @@ export default function ConnectedAccountsMetrics() {
               cursor: 'pointer',
             }}
           >
+            <option value="hoje">Hoje</option>
             <option value="7d">7 dias</option>
             <option value="30d">30 dias</option>
             <option value="90d">90 dias</option>
