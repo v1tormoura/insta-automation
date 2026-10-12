@@ -1,14 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { AssetDTO, JobReport } from '@mediaforge/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, type JobDetail } from '../helpers/client';
 import { fx, SENSITIVE } from '../helpers/fixtures';
-import { flipByte, openFdsInside, readZip, waitFor, type ZipRead } from '../helpers/integrity-export-util';
+import { flipByte, openFdsInside, readZip, removeTempDirs, tempDir, trackTempDir, waitFor, type ZipRead } from '../helpers/integrity-export-util';
 import { decodeErrors, mainStreams, sessionArea, sessionId, sha256 } from '../helpers/inspecaoMidia';
-import { tmpFile } from '../helpers/media';
+import { tmpFile as tmpFileRaw } from '../helpers/media';
 import { startServer, type TestServer } from '../helpers/server';
 
 const NONE = { gps: false, dates: false, device: false, descriptive: false, software: false, custom: false, container: false, streams: false, embedded: false };
@@ -17,7 +16,17 @@ let srv: TestServer;
 beforeAll(async () => {
   srv = await startServer();
 });
-afterAll(async () => srv?.close());
+afterAll(async () => {
+  await srv?.close();
+  removeTempDirs();
+});
+
+/** `tmpFile` com o diretório registrado para remoção no fim do arquivo. */
+const tmpFile = (buf: Buffer, ext: string) => {
+  const p = tmpFileRaw(buf, ext);
+  trackTempDir(path.dirname(p));
+  return p;
+};
 
 interface ApiError {
   error: { code: string; message: string; details?: string[] };
@@ -149,6 +158,38 @@ describe('SHA-256: DTO, relatório e cabeçalho batem com os bytes reais', () =>
       expect(r.integrity.outputSha256).not.toBe(original);
       expect(r.integrity.outputIdenticalToInput).toBe(false);
     }
+  });
+
+  it('controle negativo: entrada alterada no armazenamento depois da importação → tarefa falha com "input-changed"; restaurada, o reprocessamento registra o hash real', async () => {
+    // Prova que inputSha256BeforeProcessing é recalculado dos bytes (e não copiado do hash da importação).
+    const other = new Client(srv.base);
+    const [asset] = (await other.importOk(fx('plain.mp4'))) as [AssetDTO];
+    const osid = await sessionId(other);
+    const stored = path.join(sessionArea(srv.dataDir, osid, 'uploads'), `${asset.id}.${asset.ext}`);
+    expect(fileSha(stored)).toBe(asset.sha256);
+    const flip = flipByte(stored);
+    let jobId: string;
+    try {
+      expect(fs.statSync(stored).size).toBe(asset.size);
+      expect(fileSha(stored)).not.toBe(asset.sha256);
+      [jobId] = (await other.batch([asset.id], { mode: 'quick' })) as [string];
+      const [failed] = await other.waitJobs([jobId]);
+      expect(failed!.status, failed!.error ?? '').toBe('failed');
+      expect(failed!.errorCode).toBe('input-changed');
+      expect(failed!.error).toBe('O arquivo de origem foi alterado desde a importação (SHA-256 diferente). Importe-o novamente.');
+      expect(failed!.output).toBeNull();
+      expect(fs.readdirSync(outputsDir(osid))).toEqual([]);
+    } finally {
+      flip.restore();
+    }
+    expect(fileSha(stored)).toBe(asset.sha256);
+    const retry = await other.post(`/api/jobs/${jobId}/retry`);
+    expect(retry.status, JSON.stringify(retry.data)).toBe(200);
+    const [ok] = await other.waitJobs([jobId]);
+    expect(ok!.status, ok!.error ?? '').toBe('completed');
+    expect(ok!.report!.integrity.inputSha256BeforeProcessing).toBe(fileSha(fx('plain.mp4')));
+    expect(ok!.report!.integrity.inputUnchangedAfterProcessing).toBe(true);
+    expect(fileSha(path.join(outputsDir(osid), ok!.output!.name))).toBe(ok!.output!.sha256);
   });
 
   it('duas saídas idênticas (mesmo arquivo, mesma configuração sem perdas) aparecem em identicalOutputs', async () => {
@@ -434,14 +475,17 @@ describe('exportação ZIP', () => {
       [...chosen.map(mediaPath), ...chosen.map(reportPath), 'relatorio.json', 'RELATORIO.txt', 'SHA256SUMS.txt'].sort(),
     );
     for (const j of chosen) expect(z.sha(`${sel.root}/${mediaPath(j)}`)).toBe(j.output!.sha256);
+    const manifest = JSON.parse(z.read(`${sel.root}/relatorio.json`).toString('utf8')) as { arquivos: Array<{ arquivo: string; sha256: string }> };
+    expect(manifest.arquivos.map((a) => a.arquivo).sort()).toEqual(chosen.map(mediaPath).sort());
+    // SHA256SUMS.txt: exatamente uma linha "hash  caminho" por mídia escolhida (nada além disso),
+    // com o hash real de cada uma, terminando em "\n".
     const sums = z.read(`${sel.root}/SHA256SUMS.txt`).toString('utf8');
-    expect(sums).toBe(chosen.map((j) => `${j.output!.sha256}  ${mediaPath(j)}`).sort().join('\n') + '\n' === sums ? sums : sums);
-    expect(sums.split('\n').filter(Boolean).sort()).toEqual(chosen.map((j) => `${j.output!.sha256}  ${mediaPath(j)}`).sort());
+    const sumLines = sums.split('\n');
+    expect(sumLines.pop(), 'SHA256SUMS.txt deve terminar com quebra de linha').toBe('');
+    expect(sumLines.sort()).toEqual(chosen.map((j) => `${sha256(z.read(`${sel.root}/${mediaPath(j)}`))}  ${mediaPath(j)}`).sort());
     const everything = z.entries.map((e) => e.name).join('\n');
     expect(everything).not.toContain(jobs.iphone.output!.name);
-    expect(everything).not.toContain(jobs.iphone.output!.sha256);
-    const manifest = JSON.parse(z.read(`${sel.root}/relatorio.json`).toString('utf8'));
-    expect(manifest.arquivos.map((a: { arquivo: string }) => a.arquivo).sort()).toEqual(chosen.map(mediaPath).sort());
+    expect(sums).not.toContain(jobs.iphone.output!.sha256);
     expect(z.read(`${sel.root}/RELATORIO.txt`).toString('utf8')).not.toContain(jobs.iphone.output!.sha256);
   });
 
@@ -464,7 +508,7 @@ describe('exportação ZIP', () => {
     }
     // A exportação preparada por uma sessão não pode ser baixada por outra.
     const stolen = await other.raw('GET', all.prep.url);
-    expect((await expectJsonError(stolen, 409)).message).toMatch(/não encontrada/);
+    expect((await expectJsonError(stolen, 404)).message).toMatch(/não encontrada/);
     // Nem as saídas individuais.
     expect((await other.raw('GET', `/api/jobs/${jobs.photo.id}/verify`)).status).toBe(404);
     expect((await other.raw('GET', `/api/jobs/${jobs.photo.id}/download`)).status).toBe(404);
@@ -507,6 +551,11 @@ describe('exportação: mudanças entre preparar e baixar', () => {
       expect(err.code).toBe('export-failed');
       expect(err.message).toBe('Verificação dos arquivos falhou; nada foi exportado.');
       expect(err.details).toEqual([`Arquivo de saída alterado (SHA-256 diferente): ${plain.output!.name}`]);
+      // Preparar de novo com o arquivo alterado também é recusado (nenhuma exportação nova é criada).
+      const again = await c.post<ApiError>('/api/exports', { jobIds: [plain.id, photo.id] });
+      expect(again.status).toBe(409);
+      expect(again.data.error.message).toBe('Verificação dos arquivos falhou; nada foi exportado.');
+      expect(again.data.error.details).toEqual([`Arquivo de saída alterado (SHA-256 diferente): ${plain.output!.name}`]);
     } finally {
       flip.restore();
     }
@@ -527,7 +576,7 @@ describe('exportação: mudanças entre preparar e baixar', () => {
     expect(prep.status).toBe(200);
     const file = outputPath(sid, plain);
     // Copia os carimbos de tempo com precisão de nanossegundos (touch -r) para restaurá-los depois.
-    const ref = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'mf-mtime-')), 'ref');
+    const ref = path.join(tempDir('mf-mtime-'), 'ref');
     fs.writeFileSync(ref, '');
     execFileSync('touch', ['-r', file, ref]);
     const before = fs.statSync(file, { bigint: true });
@@ -623,6 +672,14 @@ describe.skipIf(process.platform !== 'linux')('Regressão FI-3: downloads de ZIP
     url = prep.data.url;
   });
 
+  /**
+   * Espera (com prazo) não haver descritores em outputs/. O hash feito ao preparar
+   * resolve no 'end' da leitura e o fs.ReadStream fecha o fd logo depois, de forma
+   * assíncrona: a linha de base precisa de polling, não de leitura instantânea.
+   * Um vazamento real nunca chega a zero e estoura o prazo.
+   */
+  const settledEmpty = (what: string) => waitFor(() => openFdsInside(dir), (v) => v.length === 0, 10_000, what);
+
   /** Inicia o download do ZIP e lê pelo menos `minBytes`; devolve o controle para abortar. */
   async function startDownload(minBytes: number) {
     const ac = new AbortController();
@@ -649,18 +706,17 @@ describe.skipIf(process.platform !== 'linux')('Regressão FI-3: downloads de ZIP
 
   it('a sonda enxerga o arquivo de saída aberto pelo servidor durante um download pausado', async () => {
     // O servidor roda neste mesmo processo (helpers/server.ts chama buildApp + listen aqui).
-    expect(openFdsInside(dir)).toEqual([]);
+    await settledEmpty('linha de base antes do download');
     const dl = await startDownload(1);
     const open = await waitFor(() => openFdsInside(dir), (v) => v.length >= 1, 10_000, 'descritor aberto em outputs/');
     const outputs = new Set(jobs.map((j) => path.join(dir, j.output!.name)));
     for (const p of open) expect(outputs.has(p), p).toBe(true);
     dl.abort();
-    await waitFor(() => openFdsInside(dir), (v) => v.length === 0, 10_000, 'fechamento após abortar');
+    expect(await settledEmpty('fechamento após abortar')).toEqual([]);
   });
 
   it('10 downloads abortados depois dos primeiros bytes: nenhum descritor fica aberto em outputs/', async () => {
-    const before = openFdsInside(dir);
-    expect(before).toEqual([]);
+    await settledEmpty('linha de base antes dos abortos');
     const thresholds = [1, 16 << 10, 64 << 10, 200 << 10, 300 << 10, 512 << 10, 1 << 20, 2 << 20, 4 << 20, 8 << 20];
     const openAtAbort: number[] = [];
     for (const min of thresholds) {
@@ -670,8 +726,7 @@ describe.skipIf(process.platform !== 'linux')('Regressão FI-3: downloads de ZIP
     }
     // Pelo menos parte dos abortos aconteceu com arquivo de saída aberto (senão o teste não provaria nada).
     expect(Math.max(...openAtAbort), `abertos no momento do aborto: ${openAtAbort}`).toBeGreaterThanOrEqual(1);
-    const after = await waitFor(() => openFdsInside(dir), (v) => v.length === 0, 5_000, 'fechamento dos descritores após 10 abortos');
-    expect(after).toEqual([]);
+    expect(await settledEmpty('fechamento dos descritores após 10 abortos')).toEqual([]);
 
     // O servidor segue saudável: um download completo sai íntegro e também não deixa nada aberto.
     const full = await c.download(url);
@@ -683,6 +738,6 @@ describe.skipIf(process.platform !== 'linux')('Regressão FI-3: downloads de ZIP
       const e = z.entries.find((x) => x.name.endsWith(`/videos/${j.output!.name}`))!;
       expect(z.sha(e.name)).toBe(j.output!.sha256);
     }
-    await waitFor(() => openFdsInside(dir), (v) => v.length === 0, 5_000, 'fechamento após download completo');
+    expect(await settledEmpty('fechamento após download completo')).toEqual([]);
   });
 });

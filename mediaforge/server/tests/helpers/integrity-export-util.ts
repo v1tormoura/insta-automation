@@ -44,9 +44,29 @@ export type ZipRead =
     }
   | { ok: false; error: string };
 
+/** Diretórios temporários criados por este utilitário (removidos por `removeTempDirs`). */
+const tempDirs: string[] = [];
+
+/** Cria um diretório temporário registrado para limpeza no fim do arquivo de teste. */
+export function tempDir(prefix: string): string {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(d);
+  return d;
+}
+
+/** Registra um diretório criado por outro helper (ex.: `tmpFile`) para a mesma limpeza. */
+export function trackTempDir(dir: string): void {
+  tempDirs.push(dir);
+}
+
+/** Remove os ZIPs/extrações e demais diretórios temporários registrados. */
+export function removeTempDirs(): void {
+  for (const d of tempDirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+}
+
 /** Lê e extrai um ZIP com o Python (`python3 -I`), num diretório novo e vazio. */
 export function readZip(buf: Buffer): ZipRead {
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-zip-'));
+  const work = tempDir('mf-zip-');
   const zipPath = path.join(work, 'export.zip');
   const dir = path.join(work, 'extraido');
   fs.mkdirSync(dir);

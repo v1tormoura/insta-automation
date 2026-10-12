@@ -9,6 +9,7 @@ import type { AppContext } from '../context';
 import type { JobRow } from '../db/repositories';
 import { hashAndScan } from '../media/hashing';
 import { newId } from '../security/filenames';
+import { HttpError } from '../security/session';
 import { parseJson } from './dto';
 
 export class ExportError extends Error {
@@ -158,7 +159,8 @@ export class ExportService {
   async stream(sessionId: string, exportId: string): Promise<{ stream: NodeJS.ReadableStream; filename: string }> {
     const { repos } = this.ctx;
     const rec = repos.exportById(sessionId, exportId);
-    if (!rec) throw new ExportError('Exportação não encontrada ou expirada.');
+    // Mesmo código dos demais recursos: não revela se o id existe em outra sessão.
+    if (!rec) throw new HttpError(404, 'not-found', 'Exportação não encontrada ou expirada.');
     const ids = JSON.parse(rec.job_ids_json) as string[];
     const jobs = repos.jobsByIds(sessionId, ids);
     if (jobs.length !== new Set(ids).size) {
