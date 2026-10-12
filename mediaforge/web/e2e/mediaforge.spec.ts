@@ -155,12 +155,44 @@ test.describe('MediaForge — fluxos completos pela interface', () => {
     await page.getByTestId('tab-tempo').click();
     await expect(page.getByLabel('Início', { exact: true })).toBeVisible();
     await expect(page.getByLabel('Fim', { exact: true })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Divisão em partes' })).toBeVisible();
+    await page.getByTestId('segmentation').getByRole('radio', { name: 'Em N partes' }).click();
+    await expect(page.getByRole('spinbutton', { name: 'Quantidade de partes' })).toBeVisible();
+    await page.getByTestId('tab-saida').click();
+    await expect(page.getByRole('slider', { name: 'Qualidade de imagem (JPG/WEBP)' })).toBeVisible();
 
     // Escolher o arquivo em foco pelo teclado (configuração individual).
     const focusBtn = page.getByRole('button', { name: 'Editar plain.mp4' });
     await focusBtn.focus();
     await page.keyboard.press('Enter');
     await expect(focusBtn).toHaveAttribute('aria-current', 'true');
+  });
+
+  test('diálogos fechando fora de ordem: foco fica no que continua aberto e a página volta a rolar', async ({ page }) => {
+    await freshSession(page);
+    await importFiles(page, [fx('plain.mp4')], 1);
+    // Respostas lentas: o plano chega com o diálogo de salvar aberto; o salvamento termina depois.
+    await page.route('**/api/plan', async (route) => {
+      await new Promise((r) => setTimeout(r, 1200));
+      await route.continue();
+    });
+    await page.route('**/api/profiles', async (route) => {
+      if (route.request().method() === 'POST') await new Promise((r) => setTimeout(r, 3000));
+      await route.continue();
+    });
+    await page.getByTestId('validate-btn').click();
+    await page.getByTestId('save-profile').click();
+    const save = page.getByRole('dialog', { name: 'Salvar perfil' });
+    await save.getByLabel('Nome do perfil').fill('Fora de ordem');
+    await save.getByTestId('confirm-save-profile').click();
+    const plan = page.getByTestId('plan-dialog');
+    await expect(plan).toBeVisible();
+    await expect(save).toBeHidden({ timeout: 10_000 });
+    // O diálogo de baixo fechou: o foco não pode ir para a página atrás do plano.
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[data-testid="plan-dialog"]'))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(plan).toBeHidden();
+    expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
   });
 
   test('fila: concorrência ajustável e cancelamento de tarefa em execução', async ({ page }) => {

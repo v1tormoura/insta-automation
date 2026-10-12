@@ -225,7 +225,8 @@ export async function inspectMetadata(
             sensitive: true,
             removable: true,
           });
-        } else if (parent === 'udta' && !b.type.startsWith('\xA9') && !['meta', 'hnti', 'name', 'tags', 'Xtra'].includes(b.type)) {
+        } else if (parent === 'udta' && !b.type.startsWith('\xA9') && !['meta', 'hnti', 'name', 'tags', 'Xtra', 'chpl'].includes(b.type)) {
+          // (chpl = capítulos Nero: já aparecem como "Capítulo N" e seguem a opção de capítulos)
           const def = UDTA_ATOMS[b.type];
           items.push({
             id: `box:${b.path}`,

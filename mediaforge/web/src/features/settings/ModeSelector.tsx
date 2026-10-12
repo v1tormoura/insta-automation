@@ -44,6 +44,7 @@ export function ModeSelector({ selectedAssets }: { selectedAssets: AssetDTO[] })
         <Layers size={14} className="text-ink-3" />
         <span className="text-[12px] text-ink-2">Lote:</span>
         <Segmented
+          ariaLabel="Escopo do lote"
           value={ws.scope}
           onChange={ws.setScope}
           testId="scope"

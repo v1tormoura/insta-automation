@@ -100,7 +100,9 @@ export function ResultsPanel() {
   const { data: jobs = [] } = useJobs();
   const { data: batches = [] } = useBatches();
   const toast = useToast();
-  const [batch, setBatch] = useState('all');
+  const [batchChoice, setBatch] = useState('all');
+  // Lote escolhido que deixou de existir (esvaziado/removido, inclusive em outra aba): volta a "todos".
+  const batch = batchChoice === 'all' || batches.some((b) => b.id === batchChoice) ? batchChoice : 'all';
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<JobDTO | null>(null);
   const [report, setReport] = useState<string | null>(null);

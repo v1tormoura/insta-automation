@@ -64,6 +64,7 @@ export function AssetList({ assets, onDetails }: { assets: AssetDTO[]; onDetails
     <div className="flex min-h-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <Segmented
+          ariaLabel="Filtrar arquivos"
           value={filter}
           onChange={setFilter}
           options={[

@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 
 /** Diálogos abertos, do mais antigo ao mais recente: só o do topo responde a Esc/Tab. */
 const stack: HTMLElement[] = [];
+/** overflow do body antes do primeiro diálogo (restaurado quando a pilha esvazia). */
+let bodyOverflow = '';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), video[controls], audio[controls]';
@@ -45,6 +47,10 @@ export function Modal({
     const el = ref.current;
     if (!el) return;
     const prev = document.activeElement as HTMLElement | null;
+    if (stack.length === 0) {
+      bodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    }
     stack.push(el);
     el.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -74,14 +80,15 @@ export function Modal({
       }
     };
     document.addEventListener('keydown', onKey);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
       const i = stack.indexOf(el);
+      const wasTop = i === stack.length - 1;
       if (i >= 0) stack.splice(i, 1);
-      if (stack.length === 0) document.body.style.overflow = overflow;
-      prev?.focus?.();
+      if (stack.length === 0) document.body.style.overflow = bodyOverflow;
+      // Fechou um diálogo de baixo (fora de ordem): o foco fica no que continua aberto.
+      if (wasTop) prev?.focus?.();
+      else if (stack.length && !stack.at(-1)!.contains(document.activeElement)) stack.at(-1)!.focus();
     };
   }, [open]);
   if (!open) return null;

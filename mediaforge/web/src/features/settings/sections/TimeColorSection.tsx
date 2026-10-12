@@ -40,6 +40,7 @@ export function TimeColorSection({ focus }: { focus: AssetDTO | undefined }) {
         <SectionTitle hint="Gera várias saídas a partir de um vídeo: cada parte vira uma tarefa e um arquivo.">Divisão em partes</SectionTitle>
         <div className="flex flex-wrap items-end gap-3">
           <Segmented
+            ariaLabel="Divisão em partes"
             testId="segmentation"
             value={s.segmentation.mode}
             onChange={(v) => ws.update((d) => void (d.segmentation.mode = v))}
@@ -52,6 +53,7 @@ export function TimeColorSection({ focus }: { focus: AssetDTO | undefined }) {
           {s.segmentation.mode !== 'none' && (
             <div className="w-32">
               <NumberInput
+                ariaLabel={s.segmentation.mode === 'count' ? 'Quantidade de partes' : 'Duração de cada parte (segundos)'}
                 value={s.segmentation.value}
                 min={1}
                 max={s.segmentation.mode === 'count' ? 100 : 3600}

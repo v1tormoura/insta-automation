@@ -585,7 +585,7 @@ export function injectImageMetadata(
     const out = rebuildPng(buf, s, (c) => c.type !== 'eXIf' && c.type !== 'iCCP', insert, data.icc ? new Set(['sRGB']) : undefined);
     if (data.exif) actions.push('Campos EXIF preservados reinseridos.');
     if (data.icc) actions.push('Perfil ICC preservado reinserido.');
-    if (extra.length) actions.push(`${extra.length} bloco(s) PNG preservado(s) (textos, data, XMP) reinserido(s) byte a byte.`);
+    if (extra.length) actions.push(`${extra.length} bloco(s) PNG preservado(s) (textos, data e chunks seguros para cópia) reinserido(s) byte a byte.`);
     return { buffer: out, actions, warnings };
   }
   warnings.push('Saída WEBP: metadados preservados não foram reinseridos (o codificador gera WEBP simples).');

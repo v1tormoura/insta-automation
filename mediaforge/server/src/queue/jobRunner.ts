@@ -7,6 +7,7 @@ import { hashAndScan } from '../media/hashing';
 import { compareMetadata, requestedFor, residualPatterns } from '../media/metadata/compare';
 import { parsePng, PNG_IMAGE_CHUNKS } from '../media/metadata/png';
 import { reinjectUdtaBoxes } from '../media/metadata/mp4inject';
+import { xmpShouldRemove } from '../media/metadata/packets';
 import { cleanImage, imageContainerOf, injectImageMetadata, readImageBlocks, rebuildExif } from '../media/metadata/imageMeta';
 import { inspectMetadata } from '../media/metadata/inspect';
 import { buildTiff, parseTiff, TAG_MAKERNOTE } from '../media/metadata/tiff';
@@ -37,6 +38,16 @@ export class JobFailure extends Error {
 export const FONT_FILE = 'DejaVuSans-Bold.ttf';
 
 /** Converte uma linha de arquivo em PlanAsset (com caminho absoluto validado). */
+/** Caixas de udta que nunca são reinseridas (o FFmpeg regrava capítulos e tags). */
+const NEVER_REINJECT_UDTA = new Set(['chpl', 'meta', 'hnti', 'name', 'tags', 'Xtra']);
+/** Caixas cujo conteúdo depende da linha do tempo (inválidas após corte, divisão ou velocidade). */
+const TIME_BASED_UDTA = new Set(['HMMT', 'GPMF']);
+/** Caixas com significado conhecido (a categoria já decide). */
+const KNOWN_UDTA_CATEGORY = new Set(['loci', 'FIRM', 'CAME', 'LENS', 'manu', 'modl', 'GPMF']);
+const SENSITIVE_CATEGORIES = ['gps', 'dates', 'device', 'descriptive', 'software'] as const;
+/** Chunks PNG de texto/data reinseridos numa imagem recodificada. */
+const PNG_TEXT_CHUNKS = new Set(['tEXt', 'zTXt', 'iTXt', 'tIME']);
+
 export function toPlanAsset(ctx: AppContext, row: AssetRow): PlanAsset | undefined {
   if (row.status !== 'ready' || !row.stored_name) return undefined;
   const info = parseJson<MediaInfo>(row.info_json);
@@ -188,12 +199,29 @@ export class JobRunner {
       }
       // MP4/MOV: caixas de udta mantidas por escolha que o FFmpeg não regrava.
       if (plan.expected.kind === 'video' && (plan.outputExt === 'mp4' || plan.outputExt === 'mov')) {
+        const meta = plan.settings.metadata;
+        const timeChanged = !!payload.segment || plan.settings.trim.start !== null || plan.settings.trim.end !== null || plan.settings.speed !== 1 || plan.operations.some((o) => o.id === 'sequence');
         const keepTypes = (planAsset.metadata?.items ?? [])
-          .filter((i) => i.scope === 'box' && /^box:moov\/udta\/[^/:]{4}$/.test(i.id) && !requestedFor(i, plan.settings.metadata))
-          .map((i) => i.id.slice('box:moov/udta/'.length));
+          .filter((i) => i.scope === 'box' && /^box:moov\/udta\/[^/:]{4}$/.test(i.id) && !requestedFor(i, meta))
+          .map((i) => i.id.slice('box:moov/udta/'.length))
+          // Capítulos e tags o FFmpeg já regrava; marcações por tempo não valem após corte/velocidade.
+          .filter((t) => !NEVER_REINJECT_UDTA.has(t) && !(timeChanged && TIME_BASED_UDTA.has(t)));
         if (keepTypes.length) {
-          const r = await reinjectUdtaBoxes(inputPath, outPath, keepTypes);
+          const sensitiveRequested = SENSITIVE_CATEGORIES.some((c) => meta.remove[c]);
+          const r = await reinjectUdtaBoxes(inputPath, outPath, keepTypes, (type, box) => {
+            // XMP: só volta se nenhum campo dele for de categoria pedida para remoção.
+            if (type === 'XMP_') return !xmpShouldRemove(box.subarray(8).toString('utf8'), meta.remove);
+            // Caixas com categoria conhecida (loci = GPS, FIRM = aparelho…) já foram filtradas acima.
+            if (KNOWN_UDTA_CATEGORY.has(type)) return true;
+            // Caixas opacas podem guardar qualquer coisa: só voltam se nada sensível foi pedido.
+            return !sensitiveRequested;
+          });
           if (r.inserted.length) actions.push(`Caixa(s) de udta mantida(s) por escolha reinserida(s) byte a byte: ${r.inserted.join(', ')}.`);
+          if (r.refused.length) {
+            warnings.push(
+              `Caixa(s) ${r.refused.join(', ')} não reinserida(s): o conteúdo pode incluir dados de categorias marcadas para remoção.`,
+            );
+          }
           warnings.push(...r.warnings);
         }
       }
@@ -398,16 +426,27 @@ export class JobRunner {
     // PNG → PNG: os demais blocos mantidos por escolha (textos, tIME, XMP) são
     // os que a própria limpeza sem perdas manteria, copiados byte a byte.
     let pngChunks: Buffer[] = [];
+    const extraWarnings: string[] = [];
     if (srcContainer === 'png' && outContainer === 'png') {
       const cleaned = cleanImage(srcBuf, 'png', plan.settings.metadata).buffer;
       const parsed = parsePng(cleaned);
+      // Textos e data voltam; chunks desconhecidos só se forem "seguros para cópia"
+      // (4ª letra minúscula). Os demais descrevem os bytes antigos da imagem (ex.: iDOT
+      // da Apple, índice de decodificação paralela) e não valem para o IDAT novo.
+      const dropped: string[] = [];
       pngChunks = parsed.chunks
         .filter((c) => !PNG_IMAGE_CHUNKS.has(c.type) && c.type !== 'eXIf' && c.type !== 'iCCP')
+        .filter((c) => {
+          const ok = PNG_TEXT_CHUNKS.has(c.type) || /^[A-Za-z]{3}[a-z]$/.test(c.type);
+          if (!ok) dropped.push(c.type);
+          return ok;
+        })
         .map((c) => cleaned.subarray(c.start, c.end));
+      if (dropped.length) extraWarnings.push(`Chunk(s) PNG ${[...new Set(dropped)].join(', ')} não copiado(s): dependem dos dados antigos da imagem.`);
     }
     const result = injectImageMetadata(await fsp.readFile(outPath), outContainer, { exif, icc, pngChunks });
     if (result.actions.length) await fsp.writeFile(outPath, result.buffer);
-    return result;
+    return { ...result, warnings: [...result.warnings, ...extraWarnings] };
   }
 
   /** Substitui caminhos absolutos por marcadores (o relatório não expõe a estrutura do disco). */

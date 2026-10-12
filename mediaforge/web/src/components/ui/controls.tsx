@@ -163,6 +163,8 @@ export function Slider({
   testId?: string;
 }) {
   const id = useId();
+  // Sem rótulo próprio (Slider dentro de outro Field): usa o rótulo do Field de fora.
+  const outer = useFieldLabel(undefined);
   const changed = defaultValue !== undefined && value !== defaultValue;
   return (
     <Field
@@ -183,6 +185,7 @@ export function Slider({
       <input
         id={id}
         data-testid={testId}
+        {...(label ? {} : outer)}
         type="range"
         min={min}
         max={max}
@@ -285,6 +288,7 @@ export function Segmented<T extends string>({
   size = 'sm',
   className,
   testId,
+  ariaLabel,
 }: {
   value: T;
   onChange: (v: T) => void;
@@ -292,8 +296,9 @@ export function Segmented<T extends string>({
   size?: 'sm' | 'md';
   className?: string;
   testId?: string;
+  ariaLabel?: string;
 }) {
-  const labelProps = useFieldLabel(undefined);
+  const labelProps = useFieldLabel(ariaLabel);
   return (
     <div role="radiogroup" data-testid={testId} {...labelProps} className={clsx('inline-flex rounded-[var(--radius-ctl)] border border-line-strong bg-surface-2 p-0.5', className)}>
       {options.map((o) => (

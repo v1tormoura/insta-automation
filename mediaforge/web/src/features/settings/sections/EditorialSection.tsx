@@ -63,6 +63,7 @@ function SourceEditor({ label, value, onChange, testId }: { label: string; value
     <Card title={label}>
       <div className="flex flex-col gap-2.5">
         <Segmented
+          ariaLabel={`${label}: origem`}
           testId={testId}
           value={kind}
           onChange={(k) =>
@@ -320,6 +321,7 @@ export function EditorialSection() {
             {e.audioTrack && (
               <>
                 <Segmented
+                  ariaLabel="Modo da trilha de áudio"
                   value={e.audioTrack.mode}
                   onChange={(v) => set((d) => void (d.audioTrack!.mode = v))}
                   options={[

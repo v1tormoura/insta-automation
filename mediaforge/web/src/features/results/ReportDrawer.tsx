@@ -143,6 +143,7 @@ export function ReportDrawer({ jobId, onClose }: { jobId: string | null; onClose
             {job.status !== 'completed' && <Badge tone="bad">Tarefa {job.status}</Badge>}
           </div>
           <Segmented
+            ariaLabel="Seções do relatório"
             value={tab}
             onChange={setTab}
             className="w-full overflow-x-auto"

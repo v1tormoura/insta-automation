@@ -22,12 +22,14 @@ export async function reinjectUdtaBoxes(
   inputPath: string,
   outputPath: string,
   types: string[],
-): Promise<{ inserted: string[]; warnings: string[] }> {
+  /** Última palavra sobre cada caixa, com o conteúdo em mãos (ex.: XMP com GPS → false). */
+  accept: (type: string, box: Buffer) => boolean = () => true,
+): Promise<{ inserted: string[]; refused: string[]; warnings: string[] }> {
   const warnings: string[] = [];
-  if (types.length === 0) return { inserted: [], warnings };
+  if (types.length === 0) return { inserted: [], refused: [], warnings };
   const src = await scanMp4Boxes(inputPath);
   const wanted = src.boxes.filter((b) => b.path === `moov/udta/${b.type}` && types.includes(b.type));
-  if (wanted.length === 0) return { inserted: [], warnings };
+  if (wanted.length === 0) return { inserted: [], refused: [], warnings };
 
   const out = await scanMp4Boxes(outputPath);
   const top = out.boxes.filter((b) => !b.path.includes('/'));
@@ -35,16 +37,16 @@ export async function reinjectUdtaBoxes(
   const mdat = top.find((b) => b.type === 'mdat');
   if (!moov || !mdat) {
     warnings.push('Caixas de udta mantidas por escolha não foram reinseridas: estrutura MP4 da saída não reconhecida.');
-    return { inserted: [], warnings };
+    return { inserted: [], refused: [], warnings };
   }
   if (moov.size > MAX_MOOV_BYTES) {
     warnings.push('Caixas de udta mantidas por escolha não foram reinseridas: índice (moov) grande demais.');
-    return { inserted: [], warnings };
+    return { inserted: [], refused: [], warnings };
   }
 
   const present = new Set(out.boxes.filter((b) => b.path.startsWith('moov/udta/')).map((b) => b.type));
-  const toInsert = wanted.filter((b) => !present.has(b.type));
-  if (toInsert.length === 0) return { inserted: [], warnings };
+  const candidates = wanted.filter((b) => !present.has(b.type));
+  if (candidates.length === 0) return { inserted: [], refused: [], warnings };
 
   const readRange = async (file: string, start: number, size: number) => {
     const fh = await fsp.open(file, 'r');
@@ -56,11 +58,22 @@ export async function reinjectUdtaBoxes(
       await fh.close();
     }
   };
-  const payload = Buffer.concat(await Promise.all(toInsert.map((b: Mp4Box) => readRange(inputPath, b.start, b.size))));
+  const toInsert: Mp4Box[] = [];
+  const refused: string[] = [];
+  const parts: Buffer[] = [];
+  for (const b of candidates) {
+    const bytes = await readRange(inputPath, b.start, b.size);
+    if (accept(b.type, bytes)) {
+      toInsert.push(b);
+      parts.push(bytes);
+    } else refused.push(b.type);
+  }
+  if (toInsert.length === 0) return { inserted: [], refused, warnings };
+  const payload = Buffer.concat(parts);
   const moovBuf = await readRange(outputPath, moov.start, moov.size);
   if (headerSizeOf(moovBuf, 0) !== 8) {
     warnings.push('Caixas de udta mantidas por escolha não foram reinseridas: índice (moov) com tamanho de 64 bits.');
-    return { inserted: [], warnings };
+    return { inserted: [], refused: [], warnings };
   }
 
   const moovFirst = moov.start < mdat.start;
@@ -91,7 +104,15 @@ export async function reinjectUdtaBoxes(
     if (headerSizeOf(moovBuf, rel) !== 8) return fail('udta com tamanho de 64 bits');
     const udtaBuf = moovBuf.subarray(rel, rel + udta.size);
     // Em QuickTime, udta pode terminar com 4 bytes zerados; as caixas novas entram antes deles.
-    const hasTerminator = udta.size >= 12 && udtaBuf.readUInt32BE(udta.size - 4) === 0;
+    // Só é terminador se os filhos completos somarem exatamente size − 12 (bytes zerados
+    // no fim de um filho — ex.: trkn sem total — não podem ser confundidos com ele).
+    let pos = 8;
+    while (pos + 8 <= udta.size) {
+      const size = udtaBuf.readUInt32BE(pos);
+      if (size < 8 || pos + size > udta.size) break;
+      pos += size;
+    }
+    const hasTerminator = pos === udta.size - 4 && udtaBuf.readUInt32BE(udta.size - 4) === 0;
     const body = hasTerminator ? udtaBuf.subarray(8, udta.size - 4) : udtaBuf.subarray(8);
     const newUdta = Buffer.concat([udtaBuf.subarray(0, 8), body, payload, hasTerminator ? Buffer.alloc(4) : Buffer.alloc(0)]);
     newUdta.writeUInt32BE(newUdta.length, 0);
@@ -120,22 +141,23 @@ export async function reinjectUdtaBoxes(
   } else {
     // Índice no início: regrava o arquivo (cabeçalho, novo moov, dados).
     const tmp = `${outputPath}.udta`;
-    const w = fs.createWriteStream(tmp, { flags: 'wx' });
+    // Abre com await (erro de abertura vira exceção comum, nunca um 'error' sem ouvinte).
+    const fhOut = await fsp.open(tmp, 'wx');
     try {
-      if (moov.start > 0) w.write(await readRange(outputPath, 0, moov.start));
-      w.write(newMoov);
-      await pipeline(fs.createReadStream(outputPath, { start: moovEnd }), w);
+      if (moov.start > 0) await fhOut.write(await readRange(outputPath, 0, moov.start));
+      await fhOut.write(newMoov);
+      await pipeline(fs.createReadStream(outputPath, { start: moovEnd }), fhOut.createWriteStream());
       await fsp.rename(tmp, outputPath);
     } catch (err) {
-      w.destroy();
+      await fhOut.close().catch(() => undefined);
       await fsp.rm(tmp, { force: true });
       throw err;
     }
   }
-  return { inserted: toInsert.map((b) => b.type), warnings };
+  return { inserted: toInsert.map((b) => b.type), refused, warnings };
 
   function fail(reason: string) {
     warnings.push(`Caixas de udta mantidas por escolha não foram reinseridas: ${reason}.`);
-    return { inserted: [] as string[], warnings };
+    return { inserted: [] as string[], refused: [] as string[], warnings };
   }
 }
