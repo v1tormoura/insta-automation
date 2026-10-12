@@ -59,3 +59,20 @@ test('"Hoje" (o padrão) conta só o que foi publicado desde a meia-noite', asyn
   expect(await pedir('7d')).toMatchObject({ periodLabel: 'Últimos 7 dias', totalViews: 5300 });
   expect((await pedir('inventado')).period).toBe('hoje');
 });
+
+test('seguidores: o ganho do período, além do total (que não muda com o período)', async () => {
+  const c = await banco.criarConta({ username: 'conta1', followers: 543 });
+  const { etiqueta } = require('../src/services/periodoDeMetricas');
+  const dia = n => etiqueta(new Date(Date.now() - n * 86_400_000));
+  const ponto = (d, novos) => banco.sql`insert into seguidores_do_dia ${banco.sql({ accountId: c.id, usuarioId: c.usuarioId, dia: d, username: 'conta1', seguidores: 500, novos })}`;
+  await ponto(dia(3), 20);
+  await ponto(dia(0), 7);
+
+  expect(await pedir('hoje')).toMatchObject({ totalFollowers: 543, novosSeguidores: 7, novosSeguidoresMedido: true });
+  expect(await pedir('7d')).toMatchObject({ totalFollowers: 543, novosSeguidores: 27 });
+});
+
+test('sem série ainda: o ganho vem como não medido (a tela mostra o total)', async () => {
+  await banco.criarConta({ username: 'nova', followers: 80 });
+  expect(await pedir('hoje')).toMatchObject({ totalFollowers: 80, novosSeguidores: 0, novosSeguidoresMedido: false });
+});

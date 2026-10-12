@@ -157,7 +157,7 @@ exports.getGlobalMetrics = async (req, res) => {
   const ORDEM = sql`video_views desc, impressions desc, reach desc, engagement_score desc`;
 
   // STORY fica fora do feed: senão um story com muita audiência viraria o "melhor post".
-  const [contas, [totais], [melhor], porConta, [stories]] = await Promise.all([
+  const [contas, [totais], [melhor], porConta, [stories], linhasDaSerie] = await Promise.all([
     sql`
       select id, username, name, avatar, followers, health_status, account_type, posts_today
       from accounts where usuario_id = ${req.user.id} and health_status <> all(${RUINS})`,
@@ -170,20 +170,28 @@ exports.getGlobalMetrics = async (req, res) => {
         order by account_id, ${ORDEM}`,
     sql`select coalesce(sum(impressions), 0) as views from insights
         where account_id in (${boas}) and posted_at >= ${since} and media_type = 'STORY'`,
+    /* Seguidores que entraram no período (a série diária; ver serieDeSeguidores.js).
+       O total de seguidores é estoque e não muda com o período — o ganho muda. */
+    sql`select account_id, novos from seguidores_do_dia
+        where account_id in (${boas}) and dia >= ${periodo.etiqueta(since)} and dia <= ${periodo.etiqueta(new Date())}`
+      .catch(() => null),
   ]);
   if (!contas.length) {
     return res.json({
-      connectedAccountsCount: 0, totalFollowers: 0, totalReach: 0, totalStoryViews: 0, totalViews: 0,
+      connectedAccountsCount: 0, totalFollowers: 0, novosSeguidores: 0, novosSeguidoresMedido: false, totalReach: 0, totalStoryViews: 0, totalViews: 0,
       bestPost: null, bestPostByAccount: [], accounts: [], period, periodLabel, updatedAt: new Date(),
     });
   }
 
   const contaPorId = new Map(contas.map(c => [c.id, c]));
   const melhorPorConta = new Map(porConta.map(p => [p.accountId, p]));
+  const ganho = linhasDaSerie ? serie.resumirNovos(linhasDaSerie, contas.map(c => c.id)) : { novos: 0, comHistorico: false };
 
   const result = {
     connectedAccountsCount: contas.length,
     totalFollowers: contas.reduce((t, c) => t + (c.followers || 0), 0),
+    novosSeguidores: ganho.novos,
+    novosSeguidoresMedido: ganho.comHistorico,
     totalReach: totais.reach || totais.impressions,
     totalViews: totais.views,
     totalStoryViews: stories.views,

@@ -320,7 +320,9 @@ export default function ConnectedAccountsMetrics() {
               </div>
             </div>
 
-            {/* Card 2: Seguidores Totais */}
+            {/* Card 2: Seguidores — o ganho no período em destaque e o total
+                embaixo. O total é estoque (não muda com o período); mostrar só
+                ele com "Hoje" selecionado parecia "543 seguidores hoje". */}
             <div style={{
               background: 'color-mix(in oklch, var(--mf-surface-1) 80%, transparent)',
               border: '1px solid var(--mf-border)',
@@ -331,15 +333,19 @@ export default function ConnectedAccountsMetrics() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 'var(--mf-t-nano)', fontWeight: 700, letterSpacing: '.06em', color: 'var(--mf-text-3)', textTransform: 'uppercase' }}>
-                  Seguidores totais
+                  {d.novosSeguidoresMedido ? 'Novos seguidores' : 'Seguidores'}
                 </span>
                 <DiscoIcone Icone={Users} cor="var(--mf-success-500)" />
               </div>
-              <div style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
-                {fmt(d.totalFollowers)}
+              <div data-seguidores-periodo style={{ fontSize: 'var(--mf-t-h1)', fontWeight: 800, color: (d.novosSeguidores || 0) < 0 ? 'var(--mf-danger-500)' : 'var(--mf-success-500)', fontFamily: 'var(--mf-mono)', letterSpacing: '-.02em' }}>
+                {d.novosSeguidoresMedido
+                  ? `${d.novosSeguidores > 0 ? '+' : d.novosSeguidores < 0 ? '−' : ''}${fmt(Math.abs(d.novosSeguidores || 0))}`
+                  : fmt(d.totalFollowers)}
               </div>
               <div style={{ fontSize: 'var(--mf-t-nano)', color: 'var(--mf-text-3)', marginTop: 4 }}>
-                Audiência atual acumulada
+                {d.novosSeguidoresMedido
+                  ? <>{period === 'hoje' ? 'ganhos hoje' : `nos últimos ${{ '7d': 7, '30d': 30, '90d': 90 }[period] || 30} dias`} · <strong style={{ color: 'var(--mf-text-2)' }}>{fmt(d.totalFollowers)}</strong> no total</>
+                  : 'no total · o ganho de cada dia aparece a partir do 2º dia de registro'}
               </div>
             </div>
 
