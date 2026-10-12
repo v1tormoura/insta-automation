@@ -978,3 +978,10 @@ describe('divisão com taxa fracionária exata (30000/1001)', () => {
     expect(parts.every((p) => p.end - p.start >= 0.1)).toBe(true);
   });
 });
+
+describe('rótulo do contêiner pela marca do arquivo', () => {
+  it('MP4 (isom) não aparece como "QuickTime / MOV"; MOV continua MOV', async () => {
+    expect((await probeFile(tools, fx('plain.mp4'))).info.containerLong).toBe('MPEG-4 (MP4)');
+    expect((await probeFile(tools, fx('iphone.mov'))).info.containerLong).toBe('QuickTime / MOV');
+  });
+});

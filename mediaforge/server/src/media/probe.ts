@@ -86,6 +86,21 @@ function streamRotation(s: FfprobeStream): number {
 const ALPHA_PIX = /^(rgba|bgra|argb|abgr|ya8|ya16|yuva|gbrap|rgba64|bgra64|pal8)/;
 const IMAGE_FORMATS = /(image2|_pipe|^gif$|webp|png|mjpeg)/;
 
+/**
+ * O FFprobe chama toda a família ISO BMFF de "QuickTime / MOV". A marca do
+ * arquivo (ftyp major_brand) diz qual é de fato: MP4, MOV, M4A, M4V ou 3GP.
+ */
+function containerLabel(raw: FfprobeOutput): string | null {
+  if (!/^mov,mp4/.test(raw.format?.format_name ?? '')) return null;
+  const brand = String(raw.format?.tags?.major_brand ?? '').trim().toLowerCase();
+  if (!brand) return null;
+  if (brand === 'qt') return 'QuickTime / MOV';
+  if (brand.startsWith('3g')) return '3GP';
+  if (brand === 'm4a' || brand === 'm4b') return 'MPEG-4 Áudio (M4A)';
+  if (brand === 'm4v' || brand === 'm4vh' || brand === 'm4vp') return 'MPEG-4 Vídeo (M4V)';
+  return 'MPEG-4 (MP4)';
+}
+
 export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number, decoderRotation: number | null = null): MediaInfo {
   const streams: MediaStreamInfo[] = (raw.streams ?? []).map((s) => {
     const type = (['video', 'audio', 'subtitle', 'data', 'attachment'] as const).find((t) => t === s.codec_type) ?? 'unknown';
@@ -127,7 +142,7 @@ export function normalizeProbe(raw: FfprobeOutput, sizeBytes: number, decoderRot
 
   return {
     container: formatName,
-    containerLong: raw.format?.format_long_name ?? formatName,
+    containerLong: containerLabel(raw) ?? raw.format?.format_long_name ?? formatName,
     durationSec: num(raw.format?.duration) ?? video?.durationSec ?? audio?.durationSec ?? null,
     bitrate: num(raw.format?.bit_rate),
     sizeBytes,
