@@ -49,6 +49,10 @@ test.describe('MediaForge — fluxos completos pela interface', () => {
     const mov = jobs.find((j: { output?: { name: string } }) => j.output?.name.endsWith('.mov'));
     expect(download.suggestedFilename()).toBe(mov.output.name);
     expect(sha256(file!)).toBe(mov.output.sha256);
+    // O cartão mostra o SHA-256 da origem e, abaixo, o da saída — os reais dos arquivos.
+    await expect(card.getByTestId('hash-before')).toHaveText(sha256(fx('iphone.mov')));
+    await expect(card.getByTestId('hash-after')).toHaveText(sha256(file!));
+    await expect(card.getByTestId('hash-verdict')).toHaveText('Arquivo diferente do original (bytes)');
     // E não contém mais o modelo do aparelho nem o GPS
     const bytes = fs.readFileSync(file!).toString('latin1');
     expect(bytes).not.toContain('iPhone 14 Pro');

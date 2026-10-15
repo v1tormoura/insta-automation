@@ -148,6 +148,8 @@ export interface JobOutputDTO {
   name: string;
   size: number;
   sha256: string;
+  /** SHA-256 do arquivo de origem (na importação), para comparar com o da saída. */
+  inputSha256: string | null;
   container: string | null;
   videoCodec: string | null;
   audioCodec: string | null;

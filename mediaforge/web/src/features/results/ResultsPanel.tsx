@@ -1,6 +1,6 @@
 import type { JobDTO } from '@mediaforge/shared';
 import clsx from 'clsx';
-import { Archive, Download, FileText, Image as ImageIcon, PackageOpen, Play, Trash2 } from 'lucide-react';
+import { Archive, Copy, Download, FileText, Image as ImageIcon, PackageOpen, Play, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button, IconButton } from '../../components/ui/Button';
 import { Checkbox, Select } from '../../components/ui/controls';
@@ -11,6 +11,56 @@ import { api, downloadVerified, triggerDownload } from '../../lib/api';
 import { formatBytes, formatDuration, formatFps, formatResolution } from '../../lib/format';
 import { keys, queryClient, removeJob, useBatches, useJobs } from '../../lib/queries';
 import { ReportDrawer } from './ReportDrawer';
+
+/** Um SHA-256 completo (quebrado em linhas), com botão de copiar. */
+function HashLine({ label, value, testId }: { label: string; value: string | null; testId: string }) {
+  const toast = useToast();
+  return (
+    <div className="flex items-start gap-1.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-medium tracking-wide text-ink-3 uppercase">{label}</p>
+        <p className="font-mono text-[10.5px] leading-snug break-all text-ink-2" data-testid={testId}>
+          {value ?? 'indisponível'}
+        </p>
+      </div>
+      {value && (
+        <IconButton
+          icon={Copy}
+          size="xs"
+          label={`Copiar ${label}`}
+          onClick={() =>
+            navigator.clipboard?.writeText(value).then(
+              () => toast.push('info', `${label} copiado`),
+              () => toast.push('warning', 'Não foi possível copiar'),
+            )
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * SHA-256 do arquivo original e, logo abaixo, o da saída. Hash diferente prova
+ * que o ARQUIVO é outro (integridade técnica); não mede semelhança de conteúdo
+ * nem diz como plataformas reconhecem o vídeo.
+ */
+function HashPair({ before, after }: { before: string | null; after: string }) {
+  const same = !!before && before === after;
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface/60 p-2" data-testid="hash-pair">
+      <HashLine label="SHA-256 original" value={before} testId="hash-before" />
+      <HashLine label="SHA-256 novo" value={after} testId="hash-after" />
+      <p
+        className={clsx('text-[10.5px]', same ? 'text-warn' : 'text-ok')}
+        title="Integridade técnica: o hash identifica o arquivo, não o conteúdo. Não indica originalidade nem como plataformas reconhecem o vídeo."
+        data-testid="hash-verdict"
+      >
+        {before === null ? 'Hash da origem indisponível' : same ? 'Arquivo idêntico ao original' : 'Arquivo diferente do original (bytes)'}
+      </p>
+    </div>
+  );
+}
 
 function ResultCard({ job, selected, onToggle, onOpen, onReport }: { job: JobDTO; selected: boolean; onToggle: () => void; onOpen: () => void; onReport: () => void }) {
   const toast = useToast();
@@ -50,10 +100,8 @@ function ResultCard({ job, selected, onToggle, onOpen, onReport }: { job: JobDTO
         </p>
         <div className="flex flex-wrap gap-1">
           <Badge tone={job.validationStatus === 'passed' ? 'ok' : 'warn'}>{job.validationStatus === 'passed' ? 'Validado' : 'Validado c/ avisos'}</Badge>
-          <Badge tone="neutral" title={`SHA-256 ${o.sha256}`}>
-            <span className="font-mono">{o.sha256.slice(0, 8)}</span>
-          </Badge>
         </div>
+        <HashPair before={o.inputSha256} after={o.sha256} />
         <div className="mt-auto flex items-center gap-1 pt-1">
           <Button
             size="xs"
